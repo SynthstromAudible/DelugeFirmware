@@ -8,7 +8,6 @@
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
-#include "gui/menu_item/audio_clip/mod_fx/type.h"
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
@@ -651,27 +650,13 @@ Submenu audioClipSampleMenu{
     },
 };
 
-// Mod FX Menu
-audio_clip::mod_fx::Type audioClipModFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MOD_FX_TYPE};
-
-Submenu audioClipModFXMenu{
-    STRING_FOR_MOD_FX,
-    {
-        &audioClipModFXTypeMenu,
-        &globalModFXRateMenu,
-        &modFXFeedbackMenu,
-        &globalModFXDepthMenu,
-        &modFXOffsetMenu,
-    },
-};
-
 audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
 Submenu audioClipFXMenu{
     STRING_FOR_FX,
     {
-        &audioClipModFXMenu,
+        &globalModFXMenu,
         &eqMenu,
         &globalDelayMenu,
         &globalReverbMenu,
@@ -1164,8 +1149,8 @@ MenuItem* paramShortcutsForSounds[][8] = {
 MenuItem* paramShortcutsForAudioClips[][8] = {
     {nullptr,                 &audioClipReverseMenu,   nullptr,                        &samplePitchSpeedMenu,          nullptr,              &fileSelectorMenu,      &interpolationMenu,       &audioClipSampleMarkerEditorMenuEnd},
     {nullptr,                 &audioClipReverseMenu,   nullptr,                        &samplePitchSpeedMenu,          nullptr,              &fileSelectorMenu,      &interpolationMenu,       &audioClipSampleMarkerEditorMenuEnd},
-    {&globalLevelMenu,     	  &audioClipTransposeMenu, nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {&globalLevelMenu,     	  &audioClipTransposeMenu, nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,     	  		  nullptr, 				   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,     	  		  nullptr, 				   nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {&globalLevelMenu,     	  &audioClipTransposeMenu, nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
@@ -1174,7 +1159,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           comingSoonMenu,       &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &globalCompressorVolumeMenu,    &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
-    {nullptr,                 nullptr,                 nullptr,                        &audioClipModFXTypeMenu,        &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu            	  },
+    {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,           	   &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu            	  },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
