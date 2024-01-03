@@ -22,7 +22,7 @@ void* _sbrk(int incr) {
 	}
 	else {
 		heap = prev_heap;
-		return (void*) -1;
+		return (void*)-1;
 	}
 }
 
