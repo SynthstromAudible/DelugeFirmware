@@ -31,7 +31,7 @@ public:
 
 		soundEditor.currentArpSettings = soundEditor.editingKit()
 		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
-		                                     : &(static_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
+		                                     : &getCurrentInstrumentClip()->arpSettings;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 };

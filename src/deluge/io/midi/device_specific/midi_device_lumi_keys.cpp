@@ -111,7 +111,7 @@ void MIDIDeviceLumiKeys::hookOnTransitionToArrangerView() {
 }
 
 void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
-	InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	bool learnedToCurrentClip = false;
 

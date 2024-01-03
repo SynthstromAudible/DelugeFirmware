@@ -36,13 +36,12 @@ public:
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (currentSong->currentClip->isActiveOnOutput()) {
+			if (getCurrentClip()->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 				if (soundEditor.editingCVOrMIDIClip()) {
-					(static_cast<InstrumentClip*>(currentSong->currentClip))
-					    ->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
+					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {
 					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();

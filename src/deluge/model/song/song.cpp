@@ -74,6 +74,40 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+Clip* getCurrentClip() {
+	return currentSong->currentClip;
+}
+
+InstrumentClip* getCurrentInstrumentClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		return (InstrumentClip*)getCurrentClip();
+	}
+	return nullptr;
+}
+
+AudioClip* getCurrentAudioClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return (AudioClip*)getCurrentClip();
+	}
+	return nullptr;
+}
+
+Output* getCurrentOutput() {
+	return getCurrentClip()->output;
+}
+
+Kit* getCurrentKit() {
+	return (Kit*)getCurrentClip()->output;
+}
+
+Instrument* getCurrentInstrument() {
+	return (Instrument*)getCurrentClip()->output;
+}
+
+InstrumentType getCurrentInstrumentType() {
+	return (InstrumentType)getCurrentInstrument()->type;
+}
+
 using namespace deluge;
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {

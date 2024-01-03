@@ -34,10 +34,6 @@
 #include "playback/playback_handler.h"
 #include <new>
 
-static Clip* getCurrentClip() {
-	return currentSong->currentClip;
-}
-
 ClipView::ClipView() {
 }
 
