@@ -144,7 +144,7 @@ add_compile_options(
     #does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
-    
+
     # limit std lib usage
     -ffreestanding
 
@@ -228,7 +228,7 @@ target_link_options(deluge PUBLIC
     #use newlib nano
     --specs=nano.specs 
     #replace syscalls with not implemented stubs
-    --specs=nosys.specs
+
 
     -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
     LINKER:-Map=${MAP_FILE}
