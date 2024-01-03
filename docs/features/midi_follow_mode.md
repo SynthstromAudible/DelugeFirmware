@@ -1,10 +1,10 @@
 # Midi Follow Mode with Midi Feedback
 
-<img width="240" alt="Screen Shot 2023-12-02 at 7 13 16 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f019b488-11e8-442d-a47b-cd95fbc45d9b">
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/9389ad30-9d5a-435d-aee0-ba3f54d3c8a8)
 
 ## Description:
 
-Master midi follow mode whereby after enabling the mode, you set a master midi follow channel for synth clips, kit clips, and for parameters and all midi (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+Master midi follow mode whereby after setting a master midi follow channel for synth clips, kit clips, and for parameters and all midi (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 
 - For example, Midi Notes received on the Synth Channel will send notes to the active Synth clip. Midi CC's received on the Param Channel will send cc's to control the params of the active view.
 
@@ -20,11 +20,10 @@ Comes with an XML file with default CC to Deluge parameter mappings. You can cus
 
 ## Usage:
 
-### Turn Follow Mode On, Set Master Midi Follow Channel(s), Set Kit Root Note, Enable/Disable Pop-ups and Enable/Disable Midi Feedback
+### Set Master Midi Follow Channel(s), Set Kit Root Note, Enable/Disable Pop-ups and Enable/Disable Midi Feedback
 
 To use midi follow mode, you will need to configure the various Midi Follow Mode settings by entering the settings menu and going to the sub menu for Midi -> Midi-Follow
 
-- In the Midi-Follow > Follow submenu, set this feature to Enabled or Disabled
 - In the Midi-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE, for Synths (will apply to Synth Clips, Midi Clips, and CV Clips), Kits and Params.
 - In the Midi-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map Midi Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the Midi-Follow > Display Param submenu, enable or disable param pop-ups
@@ -107,7 +106,6 @@ Note: if the Midi CC being received is for a Parameter that cannot be controlled
 
 1. Added new Midi submenu for Midi-Follow where you can: 
 
-- Enable or Disable Midi Follow Mode
 - Set the Midi Follow Channel and Device for Synth Notes
 - Set the Midi Follow Channel and Device for Kit Notes
 - Set the Midi Follow Channel and Device for Param CC's
