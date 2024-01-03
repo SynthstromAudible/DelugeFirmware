@@ -1238,7 +1238,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		reGetParameterAutomation(modelStack);
 
 		// Resume the clip if it was playing before
-		currentSong->currentClip->resumePlayback(modelStack, true);
+		getCurrentClip()->resumePlayback(modelStack, true);
 	}
 	return true;
 }

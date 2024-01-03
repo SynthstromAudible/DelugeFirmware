@@ -26,18 +26,14 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		this->setValue(
-		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648)
-		         * kMaxMenuValue
-		     + 2147483648)
-		    >> 32);
+		    (((int64_t)getCurrentInstrumentClip()->arpeggiatorRate + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
 		if (this->getValue() == kMidMenuValue) {
-			(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate = 0;
+			getCurrentInstrumentClip()->arpeggiatorRate = 0;
 		}
 		else {
-			(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate =
-			    (uint32_t)this->getValue() * 85899345 - 2147483648;
+			getCurrentInstrumentClip()->arpeggiatorRate = (uint32_t)this->getValue() * 85899345 - 2147483648;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }

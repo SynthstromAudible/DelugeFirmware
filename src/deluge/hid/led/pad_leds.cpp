@@ -291,11 +291,11 @@ void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t gre
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
-	clipLength = currentSong->currentClip->loopLength;
+	clipLength = getCurrentClip()->loopLength;
 
 	if (collapsingOutOfClipMinder) {
-		view.getClipMuteSquareColour(currentSong->currentClip,
-		                             clipMuteSquareColour); // This shouldn't have to be done every time
+		// This shouldn't have to be done every time
+		view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
 	}
 }
 
@@ -787,8 +787,8 @@ void timerRoutine() {
 		if (progress >= 65536) { // If finished transitioning...
 
 			// If going to keyboard screen, no sidebar or anything to fade in
-			if (explodeAnimationDirection == 1 && currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT
-			    && ((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+			if (explodeAnimationDirection == 1 && getCurrentClip()->type == CLIP_TYPE_INSTRUMENT
+			    && getCurrentInstrumentClip()->onKeyboardScreen) {
 				currentUIMode = UI_MODE_NONE;
 				changeRootUI(&keyboardScreen);
 			}
@@ -796,7 +796,7 @@ void timerRoutine() {
 			// Otherwise, there's stuff we want to fade in / to
 			else {
 				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 					renderExplodeAnimation(explodedness, false);
 				}
 				else {
@@ -806,8 +806,8 @@ void timerRoutine() {
 
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
-					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-						if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+					if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+						if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
 						}
 						else {
@@ -848,7 +848,7 @@ void timerRoutine() {
 			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
 			explodedness += progress * explodeAnimationDirection;
 
-			if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {
@@ -996,10 +996,10 @@ void renderClipExpandOrCollapse() {
 		if (progress >= 65536) {
 			currentUIMode = UI_MODE_NONE;
 
-			if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				changeRootUI(&keyboardScreen);
 			}
-			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 				changeRootUI(&automationInstrumentClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
@@ -1039,7 +1039,7 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 			uiNeedsRendering(&automationInstrumentClipView);
 		}
 		else {
