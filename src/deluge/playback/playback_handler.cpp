@@ -2792,7 +2792,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if midi cc received should be processed by midi follow mode
-	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, isMPE, modelStack);
+	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

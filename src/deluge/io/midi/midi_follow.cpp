@@ -409,16 +409,17 @@ void MidiFollow::offerReceivedNoteToMelodicInstrument(ModelStackWithTimelineCoun
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
+                                bool* doingMidiThru, ModelStack* modelStack) {
 	MIDIMatchType matchSynth = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
 	MIDIMatchType matchKit = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
 	MIDIMatchType matchParam = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::PARAM);
 	if ((matchSynth != MIDIMatchType::NO_MATCH)
 	    || (matchKit == MIDIMatchType::MPE_MASTER || matchKit == MIDIMatchType::MPE_MEMBER)
-	    || (matchParam != MIDIMatchType::NO_MATCH)) {
+	    || (matchParam == MIDIMatchType::MPE_MASTER || matchParam == MIDIMatchType::CHANNEL)) {
 		//obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getClipForMidiFollow();
-		if (!isMPE && view.activeModControllableModelStack.modControllable && (matchParam != MIDIMatchType::NO_MATCH)) {
+		if (view.activeModControllableModelStack.modControllable
+		    && (matchParam == MIDIMatchType::MPE_MASTER || matchParam == MIDIMatchType::CHANNEL)) {
 			//if midi follow feedback and feedback filter is enabled,
 			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			//if it was greater or equal than 1 second ago, allow received midi cc to go through

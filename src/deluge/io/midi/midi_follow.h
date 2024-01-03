@@ -43,7 +43,7 @@ public:
 	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
-	                    bool isMPE, ModelStack* modelStack);
+	                    ModelStack* modelStack);
 	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
 	                       ModelStack* modelStack);
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
