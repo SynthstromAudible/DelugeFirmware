@@ -4,9 +4,9 @@
 
 ## Description:
 
-Master MIDI follow mode whereby after setting a master MIDI follow channel for synth clips, kit clips, and for parameters, all MIDI (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 
-- For example, MIDI Notes received on the Synth Channel will send notes to the active Synth clip. MIDI CC's received on the Param Channel will send cc's to control the params of the active view.
+- For example, MIDI Notes received on the Synth Channel will send notes to the active Synth/MIDI/CV clip. MIDI CC's received on the Param Channel will send cc's to control the params of the active view.
 
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
@@ -106,7 +106,7 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 
 1. Added new MIDI submenu for MIDI-Follow where you can: 
 
-- Set the MIDI Follow Channel and Device for Synth Notes
+- Set the MIDI Follow Channel and Device for Synth Notes (which also applies to MIDI and CV clips)
 - Set the MIDI Follow Channel and Device for Kit Notes
 - Set the MIDI Follow Channel and Device for Param CC's
 - Set the MIDI Follow Root Note for Kits
