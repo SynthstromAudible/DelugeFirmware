@@ -85,17 +85,17 @@ PLACE_SDRAM_DATA Language english{
         //Wavefolder
         {STRING_FOR_WAVEFOLDER, "Wavefolder"},
 
-        //OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        //OSC 1 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 phase width"},
+        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Osc1 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave position"},
 
-        //OSC 2 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        //OSC 2 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 phase width"},
+        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Osc2 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave position"},
 
@@ -822,6 +822,25 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_KIT_GLOBAL_FX, "Kit FX"},
         {STRING_FOR_PITCH, "Pitch"},
+
+        /* Strings Specifically for Midi Learning View
+        * midi_follow.cpp
+        */
+        //strings for midi follow menu
+        {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
+        {STRING_FOR_FOLLOW, "Follow"},
+        {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
+        {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
+        {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
+        {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
+        {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "Automation Feedback"},
+        {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "Filter Responses"},
+        {STRING_FOR_FOLLOW_DEVICE_UNASSIGNED, "Device unassigned"},
+        {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
+        {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
+        {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
     },
 };
 } // namespace deluge::l10n::built_in

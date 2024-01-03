@@ -108,6 +108,7 @@ public:
 	int32_t lastInteractedOutputIndex;
 	int32_t lastInteractedPos;
 	uint8_t lastInteractedSection;
+	ClipInstance* lastInteractedClipInstance;
 
 	int32_t lastTickSquare;
 

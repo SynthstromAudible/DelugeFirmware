@@ -92,6 +92,7 @@ ArrangerView::ArrangerView() {
 	lastInteractedOutputIndex = 0;
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
+	lastInteractedClipInstance = nullptr;
 }
 
 void ArrangerView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -1148,6 +1149,7 @@ void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipIns
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
 	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
+	lastInteractedClipInstance = clipInstance;
 }
 
 void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
@@ -1615,8 +1617,10 @@ void ArrangerView::exitSubModeWithoutAction() {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
-		view.setActiveModControllableTimelineCounter(currentSong);
+		//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+		//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
+		view.setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
 		if (outputsOnScreen[yPressedEffective] == pressedClipInstanceOutput) {
 			whichRowsNeedReRendering = (1 << yPressedEffective);

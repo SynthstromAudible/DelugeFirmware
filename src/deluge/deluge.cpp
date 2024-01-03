@@ -62,6 +62,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -705,6 +706,7 @@ extern "C" int32_t deluge_main(void) {
 	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
 
 	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can read this file now.
+	midiFollow.readDefaultsFromFile();
 
 	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
 

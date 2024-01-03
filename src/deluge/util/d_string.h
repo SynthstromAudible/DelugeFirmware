@@ -82,7 +82,7 @@ class StringBuf {
 public:
 	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) {}
 
-	void append(const char* str) { ::strncat(buf_, str, capacity_ - size()); }
+	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void clear() { buf_[0] = 0; }
 
