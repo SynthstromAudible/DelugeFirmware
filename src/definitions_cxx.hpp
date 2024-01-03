@@ -401,6 +401,15 @@ enum class PerformanceEditingMode : int32_t {
 	PARAM,
 };
 
+//Midi Follow Mode Feedback Automation Modes
+
+enum class MIDIFollowFeedbackAutomationMode : uint8_t {
+	DISABLED,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -801,6 +810,13 @@ enum class MIDITakeoverMode : uint8_t {
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
 constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
+enum class MIDIFollowChannelType : uint8_t {
+	SYNTH,
+	KIT,
+	PARAM,
+};
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::PARAM) + 1;
+
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
 enum class InputMonitoringMode : uint8_t {
@@ -863,6 +879,7 @@ enum CCNumber {
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
+constexpr int32_t kMaxMIDIValue = 127;
 
 enum class InstrumentRemoval {
 	NONE,
@@ -1064,6 +1081,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
@@ -1127,6 +1145,11 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 /// Length of a press that delineates a "hold" press.
 /// Used in Performance View and with Sticky Shift
 constexpr uint32_t kHoldTime = kSampleRate / 10;
+
+/// Rate at which midi follow feedback for automation is sent
+constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    //500 ms
+constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; //150 ms
+constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    //40 ms
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

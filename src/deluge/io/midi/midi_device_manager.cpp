@@ -405,6 +405,41 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+
+	uint16_t vendorId = *(uint16_t const*)memory;
+
+	MIDIDevice* device;
+
+	if (vendorId == VENDOR_ID_NONE) {
+		device = NULL;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
+		device = &upstreamUSBMIDIDevice_port1;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
+		device = &upstreamUSBMIDIDevice_port2;
+	}
+	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
+		device = &upstreamUSBMIDIDevice_port3;
+	}
+	else if (vendorId == VENDOR_ID_DIN) {
+		device = &dinMIDIPorts;
+	}
+	else {
+		uint16_t productId = *(uint16_t const*)(memory + 2);
+		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
+	}
+
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device = device;
+}
+
+void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory) {
+	if (midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device) {
+		midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device->writeToFlash(memory);
+	}
+}
+
 void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;

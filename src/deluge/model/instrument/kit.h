@@ -42,6 +42,7 @@ public:
 	~Kit();
 	int32_t getDrumIndex(Drum* drum);
 	Drum* getDrumFromIndex(int32_t index);
+	Drum* getDrumFromIndexAllowNull(int32_t index);
 	void modKnobAction(uint8_t whichKnob, int8_t offset);
 	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
 	void cutAllSound();

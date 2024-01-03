@@ -16,6 +16,7 @@
 */
 #include "integer.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 
@@ -30,7 +31,12 @@ void Integer::readCurrentValue() {
 void Integer::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
-	modelStack->autoParam->setCurrentValueInResponseToUserInput(getFinalValue(), modelStack);
+	int32_t value = getFinalValue();
+	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+
+	//send midi follow feedback
+	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
+	view.sendMidiFollowFeedback(modelStack, knobPos);
 
 	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), true, true);
 }
