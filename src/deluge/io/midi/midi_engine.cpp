@@ -222,9 +222,6 @@ MidiEngine::MidiEngine() {
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}
-	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = 15;
-	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = 15;
-	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = 15;
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
 	midiFollowFeedback = false;

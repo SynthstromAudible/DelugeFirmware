@@ -1885,10 +1885,19 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos) {
-	midiEngine.sendCC(
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone, ccNumber,
-	    knobPos + kKnobPosOffset,
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone);
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)];
+	int32_t channel;
+
+	if (midiInput.isForMPEZone()) {
+		channel = midiInput.getMasterChannel();
+	}
+	else {
+		channel = midiInput.channelOrZone;
+	}
+
+	int32_t midiOutputFilter = midiInput.channelOrZone;
+
+	midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
 
 	midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }

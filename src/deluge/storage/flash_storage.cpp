@@ -186,9 +186,6 @@ void resetSettings() {
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = 15;
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = 15;
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = 15;
 	midiEngine.midiFollowKitRootNote = 36;
 	midiEngine.midiFollowDisplayParam = false;
 	midiEngine.midiFollowFeedback = false;

@@ -27,10 +27,10 @@ public:
 	using Integer::Integer;
 
 	FollowChannel(l10n::String newName, l10n::String title, LearnedMIDI& input)
-	    : Integer(newName, title), midiFollow(input) {}
+	    : Integer(newName, title), midiInput(input) {}
 
-	void readCurrentValue() override { this->setValue(midiFollow.channelOrZone); }
-	void writeCurrentValue() override { midiFollow.channelOrZone = this->getValue(); }
+	void readCurrentValue() override { this->setValue(midiInput.channelOrZone); }
+	void writeCurrentValue() override { midiInput.channelOrZone = this->getValue(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_CHANNELS; }
 	bool allowsLearnMode() override { return true; }
 
@@ -51,8 +51,8 @@ public:
 		yPixel += kTextSpacingY;
 
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
-		if (midiFollow.device) {
-			deviceString = midiFollow.device->getDisplayName();
+		if (midiInput.device) {
+			deviceString = midiInput.device->getDisplayName();
 		}
 		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
@@ -74,8 +74,8 @@ public:
 		else {
 			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
-			int32_t channelmod = (midiFollow.channelOrZone >= IS_A_CC) * IS_A_CC;
-			intToString(midiFollow.channelOrZone + 1 - channelmod, buffer, 1);
+			int32_t channelmod = (midiInput.channelOrZone >= IS_A_CC) * IS_A_CC;
+			intToString(midiInput.channelOrZone + 1 - channelmod, buffer, 1);
 			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
 			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 			                                       kTextSpacingX, kTextSizeYUpdated);
@@ -122,7 +122,7 @@ public:
 
 	void unlearnAction() {
 		this->setValue(MIDI_CHANNEL_NONE);
-		midiFollow.clear();
+		midiInput.clear();
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
 				renderUIsForOled();
@@ -138,8 +138,8 @@ public:
 
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
 		this->setValue(channel);
-		midiFollow.device = device;
-		midiFollow.channelOrZone = channel;
+		midiInput.device = device;
+		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
@@ -158,8 +158,8 @@ public:
 
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
 		this->setValue(channel);
-		midiFollow.device = device;
-		midiFollow.channelOrZone = channel;
+		midiInput.device = device;
+		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
@@ -175,6 +175,6 @@ public:
 	}
 
 private:
-	LearnedMIDI& midiFollow;
+	LearnedMIDI& midiInput;
 };
 } // namespace deluge::gui::menu_item::midi
