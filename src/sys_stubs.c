@@ -21,7 +21,7 @@ void* _sbrk(int incr) {
 		return prev_heap;
 	} else {
 		heap = prev_heap;
-		return 0;
+		return -1;
 	}
 
 }
