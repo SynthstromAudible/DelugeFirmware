@@ -412,6 +412,8 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 	if (match != MIDIMatchType::NO_MATCH) {
 		//obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getClipForMidiFollow();
+		//clip is allowed to be null here because there may not be an active clip
+		//e.g. you want to control the song level parameters
 		if (view.activeModControllableModelStack.modControllable
 		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			//if midi follow feedback and feedback filter is enabled,

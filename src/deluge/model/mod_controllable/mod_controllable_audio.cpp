@@ -1735,6 +1735,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	//setup model stack for the active context
+	//if clip is null, it means you want to control the song level parameters
 	if (!clip) {
 		if (currentSong->affectEntire) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
