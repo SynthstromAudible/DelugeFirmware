@@ -1,6 +1,6 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include <stdbool.h>
 //doing the minimal amount possible to not break
 
 void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
@@ -19,11 +19,11 @@ void* _sbrk(int incr) {
 	heap += incr;
 	if (heap < end_heap) {
 		return prev_heap;
-	} else {
+	}
+	else {
 		heap = prev_heap;
 		return -1;
 	}
-
 }
 
 int _close(int file) {

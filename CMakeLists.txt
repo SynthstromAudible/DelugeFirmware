@@ -225,9 +225,9 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 # add link options to generate memory map
 target_link_options(deluge PUBLIC
 
-    #use newlib nano
+    # use newlib nano
     --specs=nano.specs 
-    #replace syscalls with not implemented stubs
+
 
 
     -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
