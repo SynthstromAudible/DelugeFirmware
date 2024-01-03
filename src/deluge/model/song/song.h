@@ -54,6 +54,13 @@ class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 
+Clip* getCurrentClip();
+InstrumentClip* getCurrentInstrumentClip();
+AudioClip* getCurrentAudioClip();
+Output* getCurrentOutput();
+Instrument* getCurrentInstrument();
+InstrumentType getCurrentInstrumentType();
+
 class Section {
 public:
 	LearnedMIDI launchMIDICommand;
@@ -352,33 +359,3 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
-
-inline Clip* getCurrentClip() {
-	return currentSong->currentClip;
-};
-
-inline InstrumentClip* getCurrentInstrumentClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
-		return (InstrumentClip*)getCurrentClip();
-	}
-	return nullptr;
-};
-
-inline AudioClip* getCurrentAudioClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
-		return (AudioClip*)getCurrentClip();
-	}
-	return nullptr;
-};
-
-inline Output* getCurrentOutput() {
-	return getCurrentClip()->output;
-};
-
-inline Instrument* getCurrentInstrument() {
-	return (Instrument*)getCurrentClip()->output;
-};
-
-inline InstrumentType getCurrentInstrumentType() {
-	return (InstrumentType)getCurrentInstrument()->type;
-};
