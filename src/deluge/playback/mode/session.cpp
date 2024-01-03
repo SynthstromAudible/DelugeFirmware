@@ -167,9 +167,9 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
 			armClipToStopAction(clip);
 
-			// Create new clip if we're continuous-layering
-			// Make it spawn more too
 			if (clip->getCurrentlyRecordingLinearly() && clip->overdubNature == OverDubType::ContinuousLayering) {
+				// Create new clip if we're continuous-layering
+				// Make it spawn more too
 				currentSong->createPendingNextOverdubBelowClip(clip, clipIndex, OverDubType::ContinuousLayering);
 			}
 		}

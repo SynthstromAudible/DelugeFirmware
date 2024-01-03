@@ -88,7 +88,7 @@ public:
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
 		if (!getCurrentInstrumentClip()->affectEntire && getCurrentInstrumentType() == InstrumentType::KIT
-		    && getCurrentKit()->selectedDrum == nullptr)) {
+		    && (getCurrentKit()->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
 		}
 		return MenuPermission::YES;
