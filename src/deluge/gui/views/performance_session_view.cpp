@@ -1230,6 +1230,10 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 				}
 			}
 
+			//midi follow and midi feedback enabled
+			//re-send midi cc because learned parameter value has changed
+			view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
+
 			return true;
 		}
 	}

@@ -19,12 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -1621,7 +1623,6 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
                                                           uint8_t value, ModelStackWithTimelineCounter* modelStack,
                                                           int32_t noteRowIndex) {
-
 	bool messageUsed = false;
 
 	// For each MIDI knob...
@@ -1637,7 +1638,6 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			if (value >= 16 && value < 112) {
 				knob->relative = false;
 			}
-
 			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
 			int32_t modPos = 0;
 			int32_t modLength = 0;
@@ -1659,19 +1659,19 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-			if (modelStackWithParam->autoParam) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
+
+				int32_t previousValue =
+				    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				int32_t knobPos =
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
 				if (knob->relative) {
 					int32_t offset = value;
 					if (offset >= 64) {
 						offset -= 128;
 					}
-
-					int32_t previousValue =
-					    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-					int32_t knobPos =
-					    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 					int32_t lowerLimit = std::min(-64_i32, knobPos);
 					newKnobPos = knobPos + offset;
 					newKnobPos = std::max(newKnobPos, lowerLimit);
@@ -1681,123 +1681,20 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
-						newKnobPos = 64;
-						if (value < 127) {
-							newKnobPos = (int32_t)value - 64;
-						}
-						knob->previousPositionSaved = false;
+					//add 64 to internal knobPos to compare to midi cc value received
+					//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+					//because midi can only send a max midi value of 127
+					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+						knobPosForMidiValueComparison = kMaxMIDIValue;
 					}
-					else { //Midi Takeover Mode = Pickup or Value Scaling
-						/*
 
-						Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
-
-						- Midi CC Values for non endless encoders typically go from 0 to 127
-						- Deluge Knob Position Value goes from -64 to 64
-
-						To convert Midi CC Value to Deluge Knob Position Value, subtract 64 from the Midi CC Value
-
-						So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
-
-						Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +63 (127 less 64)
-
-						*/
-
-						int32_t midiKnobPos = value - 64;
-
-						//Save previous knob position for first time
-						//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
-						//This code is also executed when takeover mode is changed to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
-
-						if (!knob->previousPositionSaved) {
-							knob->previousPosition = midiKnobPos;
-
-							knob->previousPositionSaved = true;
-						}
-
-						//adjust previous knob position saved
-
-						//Here we check to see if the midi knob position previously saved is greater or less than the current midi knob position +/- 1
-						//If it's by more than 1, the previous position is adjusted.
-						//This could happen for example if you changed banks and the previous position is no longer valid.
-						//By resetting the previous position we ensure that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
-						if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
-
-							knob->previousPosition = midiKnobPos;
-						}
-
-						//Here we obtain the current Parameter Value on the Deluge
-						int32_t previousValue =
-						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-
-						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
-						    previousValue, modelStackWithParam);
-
-						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
-
-						//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold
-						//If the difference is greater than kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
-						int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
-						int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
-
-						if ((midiKnobMinPos <= midiKnobPos) && (midiKnobPos <= midiKnobMaxPos)) {
-							newKnobPos = knobPos + (midiKnobPos - knobPos);
-						}
-						else {
-							//if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
-							if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { //Midi Pickup Mode On
-								newKnobPos = knobPos;
-							}
-							//if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is scaled upwards or downwards based on relative
-							//positions of Midi Controller Knob and Deluge Knob to min/max of knob range.
-							else { //Midi Value Scaling Mode On
-								//Set the max and min of the deluge midi knob position range
-								int32_t knobMaxPos = 64;
-								int32_t knobMinPos = -64;
-
-								//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
-								int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
-								int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
-
-								//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
-								int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
-								int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
-
-								//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
-								int32_t midiKnobPosChange = midiKnobPos - knob->previousPosition;
-
-								//Set fixed point variable which will be used calculate the percentage in midi knob position
-								int32_t midiKnobPosChangePercentage;
-
-								//if midi knob position change is greater than 0, then the midi knob position has increased (e.g. turned knob right)
-								if (midiKnobPosChange > 0) {
-									//fixed point math calculation of new deluge knob position when midi knob position has increased
-
-									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
-
-									newKnobPos =
-									    knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
-								}
-								//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
-								else if (midiKnobPosChange < 0) {
-									//fixed point math calculation of new deluge knob position when midi knob position has decreased
-
-									midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
-
-									newKnobPos =
-									    knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
-								}
-								//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
-								else {
-									newKnobPos = knobPos;
-								}
-							}
-						}
-
-						//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
-						knob->previousPosition = midiKnobPos;
+					//is the cc being received for the same value as the current knob pos? If so, do nothing
+					if (value != knobPosForMidiValueComparison) {
+						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos, value, knob);
+					}
+					else {
+						continue;
 					}
 				}
 
@@ -1808,10 +1705,350 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				//Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
+
+				//if you're in automation view and editing the same parameter that was just updated
+				//by a learned midi knob, then re-render the pads on the automation editor grid
+				if (getRootUI() == &automationInstrumentClipView) {
+					InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+					int32_t id = modelStackWithParam->paramId;
+					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
+						uiNeedsRendering(&automationInstrumentClipView);
+					}
+				}
 			}
 		}
 	}
 	return messageUsed;
+}
+
+/// this function is called when midi follow is enabled
+/// it checks if the ccNumber received has been learned to any parameters in midi learning view
+/// if the cc has been learned, it sets the new value for that parameter
+/// this function works by first checking the active context to see if there is an active clip
+/// to determine if the cc intends to control a song level or clip level parameter
+void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber,
+                                                    int32_t value) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+
+	//setup model stack for the active context
+	//if clip is null, it means you want to control the song level parameters
+	if (!clip) {
+		if (currentSong->affectEntire) {
+			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		}
+	}
+	else if (modelStack) {
+		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+	}
+
+	//check that model stack is valid
+	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		//loop through the grid to see if any parameters have been learned to the ccNumber received
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (midiFollow.paramToCC[xDisplay][yDisplay] == ccNumber) {
+					//obtain the model stack for the parameter the ccNumber received is learned to
+					ModelStackWithAutoParam* modelStackWithParam = midiFollow.getModelStackWithParam(
+					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
+					    ccNumber, midiEngine.midiFollowDisplayParam);
+					//check if model stack is valid
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						if (modelStackWithParam->getTimelineCounter()
+						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+							//get current value
+							int32_t oldValue =
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+							//convert current value to knobPos to compare to cc value being received
+							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+							    oldValue, modelStackWithParam);
+
+							//add 64 to internal knobPos to compare to midi cc value received
+							//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+							//because midi can only send a max midi value of 127
+							int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+							if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+								knobPosForMidiValueComparison = kMaxMIDIValue;
+							}
+
+							//is the cc being received for the same value as the current knob pos? If so, do nothing
+							if (value != knobPosForMidiValueComparison) {
+								//calculate new knob position based on value received and deluge current value
+								int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos,
+								                                                     value, nullptr, true, ccNumber);
+
+								//Convert the New Knob Position to a Parameter Value
+								int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+								    newKnobPos, modelStackWithParam);
+
+								//Set the new Parameter Value for the MIDI Learned Parameter
+								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+								                                                          view.modPos, view.modLength);
+
+								//check if you should display name of the parameter that was changed and the value that has been set
+								if (midiEngine.midiFollowDisplayParam) {
+									bool editingParamInAutomationView = false;
+									//if you're in automation view and editing the same parameter that was just updated
+									//by a learned midi knob, then re-render the pads on the automation editor grid
+									if (getRootUI() == &automationInstrumentClipView) {
+										InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+										int32_t id = modelStackWithParam->paramId;
+										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+										if ((clip->lastSelectedParamID == id)
+										    && (clip->lastSelectedParamKind == kind)) {
+											uiNeedsRendering(&automationInstrumentClipView);
+											editingParamInAutomationView = true;
+										}
+									}
+									//if you're in the automation view editor, don't display popup if you're currently editing the same param
+									if (!editingParamInAutomationView) {
+										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+										view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId,
+										                                 newKnobPos);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/// called when updating the context,
+/// e.g. switching from song to clip, changing instruments presets, peeking a clip in song view
+/// this function:
+/// 1) checks the active context
+/// 2) sets up the model stack for that context
+/// 3) checks what parameters have been learned and obtains the model stack for those params
+/// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
+void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+
+	//obtain clip for active context
+	Clip* clip = midiFollow.getClipForMidiFollow();
+
+	//setup model stack for the active context
+	if (!clip) {
+		if (currentSong->affectEntire) {
+			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		}
+	}
+	else {
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		if (modelStack) {
+			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		}
+	}
+
+	//check that model stack is valid
+	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		//loop through the grid to see if any parameters have been learned
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (midiFollow.paramToCC[xDisplay][yDisplay] != MIDI_CC_NONE) {
+					//obtain the model stack for the parameter that has been learned
+					ModelStackWithAutoParam* modelStackWithParam =
+					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
+					                                      clip, xDisplay, yDisplay, MIDI_CC_NONE, false);
+					//check that model stack is valid
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						if (modelStackWithParam->getTimelineCounter()
+						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+							if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+								//obtain current value of the learned parameter
+								int32_t currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(
+								    view.modPos, modelStackWithParam);
+
+								//convert current value to a knob position
+								int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+								    currentValue, modelStackWithParam);
+
+								//send midi feedback to the ccNumber learned to the param with the current knob position
+								sendCCForMidiFollowFeedback(channel, midiFollow.paramToCC[xDisplay][yDisplay], knobPos);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
+void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)];
+
+	if (midiInput.isForMPEZone()) {
+		channel = midiInput.getMasterChannel();
+	}
+
+	int32_t midiOutputFilter = midiInput.channelOrZone;
+
+	midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+
+	midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
+}
+
+/// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
+/// this function will calculate the knob position that the deluge parameter that the midi cc
+/// received is learned to should be set at based on the midi cc value received
+int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
+                                                              int32_t knobPos, int32_t value, MIDIKnob* knob,
+                                                              bool doingMidiFollow, int32_t ccNumber) {
+	/*
+
+	Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
+
+	- Midi CC Values for non endless encoders typically go from 0 to 127
+	- Deluge Knob Position Value goes from -64 to 64
+
+	To convert Midi CC Value to Deluge Knob Position Value, subtract 64 from the Midi CC Value
+
+	So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
+
+	Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +63 (127 less 64)
+
+	*/
+
+	int32_t midiKnobPos = 64;
+	if (value < kMaxMIDIValue) {
+		midiKnobPos = value - 64;
+	}
+
+	int32_t newKnobPos = 0;
+
+	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
+		newKnobPos = midiKnobPos;
+		if (knob != nullptr) {
+			knob->previousPosition = midiKnobPos;
+		}
+		else if (doingMidiFollow) {
+			midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
+		}
+	}
+	else { //Midi Takeover Mode = Pickup or Value Scaling
+		//Save previous knob position for first time
+		//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
+		//This code is also executed when takeover mode is changed to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
+
+		if (knob != nullptr) {
+			if (!knob->previousPositionSaved) {
+				knob->previousPosition = midiKnobPos;
+
+				knob->previousPositionSaved = true;
+			}
+		}
+		else if (doingMidiFollow) {
+			if (midiFollow.previousKnobPos[ccNumber] == kNoSelection) {
+				midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
+			}
+		}
+
+		//adjust previous knob position saved
+
+		//Here we check to see if the midi knob position previously saved is greater or less than the current midi knob position +/- 1
+		//If it's by more than 1, the previous position is adjusted.
+		//This could happen for example if you changed banks and the previous position is no longer valid.
+		//By resetting the previous position we ensure that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
+		if (knob != nullptr) {
+			if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
+
+				knob->previousPosition = midiKnobPos;
+			}
+		}
+		else if (doingMidiFollow) {
+			int32_t previousPosition = midiFollow.previousKnobPos[ccNumber];
+			if (previousPosition > (midiKnobPos + 1) || previousPosition < (midiKnobPos - 1)) {
+
+				midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
+			}
+		}
+
+		//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
+
+		//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold
+		//If the difference is greater than kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
+		int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
+		int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
+
+		if ((midiKnobMinPos <= midiKnobPos) && (midiKnobPos <= midiKnobMaxPos)) {
+			newKnobPos = knobPos + (midiKnobPos - knobPos);
+		}
+		else {
+			//if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
+			if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { //Midi Pickup Mode On
+				newKnobPos = knobPos;
+			}
+			//if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is scaled upwards or downwards based on relative
+			//positions of Midi Controller Knob and Deluge Knob to min/max of knob range.
+			else { //Midi Value Scaling Mode On
+				//Set the max and min of the deluge midi knob position range
+				int32_t knobMaxPos = 64;
+				int32_t knobMinPos = -64;
+
+				//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
+				int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
+				int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
+
+				//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
+				int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
+				int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
+
+				//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
+				int32_t midiKnobPosChange = 0;
+				if (knob != nullptr) {
+					midiKnobPosChange = midiKnobPos - knob->previousPosition;
+				}
+				else if (doingMidiFollow) {
+					midiKnobPosChange = midiKnobPos - midiFollow.previousKnobPos[ccNumber];
+				}
+
+				//Set fixed point variable which will be used calculate the percentage in midi knob position
+				int32_t midiKnobPosChangePercentage;
+
+				//if midi knob position change is greater than 0, then the midi knob position has increased (e.g. turned knob right)
+				if (midiKnobPosChange > 0) {
+					//fixed point math calculation of new deluge knob position when midi knob position has increased
+
+					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
+
+					newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
+				}
+				//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
+				else if (midiKnobPosChange < 0) {
+					//fixed point math calculation of new deluge knob position when midi knob position has decreased
+
+					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
+
+					newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
+				}
+				//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
+				else {
+					newKnobPos = knobPos;
+				}
+			}
+		}
+
+		//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
+		if (knob != nullptr) {
+			knob->previousPosition = midiKnobPos;
+		}
+		else if (doingMidiFollow) {
+			midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
+		}
+	}
+
+	return newKnobPos;
 }
 
 // Returns true if the message was used by something

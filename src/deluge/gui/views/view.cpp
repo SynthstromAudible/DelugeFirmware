@@ -51,6 +51,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -889,6 +890,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
+				//midi follow and midi feedback enabled
+				//re-send midi cc because learned parameter value has changed
+				sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
+
 				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 
 				// Hack to make it so stutter can't be automated
@@ -1299,6 +1304,29 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 				pendingParamAutomationUpdatesModLevels = true;
 			}
 		}
+
+		if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+			uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
+		}
+	}
+}
+
+void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
+	int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
+	if ((channel != MIDI_CHANNEL_NONE) && midiEngine.midiFollowFeedback
+	    && activeModControllableModelStack.modControllable) {
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+			if (ccNumber != MIDI_CC_NONE) {
+				((ModControllableAudio*)activeModControllableModelStack.modControllable)
+				    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+			}
+		}
+		else {
+			((ModControllableAudio*)activeModControllableModelStack.modControllable)
+			    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+		}
 	}
 }
 
@@ -1330,6 +1358,10 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	//midi follow and midi feedback enabled
+	//re-send midi cc's because learned parameter values may have changed
+	sendMidiFollowFeedback();
 }
 
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,

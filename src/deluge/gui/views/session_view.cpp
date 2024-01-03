@@ -139,11 +139,14 @@ void SessionView::focusRegained() {
 	                                  // loadInstrumentPresetUI, need to at least redraw, and also really need to
 	                                  // re-render stuff in case note-tails-being-allowed has changed
 
+	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
+	selectedClipYDisplay = 255;
+
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
 
-	selectedClipYDisplay = 255;
 	if (display->haveOLED()) {
 		setCentralLEDStates();
 	}
@@ -971,6 +974,11 @@ void SessionView::clipPressEnded() {
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
 		return;
 	}
+	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
+	selectedClipYDisplay = 255;
+	clipWasSelectedWithShift = false;
+	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
@@ -981,9 +989,6 @@ void SessionView::clipPressEnded() {
 	else {
 		redrawNumericDisplay();
 	}
-	selectedClipYDisplay = 255;
-	clipWasSelectedWithShift = false;
-	gridResetPresses();
 }
 
 void SessionView::sectionPadAction(uint8_t y, bool on) {
