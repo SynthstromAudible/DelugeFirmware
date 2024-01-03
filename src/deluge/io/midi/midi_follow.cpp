@@ -365,7 +365,6 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 		    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			//Output is a kit or melodic instrument
-			//Note: Midi instruments not currently supported for midi follow mode
 			if (modelStackWithTimelineCounter) {
 				// Definitely don't record if muted in arrangement
 				bool shouldRecordNotes =
