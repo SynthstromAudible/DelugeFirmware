@@ -145,6 +145,11 @@ public:
 	//public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
+	//public so view.modEncoderAction and midi follow can access it
+	PadPress lastPadPress;
+	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
+	bool onFXDisplay;
+
 private:
 	//initialize
 	void initPadPress(PadPress& padPress);
@@ -155,8 +160,6 @@ private:
 	//rendering
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID);
-	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
-	bool onFXDisplay;
 	void setCentralLEDStates();
 
 	//pad action
@@ -206,7 +209,6 @@ private:
 	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
 
 	PadPress firstPadPress;
-	PadPress lastPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
