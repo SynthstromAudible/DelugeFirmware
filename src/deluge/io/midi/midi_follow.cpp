@@ -103,10 +103,14 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 /// 3) entering a clip
 Clip* MidiFollow::getClipForMidiFollow(bool useActiveClip) {
 	Clip* clip = nullptr;
-	if (getRootUI() == &sessionView) {
+	RootUI* rootUI = getRootUI();
+
+	//if you're in session view, check if you're pressing a clip to control that clip
+	if (rootUI == &sessionView) {
 		clip = sessionView.getClipForLayout();
 	}
-	else if ((getRootUI() == &arrangerView)) {
+	//if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
+	else if (rootUI == &arrangerView) {
 		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
 			clip = arrangerView.lastInteractedClipInstance->clip;
 		}
@@ -115,7 +119,9 @@ Clip* MidiFollow::getClipForMidiFollow(bool useActiveClip) {
 			clip = currentSong->getClipWithOutput(output);
 		}
 	}
-	else {
+	//if you're in performance view, no clip will be selected for param control
+	//if you're not in sessionView, arrangerView, or performanceView, then you're in a clip
+	else if (rootUI != &performanceSessionView) {
 		clip = getCurrentClip();
 	}
 	//special case for instruments where you want to let notes and MPE through to the active clip

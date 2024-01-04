@@ -884,7 +884,24 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
-				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				//if you had selected a parameter in performance view and the parameter name
+				//and current value is displayed on the screen, don't show pop-up as the display
+				//already shows it
+				//this checks that the param displayed on the screen in performance view
+				//is the same param currently being edited with mod encoder
+				bool editingParamInPerformanceView = false;
+				if (getRootUI() == &performanceSessionView) {
+					if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
+						if ((kind == performanceSessionView.lastPadPress.paramKind)
+						    && (modelStackWithParam->paramId == performanceSessionView.lastPadPress.paramID)) {
+							editingParamInPerformanceView = true;
+						}
+					}
+				}
+
+				if (!editingParamInPerformanceView) {
+					displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				}
 
 				if (newKnobPos == knobPos) {
 					return;
