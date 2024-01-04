@@ -100,7 +100,7 @@ void _fini(void) {
 	// empty
 }
 
-inline void emptySection(uint32_t* start, uint32_t* end) {
+static void emptySection(uint32_t* start, uint32_t* end) {
 	uint32_t* dst = start;
 	while (dst < end) {
 		*dst = 0;
@@ -108,7 +108,7 @@ inline void emptySection(uint32_t* start, uint32_t* end) {
 	}
 }
 
-inline void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
+static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
 	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
 	uint32_t* dst = start;
 	while (dst < end) {
