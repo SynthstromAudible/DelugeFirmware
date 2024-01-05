@@ -41,15 +41,49 @@ file(GLOB_RECURSE deluge_SOURCES
   # Used by most other modules
   ../src/deluge/util/*
   # Voice code
+  ../src/deluge/dsp/*
+  ../src/deluge/model/action/*
+  ../src/deluge/model/consequence/*
+  ../src/deluge/model/clip/*
+  ../src/deluge/model/drum/*
+  ../src/deluge/model/global_effectable/*
+  ../src/deluge/model/instrument/*
+  ../src/deluge/model/mod_controllable/*
+  ../src/deluge/model/model_stack.cpp
+  ../src/deluge/model/note/*
+  ../src/deluge/model/output.cpp
+  ../src/deluge/model/sample/*
+  ../src/deluge/model/song/*
+  ../src/deluge/model/timeline_counter.cpp
   ../src/deluge/model/voice/*
+  ../src/deluge/modulation/*
+  ../src/deluge/processing/live/*
+  ../src/deluge/processing/sound/*
+  ../src/deluge/processing/source.cpp
+  ../src/deluge/storage/cluster/*
+  ../src/deluge/storage/multi_range/*
+  ../src/deluge/storage/wave_table/*
+
+  ../src/deluge/io/midi/learned_midi.cpp
+
+  ../src/deluge/storage/audio/audio_file.cpp
+  ../src/deluge/storage/audio/audio_file_holder.cpp
+  ../src/deluge/storage/audio/audio_file_reader.cpp
+  ../src/deluge/storage/audio/audio_file_vector.cpp
+  ../src/deluge/storage/audio/audio_file_manager_core.cpp
   # Mock implementations
   mocks/*
 )
 
-
-
 add_executable(RunAllTests RunAllTests.cpp memory_tests.cpp)
 target_sources(RunAllTests PUBLIC ${deluge_SOURCES})
+target_sources(RunAllTests PUBLIC
+  # We don't glob this because we want to mock src/deluge/storage/audio/audio_file_manager
+  ../src/deluge/util/functions.cpp
+  ../src/deluge/storage/audio/audio_file_vector.cpp
+  ../src/deluge/model/instrument/instrument.cpp
+  ../src/deluge/model/instrument/melodic_instrument.cpp
+)
 
 set_target_properties(RunAllTests
     PROPERTIES
