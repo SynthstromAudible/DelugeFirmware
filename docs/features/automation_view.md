@@ -147,11 +147,12 @@ The Automation Editor **will:**
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
-- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
+- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 64, 77, 90, 108, 128). 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/8cc7befa-9071-4bd3-ac3c-15049f69b250)
+<img width="347" alt="Screenshot 2023-12-25 at 4 53 23 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/a95c7e5f-5a77-4280-b159-26364d29def2">
 
+- enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
 
 > **Note 1:** to enter long multi-step automations across multiple grid pages you will need to zoom out as both pads pressed must be visible on the grid). Values in between steps are linearly calculated based on the value corresponding to the pads pressed. For example: you could program a sweep up from value 0 to value 128 by pressing and holding on pad 0,0 and then pressing on pad 15,8).
