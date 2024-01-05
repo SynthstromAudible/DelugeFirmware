@@ -123,6 +123,7 @@ public:
 	uint32_t modLength;
 
 	bool isParamPan(Param::Kind kind, int32_t paramID);
+	bool isParamPitch(Param::Kind kind, int32_t paramID);
 	int32_t calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos);
 	bool isParamQuantizedStutter(Param::Kind kind, int32_t paramID);

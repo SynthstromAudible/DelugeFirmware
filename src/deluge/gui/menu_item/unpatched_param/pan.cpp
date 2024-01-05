@@ -42,22 +42,22 @@ void Pan::drawValue() {    // TODO: should really combine this with the "patched
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->getValue() == kMaxMenuPanValue) {
+	if (this->getValue() == kMaxMenuRelativeValue) {
 		return 2147483647;
 	}
-	else if (this->getValue() == kMinMenuPanValue) {
+	else if (this->getValue() == kMinMenuRelativeValue) {
 		return -2147483648;
 	}
 	else {
-		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuPanValue * 2)) * 2);
+		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuRelativeValue * 2)) * 2);
 	}
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(
-	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * (kMaxMenuPanValue * 2)
-	     + 2147483648)
-	    >> 32);
+	this->setValue(((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())
+	                    * (kMaxMenuRelativeValue * 2)
+	                + 2147483648)
+	               >> 32);
 }
 
 } // namespace deluge::gui::menu_item::unpatched_param

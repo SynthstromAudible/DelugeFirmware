@@ -1506,37 +1506,45 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 
-			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
-				recordSinglePadPress(xDisplay, yDisplay);
+			if (firstPadX != 255 && firstPadY != 255) {
+				if (firstPadX != xDisplay) {
+					recordSinglePadPress(xDisplay, yDisplay);
 
-				multiPadPressSelected = true;
-				multiPadPressActive = true;
+					multiPadPressSelected = true;
+					multiPadPressActive = true;
 
-				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
-				//(where the first pad is to the left of the second pad). if the user happens to enter a long press backwards
-				//then we fix that entry by re-ordering the pad presses so that it is forward again
-				leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
-				leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
-				rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
-				rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
+					//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
+					//(where the first pad is to the left of the second pad). if the user happens to enter a long press backwards
+					//then we fix that entry by re-ordering the pad presses so that it is forward again
+					leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
+					leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
+					rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
+					rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
 
-				//if you're not in pad selection mode, allow user to enter a long press
-				if (!padSelectionOn) {
-					handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX,
-					                    rightPadSelectedY);
+					//if you're not in pad selection mode, allow user to enter a long press
+					if (!padSelectionOn) {
+						handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX,
+						                    rightPadSelectedY);
+					}
+					else {
+						uiNeedsRendering(this);
+					}
+
+					//set led indicators to left / right pad selection values
+					//and update display
+					renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 				}
 				else {
-					uiNeedsRendering(this);
+					leftPadSelectedY = firstPadY;
+					middlePadPressSelected = true;
+					goto singlePadPressAction;
 				}
-
-				//set led indicators to left / right pad selection values
-				//and update display
-				renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 			}
 		}
 
 		// Or, if this is a regular create-or-select press...
 		else {
+singlePadPressAction:
 			if (recordSinglePadPress(xDisplay, yDisplay)) {
 				multiPadPressActive = false;
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
@@ -1590,6 +1598,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				displayAutomation(padSelectionOn, !display->have7SEG());
 			}
 		}
+
+		middlePadPressSelected = false;
 	}
 }
 
@@ -2813,6 +2823,7 @@ void AutomationInstrumentClipView::initPadSelection() {
 	padSelectionOn = false;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
+	middlePadPressSelected = false;
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
@@ -3253,7 +3264,12 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
 	if (yDisplay < 7) {
-		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+		if (middlePadPressSelected) {
+			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
+		}
+		else {
+			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+		}
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
@@ -3263,6 +3279,14 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 		}
 		else {
 			newKnobPos = kMaxKnobPos;
+		}
+	}
+	if (middlePadPressSelected) {
+		if (leftPadSelectedY == 0) {
+			newKnobPos = newKnobPos / 2;
+		}
+		else {
+			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
 		}
 	}
 

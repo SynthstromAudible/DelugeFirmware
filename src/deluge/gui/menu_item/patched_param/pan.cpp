@@ -47,20 +47,20 @@ void Pan::drawValue() {
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->getValue() == kMaxMenuPanValue) {
+	if (this->getValue() == kMaxMenuRelativeValue) {
 		return 2147483647;
 	}
-	else if (this->getValue() == kMinMenuPanValue) {
+	else if (this->getValue() == kMinMenuRelativeValue) {
 		return -2147483648;
 	}
 	else {
-		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuPanValue * 2)) * 2);
+		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuRelativeValue * 2)) * 2);
 	}
 }
 
 void Pan::readCurrentValue() {
 	this->setValue(
-	    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuPanValue * 2)
+	    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuRelativeValue * 2)
 	     + 2147483648)
 	    >> 32);
 }

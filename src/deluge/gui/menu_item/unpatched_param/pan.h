@@ -26,8 +26,8 @@ public:
 	virtual void drawValue();
 
 protected:
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuPanValue; }
-	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuPanValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 	int32_t getFinalValue() override;
 	void readCurrentValue() override;
 };
