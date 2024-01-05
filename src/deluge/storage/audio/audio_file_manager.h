@@ -81,8 +81,11 @@ public:
 	void init();
 	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
+
+	/// Caller must initialize() the Cluster after getting it from this function
 	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
 	                         void* dontStealFromThing = NULL);
+
 	int32_t enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
 	bool loadCluster(Cluster* cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
@@ -104,6 +107,7 @@ public:
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
+	/// Caller must also set alternateAudioFileLoadPath.
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();
 
