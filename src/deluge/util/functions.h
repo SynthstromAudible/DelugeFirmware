@@ -526,6 +526,7 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor);
 int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor);
 
+#if defined(__arm__)
 [[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
 	int32_t out;
 	asm("rev %0, %1" : "=r"(out) : "r"(input));
@@ -537,6 +538,17 @@ int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDiviso
 	asm("rev16 %0, %1" : "=r"(out) : "r"(input));
 	return out;
 }
+#else
+[[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
+	return ((input & 0x000000FFU) << 24) | ((input & 0x0000FF00U) << 16) | ((input & 0x00FF0000U) >> 16)
+	       | ((input & 0xFF000000U) >> 24);
+}
+
+[[gnu::always_inline]] inline uint32_t swapEndianness2x16(uint32_t input) {
+	return ((input & 0x0000FFFFU) << 16) | ((input & 0xFFFF0000U) >> 16);
+}
+
+#endif
 
 [[gnu::always_inline]] inline int32_t getMagnitudeOld(uint32_t input) {
 	return 32 - clz(input);
