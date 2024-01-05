@@ -28,8 +28,12 @@ ne10_fft_r2c_cfg_int32_t getConfig(int32_t magnitude) {
 		return NULL;
 
 	if (!configs[magnitude]) {
+#if defined(__arm__)
 		configs[magnitude] =
 		    ne10_fft_alloc_r2c_int32(1 << magnitude); // Allocates and sets up. And we'll just never deallocate.
+#else
+		configs[magnitude] = nullptr;
+#endif
 	}
 
 	return configs[magnitude];

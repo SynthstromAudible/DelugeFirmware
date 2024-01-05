@@ -1474,7 +1474,11 @@ doneReading:
 	*/
 
 	// Perform the FFT
+#if defined(__arm__)
 	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, false);
+#else
+	assert(fftInput);
+#endif
 
 	//Debug::println("fft done");
 
