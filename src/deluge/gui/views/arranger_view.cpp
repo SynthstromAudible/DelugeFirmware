@@ -1496,6 +1496,8 @@ justGetOut:
 
 						// If pressed head, delete
 						if (pressedHead) {
+							//set lastInteractedClipInstance to null so you don't send midi follow feedback for a deleted clip
+							lastInteractedClipInstance = nullptr;
 							view.setActiveModControllableTimelineCounter(currentSong);
 
 							arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
