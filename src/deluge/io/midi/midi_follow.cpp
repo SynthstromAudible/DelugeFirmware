@@ -379,6 +379,9 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 				if (on) {
 					clipForLastNoteReceived[note] = clip;
 				}
+				else {
+					clipForLastNoteReceived[note] = nullptr;
+				}
 			}
 		}
 	}
