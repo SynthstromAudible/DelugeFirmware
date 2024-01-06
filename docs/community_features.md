@@ -23,7 +23,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.3 - MIDI
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - (#147) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
-- ([#781]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+- ([#889]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`. 
 - ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
@@ -227,9 +227,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.3.5 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
- - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
+ - ([#241]) Automation Clip View is a new view that complements the existing Clip View.
 	- It is accessed from within the Clip View by pressing  `CLIP` (which will blink to indicate you are in the Automation View).
-	- You can edit Non-MPE Parameter Automation for Synth, Kit and MIDI instrument clips on a per step basis at any zoom level.
+	- You can edit Non-MPE Parameter Automation for Synth, Kit, MIDI, and Audio clips on a per step basis at any zoom level.
 	- A `COMMUNITY FEATURES` sub-menu titled `AUTOMATION` was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
  - Follow-up PR's: 
@@ -237,10 +237,17 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
 	- ([#658]) Added Stutter Rate Parameter to Automation View. There is no grid shortcut for this parameter so you will not see a pad on the Automation Overview that indicates whether Stutter has been automated. This parameter can be selected and automated using the Select Encoder to scroll the available list of Automatable Parameters.
-	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Instrument Clip View.
+	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Clip View.
 		- Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
-		- By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+		- By default in the Automation Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
 		- Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
+	- ([#886]) Remove parameters that have no effect in Automation View:
+		- Removed Arp and Portamento from Kit Affect Entire 
+		- Removed Portamento from Kit Rows
+	- ([#887]) Added ability to set the parameter value to the middle point between two pads pressed in a single column. E.g. press pads 4 and 5 to set the value to 25/50.
+	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
+	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
+	- ([#924]) Added automation view for audio clips
 
 #### 4.3.6 - Set Probability By Row
 
@@ -454,5 +461,8 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
-[#781]: https://github.com/SynthstromAudible/DelugeFirmware/pull/781
+[#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
+[#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
+[#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
+[#924]: https://github.com/SynthstromAudible/DelugeFirmware/pull/924
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
