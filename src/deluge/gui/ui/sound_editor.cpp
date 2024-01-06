@@ -638,7 +638,7 @@ doSetupBlinkingForAudioClip:
 				}
 			}
 
-stopThat : {}
+stopThat: {}
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
@@ -792,7 +792,10 @@ ActionResult SoundEditor::timerCallback() {
 
 void SoundEditor::markInstrumentAsEdited() {
 	if (!inSettingsMenu()) {
-		getCurrentInstrument()->beenEdited();
+		Instrument* inst = getCurrentInstrumentOrNull();
+		if (inst) {
+			getCurrentInstrument()->beenEdited();
+		}
 	}
 }
 
