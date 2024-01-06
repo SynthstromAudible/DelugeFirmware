@@ -1026,11 +1026,7 @@ bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
 		return false;
 	}
-	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
-	    && paramID == Param::Unpatched::Shared::STUTTER_RATE) {
-		return true;
-	}
-	return false;
+	return isParamStutter(kind, paramID);
 }
 
 bool View::isParamPan(Param::Kind kind, int32_t paramID) {
@@ -1052,6 +1048,13 @@ bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
 		return true;
 	}
 
+	return false;
+}
+
+bool View::isParamStutter(Param::Kind kind, int32_t paramID) {
+	if (kind == Param::Kind::UNPATCHED_SOUND && paramID == Param::Unpatched::STUTTER_RATE) {
+		return true;
+	}
 	return false;
 }
 

@@ -390,8 +390,8 @@ void AutomationInstrumentClipView::openedInBackground() {
 
 //used for the play cursor
 void AutomationInstrumentClipView::graphicsRoutine() {
-	InstrumentType instrumentType = getCurrentInstrumentType();
-	if (instrumentType == OutputType::AUDIO) {
+	OutputType outputType = getCurrentOutputType();
+	if (outputType == OutputType::AUDIO) {
 		audioClipView.graphicsRoutine();
 	}
 	else {
@@ -448,7 +448,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 				shortcutX = audioClip->lastSelectedParamShortcutX;
 				shortcutY = audioClip->lastSelectedParamShortcutY;
 			}
-			else {
+			else if (shortcutBlinking == true) {
 				shouldResetBlinking = true;
 			}
 		}
@@ -458,7 +458,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 				shortcutX = instrumentClip->lastSelectedParamShortcutX;
 				shortcutY = instrumentClip->lastSelectedParamShortcutY;
 			}
-			else {
+			else if (shortcutBlinking == true) {
 				shouldResetBlinking = true;
 			}
 		}
@@ -715,8 +715,8 @@ void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyM
 //depending on the active clip
 bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	OutputType instrumentType = getCurrentInstrumentType();
-	if (instrumentType == OutputType::AUDIO) {
+	OutputType outputType = getCurrentOutputType();
+	if (outputType == OutputType::AUDIO) {
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	else {
@@ -2772,15 +2772,24 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			instrumentClip->lastSelectedParamArrayPosition = idx;
 		}
 		int32_t lastSelectedParamID = kNoSelection;
+		Param::Kind lastSelectedParamKind = Param::Kind::NONE;
 		if (instrument->type == OutputType::AUDIO) {
 			lastSelectedParamID = ((AudioClip*)clip)->lastSelectedParamID;
+			lastSelectedParamKind = ((AudioClip*)clip)->lastSelectedParamKind;
 		}
 		else {
 			lastSelectedParamID = ((InstrumentClip*)clip)->lastSelectedParamID;
+			lastSelectedParamKind = ((InstrumentClip*)clip)->lastSelectedParamKind;
 		}
 		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
 		//just update name on display, the LED mod indicators, and the grid
-		if (lastSelectedParamID == Param::Unpatched::STUTTER_RATE) {
+		if (view.isParamStutter(lastSelectedParamKind, lastSelectedParamID)) {
+			if (instrument->type == OutputType::AUDIO) {
+				((AudioClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
+			}
+			else {
+				((InstrumentClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
+			}
 			goto flashShortcut;
 		}
 		else {
