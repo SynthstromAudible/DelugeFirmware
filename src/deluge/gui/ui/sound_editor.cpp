@@ -638,7 +638,7 @@ doSetupBlinkingForAudioClip:
 				}
 			}
 
-stopThat: {}
+stopThat : {}
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
