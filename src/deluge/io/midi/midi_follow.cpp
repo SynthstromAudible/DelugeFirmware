@@ -440,8 +440,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		if (clip && (clip->output->type != InstrumentType::AUDIO)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
-				if ((clip->output->type == InstrumentType::KIT)
-				    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER)) {
+				if (clip->output->type == InstrumentType::KIT) {
 					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
 					                     doingMidiThru, clip);
 				}
@@ -457,6 +456,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                       MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
                                       uint8_t value, bool* doingMidiThru, Clip* clip) {
+	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
+		return;
+	}
 	if (ccNumber != 74) {
 		return;
 	}
