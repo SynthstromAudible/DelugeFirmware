@@ -1004,7 +1004,7 @@ returnValue:
 
 //check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
 bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
-	if (!runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
 		return false;
 	}
 	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
