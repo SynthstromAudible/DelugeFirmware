@@ -497,9 +497,9 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 		sendSerialMidi(statusType, channel, data1, data2);
 	}
 
-	// Send loopback (other than clock) to delly
-	if (currentSong->midiLoopback && channel != 0x08) { // channel 0x08 is clock
-		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0, false);
+	// Send loopback (other than clock/sysex) to delly
+	if (currentSong->midiLoopback && statusType != 0x0F) { // channel 0x08 is clock
+		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0);
 	}
 }
 
@@ -917,7 +917,7 @@ bool lastWasNoteOn = false;
 #endif
 
 void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1,
-                                     uint8_t data2, uint32_t* timer, bool notDoingLoopback) {
+                                     uint8_t data2, uint32_t* timer) {
 
 	bool shouldDoMidiThruNow = midiThru;
 
@@ -1035,7 +1035,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	}
 
 	// Do MIDI-thru if that's on and we didn't decide not to, above. This will let clock messages through along with all other messages, rather than using our special clock-specific system
-	if (shouldDoMidiThruNow && notDoingLoopback) {
+	if (shouldDoMidiThruNow && fromDevice != &MIDIDeviceManager::loopbackMidi) {
 		bool shouldSendUSB =
 		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
 		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,
