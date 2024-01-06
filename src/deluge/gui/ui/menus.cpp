@@ -164,10 +164,10 @@
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
-#include "model/song/song.h"
 
 using namespace deluge;
 using namespace gui;
@@ -1073,7 +1073,7 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 };
 
 bool* getSongMidiLoopback() {
-    return &(currentSong->midiLoopback);
+	return &(currentSong->midiLoopback);
 }
 
 ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};

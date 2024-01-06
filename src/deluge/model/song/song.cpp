@@ -162,7 +162,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	paramsInAutomationMode = false;
 
-    // default to off
+	// default to off
 	midiLoopback = false;
 
 	// Setup reverb temp variables

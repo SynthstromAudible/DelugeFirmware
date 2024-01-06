@@ -556,16 +556,21 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceLoopback::writeReferenceAttributesToFile() {}
+void MIDIDeviceLoopback::writeReferenceAttributesToFile() {
+}
 
-void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {}
+void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {
+}
 
 char const* MIDIDeviceLoopback::getDisplayName() {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_LOOPBACK);
 }
 
-void MIDIDeviceLoopback::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {}
+void MIDIDeviceLoopback::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+}
 
-int32_t MIDIDeviceLoopback::sendBufferSpace() {}
+int32_t MIDIDeviceLoopback::sendBufferSpace() {
+}
 
-void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {}
+void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {
+}

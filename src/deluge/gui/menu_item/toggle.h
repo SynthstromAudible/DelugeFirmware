@@ -33,14 +33,14 @@ class ToggleBoolDyn : public Toggle {
 public:
 	using Toggle::Toggle;
 
-	ToggleBoolDyn(l10n::String newName, l10n::String title, bool* (*getTogglePtr) ()) : Toggle(newName, title) {
+	ToggleBoolDyn(l10n::String newName, l10n::String title, bool* (*getTogglePtr)()) : Toggle(newName, title) {
 		getTPtr = getTogglePtr;
 	}
 
 	void readCurrentValue() override { this->setValue(*(getTPtr())); }
 	void writeCurrentValue() override { *(getTPtr()) = this->getValue(); }
 
-	bool* (*getTPtr) ();
+	bool* (*getTPtr)();
 };
 
 } // namespace deluge::gui::menu_item
