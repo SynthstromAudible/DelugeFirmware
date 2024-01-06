@@ -287,10 +287,6 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 		paramKind = Param::Kind::UNPATCHED_GLOBAL;
 		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 	}
-	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
-		                                                                          instrumentClip, paramID, paramKind);
-	}
 
 	return modelStackWithParam;
 }
