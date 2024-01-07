@@ -28,7 +28,7 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 		offset = std::min<int32_t>(offset * sign, 2) * sign;
 		break;
 	case 4:
-		offset = 1 * sign;
+		offset = std::min<int32_t>(offset * sign, 3) * sign;
 		break;
 	case 5:
 		offset = std::min<int32_t>(offset * sign, 4) * sign;
