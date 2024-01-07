@@ -380,7 +380,9 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 					clipForLastNoteReceived[note] = clip;
 				}
 				else {
-					clipForLastNoteReceived[note] = nullptr;
+					if (note > 0 && note <= 127) {
+						clipForLastNoteReceived[note] = nullptr;
+					}
 				}
 			}
 		}
