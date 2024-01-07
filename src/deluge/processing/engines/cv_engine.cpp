@@ -148,7 +148,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this one that we're now saying we wanted to stop)
 		if (gateChannels[channel].on
-		    && (channel >= NUM_CV_CHANNELS || note == -32768 || cvChannels[channel].noteCurrentlyPlaying == note)) {
+		    && (channel >= NUM_CV_CHANNELS || note == ALL_NOTES_OFF
+		        || cvChannels[channel].noteCurrentlyPlaying == note)) {
 
 			// Physically switch it right now, to get a head-start before it turns back on
 			switchGateOff(channel);
@@ -161,7 +162,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 		int32_t voltage;
 
 		// If it's not a gate-only note-on...
-		if (note != -32768) {
+		if (note != ALL_NOTES_OFF) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);

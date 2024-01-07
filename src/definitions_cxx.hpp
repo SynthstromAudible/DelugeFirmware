@@ -880,7 +880,7 @@ enum CCNumber {
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
 constexpr int32_t kMaxMIDIValue = 127;
-
+constexpr int32_t ALL_NOTES_OFF = -32768;
 enum class InstrumentRemoval {
 	NONE,
 	DELETE_OR_HIBERNATE_IF_UNUSED,
