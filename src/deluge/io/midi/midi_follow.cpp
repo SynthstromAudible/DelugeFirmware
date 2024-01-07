@@ -349,40 +349,58 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
                                      bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		Clip* clip;
-		if (on) {
-			clip = getClipForMidiFollow(true);
-		}
-		else {
-			// for note off's, see if a note on message was previously sent so you can
-			// direct the note off to the right place
-			clip = clipForLastNoteReceived[note];
-		}
+		if (note >= 0 && note <= 127) {
+			Clip* clip;
+			if (on) {
+				clip = getClipForMidiFollow(true);
+			}
+			else {
+				// for note off's, see if a note on message was previously sent so you can
+				// direct the note off to the right place
+				clip = clipForLastNoteReceived[note];
+			}
 
-		// Only send if not muted - but let note-offs through always, for safety
-		if (clip && (clip->output->type != InstrumentType::AUDIO)
-		    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-			//Output is a kit or melodic instrument
-			if (modelStackWithTimelineCounter) {
-				// Definitely don't record if muted in arrangement
-				bool shouldRecordNotes =
-				    shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
-				if (clip->output->type == InstrumentType::KIT) {
-					offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-					                       shouldRecordNotes, doingMidiThru, clip);
+			sendnoteToClip(fromDevice, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+			               modelStack);
+		}
+		//all notes off
+		else if (note == ALL_NOTES_OFF) {
+			for (int32_t i = 0; i <= 127; i++) {
+				if (clipForLastNoteReceived[i]) {
+					sendnoteToClip(fromDevice, clipForLastNoteReceived[i], match, on, channel, i, velocity,
+					               doingMidiThru, shouldRecordNotesNowNow, modelStack);
 				}
-				else {
-					offerReceivedNoteToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, match, on, channel,
-					                                     note, velocity, shouldRecordNotes, doingMidiThru, clip);
-				}
-				if (on) {
-					clipForLastNoteReceived[note] = clip;
-				}
-				else {
-					if (note > 0 && note <= 127) {
-						clipForLastNoteReceived[note] = nullptr;
-					}
+			}
+		}
+	}
+}
+
+void MidiFollow::sendnoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
+                                int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
+                                ModelStack* modelStack) {
+
+	// Only send if not muted - but let note-offs through always, for safety
+	if (clip && (clip->output->type != InstrumentType::AUDIO)
+	    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		//Output is a kit or melodic instrument
+		if (modelStackWithTimelineCounter) {
+			// Definitely don't record if muted in arrangement
+			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
+			if (clip->output->type == InstrumentType::KIT) {
+				offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+				                       shouldRecordNotes, doingMidiThru, clip);
+			}
+			else {
+				offerReceivedNoteToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, match, on, channel,
+				                                     note, velocity, shouldRecordNotes, doingMidiThru, clip);
+			}
+			if (on) {
+				clipForLastNoteReceived[note] = clip;
+			}
+			else {
+				if (note >= 0 && note <= 127) {
+					clipForLastNoteReceived[note] = nullptr;
 				}
 			}
 		}

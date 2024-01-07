@@ -1573,7 +1573,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == -32768)
+		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
 
 			ArpeggiatorSettings* arpSettings = getArpSettings();

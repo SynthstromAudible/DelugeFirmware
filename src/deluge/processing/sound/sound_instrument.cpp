@@ -370,7 +370,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 
 		arpeggiator.noteOff(arpSettings, noteCode, &instruction);
 
-		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE || noteCode == -32768) {
 
 #if ALPHA_OR_BETA_VERSION
 			if (!modelStack->paramManager) {
