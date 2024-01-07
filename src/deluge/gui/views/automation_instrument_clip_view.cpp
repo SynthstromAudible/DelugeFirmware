@@ -1394,7 +1394,7 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 		}
 		//regular automation step editing action
 		if (isUIModeWithinRange(editPadActionUIModes)) {
-			editPadAction(velocity, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+			editPadAction(clip, velocity, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
 		}
 	}
 	// If mute pad action
@@ -1465,10 +1465,8 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 //edit pad action
 //handles single and multi pad presses for automation editing and for parameter selection on the automation overview
 //stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
-	Clip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
+void AutomationInstrumentClipView::editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay,
+                                                 uint32_t xZoom) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -2409,7 +2407,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			if (Buttons::isShiftButtonPressed()) {
 				//paste within Automation Editor
 				if (!isOnAutomationOverview()) {
-					pasteAutomation();
+					pasteAutomation(clip);
 				}
 				//paste on Automation Overview
 				else {
@@ -2419,7 +2417,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			else {
 				//copy within Automation Editor
 				if (!isOnAutomationOverview()) {
-					copyAutomation();
+					copyAutomation(clip);
 				}
 				//copy on Automation Overview
 				else {
@@ -2488,7 +2486,7 @@ followOnAction: //it will come here when you are on the automation overview iscr
 	uiNeedsRendering(this);
 }
 
-void AutomationInstrumentClipView::copyAutomation() {
+void AutomationInstrumentClipView::copyAutomation(Clip* clip) {
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
@@ -2504,8 +2502,6 @@ void AutomationInstrumentClipView::copyAutomation() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	Clip* clip = getCurrentClip();
 
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
@@ -2529,7 +2525,7 @@ void AutomationInstrumentClipView::copyAutomation() {
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void AutomationInstrumentClipView::pasteAutomation() {
+void AutomationInstrumentClipView::pasteAutomation(Clip* clip) {
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
@@ -2548,8 +2544,6 @@ void AutomationInstrumentClipView::pasteAutomation() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-	Clip* clip = getCurrentClip();
 
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
@@ -2907,10 +2901,9 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 		if (paramID == kNoParamID) {
 			paramID = audioClip->lastSelectedParamID;
-			paramID = audioClip->lastSelectedParamKind;
 		}
 
-		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, audioClip, paramID, paramKind);
+		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, audioClip, paramID);
 	}
 
 	return modelStackWithParam;
@@ -3007,8 +3000,9 @@ AutomationInstrumentClipView::getModelStackWithParamForMIDIClip(ModelStackWithTi
 	return modelStackWithParam;
 }
 
-ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForAudioClip(
-    ModelStackWithTimelineCounter* modelStack, AudioClip* clip, int32_t paramID, Param::Kind paramKind) {
+ModelStackWithAutoParam*
+AutomationInstrumentClipView::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
+                                                                 AudioClip* clip, int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Instrument* instrument = (Instrument*)clip->output;

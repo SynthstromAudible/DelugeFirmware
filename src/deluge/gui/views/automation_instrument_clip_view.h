@@ -153,9 +153,6 @@ public:
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
-	//edit pad action
-	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-
 	//audition pad action
 	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
 
@@ -207,13 +204,15 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
 	                                                           InstrumentClip* clip, int32_t paramID = kNoParamID);
 	ModelStackWithAutoParam* getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
-	                                                            AudioClip* clip, int32_t paramID = kNoParamID,
-	                                                            Param::Kind paramKind = Param::Kind::NONE);
+	                                                            AudioClip* clip, int32_t paramID = kNoParamID);
 
 	//public so instrument clip view can access it
 	void initParameterSelection();
 
 private:
+	//edit pad action
+	void editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
+
 	//Automation View Render Functions
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
@@ -239,8 +238,8 @@ private:
 	void shiftAutomationHorizontally(int32_t offset);
 
 	//Mod Encoder Action
-	void copyAutomation();
-	void pasteAutomation();
+	void copyAutomation(Clip* clip);
+	void pasteAutomation(Clip* clip);
 
 	//Select Encoder Action
 	void selectAudioClipParam(int32_t offset, AudioClip* clip);
