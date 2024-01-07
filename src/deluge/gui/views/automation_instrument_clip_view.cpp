@@ -2710,7 +2710,6 @@ void AutomationInstrumentClipView::pasteAutomation() {
 //used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 //once parameter is selected
 void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
-
 	//change midi CC or param ID
 	Clip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2720,69 +2719,42 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 	//you to change the midi CC assignment to that modEncoder
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		InstrumentClipMinder::selectEncoderAction(offset);
+		return;
 	}
+	//if you're in a synth, kit, or audio clip
 	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT
 	         || instrument->type == InstrumentType::AUDIO) {
-		//if you're a kit with affect entire enabled
-		//or if you're in an audio clip
-		if ((instrument->type == InstrumentType::AUDIO)
-		    || (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire())) {
-
-			if (instrument->type == InstrumentType::AUDIO) {
-				AudioClip* audioClip = (AudioClip*)clip;
-				auto idx = getNextSelectedParamArrayPosition(offset, audioClip->lastSelectedParamArrayPosition,
-				                                             kNumGlobalParamsForAutomation);
-				auto [kind, id] = globalParamsForAutomation[idx];
-				audioClip->lastSelectedParamID = id;
-				audioClip->lastSelectedParamKind = kind;
-				audioClip->lastSelectedParamArrayPosition = idx;
-			}
-			else {
-				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-				auto idx = getNextSelectedParamArrayPosition(offset, instrumentClip->lastSelectedParamArrayPosition,
-				                                             kNumGlobalParamsForAutomation);
-				auto [kind, id] = globalParamsForAutomation[idx];
-				instrumentClip->lastSelectedParamID = id;
-				instrumentClip->lastSelectedParamKind = kind;
-				instrumentClip->lastSelectedParamArrayPosition = idx;
-			}
-		}
-		//if you're a synth or a kit (with affect entire off and a drum selected)
-		else if (instrument->type == InstrumentType::SYNTH
-		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			auto idx = getNextSelectedParamArrayPosition(offset, instrumentClip->lastSelectedParamArrayPosition,
-			                                             kNumNonGlobalParamsForAutomation);
-			{
-				auto [kind, id] = nonGlobalParamsForAutomation[idx];
-				if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
-					if (offset < 0) {
-						offset -= 1;
-					}
-					else if (offset > 0) {
-						offset += 1;
-					}
-					idx = getNextSelectedParamArrayPosition(offset, instrumentClip->lastSelectedParamArrayPosition,
-					                                        kNumNonGlobalParamsForAutomation);
-				}
-			}
-			auto [kind, id] = nonGlobalParamsForAutomation[idx];
-			instrumentClip->lastSelectedParamID = id;
-			instrumentClip->lastSelectedParamKind = kind;
-			instrumentClip->lastSelectedParamArrayPosition = idx;
-		}
 		int32_t lastSelectedParamID = kNoSelection;
 		Param::Kind lastSelectedParamKind = Param::Kind::NONE;
+		//if you're in an audio clip
 		if (instrument->type == InstrumentType::AUDIO) {
-			lastSelectedParamID = ((AudioClip*)clip)->lastSelectedParamID;
-			lastSelectedParamKind = ((AudioClip*)clip)->lastSelectedParamKind;
+			AudioClip* audioClip = (AudioClip*)clip;
+
+			selectAudioClipParam(offset, audioClip);
+
+			lastSelectedParamID = audioClip->lastSelectedParamID;
+			lastSelectedParamKind = audioClip->lastSelectedParamKind;
 		}
+		//non-audio clip
 		else {
-			lastSelectedParamID = ((InstrumentClip*)clip)->lastSelectedParamID;
-			lastSelectedParamKind = ((InstrumentClip*)clip)->lastSelectedParamKind;
+			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+			//if you're a kit with affect entire enabled
+			if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
+				selectKitAffectEntireParam(offset, instrumentClip);
+			}
+			//if you're a synth or a kit (with affect entire off and a drum selected)
+			else if (instrument->type == InstrumentType::SYNTH
+			         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
+				selectNonGlobalParam(offset, instrumentClip);
+			}
+
+			lastSelectedParamID = instrumentClip->lastSelectedParamID;
+			lastSelectedParamKind = instrumentClip->lastSelectedParamKind;
 		}
 		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
 		//just update name on display, the LED mod indicators, and the grid
+		//also de-select the last selected param shortcut
 		if (view.isParamStutter(lastSelectedParamKind, lastSelectedParamID)) {
 			if (instrument->type == InstrumentType::AUDIO) {
 				((AudioClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
@@ -2790,74 +2762,22 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			else {
 				((InstrumentClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
 			}
-			goto flashShortcut;
 		}
 		else {
-			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				for (int32_t y = 0; y < kDisplayHeight; y++) {
-					if (instrument->type == InstrumentType::AUDIO) {
-						AudioClip* audioClip = (AudioClip*)clip;
-						if ((audioClip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
-						     && unpatchedNonGlobalParamShortcuts[x][y] == audioClip->lastSelectedParamID)
-						    || (audioClip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
-						        && unpatchedGlobalParamShortcuts[x][y] == audioClip->lastSelectedParamID)) {
-							audioClip->lastSelectedParamShortcutX = x;
-							audioClip->lastSelectedParamShortcutY = y;
-							goto flashShortcut;
-						}
-					}
-					else {
-						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-						if ((instrumentClip->lastSelectedParamKind == Param::Kind::PATCHED
-						     && patchedParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)
-						    || (instrumentClip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
-						        && unpatchedNonGlobalParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)
-						    || (instrumentClip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
-						        && unpatchedGlobalParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)) {
-							instrumentClip->lastSelectedParamShortcutX = x;
-							instrumentClip->lastSelectedParamShortcutY = y;
-							goto flashShortcut;
-						}
-					}
-				}
-			}
+			getLastSelectedParamShortcut(clip, instrument->type);
 		}
 	}
-
+	//if you're in a midi clip
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		if (isOnAutomationOverview()) {
-			instrumentClip->lastSelectedParamID = 0;
-		}
-		else if ((instrumentClip->lastSelectedParamID + offset) < 0) {
-			instrumentClip->lastSelectedParamID = kLastMidiCCForAutomation;
-		}
-		else if ((instrumentClip->lastSelectedParamID + offset) > kLastMidiCCForAutomation) {
-			instrumentClip->lastSelectedParamID = 0;
-		}
-		else {
-			instrumentClip->lastSelectedParamID += offset;
-		}
-
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				if (midiCCShortcutsForAutomation[x][y] == instrumentClip->lastSelectedParamID) {
-
-					instrumentClip->lastSelectedParamShortcutX = x;
-					instrumentClip->lastSelectedParamShortcutY = y;
-
-					goto flashShortcut;
-				}
-			}
-		}
-
-		goto flashShortcut;
+		selectMIDICC(offset, (InstrumentClip*)clip);
+		getLastSelectedParamShortcut(clip, instrument->type);
+	}
+	//if you're in a CV clip or function is called for some other reason, do nothing
+	else {
+		return;
 	}
 
-	return;
-
-flashShortcut:
-
+	//update name on display, the LED mod indicators, and refresh the grid
 	lastPadSelectedKnobPos = kNoSelection;
 	if (multiPadPressSelected && padSelectionOn) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2870,6 +2790,66 @@ flashShortcut:
 	resetShortcutBlinking();
 	view.setModLedStates();
 	uiNeedsRendering(this);
+}
+
+//used with SelectEncoderAction to get the next audio clip parameter
+void AutomationInstrumentClipView::selectAudioClipParam(int32_t offset, AudioClip* clip) {
+	auto idx =
+	    getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition, kNumGlobalParamsForAutomation);
+	auto [kind, id] = globalParamsForAutomation[idx];
+	clip->lastSelectedParamID = id;
+	clip->lastSelectedParamKind = kind;
+	clip->lastSelectedParamArrayPosition = idx;
+}
+
+//used with SelectEncoderAction to get the next kit affect entire parameter
+void AutomationInstrumentClipView::selectKitAffectEntireParam(int32_t offset, InstrumentClip* clip) {
+	auto idx =
+	    getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition, kNumGlobalParamsForAutomation);
+	auto [kind, id] = globalParamsForAutomation[idx];
+	clip->lastSelectedParamID = id;
+	clip->lastSelectedParamKind = kind;
+	clip->lastSelectedParamArrayPosition = idx;
+}
+
+//used with SelectEncoderAction to get the next synth or kit non-affect entire param
+void AutomationInstrumentClipView::selectNonGlobalParam(int32_t offset, InstrumentClip* clip) {
+	auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+	                                             kNumNonGlobalParamsForAutomation);
+	{
+		auto [kind, id] = nonGlobalParamsForAutomation[idx];
+		if ((clip->output->type == InstrumentType::KIT) && (kind == Param::Kind::UNPATCHED_SOUND)
+		    && (id == Param::Unpatched::Sound::PORTAMENTO)) {
+			if (offset < 0) {
+				offset -= 1;
+			}
+			else if (offset > 0) {
+				offset += 1;
+			}
+			idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                        kNumNonGlobalParamsForAutomation);
+		}
+	}
+	auto [kind, id] = nonGlobalParamsForAutomation[idx];
+	clip->lastSelectedParamID = id;
+	clip->lastSelectedParamKind = kind;
+	clip->lastSelectedParamArrayPosition = idx;
+}
+
+//used with SelectEncoderAction to get the next midi CC
+void AutomationInstrumentClipView::selectMIDICC(int32_t offset, InstrumentClip* clip) {
+	if (isOnAutomationOverview()) {
+		clip->lastSelectedParamID = 0;
+	}
+	else if ((clip->lastSelectedParamID + offset) < 0) {
+		clip->lastSelectedParamID = kLastMidiCCForAutomation;
+	}
+	else if ((clip->lastSelectedParamID + offset) > kLastMidiCCForAutomation) {
+		clip->lastSelectedParamID = 0;
+	}
+	else {
+		clip->lastSelectedParamID += offset;
+	}
 }
 
 //used with SelectEncoderAction to get the next parameter in the list of parameters
@@ -2894,6 +2874,44 @@ int32_t AutomationInstrumentClipView::getNextSelectedParamArrayPosition(int32_t 
 		idx = lastSelectedParamArrayPosition + offset;
 	}
 	return idx;
+}
+
+//used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
+void AutomationInstrumentClipView::getLastSelectedParamShortcut(Clip* clip, InstrumentType instrumentType) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (instrumentType == InstrumentType::AUDIO) {
+				AudioClip* audioClip = (AudioClip*)clip;
+				if ((audioClip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
+				     && unpatchedNonGlobalParamShortcuts[x][y] == audioClip->lastSelectedParamID)
+				    || (audioClip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
+				        && unpatchedGlobalParamShortcuts[x][y] == audioClip->lastSelectedParamID)) {
+					audioClip->lastSelectedParamShortcutX = x;
+					audioClip->lastSelectedParamShortcutY = y;
+				}
+			}
+			else {
+				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+				if (instrumentType == InstrumentType::MIDI_OUT) {
+					if (midiCCShortcutsForAutomation[x][y] == instrumentClip->lastSelectedParamID) {
+						instrumentClip->lastSelectedParamShortcutX = x;
+						instrumentClip->lastSelectedParamShortcutY = y;
+					}
+				}
+				else {
+					if ((instrumentClip->lastSelectedParamKind == Param::Kind::PATCHED
+					     && patchedParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)
+					    || (instrumentClip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
+					        && unpatchedNonGlobalParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)
+					    || (instrumentClip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
+					        && unpatchedGlobalParamShortcuts[x][y] == instrumentClip->lastSelectedParamID)) {
+						instrumentClip->lastSelectedParamShortcutX = x;
+						instrumentClip->lastSelectedParamShortcutY = y;
+					}
+				}
+			}
+		}
+	}
 }
 
 //tempo encoder action
