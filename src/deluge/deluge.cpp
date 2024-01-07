@@ -838,6 +838,44 @@ bool inSpamMode = false;
 extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
+#ifdef __cplusplus
+extern "C" {
+#endif
+/*
+Used only by macro for logging purposes.
+*/
+
+extern void logDebug(char const* string, bool nl) {
+	if (nl) {
+		Debug::println(string);
+	} else {
+		Debug::print(string);
+	}
+}
+
+const char* getBaseFilename(const char* path) {
+    if (path == nullptr) {
+        return ""; // or handle the error as appropriate
+    }
+    const char* filename = strrchr(path, '/');
+	if (!filename) {
+		filename = strrchr(path, '\\');
+	}
+	return filename ? filename + 1 : path;
+}
+static char logContextFilename[128];
+extern void logContext(const char* path, int line) {
+    const char* baseFile = getBaseFilename(path);
+    int bufferSize = strlen(baseFile) + 20; // Extra space for line number and additional characters
+
+    snprintf(logContextFilename, bufferSize, "%s:%d\t", baseFile, line);
+    logDebug(logContextFilename, false);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
 
 extern "C" void routineForSD(void) {
 
