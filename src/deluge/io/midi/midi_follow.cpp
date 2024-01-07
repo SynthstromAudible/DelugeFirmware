@@ -286,7 +286,7 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam = automationInstrumentClipView.getModelStackWithParamForAudioClip(
-		    modelStackWithTimelineCounter, clip, paramID, paramKind);
+		    modelStackWithTimelineCounter, clip, paramID);
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
