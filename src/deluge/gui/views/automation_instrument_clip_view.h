@@ -29,6 +29,7 @@ class Action;
 class CopiedNoteRow;
 class Drum;
 class Editor;
+class AudioClip;
 class Instrument;
 class InstrumentClip;
 class MidiInstrument;
@@ -197,6 +198,19 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                            Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
+	                                                          InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                          Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
+	                                                           InstrumentClip* clip, int32_t paramID = kNoParamID);
+	ModelStackWithAutoParam* getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            AudioClip* clip, int32_t paramID = kNoParamID,
+	                                                            Param::Kind paramKind = Param::Kind::NONE);
+
+	//public so instrument clip view can access it
 	void initParameterSelection();
 
 private:
@@ -234,7 +248,6 @@ private:
 
 	//Automation Lanes Functions
 	void initPadSelection();
-	void initInterpolation();
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 

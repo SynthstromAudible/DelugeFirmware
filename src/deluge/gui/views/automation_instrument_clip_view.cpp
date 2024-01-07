@@ -2965,7 +2965,7 @@ void AutomationInstrumentClipView::initInterpolation() {
 }
 
 //get's the modelstack for the parameters that are being edited
-//the model stack differs for SYNTH's, KIT's, MIDI clip's
+//the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
 ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
                                                                               Clip* clip, int32_t paramID,
                                                                               Param::Kind paramKind) {
@@ -2973,84 +2973,126 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if (instrument->type == OutputType::SYNTH) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-		    instrument->toModControllable(), &((InstrumentClip*)clip)->paramManager);
-
-		if (modelStackWithThreeMainThings) {
-			if (paramKind == Param::Kind::PATCHED) {
-				modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-			}
-
-			else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
-				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-			}
-		}
+		modelStackWithParam = getModelStackWithParamForSynthClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
 	}
 
 	else if (instrument->type == OutputType::KIT) {
-		//for a kit we have two types of automation: with Affect Entire and without Affect Entire
-		//for a kit with affect entire off, we are automating information at the noterow level
-		if (!instrumentClipView.getAffectEntire()) {
+		modelStackWithParam = getModelStackWithParamForKitClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
+	}
 
-			Drum* drum = ((Kit*)instrument)->selectedDrum;
+	else if (instrument->type == OutputType::MIDI_OUT) {
+		modelStackWithParam = getModelStackWithParamForMIDIClip(modelStack, (InstrumentClip*)clip, paramID);
+	}
 
-			if (drum) {
-				if (drum->type == DrumType::SOUND) { //no automation for MIDI or CV kit drum types
+	else if (instrument->type == OutputType::AUDIO) {
+		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, (AudioClip*)clip, paramID, paramKind);
+	}
 
-					ModelStackWithNoteRow* modelStackWithNoteRow =
-					    ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
+	return modelStackWithParam;
+}
 
-					if (modelStackWithNoteRow) {
+ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForSynthClip(
+    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID, Param::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-						ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+	Instrument* instrument = (Instrument*)clip->output;
 
-						if (modelStackWithThreeMainThings) {
-							if (paramKind == Param::Kind::PATCHED) {
-								modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-							}
-							else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
-								modelStackWithParam =
-								    modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-							}
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		if (paramKind == Param::Kind::PATCHED) {
+			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+		}
+
+		else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
+			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		}
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForKitClip(
+    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID, Param::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	Instrument* instrument = (Instrument*)clip->output;
+
+	//for a kit we have two types of automation: with Affect Entire and without Affect Entire
+	//for a kit with affect entire off, we are automating information at the noterow level
+	if (!instrumentClipView.getAffectEntire()) {
+		Drum* drum = ((Kit*)instrument)->selectedDrum;
+
+		if (drum) {
+			if (drum->type == DrumType::SOUND) { //no automation for MIDI or CV kit drum types
+
+				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
+
+				if (modelStackWithNoteRow) {
+
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
+					if (modelStackWithThreeMainThings) {
+						if (paramKind == Param::Kind::PATCHED) {
+							modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+						}
+
+						else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
+							modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 						}
 					}
 				}
 			}
 		}
-
-		else { //model stack for automating kit params when "affect entire" is enabled
-
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-			    instrument->toModControllable(), &((InstrumentClip*)clip)->paramManager);
-
-			if (modelStackWithThreeMainThings) {
-				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-			}
-		}
 	}
 
-	else if (instrument->type == OutputType::AUDIO) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-		    instrument->toModControllable(), &((AudioClip*)clip)->paramManager);
+	else { //model stack for automating kit params when "affect entire" is enabled
+
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
 			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 	}
 
-	else if (instrument->type == OutputType::MIDI_OUT) {
+	return modelStackWithParam;
+}
 
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-		    instrument->toModControllable(), &((InstrumentClip*)clip)->paramManager);
+ModelStackWithAutoParam*
+AutomationInstrumentClipView::getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
+                                                                InstrumentClip* clip, int32_t paramID) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (modelStackWithThreeMainThings) {
+	Instrument* instrument = (Instrument*)clip->output;
 
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)instrument;
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
-			modelStackWithParam =
-			    midiInstrument->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
-		}
+	if (modelStackWithThreeMainThings) {
+
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)instrument;
+
+		modelStackWithParam =
+		    midiInstrument->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForAudioClip(
+    ModelStackWithTimelineCounter* modelStack, AudioClip* clip, int32_t paramID, Param::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	Instrument* instrument = (Instrument*)clip->output;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 	}
 
 	return modelStackWithParam;
