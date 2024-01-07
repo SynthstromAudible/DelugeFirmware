@@ -2562,7 +2562,8 @@ void SessionView::transitionToSessionView() {
 
 	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
 		AudioClip* clip = getCurrentAudioClip();
-		if (!clip || !clip->sampleHolder.audioFile) { // !clip probably couldn't happen, but just in case...
+		// !clip probably couldn't happen, but just in case...
+		if (!clip || !clip->sampleHolder.audioFile) {
 			memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 			finishedTransitioningHere();
 		}
@@ -2583,7 +2584,8 @@ void SessionView::transitionToSessionView() {
 			                                            &PadLEDs::occupancyMaskStore[1], false);
 			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
-			PadLEDs::numAnimatedRows = kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
+			// I didn't see a difference but the + 2 seems intentional
+			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 				PadLEDs::animatedRowGoingFrom[y] = y - 1;
@@ -2607,8 +2609,8 @@ void SessionView::transitionToSessionView() {
 				                                            &PadLEDs::occupancyMaskStore[1], false);
 				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
-				PadLEDs::numAnimatedRows =
-				    kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
+				// I didn't see a difference but the + 2 seems intentional
+				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 				for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 					PadLEDs::animatedRowGoingFrom[y] = y - 1;
@@ -2619,8 +2621,8 @@ void SessionView::transitionToSessionView() {
 				                                  false);
 				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
-				PadLEDs::numAnimatedRows =
-				    kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
+				// I didn't see a difference but the + 2 seems intentional
+				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 				for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 					PadLEDs::animatedRowGoingFrom[y] = y - 1;
