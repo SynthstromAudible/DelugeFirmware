@@ -27,14 +27,12 @@ public:
 	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
 	void selectEncoderAction(int32_t offset) override {
 		auto current = this->getValue() + offset;
-		int32_t numOptions = getOptions().size();
+		int32_t numOptions = getOptions().size() - 1;
 
-		if (current >= numOptions) {
-			current -= (numOptions - 1);
-		}
-		else if (current < 1) {
-			current += (numOptions - 1);
-		}
+		// Shift current down by 1, clamp it (with wrapping) to the legal range, and then shift it back up
+		current -= 1;
+		current = ((current % numOptions) + numOptions) % numOptions;
+		current += 1;
 
 		this->setValue(static_cast<ModFXType>(current));
 		Value::selectEncoderAction(offset);
