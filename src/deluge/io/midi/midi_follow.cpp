@@ -511,6 +511,14 @@ void MidiFollow::offerReceivedCCToMelodicInstrument(ModelStackWithTimelineCounte
 	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 	melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
 	                              doingMidiThru);
+
+	//if you're in automation midi clip view and editing the same CC that was just updated
+	//by a learned midi knob, then re-render the pads on the automation editor grid
+	if (clip->output->type == InstrumentType::MIDI_OUT && getRootUI() == &automationInstrumentClipView) {
+		if (((InstrumentClip*)clip)->lastSelectedParamID == ccNumber) {
+			uiNeedsRendering(&automationInstrumentClipView);
+		}
+	}
 }
 
 /// called from playback handler
