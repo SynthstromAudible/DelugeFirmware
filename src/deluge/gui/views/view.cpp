@@ -1122,12 +1122,32 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 	if (modelStackWithParam->autoParam) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-		knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
+		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 		if (knobPos < -64) {
 			knobPos = -64;
 		}
 		else if (knobPos > 64) {
 			knobPos = 64;
+		}
+
+		if (isParamQuantizedStutter(paramCollection->getParamKind(), modelStackWithParam->paramId)
+		    && !isUIModeActive(UI_MODE_STUTTERING)) {
+			if (knobPos < -39) { // 4ths stutter: no leds turned on
+				knobPos = -64;
+			}
+			else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+				knobPos = -32;
+			}
+			else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+				knobPos = 0;
+			}
+			else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+				knobPos = 32;
+			}
+			else { // 64ths stutter: all 4 leds turned on
+				knobPos = 64;
+			}
 		}
 	}
 	else {
@@ -1136,28 +1156,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	}
 
 	// Quantized Stutter FX
-	ParamCollection* paramCollection = modelStackWithParam->paramCollection;
-	if (paramCollection && isParamQuantizedStutter(paramCollection->getParamKind(), modelStackWithParam->paramId)
-	    && !isUIModeActive(UI_MODE_STUTTERING)) {
-		if (knobPos < -39) { // 4ths stutter: no leds turned on
-			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 0);
-		}
-		else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 32);
-		}
-		else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 64);
-		}
-		else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 96);
-		}
-		else { // 64ths stutter: all 4 leds turned on
-			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 128);
-		}
-	}
-	else {
-		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
-	}
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
