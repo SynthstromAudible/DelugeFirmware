@@ -93,5 +93,5 @@ public:
 	LearnedMIDI midiInput;
 
 private:
-	void possiblyRefreshAutomationEditor(int32_t ccNumber);
+	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);
 };

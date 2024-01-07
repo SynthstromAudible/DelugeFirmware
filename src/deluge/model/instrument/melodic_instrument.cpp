@@ -368,7 +368,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
 			                                          MIDICharacteristic::CHANNEL);
 
-			possiblyRefreshAutomationEditor(ccNumber);
+			possiblyRefreshAutomationEditorGrid(ccNumber);
 
 			return;
 		}
@@ -398,11 +398,11 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
 
-		possiblyRefreshAutomationEditor(ccNumber);
+		possiblyRefreshAutomationEditorGrid(ccNumber);
 	}
 }
 
-void MelodicInstrument::possiblyRefreshAutomationEditor(int32_t ccNumber) {
+void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	//if you're in automation midi clip view and editing the same CC that was just updated
 	//by a learned midi knob, then re-render the pads on the automation editor grid
 	if (type == InstrumentType::MIDI_OUT) {
