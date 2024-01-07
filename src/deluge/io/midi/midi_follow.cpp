@@ -360,14 +360,14 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 				clip = clipForLastNoteReceived[note];
 			}
 
-			sendnoteToClip(fromDevice, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+			sendNoteToClip(fromDevice, clip, match, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
 			               modelStack);
 		}
 		//all notes off
 		else if (note == ALL_NOTES_OFF) {
 			for (int32_t i = 0; i <= 127; i++) {
 				if (clipForLastNoteReceived[i]) {
-					sendnoteToClip(fromDevice, clipForLastNoteReceived[i], match, on, channel, i, velocity,
+					sendNoteToClip(fromDevice, clipForLastNoteReceived[i], match, on, channel, i, velocity,
 					               doingMidiThru, shouldRecordNotesNowNow, modelStack);
 				}
 			}
@@ -375,7 +375,7 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 	}
 }
 
-void MidiFollow::sendnoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
+void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchType match, bool on, int32_t channel,
                                 int32_t note, int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
                                 ModelStack* modelStack) {
 
