@@ -70,3 +70,36 @@ extern void freezeWithError(char const* errmsg);
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from SDRAM, maybe timing?
+#ifndef D_PRINTLN
+#include "deluge/deluge.h"
+#include "stdio.h"
+#define D_MERGE(x, y) x##y
+#define D_CONCAT(x, y) D_MERGE(x,y)
+#define D_AUTOVAR D_CONCAT(debug, __LINE__)
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+#define D_PRINT_RAW(...) do { \
+	char D_AUTOVAR[512];\
+	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	logDebug(D_AUTOVAR, false);\
+} while(0)
+
+#define D_PRINT(...) do { \
+	char D_AUTOVAR[512];\
+	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	logContext(__FILE__, __LINE__); \
+	logDebug(D_AUTOVAR, false);\
+} while(0)
+
+#define D_PRINTLN(...) do { \
+	char D_AUTOVAR[512];\
+	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	logContext(__FILE__, __LINE__); \
+	logDebug(D_AUTOVAR, true);\
+} while(0)
+
+#endif
+
+
+
