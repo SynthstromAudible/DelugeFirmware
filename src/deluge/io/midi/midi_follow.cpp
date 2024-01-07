@@ -480,6 +480,14 @@ void MidiFollow::offerReceivedCCToMelodicInstrument(ModelStackWithTimelineCounte
 	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
 	melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
 	                              doingMidiThru);
+
+	if (getRootUI() == &automationInstrumentClipView) {
+		if (clip->output->type == InstrumentType::MIDI_OUT) {
+			if (((InstrumentClip*)clip)->lastSelectedParamID == ccNumber) {
+				uiNeedsRendering(&automationInstrumentClipView);
+			}
+		}
+	}
 }
 
 /// called from playback handler
