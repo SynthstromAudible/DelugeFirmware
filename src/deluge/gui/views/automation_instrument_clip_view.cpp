@@ -629,17 +629,7 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
                                                           Instrument* instrument, uint8_t* image,
                                                           uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
                                                           uint32_t xZoom, int32_t yDisplay, bool drawUndefinedArea) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (instrument->type == InstrumentType::AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -828,18 +818,7 @@ void AutomationInstrumentClipView::renderDisplayOLED(Clip* clip, Instrument* ins
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-		if (instrument->type == InstrumentType::AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		char const* isAutomated;
 
@@ -1008,18 +987,7 @@ void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool upda
 
 		Clip* clip = getCurrentClip();
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1274,17 +1242,7 @@ doOther:
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			ModelStackWithAutoParam* modelStackWithParam = nullptr;
-			if (clip->type == CLIP_TYPE_AUDIO) {
-				AudioClip* audioClip = (AudioClip*)clip;
-				modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-				                                             audioClip->lastSelectedParamKind);
-			}
-			else {
-				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-				modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-				                                             instrumentClip->lastSelectedParamKind);
-			}
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
@@ -1977,18 +1935,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (instrument->type == InstrumentType::AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2320,17 +2267,7 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 
 	Clip* clip = getCurrentClip();
 
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2415,17 +2352,7 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 
 	Clip* clip = getCurrentClip();
 
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2503,17 +2430,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	//delete automation of current parameter selected
 	else if (Buttons::isShiftButtonPressed() && !isOnAutomationOverview()) {
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
@@ -2548,17 +2465,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				leftPadSelectedX = 0;
 				rightPadSelectedX = kNoSelection;
 
-				ModelStackWithAutoParam* modelStackWithParam = nullptr;
-				if (clip->type == CLIP_TYPE_AUDIO) {
-					AudioClip* audioClip = (AudioClip*)clip;
-					modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-					                                             audioClip->lastSelectedParamKind);
-				}
-				else {
-					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-					modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-					                                             instrumentClip->lastSelectedParamKind);
-				}
+				ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 				uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
 
@@ -2597,17 +2504,8 @@ void AutomationInstrumentClipView::copyAutomation() {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	Clip* clip = getCurrentClip();
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2650,17 +2548,8 @@ void AutomationInstrumentClipView::pasteAutomation() {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	Clip* clip = getCurrentClip();
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID, audioClip->lastSelectedParamKind);
-	}
-	else {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-		                                             instrumentClip->lastSelectedParamKind);
-	}
+
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
@@ -2988,22 +2877,37 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
                                                                               Clip* clip, int32_t paramID,
                                                                               Param::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH) {
-		modelStackWithParam = getModelStackWithParamForSynthClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
+	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+		InstrumentType instrumentType = (InstrumentType)clip->output->type;
+
+		if (paramID == kNoParamID) {
+			paramID = instrumentClip->lastSelectedParamID;
+			paramKind = instrumentClip->lastSelectedParamKind;
+		}
+
+		if (instrumentType == InstrumentType::SYNTH) {
+			modelStackWithParam = getModelStackWithParamForSynthClip(modelStack, instrumentClip, paramID, paramKind);
+		}
+
+		else if (instrumentType == InstrumentType::KIT) {
+			modelStackWithParam = getModelStackWithParamForKitClip(modelStack, instrumentClip, paramID, paramKind);
+		}
+
+		else if (instrumentType == InstrumentType::MIDI_OUT) {
+			modelStackWithParam = getModelStackWithParamForMIDIClip(modelStack, instrumentClip, paramID);
+		}
 	}
+	else {
+		AudioClip* audioClip = (AudioClip*)clip;
 
-	else if (instrument->type == InstrumentType::KIT) {
-		modelStackWithParam = getModelStackWithParamForKitClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
-	}
+		if (paramID == kNoParamID) {
+			paramID = audioClip->lastSelectedParamID;
+			paramID = audioClip->lastSelectedParamKind;
+		}
 
-	else if (instrument->type == InstrumentType::MIDI_OUT) {
-		modelStackWithParam = getModelStackWithParamForMIDIClip(modelStack, (InstrumentClip*)clip, paramID);
-	}
-
-	else if (instrument->type == InstrumentType::AUDIO) {
-		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, (AudioClip*)clip, paramID, paramKind);
+		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, audioClip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
@@ -3435,17 +3339,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	else if (!isOnAutomationOverview()) { //this means you are editing a parameter's value
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (padSelectionOn) {
 			//display pad's value
@@ -3543,17 +3437,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 	if (modelStack) {
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -3672,17 +3556,7 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
                                                                  int32_t xDisplay, bool modEncoderAction) {
 	if (modelStack) {
 
-		ModelStackWithAutoParam* modelStackWithParam = nullptr;
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			AudioClip* audioClip = (AudioClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, audioClip->lastSelectedParamID,
-			                                             audioClip->lastSelectedParamKind);
-		}
-		else {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			modelStackWithParam = getModelStackWithParam(modelStack, clip, instrumentClip->lastSelectedParamID,
-			                                             instrumentClip->lastSelectedParamKind);
-		}
+		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
