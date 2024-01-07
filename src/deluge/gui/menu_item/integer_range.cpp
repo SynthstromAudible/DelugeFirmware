@@ -43,47 +43,20 @@ void IntegerRange::selectEncoderAction(int32_t offset) {
 
 		// Editing lower
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-			if (offset == 1) {
-				if (lower == upper) {
-					if (upper >= maxValue) {
-						goto justDrawRange;
-					}
-					else {
-						upper++;
-					}
-				}
+			lower = std::clamp(lower + offset, minValue, maxValue);
+			if (upper < lower) {
+				upper = lower;
 			}
-			else {
-				if (lower <= minValue) {
-					goto justDrawRange;
-				}
-			}
-
-			lower += offset;
 		}
 
 		// Editing upper
 		else {
-			if (offset == 1) {
-				if (upper >= maxValue) {
-					goto justDrawRange;
-				}
+			upper = std::clamp(upper + offset, minValue, maxValue);
+			if (upper < lower) {
+				lower = upper;
 			}
-			else {
-				if (upper == lower) {
-					if (lower <= minValue) {
-						goto justDrawRange;
-					}
-					else {
-						lower--;
-					}
-				}
-			}
-
-			upper += offset;
 		}
 
-justDrawRange:
 		drawValueForEditingRange(false);
 	}
 
@@ -92,18 +65,7 @@ justDrawRange:
 			return;
 		}
 
-		if (offset == 1) {
-			if (lower == maxValue) {
-				goto justDrawOneNumber;
-			}
-		}
-		else {
-			if (lower == minValue) {
-				goto justDrawOneNumber;
-			}
-		}
-
-		lower += offset;
+		lower = std::clamp(lower + offset, minValue, maxValue);
 		upper = lower;
 
 justDrawOneNumber:
