@@ -91,4 +91,7 @@ public:
 	EarlyNoteArray notesAuditioned;
 
 	LearnedMIDI midiInput;
+
+private:
+	void possiblyRefreshAutomationEditor(int32_t ccNumber);
 };
