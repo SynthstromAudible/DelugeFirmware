@@ -118,10 +118,10 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 	}
 	else {
 		if (newValue >= set->numPatchCables) {
-			newValue -= set->numPatchCables;
+			newValue %= set->numPatchCables;
 		}
 		else if (newValue < 0) {
-			newValue += set->numPatchCables;
+			newValue = (newValue % set->numPatchCables + set->numPatchCables) % set->numPatchCables;
 		}
 	}
 
