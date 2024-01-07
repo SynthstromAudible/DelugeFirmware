@@ -342,7 +342,10 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) {
+			if (!strcmp(port, "loopback")) {
+				device = &loopbackMidi;
+			}
+			else if (!strcmp(port, "upstreamUSB")) {
 				device = &upstreamUSBMIDIDevice_port1;
 			}
 			else if (!strcmp(port, "upstreamUSB2")) {

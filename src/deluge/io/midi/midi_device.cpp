@@ -557,6 +557,8 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 }
 
 void MIDIDeviceLoopback::writeReferenceAttributesToFile() {
+	storageManager.writeAttribute("port", "loopback",
+	                              false);
 }
 
 void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {
@@ -570,6 +572,7 @@ void MIDIDeviceLoopback::sendMessage(uint8_t statusType, uint8_t channel, uint8_
 }
 
 int32_t MIDIDeviceLoopback::sendBufferSpace() {
+	return 0;
 }
 
 void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {
