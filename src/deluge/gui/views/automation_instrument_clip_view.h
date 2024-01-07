@@ -29,6 +29,7 @@ class Action;
 class CopiedNoteRow;
 class Drum;
 class Editor;
+class AudioClip;
 class Instrument;
 class InstrumentClip;
 class MidiInstrument;
@@ -194,9 +195,17 @@ public:
 	bool interpolationAfter;
 
 	//public to midi follow can access it
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF,
-	                                                Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                            Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
+	                                                          InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                          Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
+	                                                           InstrumentClip* clip, int32_t paramID = kNoParamID);
+	ModelStackWithAutoParam* getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            AudioClip* clip, int32_t paramID = kNoParamID,
+	                                                            Param::Kind paramKind = Param::Kind::NONE);
 
 private:
 	//Automation View Render Functions
@@ -235,6 +244,9 @@ private:
 	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID = kNoParamID,
+	                                                Param::Kind paramKind = Param::Kind::NONE);
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 

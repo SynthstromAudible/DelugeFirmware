@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 
+class AudioClip;
 class InstrumentClip;
 class Clip;
 class Kit;
@@ -72,13 +73,13 @@ private:
 	getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
 	                               int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   int32_t xDisplay, int32_t yDisplay);
+	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                   InstrumentClip* clip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, InstrumentClip* clip,
 	                                 int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, AudioClip* clip,
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 

@@ -29,6 +29,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
