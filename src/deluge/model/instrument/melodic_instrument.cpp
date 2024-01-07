@@ -369,11 +369,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			return;
 		}
 	case MIDIMatchType::MPE_MASTER:
-		yCC = 74;
-		if (ccNumber == 74) {
-			value32 = (value - 64) << 25;
-		}
-		//no break
+		[[fallthrough]];
 	case MIDIMatchType::CHANNEL:
 		if (ccNumber == 1) {
 			value32 = (value) << 24;
