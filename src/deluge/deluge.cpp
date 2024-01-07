@@ -687,12 +687,14 @@ extern "C" int32_t deluge_main(void) {
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
-	runtimeFeatureSettings.readSettingsFromFile();
 
 	usbLock = 1;
 	openUSBHost();
 
 	// If nothing was plugged in to us as host, we'll go peripheral
+	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
+	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
 	if (!anythingInitiallyAttachedAsUSBHost) {
 		Debug::println("switching from host to peripheral");
 		closeUSBHost();
@@ -701,11 +703,9 @@ extern "C" int32_t deluge_main(void) {
 
 	usbLock = 0;
 
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
-	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
-
-	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can read this file now.
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 
 	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
