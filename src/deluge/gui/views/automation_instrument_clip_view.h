@@ -212,17 +212,17 @@ private:
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip, Instrument* instrument,
+	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip, InstrumentType instrumentType,
 	                              uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, Instrument* instrument,
-	                            uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
-	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
+	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, uint8_t* image,
+	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
+	                            int32_t yDisplay = 0, bool drawUndefinedArea = true);
 	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
 	               uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderDisplayOLED(Clip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	void renderDisplayOLED(Clip* clip, InstrumentType instrumentType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
-	void renderDisplay7SEG(Clip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	void renderDisplay7SEG(Clip* clip, InstrumentType instrumentType, int32_t knobPosLeft = kNoSelection,
 	                       bool modEncoderAction = false);
 
 	//Enter/Exit Scale Mode
@@ -255,7 +255,7 @@ private:
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
-	void getParameterName(Clip* clip, Instrument* instrument, char* parameterName);
+	void getParameterName(Clip* clip, InstrumentType instrumentType, char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
@@ -268,7 +268,7 @@ private:
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay, int32_t yDisplay,
 	                          bool shortcutPress = false);
-	int32_t calculateKnobPosForSinglePadPress(Instrument* instrument, int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(InstrumentType instrumentType, int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
