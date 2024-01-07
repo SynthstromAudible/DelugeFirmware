@@ -1712,7 +1712,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				if (getRootUI() == &automationInstrumentClipView) {
 					int32_t id = modelStackWithParam->paramId;
 					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					renderAutomationEditorGrid(kind, id);
+					possiblyRefreshAutomationEditorGrid(kind, id);
 				}
 			}
 		}
@@ -1802,11 +1802,11 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 
 										if (rootUI == &automationInstrumentClipView) {
 											editingParamInAutomationOrPerformanceView =
-											    renderAutomationEditorGrid(kind, id);
+											    possiblyRefreshAutomationEditorGrid(kind, id);
 										}
 										else {
 											editingParamInAutomationOrPerformanceView =
-											    renderPerformanceViewDisplay(kind, id, newKnobPos);
+											    possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 										}
 									}
 									//if you're in the automation view editor or performance view non-editing mode
@@ -2058,7 +2058,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 
 // if you're in automation view and editing the same parameter that was just updated
 // by a learned midi knob, then re-render the pads on the automation editor grid
-bool ModControllableAudio::renderAutomationEditorGrid(Param::Kind kind, int32_t id) {
+bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Param::Kind kind, int32_t id) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
 		uiNeedsRendering(&automationInstrumentClipView);
@@ -2071,7 +2071,7 @@ bool ModControllableAudio::renderAutomationEditorGrid(Param::Kind kind, int32_t 
 // and current value is displayed on the screen, don't show pop-up as the display already shows it
 // this checks that the param displayed on the screen in performance view
 // is the same param currently being edited with mod encoder and updates the display if needed
-bool ModControllableAudio::renderPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos) {
+bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos) {
 	//check if you're not in editing mode
 	//and a param hold press is currently active
 	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
