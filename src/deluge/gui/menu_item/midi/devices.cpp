@@ -57,6 +57,8 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Devices::selectEncoderAction(int32_t offset) {
+	offset = std::clamp<int32_t>(offset, -1, 1);
+
 	do {
 		int32_t newValue = this->getValue() + offset;
 
