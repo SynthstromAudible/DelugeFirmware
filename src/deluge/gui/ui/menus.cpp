@@ -495,7 +495,7 @@ midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
 midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
                                                   STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
 midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
-submenu::MPE midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCollapseMenu, &midiMPECollapseMenu}};
+submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCollapseMenu, &midiMPECollapseMenu}};
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};

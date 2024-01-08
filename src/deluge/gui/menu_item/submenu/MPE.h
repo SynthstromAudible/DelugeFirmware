@@ -21,7 +21,7 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::submenu {
-class MPE final : public Submenu {
+class PolyMonoConversion final : public Submenu {
 public:
 	using Submenu::Submenu;
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
