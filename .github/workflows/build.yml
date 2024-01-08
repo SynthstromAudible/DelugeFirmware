@@ -10,6 +10,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write #required to update release tags
+
 jobs:
   build:
     name: Build
