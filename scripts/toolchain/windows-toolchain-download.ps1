@@ -6,13 +6,18 @@ $download_dir = (Get-Item "$PSScriptRoot\..\..").FullName
 $toolchain_version = $args[0]
 $toolchain_target_path = $args[1]
 
-$toolchain_url = "https://github.com/SynthstromAudible/dbt-toolchain/releases/download/v$toolchain_version/dbt-toolchain-$toolchain_version-win32-x86_64.zip"
+$toolchain_url = "https://github.com/litui/dbt-toolchain/releases/download/v$toolchain_version/dbt-toolchain-$toolchain_version-win32-x86_64.zip"
 $toolchain_dist_folder = "win32-x86_64"
 $toolchain_zip = "$toolchain_dist_folder-$toolchain_version.zip"
 
 $toolchain_zip_temp_path = "$download_dir\$toolchain_zip"
 $toolchain_dist_temp_path = "$download_dir\$toolchain_dist_folder"
 
+if (Test-Path -LiteralPath "$toolchain_target_path") {
+	Write-Host -NoNewline "Removing old Windows toolchain.."
+	Remove-Item -LiteralPath "$toolchain_target_path" -Force -Recurse
+	Write-Host "done!"
+}
 if (!(Test-Path -Path "$toolchain_zip_temp_path" -PathType Leaf)) {
     Write-Host -NoNewline "Downloading Windows toolchain.."
     $wc = New-Object net.webclient
