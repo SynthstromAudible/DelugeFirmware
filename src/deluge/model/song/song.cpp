@@ -2731,7 +2731,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne : {}
+notThisOne: {}
 	}
 
 	return 255;
@@ -4619,7 +4619,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return NULL;
 		}
 
-gotAnInstrument : {}
+gotAnInstrument: {}
 	}
 
 	// Synth or Kit
