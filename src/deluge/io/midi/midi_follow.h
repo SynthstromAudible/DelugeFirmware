@@ -74,13 +74,13 @@ private:
 	                               int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   InstrumentClip* clip, int32_t xDisplay, int32_t yDisplay);
+	                                   InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, InstrumentClip* clip,
-	                                 int32_t xDisplay, int32_t yDisplay);
+	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                 InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, AudioClip* clip,
-	                                   int32_t xDisplay, int32_t yDisplay);
+	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
 	//handle midi received for midi follow
