@@ -80,6 +80,9 @@ public:
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
+	//for tracking mono expression output
+	int32_t lastMonoExpression[3];
+	int32_t lastCombinedPolyExpression[3];
 	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : "channel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
@@ -90,8 +93,9 @@ protected:
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
 	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
-	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 
 private:
+	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
+	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 };

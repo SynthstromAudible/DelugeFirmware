@@ -215,8 +215,15 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 }
 
 void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
+	lastMonoExpression[whichExpressionDimension] = newValue;
+	sendMonophonicExpressionEvent(whichExpressionDimension);
+}
+
+void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimension) {
 
 	int32_t masterChannel = getOutputMasterChannel();
+	int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
+	                                  lastMonoExpression[whichExpressionDimension]);
 
 	switch (whichExpressionDimension) {
 	case 0: {
@@ -948,6 +955,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			//casting down will truncate
 			value32 = (int32_t)fbend;
 		}
-		monophonicExpressionEvent(value32, whichExpressionDimension);
+		lastCombinedPolyExpression[whichExpressionDimension] = value32;
+		sendMonophonicExpressionEvent(whichExpressionDimension);
 	}
 }
