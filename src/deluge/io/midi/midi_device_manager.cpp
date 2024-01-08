@@ -342,7 +342,7 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "loopback")) {
+			if (!strcmp(port, "loopbackMidi")) {
 				device = &loopbackMidi;
 			}
 			else if (!strcmp(port, "upstreamUSB")) {
@@ -392,6 +392,9 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
+	else if (vendorId == VENDOR_ID_LOOPBACK) {
+		device = &loopbackMidi;
+	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -427,6 +430,9 @@ void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uin
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
+	else if (vendorId == VENDOR_ID_LOOPBACK) {
+		device = &loopbackMidi;
+	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -458,6 +464,9 @@ void writeDevicesToFile() {
 		goto worthIt;
 	}
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (loopbackMidi.worthWritingToFile()) {
 		goto worthIt;
 	}
 
@@ -493,6 +502,9 @@ worthIt:
 	}
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
 		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	}
+	if (loopbackMidi.worthWritingToFile()) {
+		loopbackMidi.writeToFile("loopbackMidi");
 	}
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
@@ -545,6 +557,9 @@ void readDevicesFromFile() {
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
 			upstreamUSBMIDIDevice_port3.readFromFile();
+		}
+		else if (!strcmp(tagName, "loopbackMidi")) {
+			loopbackMidi.readFromFile();
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();

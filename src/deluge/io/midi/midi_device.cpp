@@ -557,11 +557,12 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 }
 
 void MIDIDeviceLoopback::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "loopback",
+	storageManager.writeAttribute("port", "loopbackMidi",
 	                              false);
 }
 
 void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {
+	*(uint16_t*)memory = VENDOR_ID_LOOPBACK;
 }
 
 char const* MIDIDeviceLoopback::getDisplayName() {

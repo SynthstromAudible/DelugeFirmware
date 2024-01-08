@@ -27,6 +27,7 @@
 #define VENDOR_ID_DIN 2
 #define VENDOR_ID_UPSTREAM_USB2 3
 #define VENDOR_ID_UPSTREAM_USB3 4
+#define VENDOR_ID_LOOPBACK 5
 
 #define MIDI_DIRECTION_INPUT_TO_DELUGE 0
 #define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
@@ -244,7 +245,7 @@ public:
 class MIDIDeviceLoopback final : public MIDIDevice {
 public:
 	MIDIDeviceLoopback() {
-		connectionFlags = 1; // will probably be a setting, per song?
+		connectionFlags = 1;
 	}
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
