@@ -109,9 +109,7 @@ public:
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
-	bool canSeeViewUnderneath() {
-		return true;
-	}
+	bool canSeeViewUnderneath() { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);

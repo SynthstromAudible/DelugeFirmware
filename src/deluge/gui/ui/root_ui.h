@@ -28,28 +28,14 @@ class RootUI : public UI {
 public:
 	RootUI();
 	virtual bool getAffectEntire();
-	bool canSeeViewUnderneath() final {
-		return true;
-	}
-	virtual bool supportsTriplets() {
-		return true;
-	}
-	virtual void notifyPlaybackBegun() {
-	}
-	virtual uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) {
-		return 0;
-	}
-	virtual void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
-	}
-	virtual void playbackEnded() {
-	}
-	virtual bool isTimelineView() {
-		return false;
-	}
-	virtual void clipNeedsReRendering(Clip* clip) {
-	}
-	virtual void sampleNeedsReRendering(Sample* sample) {
-	}
-	virtual void midiLearnFlash() {
-	}
+	bool canSeeViewUnderneath() final { return true; }
+	virtual bool supportsTriplets() { return true; }
+	virtual void notifyPlaybackBegun() {}
+	virtual uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) { return 0; }
+	virtual void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {}
+	virtual void playbackEnded() {}
+	virtual bool isTimelineView() { return false; }
+	virtual void clipNeedsReRendering(Clip* clip) {}
+	virtual void sampleNeedsReRendering(Sample* sample) {}
+	virtual void midiLearnFlash() {}
 };
