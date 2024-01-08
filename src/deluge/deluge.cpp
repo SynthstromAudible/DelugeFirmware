@@ -153,15 +153,13 @@ void inputRoutine() {
 
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		Debug::print("headphone ");
-		Debug::println(headphoneNow);
+		D_PRINTLN("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
 	if (micNow != AudioEngine::micPluggedIn) {
-		Debug::print("mic ");
-		Debug::println(micNow);
+		D_PRINTLN("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
@@ -175,8 +173,7 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		Debug::print("line in ");
-		Debug::println(lineInNow);
+		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -192,8 +189,7 @@ void inputRoutine() {
 
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
-		//Debug::print("batt mV: ");
-		//Debug::println(batteryMV);
+D_PRINTLN("batt mV:  %d", batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -267,9 +263,9 @@ bool readButtonsAndPads() {
 
 	/*
 	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		Debug::println("closing peripheral");
+		D_PRINTLN("closing peripheral");
 		closeUSBPeripheral();
-		Debug::println("switching back to host");
+		D_PRINTLN("switching back to host");
 		openUSBHost();
 		closedPeripheral = true;
 	}
@@ -279,7 +275,7 @@ bool readButtonsAndPads() {
 		if (sdRoutineLock) {
 			return false;
 		}
-		Debug::println("got to end of sd routine");
+		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
 	}
 
@@ -297,13 +293,11 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
-			Debug::println("");
-			Debug::println("undoing");
+			D_PRINTLN("undoing");
 			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
-			Debug::println("");
-			Debug::println("beginning playback");
+			D_PRINTLN("beginning playback");
 			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
@@ -337,7 +331,7 @@ bool readButtonsAndPads() {
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
-				Debug::println("putCharBack ---------");
+				D_PRINTLN("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
 				waitingForSDRoutineToEnd = true;
 				return false;
@@ -650,8 +644,7 @@ extern "C" int32_t deluge_main(void) {
 
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
-			Debug::print("PIC firmware version reported: ");
-			Debug::println(value);
+			D_PRINTLN("PIC firmware version reported: %s", value);
 			return 0; // continue
 		}
 
@@ -696,7 +689,7 @@ extern "C" int32_t deluge_main(void) {
 	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
 	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
 	if (!anythingInitiallyAttachedAsUSBHost) {
-		Debug::println("switching from host to peripheral");
+		D_PRINTLN("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();
 	}
@@ -786,7 +779,7 @@ extern "C" int32_t deluge_main(void) {
 
 	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
 
-	Debug::println("going into main loop");
+	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 	while (1) {
@@ -845,11 +838,11 @@ extern "C" {
 Used only by macro for logging purposes.
 */
 
-extern void logDebug(char const* string, bool nl) {
+void logDebug(char const* string, bool nl) {
 	if (nl) {
-		Debug::println(string);
+		D_PRINTLN(string);
 	} else {
-		Debug::print(string);
+		D_PRINT(string);
 	}
 }
 
@@ -864,7 +857,7 @@ const char* getBaseFilename(const char* path) {
 	return filename ? filename + 1 : path;
 }
 static char logContextFilename[128];
-extern void logContext(const char* path, int line) {
+void logContext(const char* path, int line) {
     const char* baseFile = getBaseFilename(path);
     int bufferSize = strlen(baseFile) + 20; // Extra space for line number and additional characters
 
@@ -1094,11 +1087,11 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//Debug::println("couldn't create");
+						//D_PRINTLN("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("writing");
+							D_PRINTLN("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1108,13 +1101,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) Debug::println("couldn't write");
+					//if (result) D_PRINTLN("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//Debug::println("finished writing");
+						//D_PRINTLN("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1129,12 +1122,12 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//Debug::println("file not found");
+						//D_PRINTLN("file not found");
 					}
 
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("reading");
+							D_PRINTLN("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1148,7 +1141,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//Debug::println("finished file");
+						//D_PRINTLN("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;

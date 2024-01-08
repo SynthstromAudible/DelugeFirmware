@@ -43,8 +43,7 @@ SampleCluster::~SampleCluster() {
 		}
 
 		if (numReasonsToBeLoaded) {
-			Debug::print("uh oh, some reasons left... ");
-			Debug::println(numReasonsToBeLoaded);
+			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
 			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
 			FREEZE_WITH_ERROR("E036");
@@ -57,9 +56,7 @@ SampleCluster::~SampleCluster() {
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
 		if (cluster->numReasonsToBeLoaded) {
-			Debug::print("Cluster has reason! ");
-			Debug::println(cluster->numReasonsToBeLoaded);
-			Debug::println(sample->filePath.get());
+			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.get());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
 				FREEZE_WITH_ERROR("E068");
@@ -86,18 +83,18 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
-			Debug::println("unloadable");
+			D_PRINTLN("unloadable");
 			if (error) {
 				*error = ERROR_FILE_NOT_FOUND;
 			}
 			return NULL;
 		}
 
-		//Debug::println("loading");
+		//D_PRINTLN("loading");
 		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
 		if (!cluster) {
-			Debug::println("couldn't allocate");
+			D_PRINTLN("couldn't allocate");
 			if (error) {
 				*error = ERROR_INSUFFICIENT_RAM;
 			}
@@ -190,8 +187,7 @@ justEnqueue:
 
 			// If it's still not loaded and it was a must-load-now...
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
-				Debug::print("hurrying loading along failed for index: ");
-				Debug::println(clusterIndex);
+				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
 				if (error) {
 					*error = ERROR_UNSPECIFIED; // TODO: get actual error
 				}

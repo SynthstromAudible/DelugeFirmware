@@ -391,7 +391,7 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 
 	uint32_t timePassedUSA = timerCountToUS(duration);
 
-	Debug::print("duration, uSec: ");
-	Debug::println(timePassedUSA);
+	D_PRINT("duration, uSec: ");
+	D_PRINTLN(timePassedUSA);
 */
 }

@@ -586,7 +586,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint8_t thisSerialByte;
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
-		//Debug::println((uint32_t)thisSerialByte);
+		//D_PRINTLN((uint32_t)thisSerialByte);
 		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
@@ -603,7 +603,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// Or if it's a SysEx start...
 			case 0xF0:
 				currentlyReceivingSysExSerial = true;
-				Debug::println("Sysex start");
+				D_PRINTLN("Sysex start");
 				dev->incomingSysexBuffer[0] = thisSerialByte;
 				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
@@ -614,7 +614,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
-				Debug::println("Sysex end");
+				D_PRINTLN("Sysex end");
 				if (currentlyReceivingSysExSerial) {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
@@ -638,8 +638,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
 				}
-				Debug::print("Sysex: ");
-				Debug::println(thisSerialByte);
+				D_PRINTLN("Sysex:  %d", thisSerialByte);
 				return true;
 			}
 

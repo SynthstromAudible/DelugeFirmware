@@ -80,10 +80,7 @@ void AudioFileManager::init() {
 	if (!error) {
 		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 
-		Debug::print("clusterSize ");
-		Debug::println(clusterSize);
-		Debug::print("clusterSizeMagnitude ");
-		Debug::println(clusterSizeMagnitude);
+		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
 		cardEjected = false;
 	}
 
@@ -124,7 +121,7 @@ void AudioFileManager::cardReinserted() {
 			goto clusterSizeChangedButItsOk;
 		}
 
-		Debug::println("cluster size increased and we're in trouble");
+		D_PRINTLN("cluster size increased and we're in trouble");
 		cardDisabled = true;
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD));
 	}
@@ -133,7 +130,7 @@ void AudioFileManager::cardReinserted() {
 	else if (fileSystemStuff.fileSystem.csize * 512 < clusterSize) {
 
 clusterSizeChangedButItsOk:
-		Debug::println("cluster size changed, and smaller than original so it's ok");
+		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
 		AudioEngine::unassignAllVoices(); // Will also stop synth voices - too bad.
 
 		for (int32_t e = 0; e < audioFiles.getNumElements(); e++) {
@@ -182,7 +179,7 @@ clusterSizeChangedButItsOk:
 
 					FRESULT result = f_open(&fileSystemStuff.currentFile, filePath, FA_READ);
 					if (result != FR_OK) {
-						Debug::println("couldn't open file");
+						D_PRINTLN("couldn't open file");
 						((Sample*)thisAudioFile)->markAsUnloadable();
 						continue;
 					}
@@ -295,8 +292,7 @@ int32_t AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, Stri
 
 	highestUsedAudioRecordingNumber[folderID]++;
 
-	Debug::print("new file: -------------- ");
-	Debug::println(highestUsedAudioRecordingNumber[folderID]);
+	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
 	error = filePath->set(audioRecordingFolderNames[folderID]);
 	if (error) {
@@ -858,25 +854,25 @@ void AudioFileManager::testQueue() {
 
 		if (loadedSampleChunk->nextAvailableLoadedSampleChunk == &queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode
 				&& queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode.prevAvailableLoadedSampleChunkPointer != &loadedSampleChunk->nextAvailableLoadedSampleChunk) {
-			Debug::println("error ---------------------------------");
-			Debug::print(loadedSampleChunk->sample->fileName);
-			Debug::print(", part ");
-			Debug::println(loadedSampleChunk->chunkIndex);
+			D_PRINTLN("error ---------------------------------");
+			D_PRINT(loadedSampleChunk->sample->fileName);
+			D_PRINT(", part ");
+			D_PRINTLN(loadedSampleChunk->chunkIndex);
 			return;
 		}
 
 		if (loadedSampleChunk->nextAvailableLoadedSampleChunk->prevAvailableLoadedSampleChunkPointer != &loadedSampleChunk->nextAvailableLoadedSampleChunk) {
-			Debug::println("abc ---------------------------------");
-			Debug::print(loadedSampleChunk->sample->fileName);
-			Debug::print(", part ");
-			Debug::println(loadedSampleChunk->chunkIndex);
+			D_PRINTLN("abc ---------------------------------");
+			D_PRINT(loadedSampleChunk->sample->fileName);
+			D_PRINT(", part ");
+			D_PRINTLN(loadedSampleChunk->chunkIndex);
 			return;
 		}
 
 		loadedSampleChunk = loadedSampleChunk->nextAvailableLoadedSampleChunk;
 	}
 
-	Debug::println("queue ok -----------------------");
+	D_PRINTLN("queue ok -----------------------");
 	*/
 }
 
@@ -960,7 +956,7 @@ getOutEarly:
 		uint32_t startByteThisCluster = clusterIndex << clusterSizeMagnitude;
 		int32_t bytesToRead = audioDataEndPosBytes - startByteThisCluster;
 		if (bytesToRead <= 0) {
-			Debug::println("fail thing"); // Shouldn't really still happen
+			D_PRINTLN("fail thing"); // Shouldn't really still happen
 			goto getOutEarly;
 		}
 		if (bytesToRead < clusterSize) {
@@ -971,8 +967,7 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if ((uint32_t)cluster->data & 0b11) {
-		Debug::print("SD read address misaligned by ");
-		Debug::println((int32_t)((uint32_t)cluster->data & 0b11));
+		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uint32_t)cluster->data & 0b11));
 	}
 #endif
 
@@ -1000,7 +995,7 @@ getOutEarly:
 	uint16_t duration = endTime - startTime;
 	int32_t uSec = timerCountToUS(duration);
 	if (uSec > 7000) {
-		Debug::println(uSec);
+		D_PRINTLN(uSec);
 	}
 #endif
 
@@ -1286,8 +1281,7 @@ performActionsAndGetOut:
 	uint16_t awayTime = startTime - timeLastFinish;
 	int32_t uSecAway = timerCountToUS(awayTime);
 	if (uSecAway > 1000) {
-		Debug::print("away ");
-		Debug::println(uSecAway);
+		D_PRINTLN("away  %d", uSecAway);
 	}
 #endif
 
@@ -1316,7 +1310,7 @@ performActionsAndGetOut:
 
 		// If that didn't work, presumably because the SD card got ejected...
 		if (!success) {
-			Debug::println("load Cluster fail");
+			D_PRINTLN("load Cluster fail");
 
 			// If the Cluster is now down to 0 reasons (i.e. it lost a reason while being loaded), then it's already been made "available" and we don't have a problem
 			if (!cluster->numReasonsToBeLoaded) {}
@@ -1398,8 +1392,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 	else if (cluster->numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
 		if (cluster->sample) { // "Should" always be true...
-			Debug::print("reason remains on cluster of sample: ");
-			Debug::println(cluster->sample->filePath.get());
+			D_PRINTLN("reason remains on cluster of sample:  %d", cluster->sample->filePath.get());
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else

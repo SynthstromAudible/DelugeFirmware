@@ -32,7 +32,8 @@ extern void routineWithClusterLoading(void);
 extern void loadAnyEnqueuedClustersRoutine(void);
 
 extern void logAudioAction(char const* string);
-
+void logContext(const char* path, int line);
+void logDebug(char const* string, bool nl);
 extern void consoleTextIfAllBootedUp(char const* text);
 
 extern void routineForSD(void);

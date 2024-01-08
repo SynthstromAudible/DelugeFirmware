@@ -1432,7 +1432,7 @@ moveAgain:
 			if (numFileItemsDeletedAtEnd) {
 searchFromOneEnd:
 				oldNameString.clear();
-				Debug::println("reloading and wrap");
+				D_PRINTLN("reloading and wrap");
 				goto readAgain;
 			}
 			else {
@@ -1487,7 +1487,7 @@ doneMoving:
 	}
 
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Debug::println("go again 1 --------------------------");
+		D_PRINTLN("go again 1 --------------------------");
 
 doPendingPresetNavigation:
 		offset = Encoders::encoders[ENCODER_SELECT].getLimitedDetentPosAndReset();
@@ -1512,7 +1512,7 @@ doPendingPresetNavigation:
 		toReturn.loadedFromFile = true;
 
 		if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-			Debug::println("go again 2 --------------------------");
+			D_PRINTLN("go again 2 --------------------------");
 			goto doPendingPresetNavigation;
 		}
 	}
@@ -1527,7 +1527,7 @@ doPendingPresetNavigation:
 
 	// If user wants to move on...
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
-		Debug::println("go again 3 --------------------------");
+		D_PRINTLN("go again 3 --------------------------");
 		goto doPendingPresetNavigation;
 	}
 

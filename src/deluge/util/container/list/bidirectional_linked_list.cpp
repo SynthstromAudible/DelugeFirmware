@@ -103,8 +103,7 @@ void BidirectionalLinkedList::test() {
 		thisNode = thisNode->next;
 	}
 
-	Debug::print("list size: ");
-	Debug::println(count);
+	D_PRINTLN("list size:  %d", count);
 }
 
 BidirectionalLinkedListNode::BidirectionalLinkedListNode() {

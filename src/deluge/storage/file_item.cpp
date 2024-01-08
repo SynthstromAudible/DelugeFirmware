@@ -44,8 +44,7 @@ int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernatin
 	tempFilePath.concatenate(filename.get());
 	bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
 	if (!fileExists) {
-		Debug::print("couldn't get filepath for file");
-		Debug::println(filename.get());
+		D_PRINTLN("couldn't get filepath for file %d", filename.get());
 	}
 	return NO_ERROR;
 }

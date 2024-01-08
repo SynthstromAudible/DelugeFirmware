@@ -3410,7 +3410,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 
 void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
 
-	Debug::println("enterDrumCreator");
+	D_PRINTLN("enterDrumCreator");
 
 	char const* prefix;
 	String soundName;
@@ -4595,7 +4595,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 			modelStackWithNoteRow->getNoteRow()->editNoteRepeatAcrossAllScreens(
 			    squareStart, squareWidth, modelStackWithNoteRow, action, currentClip->getWrapEditLevel(), newNumNotes);
-			Debug::println("did actual note repeat edit");
+			D_PRINTLN("did actual note repeat edit");
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

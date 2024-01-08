@@ -140,8 +140,7 @@ void Cluster::convertDataIfNecessary() {
 			uint16_t endTime = MTU2.TCNT_0;
 
 			if (clusterIndex != startCluster) {
-				Debug::print("time to convert: ");
-				Debug::println((uint16_t)(endTime - startTime));
+				D_PRINTLN("time to convert:  %d", (uint16_t)(endTime - startTime));
 			}
 			*/
 		}

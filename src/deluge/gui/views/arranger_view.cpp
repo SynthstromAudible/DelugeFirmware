@@ -1781,7 +1781,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
-		Debug::println("no go");
+		D_PRINTLN("no go");
 		return false;
 	}
 

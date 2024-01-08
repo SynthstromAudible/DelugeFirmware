@@ -87,10 +87,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our queue
 				if (appropriateQueue > q) {
 
-					Debug::print("changing queue from ");
-					Debug::print(q);
-					Debug::print(" to ");
-					Debug::println(appropriateQueue);
+					D_PRINTLN("changing queue from  %d  to  %d", q, appropriateQueue);
 
 					auto* next = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 
@@ -149,7 +146,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 			spaceSize += result.amountsExtended[0] + result.amountsExtended[1];
 
-			Debug::println("stole and grabbed neighbouring stuff too...........");
+			D_PRINTLN("stole and grabbed neighbouring stuff too...........");
 			AudioEngine::bypassCulling = true; // Paul: We don't want our samples to drop out because of this maneuver
 			stolen = true;
 			break;

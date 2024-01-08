@@ -66,7 +66,7 @@ SampleRecorder::SampleRecorder() {
 }
 
 SampleRecorder::~SampleRecorder() {
-	Debug::println("~SampleRecorder()");
+	D_PRINTLN("~SampleRecorder()");
 	if (sample) {
 		detachSample();
 	}
@@ -352,7 +352,7 @@ aborted:
 				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
 				    == audioFileNumber) {
 					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
-					Debug::println("ticked file counter backwards");
+					D_PRINTLN("ticked file counter backwards");
 				}
 			}
 			filePathCreated.clear();
@@ -534,7 +534,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 		FREEZE_WITH_ERROR("E273");
 	}
 
-	Debug::println("finalizing");
+	D_PRINTLN("finalizing");
 
 	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster, we need to allocate a new one right now
 	int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
@@ -600,19 +600,19 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 		else {
 			// If R is really quiet or is nearly identical to L, delete R
 			if (inputHasNoRightChannel() || recordSumLMinusR < (recordSumL >> 6)) {
-				Debug::println("removing right channel");
+				D_PRINTLN("removing right channel");
 				action = ACTION_REMOVE_RIGHT_CHANNEL;
 			}
 
 			// Or, if R is the differential signal of L, do that
 			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
 			         && inputLooksDifferential()) {
-				Debug::println("subtracting right channel");
+				D_PRINTLN("subtracting right channel");
 				action = ACTION_SUBTRACT_RIGHT_CHANNEL;
 			}
 
 			else {
-				Debug::println("keeping right channel");
+				D_PRINTLN("keeping right channel");
 				action = 0;
 			}
 		}
@@ -650,7 +650,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 		// If we made the file too long, because we then compensated for button latency and are throwing away the last little bit, then truncate it
 		if (capturedTooMuch) {
-			Debug::println("truncating");
+			D_PRINTLN("truncating");
 			uint32_t correctLength =
 			    sample->audioDataStartPosBytes
 			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
@@ -737,7 +737,7 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
 int32_t SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
-	//Debug::println("writeCluster");
+	//D_PRINTLN("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
 
@@ -794,7 +794,7 @@ int32_t SampleRecorder::createNextCluster() {
 
 	// If couldn't allocate cluster (would normally only happen if no SD card present so recording only to RAM)
 	if (!currentRecordCluster) {
-		Debug::println("SampleRecorder::createNextCluster() fail");
+		D_PRINTLN("SampleRecorder::createNextCluster() fail");
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
@@ -875,7 +875,7 @@ doFinishCapturing:
 					goto doFinishCapturing;
 				}
 				else if (error) { // RAM error
-					Debug::println("couldn't allocate RAM");
+					D_PRINTLN("couldn't allocate RAM");
 					abort();
 					return;
 				}
@@ -1051,8 +1051,7 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 	    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
 	int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
-	Debug::print("buttonLatencyForTempolessRecording: ");
-	Debug::println(buttonLatencyForTempolessRecording);
+	D_PRINTLN("buttonLatencyForTempolessRecording:  %d", buttonLatencyForTempolessRecording);
 
 	if (recordingExtraMargins) {
 		numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
@@ -1065,7 +1064,7 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 	if (numMoreSamplesToCapture <= 0) {
 		if (numMoreSamplesToCapture < 0) {
 			capturedTooMuch = true;
-			Debug::println("captured too much.");
+			D_PRINTLN("captured too much.");
 		}
 		finishCapturing();
 	}
@@ -1122,7 +1121,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
                                   uint64_t dataLengthAfterAction) {
 
-	Debug::println("altering file");
+	D_PRINTLN("altering file");
 	int32_t currentReadClusterIndex = 0;
 	int32_t currentWriteClusterIndex = 0;
 
@@ -1243,7 +1242,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 				break;
 			}
 
-			Debug::println("write advance");
+			D_PRINTLN("write advance");
 
 			currentWriteCluster->loaded = true; // I don't think this is necessary anymore
 
@@ -1341,7 +1340,7 @@ writeFailed:
 		// Advance read-head. We read one Cluster ahead, so we can access its "extra bytes"
 		if (readPos >= &currentReadCluster->data[audioFileManager.clusterSize]) {
 
-			Debug::println("read advance");
+			D_PRINTLN("read advance");
 
 			int32_t overshot = (uint32_t)readPos - (uint32_t)&currentReadCluster->data[audioFileManager.clusterSize];
 

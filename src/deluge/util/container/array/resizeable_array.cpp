@@ -541,7 +541,7 @@ getBrandNewMemory:
 
 #ifdef TEST_VECTOR
 		if (getRandom255() < 50) {
-			Debug::println("allocation fail for test purpose");
+			D_PRINTLN("allocation fail for test purpose");
 			goto allocationFail;
 		}
 #endif
@@ -572,7 +572,7 @@ allocationFail:
 		uint32_t newMemoryStartIndex = 0;
 
 		if (memoryIncreasedBy) {
-			Debug::println("new memory, already increased");
+			D_PRINTLN("new memory, already increased");
 		}
 
 		// Or if we're here, we got our new memory. Copy the stuff over. Before wrap point...
@@ -1080,7 +1080,7 @@ getBrandNewMemory:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			//Debug::println("getting new memory");
+			//D_PRINTLN("getting new memory");
 
 			// Otherwise, manually get some brand new memory and do a more complex copying process
 			uint32_t desiredSize = (newNum + numExtraSpacesToAllocate) * elementSize;
