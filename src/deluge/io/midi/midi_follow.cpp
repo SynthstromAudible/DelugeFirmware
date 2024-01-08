@@ -186,17 +186,20 @@ MidiFollow::getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelS
                                            int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	Instrument* instrument = (Instrument*)clip->output;
+	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+		OutputType outputType = clip->output->type;
 
-	if (instrument->type == OutputType::SYNTH) {
-		modelStackWithParam = getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, (InstrumentClip*)clip,
-		                                                         xDisplay, yDisplay);
+		if (outputType == OutputType::SYNTH) {
+			modelStackWithParam =
+			    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+		}
+		else if (outputType == OutputType::KIT) {
+			modelStackWithParam =
+			    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+		}
 	}
-	else if (instrument->type == OutputType::KIT) {
-		modelStackWithParam =
-		    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, (InstrumentClip*)clip, xDisplay, yDisplay);
-	}
-	else if (instrument->type == OutputType::AUDIO) {
+	else {
 		modelStackWithParam =
 		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, (AudioClip*)clip, xDisplay, yDisplay);
 	}
