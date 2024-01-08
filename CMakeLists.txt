@@ -167,6 +167,11 @@ add_subdirectory(lib)
 # Add the main executable target
 add_executable(deluge)
 
+# Link external libraries
+target_link_libraries(deluge PUBLIC
+    argon
+)
+
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)

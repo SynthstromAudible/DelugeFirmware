@@ -10,7 +10,19 @@
         "*.scons": "python",
         "compare": "cpp",
         "ranges": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "filesystem": "cpp",
+        "memory_resource": "cpp",
+        "array": "cpp",
+        "span": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "cwchar": "cpp",
+        "initializer_list": "cpp",
+        "utility": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "cSpell.words": [

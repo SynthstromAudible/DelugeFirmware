@@ -38,11 +38,15 @@ class TimeStretcher;
 class String;
 class SideChain;
 class VoiceVector;
-class revmodel;
+class Freeverb;
 class Metronome;
 class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
+
+namespace deluge::dsp {
+class Reverb;
+}
 
 /*
  * ================== Audio rendering ==================
@@ -189,7 +193,7 @@ extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbCompressor;
 extern uint32_t timeThereWasLastSomeReverb;
 extern VoiceVector activeVoices;
-extern revmodel reverb;
+extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbCompressorVolume;

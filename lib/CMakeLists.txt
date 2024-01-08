@@ -2,11 +2,16 @@ cmake_policy(SET CMP0135 NEW)
 
 include(FetchContent)
 
-
-
+FetchContent_Declare(argon
+  #GIT_REPOSITORY https://github.com/stellar-aria/argon
+  #GIT_TAG v0.1.0
+  URL https://github.com/stellar-aria/argon/archive/refs/tags/v0.1.0.tar.gz
+  URL_HASH MD5=09c4d973031352c5ad6a00233abfec6c
+)
+FetchContent_MakeAvailable(argon)
 
 FetchContent_Declare(doxygen-awesome-css
-  URL      https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.2.1.tar.gz
+  URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.2.1.tar.gz
   URL_HASH MD5=340d3a206794ac01a91791c2a513991f
 )
 FetchContent_MakeAvailable(doxygen-awesome-css)
