@@ -918,7 +918,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 	if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
 		int32_t numNotesFound = 0;
 		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
-		int32_t mpeValuesMax = 0;
+		int32_t mpeValuesMax = -ONE_Q31;
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 		     n++) { // This traversal will include the original note, which will get counted up too
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
@@ -940,7 +940,6 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 				averageValue16 = mpeValuesMax;
 			}
 
-			// Otherwise, do send this average value
 			value32 = averageValue16 << 16;
 		}
 		if (whichExpressionDimension == 0) {
