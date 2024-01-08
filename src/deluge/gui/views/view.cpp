@@ -1231,8 +1231,9 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
-		    && getRootUI() != &keyboardScreen) {
+		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
+		     && getRootUI() != &keyboardScreen)
+		    || (getRootUI() == &automationInstrumentClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
 			affectEntire = true;
 		}
 		else {
