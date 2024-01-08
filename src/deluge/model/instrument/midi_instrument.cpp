@@ -50,6 +50,8 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 		mpeOutputMemberChannels[c].lastNoteCode = 32767;
 		mpeOutputMemberChannels[c].noteOffOrder = 0;
 	}
+	collapseAftertouch = false;
+	collapseMPE = true;
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -789,11 +791,19 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 
 	// If we don't have MPE output...
 	if (!sendsToMPE()) {
-
-		// We can only send Z - and that's as polyphonic aftertouch
 		if (whichExpressionDimension == 2) {
-			midiEngine.sendPolyphonicAftertouch(channel, value32 >> 24, noteCodeAfterArpeggiation,
-			                                    kMIDIOutputFilterNoMPE);
+			if (!collapseAftertouch) {
+				// We can only send Z - and that's as polyphonic aftertouch
+				midiEngine.sendPolyphonicAftertouch(channel, value32 >> 24, noteCodeAfterArpeggiation,
+				                                    kMIDIOutputFilterNoMPE);
+				return;
+			}
+			else {
+				combineMPEtoMono(value32, whichExpressionDimension);
+			}
+		}
+		else if (collapseMPE) {
+			combineMPEtoMono(value32, whichExpressionDimension);
 		}
 	}
 
@@ -861,5 +871,50 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		default:
 			__builtin_unreachable();
 		}
+	}
+}
+
+void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension) {
+	// Are multiple notes sharing the same output member channel?
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
+		int32_t numNotesFound = 0;
+		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
+		int32_t mpeValuesMax = 0;
+		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+		     n++) { // This traversal will include the original note, which will get counted up too
+			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+
+			numNotesFound++;
+			mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+			int32_t value = lookingAtArpNote->mpeValues[whichExpressionDimension];
+			mpeValuesSum += value;
+			mpeValuesMax = std::max(mpeValuesMax, value);
+		}
+
+		// If there in fact are multiple notes sharing the channel, to combine...
+		if (numNotesFound > 1) {
+			int32_t averageValue16;
+			if (whichExpressionDimension == 0) {
+				averageValue16 = mpeValuesSum / numNotesFound;
+			}
+			else {
+				averageValue16 = mpeValuesMax;
+			}
+			int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[whichExpressionDimension];
+			int32_t lastValue7Or14 =
+			    whichExpressionDimension
+			        ? mpeOutputMemberChannels[channel].lastYAndZValuesSent[whichExpressionDimension - 1]
+			        : mpeOutputMemberChannels[channel].lastXValueSent;
+
+			// If there's been no actual change, don't send anything
+			if (averageValue7Or14 == lastValue7Or14) {
+				return;
+			}
+
+			// Otherwise, do send this average value
+			value32 = averageValue16 << 16;
+		}
+		monophonicExpressionEvent(value32, whichExpressionDimension);
 	}
 }

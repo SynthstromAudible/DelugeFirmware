@@ -70,6 +70,9 @@ public:
 	inline bool sendsToMPE() { return (channel >= 16); }
 
 	int32_t channelSuffix;
+	int32_t lastNoteCode;
+	bool collapseAftertouch;
+	bool collapseMPE;
 
 	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
@@ -86,6 +89,7 @@ protected:
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
 	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 
 private:
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
