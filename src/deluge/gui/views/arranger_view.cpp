@@ -28,7 +28,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -1679,8 +1679,8 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		if (((AudioClip*)clip)->onAutomationAudioClipView) {
 			PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 		}
 		// If no sample, just skip directly there
 		else if (!((AudioClip*)clip)->sampleHolder.audioFile) {
@@ -1715,11 +1715,11 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
-		// If going to automationInstrumentClipView...
+		// If going to automationClipView...
 		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
 			instrumentClipView.recalculateColours();
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1770,7 +1770,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1809,7 +1809,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -1856,7 +1856,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		PadLEDs::clearSideBar();
 	}
 

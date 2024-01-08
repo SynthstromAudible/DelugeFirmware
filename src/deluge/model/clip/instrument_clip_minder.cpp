@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -285,7 +285,7 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
 
 	//cross screen editing doesn't currently work in automation view, so don't light it up
-	if (getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentUI() != &automationClipView) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
 	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentInstrumentClip()->isScaleModeClip());
@@ -407,9 +407,9 @@ yesLoadInstrument:
 
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 			    == RuntimeFeatureStateToggle::On) {
-				if (getCurrentUI() == &automationInstrumentClipView) {
+				if (getCurrentUI() == &automationClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &instrumentClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
@@ -421,9 +421,9 @@ yesLoadInstrument:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
-				else if (getCurrentUI() == &automationInstrumentClipView) {
+				else if (getCurrentUI() == &automationClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
-					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 				}
 			}
 		}

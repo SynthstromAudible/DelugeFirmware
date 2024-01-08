@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/menus.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -220,8 +220,8 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParamForSynthClip(
-		    modelStackWithTimelineCounter, instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationClipView.getModelStackWithParamForSynthClip(modelStackWithTimelineCounter,
+		                                                                            instrumentClip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
@@ -262,8 +262,8 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 		}
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParamForKitClip(
-		    modelStackWithTimelineCounter, instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationClipView.getModelStackWithParamForKitClip(modelStackWithTimelineCounter,
+		                                                                          instrumentClip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
@@ -285,8 +285,8 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParamForAudioClip(
-		    modelStackWithTimelineCounter, audioClip, paramID);
+		modelStackWithParam =
+		    automationClipView.getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, audioClip, paramID);
 	}
 
 	return modelStackWithParam;

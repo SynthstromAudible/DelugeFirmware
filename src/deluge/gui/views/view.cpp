@@ -35,7 +35,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -1115,7 +1115,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	//don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+	if ((getCurrentUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1194,7 +1194,7 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	//ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1231,9 +1231,8 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
-		     && getRootUI() != &keyboardScreen)
-		    || (getRootUI() == &automationInstrumentClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
+		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen)
+		    || (getRootUI() == &automationClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
 			affectEntire = true;
 		}
 		else {
@@ -1283,7 +1282,7 @@ void View::setModLedStates() {
 				goto setBlinkLED;
 			}
 		}
-		else if (getRootUI() == &automationInstrumentClipView) {
+		else if (getRootUI() == &automationClipView) {
 			goto setBlinkLED;
 		}
 
@@ -1325,7 +1324,7 @@ setNextLED:
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		//if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+		if ((getRootUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {
@@ -1548,12 +1547,12 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	}
 
 	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
-	if (getCurrentUI() == &automationInstrumentClipView) {
-		if (!automationInstrumentClipView.isOnAutomationOverview()) {
-			automationInstrumentClipView.displayAutomation(true, !display->have7SEG());
+	if (getCurrentUI() == &automationClipView) {
+		if (!automationClipView.isOnAutomationOverview()) {
+			automationClipView.displayAutomation(true, !display->have7SEG());
 		}
 		else {
-			automationInstrumentClipView.renderDisplay();
+			automationClipView.renderDisplay();
 		}
 		return;
 	}
@@ -2021,7 +2020,7 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
 
-		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
 		}
@@ -2030,8 +2029,8 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-		else if (getCurrentUI() == &automationInstrumentClipView) {
-			uiNeedsRendering(&automationInstrumentClipView);
+		else if (getCurrentUI() == &automationClipView) {
+			uiNeedsRendering(&automationClipView);
 		}
 
 		display->removeLoadingAnimation();
