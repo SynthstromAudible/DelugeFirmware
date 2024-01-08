@@ -273,6 +273,8 @@ public:
 
 class ModelStackWithAutoParam : public ModelStackWithParamId {
 public:
+	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
+	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
 };
 
