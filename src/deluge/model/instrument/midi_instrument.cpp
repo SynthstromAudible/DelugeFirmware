@@ -290,6 +290,11 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 			storageManager.closeTag();
 		}
 		storageManager.writeClosingTag("modKnobs");
+
+		storageManager.writeOpeningTagBeginning("polyToMonoConversion");
+		storageManager.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
+		storageManager.writeAttribute("mpe", (int32_t)collapseMPE);
+		storageManager.closeTag();
 	}
 	else {
 		if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
@@ -310,6 +315,18 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
 		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I think it'd only be relevant for pre-V2.0 song file... maybe?
+	}
+	else if (!strcmp(tagName, "polyToMonoConversion")) {
+		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "aftertouch")) {
+				collapseAftertouch = (bool)storageManager.readTagOrAttributeValueInt();
+			}
+			else if (!strcmp(tagName, "mpe")) {
+				collapseMPE = (bool)storageManager.readTagOrAttributeValueInt();
+			}
+			else
+				break;
+		}
 	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = storageManager.readTagOrAttributeValue();
