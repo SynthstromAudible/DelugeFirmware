@@ -133,7 +133,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.6 - New Performance View
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Performance View Documentation]
-- ([#711]) Adds a new performance view, accessible from Song and Arranger View's using the Keyboard button.
+- ([#711]) Adds a new performance view, accessible from Song Row View and Arranger View's using the Keyboard button or the Song Grid View using the Pink Grid Mode pad in the bottom right hand corner of the sidebar.
 	- Each column on the grid represents a different "FX" and each pad/row in the column corresponds to a different FX value.
 	- Specifications:
 		- Perform FX menu to edit Song level parameters and enable/disable editing mode.
