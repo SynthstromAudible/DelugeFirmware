@@ -23,7 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -810,10 +810,10 @@ void timerRoutine() {
 				if (explodeAnimationDirection == 1) {
 					if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 						if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
+							changeRootUI(&automationClipView); // We want to fade the sidebar in
 							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 							if (anyZoomingDone) {
-								uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+								uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 							}
 						}
 						else {
@@ -826,10 +826,10 @@ void timerRoutine() {
 					}
 					else {
 						if (getCurrentAudioClip()->onAutomationAudioClipView) {
-							changeRootUI(&automationInstrumentClipView);
+							changeRootUI(&automationClipView);
 							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 							if (anyZoomingDone) {
-								uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+								uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 							}
 						}
 						else {
@@ -1017,11 +1017,11 @@ void renderClipExpandOrCollapse() {
 					changeRootUI(&keyboardScreen);
 				}
 				else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-					changeRootUI(&automationInstrumentClipView);
+					changeRootUI(&automationClipView);
 					// If we need to zoom in horizontally because the Clip's too short...
 					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 					if (anyZoomingDone) {
-						uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+						uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 					}
 				}
 				else {
@@ -1035,11 +1035,11 @@ void renderClipExpandOrCollapse() {
 			}
 			else {
 				if (getCurrentAudioClip()->onAutomationAudioClipView) {
-					changeRootUI(&automationInstrumentClipView);
+					changeRootUI(&automationClipView);
 					// If we need to zoom in horizontally because the Clip's too short...
 					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 					if (anyZoomingDone) {
-						uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+						uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 					}
 				}
 			}
@@ -1069,7 +1069,7 @@ void renderNoteRowExpandOrCollapse() {
 		currentUIMode = UI_MODE_NONE;
 		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				uiNeedsRendering(&automationInstrumentClipView);
+				uiNeedsRendering(&automationClipView);
 			}
 			else {
 				uiNeedsRendering(&instrumentClipView);
@@ -1077,7 +1077,7 @@ void renderNoteRowExpandOrCollapse() {
 		}
 		else {
 			if (getCurrentAudioClip()->onAutomationAudioClipView) {
-				uiNeedsRendering(&automationInstrumentClipView);
+				uiNeedsRendering(&automationClipView);
 			}
 		}
 		return;

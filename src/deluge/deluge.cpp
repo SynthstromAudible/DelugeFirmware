@@ -45,7 +45,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -431,7 +431,7 @@ void setUIForLoadedSong(Song* song) {
 				newUI = &keyboardScreen;
 			}
 			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
+				newUI = &automationClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
@@ -439,7 +439,7 @@ void setUIForLoadedSong(Song* song) {
 		}
 		else {
 			if (((AudioClip*)song->currentClip)->onAutomationAudioClipView) {
-				newUI = &automationInstrumentClipView;
+				newUI = &automationClipView;
 			}
 			else {
 				newUI = &audioClipView;

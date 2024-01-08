@@ -32,7 +32,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -259,7 +259,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			changeRootUI(&automationInstrumentClipView);
+			changeRootUI(&automationClipView);
 		}
 	}
 
@@ -3623,7 +3623,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 
 		//check that you're not in automation instrument clip view and holding an automation pad down
 		//if not, clear popup's / re-draw screen
-		if (!((getCurrentUI() == &automationInstrumentClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+		if (!((getCurrentUI() == &automationClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::removePopup();
 			}

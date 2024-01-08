@@ -126,9 +126,9 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
+class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
-	AutomationInstrumentClipView();
+	AutomationClipView();
 	bool opened();
 	void openedInBackground();
 	void focusRegained();
@@ -295,4 +295,4 @@ private:
 	bool playbackStopped;
 };
 
-extern AutomationInstrumentClipView automationInstrumentClipView;
+extern AutomationClipView automationClipView;

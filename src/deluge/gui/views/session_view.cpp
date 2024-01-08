@@ -30,7 +30,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
@@ -2467,8 +2467,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			// Won't have happened automatically because we haven't begun the "session"
 			instrumentClipView.recalculateColours();
 
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			// Important that this is done after currentSong->xScroll is changed, above
@@ -2513,8 +2513,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		if (((AudioClip*)clip)->onAutomationAudioClipView) {
 			currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
@@ -2560,7 +2560,7 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		AudioClip* clip = getCurrentAudioClip();
 		// !clip probably couldn't happen, but just in case...
 		if (!clip || !clip->sampleHolder.audioFile) {
@@ -2580,8 +2580,8 @@ void SessionView::transitionToSessionView() {
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
 		if (getCurrentAudioClip()) {
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			// I didn't see a difference but the + 2 seems intentional
@@ -2605,8 +2605,8 @@ void SessionView::transitionToSessionView() {
 				}
 			}
 			else if (instrumentClip->onAutomationInstrumentClipView) {
-				automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-				                                            &PadLEDs::occupancyMaskStore[1], false);
+				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                                  false);
 				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 				// I didn't see a difference but the + 2 seems intentional
@@ -3720,7 +3720,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -3742,7 +3742,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -3757,7 +3757,7 @@ void SessionView::gridTransitionToSessionView() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		PadLEDs::clearSideBar();
 	}
 

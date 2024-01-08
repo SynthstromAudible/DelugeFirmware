@@ -23,7 +23,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -304,7 +304,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			changeRootUI(&automationInstrumentClipView);
+			changeRootUI(&automationClipView);
 		}
 	}
 

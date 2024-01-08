@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour.h"
@@ -249,9 +249,9 @@ const uint8_t rowBlurColour[kDisplayHeight][3] = {
 
     {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}};
 
-AutomationInstrumentClipView automationInstrumentClipView{};
+AutomationClipView automationClipView{};
 
-AutomationInstrumentClipView::AutomationInstrumentClipView() {
+AutomationClipView::AutomationClipView() {
 
 	instrumentClipView.numEditPadPresses = 0;
 
@@ -289,7 +289,7 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 }
 
 //called everytime you open up the automation view
-bool AutomationInstrumentClipView::opened() {
+bool AutomationClipView::opened() {
 
 	//grab the default setting for interpolation
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
@@ -331,7 +331,7 @@ bool AutomationInstrumentClipView::opened() {
 }
 
 // Initializes some stuff to begin a new editing session
-void AutomationInstrumentClipView::focusRegained() {
+void AutomationClipView::focusRegained() {
 	ClipView::focusRegained();
 
 	Clip* clip = getCurrentClip();
@@ -348,7 +348,7 @@ void AutomationInstrumentClipView::focusRegained() {
 	}
 }
 
-void AutomationInstrumentClipView::openedInBackground() {
+void AutomationClipView::openedInBackground() {
 	Clip* clip = getCurrentClip();
 
 	if (clip->type == CLIP_TYPE_AUDIO) {
@@ -369,7 +369,7 @@ void AutomationInstrumentClipView::openedInBackground() {
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
-	AudioEngine::logAction("AutomationInstrumentClipView::beginSession 2");
+	AudioEngine::logAction("AutomationClipView::beginSession 2");
 
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
@@ -389,7 +389,7 @@ void AutomationInstrumentClipView::openedInBackground() {
 }
 
 //used for the play cursor
-void AutomationInstrumentClipView::graphicsRoutine() {
+void AutomationClipView::graphicsRoutine() {
 	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 		audioClipView.graphicsRoutine();
 	}
@@ -403,9 +403,9 @@ void AutomationInstrumentClipView::graphicsRoutine() {
 //called whenever you call uiNeedsRendering(this) somewhere else
 //used to render automation overview, automation editor
 //used to setup the shortcut blinking
-bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                  bool drawUndefinedArea) {
+bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                        bool drawUndefinedArea) {
 
 	if (!image) {
 		return true;
@@ -483,10 +483,10 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 }
 
 //determines whether you should render the automation editor, automation overview or just render some love <3
-void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
-                                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                       int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
-                                                       int32_t imageWidth, bool drawUndefinedArea) {
+void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
+                                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
+                                             uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
+                                             bool drawUndefinedArea) {
 
 	Clip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
@@ -525,9 +525,9 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 }
 
 //renders automation overview
-void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                            OutputType outputType, uint8_t* image,
-                                                            uint8_t occupancyMask[], int32_t yDisplay) {
+void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                  OutputType outputType, uint8_t* image,
+                                                  uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
@@ -625,10 +625,9 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 //gets the length of the clip, renders the pads corresponding to current parameter values set up to the clip length
 //renders the undefined area of the clip that the user can't interact with
-void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                          uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth,
-                                                          int32_t xScroll, uint32_t xZoom, int32_t yDisplay,
-                                                          bool drawUndefinedArea) {
+void AutomationClipView::renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, uint8_t* image,
+                                                uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
+                                                uint32_t xZoom, int32_t yDisplay, bool drawUndefinedArea) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -649,9 +648,9 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 //this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
 //it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
 //which always works. hoping to bring back the other code once I've worked out the bugs.
-void AutomationInstrumentClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
-                                             ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
-                                             uint8_t occupancyMask[], int32_t yDisplay, bool isAutomated) {
+void AutomationClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
+                                   ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
+                                   uint8_t occupancyMask[], int32_t yDisplay, bool isAutomated) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
@@ -687,7 +686,7 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithTimelineCounter* mode
 
 //easter egg lol. it is rendered when you press the CV clip button as you can't use automation view there
 //it draws a cute heart and musical note
-void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void AutomationClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
@@ -703,8 +702,8 @@ void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyM
 
 //defers to audio clip or instrument clip sidebar render functions
 //depending on the active clip
-bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
@@ -730,7 +729,7 @@ This function replaces the two functions that were previously called:
 DisplayParameterValue
 DisplayParameterName */
 
-void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
+void AutomationClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 
@@ -772,8 +771,8 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 	}
 }
 
-void AutomationInstrumentClipView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft,
-                                                     int32_t knobPosRight) {
+void AutomationClipView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft,
+                                           int32_t knobPosRight) {
 	deluge::hid::display::OLED::clearMainImage();
 
 	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
@@ -866,8 +865,8 @@ void AutomationInstrumentClipView::renderDisplayOLED(Clip* clip, OutputType outp
 	deluge::hid::display::OLED::sendMainImage();
 }
 
-void AutomationInstrumentClipView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
-                                                     bool modEncoderAction) {
+void AutomationClipView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
+                                           bool modEncoderAction) {
 	//display OVERVIEW or CANT
 	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
 		if (outputType != OutputType::CV) {
@@ -925,7 +924,7 @@ void AutomationInstrumentClipView::renderDisplay7SEG(Clip* clip, OutputType outp
 }
 
 //get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationInstrumentClipView::getParameterName(Clip* clip, OutputType outputType, char* parameterName) {
+void AutomationClipView::getParameterName(Clip* clip, OutputType outputType, char* parameterName) {
 	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT
 	    || outputType == OutputType::AUDIO) {
 		if (outputType == OutputType::AUDIO) {
@@ -979,7 +978,7 @@ void AutomationInstrumentClipView::getParameterName(Clip* clip, OutputType outpu
 /*updated function for displaying automation when playback is enabled (called from ui_timer_manager).
 Also used internally in the automation instrument clip view for updating the display and led indicators.*/
 
-void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
+void AutomationClipView::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1014,7 +1013,7 @@ void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool upda
 
 //button action
 
-ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AutomationClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -1314,7 +1313,7 @@ passToOthers:
 
 //simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
 //not used with Audio Clip Automation View
-void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
+void AutomationClipView::enterScaleMode(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1340,7 +1339,7 @@ void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 //simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
 //not used with Audio Clip Automation View
-void AutomationInstrumentClipView::exitScaleMode() {
+void AutomationClipView::exitScaleMode() {
 	int32_t scrollAdjust = instrumentClipView.setupForExitingScaleMode();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1356,7 +1355,7 @@ void AutomationInstrumentClipView::exitScaleMode() {
 //pad action
 //handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 //everything else is pretty much the same as instrument clip view
-ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
+ActionResult AutomationClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -1467,8 +1466,7 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 //edit pad action
 //handles single and multi pad presses for automation editing and for parameter selection on the automation overview
 //stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationInstrumentClipView::editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay,
-                                                 uint32_t xZoom) {
+void AutomationClipView::editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -1594,7 +1592,7 @@ singlePadPressAction:
 	}
 }
 
-bool AutomationInstrumentClipView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+bool AutomationClipView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
 	// Find an empty space in the press buffer, if there is one
 	int32_t i;
@@ -1627,7 +1625,7 @@ bool AutomationInstrumentClipView::recordSinglePadPress(int32_t xDisplay, int32_
 //audition pad action
 //don't think I changed anything in here compared to the instrument clip view version
 //not used with Audio Clip Automation View
-void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+void AutomationClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -1856,7 +1854,7 @@ getOut:
 
 //horizontal encoder action
 //using this to shift automations left / right
-ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offset) {
+ActionResult AutomationClipView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -1928,7 +1926,7 @@ wantToEditNoteRowLength:
 //new function created for automation instrument clip view to shift automations of the selected parameter
 //previously users only had the option to shift ALL automations together
 //as part of community feature i disabled automation shifting in the regular instrument clip view
-void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
+void AutomationClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	Clip* clip = getCurrentClip();
@@ -1958,7 +1956,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 //vertical encoder action
 //no change compared to instrument clip view version
 //not used with Audio Clip Automation View
-ActionResult AutomationInstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult AutomationClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -2080,7 +2078,7 @@ shiftAllColour:
 //I'm not doing anything with it
 //But this function could come in handy in the future if I implement vertical zooming
 //Not used with Audio Clip Automation View
-ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount) {
+ActionResult AutomationClipView::scrollVertical(int32_t scrollAmount) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	OutputType outputType = clip->output->type;
@@ -2225,7 +2223,7 @@ ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount) 
 
 //used to change the value of a step when you press and hold a pad on the timeline
 //used to record live automations in
-void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+void AutomationClipView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	encoderAction = true;
 
@@ -2262,7 +2260,7 @@ followOnAction:
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
-bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset) {
+bool AutomationClipView::modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2348,7 +2346,7 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 	return false;
 }
 
-void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset) {
+void AutomationClipView::modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -2396,7 +2394,7 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 }
 
 //used to copy paste automation or to delete automation of the current selected parameter
-void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
@@ -2488,7 +2486,7 @@ followOnAction: //it will come here when you are on the automation overview iscr
 	uiNeedsRendering(this);
 }
 
-void AutomationInstrumentClipView::copyAutomation(Clip* clip) {
+void AutomationClipView::copyAutomation(Clip* clip) {
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
@@ -2527,7 +2525,7 @@ void AutomationInstrumentClipView::copyAutomation(Clip* clip) {
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
-void AutomationInstrumentClipView::pasteAutomation(Clip* clip) {
+void AutomationClipView::pasteAutomation(Clip* clip) {
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
@@ -2596,7 +2594,7 @@ void AutomationInstrumentClipView::pasteAutomation(Clip* clip) {
 
 //used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 //once parameter is selected
-void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
+void AutomationClipView::selectEncoderAction(int8_t offset) {
 	//change midi CC or param ID
 	Clip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2681,7 +2679,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 }
 
 //used with SelectEncoderAction to get the next audio clip parameter
-void AutomationInstrumentClipView::selectAudioClipParam(int32_t offset, AudioClip* clip) {
+void AutomationClipView::selectAudioClipParam(int32_t offset, AudioClip* clip) {
 	auto idx =
 	    getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition, kNumGlobalParamsForAutomation);
 	auto [kind, id] = globalParamsForAutomation[idx];
@@ -2691,7 +2689,7 @@ void AutomationInstrumentClipView::selectAudioClipParam(int32_t offset, AudioCli
 }
 
 //used with SelectEncoderAction to get the next kit affect entire parameter
-void AutomationInstrumentClipView::selectKitAffectEntireParam(int32_t offset, InstrumentClip* clip) {
+void AutomationClipView::selectKitAffectEntireParam(int32_t offset, InstrumentClip* clip) {
 	auto idx =
 	    getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition, kNumGlobalParamsForAutomation);
 	auto [kind, id] = globalParamsForAutomation[idx];
@@ -2701,7 +2699,7 @@ void AutomationInstrumentClipView::selectKitAffectEntireParam(int32_t offset, In
 }
 
 //used with SelectEncoderAction to get the next synth or kit non-affect entire param
-void AutomationInstrumentClipView::selectNonGlobalParam(int32_t offset, InstrumentClip* clip) {
+void AutomationClipView::selectNonGlobalParam(int32_t offset, InstrumentClip* clip) {
 	auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 	                                             kNumNonGlobalParamsForAutomation);
 	{
@@ -2725,7 +2723,7 @@ void AutomationInstrumentClipView::selectNonGlobalParam(int32_t offset, Instrume
 }
 
 //used with SelectEncoderAction to get the next midi CC
-void AutomationInstrumentClipView::selectMIDICC(int32_t offset, InstrumentClip* clip) {
+void AutomationClipView::selectMIDICC(int32_t offset, InstrumentClip* clip) {
 	if (isOnAutomationOverview()) {
 		clip->lastSelectedParamID = 0;
 	}
@@ -2741,9 +2739,8 @@ void AutomationInstrumentClipView::selectMIDICC(int32_t offset, InstrumentClip* 
 }
 
 //used with SelectEncoderAction to get the next parameter in the list of parameters
-int32_t AutomationInstrumentClipView::getNextSelectedParamArrayPosition(int32_t offset,
-                                                                        int32_t lastSelectedParamArrayPosition,
-                                                                        int32_t numParams) {
+int32_t AutomationClipView::getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
+                                                              int32_t numParams) {
 	int32_t idx;
 	//if you haven't selected a parameter yet, start at the beginning of the list
 	if (isOnAutomationOverview()) {
@@ -2765,7 +2762,7 @@ int32_t AutomationInstrumentClipView::getNextSelectedParamArrayPosition(int32_t 
 }
 
 //used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
-void AutomationInstrumentClipView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
+void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (outputType == OutputType::AUDIO) {
@@ -2803,18 +2800,17 @@ void AutomationInstrumentClipView::getLastSelectedParamShortcut(Clip* clip, Outp
 }
 
 //tempo encoder action
-void AutomationInstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed,
-                                                      bool shiftButtonPressed) {
+void AutomationClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 	playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
 }
 
 //called by melodic_instrument.cpp or kit.cpp
-void AutomationInstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
+void AutomationClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	instrumentClipView.noteRowChanged(clip, noteRow);
 }
 
 //called by playback_handler.cpp
-void AutomationInstrumentClipView::notifyPlaybackBegun() {
+void AutomationClipView::notifyPlaybackBegun() {
 	if (getCurrentClip()->type != CLIP_TYPE_AUDIO) {
 		instrumentClipView.reassessAllAuditionStatus();
 	}
@@ -2822,7 +2818,7 @@ void AutomationInstrumentClipView::notifyPlaybackBegun() {
 
 //resets the Parameter Selection which sends you back to the Automation Overview screen
 //these values are saved on a clip basis
-void AutomationInstrumentClipView::initParameterSelection() {
+void AutomationClipView::initParameterSelection() {
 	Clip* clip = getCurrentClip();
 
 	initPadSelection();
@@ -2853,7 +2849,7 @@ void AutomationInstrumentClipView::initParameterSelection() {
 }
 
 //exit pad selection mode, reset pad press statuses
-void AutomationInstrumentClipView::initPadSelection() {
+void AutomationClipView::initPadSelection() {
 
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -2864,17 +2860,17 @@ void AutomationInstrumentClipView::initPadSelection() {
 	lastPadSelectedKnobPos = kNoSelection;
 }
 
-void AutomationInstrumentClipView::initInterpolation() {
+void AutomationClipView::initInterpolation() {
 
-	automationInstrumentClipView.interpolationBefore = false;
-	automationInstrumentClipView.interpolationAfter = false;
+	automationClipView.interpolationBefore = false;
+	automationClipView.interpolationAfter = false;
 }
 
 //get's the modelstack for the parameters that are being edited
 //the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
-ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
-                                                                              Clip* clip, int32_t paramID,
-                                                                              Param::Kind paramKind) {
+ModelStackWithAutoParam* AutomationClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
+                                                                    Clip* clip, int32_t paramID,
+                                                                    Param::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -2911,8 +2907,9 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 	return modelStackWithParam;
 }
 
-ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForSynthClip(
-    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID, Param::Kind paramKind) {
+ModelStackWithAutoParam*
+AutomationClipView::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+                                                       int32_t paramID, Param::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2933,8 +2930,9 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamFor
 	return modelStackWithParam;
 }
 
-ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamForKitClip(
-    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID, Param::Kind paramKind) {
+ModelStackWithAutoParam* AutomationClipView::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
+                                                                              InstrumentClip* clip, int32_t paramID,
+                                                                              Param::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2982,8 +2980,8 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParamFor
 }
 
 ModelStackWithAutoParam*
-AutomationInstrumentClipView::getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
-                                                                InstrumentClip* clip, int32_t paramID) {
+AutomationClipView::getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+                                                      int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Instrument* instrument = (Instrument*)clip->output;
@@ -3003,8 +3001,8 @@ AutomationInstrumentClipView::getModelStackWithParamForMIDIClip(ModelStackWithTi
 }
 
 ModelStackWithAutoParam*
-AutomationInstrumentClipView::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
-                                                                 AudioClip* clip, int32_t paramID) {
+AutomationClipView::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack, AudioClip* clip,
+                                                       int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Instrument* instrument = (Instrument*)clip->output;
@@ -3022,7 +3020,7 @@ AutomationInstrumentClipView::getModelStackWithParamForAudioClip(ModelStackWithT
 //calculates the length of the clip or the length of the kit row
 //if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 //if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
-int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
+int32_t AutomationClipView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 
@@ -3043,8 +3041,7 @@ int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineC
 
 //when pressing on a single pad, you want to display the value of the middle node within that square
 //as that is the most accurate value that represents that square
-uint32_t AutomationInstrumentClipView::getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack,
-                                                              int32_t xDisplay) {
+uint32_t AutomationClipView::getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay) {
 	int32_t effectiveLength = getEffectiveLength(modelStack);
 
 	uint32_t squareStart = getPosFromSquare(xDisplay);
@@ -3061,7 +3058,7 @@ uint32_t AutomationInstrumentClipView::getMiddlePosFromSquare(ModelStackWithTime
 //it's also used for obtaining the start and end position values for a multi pad press
 //and also used for increasing/decreasing parameter values with the mod encoders
 
-int32_t AutomationInstrumentClipView::getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
+int32_t AutomationClipView::getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
 	//obtain value corresponding to the two pads that were pressed in a multi pad press action
 	int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
@@ -3072,8 +3069,7 @@ int32_t AutomationInstrumentClipView::getParameterKnobPos(ModelStackWithAutoPara
 //this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation status
 //of the left node or right node (depending on the reversed parameter which is used to indicate what node in what direction
 //we are looking for (e.g. we want status of left node, or right node, relative to the current pos we are looking at
-bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos,
-                                                        bool reversed) {
+bool AutomationClipView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed) {
 
 	if (!modelStack->autoParam->nodes.getNumElements()) {
 		return false;
@@ -3100,9 +3096,9 @@ bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam*
 }
 
 //this function writes the new values calculated by the handleSinglePadPress and handleMultiPadPress functions
-void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos,
-                                                               int32_t squareStart, int32_t xDisplay,
-                                                               int32_t effectiveLength, bool modEncoderAction) {
+void AutomationClipView::setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos,
+                                                     int32_t squareStart, int32_t xDisplay, int32_t effectiveLength,
+                                                     bool modEncoderAction) {
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -3163,7 +3159,7 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 //sets both knob indicators to the same value when pressing single pad,
 //deleting automation, or displaying current parameter value
 //multi pad presses don't use this function
-void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
+void AutomationClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 	indicator_leds::setKnobIndicatorLevel(0, knobPos);
 	indicator_leds::setKnobIndicatorLevel(1, knobPos);
@@ -3171,8 +3167,8 @@ void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 //updates the position that the active mod controllable stack is pointing to
 //this sets the current value for the active parameter so that it can be auditioned
-void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
-                                                     bool updateDisplay, bool updateIndicatorLevels) {
+void AutomationClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
+                                           bool updateDisplay, bool updateIndicatorLevels) {
 
 	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
 		if (modelStack && modelStack->autoParam) {
@@ -3197,8 +3193,8 @@ void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* mo
 }
 
 //takes care of setting the automation value for the single pad that was pressed
-void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                        int32_t xDisplay, int32_t yDisplay, bool shortcutPress) {
+void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay,
+                                              int32_t yDisplay, bool shortcutPress) {
 
 	Instrument* instrument = (Instrument*)clip->output;
 	OutputType outputType = clip->output->type;
@@ -3390,8 +3386,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 }
 
 //calculates what the new parameter value is when you press a single pad
-int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(OutputType outputType,
-                                                                        int32_t yDisplay) {
+int32_t AutomationClipView::calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
 
@@ -3430,9 +3425,9 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(OutputTy
 }
 
 //takes care of setting the automation values for the two pads pressed and the pads in between
-void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                       int32_t firstPadX, int32_t firstPadY, int32_t secondPadX,
-                                                       int32_t secondPadY, bool modEncoderAction) {
+void AutomationClipView::handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
+                                             int32_t firstPadY, int32_t secondPadX, int32_t secondPadY,
+                                             bool modEncoderAction) {
 
 	if (modelStack) {
 
@@ -3552,8 +3547,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 //on OLED this will display the left and right position in a long press on the screen
 //on 7SEG this will display the position of the last selected pad
 //also updates LED indicators. bottom LED indicator = left pad, top LED indicator = right pad
-void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                                 int32_t xDisplay, bool modEncoderAction) {
+void AutomationClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                       int32_t xDisplay, bool modEncoderAction) {
 	if (modelStack) {
 
 		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
@@ -3603,7 +3598,7 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
 }
 
 //used to calculate new knobPos when you turn the mod encoders (gold knobs)
-int32_t AutomationInstrumentClipView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset) {
+int32_t AutomationClipView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset) {
 
 	//adjust the current knob so that it is within the range of 0-128 for calculation purposes
 	knobPos = knobPos + kKnobPosOffset;
@@ -3631,7 +3626,7 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForModEncoderTurn(int32_t 
 
 //used to disable certain actions on the automation overview screen
 //e.g. doubling clip length, editing clip length
-bool AutomationInstrumentClipView::isOnAutomationOverview() {
+bool AutomationClipView::isOnAutomationOverview() {
 	Clip* clip = getCurrentClip();
 
 	if (clip->type == CLIP_TYPE_AUDIO) {
@@ -3648,7 +3643,7 @@ bool AutomationInstrumentClipView::isOnAutomationOverview() {
 	return false;
 }
 
-void AutomationInstrumentClipView::displayCVErrorMessage() {
+void AutomationClipView::displayCVErrorMessage() {
 	if (display->have7SEG()) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
 	}
@@ -3656,7 +3651,7 @@ void AutomationInstrumentClipView::displayCVErrorMessage() {
 
 //created this function to undo any existing blinking so that it doesn't get rendered in my view
 //also created it so that i can reset blinking when a parameter is deselected or when you enter/exit automation view
-void AutomationInstrumentClipView::resetShortcutBlinking() {
+void AutomationClipView::resetShortcutBlinking() {
 	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	shortcutBlinking = false;

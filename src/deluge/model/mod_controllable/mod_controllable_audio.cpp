@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -1709,7 +1709,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				//if you're in automation view and editing the same parameter that was just updated
 				//by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationInstrumentClipView) {
+				if (getRootUI() == &automationClipView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					//check that the clip that the param is being edited for is the same as the
 					//current clip as the current clip is what's actively displayed in automation view
@@ -1807,11 +1807,11 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								//if so, you will need to refresh the automation editor grid or the performance view
 								bool editingParamInAutomationOrPerformanceView = false;
 								RootUI* rootUI = getRootUI();
-								if (rootUI == &automationInstrumentClipView || rootUI == &performanceSessionView) {
+								if (rootUI == &automationClipView || rootUI == &performanceSessionView) {
 									int32_t id = modelStackWithParam->paramId;
 									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-									if (rootUI == &automationInstrumentClipView) {
+									if (rootUI == &automationClipView) {
 										//pass the current clip because you want to check that you're editing the param
 										//for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
@@ -2075,14 +2075,14 @@ bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param
 	if (clip->type == CLIP_TYPE_INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 		if ((instrumentClip->lastSelectedParamID == id) && (instrumentClip->lastSelectedParamKind == kind)) {
-			uiNeedsRendering(&automationInstrumentClipView);
+			uiNeedsRendering(&automationClipView);
 			return true;
 		}
 	}
 	else {
 		AudioClip* audioClip = (AudioClip*)clip;
 		if ((audioClip->lastSelectedParamID == id) && (audioClip->lastSelectedParamKind == kind)) {
-			uiNeedsRendering(&automationInstrumentClipView);
+			uiNeedsRendering(&automationClipView);
 			return true;
 		}
 	}
