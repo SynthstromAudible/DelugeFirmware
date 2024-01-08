@@ -939,16 +939,6 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			else {
 				averageValue16 = mpeValuesMax;
 			}
-			int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[whichExpressionDimension];
-			int32_t lastValue7Or14 =
-			    whichExpressionDimension
-			        ? mpeOutputMemberChannels[channel].lastYAndZValuesSent[whichExpressionDimension - 1]
-			        : mpeOutputMemberChannels[channel].lastXValueSent;
-
-			// If there's been no actual change, don't send anything
-			if (averageValue7Or14 == lastValue7Or14) {
-				return;
-			}
 
 			// Otherwise, do send this average value
 			value32 = averageValue16 << 16;
