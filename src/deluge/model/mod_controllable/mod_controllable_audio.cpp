@@ -2079,6 +2079,13 @@ bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param
 			return true;
 		}
 	}
+	else {
+		AudioClip* audioClip = (AudioClip*)clip;
+		if ((audioClip->lastSelectedParamID == id) && (audioClip->lastSelectedParamKind == kind)) {
+			uiNeedsRendering(&automationInstrumentClipView);
+			return true;
+		}
+	}
 	return false;
 }
 
