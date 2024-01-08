@@ -1025,8 +1025,9 @@ ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, 
 	Clip* clip = getCurrentClip();
 	bool isAudioClip = clip->type == CLIP_TYPE_AUDIO;
 
+	//these button actions are not used in the audio clip automation view
 	if (isAudioClip) {
-		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV || b == X_ENC) {
+		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1198,7 +1199,8 @@ doOther:
 	}
 
 	// Horizontal encoder button
-	else if (b == X_ENC) {
+	// Not relevant for audio clip
+	else if ((b == X_ENC) && !isAudioClip) {
 		// If user wants to "multiple" Clip contents
 		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
 		    && !isOnAutomationOverview()) {
