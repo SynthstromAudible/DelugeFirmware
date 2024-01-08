@@ -20,6 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -1709,13 +1710,21 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				//if you're in automation view and editing the same parameter that was just updated
 				//by a learned midi knob, then re-render the pads on the automation editor grid
 				if (getRootUI() == &automationInstrumentClipView) {
-					InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
-					int32_t id = modelStackWithParam->paramId;
-					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
-						uiNeedsRendering(&automationInstrumentClipView);
+					Clip* clip = (Clip*)modelStack->getTimelineCounter();
+					//check that the clip that the param is being edited for is the same as the
+					//current clip as the current clip is what's actively displayed in automation view
+					if (clip == getCurrentClip()) {
+						//pass the current clip because you want to check that you're editing the param
+						//for the same clip active in automation view
+						int32_t id = modelStackWithParam->paramId;
+						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
+				//placeholder: if support is added for midi learning to song params, then you will need
+				//to possibly refresh the performance view display (see midi follow code below for doing this)
+				//you will need to check that you're dealing with a song param and not a clip param otherwise
+				//you may incorrectly refresh the performance view display
 			}
 		}
 	}
@@ -1794,27 +1803,32 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
 								                                                          view.modPos, view.modLength);
 
+								//check if you're currently editing the same learned param in automation view or performance view
+								//if so, you will need to refresh the automation editor grid or the performance view
+								bool editingParamInAutomationOrPerformanceView = false;
+								RootUI* rootUI = getRootUI();
+								if (rootUI == &automationInstrumentClipView || rootUI == &performanceSessionView) {
+									int32_t id = modelStackWithParam->paramId;
+									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+									if (rootUI == &automationInstrumentClipView) {
+										//pass the current clip because you want to check that you're editing the param
+										//for the same clip active in automation view
+										editingParamInAutomationOrPerformanceView =
+										    possiblyRefreshAutomationEditorGrid(clip, kind, id);
+									}
+									else {
+										editingParamInAutomationOrPerformanceView =
+										    possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+									}
+								}
+
 								//check if you should display name of the parameter that was changed and the value that has been set
-								if (midiEngine.midiFollowDisplayParam) {
-									bool editingParamInAutomationView = false;
-									//if you're in automation view and editing the same parameter that was just updated
-									//by a learned midi knob, then re-render the pads on the automation editor grid
-									if (getRootUI() == &automationInstrumentClipView) {
-										InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
-										int32_t id = modelStackWithParam->paramId;
-										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-										if ((clip->lastSelectedParamID == id)
-										    && (clip->lastSelectedParamKind == kind)) {
-											uiNeedsRendering(&automationInstrumentClipView);
-											editingParamInAutomationView = true;
-										}
-									}
-									//if you're in the automation view editor, don't display popup if you're currently editing the same param
-									if (!editingParamInAutomationView) {
-										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-										view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId,
-										                                 newKnobPos);
-									}
+								//if you're in the automation view editor or performance view non-editing mode
+								//don't display popup if you're currently editing the same param
+								if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
+									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 								}
 							}
 						}
@@ -2053,6 +2067,41 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 	}
 
 	return newKnobPos;
+}
+
+// if you're in automation view and editing the same parameter that was just updated
+// by a learned midi knob, then re-render the pads on the automation editor grid
+bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id) {
+	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+		if ((instrumentClip->lastSelectedParamID == id) && (instrumentClip->lastSelectedParamKind == kind)) {
+			uiNeedsRendering(&automationInstrumentClipView);
+			return true;
+		}
+	}
+	return false;
+}
+
+// if you had selected a parameter in performance view and the parameter name
+// and current value is displayed on the screen, don't show pop-up as the display already shows it
+// this checks that the param displayed on the screen in performance view
+// is the same param currently being edited with mod encoder and updates the display if needed
+bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos) {
+	//check if you're not in editing mode
+	//and a param hold press is currently active
+	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
+		if ((kind == performanceSessionView.lastPadPress.paramKind)
+		    && (id == performanceSessionView.lastPadPress.paramID)) {
+			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
+			performanceSessionView.renderFXDisplay(kind, id, valueForDisplay);
+			return true;
+		}
+	}
+	//if a specific param is not active, reset display
+	else if (performanceSessionView.onFXDisplay) {
+		performanceSessionView.renderViewDisplay();
+	}
+	return false;
 }
 
 // Returns true if the message was used by something
