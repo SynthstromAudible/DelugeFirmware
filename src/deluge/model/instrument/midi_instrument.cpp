@@ -52,6 +52,7 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 	}
 	collapseAftertouch = false;
 	collapseMPE = true;
+	ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -252,6 +253,15 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 
 	if (shouldSendPGMs) {
 		sendMIDIPGM();
+	}
+	if (clipChanged) {
+		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		if (expressionParams) {
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+		}
 	}
 
 	return clipChanged;
@@ -892,6 +902,17 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 }
 
 void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension) {
+
+	ParamManager* paramManager = getParamManager(NULL);
+	if (paramManager) {
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		if (expressionParams) {
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+		}
+	}
+
 	// Are multiple notes sharing the same output member channel?
 	ArpeggiatorSettings* settings = getArpSettings();
 	if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
@@ -903,7 +924,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 
 			numNotesFound++;
-			mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+
 			int32_t value = lookingAtArpNote->mpeValues[whichExpressionDimension];
 			mpeValuesSum += value;
 			mpeValuesMax = std::max(mpeValuesMax, value);
@@ -931,6 +952,12 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 			// Otherwise, do send this average value
 			value32 = averageValue16 << 16;
+		}
+		if (whichExpressionDimension == 0) {
+			//this can be bigger than 2^31
+			float fbend = value32 * ratio;
+			//casting down will truncate
+			value32 = (int32_t)fbend;
 		}
 		monophonicExpressionEvent(value32, whichExpressionDimension);
 	}

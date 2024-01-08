@@ -73,6 +73,7 @@ public:
 	int32_t lastNoteCode;
 	bool collapseAftertouch;
 	bool collapseMPE;
+	float ratio; //for combining per finger and global bend
 
 	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
