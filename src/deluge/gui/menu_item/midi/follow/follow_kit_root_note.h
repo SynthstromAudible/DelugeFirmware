@@ -17,26 +17,36 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
-#include "model/song/song.h"
+#include "io/midi/midi_engine.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class Rate final : public Integer {
+namespace deluge::gui::menu_item::midi {
+
+class FollowKitRootNote final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override {
-		this->setValue(
-		    (((int64_t)getCurrentInstrumentClip()->arpeggiatorRate + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
-	}
-	void writeCurrentValue() override {
-		if (this->getValue() == kMidMenuValue) {
-			getCurrentInstrumentClip()->arpeggiatorRate = 0;
+	void readCurrentValue() override { this->setValue(midiEngine.midiFollowKitRootNote); }
+	void writeCurrentValue() override { midiEngine.midiFollowKitRootNote = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
+	bool allowsLearnMode() override { return true; }
+
+	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
+		this->setValue(noteCode);
+		midiEngine.midiFollowKitRootNote = noteCode;
+
+		if (soundEditor.getCurrentMenuItem() == this) {
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				drawValue();
+			}
 		}
 		else {
-			getCurrentInstrumentClip()->arpeggiatorRate = (uint32_t)this->getValue() * 85899345 - 2147483648;
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 		}
+
+		return true;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::midi

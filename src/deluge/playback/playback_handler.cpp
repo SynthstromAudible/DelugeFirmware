@@ -34,6 +34,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -373,7 +374,7 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->isArrangementOnlyClip())) {
+	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -2605,6 +2606,10 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// See if note message received should be processed by midi follow mode
+	midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	                               modelStack);
+
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2718,6 +2723,9 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
+	// See if pitch bend received should be processed by midi follow mode
+	midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2783,6 +2791,9 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// See if midi cc received should be processed by midi follow mode
+	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2818,6 +2829,9 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// See if aftertouch received should be processed by midi follow mode
+	midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2920,8 +2934,8 @@ doCreateNextOverdub:
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only
-			else if (currentSong->currentClip && !currentSong->currentClip->isArrangementOnlyClip()) {
-				clipToCreateOverdubFrom = currentSong->currentClip;
+			else if (getCurrentClip() && !getCurrentClip()->isArrangementOnlyClip()) {
+				clipToCreateOverdubFrom = getCurrentClip();
 				clipIndexToCreateOverdubFrom = currentSong->sessionClips.getIndexForClip(clipToCreateOverdubFrom);
 			}
 

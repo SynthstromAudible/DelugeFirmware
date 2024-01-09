@@ -410,7 +410,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == InstrumentType::KIT) {
+		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentInstrumentType() == InstrumentType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 

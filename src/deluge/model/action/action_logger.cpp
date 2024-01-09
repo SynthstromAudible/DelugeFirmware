@@ -192,7 +192,7 @@ traverseClips:
 		newAction->affectEntireSongView = currentSong->affectEntire;
 
 		newAction->view = getCurrentUI();
-		newAction->currentClip = currentSong->currentClip;
+		newAction->currentClip = getCurrentClip();
 	}
 
 	updateAction(newAction);
@@ -434,7 +434,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Or if we've changed Clip but ended up back in the same view...
-			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
+			else if (getCurrentUI()->toClipMinder() && getCurrentClip() != action->currentClip) {
 				whichAnimation = ANIMATION_CHANGE_CLIP;
 			}
 
@@ -599,7 +599,7 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
@@ -630,13 +630,13 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 			changeRootUI(&audioClipView);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
@@ -713,7 +713,7 @@ currentClipSwitchedOver:
 		default:
 			ClipMinder* clipMinder = getCurrentUI()->toClipMinder();
 			if (clipMinder) {
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
 			}

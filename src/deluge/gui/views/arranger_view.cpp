@@ -92,6 +92,7 @@ ArrangerView::ArrangerView() {
 	lastInteractedOutputIndex = 0;
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
+	lastInteractedClipInstance = nullptr;
 }
 
 void ArrangerView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -1148,6 +1149,7 @@ void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipIns
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
 	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
+	lastInteractedClipInstance = clipInstance;
 }
 
 void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
@@ -1494,6 +1496,8 @@ justGetOut:
 
 						// If pressed head, delete
 						if (pressedHead) {
+							//set lastInteractedClipInstance to null so you don't send midi follow feedback for a deleted clip
+							lastInteractedClipInstance = nullptr;
 							view.setActiveModControllableTimelineCounter(currentSong);
 
 							arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
@@ -1615,8 +1619,10 @@ void ArrangerView::exitSubModeWithoutAction() {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
-		view.setActiveModControllableTimelineCounter(currentSong);
+		//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+		//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
+		view.setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
 		if (outputsOnScreen[yPressedEffective] == pressedClipInstanceOutput) {
 			whichRowsNeedReRendering = (1 << yPressedEffective);
@@ -1762,19 +1768,19 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 
 		// If no sample, just skip directly there
-		if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
+		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&arrangerView);
 			return true;
 		}
 	}
 
-	Output* output = currentSong->currentClip->output;
+	Output* output = getCurrentOutput();
 	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-	if (!clipInstance || clipInstance->clip != currentSong->currentClip) {
+	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
 		Debug::println("no go");
 		return false;
 	}
@@ -1801,22 +1807,21 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)currentSong->currentClip);
+		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
 	}
 	else {
 		PadLEDs::explodeAnimationYOriginBig = yDisplay << 16;
 	}
 
-	int64_t clipLengthBig =
-	    ((uint64_t)currentSong->currentClip->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+	int64_t clipLengthBig = ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
 	int64_t potentialMidClip = xStartBig + (clipLengthBig >> 1);
 
-	int32_t numExtraRepeats = (uint32_t)(clipInstance->length - 1) / (uint32_t)currentSong->currentClip->loopLength;
+	int32_t numExtraRepeats = (uint32_t)(clipInstance->length - 1) / (uint32_t)getCurrentClip()->loopLength;
 
 	int64_t midClipDistanceFromMidDisplay;
 

@@ -460,6 +460,18 @@ Drum* Kit::getDrumFromIndex(int32_t index) {
 	return firstDrum;
 }
 
+Drum* Kit::getDrumFromIndexAllowNull(int32_t index) {
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		if (index == 0) {
+			return thisDrum;
+		}
+		index--;
+	}
+
+	// Drum not found, return nullptr
+	return nullptr;
+}
+
 SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 

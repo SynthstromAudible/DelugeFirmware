@@ -161,18 +161,6 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	return address;
 }
 
-[[gnu::always_inline]] void* GeneralMemoryAllocator::allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom) {
-	return alloc(requiredSize, true, false, thingNotToStealFrom);
-}
-
-[[gnu::always_inline]] void* GeneralMemoryAllocator::allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom) {
-	return alloc(requiredSize, false, false, thingNotToStealFrom);
-}
-
-[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealable(uint32_t requiredSize, void* thingNotToStealFrom) {
-	return alloc(requiredSize, false, true, thingNotToStealFrom);
-}
-
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
 	return (*header & SPACE_SIZE_MASK);

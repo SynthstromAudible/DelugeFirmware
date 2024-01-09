@@ -16,28 +16,28 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/mod_fx/type.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
 #include "util/misc.h"
 
-namespace deluge::gui::menu_item::audio_clip::mod_fx {
-class Type final : public menu_item::mod_fx::Type {
+namespace deluge::gui::menu_item::midi {
+class FollowFeedbackAutomation final : public Selection {
 public:
-	using menu_item::mod_fx::Type::Type;
-
-	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
-	void selectEncoderAction(int32_t offset) override {
-		auto current = this->getValue() + offset;
-		int32_t numOptions = getOptions().size();
-
-		if (current >= numOptions) {
-			current -= (numOptions - 1);
-		}
-		else if (current < 1) {
-			current += (numOptions - 1);
-		}
-
-		this->setValue(static_cast<ModFXType>(current));
-		Value::selectEncoderAction(offset);
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(midiEngine.midiFollowFeedbackAutomation); }
+	void writeCurrentValue() override {
+		midiEngine.midiFollowFeedbackAutomation = this->getValue<MIDIFollowFeedbackAutomationMode>();
+	}
+	std::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_DISABLED),
+		    l10n::getView(STRING_FOR_LOW),
+		    l10n::getView(STRING_FOR_MEDIUM),
+		    l10n::getView(STRING_FOR_HIGH),
+		};
 	}
 };
-} // namespace deluge::gui::menu_item::audio_clip::mod_fx
+} // namespace deluge::gui::menu_item::midi

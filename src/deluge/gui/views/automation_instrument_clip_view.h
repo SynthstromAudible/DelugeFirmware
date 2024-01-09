@@ -45,6 +45,86 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
+//grid sized arrays to assign automatable parameters to the grid
+//used in automation view and in midi follow
+
+const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, kNoParamID, Param::Local::OSC_A_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
+    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, kNoParamID, Param::Local::OSC_B_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, kNoParamID},
+    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Global::VOLUME_POST_FX, Param::Local::PITCH_ADJUST, kNoParamID, Param::Local::PAN, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Local::FOLD},
+    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
+     Param::Local::LPF_MORPH, kNoParamID, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
+    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
+     Param::Local::HPF_MORPH, kNoParamID, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Global::VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {Param::Global::ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Global::LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Global::MOD_FX_DEPTH,
+     Param::Global::MOD_FX_RATE},
+    {Param::Local::LFO_LOCAL_FREQ, kNoParamID, kNoParamID, Param::Global::REVERB_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Global::DELAY_RATE, kNoParamID, kNoParamID, Param::Global::DELAY_FEEDBACK, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     Param::Unpatched::BITCRUSHING, kNoParamID},
+    {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::COMPRESSOR_SHAPE, kNoParamID,
+     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::Sound::ARP_GATE, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::VOLUME, Param::Unpatched::GlobalEffectable::PITCH_ADJUST, kNoParamID,
+     Param::Unpatched::GlobalEffectable::PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
 class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
 	AutomationInstrumentClipView();
@@ -113,6 +193,11 @@ public:
 	bool interpolationBefore;
 	bool interpolationAfter;
 
+	//public to midi follow can access it
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                                int32_t paramID = 0xFFFFFFFF,
+	                                                Param::Kind paramKind = Param::Kind::NONE);
+
 private:
 	//Automation View Render Functions
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -151,9 +236,6 @@ private:
 	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF,
-	                                                Param::Kind paramKind = Param::Kind::NONE);
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
@@ -187,6 +269,7 @@ private:
 	bool padSelectionOn;
 	bool multiPadPressSelected;
 	bool multiPadPressActive;
+	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;

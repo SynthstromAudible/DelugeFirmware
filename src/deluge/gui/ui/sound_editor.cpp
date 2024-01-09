@@ -143,12 +143,11 @@ SoundEditor::SoundEditor() {
 }
 
 bool SoundEditor::editingKit() {
-	return currentSong->currentClip->output->type == InstrumentType::KIT;
+	return getCurrentInstrumentType() == InstrumentType::KIT;
 }
 
 bool SoundEditor::editingCVOrMIDIClip() {
-	return (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT
-	        || currentSong->currentClip->output->type == InstrumentType::CV);
+	return (getCurrentInstrumentType() == InstrumentType::MIDI_OUT || getCurrentInstrumentType() == InstrumentType::CV);
 }
 
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -216,10 +215,10 @@ void SoundEditor::setLedStates() {
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
 	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
-	indicator_leds::setLedState(
-	    IndicatorLED::MIDI, !inSettingsMenu() && currentSong->currentClip->output->type == InstrumentType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::MIDI,
+	                            !inSettingsMenu() && getCurrentInstrumentType() == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV,
-	                            !inSettingsMenu() && currentSong->currentClip->output->type == InstrumentType::CV);
+	                            !inSettingsMenu() && getCurrentInstrumentType() == InstrumentType::CV);
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
@@ -291,7 +290,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Save button
 	else if (b == SAVE) {
 		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu()
-		    && !editingCVOrMIDIClip() && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+		    && !editingCVOrMIDIClip() && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -390,7 +389,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 			if (getRootUI() == &keyboardScreen) {
 
-				if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 					swapOutRootUILowLevel(&automationInstrumentClipView);
 					automationInstrumentClipView.openedInBackground();
 				}
@@ -552,8 +551,7 @@ doSetupBlinkingForSessionView:
 		}
 
 		//For Kit Instrument Clip with Affect Entire Enabled
-		else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
-		         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+		else if ((getCurrentInstrumentType() == InstrumentType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
 
 			int32_t x, y;
 
@@ -573,7 +571,7 @@ doSetupBlinkingForKitGlobalFX:
 		}
 
 		// For AudioClips...
-		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		else if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 
 			int32_t x, y;
 
@@ -794,7 +792,10 @@ ActionResult SoundEditor::timerCallback() {
 
 void SoundEditor::markInstrumentAsEdited() {
 	if (!inSettingsMenu()) {
-		((Instrument*)currentSong->currentClip->output)->beenEdited();
+		Instrument* inst = getCurrentInstrumentOrNull();
+		if (inst) {
+			getCurrentInstrument()->beenEdited();
+		}
 	}
 }
 
@@ -842,8 +843,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		//For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu && (currentSong->currentClip->output->type == InstrumentType::KIT)
-		         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+		else if (setupKitGlobalFXMenu && (getCurrentInstrumentType() == InstrumentType::KIT)
+		         && (getCurrentInstrumentClip()->affectEntire)) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
 			}
@@ -852,12 +853,12 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		// AudioClips - there are just a few shortcuts
-		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		else if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 
 			// NAME shortcut
 			if (x == 11 && y == 5) {
 				// Renames the output (track), not the clip
-				Output* output = currentSong->currentClip->output;
+				Output* output = getCurrentOutput();
 				if (output) {
 					renameOutputUI.output = output;
 					openUI(&renameOutputUI);
@@ -917,7 +918,7 @@ doSetup:
 					}
 					int32_t thingIndex = x & 1;
 
-					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
+					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
 
 					if (!setupSuccess) {
 						return ActionResult::DEALT_WITH;
@@ -1141,13 +1142,13 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 
 		// But, can't do it if it's a Kit and affect-entire is on!
-		if (editingKit() && ((InstrumentClip*)currentSong->currentClip)->affectEntire) {
+		if (editingKit() && getCurrentInstrumentClip()->affectEntire) {
 			//IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
 		}
 
 		// Otherwise, everything's fine
 		else {
-			getCurrentMenuItem()->learnKnob(NULL, whichModEncoder, currentSong->currentClip->output->modKnobMode, 255);
+			getCurrentMenuItem()->learnKnob(NULL, whichModEncoder, getCurrentOutput()->modKnobMode, 255);
 		}
 	}
 
@@ -1259,18 +1260,18 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
-				if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
+				if (getCurrentInstrumentType() == InstrumentType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
-				else if (currentSong->currentClip->output->type == InstrumentType::CV) {
+				else if (getCurrentInstrumentType() == InstrumentType::CV) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
 
-				else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
-				         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+				else if ((getCurrentInstrumentType() == InstrumentType::KIT)
+				         && (getCurrentInstrumentClip()->affectEntire)) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
@@ -1406,8 +1407,8 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 }
 
 void SoundEditor::cutSound() {
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		((AudioClip*)currentSong->currentClip)->unassignVoiceSample();
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		getCurrentAudioClip()->unassignVoiceSample();
 	}
 	else {
 		soundEditor.currentSound->unassignAllVoices();
@@ -1416,8 +1417,8 @@ void SoundEditor::cutSound() {
 
 AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return &((AudioClip*)currentSong->currentClip)->sampleHolder;
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return &getCurrentAudioClip()->sampleHolder;
 	}
 
 	else {
@@ -1429,8 +1430,8 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	bool isUISessionView =
 	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
-	InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
-	Instrument* instrument = (Instrument*)clip->output;
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Instrument* instrument = getCurrentInstrument();
 
 	if (isUISessionView) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
@@ -1450,9 +1451,8 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 			}
 		}
 
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, currentSong->currentClip,
-		                                                          noteRowIndex, noteRow, currentModControllable,
-		                                                          currentParamManager);
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
+		                                                          noteRow, currentModControllable, currentParamManager);
 	}
 }
 

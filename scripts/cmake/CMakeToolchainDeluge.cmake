@@ -43,8 +43,6 @@ set(CMAKE_ASM_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the ASM compi
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the C compiler during RELEASE builds."   FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the C++ compiler during RELEASE builds."  FORCE)
 
-set(CMAKE_EXE_LINKER_FLAGS "--specs=nano.specs --specs=rdimon.specs" CACHE STRING "Flags used by the linker during all build types.")
-
 # Architecture
 set(ARCH_FLAGS
   -mcpu=cortex-a9

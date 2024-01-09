@@ -131,12 +131,12 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
         {Param::Kind::PATCHED, Param::Local::FOLD},
         {Param::Kind::PATCHED,
-         Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+         Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
         {Param::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
         {Param::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
         {Param::Kind::PATCHED,
-         Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+         Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
         {Param::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
         {Param::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
@@ -196,85 +196,6 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsFor
         {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
         {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
     }};
-
-//grid sized arrays to assign automatable parameters to the grid
-
-const uint32_t patchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, 0xFFFFFFFF, Param::Local::OSC_A_PHASE_WIDTH,
-     0xFFFFFFFF, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
-    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, 0xFFFFFFFF, Param::Local::OSC_B_PHASE_WIDTH,
-     0xFFFFFFFF, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, 0xFFFFFFFF},
-    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Local::MODULATOR_0_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Local::MODULATOR_1_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Global::VOLUME_POST_FX, 0xFFFFFFFF, Param::Local::PITCH_ADJUST, Param::Local::PAN, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Local::FOLD},
-    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
-     Param::Local::LPF_MORPH, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
-    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
-     Param::Local::HPF_MORPH, 0xFFFFFFFF, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, Param::Global::VOLUME_POST_REVERB_SEND, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF},
-    {Param::Global::ARP_RATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Global::LFO_FREQ, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::MOD_FX_DEPTH,
-     Param::Global::MOD_FX_RATE},
-    {Param::Local::LFO_LOCAL_FREQ, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::REVERB_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Global::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::DELAY_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
-
-const uint32_t unpatchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::SAMPLE_RATE_REDUCTION,
-     Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
-    {Param::Unpatched::Sound::PORTAMENTO, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::COMPRESSOR_SHAPE, 0xFFFFFFFF,
-     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::Sound::ARP_GATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
-
-const uint32_t globalEffectableParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Unpatched::GlobalEffectable::VOLUME, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::PITCH_ADJUST,
-     Param::Unpatched::GlobalEffectable::PAN, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
 
 //grid sized array to assign midi cc values to each pad on the grid
 
@@ -369,10 +290,6 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	playbackStopped = false;
 }
 
-inline InstrumentClip* getCurrentClip() {
-	return (InstrumentClip*)currentSong->currentClip;
-}
-
 //called everytime you open up the automation view
 bool AutomationInstrumentClipView::opened() {
 
@@ -382,7 +299,7 @@ bool AutomationInstrumentClipView::opened() {
 	//re-initialize pad selection mode (so you start with the default automation editor)
 	initPadSelection();
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	//check if we for some reason, left the automation view, then switched clip types, then came back in
@@ -423,7 +340,7 @@ void AutomationInstrumentClipView::focusRegained() {
 
 void AutomationInstrumentClipView::openedInBackground() {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	clip->onKeyboardScreen = false;
@@ -548,7 +465,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	if (encoderAction == false) {
 		//if a Param has been selected for editing, blink its shortcut pad
@@ -583,7 +500,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
                                                        int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
                                                        int32_t imageWidth, bool drawUndefinedArea) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -633,51 +550,48 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 		if ((instrument->type == InstrumentType::SYNTH
 		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
-		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		        || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		    && ((patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
+		        || (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
-			if (patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			if (patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, patchedParamShortcutsForAutomation[xDisplay][yDisplay], Param::Kind::PATCHED);
+				    modelStack, clip, patchedParamShortcuts[xDisplay][yDisplay], Param::Kind::PATCHED);
 			}
 
-			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				//don't make portamento available for automation in kit rows
 				if ((instrument->type == InstrumentType::KIT)
-				    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
-				        == Param::Unpatched::Sound::PORTAMENTO)) {
+				    && (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
 					continue;
 				}
 
-				modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay],
-				                           Param::Kind::UNPATCHED_SOUND);
+				modelStackWithParam = getModelStackWithParam(
+				    modelStack, clip, unpatchedParamShortcuts[xDisplay][yDisplay], Param::Kind::UNPATCHED_SOUND);
 			}
 		}
 
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
-		         && ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		         && ((unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
+		             || (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
-			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				//don't make portamento and arp gate available for automation in kit affect entire
-				if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
-				    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
-				        == Param::Unpatched::Sound::ARP_GATE)) {
+				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+				    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
 					continue;
 				}
 
 				modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]);
+				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcuts[xDisplay][yDisplay]);
 			}
 
-			else if (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay]);
+				modelStackWithParam =
+				    getModelStackWithParam(modelStack, clip, globalEffectableParamShortcuts[xDisplay][yDisplay]);
 			}
 		}
 
@@ -825,7 +739,7 @@ DisplayParameterValue
 DisplayParameterName */
 
 void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
@@ -1038,7 +952,7 @@ Also used internally in the automation instrument clip view for updating the dis
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 
-		InstrumentClip* clip = getCurrentClip();
+		InstrumentClip* clip = getCurrentInstrumentClip();
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1075,7 +989,7 @@ void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool upda
 ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	// Scale mode button
@@ -1444,7 +1358,7 @@ void AutomationInstrumentClipView::exitScaleMode() {
 
 ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1561,7 +1475,7 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1592,37 +1506,45 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 
-			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
-				recordSinglePadPress(xDisplay, yDisplay);
+			if (firstPadX != 255 && firstPadY != 255) {
+				if (firstPadX != xDisplay) {
+					recordSinglePadPress(xDisplay, yDisplay);
 
-				multiPadPressSelected = true;
-				multiPadPressActive = true;
+					multiPadPressSelected = true;
+					multiPadPressActive = true;
 
-				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
-				//(where the first pad is to the left of the second pad). if the user happens to enter a long press backwards
-				//then we fix that entry by re-ordering the pad presses so that it is forward again
-				leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
-				leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
-				rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
-				rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
+					//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
+					//(where the first pad is to the left of the second pad). if the user happens to enter a long press backwards
+					//then we fix that entry by re-ordering the pad presses so that it is forward again
+					leftPadSelectedX = firstPadX > xDisplay ? xDisplay : firstPadX;
+					leftPadSelectedY = firstPadX > xDisplay ? yDisplay : firstPadY;
+					rightPadSelectedX = firstPadX > xDisplay ? firstPadX : xDisplay;
+					rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
 
-				//if you're not in pad selection mode, allow user to enter a long press
-				if (!padSelectionOn) {
-					handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX,
-					                    rightPadSelectedY);
+					//if you're not in pad selection mode, allow user to enter a long press
+					if (!padSelectionOn) {
+						handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX,
+						                    rightPadSelectedY);
+					}
+					else {
+						uiNeedsRendering(this);
+					}
+
+					//set led indicators to left / right pad selection values
+					//and update display
+					renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 				}
 				else {
-					uiNeedsRendering(this);
+					leftPadSelectedY = firstPadY;
+					middlePadPressSelected = true;
+					goto singlePadPressAction;
 				}
-
-				//set led indicators to left / right pad selection values
-				//and update display
-				renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 			}
 		}
 
 		// Or, if this is a regular create-or-select press...
 		else {
+singlePadPressAction:
 			if (recordSinglePadPress(xDisplay, yDisplay)) {
 				multiPadPressActive = false;
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
@@ -1676,6 +1598,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				displayAutomation(padSelectionOn, !display->have7SEG());
 			}
 		}
+
+		middlePadPressSelected = false;
 	}
 }
 
@@ -1720,7 +1644,7 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	bool isKit = (instrument->type == InstrumentType::KIT);
@@ -1948,7 +1872,7 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 	multiPadPressSelected = false;
 	rightPadSelectedX = kNoSelection;
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2024,7 +1948,7 @@ wantToEditNoteRowLength:
 void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2054,7 +1978,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 ActionResult AutomationInstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	encoderAction = true;
 
@@ -2179,7 +2103,7 @@ shiftAllColour:
 ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine,
                                                           bool draggingNoteRow) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	int32_t noteRowToShiftI;
@@ -2372,7 +2296,7 @@ followOnAction:
 }
 
 bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset) {
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
@@ -2459,7 +2383,7 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 }
 
 void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset) {
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2498,6 +2422,10 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
 				setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
 			}
+
+			//midi follow and midi feedback enabled
+			//re-send midi cc because learned parameter value has changed
+			view.sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 		}
 	}
 }
@@ -2505,7 +2433,7 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 //used to copy paste automation or to delete automation of the current selected parameter
 void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2610,7 +2538,7 @@ void AutomationInstrumentClipView::copyAutomation() {
 		return;
 	}
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2654,7 +2582,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 
 	float scaleFactor = (float)pastedAutomationWidth / copiedParamAutomation.width;
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2712,7 +2640,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	//change midi CC or param ID
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	//if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation Overview
@@ -2763,11 +2691,11 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if ((clip->lastSelectedParamKind == Param::Kind::PATCHED
-					     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
 					    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
-					        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					        && unpatchedParamShortcuts[x][y] == clip->lastSelectedParamID)
 					    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
-					        && globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
+					        && globalEffectableParamShortcuts[x][y] == clip->lastSelectedParamID)) {
 						clip->lastSelectedParamShortcutX = x;
 						clip->lastSelectedParamShortcutY = y;
 						goto flashShortcut;
@@ -2870,7 +2798,7 @@ void AutomationInstrumentClipView::notifyPlaybackBegun() {
 //resets the Parameter Selection which sends you back to the Automation Overview screen
 //these values are saved on a clip basis
 void AutomationInstrumentClipView::initParameterSelection() {
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	initPadSelection();
@@ -2895,6 +2823,7 @@ void AutomationInstrumentClipView::initPadSelection() {
 	padSelectionOn = false;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
+	middlePadPressSelected = false;
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
@@ -3003,7 +2932,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 //if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
 //if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
 int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
 	int32_t effectiveLength = 0;
@@ -3134,6 +3063,10 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
 		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
 	}
+
+	//midi follow and midi feedback enabled
+	//re-send midi cc because learned parameter value has changed
+	view.sendMidiFollowFeedback(modelStack, knobPos);
 }
 
 //sets both knob indicators to the same value when pressing single pad,
@@ -3186,25 +3119,25 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 		if ((instrument->type == InstrumentType::SYNTH
 		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
-		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		        || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		    && ((patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
+		        || (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			//don't allow automation of portamento in kit's
 			if ((instrument->type == InstrumentType::KIT)
-			    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+			    && (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
 				return;
 			}
 
-			if (patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			if (patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::PATCHED;
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
-				clip->lastSelectedParamID = patchedParamShortcutsForAutomation[xDisplay][yDisplay];
+				clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
 			}
 
-			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
-				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
+				clip->lastSelectedParamID = unpatchedParamShortcuts[xDisplay][yDisplay];
 			}
 
 			for (auto idx = 0; idx < kNumNonKitAffectEntireParamsForAutomation; idx++) {
@@ -3219,25 +3152,25 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		}
 
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
-		         && ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		         && ((unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
+		             || (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			//don't allow automation of arp gate or portamento in kit affect entire
-			if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
-			    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
+			if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+			    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
 				return;
 			}
 
-			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
 				//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
-				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
+				clip->lastSelectedParamID = unpatchedParamShortcuts[xDisplay][yDisplay];
 			}
 
-			else if (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_GLOBAL;
 				//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
-				clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
+				clip->lastSelectedParamID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 			}
 
 			for (auto idx = 0; idx < kNumKitAffectEntireParamsForAutomation; idx++) {
@@ -3331,7 +3264,12 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
 	if (yDisplay < 7) {
-		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+		if (middlePadPressSelected) {
+			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
+		}
+		else {
+			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+		}
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
@@ -3341,6 +3279,14 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 		}
 		else {
 			newKnobPos = kMaxKnobPos;
+		}
+	}
+	if (middlePadPressSelected) {
+		if (leftPadSelectedY == 0) {
+			newKnobPos = newKnobPos / 2;
+		}
+		else {
+			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
 		}
 	}
 
@@ -3558,7 +3504,7 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForModEncoderTurn(int32_t 
 //e.g. doubling clip length, editing clip length
 bool AutomationInstrumentClipView::isOnAutomationOverview() {
 
-	InstrumentClip* clip = getCurrentClip();
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	if (clip->lastSelectedParamID == kNoSelection) {
 		return true;
