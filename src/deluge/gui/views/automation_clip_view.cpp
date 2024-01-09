@@ -497,28 +497,30 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
-		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
+		if (whichRows & (1 << yDisplay)) {
+			uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if (outputType != OutputType::CV
-		    && !(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-		         && !((Kit*)instrument)->selectedDrum)) {
+			if (outputType != outputType::CV
+			    && !(outputType == outputType::KIT && !instrumentClipView.getAffectEntire()
+			         && !((Kit*)instrument)->selectedDrum)) {
 
-			//if parameter has been selected, show Automation Editor
-			if (!isOnAutomationOverview()) {
-				renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow,
-				                       renderWidth, xScroll, xZoom, yDisplay, drawUndefinedArea);
+				//if parameter has been selected, show Automation Editor
+				if (!isOnAutomationOverview()) {
+					renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow,
+					                       renderWidth, xScroll, xZoom, yDisplay, drawUndefinedArea);
+				}
+
+				//if not editing a parameter, show Automation Overview
+				else {
+					renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth * 3),
+					                         occupancyMaskOfRow, yDisplay);
+				}
 			}
 
-			//if not editing a parameter, show Automation Overview
 			else {
-				renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth * 3),
-				                         occupancyMaskOfRow, yDisplay);
-			}
-		}
-
-		else {
-			if (outputType == OutputType::CV) {
-				renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+				if (outputType == outputType::CV) {
+					renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+				}
 			}
 		}
 	}
@@ -785,16 +787,23 @@ void AutomationClipView::renderDisplayOLED(Clip* clip, OutputType outputType, in
 #endif
 
 		//display Automation Overview or Can't Automate CV
-		if (outputType != OutputType::CV) {
-			char const* outputTypeText;
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW), yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		char const* overviewText;
+		if (outputType != outputType::CV) {
+			if (outputType == outputType::KIT && !instrumentClipView.getAffectEntire()
+			    && !((Kit*)clip->output)->selectedDrum) {
+				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
+				deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
+			}
+			else {
+				overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
+				deluge::hid::display::OLED::drawStringCentred(overviewText, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			}
 		}
 		else {
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV), yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			overviewText = l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV);
+			deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 		}
 	}
 	else if (outputType != OutputType::CV) {
@@ -868,13 +877,22 @@ void AutomationClipView::renderDisplayOLED(Clip* clip, OutputType outputType, in
 void AutomationClipView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
                                            bool modEncoderAction) {
 	//display OVERVIEW or CANT
-	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
-		if (outputType != OutputType::CV) {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
+	if (isOnAutomationOverview() || (outputType == outputType::CV)) {
+		char const* overviewText;
+		if (outputType != outputType::CV) {
+			char const* overviewText;
+			if (outputType == outputType::KIT && !instrumentClipView.getAffectEntire()
+			    && !((Kit*)clip->output)->selectedDrum) {
+				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
+			}
+			else {
+				overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
+			}
 		}
 		else {
-			display->setText(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
+			overviewText = l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV);
 		}
+		display->setScrollingText(overviewText);
 	}
 	else if (outputType != OutputType::CV) {
 		/* check if you're holding a pad
@@ -1644,18 +1662,21 @@ void AutomationClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 
 	Drum* drum = NULL;
 
+	bool selectedDrumChanged = false;
+	bool drawNoteCode = false;
+
 	// If Kit...
 	if (isKit) {
 
 		//if we're in a kit, and you press an audition pad
 		//check if it's a audition pad corresponding to the current selected drum
+		//also check that you're not in affect entire mode
 		//if not, change the drum selection, refresh parameter selection and go back to automation overview
 		if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
-			if (((Kit*)instrument)->selectedDrum != drum) {
-				if (!instrumentClipView.getAffectEntire()) {
-					initParameterSelection();
-				}
+			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
+			if (selectedDrum != drum) {
+				selectedDrumChanged = true;
 			}
 		}
 
@@ -1669,8 +1690,8 @@ void AutomationClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 
 			// Press-down
 			if (velocity) {
-
 				instrumentClipView.setSelectedDrum(NULL);
+				selectedDrumChanged = true;
 			}
 
 			goto getOut;
@@ -1804,7 +1825,7 @@ doSilentAudition:
 				enterUIMode(UI_MODE_AUDITIONING);
 			}
 
-			instrumentClipView.drawNoteCode(yDisplay);
+			drawNoteCode = true;
 			instrumentClipView.lastAuditionedYDisplay = yDisplay;
 
 			// Begin resampling / output-recording
@@ -1816,8 +1837,6 @@ doSilentAudition:
 
 			if (isKit) {
 				instrumentClipView.setSelectedDrum(drum);
-				uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
-				goto getOut;
 			}
 		}
 
@@ -1839,12 +1858,22 @@ doSilentAudition:
 				renderDisplay();
 			}
 		}
-
-		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
-		uiNeedsRendering(this);
 	}
 
 getOut:
+
+	if (selectedDrumChanged && !instrumentClipView.getAffectEntire()) {
+		initParameterSelection();
+		uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
+	}
+	else {
+		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+	}
+
+	//draw note code on top of the automation view display which may have just been refreshed
+	if (drawNoteCode) {
+		instrumentClipView.drawNoteCode(yDisplay);
+	}
 
 	// This has to happen after instrumentClipView.setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
