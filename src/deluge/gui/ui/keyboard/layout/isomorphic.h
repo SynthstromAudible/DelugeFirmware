@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,15 +17,11 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinIsomorphicRowInterval = 1;
-constexpr int32_t kMaxIsomorphicRowInterval = 16;
-constexpr int32_t kVelModShift = 22;
-
-class KeyboardLayoutIsomorphic : public KeyboardLayout {
+class KeyboardLayoutIsomorphic : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutIsomorphic() {}
 	~KeyboardLayoutIsomorphic() override {}
@@ -36,7 +32,6 @@ public:
 	void precalculate() override;
 
 	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
-	void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
 	char const* name() override { return "Isomorphic"; }
 	bool supportsInstrument() override { return true; }
@@ -48,24 +43,6 @@ private:
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
-
-	// use higher precision internally so that scaling and stepping is cleaner
-	int32_t velocityMax = 127 << kVelModShift;
-	int32_t velocityMin = 15 << kVelModShift;
-	uint32_t velocityStep = 16 << kVelModShift;
-	uint32_t velocity32 = 64 << kVelModShift;
-	uint8_t velocity = 64;
-
-	int32_t modMax = 127 << kVelModShift;
-	int32_t modMin = 15 << kVelModShift;
-	uint32_t modStep = 16 << kVelModShift;
-	uint32_t mod32 = 0 << kVelModShift;
-
-	bool velocityMinHeld = false;
-	bool velocityMaxHeld = false;
-
-	bool modMinHeld = false;
-	bool modMaxHeld = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

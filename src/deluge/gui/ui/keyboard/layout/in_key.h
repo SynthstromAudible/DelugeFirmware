@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinInKeyRowInterval = 1;
 constexpr int32_t kMaxInKeyRowInterval = 16;
 
-class KeyboardLayoutInKey : public KeyboardLayout {
+class KeyboardLayoutInKey : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutInKey() {}
 	~KeyboardLayoutInKey() override {}

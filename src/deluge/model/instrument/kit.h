@@ -69,6 +69,7 @@ public:
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                               MIDIMatchType match, uint8_t channel, uint8_t value);
+	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack) {}
 
 	void choke();
 	void resyncLFOs();
