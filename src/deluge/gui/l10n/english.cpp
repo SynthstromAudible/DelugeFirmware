@@ -340,7 +340,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLIPPING_OCCURRED, "Clipping occurred"},
         {STRING_FOR_NO_SAMPLE, "No sample"},
         {STRING_FOR_PARAMETER_NOT_APPLICABLE, "Parameter not applicable"},
-        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select a row or affect-entire"},
+        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select row / affect-entire"},
         {STRING_FOR_UNIMPLEMENTED, "Feature not (yet?) implemented"},
         {STRING_FOR_CANT_LEARN, "Can't learn"},
         {STRING_FOR_CANT_LEARN_PC, "Can't learn Program Change"},
