@@ -59,6 +59,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
 	- In addition, a `DEFAULTS` menu entry was created titled `METRONOME` which enables you to set a value between 1-50 to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 50 being the loudest metronome volume.
 
+#### 3.11 - Set Default Mod-FX Type to Disabled for Audio Clip and Kit Affect Entire Parameters
+- ([#945]) Previously, when creating a new Audio clip or Kit clip, the default Mod-FX Type was set to Flanger. This has now been corrected and the default Mod-FX Type has been set to Disabled.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -454,4 +457,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [#781]: https://github.com/SynthstromAudible/DelugeFirmware/pull/781
+[#945]: https://github.com/SynthstromAudible/DelugeFirmware/pull/945
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
