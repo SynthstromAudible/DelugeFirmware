@@ -91,21 +91,27 @@ static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
-
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
-	return (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+	int64_t result = static_cast<int64_t>(a) * static_cast<int64_t>(b);
+	result += 0x80000000ULL;
+	return static_cast<q31_t>(result >> 32);
 }
 
 // Multiplies A and B, adds to sum, and returns output
-
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return sum + (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+	int64_t result = static_cast<int64_t>(a) * static_cast<int64_t>(b);
+	result += 0x80000000ULL;
+	result += static_cast<int64_t>(sum) << 32;
+	return static_cast<q31_t>(result >> 32);
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
 
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	return sum - (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+	int64_t result = static_cast<int64_t>(a) * static_cast<int64_t>(b);
+	result += 0x80000000ULL;
+	result -= static_cast<int64_t>(sum) << 32;
+	return static_cast<q31_t>(result >> 32);
 }
 
 // computes limit((val >> rshift), 2**bits)
@@ -114,9 +120,23 @@ static inline int32_t signed_saturate(int32_t val) {
 	return std::min(val, 1 << bits);
 }
 
+static inline int32_t mul_saturation(int32_t a, int32_t b) {
+	// Based on http://locklessinc.com/articles/sat_arithmetic
+	uint64_t res = static_cast<uint64_t>(a) * static_cast<uint64_t>(b);
+
+	uint32_t hi = static_cast<uint32_t>(res >> 32);
+	uint32_t lo = static_cast<uint32_t>(res);
+
+	return lo | -!!hi;
+}
+
 static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturation(int32_t a, int32_t b) {
-	return a + b;
+	// Based on http://locklessinc.com/articles/sat_arithmetic/
+	uint32_t res = a + b;
+	res |= -(res < a);
+
+	return res;
 }
 
 inline int32_t clz(uint32_t input) {

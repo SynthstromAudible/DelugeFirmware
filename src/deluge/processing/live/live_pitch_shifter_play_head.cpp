@@ -21,7 +21,9 @@
 #include "util/functions.h"
 
 #pragma GCC push_options
+#if defined(__arm__)
 #pragma GCC target("fpu=neon")
+#endif
 
 #include "arm_neon.h"
 

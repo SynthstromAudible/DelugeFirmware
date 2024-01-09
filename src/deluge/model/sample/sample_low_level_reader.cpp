@@ -16,7 +16,10 @@
  */
 
 #pragma GCC push_options
+
+#if defined(__arm__)
 #pragma GCC target("fpu=neon")
+#endif
 
 #include "model/sample/sample_low_level_reader.h"
 #include "dsp/timestretch/time_stretcher.h"

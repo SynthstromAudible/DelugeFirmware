@@ -1,22 +1,6 @@
-/*
- * Copyright © 2014-2023 Synthstrom Audible Limited
- *
- * This file is part of The Synthstrom Audible Deluge Firmware.
- *
- * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation,
- * either version 3 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see <https://www.gnu.org/licenses/>.
- */
+#include "deluge/storage/storage_manager.h"
 
-#include "storage/storage_manager.h"
-#include "RZA1/gpio/gpio.h"
+#include "CppUTest/TestHarness.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -47,32 +31,10 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
-#include <new>
-#include <string.h>
 
-extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-#include "RZA1/uart/sio_char.h"
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-
-FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
-                                  FILINFO* fno, /* Pointer to file information to return */
-                                  FilePointer* filePointer);
-
-void routineForSD(void);
-}
+#include "CppUTest/TestHarness.h"
 
 StorageManager storageManager{};
-FILINFO staticFNO;
-DIR staticDIR;
-
-extern void initialiseConditions();
-extern void songLoaded(Song* song);
-
-// Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from any other data
-// so that invalidation and stuff works
-struct FileSystemStuff fileSystemStuff;
 
 StorageManager::StorageManager() {
 	fileClusterBuffer = NULL;
@@ -504,18 +466,8 @@ int32_t StorageManager::readAttributeValueString(String* string) {
 }
 
 void StorageManager::xmlReadDone() {
-	xmlReadCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
-
-	if (!(xmlReadCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
-
-		uiTimerManager.routine();
-
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
-		PIC::flush();
-	}
+	// Nothing to do in the mock version -- the real version tries to keep the UI and audio engine ticking along but we
+	// don't care in tests.
 }
 
 void StorageManager::skipUntilChar(char endChar) {
@@ -837,6 +789,7 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 
 // Returns whether successful loading took place
 bool StorageManager::readXMLFileClusterIfNecessary() {
+	// XXX: for tests/mocks this should be a noop, we should just load the whole file at once
 
 	// Load next Cluster if necessary
 	if (fileBufferCurrentPos >= audioFileManager.clusterSize) {
@@ -934,306 +887,63 @@ void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
 }
 
 int32_t StorageManager::checkSpaceOnCard() {
-	Debug::print("free clusters: ");
-	Debug::println(fileSystemStuff.fileSystem.free_clst);
-	return fileSystemStuff.fileSystem.free_clst ? NO_ERROR
-	                                            : ERROR_SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
+	// TODO: allow mocking this
+	return NO_ERROR;
 }
 
 // Creates folders and subfolders as needed!
 int32_t StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
-
-	int32_t error = initSD();
-	if (error) {
-		return error;
-	}
-
-	error = checkSpaceOnCard();
-	if (error) {
-		return error;
-	}
-
-	bool triedCreatingFolder = false;
-
-	BYTE mode = FA_WRITE;
-	if (mayOverwrite) {
-		mode |= FA_CREATE_ALWAYS;
-	}
-	else {
-		mode |= FA_CREATE_NEW;
-	}
-
-tryAgain:
-	FRESULT result = f_open(file, filePath, mode);
-
-	if (result != FR_OK) {
-
-processError:
-		// If folder doesn't exist, try creating it - once only
-		if (result == FR_NO_PATH) {
-			if (triedCreatingFolder) {
-				return ERROR_FOLDER_DOESNT_EXIST;
-			}
-			triedCreatingFolder = true;
-
-			String folderPath;
-			error = folderPath.set(filePath);
-			if (error) {
-				return error;
-			}
-
-			// Get just the folder path
-cutFolderPathAndTryCreating:
-			char const* folderPathChars = folderPath.get();
-			char const* slashAddr = strrchr(folderPathChars, '/');
-			if (!slashAddr) {
-				return ERROR_UNSPECIFIED; // Shouldn't happen
-			}
-			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
-
-			error = folderPath.shorten(slashPos);
-			if (error) {
-				return error;
-			}
-
-			// Try making the folder
-			result = f_mkdir(folderPath.get());
-			if (result == FR_OK) {
-				goto tryAgain;
-			}
-			else if (result
-			         == FR_NO_PATH) { // If that folder couldn't be created because its parent folder didn't exist...
-				triedCreatingFolder = false;      // Let it do multiple tries again
-				goto cutFolderPathAndTryCreating; // Go and try creating the parent folder
-			}
-			else {
-				goto processError;
-			}
-		}
-
-		// Otherwise, just return the appropriate error.
-		else {
-			error = fresultToDelugeErrorCode(result);
-			if (error == ERROR_SD_CARD) {
-				error = ERROR_WRITE_FAIL; // Get a bit more specific if we only got the most general error.
-			}
-			return error;
-		}
-	}
+	FAIL("not yet implemented");
 
 	return NO_ERROR;
 }
 
 int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite) {
-
-	int32_t error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
-	if (error) {
-		return error;
-	}
-
-	fileBufferCurrentPos = 0;
-	fileTotalBytesWritten = 0;
-	fileAccessFailedDuring = false;
-
-	write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-
-	indentAmount = 0;
+	FAIL("not yet implemented");
 
 	return NO_ERROR;
 }
 
 bool StorageManager::fileExists(char const* pathName) {
-	int32_t error = initSD();
-	if (error) {
-		return false;
-	}
-
-	FRESULT result = f_stat(pathName, &staticFNO);
-	return (result == FR_OK);
+	FAIL("not yet implemented");
+	return true;
 }
 
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
-	int32_t error = initSD();
-	if (error) {
-		return false;
-	}
-
-	FRESULT result = f_open(&fileSystemStuff.currentFile, pathName, FA_READ);
-	if (result != FR_OK) {
-		return false;
-	}
-
-	fp->sclust = fileSystemStuff.currentFile.obj.sclust;
-	fp->objsize = fileSystemStuff.currentFile.obj.objsize;
-
-	f_close(&fileSystemStuff.currentFile);
+	FAIL("not yet implemented");
 	return true;
 }
 
-// TODO: this is really inefficient
+// TODO: replace with writes to a sink we can query in tests
 void StorageManager::write(char const* output) {
-
-	while (*output) {
-
-		if (fileBufferCurrentPos == audioFileManager.clusterSize) {
-
-			if (!fileAccessFailedDuring) {
-				int32_t error = writeBufferToFile();
-				if (error) {
-					fileAccessFailedDuring = true;
-					return;
-				}
-			}
-
-			fileBufferCurrentPos = 0;
-		}
-
-		fileClusterBuffer[fileBufferCurrentPos] = *output;
-
-		output++;
-		fileBufferCurrentPos++;
-
-		// Ensure we do some of the audio routine once in a while
-		if (!(fileBufferCurrentPos & 0b11111111)) {
-			AudioEngine::logAction("writeCharXML");
-
-			AudioEngine::routineWithClusterLoading();
-
-			uiTimerManager.routine();
-
-			if (display->haveOLED()) {
-				oledRoutine();
-			}
-			PIC::flush();
-		}
-	}
+	FAIL("not yet implemented");
 }
 
 int32_t StorageManager::writeBufferToFile() {
-	UINT bytesWritten;
-	FRESULT result = f_write(&fileSystemStuff.currentFile, fileClusterBuffer, fileBufferCurrentPos, &bytesWritten);
-	if (result != FR_OK || bytesWritten != fileBufferCurrentPos) {
-		return ERROR_SD_CARD;
-	}
-
-	fileTotalBytesWritten += fileBufferCurrentPos;
+	// TODO: implement some suitable mock
+	FAIL("Not implemented");
 
 	return NO_ERROR;
 }
 
 // Returns false if some error, including error while writing
 int32_t StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	if (fileAccessFailedDuring) {
-		return ERROR_WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
-	}
-	int32_t error = writeBufferToFile();
-	if (error) {
-		return ERROR_WRITE_FAIL;
-	}
-
-	FRESULT result = f_close(&fileSystemStuff.currentFile);
-	if (result) {
-		return ERROR_WRITE_FAIL;
-	}
-
-	if (path) {
-		// Check file exists
-		result = f_open(&fileSystemStuff.currentFile, path, FA_READ);
-		if (result) {
-			return ERROR_WRITE_FAIL;
-		}
-	}
-
-	// Check size
-	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) {
-		return ERROR_WRITE_FAIL;
-	}
-
-	// Check beginning
-	if (beginningString) {
-		UINT dontCare;
-		int32_t length = strlen(beginningString);
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) {
-			return ERROR_WRITE_FAIL;
-		}
-		if (memcmp(miscStringBuffer, beginningString, length)) {
-			return ERROR_WRITE_FAIL;
-		}
-	}
-
-	// Check end
-	if (endString) {
-		UINT dontCare;
-		int32_t length = strlen(endString);
-
-		result = f_lseek(&fileSystemStuff.currentFile, fileTotalBytesWritten - length);
-		if (result) {
-			return ERROR_WRITE_FAIL;
-		}
-
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) {
-			return ERROR_WRITE_FAIL;
-		}
-		if (memcmp(miscStringBuffer, endString, length)) {
-			return ERROR_WRITE_FAIL;
-		}
-	}
-
-	result = f_close(&fileSystemStuff.currentFile);
-	if (result) {
-		return ERROR_WRITE_FAIL;
-	}
+	FAIL("not yet implemented");
 
 	return NO_ERROR;
 }
 
 bool StorageManager::lseek(uint32_t pos) {
-	FRESULT result = f_lseek(&fileSystemStuff.currentFile, pos);
-	if (result != FR_OK) {
-		fileAccessFailedDuring = true;
-	}
-
-	return (result == FR_OK);
+	FAIL("not yet implemented");
+	return true;
 }
 
 int32_t StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
                                     bool ignoreIncorrectFirmware) {
+	FAIL("not yet implemented");
 
-	AudioEngine::logAction("openXMLFile");
-
-	openFilePointer(filePointer);
-
-	// Prep to read first Cluster shortly
-	fileBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
-
-	firmwareVersionOfFileBeingRead = FIRMWARE_OLD;
-
-	tagDepthFile = 0;
-	tagDepthCaller = 0;
-	xmlReachedEnd = false;
-	xmlArea = BETWEEN_TAGS;
-
-	char const* tagName;
-
-	while (*(tagName = readNextTagOrAttributeName())) {
-
-		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
-			return NO_ERROR;
-		}
-
-		int32_t result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
-		if (result && result != RESULT_TAG_UNUSED) {
-			return result;
-		}
-		exitTag(tagName);
-	}
-
-	f_close(&fileSystemStuff.currentFile);
-	return ERROR_FILE_CORRUPTED;
+	return true;
 }
 
 int32_t StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
@@ -1248,7 +958,7 @@ int32_t StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 		char const* firmwareVersionString = readTagOrAttributeValue();
 		int32_t earliestFirmware = stringToFirmwareVersion(firmwareVersionString);
 		if (earliestFirmware > kCurrentFirmwareVersion && !ignoreIncorrectFirmware) {
-			f_close(&fileSystemStuff.currentFile);
+			FAIL("Firmware version too new, and not ignoring incorrecet firmware");
 			return ERROR_FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}
@@ -1261,33 +971,15 @@ int32_t StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 }
 
 bool StorageManager::readXMLFileCluster() {
-
-	AudioEngine::logAction("readXMLFileCluster");
-
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
-	                        &currentReadBufferEndPos);
-	if (result) {
-		fileAccessFailedDuring = true;
-		return false;
-	}
-
-	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
-		return false;
-	}
-
-	fileBufferCurrentPos = 0;
-
+	// TODO: this should do work but doesn't for now, in the mock
+	FAIL("Not yet implemented");
 	return true;
 }
 
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
-	if (fileAccessFailedDuring) {
-		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
-	}
-	FRESULT result = f_close(&fileSystemStuff.currentFile);
-	return (result == FR_OK);
+	FAIL("Not yet implemented");
+	return true;
 }
 
 void StorageManager::writeFirmwareVersion() {
@@ -1298,58 +990,24 @@ void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionS
 	writeAttribute("earliestCompatibleFirmware", versionString);
 }
 
-// Gets ready to access SD card.
-// You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact just no card inserted.
 int32_t StorageManager::initSD() {
-
-	FRESULT result;
-
-	// If we know the SD card is still initialised, no need to actually initialise
-	DSTATUS status = disk_status(SD_PORT);
-	if ((status & STA_NOINIT) == 0) {
-		return NO_ERROR;
-	}
-
-	// But if there's no card present, we're in trouble
-	if (status & STA_NODISK) {
-		return ERROR_SD_CARD_NOT_PRESENT;
-	}
-
-	// Otherwise, we can mount the filesystem...
-	result = f_mount(&fileSystemStuff.fileSystem, "", 1);
-
-	return fresultToDelugeErrorCode(result);
+	// Nothing to do in the mock (other than maybe assert it's called, or add tests for error handling)
+	return NO_ERROR;
 }
 
 bool StorageManager::checkSDPresent() {
-	DSTATUS status = disk_status(SD_PORT);
-	bool present = !(status & STA_NODISK);
-	return present;
+	// TODO: provide an interface for this so we can test it
+	return true;
 }
 
 bool StorageManager::checkSDInitialized() {
-	DSTATUS status = disk_status(SD_PORT);
-	return !(status & STA_NOINIT);
+	// TOOO: provide an interface for this so we can test it
+	return true;
 }
 
 // Function can't fail.
 void StorageManager::openFilePointer(FilePointer* fp) {
-
-	AudioEngine::logAction("openFilePointer");
-
-	Debug::println("openFilePointer");
-
-	fileSystemStuff.currentFile.obj.sclust = fp->sclust;
-	fileSystemStuff.currentFile.obj.objsize = fp->objsize;
-	fileSystemStuff.currentFile.obj.fs = &fileSystemStuff.fileSystem; /* Validate the file object */
-	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem.id;
-
-	fileSystemStuff.currentFile.flag = FA_READ; /* Set file access mode */
-	fileSystemStuff.currentFile.err = 0;        /* Clear error flag */
-	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
-	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
-
-	fileAccessFailedDuring = false;
+	FAIL("not yet implemented");
 }
 
 int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
