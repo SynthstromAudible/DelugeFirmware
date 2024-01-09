@@ -120,8 +120,8 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 		cacheEndPointBytes = endPointCombinedIncrements * kCacheByteDepth * sample->numChannels;
 
 		if (ALPHA_OR_BETA_VERSION && cacheEndPointBytes > cache->waveformLengthBytes) {
-			D_PRINTLN(cacheEndPointBytes);
-			D_PRINTLN(cache->waveformLengthBytes);
+			D_PRINTLN("%d", cacheEndPointBytes);
+			D_PRINTLN("%d", cache->waveformLengthBytes);
 			FREEZE_WITH_ERROR("E128");
 		}
 	}

@@ -74,7 +74,8 @@ extern void freezeWithError(char const* errmsg);
 
 #if ENABLE_TEXT_OUTPUT
 #include "deluge/deluge.h"
-#include "stdio.h"
+#include "lib/printf.h"
+
 #define D_MERGE(x, y) x##y
 #define D_CONCAT(x, y) D_MERGE(x,y)
 #define D_AUTOVAR D_CONCAT(debug, __LINE__)
@@ -84,20 +85,20 @@ extern void freezeWithError(char const* errmsg);
 
 #define D_PRINT_RAW(...) do { \
 	char D_AUTOVAR[512];\
-	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
 	logDebug(D_AUTOVAR, false);\
 } while(0)
 
 #define D_PRINT(...) do { \
 	char D_AUTOVAR[512];\
-	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
 	logContext(__FILE__, __LINE__); \
 	logDebug(D_AUTOVAR, false);\
 } while(0)
 
 #define D_PRINTLN(...) do { \
 	char D_AUTOVAR[512];\
-	snprintf(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
+	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
 	logContext(__FILE__, __LINE__); \
 	logDebug(D_AUTOVAR, true);\
 } while(0)
@@ -108,6 +109,3 @@ extern void freezeWithError(char const* errmsg);
 #endif
 
 #endif
-
-
-

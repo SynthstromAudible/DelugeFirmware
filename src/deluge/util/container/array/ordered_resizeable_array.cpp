@@ -188,8 +188,6 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 		// Cool, we've now solved for this search term
 		searchTerms[t] = rangeEnd;
 	}
-
-D_PRINTLN("maxSearchRecord:  %d", maxSearchRecord);
 }
 
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
@@ -315,9 +313,8 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 			}
 		}
 
-D_PRINTLN("search-multiple success. time taken: ");
 thatsDone:
-		D_PRINTLN(timeTaken);
+	D_PRINTLN("search-multiple success. time taken: %d ", timeTaken);
 	}
 }
 

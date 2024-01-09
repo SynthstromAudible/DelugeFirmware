@@ -266,7 +266,7 @@ D_PRINTLN("play count:  %d", loopData[5]);
 
 					if (number >= 1) {
 						waveTableCycleSize = number;
-D_PRINTLN("clm tag num samples per cycle:  %d", waveTableNumSamplesPerCycle);
+						D_PRINTLN("clm tag num samples per cycle:  %d", waveTableCycleSize);
 					}
 				}
 
@@ -409,7 +409,7 @@ D_PRINTLN("clm tag num samples per cycle:  %d", waveTableNumSamplesPerCycle);
 					int8_t fineTune = data[1];
 					if ((midiNote || fineTune) && midiNote < 128) {
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
-D_PRINTLN("unshifted note:  %d", newSample->midiNoteFromFile);
+						D_PRINTLN("unshifted note:  %s", ((Sample*)this)->midiNoteFromFile);
 					}
 
 					//for (int32_t l = 0; l < 2; l++) {

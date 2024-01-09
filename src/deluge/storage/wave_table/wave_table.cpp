@@ -732,10 +732,10 @@ transformBandToTimeDomain:
 	delugeDealloc(frequencyDomainData);
 
 	// Printout stats
-D_PRINTLN("initial band size if all populated: ");
-	               * 2);
-D_PRINTLN("initial band size after trimming: ");
-	               * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	D_PRINTLN("initial band size if all populated: %d", numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+					* 2);
+	D_PRINTLN("initial band size after trimming: %d", (initialBand->toCycleNumber - initialBand->fromCycleNumber)
+					* (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int32_t total = 0;
 	for (int32_t b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);

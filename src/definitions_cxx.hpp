@@ -17,12 +17,16 @@
 
 #pragma once
 #include "definitions.h"
+#include <cstdio>
 #include "util/misc.h"
 #include "version.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdarg>
+
+
 
 #define HARDWARE_TEST_MODE 0
 
