@@ -208,7 +208,7 @@ doSetupWaveTable:
 
 						// Go through loops
 						for (int32_t l = 0; l < numLoops; l++) {
-D_PRINTLN("loop  %d", l);
+							D_PRINTLN("loop  %d", l);
 
 							uint32_t loopData[6];
 							error = reader->readBytes((char*)loopData, 4 * 6);
@@ -216,13 +216,13 @@ D_PRINTLN("loop  %d", l);
 								goto finishedWhileLoop;
 							}
 
-D_PRINTLN("start:  %d", loopData[2]);
+							D_PRINTLN("start:  %d", loopData[2]);
 							((Sample*)this)->fileLoopStartSamples = loopData[2];
 
-D_PRINTLN("end:  %d", loopData[3]);
+							D_PRINTLN("end:  %d", loopData[3]);
 							((Sample*)this)->fileLoopEndSamples = loopData[3];
 
-D_PRINTLN("play count:  %d", loopData[5]);
+							D_PRINTLN("play count:  %d", loopData[5]);
 						}
 					}
 
@@ -425,13 +425,13 @@ D_PRINTLN("play count:  %d", loopData[5]);
 						break;
 					}
 
-D_PRINTLN("play mode:  %d", swapEndianness2x16(loopData[0]));
+					D_PRINTLN("play mode:  %d", swapEndianness2x16(loopData[0]));
 
 					sustainLoopBeginMarkerId = swapEndianness2x16(loopData[1]);
-D_PRINTLN("begin marker id:  %d", sustainLoopBeginMarkerId);
+					D_PRINTLN("begin marker id:  %d", sustainLoopBeginMarkerId);
 
 					sustainLoopEndMarkerId = swapEndianness2x16(loopData[2]);
-D_PRINTLN("end marker id:  %d", sustainLoopEndMarkerId);
+					D_PRINTLN("end marker id:  %d", sustainLoopEndMarkerId);
 					//}
 				}
 				break;

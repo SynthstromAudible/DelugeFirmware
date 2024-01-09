@@ -61,7 +61,8 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-		D_PRINT("%d bytes in stack %d free bytes in stack at %x", (uint32_t)&program_stack_end - (int32_t)&a, distance ,caller);
+		D_PRINT("%d bytes in stack %d free bytes in stack at %x", (uint32_t)&program_stack_end - (int32_t)&a, distance,
+		        caller);
 
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
@@ -271,7 +272,8 @@ void testReadingMemory(int32_t i) {
 	for (int32_t j = 0; j < sizes[i]; j++) {
 		if (*readPos != readValue) {
 			D_PRINTLN("data corrupted! readPos %d", (int32_t)readPos);
-			D_PRINTLN("allocation total size:  %d num bytes in:  %d", sizes[i], (int32_t)readPos - (int32_t)testAllocations[i]);
+			D_PRINTLN("allocation total size:  %d num bytes in:  %d", sizes[i],
+			          (int32_t)readPos - (int32_t)testAllocations[i]);
 			while (1) {}
 		}
 		readPos++;
@@ -476,12 +478,15 @@ void GeneralMemoryAllocator::test() {
 			}
 
 			if (getRandom255() < 2) {
-				D_PRINTLN("\nfree spaces:  %d allocations:  %d", regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements(), regions[MEMORY_REGION_STEALABLE].numAllocations);
+				D_PRINTLN("\nfree spaces:  %d allocations:  %d",
+				          regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements(),
+				          regions[MEMORY_REGION_STEALABLE].numAllocations);
 
 				if (regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements() == 1) {
 					EmptySpaceRecord* firstRecord =
 					    (EmptySpaceRecord*)regions[MEMORY_REGION_STEALABLE].emptySpaces.getElementAddress(0);
-					D_PRINTLN("free space size:  %d free space address:  %d", firstRecord->length, firstRecord->address);
+					D_PRINTLN("free space size:  %d free space address:  %d", firstRecord->length,
+					          firstRecord->address);
 				}
 				delayMS(200);
 			}

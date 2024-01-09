@@ -569,7 +569,7 @@ justDontTimeStretch:
 						goto justDontTimeStretch;
 					}
 					else {
-D_PRINTLN("sync:  %d", numSamplesDrift);
+						D_PRINTLN("sync:  %d", numSamplesDrift);
 					}
 				}
 			}

@@ -354,7 +354,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		//lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
 	}
 
-D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
+	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
 	minBeamWidth = storageManager.devVarA * 10;
@@ -438,7 +438,7 @@ D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 						hasLoopedBackIntoPreMargin = true;
 
-D_PRINTLN("did special crossfade of length  %d", crossfadeLengthSamples);
+						D_PRINTLN("did special crossfade of length  %d", crossfadeLengthSamples);
 
 						// If there's a cache, we can't move a bit sideways to phase-align,
 						// cos our new play-head needs to remain perfectly aligned with the start of the cache.
@@ -656,7 +656,7 @@ skipPercStuff:
 		    (sample->sampleRate / 45)
 		    >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just for searching in one direction, and we're going to do both directions.
 		maxSearchSize = std::min(maxSearchSize, limit);
-D_PRINTLN("max search length:  %d", maxSearchSize);
+		D_PRINTLN("max search length:  %d", maxSearchSize);
 
 		int32_t numFullDirectionsSearched = 0;
 		int32_t timesSignFlipped = 0;
@@ -868,7 +868,7 @@ skipSearch:
 
 		int32_t bytesBehind = (olderPartReader.getPlayByteLowLevel(sample, guide) - newHeadBytePos) * playDirection;
 
-D_PRINTLN("bytesBehind:  %d", bytesBehind);
+		D_PRINTLN("bytesBehind:  %d", bytesBehind);
 
 		// Only proceed if newer head is earlier than older one
 		if (bytesBehind < 0)
@@ -886,11 +886,12 @@ D_PRINTLN("bytesBehind:  %d", bytesBehind);
 
 			D_PRINTLN("nope");
 
-			D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d bufferSamplesWritten:  %d", samplesBehindOnRepitchedWaveform, bufferSamplesWritten);
+			D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d bufferSamplesWritten:  %d",
+			          samplesBehindOnRepitchedWaveform, bufferSamplesWritten);
 			goto optForDirectReading;
 		}
 
-D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d", samplesBehindOnRepitchedWaveform);
+		D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d", samplesBehindOnRepitchedWaveform);
 
 		if (!samplesBehindOnRepitchedWaveform) {
 			//D_PRINTLN("new head reading non-buffered and writing to buffer");
@@ -907,7 +908,7 @@ D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d", samplesBehindOnRepitchedWavef
 			newerBufferReadPos =
 			    (uint32_t)(bufferWritePos - samplesBehindOnRepitchedWaveform) & (TimeStretch::BUFFER_SIZE - 1);
 			newerHeadReadingFromBuffer = true;
-D_PRINTLN("samples behind:  %d", samplesBehindOnRepitchedWaveform);
+			D_PRINTLN("samples behind:  %d", samplesBehindOnRepitchedWaveform);
 		}
 	}
 
@@ -1207,7 +1208,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	crossfadeIncrement = 16777216 / (uint16_t)numSamplesThisCacheRead + 1;
 	crossfadeProgress = 0;
 
-D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
+	D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
 
 #if TIME_STRETCH_ENABLE_BUFFER
 	bufferWritePos = TimeStretch::BUFFER_SIZE - 1; // To trick it out of trying to do a "normal" thing later

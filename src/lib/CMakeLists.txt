@@ -1,5 +1,5 @@
-add_library(mpaland_printf STATIC)
-target_include_directories(mpaland_printf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_sources(mpaland_printf PRIVATE
+add_library(eyalroz_printf STATIC)
+target_include_directories(eyalroz_printf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(eyalroz_printf PRIVATE
   printf.c
 )

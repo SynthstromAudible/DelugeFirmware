@@ -79,6 +79,7 @@ public:
 	                              char const* endString = NULL);
 	uint32_t readCharXML(char* thisChar);
 	void write(char const* output);
+	void writef(char const* format, ...);
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);

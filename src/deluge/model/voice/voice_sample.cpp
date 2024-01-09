@@ -270,7 +270,7 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
                                                   int32_t numSamplesTilLoop, int32_t playDirection,
                                                   int32_t priorityRating) {
 
-D_PRINTLN("fudging  %d", numSamplesTilLoop);
+	D_PRINTLN("fudging  %d", numSamplesTilLoop);
 
 	timeStretcher = AudioEngine::solicitTimeStretcher();
 	if (!timeStretcher) {

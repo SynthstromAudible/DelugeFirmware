@@ -269,9 +269,8 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
 		if (display->haveOLED()) {
-			char buffer[24];
-			strcpy(buffer, "Transpose: ");
-			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			char buffer[32];
+			snprintf(buffer, 32, "Transpose: %d", manualSlicePoints[currentSlice].transpose);
 			display->popupTextTemporary(buffer);
 		}
 		else {
@@ -345,6 +344,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
 		if (display->haveOLED()) {
+
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));

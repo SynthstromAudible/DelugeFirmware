@@ -153,13 +153,13 @@ void inputRoutine() {
 
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		D_PRINTLN("headphone %d", headphoneNow);
+		D_PRINT("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
 	if (micNow != AudioEngine::micPluggedIn) {
-		D_PRINTLN("mic %d", micNow);
+		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
@@ -173,7 +173,7 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		D_PRINTLN("line in %d", lineInNow);
+		D_PRINT("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -189,7 +189,8 @@ void inputRoutine() {
 
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
-D_PRINTLN("batt mV:  %d", batteryMV);
+		//D_PRINT("batt mV: ");
+		//D_PRINTLN(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -293,10 +294,12 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
+			D_PRINTLN("");
 			D_PRINTLN("undoing");
 			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
+			D_PRINTLN("");
 			D_PRINTLN("beginning playback");
 			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
@@ -834,41 +837,41 @@ extern "C" void logAudioAction(char const* string) {
 #ifdef __cplusplus
 extern "C" {
 #endif
-/*
-Used only by macro for logging purposes.
-*/
 
-void logDebug(char const* string, bool nl) {
-	if (nl) {
-		D_PRINTLN(string);
-	} else {
-		D_PRINT(string);
+
+#if ENABLE_TEXT_OUTPUT
+// only called from the D_PRINT macros
+void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
+	static char buffer[512];
+	va_list args;
+
+	// Start variadic argument processing
+	va_start(args, format);
+	// Compose the log message into the buffer
+	const char* baseFile = getFileNameFromEndOfPath(file);
+	if (mode == kDebugPrintModeRaw) {
+		vsnprintf(buffer, bufsize, format, args);
+	}
+	else {
+		snprintf_(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
+		vsnprintf_(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
+	}
+	// End variadic argument processing
+	va_end(args);
+
+	// Pass the buffer to another logging library
+	if (mode == kDebugPrintModeNewlined) {
+		Debug::println(buffer);
+	}
+	else {
+		Debug::print(buffer);
 	}
 }
-
-const char* getBaseFilename(const char* path) {
-    if (path == nullptr) {
-        return ""; // or handle the error as appropriate
-    }
-    const char* filename = strrchr(path, '/');
-	if (!filename) {
-		filename = strrchr(path, '\\');
-	}
-	return filename ? filename + 1 : path;
-}
-static char logContextFilename[128];
-void logContext(const char* path, int line) {
-    const char* baseFile = getBaseFilename(path);
-    int bufferSize = strlen(baseFile) + 20; // Extra space for line number and additional characters
-
-    snprintf(logContextFilename, bufferSize, "%s:%d\t", baseFile, line);
-    logDebug(logContextFilename, false);
-}
+#endif
 
 #ifdef __cplusplus
 }
 #endif
-
 
 extern "C" void routineForSD(void) {
 

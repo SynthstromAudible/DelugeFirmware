@@ -493,7 +493,7 @@ void routine() {
 				cpuDireness = 0;
 			}
 			else {
-D_PRINTLN("direness:  %d", cpuDireness);
+				D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
 	}

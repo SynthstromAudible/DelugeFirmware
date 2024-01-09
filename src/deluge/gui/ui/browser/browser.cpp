@@ -103,7 +103,8 @@ bool Browser::checkFP() {
 		return false;
 	}
 	else if (tempfp.sclust != currentFileItem->filePointer.sclust) {
-		D_PRINTLN("FPs don't match: correct is %lu but the browser has %lu", tempfp.sclust, currentFileItem->filePointer.sclust);
+		D_PRINTLN("FPs don't match: correct is %lu but the browser has %lu", tempfp.sclust,
+		          currentFileItem->filePointer.sclust);
 #if ALPHA_OR_BETA_VERSION
 		display->freezeWithError("B001");
 #endif

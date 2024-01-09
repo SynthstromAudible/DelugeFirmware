@@ -1036,7 +1036,7 @@ calculateMIDINote:
 		}
 	}
 
-D_PRINTLN("midiNote:  %d", midiNote);
+	D_PRINTLN("midiNote:  %d", midiNote);
 }
 
 uint32_t Sample::getLengthInMSec() {
@@ -1201,7 +1201,8 @@ examineHarmonic:
 		lastHFound = h;
 
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
-		D_PRINTLN("found harmonic  %d . value  %d ,  %d", h, heightTable[currentIndex], (heightRelativeToSurroundings * 100) >> 18);
+		D_PRINTLN("found harmonic  %d . value  %d ,  %d", h, heightTable[currentIndex],
+		          (heightRelativeToSurroundings * 100) >> 18);
 		float fundamentalPeriod = (float)PITCH_DETECT_WINDOW_SIZE / fundamentalIndexForContinuedHarmonicInvestigation;
 		float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 		float freq = freqBeforeAdjustment / (1 << numDoublings);
@@ -1642,7 +1643,7 @@ doneReading:
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-D_PRINTLN("proposed freq: ");
+		D_PRINTLN("proposed freq: ");
 #endif
 		// Only do one doubling at a time - this can help to correct an incorrect reading
 		freqBeforeAdjustment *= 2;

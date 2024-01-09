@@ -2908,9 +2908,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	// Probability dependence
 	else if (probability <= kNumProbabilityValues) {
 		if (display->haveOLED()) {
-			strcpy(buffer, "Probability: ");
-			intToString(probability * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
+			sprintf(buffer, "Probability %d%%", probability * 5);
 			if (prevBase) {
 				strcat(buffer, " latching");
 			}
@@ -2928,22 +2926,8 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 		int32_t charPos = 0;
 
-		if (display->haveOLED()) {
-			strcpy(buffer, "Iteration dependence: ");
-			charPos = strlen(buffer);
-		}
-
-		buffer[charPos++] = '1' + iterationWithinDivisor;
-		if (display->haveOLED()) {
-			buffer[charPos++] = ' ';
-		}
-		buffer[charPos++] = 'o';
-		buffer[charPos++] = 'f';
-		if (display->haveOLED()) {
-			buffer[charPos++] = ' ';
-		}
-		buffer[charPos++] = '0' + divisor;
-		buffer[charPos++] = 0;
+		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+		        iterationWithinDivisor, divisor);
 	}
 
 	if (display->haveOLED()) {

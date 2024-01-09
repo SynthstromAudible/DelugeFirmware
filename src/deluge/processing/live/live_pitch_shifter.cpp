@@ -366,7 +366,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	//int32_t numChannelsNow = numChannels;
 
 	//D_PRINTLN("");
-D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
+	D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
 		D_PRINTLN("last crossfade not finished");
 		//if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
@@ -781,7 +781,7 @@ stopSearch:
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
 
-D_PRINTLN("playing from:  %d", playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
+		D_PRINTLN("playing from:  %d", playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
 	}
 
 thatsDone:
@@ -796,7 +796,7 @@ thatsDone:
 		crossfadeProgress = 16777216;
 	}
 
-D_PRINTLN("crossfade length:  %d", thisCrossfadeLength);
+	D_PRINTLN("crossfade length:  %d", thisCrossfadeLength);
 
 	/*
 	if (phaseIncrement > 16777216) {

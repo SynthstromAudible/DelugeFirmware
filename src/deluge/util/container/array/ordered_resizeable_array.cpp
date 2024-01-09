@@ -314,7 +314,7 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 		}
 
 thatsDone:
-	D_PRINTLN("search-multiple success. time taken: %d ", timeTaken);
+		D_PRINTLN("search-multiple success. time taken: %d ", timeTaken);
 	}
 }
 
@@ -330,7 +330,7 @@ void OrderedResizeableArray::test() {
 
 	while (true) {
 
-D_PRINTLN("up ");
+		D_PRINTLN("up ");
 
 		// Insert tons of stuff
 		for (int32_t v = 0; v < NUM_TEST_INSERTIONS;) {
@@ -402,7 +402,7 @@ startAgain:
 
 		D_PRINTLN(moveCount);
 
-D_PRINTLN("down ");
+		D_PRINTLN("down ");
 
 		moveCount = 0;
 

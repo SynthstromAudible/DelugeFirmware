@@ -431,7 +431,8 @@ void OpenAddressingHashTable::test() {
 		for (int32_t i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
 			bool result = remove(elementsAdded[i]);
 			if (!result) {
-				D_PRINTLN("remove failed. i ==  %d numBuckets ==  %d numElements ==  %d key ==  %d", i, numBuckets, numElements, elementsAdded[i]);
+				D_PRINTLN("remove failed. i ==  %d numBuckets ==  %d numElements ==  %d key ==  %d", i, numBuckets,
+				          numElements, elementsAdded[i]);
 				while (1) {
 					;
 				}

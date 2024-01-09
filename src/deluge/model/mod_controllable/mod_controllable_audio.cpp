@@ -1191,7 +1191,7 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
 	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
 	if (result == NO_ERROR) {
-D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
+		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
 
 		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {

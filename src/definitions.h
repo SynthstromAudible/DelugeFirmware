@@ -73,39 +73,18 @@ extern void freezeWithError(char const* errmsg);
 #ifndef D_PRINTLN
 
 #if ENABLE_TEXT_OUTPUT
+
 #include "deluge/deluge.h"
 #include "lib/printf.h"
+#define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
+#define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
+#define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
 
-#define D_MERGE(x, y) x##y
-#define D_CONCAT(x, y) D_MERGE(x,y)
-#define D_AUTOVAR D_CONCAT(debug, __LINE__)
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
-
-#define D_PRINT_RAW(...) do { \
-	char D_AUTOVAR[512];\
-	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
-	logDebug(D_AUTOVAR, false);\
-} while(0)
-
-#define D_PRINT(...) do { \
-	char D_AUTOVAR[512];\
-	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
-	logContext(__FILE__, __LINE__); \
-	logDebug(D_AUTOVAR, false);\
-} while(0)
-
-#define D_PRINTLN(...) do { \
-	char D_AUTOVAR[512];\
-	snprintf_(D_AUTOVAR, sizeof(D_AUTOVAR),__VA_ARGS__); \
-	logContext(__FILE__, __LINE__); \
-	logDebug(D_AUTOVAR, true);\
-} while(0)
 #else
-    #define D_PRINTLN(...)
-    #define D_PRINT(...)
-    #define D_PRINT_RAW(...)
+
+#define D_PRINTLN(...)
+#define D_PRINT(...)
+#define D_PRINT_RAW(...)
 #endif
 
 #endif

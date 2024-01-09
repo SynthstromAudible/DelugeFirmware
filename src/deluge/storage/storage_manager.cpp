@@ -96,13 +96,7 @@ void StorageManager::writeTag(char const* tag, int32_t number) {
 void StorageManager::writeTag(char const* tag, char const* contents) {
 
 	printIndents();
-	write("<");
-	write(tag);
-	write(">");
-	write(contents);
-	write("</");
-	write(tag);
-	write(">\n");
+	writef("<%s>%contents</%s>\n", tag, contents);
 }
 
 void StorageManager::writeAttribute(char const* name, int32_t number, bool onNewLine) {
@@ -133,6 +127,7 @@ void StorageManager::writeAttribute(char const* name, char const* value, bool on
 	else {
 		write(" ");
 	}
+
 	write(name);
 	write("=\"");
 	write(value);
@@ -1071,6 +1066,17 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
+void StorageManager::writef(char const* format, ...) {
+
+	va_list args;
+	va_start(args, format);
+
+	char buffer[1024];
+	snprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+
+	write(buffer);
+}
 // TODO: this is really inefficient
 void StorageManager::write(char const* output) {
 
@@ -1380,7 +1386,8 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
                                                FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
-	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(), (int32_t)filePointer->sclust);
+	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
+	          (int32_t)filePointer->sclust);
 
 	int32_t error = openInstrumentFile(instrumentType, filePointer);
 	if (error) {

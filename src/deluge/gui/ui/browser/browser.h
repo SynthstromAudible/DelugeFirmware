@@ -151,7 +151,7 @@ inline void printInstrumentFileList(const char* where) {
 	D_PRINT(" List: \n");
 	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
 		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
-		D_PRINTLN(" - %s (%lu)",  fileItem->displayName, fileItem->filePointer.sclust);
+		D_PRINTLN(" - %s (%lu)", fileItem->displayName, fileItem->filePointer.sclust);
 	}
 	D_PRINT("\n");
 }
