@@ -1875,7 +1875,10 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 	            && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
 	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
-		shiftAutomationHorizontally(offset);
+		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
+		int32_t shiftAmount = offset * squareSize;
+
+		shiftAutomationHorizontally(shiftAmount);
 
 		if (offset < 0) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
@@ -1938,17 +1941,9 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		int32_t effectiveLength = getEffectiveLength(modelStack);
 
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-			uint32_t squareStart = getPosFromSquare(xDisplay);
-
-			int32_t effectiveLength = getEffectiveLength(modelStack);
-
-			if (squareStart < effectiveLength) {
-				modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
-			}
-		}
+		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
 	}
 
 	uiNeedsRendering(this);
