@@ -47,22 +47,22 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel MIDI data from non-MPE devices now maps to the `Y` axis.
 
-#### 3.9 - Enable Stutter Automation
-- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
-  	- This feature is not present in the v1.0.0 release.
-
-#### 3.9 - Enable Stutter Automation
-- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
-
 #### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
 - ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the parameter. The `SOUND` and `MODULATION` screens when parameter and modulation editing have also been adjusted to show the same value range as displayed with the Mod Encoders.
 	- This allows for better fine-tuning of values. 
 	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
 	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold `SHIFT` while turning the Select Encoder.
 
-#### 3.9 - Adjust Metronome Volume
+#### 3.9 - Enable Stutter Automation
+- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
+  	- This feature is not present in the v1.0.0 release.
+
+#### 3.10 - Adjust Metronome Volume
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
 	- In addition, a `DEFAULTS` menu entry was created titled `METRONOME` which enables you to set a value between 1-50 to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 50 being the loudest metronome volume.
+
+#### 3.11 - Set Default Mod-FX Type to Disabled for Audio Clip and Kit Affect Entire Parameters
+- ([#945]) Previously, when creating a new Audio clip or Kit clip, the default Mod-FX Type was set to Flanger. This has now been corrected and the default Mod-FX Type has been set to Disabled.
 
 ## 4. New Features Added
 
@@ -460,4 +460,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [#781]: https://github.com/SynthstromAudible/DelugeFirmware/pull/781
+[#945]: https://github.com/SynthstromAudible/DelugeFirmware/pull/945
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
