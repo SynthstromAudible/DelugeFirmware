@@ -27,11 +27,11 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 //#include <algorithm>
-#include "dsp/compressor/compressor.h"
+#include "dsp/sidechain/sidechain.h"
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -46,6 +46,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	lastSaturationTanHWorkingValue[0] = 2147483648;
 	lastSaturationTanHWorkingValue[1] = 2147483648;
+	renderedLastTime = false;
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
@@ -54,7 +55,6 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                            bool shouldLimitDelayFeedback, bool isClipActive,
                                            InstrumentType instrumentType, int32_t analogDelaySaturationAmount) {
-
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -80,7 +80,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	    16777216, unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::PITCH_ADJUST) >> 3);
 
 	DelayWorkingState delayWorkingState;
-	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback);
+	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 
 	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
@@ -132,18 +132,18 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied out to the stereo song-level buffer
 		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 			memset(globalEffectableBuffer, 0, sizeof(int32_t) * numSamples);
-			renderGlobalEffectableForClip(modelStack, globalEffectableBuffer, (int32_t*)outputBuffer, numSamples,
-			                              reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
-			                              shouldLimitDelayFeedback, isClipActive, pitchAdjust,
-			                              postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
+			renderedLastTime = renderGlobalEffectableForClip(
+			    modelStack, globalEffectableBuffer, (int32_t*)outputBuffer, numSamples, reverbBuffer,
+			    reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust,
+			    postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
 		}
 
 		// Or if it's a stereo sample, it can render directly into the song buffer
 		else {
-			renderGlobalEffectableForClip(modelStack, outputBuffer, NULL, numSamples, reverbBuffer,
-			                              reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback,
-			                              isClipActive, pitchAdjust, postFXAndReverbVolumeStart,
-			                              postFXAndReverbVolumeEnd);
+			renderedLastTime = renderGlobalEffectableForClip(modelStack, outputBuffer, NULL, numSamples, reverbBuffer,
+			                                                 reverbAmountAdjustForDrums, sideChainHitPending,
+			                                                 shouldLimitDelayFeedback, isClipActive, pitchAdjust,
+			                                                 postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
 		}
 	}
 
@@ -152,9 +152,9 @@ doNormal:
 		memset(globalEffectableBuffer, 0, sizeof(StereoSample) * numSamples);
 
 		// Render actual Drums / AudioClip
-		renderGlobalEffectableForClip(modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer,
-		                              reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback,
-		                              isClipActive, pitchAdjust, 134217728, 134217728);
+		renderedLastTime = renderGlobalEffectableForClip(
+		    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+		    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 		// Render saturation
 		if (clippingAmount) {
@@ -166,25 +166,23 @@ doNormal:
 				saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
 			} while (++currentSample != bufferEnd);
 		}
-		//otherwise we can run a bunch of processing on an empty buffer
-		if (isClipActive) {
 
-			// Render filters
-			processFilters(globalEffectableBuffer, numSamples);
+		// Render filters
+		processFilters(globalEffectableBuffer, numSamples);
 
-			// Render FX
-			processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
-			processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-			                             &delayWorkingState, analogDelaySaturationAmount);
-			processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+		// Render FX
+		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
+		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
+		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
+		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-			int32_t postReverbSendVolumeIncrement = (int32_t)(postReverbVolume - postReverbVolumeLastTime) / numSamples;
+		int32_t postReverbSendVolumeIncrement =
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
 
-			processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-			                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
-			                           postReverbSendVolumeIncrement);
-			addAudio(globalEffectableBuffer, outputBuffer, numSamples);
-		}
+		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
+		                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
+		                           postReverbSendVolumeIncrement);
+		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 
 	postReverbVolumeLastTime = postReverbVolume;

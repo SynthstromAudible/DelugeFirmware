@@ -80,7 +80,7 @@ public:
 	inline MIDIParamCollection* getMIDIParamCollection() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
-			display->freezeWithError("E409");
+			FREEZE_WITH_ERROR("E409");
 		}
 #endif
 		return (MIDIParamCollection*)summaries[0].paramCollection;
@@ -89,7 +89,7 @@ public:
 	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
-			display->freezeWithError("E409");
+			FREEZE_WITH_ERROR("E409");
 		}
 #endif
 		return &summaries[0];
@@ -98,7 +98,7 @@ public:
 	inline UnpatchedParamSet* getUnpatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
-			display->freezeWithError("E410");
+			FREEZE_WITH_ERROR("E410");
 		}
 #endif
 		return (UnpatchedParamSet*)summaries[0].paramCollection;
@@ -107,7 +107,7 @@ public:
 	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[0].paramCollection) {
-			display->freezeWithError("E410");
+			FREEZE_WITH_ERROR("E410");
 		}
 #endif
 		return &summaries[0];
@@ -116,7 +116,7 @@ public:
 	inline PatchedParamSet* getPatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[1].paramCollection) {
-			display->freezeWithError("E411");
+			FREEZE_WITH_ERROR("E411");
 		}
 #endif
 		return (PatchedParamSet*)summaries[1].paramCollection;
@@ -125,7 +125,7 @@ public:
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[1].paramCollection) {
-			display->freezeWithError("E411");
+			FREEZE_WITH_ERROR("E411");
 		}
 #endif
 		return &summaries[1];
@@ -134,7 +134,7 @@ public:
 	inline ParamCollectionSummary* getPatchCableSetSummary() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[2].paramCollection) {
-			display->freezeWithError("E412");
+			FREEZE_WITH_ERROR("E412");
 		}
 #endif
 		return &summaries[2];
@@ -143,7 +143,7 @@ public:
 	inline PatchCableSet* getPatchCableSet() {
 #if ALPHA_OR_BETA_VERSION
 		if (!summaries[2].paramCollection) {
-			display->freezeWithError("E412");
+			FREEZE_WITH_ERROR("E412");
 		}
 #endif
 		return (PatchCableSet*)summaries[2].paramCollection;

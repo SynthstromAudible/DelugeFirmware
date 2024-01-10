@@ -409,7 +409,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 #if ALPHA_OR_BETA_VERSION
 	if (whichNoteCurrentlyOnPostArp < 0 || whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
-		display->freezeWithError("E404");
+		FREEZE_WITH_ERROR("E404");
 	}
 #endif
 

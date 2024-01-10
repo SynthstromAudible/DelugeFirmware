@@ -43,8 +43,10 @@ public:
 
 	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->getValue() * 33554432); }
 
-	void readCurrentValue() override { this->setValue(((int64_t)AudioEngine::reverbPan * 128 + 2147483648) >> 32); }
-	[[nodiscard]] int32_t getMaxValue() const override { return 32; }
-	[[nodiscard]] int32_t getMinValue() const override { return -32; }
+	void readCurrentValue() override {
+		this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuRelativeValue * 4) + 2147483648) >> 32);
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 };
 } // namespace deluge::gui::menu_item::reverb

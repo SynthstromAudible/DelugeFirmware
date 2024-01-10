@@ -150,6 +150,8 @@ SECTIONS
 	/* ALIGN(0x20) is only necessary for v0 bootloaders */
   	.reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
 	{
+        PROVIDE(program_code_start = .);
+
 		execute = .;
 		*start.S.obj (.text)
 		*start.S.obj (.rodata)
@@ -180,6 +182,8 @@ SECTIONS
 
 		_etext = .;
 		address_end_reset = .;
+
+        PROVIDE(program_code_end = .);
 	} > RAM012L
 	
 	.rodata :
@@ -325,6 +329,19 @@ SECTIONS
 		.	= ALIGN(0x4);
 		program_stack_end = .;
 	} >RAM012L
+
+/* Remove information from the compiler libraries 
+   mainly a sanity check since linker gc should
+   do this too*/
+  /DISCARD/ :
+  {
+    libc.a ( * )
+	libc_nano.a ( * )
+    libm.a ( * )
+    libgcc.a ( * )
+    libstdc++_nano.a ( * )
+  }
+
 }
 
 
@@ -343,3 +360,4 @@ SECTIONS
 	} > SDRAM
 
 */
+

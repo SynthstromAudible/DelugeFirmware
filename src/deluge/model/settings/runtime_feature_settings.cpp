@@ -83,10 +83,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), "drumRandomizer",
 	                  RuntimeFeatureStateToggle::On);
-	// Master compressor
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR), "masterCompressor",
-	                  RuntimeFeatureStateToggle::On);
 	// Quantize
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",
@@ -131,6 +127,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP), "automationShiftClip",
 	                  RuntimeFeatureStateToggle::On);
+	// Disable Audition Pad Shortcuts in Automation View
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS),
+	                  "automationDisableAuditionPadShortcuts", RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
@@ -154,6 +154,11 @@ void RuntimeFeatureSettings::init() {
 
 	// LightShiftLed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// EnableGrainFX
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX), "enableGrainFX",
 	                  RuntimeFeatureStateToggle::Off);
 }
 

@@ -35,7 +35,7 @@ class Sound;
 class Source;
 class ParamManagerForTimeline;
 class InstrumentClip;
-class Compressor;
+class SideChain;
 class Arpeggiator;
 class MultisampleRange;
 class Clip;
@@ -61,7 +61,7 @@ public:
 	int8_t currentSourceIndex;
 	Source* currentSource;
 	ParamManagerForTimeline* currentParamManager;
-	Compressor* currentCompressor;
+	SideChain* currentCompressor;
 	ArpeggiatorSettings* currentArpSettings;
 	MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
@@ -116,6 +116,7 @@ public:
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
+	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
 	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);

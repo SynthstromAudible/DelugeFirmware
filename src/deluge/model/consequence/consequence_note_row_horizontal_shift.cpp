@@ -42,7 +42,7 @@ int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* mod
 
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 #if ALPHA_OR_BETA_VERSION
-		display->freezeWithError("E377");
+		FREEZE_WITH_ERROR("E377");
 #endif
 		return ERROR_BUG;
 	}

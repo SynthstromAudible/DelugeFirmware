@@ -48,7 +48,7 @@ ParamManager::~ParamManager() {
 
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
-	display->freezeWithError("E407");
+	FREEZE_WITH_ERROR("E407");
 	return NULL;
 }
 
@@ -58,7 +58,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 #endif
 
 int32_t ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIParamCollection), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
 	if (!memory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -71,7 +71,7 @@ int32_t ParamManager::setupMIDI() {
 }
 
 int32_t ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -83,21 +83,21 @@ int32_t ParamManager::setupUnpatched() {
 }
 
 int32_t ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().alloc(sizeof(PatchedParamSet), NULL, false, true);
+	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
 	if (!memoryPatched) {
 ramError2:
-		GeneralMemoryAllocator::get().dealloc(memoryUnpatched);
+		delugeDealloc(memoryUnpatched);
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().alloc(sizeof(PatchCableSet), NULL, false, true);
+	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
 	if (!memoryPatchCables) {
-		GeneralMemoryAllocator::get().dealloc(memoryPatched);
+		delugeDealloc(memoryPatched);
 		goto ramError2;
 	}
 
@@ -113,7 +113,7 @@ ramError2:
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
 	if (!other) {
-		display->freezeWithError("E413");
+		FREEZE_WITH_ERROR("E413");
 	}
 #endif
 
@@ -127,7 +127,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		// If "here" has them too, we'll just keep these, and destruct "other"'s ones
 		if (summaries[mpeParamsOffsetHere].paramCollection) {
 			other->summaries[stopAtOther].paramCollection->~ParamCollection();
-			GeneralMemoryAllocator::get().dealloc(other->summaries[stopAtOther].paramCollection);
+			delugeDealloc(other->summaries[stopAtOther].paramCollection);
 			other->summaries[stopAtOther] = {0};
 		}
 
@@ -165,8 +165,11 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
                                                 int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	if (mpeParamsOrNullHere.paramCollection) {
-		cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params for another clip
+	if (this != other) {
+		if (mpeParamsOrNullHere.paramCollection) {
+			cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+		}
 	}
 
 	// First, allocate the memories
@@ -183,16 +186,15 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 	}
 
 	while (otherSummary != otherStopAt) {
-
-		newSummary->paramCollection = (ParamCollection*)GeneralMemoryAllocator::get().alloc(
-		    otherSummary->paramCollection->objectSize, NULL, false,
-		    true); // To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
+		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
+		newSummary->paramCollection =
+		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
 
 		// If that failed, deallocate all the previous memories
 		if (!newSummary->paramCollection) {
 			while (newSummary != newSummaries) {
 				newSummary--;
-				GeneralMemoryAllocator::get().dealloc(newSummary->paramCollection);
+				delugeDealloc(newSummary->paramCollection);
 			}
 
 			// Mark that there's nothing here
@@ -221,10 +223,16 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 		otherSummary++;
 	}
 
-	*newSummary = mpeParamsOrNullHere;
-	if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
-		newSummary++;
+	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special treatment
+	if (this == other) {
 		*newSummary = {0}; // Mark end of list
+	}
+	else {
+		*newSummary = mpeParamsOrNullHere;
+		if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
+			newSummary++;
+			*newSummary = {0}; // Mark end of list
+		}
 	}
 
 	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.
@@ -266,7 +274,7 @@ void ParamManager::destructAndForgetParamCollections() {
 	ParamCollectionSummary* summary = summaries;
 	while (summary->paramCollection) {
 		summary->paramCollection->~ParamCollection();
-		GeneralMemoryAllocator::get().dealloc(summary->paramCollection);
+		delugeDealloc(summary->paramCollection);
 		summary++;
 	}
 
@@ -279,7 +287,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
 	if (!summaries[offset].paramCollection) {
 
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(ExpressionParamSet), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
 		if (!memory) {
 			return false;
 		}
@@ -301,7 +309,7 @@ ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[2].paramCollection) {
-		display->freezeWithError("E412");
+		FREEZE_WITH_ERROR("E412");
 	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
@@ -316,7 +324,7 @@ ParamManagerForTimeline::ParamManagerForTimeline() {
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[0].paramCollection) {
-		display->freezeWithError("E408");
+		FREEZE_WITH_ERROR("E408");
 	}
 #endif
 }

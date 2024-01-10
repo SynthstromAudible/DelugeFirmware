@@ -17,7 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -32,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -43,8 +44,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_clip_existence.h"
-#include "model/drum/kit.h"
 #include "model/instrument/cv_instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -71,6 +72,40 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
+}
+
+Clip* getCurrentClip() {
+	return currentSong->currentClip;
+}
+
+InstrumentClip* getCurrentInstrumentClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		return (InstrumentClip*)getCurrentClip();
+	}
+	return nullptr;
+}
+
+AudioClip* getCurrentAudioClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return (AudioClip*)getCurrentClip();
+	}
+	return nullptr;
+}
+
+Output* getCurrentOutput() {
+	return getCurrentClip()->output;
+}
+
+Kit* getCurrentKit() {
+	return (Kit*)getCurrentClip()->output;
+}
+
+Instrument* getCurrentInstrument() {
+	return (Instrument*)getCurrentClip()->output;
+}
+
+InstrumentType getCurrentInstrumentType() {
+	return (InstrumentType)getCurrentInstrument()->type;
 }
 
 using namespace deluge;
@@ -136,13 +171,12 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = 10.0;
-	masterCompressorRelease = 100.0;
-	masterCompressorThresh = 0.0;
-	masterCompressorRatio = 1.0 / 4.0;
-	masterCompressorMakeup = 0.0;
-	masterCompressorWet = 1.0;
-	AudioEngine::mastercompressor.gr = 0.0;
+	masterCompressorAttack = 10 << 24;
+	masterCompressorRelease = 20 << 24;
+	masterCompressorThresh = 0;
+	masterCompressorRatio = 0;
+	masterCompressorSidechain = ONE_Q31 >> 1;
+	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
 }
@@ -216,7 +250,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 	}
 }
 
@@ -290,7 +324,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
 	if (!sessionClips.getNumElements()) {
 
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 		InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
 		sessionClips.insertClipAtIndex(firstClip, 0);
@@ -434,6 +468,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 
 	int32_t oldRootNote = rootNote;
 	rootNote = newRootNote;
+
 	int32_t oldNumModeNotes = numModeNotes;
 	bool notesWithinOctavePresent[12];
 	for (int32_t i = 0; i < 12; i++) {
@@ -640,6 +675,7 @@ traverseClips:
 
 		instrumentClip->musicalModeChanged(yVisualWithinOctave, change, modelStackWithTimelineCounter);
 	}
+
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
@@ -757,6 +793,7 @@ traverseClips:
 
 		instrumentClip->noteRemovedFromMode(yNoteWithinOctave, this);
 	}
+
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
@@ -1124,22 +1161,18 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
-		storageManager.writeOpeningTagBeginning("masterCompressor");
-		int32_t attack = AudioEngine::mastercompressor.compressor.getAttack() * 100;
-		int32_t release = AudioEngine::mastercompressor.compressor.getRelease() * 100;
-		int32_t thresh = AudioEngine::mastercompressor.compressor.getThresh() * 100.0;
-		int32_t ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio() * 100;
-		int32_t makeup = AudioEngine::mastercompressor.getMakeup() * 100;
-		int32_t wet = AudioEngine::mastercompressor.wet * 100;
-		storageManager.writeAttribute("attack", attack);
-		storageManager.writeAttribute("release", release);
-		storageManager.writeAttribute("thresh", thresh);
-		storageManager.writeAttribute("ratio", ratio);
-		storageManager.writeAttribute("makeup", makeup);
-		storageManager.writeAttribute("wet", wet);
-		storageManager.closeTag();
-	}
+	storageManager.writeOpeningTagBeginning("songCompressor");
+	int32_t attack = AudioEngine::mastercompressor.getAttack();
+	int32_t release = AudioEngine::mastercompressor.getRelease();
+	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
+	int32_t ratio = AudioEngine::mastercompressor.getRatio();
+	int32_t hpf = AudioEngine::mastercompressor.getSidechain();
+	storageManager.writeAttribute("attack", attack);
+	storageManager.writeAttribute("release", release);
+	storageManager.writeAttribute("thresh", thresh);
+	storageManager.writeAttribute("ratio", ratio);
+	storageManager.writeAttribute("compHPF", hpf);
+	storageManager.closeTag();
 
 	globalEffectable.writeTagsToFile(NULL, false);
 
@@ -1482,40 +1515,33 @@ unknownTag:
 				storageManager.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "masterCompressor")
-			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
-			                == RuntimeFeatureStateToggle::On) {
-				AudioEngine::mastercompressor.gr = 0.0;
+			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "attack")) { //ms
-						masterCompressorAttack = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+					if (!strcmp(tagName, "attack")) {
+						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("attack");
 					}
-					else if (!strcmp(tagName, "release")) { //ms
-						masterCompressorRelease = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+					else if (!strcmp(tagName, "release")) {
+						masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("release");
 					}
-					else if (!strcmp(tagName, "thresh")) { //db
-						masterCompressorThresh = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+					else if (!strcmp(tagName, "thresh")) {
+						masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("thresh");
 					}
-					else if (!strcmp(tagName, "ratio")) { //r:1
-						masterCompressorRatio = 1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0);
+					else if (!strcmp(tagName, "ratio")) {
+						masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("ratio");
 					}
-					else if (!strcmp(tagName, "makeup")) { //db
-						masterCompressorMakeup = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
-						storageManager.exitTag("makeup");
-					}
-					else if (!strcmp(tagName, "wet")) { //0.0-1.0
-						masterCompressorWet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
-						storageManager.exitTag("wet");
+					else if (!strcmp(tagName, "compHPF")) {
+						masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+						storageManager.exitTag("compHPF");
 					}
 					else {
 						storageManager.exitTag(tagName);
 					}
 				}
-				storageManager.exitTag("masterCompressor");
+				storageManager.exitTag("songCompressor");
 			}
 
 			else if (!strcmp(tagName, "modeNotes")) {
@@ -1606,7 +1632,7 @@ unknownTag:
 					int32_t error;
 
 					if (!strcmp(tagName, "audioTrack")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1615,7 +1641,7 @@ unknownTag:
 					}
 
 					else if (!strcmp(tagName, "sound")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1627,7 +1653,7 @@ setDirPathFirst:
 						if (error) {
 gotError:
 							newOutput->~Output();
-							GeneralMemoryAllocator::get().dealloc(memory);
+							delugeDealloc(memory);
 							return error;
 						}
 
@@ -1644,7 +1670,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "kit")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1654,7 +1680,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1663,7 +1689,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(CVInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(CVInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1936,7 +1962,7 @@ readClip:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			void* memory = GeneralMemoryAllocator::get().alloc(allocationSize, NULL, false, true);
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocationSize);
 			if (!memory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -1952,7 +1978,7 @@ readClip:
 			int32_t error = newClip->readFromFile(this);
 			if (error) {
 				newClip->~Clip();
-				GeneralMemoryAllocator::get().dealloc(memory);
+				delugeDealloc(memory);
 				return error;
 			}
 
@@ -2773,14 +2799,14 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
-			display->freezeWithError("i001"); // Trying to diversify Qui's E278
+			FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
 		}
 	}
 #endif
 
 	void* toDealloc = dynamic_cast<void*>(clip);
 	clip->~Clip();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 }
 
 int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
@@ -2988,7 +3014,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
 			display->cancelPopup();
-			display->freezeWithError("i009");
+			FREEZE_WITH_ERROR("i009");
 		}
 	}
 
@@ -3131,7 +3157,7 @@ void Song::deleteOutput(Output* output) {
 	output->deleteBackedUpParamManagers(this);
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
@@ -3580,15 +3606,15 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		if (i >= 1) {
 
 			if (backedUp->modControllable < lastModControllable) {
-				display->freezeWithError("E053");
+				FREEZE_WITH_ERROR("E053");
 			}
 
 			else if (backedUp->modControllable == lastModControllable) {
 				if (backedUp->clip < lastClip) {
-					display->freezeWithError("E054");
+					FREEZE_WITH_ERROR("E054");
 				}
 				else if (backedUp->clip == lastClip) {
-					display->freezeWithError("E055");
+					FREEZE_WITH_ERROR("E055");
 				}
 			}
 		}
@@ -3920,7 +3946,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
-							display->freezeWithError("E102");
+							FREEZE_WITH_ERROR("E102");
 						}
 					}
 				}
@@ -4023,8 +4049,8 @@ void Song::setHibernatingMIDIInstrument(MIDIInstrument* newInstrument) {
 void Song::deleteHibernatingMIDIInstrument() {
 	if (hibernatingMIDIInstrument) {
 		void* toDealloc = dynamic_cast<void*>(hibernatingMIDIInstrument);
-		hibernatingMIDIInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		hibernatingMIDIInstrument->~MIDIInstrument();
+		delugeDealloc(toDealloc);
 		hibernatingMIDIInstrument = NULL;
 	}
 }
@@ -4098,7 +4124,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
 			                                               NULL)) {
-				display->freezeWithError(errorMessageNormal);
+				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
 	}
@@ -4114,14 +4140,14 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
-			display->freezeWithError(
-			    "E056"); // gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
+			// gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
+			FREEZE_WITH_ERROR("E056");
 		}
 
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
 			                                               NULL)) {
-				display->freezeWithError(errorMessageHibernating);
+				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
 	}
@@ -4708,7 +4734,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	void* outputMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
+	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 	if (!outputMemory) {
 		return NULL;
 	}
@@ -5163,7 +5189,7 @@ int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -5171,7 +5197,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	// Suss output
 	AudioOutput* newOutput = createNewAudioOutput();
 	if (!newOutput) {
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return NULL;
 	}
 
@@ -5402,11 +5428,13 @@ doHibernatingInstruments:
 		}
 
 		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+
 		if (!thisItem) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
 		int32_t error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+
 		if (error) {
 			return error;
 		}

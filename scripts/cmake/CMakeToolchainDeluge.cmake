@@ -39,21 +39,18 @@ set(CMAKE_STRIP        ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-strip${TOOLCHAIN_
 set(CMAKE_NM           ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-nm${TOOLCHAIN_EXT} CACHE FILEPATH "Path to list symbols.")
 set(CMAKE_OBJDUMP      ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-objdump${TOOLCHAIN_EXT} CACHE FILEPATH "Path to dump objects.")
 
-set(CMAKE_ASM_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "Flags used by the ASM compiler during RELEASE builds." FORCE)
-set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "Flags used by the C compiler during RELEASE builds."   FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "Flags used by the C++ compiler during RELEASE builds."  FORCE)
-
-set(CMAKE_EXE_LINKER_FLAGS "--specs=nano.specs --specs=rdimon.specs" CACHE STRING "Flags used by the linker during all build types.")
+set(CMAKE_ASM_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the ASM compiler during RELEASE builds." FORCE)
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the C compiler during RELEASE builds."   FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Flags used by the C++ compiler during RELEASE builds."  FORCE)
 
 # Architecture
 set(ARCH_FLAGS
   -mcpu=cortex-a9
-  #-march=armv7-a
+  -mfpu=neon
+  -mfloat-abi=hard
   -marm
   -mthumb-interwork
   -mlittle-endian
-  -mfloat-abi=hard
-  -mfpu=neon
 )
 add_compile_options(${ARCH_FLAGS})
 add_link_options(${ARCH_FLAGS})

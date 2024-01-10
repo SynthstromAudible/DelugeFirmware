@@ -27,6 +27,8 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -129,15 +131,46 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if (getCurrentUI() == &automationInstrumentClipView
-					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-					        != kNoLastSelectedParamID)) {
+					if ((getCurrentUI() == &automationInstrumentClipView)
+					    && !automationInstrumentClipView.isOnAutomationOverview()) {
 
 						automationInstrumentClipView.displayAutomation();
 					}
 
 					else {
 						view.displayAutomation();
+					}
+					break;
+
+				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
+					//midi follow and midi feedback enabled
+					//re-send midi cc's because learned parameter values may have changed
+					//only send updates when playback is active
+					if (playbackHandler.isEitherClockActive()
+					    && (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED)) {
+						uint32_t sendRate = 0;
+						if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::LOW) {
+							sendRate = kLowFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::MEDIUM) {
+							sendRate = kMediumFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::HIGH) {
+							sendRate = kHighFeedbackAutomationRate;
+						}
+						//check time elapsed since previous automation update is greater than or equal to send rate
+						//if so, send another automation feedback message
+						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
+							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
+						}
+					}
+					//if automation feedback was previously sent and now playback is stopped,
+					//send one more update to sync controller with deluge's current values
+					//for automated params only
+					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
+						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+						midiFollow.timeAutomationFeedbackLastSent = 0;
 					}
 					break;
 
@@ -154,17 +187,6 @@ void UITimerManager::routine() {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
-					break;
-
-				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
-					if (getCurrentUI() == &automationInstrumentClipView
-					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-					        != kNoLastSelectedParamID)) {
-
-						automationInstrumentClipView.displayParameterName(
-						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
-						unsetTimer(TIMER_AUTOMATION_VIEW);
-					}
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:

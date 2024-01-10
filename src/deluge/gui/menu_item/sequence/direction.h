@@ -19,7 +19,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
@@ -33,7 +33,7 @@ public:
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
-			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
+			Kit* kit = getCurrentKit();
 			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
 			}
@@ -50,7 +50,7 @@ public:
 			this->setValue(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
+			this->setValue(getCurrentInstrumentClip()->sequenceDirectionMode);
 		}
 	}
 
@@ -63,8 +63,8 @@ public:
 			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, current_value);
 		}
 		else {
-			(static_cast<InstrumentClip*>(currentSong->currentClip))
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), current_value);
+			getCurrentInstrumentClip()->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
+			                                                     current_value);
 		}
 	}
 
@@ -87,9 +87,8 @@ public:
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
-		if (!(static_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
-		    && currentSong->currentClip->output->type == InstrumentType::KIT
-		    && ((static_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
+		if (!getCurrentInstrumentClip()->affectEntire && getCurrentInstrumentType() == InstrumentType::KIT
+		    && (getCurrentKit()->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
 		}
 		return MenuPermission::YES;

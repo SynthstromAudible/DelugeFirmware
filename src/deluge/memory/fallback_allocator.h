@@ -24,10 +24,10 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		return static_cast<T*>(GeneralMemoryAllocator::get().allocNonAudio(n * sizeof(T)));
+		return static_cast<T*>(GeneralMemoryAllocator::get().allocExternal(n * sizeof(T)));
 	}
 
-	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocNonAudio(p); }
+	void deallocate(T* p, std::size_t n) { delugeDeallocExternal(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {

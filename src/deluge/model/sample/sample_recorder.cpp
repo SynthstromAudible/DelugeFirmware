@@ -86,7 +86,7 @@ void SampleRecorder::detachSample() {
 
 			// Some bug-hunting
 			if (!cluster->numReasonsHeldBySampleRecorder) {
-				display->freezeWithError("E345");
+				FREEZE_WITH_ERROR("E345");
 			}
 			cluster->numReasonsHeldBySampleRecorder--;
 
@@ -103,12 +103,12 @@ void SampleRecorder::detachSample() {
 		Cluster* cluster = sample->clusters.getElement(firstUnwrittenClusterIndex)->cluster;
 
 		if (!cluster) {
-			display->freezeWithError("E363");
+			FREEZE_WITH_ERROR("E363");
 		}
 
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
-			display->freezeWithError("E346");
+			FREEZE_WITH_ERROR("E346");
 		}
 		cluster->numReasonsHeldBySampleRecorder--;
 
@@ -131,8 +131,8 @@ int32_t SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode,
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
 
-	void* sampleMemory = GeneralMemoryAllocator::get().alloc(
-	    sizeof(Sample)); // Didn't seem to make a difference forcing this into local RAM
+	// Didn't seem to make a difference forcing this into local RAM
+	void* sampleMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
 	if (!sampleMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -143,7 +143,7 @@ int32_t SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode,
 	if (error) {
 gotError:
 		sample->~Sample();
-		GeneralMemoryAllocator::get().dealloc(sampleMemory);
+		delugeDealloc(sampleMemory);
 		return error;
 	}
 
@@ -156,7 +156,7 @@ gotError:
 
 	// Bug hunting - newly gotten Cluster
 	if (currentRecordCluster->numReasonsHeldBySampleRecorder) {
-		display->freezeWithError("E360");
+		FREEZE_WITH_ERROR("E360");
 	}
 	currentRecordCluster->numReasonsHeldBySampleRecorder++;
 
@@ -330,7 +330,7 @@ aborted:
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be "aborted"
 			// before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip becomes a "reason".
 			if (sample->numReasonsToBeLoaded) {
-				display->freezeWithError("E282");
+				FREEZE_WITH_ERROR("E282");
 			}
 #endif
 
@@ -502,7 +502,7 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 	// Trying to pin down E347 which Leo got, below
 	Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
 	if (!cluster->numReasonsHeldBySampleRecorder) {
-		display->freezeWithError("E374");
+		FREEZE_WITH_ERROR("E374");
 	}
 #endif
 
@@ -517,7 +517,7 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
 			// Leo got!!! And Vinz, and keyman. May be solved now that fixed so detachSample() doesn't get called during card routine.
-			display->freezeWithError("E347");
+			FREEZE_WITH_ERROR("E347");
 		}
 		cluster->numReasonsHeldBySampleRecorder--;
 
@@ -531,7 +531,7 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 int32_t SampleRecorder::finalizeRecordedFile() {
 
 	if (ALPHA_OR_BETA_VERSION && (status == RECORDER_STATUS_ABORTED || hadCardError)) {
-		display->freezeWithError("E273");
+		FREEZE_WITH_ERROR("E273");
 	}
 
 	Debug::println("finalizing");
@@ -575,7 +575,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 			// Some bug-hunting
 			if (!currentRecordCluster->numReasonsHeldBySampleRecorder) {
-				display->freezeWithError("E348");
+				FREEZE_WITH_ERROR("E348");
 			}
 			currentRecordCluster->numReasonsHeldBySampleRecorder--;
 
@@ -677,11 +677,11 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 				// Do a last-ditch check that the SD address doesn't look invalid
 				if (firstSampleCluster->sdAddress == 0) {
-					display->freezeWithError("E268");
+					FREEZE_WITH_ERROR("E268");
 				}
 				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.database)
 				    & (fileSystemStuff.fileSystem.csize - 1)) {
-					display->freezeWithError("E269");
+					FREEZE_WITH_ERROR("E269");
 				}
 
 				audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
@@ -695,7 +695,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 				// Some bug-hunting
 				if (!cluster->numReasonsHeldBySampleRecorder) {
-					display->freezeWithError("E349");
+					FREEZE_WITH_ERROR("E349");
 				}
 				cluster->numReasonsHeldBySampleRecorder--;
 
@@ -800,7 +800,7 @@ int32_t SampleRecorder::createNextCluster() {
 
 	// Bug hunting - newly gotten Cluster
 	if (currentRecordCluster->numReasonsHeldBySampleRecorder) {
-		display->freezeWithError("E362");
+		FREEZE_WITH_ERROR("E362");
 	}
 	currentRecordCluster->numReasonsHeldBySampleRecorder++;
 
@@ -835,7 +835,7 @@ void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSa
 	do {
 		int32_t numSamplesThisCycle = numSamples;
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-			display->freezeWithError("cccc");
+			FREEZE_WITH_ERROR("cccc");
 		}
 
 		// If haven't actually started recording yet cos we're compensating for lag...
@@ -860,7 +860,7 @@ doFinishCapturing:
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesLeft);
 			}
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-				display->freezeWithError("bbbb");
+				FREEZE_WITH_ERROR("bbbb");
 			}
 
 			int32_t bytesPerSample = recordingNumChannels * 3;
@@ -890,7 +890,7 @@ doFinishCapturing:
 			}
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-				display->freezeWithError("aaaa");
+				FREEZE_WITH_ERROR("aaaa");
 			}
 
 			int32_t* endInputNow = inputAddress + (numSamplesThisCycle << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
@@ -1031,19 +1031,19 @@ doFinishCapturing:
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
 #if ALPHA_OR_BETA_VERSION
 	if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
-		display->freezeWithError("E272");
+		FREEZE_WITH_ERROR("E272");
 	}
 	else if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		display->freezeWithError("E288");
+		FREEZE_WITH_ERROR("E288");
 	}
 	else if (status == RECORDER_STATUS_COMPLETE) {
-		display->freezeWithError("E289");
+		FREEZE_WITH_ERROR("E289");
 	}
 	else if (status == RECORDER_STATUS_ABORTED) {
-		display->freezeWithError("E290");
+		FREEZE_WITH_ERROR("E290");
 	}
 	else if (status == RECORDER_STATUS_AWAITING_DELETION) {
-		display->freezeWithError("E291");
+		FREEZE_WITH_ERROR("E291");
 	}
 #endif
 
@@ -1087,7 +1087,7 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 		Cluster* cluster =
 		    firstSampleCluster->cluster; // It should still be there, cos it hasn't been written to card yet
 		if (ALPHA_OR_BETA_VERSION && !cluster) {
-			display->freezeWithError("E274");
+			FREEZE_WITH_ERROR("E274");
 		}
 
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
@@ -1138,7 +1138,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 	int32_t numClustersBeforeAction =
 	    ((idealFileSizeBeforeAction - 1) >> audioFileManager.clusterSizeMagnitude) + 1; // Rounds up
 	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > sample->clusters.getNumElements()) {
-		display->freezeWithError("E286");
+		FREEZE_WITH_ERROR("E286");
 	}
 
 	Cluster* nextReadCluster = NULL;
@@ -1150,7 +1150,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Some bug-hunting
 			if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-				display->freezeWithError("E350");
+				FREEZE_WITH_ERROR("E350");
 			}
 			currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1251,10 +1251,10 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Do a last-ditch check that the SD address doesn't look invalid
 			if (sdAddress == 0) {
-				display->freezeWithError("E268");
+				FREEZE_WITH_ERROR("E268");
 			}
 			if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
-				display->freezeWithError("E275");
+				FREEZE_WITH_ERROR("E275");
 			}
 
 			// Write the Cluster we just finished processing to card
@@ -1274,7 +1274,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Some bug-hunting
 			if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-				display->freezeWithError("E351");
+				FREEZE_WITH_ERROR("E351");
 			}
 			currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1288,7 +1288,7 @@ writeFailed:
 
 				// Some bug-hunting
 				if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-					display->freezeWithError("E352");
+					FREEZE_WITH_ERROR("E352");
 				}
 				currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1297,7 +1297,7 @@ writeFailed:
 				if (nextReadCluster) {
 					// Some bug-hunting
 					if (!nextReadCluster->numReasonsHeldBySampleRecorder) {
-						display->freezeWithError("E353");
+						FREEZE_WITH_ERROR("E353");
 					}
 					nextReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1347,7 +1347,7 @@ writeFailed:
 
 			// Some bug-hunting
 			if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-				display->freezeWithError("E354");
+				FREEZE_WITH_ERROR("E354");
 			}
 			currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1366,7 +1366,7 @@ writeFailed:
 
 					// Some bug-hunting
 					if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-						display->freezeWithError("E355");
+						FREEZE_WITH_ERROR("E355");
 					}
 					currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1374,7 +1374,7 @@ writeFailed:
 
 					// Some bug-hunting
 					if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-						display->freezeWithError("E356");
+						FREEZE_WITH_ERROR("E356");
 					}
 					currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1398,7 +1398,7 @@ writeFailed:
 
 	// Some bug-hunting
 	if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-		display->freezeWithError("E357");
+		FREEZE_WITH_ERROR("E357");
 	}
 	currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1416,24 +1416,24 @@ writeFailed:
 
 		uint32_t numSectorsToWrite = ((bytesToWriteFinalCluster - 1) >> 9) + 1;
 		if (numSectorsToWrite > (audioFileManager.clusterSize >> 9)) {
-			display->freezeWithError("E239");
+			FREEZE_WITH_ERROR("E239");
 		}
 
 		uint32_t sdAddress = sample->clusters.getElement(currentWriteClusterIndex)->sdAddress;
 
 		// Do a last-ditch check that the SD address doesn't look invalid
 		if (sdAddress == 0) {
-			display->freezeWithError("E268");
+			FREEZE_WITH_ERROR("E268");
 		}
 		if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
-			display->freezeWithError("E276");
+			FREEZE_WITH_ERROR("E276");
 		}
 
 		DRESULT result = disk_write(0, (BYTE*)currentWriteCluster->data, sdAddress, numSectorsToWrite);
 
 		// Some bug-hunting
 		if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-			display->freezeWithError("E358");
+			FREEZE_WITH_ERROR("E358");
 		}
 		currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1467,7 +1467,7 @@ writeFailed:
 
 		// Some bug-hunting
 		if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-			display->freezeWithError("E359");
+			FREEZE_WITH_ERROR("E359");
 		}
 		currentWriteCluster->numReasonsHeldBySampleRecorder--;
 

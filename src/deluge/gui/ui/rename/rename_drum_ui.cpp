@@ -26,7 +26,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
@@ -99,7 +99,7 @@ void RenameDrumUI::enterKeyPress() {
 
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
-		if (((Kit*)currentSong->currentClip->output)->getDrumFromName(enteredText.get())) {
+		if (getCurrentKit()->getDrumFromName(enteredText.get())) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}

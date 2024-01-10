@@ -142,7 +142,7 @@ bool Instrument::readTagFromFile(char const* tagName) {
 Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for Clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -157,7 +157,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
 		if (error) {
-			GeneralMemoryAllocator::get().dealloc(clipMemory);
+			delugeDealloc(clipMemory);
 			return NULL;
 		}
 	}

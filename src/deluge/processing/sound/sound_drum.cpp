@@ -23,7 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
@@ -40,7 +40,7 @@ SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 /*
 // Started but didn't finish this - it's hard!
 Drum* SoundDrum::clone() {
-	void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 	if (!drumMemory) return NULL;
 	SoundDrum* newDrum = new (drumMemory) SoundDrum();
 

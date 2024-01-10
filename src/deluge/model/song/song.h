@@ -19,8 +19,11 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/instrument/instrument.h"
+#include "model/output.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
@@ -28,6 +31,9 @@
 #include "util/d_string.h"
 
 class MidiCommand;
+class Clip;
+class AudioClip;
+class Instrument;
 class InstrumentClip;
 class Synth;
 class ParamManagerForTimeline;
@@ -47,6 +53,14 @@ class Output;
 class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
+
+Clip* getCurrentClip();
+InstrumentClip* getCurrentInstrumentClip();
+AudioClip* getCurrentAudioClip();
+Output* getCurrentOutput();
+Kit* getCurrentKit();
+Instrument* getCurrentInstrument();
+InstrumentType getCurrentInstrumentType();
 
 class Section {
 public:
@@ -326,12 +340,11 @@ public:
 	int32_t reverbCompressorRelease;
 	SyncLevel reverbCompressorSync;
 
-	double masterCompressorAttack;
-	double masterCompressorRelease;
-	double masterCompressorThresh;
-	double masterCompressorRatio;
-	double masterCompressorMakeup;
-	double masterCompressorWet;
+	int32_t masterCompressorAttack;
+	int32_t masterCompressorRelease;
+	int32_t masterCompressorThresh;
+	int32_t masterCompressorRatio;
+	int32_t masterCompressorSidechain;
 
 private:
 	bool fillModeActive;
@@ -347,3 +360,11 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
+
+inline Instrument* getCurrentInstrumentOrNull() {
+	Output* out = currentSong->currentClip->output;
+	if (out->type != InstrumentType::AUDIO) {
+		return (Instrument*)out;
+	}
+	return nullptr;
+}

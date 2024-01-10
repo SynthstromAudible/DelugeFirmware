@@ -28,7 +28,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -46,7 +46,7 @@ SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
 
 bool SaveInstrumentPresetUI::opened() {
 
-	Instrument* currentInstrument = (Instrument*)currentSong->currentClip->output;
+	Instrument* currentInstrument = getCurrentInstrument();
 	instrumentTypeToLoad =
 	    currentInstrument
 	        ->type; // Must set this before calling SaveUI::opened(), which uses this to work out folder name
@@ -107,7 +107,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
-	Instrument* instrumentToSave = (Instrument*)currentSong->currentClip->output;
+	Instrument* instrumentToSave = getCurrentInstrument();
 
 	bool isDifferentSlot = !enteredText.equalsCaseIrrespective(&instrumentToSave->name);
 
@@ -160,7 +160,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
+	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
 	char const* endString = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
@@ -191,13 +191,13 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 	// Normal navigation through numeric or text-based names
 	if (numberEditPos == -1) {
 
-		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
+		Instrument* instrument = getCurrentInstrument();
 
 		int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
 		int32_t error = storageManager.decideNextSaveableSlot(offset,
 				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
-				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, (Instrument*)currentSong->currentClip->output);
+				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, getCurrentInstrument());
 		if (error) {
 			display->displayError(error);
 			if (error != ERROR_FOLDER_DOESNT_EXIST) {
@@ -239,7 +239,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
 		if (bestSlotFound == currentSlot) {
 			// If the preset was already saved in this slot, offer a brand new subslot
-			if (currentSlot == ((Instrument*)currentSong->currentClip->output)->slot) {
+			if (currentSlot == getCurrentInstrument()->slot) {
 				currentSubSlot = bestSubSlotFound + 1;
 				currentFileExists = false;
 

@@ -17,6 +17,7 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -31,10 +32,10 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	this->setValue(
-	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
-	     + 2147483648)
-	    >> 32);
+	this->setValue((((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648)
+	                    * kMaxMenuValue
+	                + 2147483648)
+	               >> 32);
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
@@ -48,15 +49,23 @@ ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 void UnpatchedParam::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(getFinalValue(), modelStackWithParam);
+	int32_t value = getFinalValue();
+	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+
+	//send midi follow feedback
+	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (this->getValue() == 25) {
-		return 0;
+	if (this->getValue() == kMaxMenuValue) {
+		return 2147483647;
+	}
+	else if (this->getValue() == kMinMenuValue) {
+		return -2147483648;
 	}
 	else {
-		return (uint32_t)this->getValue() * 85899345 - 2147483648;
+		return (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) - 2147483648;
 	}
 }
 

@@ -32,7 +32,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -167,10 +167,10 @@ void Slicer::graphicsRoutine() {
 	SamplePlaybackGuide* guide = NULL;
 
 	MultisampleRange* range;
-	Kit* kit = (Kit*)currentSong->currentClip->output;
+	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-	if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 
 		if (drum->hasAnyVoices()) {
 
@@ -336,7 +336,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			redraw();
 		}
 
-		((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
+		getCurrentKit()->firstDrum->unassignAllVoices(); //stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return ActionResult::DEALT_WITH;
 	}
@@ -400,10 +400,10 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			doSlice();
 		}
 		else {
-			((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
+			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
 			numClips = numManualSlice;
 			doSlice();
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = getCurrentKit();
 			for (int32_t i = 0; i < numManualSlice; i++) {
 				Drum* drum = kit->getDrumFromIndex(i);
 				SoundDrum* soundDrum = (SoundDrum*)drum;
@@ -426,8 +426,8 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);
-			((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
+			Kit* kit = getCurrentKit();
 			Drum* drum = kit->firstDrum;
 			SoundDrum* soundDrum = (SoundDrum*)drum;
 			MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
@@ -448,7 +448,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 }
 
 void Slicer::stopAnyPreviewing() {
-	Kit* kit = (Kit*)currentSong->currentClip->output;
+	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->unassignAllVoices();
 	if (drum->sources[0].ranges.getNumElements()) {
@@ -458,7 +458,7 @@ void Slicer::stopAnyPreviewing() {
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
 	if (on) {
-		Kit* kit = (Kit*)currentSong->currentClip->output;
+		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -521,10 +521,10 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			VoiceSample* voiceSample = NULL;
 			SamplePlaybackGuide* guide = NULL;
 			MultisampleRange* range;
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-			if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 				if (drum->hasAnyVoices()) {
 					Voice* assignedVoice = NULL;
 
@@ -604,7 +604,7 @@ getOut:
 		return;
 	}
 
-	Kit* kit = (Kit*)currentSong->currentClip->output;
+	Kit* kit = getCurrentKit();
 
 	// Do the first Drum
 
@@ -626,7 +626,7 @@ getOut:
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
+			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
 		}
 
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
@@ -657,7 +657,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			display->freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -682,7 +682,7 @@ getOut:
 				goto getOut;
 			}
 
-			void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 			if (!drumMemory) {
 ramError:
 				error = ERROR_INSUFFICIENT_RAM;
@@ -695,7 +695,7 @@ ramError:
 			if (!range) {
 ramError2:
 				newDrum->~Drum();
-				GeneralMemoryAllocator::get().dealloc(drumMemory);
+				delugeDealloc(drumMemory);
 				goto ramError;
 			}
 
@@ -729,18 +729,18 @@ ramError2:
 				}
 			}
 
-			currentSong->backUpParamManager(newDrum, currentSong->currentClip, &paramManager,
-			                                true); // I moved this here, from being earlier/above. Is this fine?
+			// I moved this here, from being earlier/above. Is this fine?
+			currentSong->backUpParamManager(newDrum, getCurrentClip(), &paramManager, true);
 		}
 
 		// Make NoteRows for all these new Drums
-		((Kit*)currentSong->currentClip->output)->resetDrumTempValues();
+		getCurrentKit()->resetDrumTempValues();
 		firstDrum->noteRowAssignedTemp = 1;
 	}
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
-	((InstrumentClip*)currentSong->currentClip)->assignDrumsToNoteRows(modelStack);
+	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);
 
-	((Instrument*)currentSong->currentClip->output)->beenEdited();
+	((Instrument*)getCurrentInstrument())->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();

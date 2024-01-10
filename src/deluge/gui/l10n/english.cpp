@@ -85,17 +85,17 @@ PLACE_SDRAM_DATA Language english{
         //Wavefolder
         {STRING_FOR_WAVEFOLDER, "Wavefolder"},
 
-        //OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        //OSC 1 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 phase width"},
+        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Osc1 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave position"},
 
-        //OSC 2 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        //OSC 2 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 phase width"},
+        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Osc2 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave position"},
 
@@ -172,6 +172,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
 
         //Decimation, Bitcrush
+        {STRING_FOR_DISTORTION, "Distortion"},
         {STRING_FOR_DECIMATION, "DECIMATION"},
         {STRING_FOR_BITCRUSH, "Bitcrush"},
 
@@ -186,6 +187,10 @@ PLACE_SDRAM_DATA Language english{
 
         //Portamento
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
+
+        //Stutter Rate
+        {STRING_FOR_STUTTER, "STUTTER"},
+        {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
 
         /*
 		 * End Parameter Strings
@@ -466,13 +471,17 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMANDS, "Commands"},
         {STRING_FOR_OUTPUT, "Output"},
         {STRING_FOR_DEFAULT_UI, "UI"},
+        {STRING_FOR_DEFAULT_UI_GRID, "Grid"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, "Default active mode"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS, "Empty pad unarm"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, "Select in green mode"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, "Selection"},
         {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "In-Key"},
         {STRING_FOR_DEFAULT_UI_SONG, "Song"},
         {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, "Rows"},
-        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID, "Grid"},
         {STRING_FOR_INPUT, "Input"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
@@ -497,10 +506,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP, "Clear Clip"},
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE, "Nudge Note"},
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP, "Shift Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, "Disable Audition Pad Shortcuts"},
         {STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX, "Allow Insecure Develop Sysex Messages"},
         {STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "Sync Scaling Action"},
         {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "Highlight Incoming Notes"},
         {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "Display Norns Layout"},
+        {STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX, "Enable Grain FX"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
@@ -639,6 +650,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAN, "PAN"},
         {STRING_FOR_SOUND, "Sound"},
         {STRING_FOR_AUDIO_CLIP, "Audio clip"},
+        {STRING_FOR_SONG, "Song"},
         {STRING_FOR_SETTINGS, "Settings"},
         {STRING_FOR_ENV_ATTACK_MENU_TITLE, "Env* attack"},
         {STRING_FOR_ENV_DECAY_MENU_TITLE, "Env* decay"},
@@ -684,6 +696,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, "Sidech release"},
         {STRING_FOR_SIDECHAIN_COMP_MENU_TITLE, "Sidechain comp"},
         {STRING_FOR_NUM_MEMBER_CH_MENU_TITLE, "Num member ch."},
+        {STRING_FOR_METRONOME, "METRONOME"},
+        {STRING_FOR_DEFAULT_METRO_MENU_TITLE, "Default metro."},
 
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
 
@@ -747,17 +761,10 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_SVF_BAND, "SVF Bandpass"},
         {STRING_FOR_SVF_NOTCH, "SVF Notch"},
-        {STRING_FOR_AUTOMATION, "AUTOMATION"},
         {STRING_FOR_LOOP_TOO_SHORT, "Loop too short"},
         {STRING_FOR_LOOP_HALVED, "Loop halved"},
         {STRING_FOR_LOOP_TOO_LONG, "Loop too long"},
         {STRING_FOR_LOOP_DOUBLED, "Loop doubled"},
-        {STRING_FOR_CANT_AUTOMATE_CV, "Can't Automate CV"},
-        {STRING_FOR_SHIFT_RIGHT, "Shift Right"},
-        {STRING_FOR_SHIFT_LEFT, "Shift Left"},
-        {STRING_FOR_INTERPOLATION_DISABLED, "Interpolation Off"},
-        {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
-        {STRING_FOR_COMING_SOON, "Coming Soon"},
         {STRING_FOR_WAVEFOLD, "Wavefold"},
         {STRING_FOR_MOD_MATRIX, "Mod matrix"},
 
@@ -768,8 +775,72 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_GRAIN, "Grain"},
         {STRING_FOR_FILL, "Fill"},
+
+        /* Strings Specifically for Automation Instrument Clip View
+        * automation_instrument_clip_view.cpp
+        */
+
+        {STRING_FOR_AUTOMATION, "AUTOMATION"},
+        {STRING_FOR_AUTOMATION_OVERVIEW, "Automation Overview"},
+        {STRING_FOR_AUTOMATION_OFF, "(Not Automated)"},
+        {STRING_FOR_AUTOMATION_ON, "(Automated)"},
+        {STRING_FOR_COMING_SOON, "Coming Soon"},
+        {STRING_FOR_CANT_AUTOMATE_CV, "Can't Automate CV"},
+        {STRING_FOR_SHIFT_LEFT, "Shift Left"},
+        {STRING_FOR_SHIFT_RIGHT, "Shift Right"},
+        {STRING_FOR_INTERPOLATION_DISABLED, "Interpolation Off"},
+        {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
+
+        /* Strings Specifically for Performance View
+        * performance_session_view.cpp
+        */
+
+        {STRING_FOR_PERFORM_VIEW, "Performance View"},
+        {STRING_FOR_PERFORM_FX, "Perform FX"},
+        {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
+        {STRING_FOR_PERFORM_EDIT_PARAM, "Param"},
+        {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
+        {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
+        {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
+
+        /* Strings Specifically for Song View
+        * session_view.cpp
+        */
+
+        {STRING_FOR_SONG_VIEW, "Song View"},
+        {STRING_FOR_SONG_FX, "Song FX"},
+
+        /* Strings Specifically for Arranger View
+        * arranger_view.cpp
+        */
+
+        {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
+
+        /* Strings for Kit Global FX Menu*/
+
+        {STRING_FOR_KIT_GLOBAL_FX, "Kit FX"},
+        {STRING_FOR_PITCH, "Pitch"},
+
+        /* Strings Specifically for Midi Learning View
+        * midi_follow.cpp
+        */
+        //strings for midi follow menu
+        {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
+        {STRING_FOR_FOLLOW, "Follow"},
+        {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
+        {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
+        {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
+        {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
+        {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "Automation Feedback"},
+        {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "Filter Responses"},
+        {STRING_FOR_FOLLOW_DEVICE_UNASSIGNED, "Device unassigned"},
+        {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
+        {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
+        {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
     },
 };
 } // namespace deluge::l10n::built_in

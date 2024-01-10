@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
+#include "storage/flash_storage.h"
 
 class Editor;
 class InstrumentClip;
@@ -102,6 +103,7 @@ public:
 	uint8_t selectedClipYDisplay;      // Where the clip is on screen
 	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
 	uint8_t selectedClipPressXDisplay;
+	bool clipWasSelectedWithShift; // Whether shift was held when clip pad started to be held
 	bool performActionOnPadRelease;
 	bool
 	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
@@ -110,7 +112,11 @@ public:
 
 	Clip* getClipForLayout();
 
+	// Members for grid layout
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+
 private:
+	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
 	void drawSectionRepeatNumber();
@@ -128,7 +134,8 @@ private:
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
-
+	bool horizontalEncoderPressed = false;
+	bool viewingRecordArmingActive = false;
 	// Members for grid layout
 private:
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -141,6 +148,9 @@ private:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
@@ -155,8 +165,6 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-
-	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
@@ -191,6 +199,19 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+
+	inline void gridSetDefaultMode() {
+		switch (FlashStorage::defaultGridActiveMode) {
+		case GridDefaultActiveModeGreen: {
+			gridModeSelected = SessionGridModeLaunch;
+			break;
+		}
+		case GridDefaultActiveModeBlue: {
+			gridModeSelected = SessionGridModeEdit;
+			break;
+		}
+		}
+	}
 };
 
 extern SessionView sessionView;

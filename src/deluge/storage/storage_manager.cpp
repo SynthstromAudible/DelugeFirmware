@@ -31,10 +31,10 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
-#include "model/drum/kit.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
@@ -366,8 +366,8 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	default:
 #if ALPHA_OR_BETA_VERSION
-		display->freezeWithError(
-		    "E365"); // Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
+		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
+		FREEZE_WITH_ERROR("E365");
 #else
 		__builtin_unreachable();
 #endif
@@ -742,7 +742,7 @@ char const* StorageManager::readTagOrAttributeValue() {
 		return "";
 
 	default:
-		display->freezeWithError("BBBB");
+		FREEZE_WITH_ERROR("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -763,7 +763,7 @@ int32_t StorageManager::readTagOrAttributeValueInt() {
 		return 0;
 
 	default:
-		display->freezeWithError("BBBB");
+		FREEZE_WITH_ERROR("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -799,7 +799,7 @@ int32_t StorageManager::readTagOrAttributeValueString(String* string) {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("BBBB");
+			FREEZE_WITH_ERROR("BBBB");
 		}
 		__builtin_unreachable();
 	}
@@ -830,7 +830,7 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("CCCC");
+			FREEZE_WITH_ERROR("CCCC");
 		}
 		__builtin_unreachable();
 	}
@@ -907,7 +907,7 @@ void StorageManager::exitTag(char const* exitTagName) {
 
 		default:
 			if (ALPHA_OR_BETA_VERSION) {
-				display->freezeWithError("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
+				FREEZE_WITH_ERROR("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
 			}
 			__builtin_unreachable();
 		}
@@ -1356,7 +1356,9 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
-
+	if (!filePointer->sclust) {
+		return ERROR_FILE_NOT_FOUND;
+	}
 	char const* firstTagName;
 	char const* altTagName = "";
 
@@ -1379,9 +1381,16 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
                                                FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
+	Debug::print("opening instrument file - ");
+	Debug::print(dirPath->get());
+	Debug::print(name->get());
+	Debug::print(" from FP ");
+	Debug::println((int32_t)filePointer->sclust);
 
 	int32_t error = openInstrumentFile(instrumentType, filePointer);
 	if (error) {
+		Debug::print("opening instrument file failed - ");
+		Debug::println(name->get());
 		return error;
 	}
 
@@ -1390,6 +1399,8 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 	if (!newInstrument) {
 		closeFile();
+		Debug::print("Allocating instrument file failed - ");
+		Debug::println(name->get());
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
@@ -1399,16 +1410,19 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 	// If that somehow didn't work...
 	if (error || !fileSuccess) {
-
+		Debug::print("reading instrument file failed - ");
+		Debug::println(name->get());
 		if (!fileSuccess) {
 			error = ERROR_SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
+		Debug::print("abandoning load - ");
+		Debug::println(name->get());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = dynamic_cast<void*>(newInstrument);
+		void* toDealloc = static_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 
 		return error;
 	}
@@ -1432,6 +1446,8 @@ deleteInstrumentAndGetOut:
 		}
 		else {
 paramManagersMissing:
+			Debug::print("creating param manager failed - ");
+			Debug::println(name->get());
 			error = ERROR_FILE_CORRUPTED;
 			goto deleteInstrumentAndGetOut;
 		}
@@ -1488,13 +1504,25 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 	// If that somehow didn't work...
 	if (error || !fileSuccess) {
 
+		void* toDealloc = static_cast<void*>(newDrum);
+		newDrum->~Drum();
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		return error;
+
 		if (!fileSuccess) {
 			error = ERROR_SD_CARD;
 			return error;
 		}
 	}
-	song->deleteBackedUpParamManagersForModControllable(*getInstrument);
-	(*getInstrument)->detachSourcesFromAudioFiles();
+	//these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
+	if (*getInstrument) {
+		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
+		(*getInstrument)->wontBeRenderedForAWhile();
+		void* toDealloc = static_cast<void*>(*getInstrument);
+		(*getInstrument)->~Drum();
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
+	}
+
 	*getInstrument = newDrum;
 	return error;
 }
@@ -1513,7 +1541,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 		instrumentSize = sizeof(Kit);
 	}
 
-	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(instrumentSize, NULL, false, true);
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
 	if (!instrumentMemory) {
 		return NULL;
 	}
@@ -1528,7 +1556,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 			error = paramManager->setupWithPatching();
 			if (error) {
 paramManagerSetupError:
-				GeneralMemoryAllocator::get().dealloc(instrumentMemory);
+				delugeDealloc(instrumentMemory);
 				return NULL;
 			}
 			Sound::initParams(paramManager);
@@ -1554,7 +1582,8 @@ paramManagerSetupError:
 
 Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot) {
 	int32_t size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
-	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(size);
+	// Paul: Might make sense to put these into Internal?
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
 		return NULL;
 	}
@@ -1585,7 +1614,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		memorySize = sizeof(GateDrum);
 	}
 
-	void* drumMemory = GeneralMemoryAllocator::get().alloc(memorySize, NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 	if (!drumMemory) {
 		return NULL;
 	}

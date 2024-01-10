@@ -35,9 +35,10 @@
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_param_change.h"
+#include "model/consequence/consequence_performance_view_press.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
@@ -59,6 +60,8 @@ void ActionLogger::deleteLastActionIfEmpty() {
 	if (firstAction[BEFORE]) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
+		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to crashes, we need to fix after release
+		// while (!firstAction[BEFORE]->firstConsequence) {
 		if (firstAction[BEFORE]->type == ACTION_RECORD && !firstAction[BEFORE]->firstConsequence) {
 
 			deleteLastAction();
@@ -73,7 +76,7 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 }
 
 Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
@@ -81,7 +84,8 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	if (getCurrentUI() != getRootUI()) {
+	// Exception for performanceSessionView where the view can interact with soundEditor UI
+	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceSessionView)) {
 		return NULL;
 	}
 
@@ -126,7 +130,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		}
 
 		// And make a new one
-		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -138,10 +142,10 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
 
 		if (!clipStates) {
-			GeneralMemoryAllocator::get().dealloc(actionMemory);
+			delugeDealloc(actionMemory);
 			return NULL;
 		}
 
@@ -188,7 +192,7 @@ traverseClips:
 		newAction->affectEntireSongView = currentSong->affectEntire;
 
 		newAction->view = getCurrentUI();
-		newAction->currentClip = currentSong->currentClip;
+		newAction->currentClip = getCurrentClip();
 	}
 
 	updateAction(newAction);
@@ -204,7 +208,7 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
+			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
 			Debug::println("discarded clip states");
 		}
@@ -265,7 +269,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -288,13 +292,32 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
 			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
 			action->addConsequence(newConsequence);
 		}
+	}
+}
+
+/// Record Performance View Hold Press
+void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+                                              FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
+
+	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
+
+	if (!action) {
+		return;
+	}
+
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
+
+	if (consMemory) {
+		ConsequencePerformanceViewPress* newConsequence =
+		    new (consMemory) ConsequencePerformanceViewPress(fxPressBefore, fxPressAfter, xDisplay);
+		action->addConsequence(newConsequence);
 	}
 }
 
@@ -411,7 +434,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Or if we've changed Clip but ended up back in the same view...
-			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
+			else if (getCurrentUI()->toClipMinder() && getCurrentClip() != action->currentClip) {
 				whichAnimation = ANIMATION_CHANGE_CLIP;
 			}
 
@@ -576,7 +599,7 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
@@ -607,13 +630,13 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 			changeRootUI(&audioClipView);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
@@ -690,7 +713,7 @@ currentClipSwitchedOver:
 		default:
 			ClipMinder* clipMinder = getCurrentUI()->toClipMinder();
 			if (clipMinder) {
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
 			}
@@ -739,7 +762,7 @@ void ActionLogger::deleteLog(int32_t time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -851,7 +874,7 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				GeneralMemoryAllocator::get().dealloc(firstConsequence);
+				delugeDealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);

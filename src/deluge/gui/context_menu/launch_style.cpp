@@ -50,9 +50,10 @@ bool LaunchStyle::setupAndCheckAvailability() {
 
 	currentOption = static_cast<int32_t>(valueOption);
 
-#if HAVE_OLED
-	scrollPos = currentOption;
-#endif
+	if (display->haveOLED()) {
+		scrollPos = currentOption;
+	}
+
 	return true;
 }
 

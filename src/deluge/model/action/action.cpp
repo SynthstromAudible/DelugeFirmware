@@ -58,7 +58,7 @@ void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 	deleteAllConsequences(whichQueueActionIn, song, true);
 
 	if (clipStates) {
-		GeneralMemoryAllocator::get().dealloc(clipStates);
+		delugeDealloc(clipStates);
 	}
 }
 
@@ -70,7 +70,7 @@ void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool 
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);
 		toDelete->~Consequence();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 	if (!destructing) {
 		firstConsequence = NULL;
@@ -122,7 +122,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 			    modelStack
 			        ->song); // Have to put AFTER. See the effect this will have in ConsequenceCDelete::prepareForDestruction()
 			thisConsequence->~Consequence();
-			GeneralMemoryAllocator::get().dealloc(thisConsequence);
+			delugeDealloc(thisConsequence);
 		}
 
 		// Or, normal case
@@ -174,7 +174,7 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 
 void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData) {
 
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceParamChange));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceParamChange));
 
 	if (consMemory) {
 		ConsequenceParamChange* newCons = new (consMemory) ConsequenceParamChange(modelStack, stealData);
@@ -215,7 +215,7 @@ int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* cli
 
 int32_t Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
                                                 bool stealData) {
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteArrayChange));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteArrayChange));
 
 	if (!consMemory) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -234,7 +234,7 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, 
 		return;
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteExistence));
 
 	if (consMemory) {
 		ConsequenceNoteExistence* newConsequence =
@@ -245,7 +245,7 @@ void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, 
 
 void Action::recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type) {
 
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipInstanceExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipInstanceExistence));
 
 	if (consMemory) {
 		ConsequenceClipInstanceExistence* newConsequence =
@@ -266,7 +266,7 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 		}
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipLength));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipLength));
 
 	if (consMemory) {
 		ConsequenceClipLength* consequenceClipLength = new (consMemory) ConsequenceClipLength(clip, oldLength);
@@ -275,7 +275,7 @@ void Action::recordClipLengthChange(Clip* clip, int32_t oldLength) {
 }
 
 bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type) {
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipExistence));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipExistence));
 	if (!consMemory) {
 		return false;
 	}
@@ -298,7 +298,7 @@ bool Action::recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* c
 
 // Call this *before* you change the Sample or its filePath
 void Action::recordAudioClipSampleChange(AudioClip* clip) {
-	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceAudioClipSetSample));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceAudioClipSetSample));
 	if (consMemory) {
 		ConsequenceAudioClipSetSample* cons = new (consMemory) ConsequenceAudioClipSetSample(clip);
 		addConsequence(cons);
@@ -313,7 +313,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 	if (numClipStates
 	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 		numClipStates = 0;
-		GeneralMemoryAllocator::get().dealloc(clipStates);
+		delugeDealloc(clipStates);
 		clipStates = NULL;
 		Debug::println("discarded clip states");
 		return;

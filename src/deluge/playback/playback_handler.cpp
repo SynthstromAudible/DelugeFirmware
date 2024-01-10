@@ -34,6 +34,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -43,7 +44,7 @@
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -166,11 +167,12 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	// If not currently playing
 	if (!playbackState) {
 		setupPlaybackUsingInternalClock(buttonPressLatency);
+		Debug::println("Play");
 	}
 
 	// Or if currently playing...
 	else {
-
+		Debug::println("~Play");
 		// If holding <> encoder down...
 		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
@@ -372,7 +374,7 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->isArrangementOnlyClip())) {
+	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -1047,7 +1049,7 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
 		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
-		display->freezeWithError("E429");
+		FREEZE_WITH_ERROR("E429");
 	}
 #endif
 
@@ -1095,7 +1097,7 @@ goAgain:
 
 		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
-			display->freezeWithError("E337");
+			FREEZE_WITH_ERROR("E337");
 		}
 
 		currentInputTick =
@@ -1937,7 +1939,7 @@ displayNudge:
 			case 2:
 				// Fine tempo adjustment
 
-				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
 				tempoBPM += offset;
 				if (tempoBPM > 0) {
 					currentSong->setBPM(tempoBPM, true);
@@ -2239,7 +2241,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2273,7 +2275,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2357,7 +2359,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later will stop and start playback respectively
 		if (action) {
-			void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceBeginPlayback));
+			void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
 
 			if (consMemory) {
 				ConsequenceBeginPlayback* newConsequence = new (consMemory) ConsequenceBeginPlayback();
@@ -2604,6 +2606,10 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// See if note message received should be processed by midi follow mode
+	midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	                               modelStack);
+
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2717,6 +2723,9 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
+	// See if pitch bend received should be processed by midi follow mode
+	midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2782,6 +2791,9 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// See if midi cc received should be processed by midi follow mode
+	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2817,6 +2829,9 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// See if aftertouch received should be processed by midi follow mode
+	midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2919,8 +2934,8 @@ doCreateNextOverdub:
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only
-			else if (currentSong->currentClip && !currentSong->currentClip->isArrangementOnlyClip()) {
-				clipToCreateOverdubFrom = currentSong->currentClip;
+			else if (getCurrentClip() && !getCurrentClip()->isArrangementOnlyClip()) {
+				clipToCreateOverdubFrom = getCurrentClip();
 				clipIndexToCreateOverdubFrom = currentSong->sessionClips.getIndexForClip(clipToCreateOverdubFrom);
 			}
 

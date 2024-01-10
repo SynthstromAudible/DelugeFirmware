@@ -38,7 +38,7 @@ RGB ClipInstance::getColour() {
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipInstanceChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipInstanceChange));
 
 		if (consMemory) {
 			ConsequenceClipInstanceChange* newConsequence =

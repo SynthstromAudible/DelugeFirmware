@@ -279,19 +279,6 @@ bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
 }
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-
-	if (getCurrentUI()
-	    != &automationInstrumentClipView) { //let the automation instrument clip view handle the drawing of midi cc value
-		char buffer[5];
-		int32_t valueForDisplay = knobPos;
-		valueForDisplay += 64;
-		if (valueForDisplay == 128) {
-			valueForDisplay = 127;
-		}
-		intToString(valueForDisplay, buffer);
-		display->displayPopup(buffer, 3, true);
-	}
-
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);
 }
 

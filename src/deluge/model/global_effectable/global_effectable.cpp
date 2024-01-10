@@ -18,9 +18,11 @@
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -47,6 +49,8 @@ GlobalEffectable::GlobalEffectable() {
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
+	editingComp = false;
+	currentCompParam = CompParam::RATIO;
 }
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
@@ -60,6 +64,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->kind = Param::Kind::UNPATCHED_GLOBAL;
 
 	unpatchedParams->params[Param::Unpatched::GlobalEffectable::MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
@@ -93,8 +98,11 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
-	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
-	endStutter(paramManager);
+	//leave stutter running in perfomance session view
+	if (getRootUI() != &performanceSessionView) {
+		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
+		endStutter(paramManager);
+	}
 }
 
 // Returns whether Instrument changed
@@ -118,7 +126,11 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 5) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % kNumModFXTypes);
+				auto modTypeCount = (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX)
+				                     == RuntimeFeatureStateToggle::Off)
+				                        ? (kNumModFXTypes - 1)
+				                        : kNumModFXTypes;
+				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % modTypeCount);
 				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
@@ -265,7 +277,23 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				view.cycleThroughReverbPresets();
+				//if we're in full move/editingComp then we cycle through the comp params
+				//otherwise cycle reverb sizes
+				if (!editingComp) {
+					view.cycleThroughReverbPresets();
+				}
+				else {
+					currentCompParam =
+					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
+					const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
+					display->popupTextTemporary(params[int(currentCompParam)]);
+				}
+			}
+		}
+		else {
+			if (on) {
+				editingComp = !editingComp;
+				display->popupTextTemporary(editingComp ? "FULL" : "ONE");
 			}
 		}
 
@@ -275,6 +303,108 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	return false; // Some cases could lead here
 }
 
+int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
+	int current = 0;
+	if (*getModKnobMode() == 4) {
+
+		//this is only reachable in comp editing mode, otherwise it's an existent param
+		if (whichModEncoder == 1) { //sidechain (threshold)
+			current = (AudioEngine::mastercompressor.getThreshold() >> 24);
+		}
+		else if (whichModEncoder == 0) {
+			switch (currentCompParam) {
+
+			case CompParam::RATIO:
+				current = (AudioEngine::mastercompressor.getRatio() >> 24);
+
+				break;
+
+			case CompParam::ATTACK:
+				current = AudioEngine::mastercompressor.getAttack() >> 24;
+
+				break;
+
+			case CompParam::RELEASE:
+				current = AudioEngine::mastercompressor.getRelease() >> 24;
+
+				break;
+
+			case CompParam::SIDECHAIN:
+				current = AudioEngine::mastercompressor.getSidechain() >> 24;
+				break;
+			}
+		}
+	}
+	return current - 64;
+}
+
+ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
+                                                                   ModelStackWithAutoParam* modelStack) {
+	if (*getModKnobMode() == 4) {
+		int current;
+		int displayLevel;
+		int ledLevel;
+		//this is only reachable in comp editing mode, otherwise it's an existent param
+		if (whichModEncoder == 1) { //sidechain (threshold)
+			current = (AudioEngine::mastercompressor.getThreshold() >> 24) - 64;
+			current += offset;
+			current = std::clamp(current, -64, 64);
+			ledLevel = (64 + current);
+			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
+			AudioEngine::mastercompressor.setThreshold(lshiftAndSaturate<24>(current + 64));
+			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
+		}
+		else if (whichModEncoder == 0) {
+			switch (currentCompParam) {
+
+			case CompParam::RATIO:
+				current = (AudioEngine::mastercompressor.getRatio() >> 24) - 64;
+				current += offset;
+				//this range is ratio of 2 to 20
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
+
+				displayLevel = AudioEngine::mastercompressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				break;
+
+			case CompParam::ATTACK:
+				current = (AudioEngine::mastercompressor.getAttack() >> 24) - 64;
+				current += offset;
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+
+				displayLevel = AudioEngine::mastercompressor.setAttack(lshiftAndSaturate<24>(current + 64));
+				break;
+
+			case CompParam::RELEASE:
+				current = (AudioEngine::mastercompressor.getRelease() >> 24) - 64;
+				current += offset;
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+
+				displayLevel = AudioEngine::mastercompressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				break;
+
+			case CompParam::SIDECHAIN:
+				current = (AudioEngine::mastercompressor.getSidechain() >> 24) - 64;
+				current += offset;
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+
+				displayLevel = AudioEngine::mastercompressor.setSidechain(lshiftAndSaturate<24>(current + 64));
+				break;
+			}
+			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
+		}
+		char buffer[5];
+		intToString(displayLevel, buffer);
+		display->displayPopup(buffer);
+
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
 // Always check this doesn't return NULL!
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
@@ -323,7 +453,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0) {
+		if (whichModEncoder == 0 && !editingComp) {
 			return Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT;
 		}
 	}
@@ -721,7 +851,7 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 }
 
 void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-                                              bool shouldLimitDelayFeedback) {
+                                              bool shouldLimitDelayFeedback, bool soundComingIn) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -735,13 +865,13 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delayWorkingState->userDelayRate = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Global::DELAY_RATE],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::DELAY_RATE)));
-	delay.setupWorkingState(delayWorkingState);
+	delay.setupWorkingState(delayWorkingState, soundComingIn);
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
                                                     DelayWorkingState* delayWorkingState,
-                                                    int32_t analogDelaySaturationAmount) {
+                                                    int32_t analogDelaySaturationAmount, bool grainHadInput) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -761,8 +891,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
-			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
-			                                                                 NULL, false, true);
+			modFXBuffer =
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
 			if (!modFXBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}
@@ -771,35 +901,44 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 			}
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
-			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
-			if (!modFXGrainBuffer) {
-				modFXTypeNow = ModFXType::NONE;
-			}
-			for (int i = 0; i < 8; i++) {
-				grains[i].length = 0;
-			}
-			grainInitialized = false;
-			modFXGrainBufferWriteIndex = 0;
+		if (grainHadInput) {
+			setWrapsToShutdown();
 		}
-		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
-			modFXBuffer = NULL;
+		if (wrapsToShutdown >= 0) {
+			if (!modFXGrainBuffer) {
+				modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+				                                                                              * sizeof(StereoSample));
+				if (!modFXGrainBuffer) {
+					modFXTypeNow = ModFXType::NONE;
+				}
+				for (int i = 0; i < 8; i++) {
+					grains[i].length = 0;
+				}
+				grainInitialized = false;
+				modFXGrainBufferWriteIndex = 0;
+			}
+			if (modFXBuffer) {
+				delugeDealloc(modFXBuffer);
+				modFXBuffer = NULL;
+			}
+		}
+		else if (modFXGrainBuffer) {
+			delugeDealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 	else {
 		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}

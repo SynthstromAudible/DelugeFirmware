@@ -74,7 +74,7 @@ void SevenSegment::deleteAllLayers() {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -87,7 +87,7 @@ void SevenSegment::removeTopLayer() {
 	topLayer = topLayer->next;
 
 	toDelete->~NumericLayer();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 
 	if (!popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -99,7 +99,8 @@ void SevenSegment::removeTopLayer() {
 void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
                            uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
-	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
+	// Paul: Render time could be lower putting this into internal
+	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
 	}
@@ -147,7 +148,8 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 
 NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
                                                           int32_t initialDelay) {
-	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
+	// Paul: Render time could be lower putting this into internal
+	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
 	}
@@ -178,7 +180,7 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer* toDelete = *prevPointer;
 	*prevPointer = newLayer;
 	toDelete->~NumericLayer();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -195,7 +197,8 @@ void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 	// If transition...
 	if (!popupActive && nextTransitionDirection != 0 && topLayer != NULL) {
 
-		void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollTransition));
+		// Paul: Render time could be lower putting this into internal
+		void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollTransition));
 
 		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
@@ -541,7 +544,8 @@ void SevenSegment::render() {
 
 // Call this to make the loading animation happen
 void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
-	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerLoadingAnimation));
+	// Paul: Render time could be lower putting this into internal
+	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerLoadingAnimation));
 	if (!layerSpace) {
 		return;
 	}

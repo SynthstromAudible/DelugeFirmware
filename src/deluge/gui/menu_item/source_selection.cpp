@@ -199,10 +199,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 			}
 		}
 		else {
-			if (newValue >= kNumPatchSources)
-				newValue -= kNumPatchSources;
-			else if (newValue < 0)
-				newValue += kNumPatchSources;
+			newValue = ((newValue % kNumPatchSources) + kNumPatchSources) % kNumPatchSources;
 		}
 
 		s = sourceMenuContents[newValue];

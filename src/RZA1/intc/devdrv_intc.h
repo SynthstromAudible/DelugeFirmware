@@ -575,6 +575,7 @@ int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense));
 void R_INTC_Init(void);
 int32_t R_INTC_Enable(uint16_t int_id);
 int32_t R_INTC_Disable(uint16_t int_id);
+uint8_t R_INTC_Enabled(uint16_t int_id);
 int32_t R_INTC_SetPriority(uint16_t int_id, uint8_t priority);
 int32_t R_INTC_SetMaskLevel(uint8_t mask_level);
 void R_INTC_GetMaskLevel(uint8_t* mask_level);

@@ -514,7 +514,7 @@ void AudioFile::removeReason(char const* errorCode) {
 
 	else if (numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
-		display->freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
+		FREEZE_WITH_ERROR("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
 #endif
 		numReasonsToBeLoaded = 0; // Save it from crashing
 	}

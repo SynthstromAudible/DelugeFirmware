@@ -33,7 +33,6 @@ namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
-Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
@@ -45,12 +44,14 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuAutomationDisableAuditionPadShortcuts(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
+Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 
 Submenu subMenuAutomation{
     l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
@@ -59,15 +60,27 @@ Submenu subMenuAutomation{
         &menuAutomationClearClip,
         &menuAutomationNudgeNote,
         &menuAutomationShiftClip,
+        &menuAutomationDisableAuditionPadShortcuts,
     },
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,         &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution,   &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &menuQuantizedStutterRate,   &subMenuAutomation,      &menuDevSysexAllowed,     &menuSyncScalingAction,
-    &menuHighlightIncomingNotes, &menuDisplayNornsLayout, &menuShiftIsSticky,       &menuLightShiftLed,
-};
+    &menuDrumRandomizer,
+    &menuFineTempo,
+    &menuQuantize,
+    &menuPatchCableResolution,
+    &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
+    &menuAltGoldenKnobDelayParams,
+    &menuQuantizedStutterRate,
+    &subMenuAutomation,
+    &menuDevSysexAllowed,
+    &menuSyncScalingAction,
+    &menuHighlightIncomingNotes,
+    &menuDisplayNornsLayout,
+    &menuShiftIsSticky,
+    &menuLightShiftLed,
+    &menuEnableGrainFX};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

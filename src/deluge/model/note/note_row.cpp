@@ -30,7 +30,7 @@
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
@@ -82,7 +82,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 		DrumName* toDelete = oldFirstOldDrumName;
 		oldFirstOldDrumName = oldFirstOldDrumName->next;
 		toDelete->~DrumName();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 
 	if (shouldUpdatePointer) {
@@ -365,7 +365,7 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreensToAddNoteOn * sizeof(int32_t), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreensToAddNoteOn * sizeof(int32_t));
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -375,7 +375,7 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 	int32_t newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -465,7 +465,7 @@ addNewNote:
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after the insertion-point on the final screen
 	while (nextIndexToCopyFrom < notes.getNumElements()) {
@@ -504,7 +504,7 @@ addNewNote:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E318");
 #endif
 
@@ -663,7 +663,7 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int32_t), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -673,7 +673,7 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	int32_t newNotesInitialSize = notes.getNumElements();
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -757,7 +757,7 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	Note* __restrict__ destNote = NULL;
 
@@ -810,7 +810,7 @@ thatsDone:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E319");
 #endif
 
@@ -958,7 +958,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int32_t), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -970,7 +970,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -1084,7 +1084,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1104,7 +1104,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		display->freezeWithError("E329");
+		FREEZE_WITH_ERROR("E329");
 	}
 #endif
 
@@ -1118,7 +1118,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E328");
 #endif
 
@@ -1155,7 +1155,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int32_t), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -1167,7 +1167,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	int32_t newNotesInitialSize = numSourceNotes;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -1337,7 +1337,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1413,7 +1413,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E327");
 #endif
 
@@ -1434,7 +1434,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * sizeof(int32_t), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -1480,7 +1480,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	return NO_ERROR;
 }
@@ -3148,9 +3148,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
-
-		paramManager.forgetParamCollections();
 	}
+	paramManager.forgetParamCollections();
 
 	drum = (SoundDrum*)
 	    newDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
@@ -3202,7 +3201,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							display->freezeWithError("E101");
+							FREEZE_WITH_ERROR("E101");
 						}
 					}
 
@@ -3210,7 +3209,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int32_t error = paramManager.setupWithPatching();
 						if (error) {
-							display->freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							FREEZE_WITH_ERROR("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 
@@ -3307,7 +3306,8 @@ void NoteRow::rememberDrumName() {
 		}
 
 		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it to the end of the list now
-		void* drumNameMemory = GeneralMemoryAllocator::get().alloc(sizeof(DrumName));
+		// Paul: Might make sense to put these into Internal?
+		void* drumNameMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(DrumName));
 		if (drumNameMemory) {
 			*prevPointer = new (drumNameMemory) DrumName(&soundDrum->name);
 		}

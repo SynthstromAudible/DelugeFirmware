@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/compressor.h"
 #include "dsp/delay/delay.h"
+#include "dsp/sidechain/sidechain.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -52,8 +52,10 @@ struct Grain {
 	int32_t panVolR; //0 - 1073741823
 };
 
+class Clip;
 class Knob;
 class MIDIDevice;
+class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 
@@ -80,11 +82,15 @@ public:
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
-	void wontBeRenderedForAWhile();
+	virtual void wontBeRenderedForAWhile();
+	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	void receivedCCFromMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value);
+	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
+	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
@@ -131,6 +137,8 @@ public:
 	LFO modFXLFO;
 
 	//Grain
+	int32_t wrapsToShutdown;
+	void setWrapsToShutdown();
 	StereoSample* modFXGrainBuffer;
 	uint32_t modFXGrainBufferWriteIndex;
 	int32_t grainSize;
@@ -152,16 +160,22 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	Compressor compressor; // Song doesn't use this, despite extending this class
+	SideChain compressor; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
+
+private:
+	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+	                                        int32_t ccNumber = MIDI_CC_NONE);
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id);
+	bool possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               int32_t analogDelaySaturationAmount);
 	int32_t getStutterRate(ParamManager* paramManager);
-	void beginStutter(ParamManagerForTimeline* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();

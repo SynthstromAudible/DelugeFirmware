@@ -1,8 +1,38 @@
 #pragma once
 
+#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
+
+#if !defined(NDEBUG)
+#define ENABLE_SEQUENTIALITY_TESTS 1
+#else
+#define ENABLE_SEQUENTIALITY_TESTS 0
+#endif
+
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
+#include "fault_handler.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// This is defined in display.cpp
+extern void freezeWithError(char const* errmsg);
+#ifdef __cplusplus
+}
+#endif
+#if defined(__arm__)
+#define FREEZE_WITH_ERROR(error)                                                                                       \
+	({                                                                                                                 \
+		uint32_t regLR = 0;                                                                                            \
+		uint32_t regSP = 0;                                                                                            \
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		freezeWithError(error);                                                                                        \
+	})
+#else
+#define FREEZE_WITH_ERROR(error) ({ freezeWithError(error); })
+#endif
 #define TIMER_MIDI_GATE_OUTPUT 2
 #define TIMER_SYSTEM_FAST 0
 #define TIMER_SYSTEM_SLOW 4

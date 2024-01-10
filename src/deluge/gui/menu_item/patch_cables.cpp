@@ -18,22 +18,26 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 	currentValue = 0;
 
 	if (navigatedBackwardFrom != nullptr) {
-		PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 		currentValue = savedVal;
-		if (savedVal >= set->numPatchCables) {
-			currentValue = 0;
-		}
 	}
 
 	if (display->haveOLED()) {
 		scrollPos = std::max((int32_t)0, currentValue - 1);
 	}
 
-	renderOptions();
 	readValueAgain();
 }
 
 void PatchCables::readValueAgain() {
+	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	if (currentValue >= set->numPatchCables) {
+		// The last patch cable was deleted and it was selected, need to adjust
+		currentValue = std::max(0, set->numPatchCables - 1);
+		scrollPos = std::max((int32_t)0, currentValue - 1);
+	}
+
+	renderOptions();
+
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
@@ -75,7 +79,7 @@ void PatchCables::renderOptions() {
 		}
 
 		int32_t param_value = cable->param.getCurrentValue();
-		int32_t level = ((int64_t)param_value * 5000 + (1 << 29)) >> 30;
+		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		floatToString((float)level / 100, buf + off + 5, 2, 2);
 		//fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
@@ -114,10 +118,10 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 	}
 	else {
 		if (newValue >= set->numPatchCables) {
-			newValue -= set->numPatchCables;
+			newValue %= set->numPatchCables;
 		}
 		else if (newValue < 0) {
-			newValue += set->numPatchCables;
+			newValue = (newValue % set->numPatchCables + set->numPatchCables) % set->numPatchCables;
 		}
 	}
 

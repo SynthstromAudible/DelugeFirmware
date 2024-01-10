@@ -28,6 +28,23 @@ extern "C" {
 LearnedMIDI::LearnedMIDI() {
 	clear();
 }
+MIDIMatchType LearnedMIDI::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
+	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
+	if (equalsDevice(fromDevice) && channelOrZone == corz) {
+		if (channelOrZone == midiChannel) {
+			return MIDIMatchType::CHANNEL;
+		}
+		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
+		if (master) {
+			return MIDIMatchType::MPE_MASTER;
+		}
+		else {
+			return MIDIMatchType::MPE_MEMBER;
+		}
+	}
+	return MIDIMatchType::NO_MATCH;
+}
 
 void LearnedMIDI::clear() {
 	device = NULL;

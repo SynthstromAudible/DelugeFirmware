@@ -27,8 +27,8 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) final;
 	void readCurrentValue() final;
 	void writeCurrentValue() override;
-	[[nodiscard]] int32_t getMinValue() const final { return -5000; }
-	[[nodiscard]] int32_t getMaxValue() const final { return 5000; }
+	[[nodiscard]] int32_t getMinValue() const final { return kMinMenuPatchCableValue; }
+	[[nodiscard]] int32_t getMaxValue() const final { return kMaxMenuPatchCableValue; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 	virtual int32_t getDefaultEditPos() { return 2; }
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;

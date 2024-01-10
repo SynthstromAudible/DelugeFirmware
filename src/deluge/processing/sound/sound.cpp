@@ -30,7 +30,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -164,6 +164,8 @@ void Sound::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->kind = Param::Kind::UNPATCHED_SOUND;
+
 	unpatchedParams->params[Param::Unpatched::Sound::ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[Param::Unpatched::Sound::PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
@@ -348,37 +350,37 @@ bool Sound::setModFXType(ModFXType newType) {
 	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
-			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
-			                                                                 NULL, false, true);
+			modFXBuffer =
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
 			if (!modFXBuffer) {
 				return false;
 			}
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}
 	else if (newType == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
-			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+			                                                                              * sizeof(StereoSample));
 			if (!modFXGrainBuffer) {
 				return false;
 			}
 		}
 		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 	}
 	else {
 		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}
@@ -1552,7 +1554,7 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 #if ALPHA_OR_BETA_VERSION
 	if (!modelStack->paramManager) {
 		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-		display->freezeWithError("E403");
+		FREEZE_WITH_ERROR("E403");
 	}
 #endif
 
@@ -1571,7 +1573,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
 	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
-		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == -32768)
+		if ((thisVoice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
 
 			ArpeggiatorSettings* arpSettings = getArpSettings();
@@ -2255,7 +2257,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	          &postFXVolume, paramManager, 8);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
-	int32_t postReverbSendVolumeIncrement = (int32_t)(postReverbVolume - postReverbVolumeLastTime) / numSamples;
+	int32_t postReverbSendVolumeIncrement =
+	    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume,
 	                           postReverbVolumeLastTime, reverbSendAmount, 0, true, postReverbSendVolumeIncrement);
@@ -2313,10 +2316,12 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// Do sidechain compressor
 			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
-			compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-			                                      AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
-			//}
-
+			if (AudioEngine::sizeLastSideChainHit) {
+				compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
+				                                      AudioEngine::audioSampleTimer
+				                                          - AudioEngine::timeLastSideChainHit);
+				//}
+			}
 			// Special state to make it grab the actual value the first time it's rendered
 			postReverbVolumeLastTime = -1;
 
@@ -2364,11 +2369,11 @@ void Sound::unassignAllVoices() {
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			display->freezeWithError("E070");
+			FREEZE_WITH_ERROR("E070");
 		}
 		else if (numVoicesAssigned < 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			display->freezeWithError("E071");
+			FREEZE_WITH_ERROR("E071");
 		}
 	}
 
@@ -2403,7 +2408,7 @@ void Sound::confirmNumVoices(char const* error) {
 		Uart::print(numVoicesAssigned);
 		Uart::print(", but actually ");
 		Uart::println(voiceCount);
-		display->freezeWithError(error);
+		FREEZE_WITH_ERROR(error);
 	}
 
 	int32_t reasonCountSources = 0;
@@ -2431,7 +2436,7 @@ void Sound::confirmNumVoices(char const* error) {
 			char buffer[5];
 			strcpy(buffer, error);
 			buffer[0] = 'F';
-			display->freezeWithError(buffer);
+			FREEZE_WITH_ERROR(buffer);
 		}
 	}
 	*/
@@ -4143,7 +4148,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
-		display->freezeWithError("E322");
+		FREEZE_WITH_ERROR("E322");
 	}
 }
 
@@ -4288,8 +4293,11 @@ char const* Sound::paramToString(uint8_t param) {
 	case Param::Local::LPF_FREQ:
 		return "lpfFrequency";
 
+	case Param::Local::LPF_MORPH:
+		return "lpfMorph";
+
 	case Param::Local::HPF_MORPH:
-		return "HPFMorph";
+		return "hpfMorph";
 
 	case Param::Local::PITCH_ADJUST:
 		return "pitch";

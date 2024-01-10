@@ -45,6 +45,86 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
+//grid sized arrays to assign automatable parameters to the grid
+//used in automation view and in midi follow
+
+const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, kNoParamID, Param::Local::OSC_A_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
+    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, kNoParamID, Param::Local::OSC_B_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, kNoParamID},
+    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Global::VOLUME_POST_FX, Param::Local::PITCH_ADJUST, kNoParamID, Param::Local::PAN, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Local::FOLD},
+    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
+     Param::Local::LPF_MORPH, kNoParamID, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
+    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
+     Param::Local::HPF_MORPH, kNoParamID, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Global::VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {Param::Global::ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Global::LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Global::MOD_FX_DEPTH,
+     Param::Global::MOD_FX_RATE},
+    {Param::Local::LFO_LOCAL_FREQ, kNoParamID, kNoParamID, Param::Global::REVERB_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Global::DELAY_RATE, kNoParamID, kNoParamID, Param::Global::DELAY_FEEDBACK, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     Param::Unpatched::BITCRUSHING, kNoParamID},
+    {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::COMPRESSOR_SHAPE, kNoParamID,
+     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::Sound::ARP_GATE, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::VOLUME, Param::Unpatched::GlobalEffectable::PITCH_ADJUST, kNoParamID,
+     Param::Unpatched::GlobalEffectable::PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
 class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
 	AutomationInstrumentClipView();
@@ -60,9 +140,9 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void displayAutomation();
-	void displayParameterName(int32_t paramID);
-	void setDisplayParameterNameTimer();
+	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
+	                   bool modEncoderAction = false);
+	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
@@ -87,6 +167,8 @@ public:
 
 	//mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	bool modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset);
+	void modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
@@ -105,9 +187,16 @@ public:
 	//not sure how this is used
 	ClipMinder* toClipMinder() { return this; }
 
+	bool isOnAutomationOverview();
+
 	bool interpolation;
 	bool interpolationBefore;
 	bool interpolationAfter;
+
+	//public to midi follow can access it
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                                int32_t paramID = 0xFFFFFFFF,
+	                                                Param::Kind paramKind = Param::Kind::NONE);
 
 private:
 	//Automation View Render Functions
@@ -119,11 +208,13 @@ private:
 	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Instrument* instrument,
 	                            RGB* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
 	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithAutoParam* modelStack, RGB* image, uint8_t occupancyMask[], bool, uint32_t,
-	               bool allowNoteTails, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0,
-	               bool isAutomated = false);
+	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
+	               RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
 	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderDisplayOLED(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	                       int32_t knobPosRight = kNoSelection);
+	void renderDisplay7SEG(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	                       bool modEncoderAction = false);
 
 	//Enter/Exit Scale Mode
 	void enterScaleMode(uint8_t yDisplay = 255);
@@ -136,31 +227,38 @@ private:
 	void copyAutomation();
 	void pasteAutomation();
 
+	//Select Encoder Action
+	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
+	                                          int32_t numParams);
+
 	//Automation Lanes Functions
 	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF,
-	                                                Param::Kind paramKind = Param::Kind::NONE);
+	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
+	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
+	void getParameterName(InstrumentClip* clip, Instrument* instrument, char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength, bool displayValue = true);
+	                                 int32_t xDisplay, int32_t effectiveLength, bool modEncoderAction = false);
+	void setKnobIndicatorLevels(int32_t knobPos);
+	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
+	                       bool updateIndicatorLevels = true);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
-	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(Instrument* instrument, int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
+	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-	bool isOnParameterGridMenuView();
-	void displayParameterValue(int32_t knobPos);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();
 
@@ -170,11 +268,14 @@ private:
 	bool padSelectionOn;
 	bool multiPadPressSelected;
 	bool multiPadPressActive;
+	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
+
+	bool playbackStopped;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

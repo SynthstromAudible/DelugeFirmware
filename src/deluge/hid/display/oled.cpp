@@ -50,7 +50,7 @@ uint8_t OLED::oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS]
 uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]
     __attribute__((aligned(alignof(int32_t))));
 
-uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
+uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] __attribute__((aligned(CACHE_LINE_SIZE))) = oledMainImage;
 
 int32_t workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active
@@ -1231,12 +1231,12 @@ void OLED::freezeWithError(char const* text) {
 	// Wait for existing DMA transfer to finish
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	while (!(DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & DMAC0_CHSTAT_n_TC)
-	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {}
+	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {}
 
 	// Wait for PIC to de-select OLED, if it's been doing that.
 	if (oledWaitingForMessage != 256) {
 		startTime = *TCNT[TIMER_SYSTEM_SLOW];
-		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {
+		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 			uint8_t value;
 			bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 			if (anything && value == oledWaitingForMessage) {
@@ -1254,7 +1254,7 @@ void OLED::freezeWithError(char const* text) {
 
 	// Wait for selection to be done
 	startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {
+	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 		uint8_t value;
 		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 		if (anything && value == 248) {

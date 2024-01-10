@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/performance_session_view.h"
 #include "model/action/action.h"
 #include <cstdint>
 
@@ -32,11 +33,15 @@ class ModelStack;
 class ActionLogger {
 public:
 	ActionLogger();
+
+	//warning - super not thread safe
 	Action* getNewAction(int32_t newActionType, int32_t addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  int32_t actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
 	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
+	void recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	void closeAction(int32_t actionType);
 	void closeActionUnlessCreatedJustNow(int32_t actionType);
 	void deleteAllLogs();

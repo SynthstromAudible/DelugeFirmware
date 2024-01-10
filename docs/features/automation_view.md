@@ -6,7 +6,7 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 1. Automatable Parameters for Synths, Kits with affect entire DISABLED, and Midi
 
->The 55 parameters that can be edited are:
+>The 56 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -28,10 +28,11 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Arp** Rate, Gate
 > - **Noise** Level
 > - **Portamento**
+> - **Stutter** Rate
 
 2. Automatable Parameters for Kits with affect entire ENABLED
 
->The 24 parameters that can be edited are:
+>The 25 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance
@@ -42,8 +43,7 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Sidechain** Level, Shape
 > - **Distortion** Decimation, Bitcrush
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Gate
-> - **Portamento**
+> - **Stutter** Rate
 
 It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.
 
@@ -146,10 +146,13 @@ The Automation Editor **will:**
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
+> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
+> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/8cc7befa-9071-4bd3-ac3c-15049f69b250)
+<img width="347" alt="Screenshot 2023-12-25 at 4 53 23 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/a95c7e5f-5a77-4280-b159-26364d29def2">
 
+- enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
 
 > **Note 1:** to enter long multi-step automations across multiple grid pages you will need to zoom out as both pads pressed must be visible on the grid). Values in between steps are linearly calculated based on the value corresponding to the pads pressed. For example: you could program a sweep up from value 0 to value 128 by pressing and holding on pad 0,0 and then pressing on pad 15,8).
@@ -317,6 +320,16 @@ In the Automation Instrument Clip View, functionality is provided to shift autom
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
+### Disable Audition Pad Shortcuts
+
+Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
+
+By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+
+Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
+
+> **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
+
 # Fun things to try with the new Automation Instrument Clip View
 
 ## Two Hand Automation Drumming
@@ -355,11 +368,10 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Explore displaying a menu instead of a pop-up.
 - Automation for Audio Clips
 - Key Frames + Parameter value for each frame
 - Automation Shapes
-- Jump from Sound Editor
+- Jump from Sound Editor Menu to Automation View
 - Zoom in Vertically
 - Shading of lower node changes when viewing higher node level
 - How can we reset automation to default preset levels

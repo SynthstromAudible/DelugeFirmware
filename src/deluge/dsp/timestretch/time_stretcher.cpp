@@ -170,7 +170,7 @@ void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercCacheClusters();
 	olderPartReader.unassignAllReasons();
 	if (buffer) {
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 	}
 }
 
@@ -247,7 +247,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
-			display->freezeWithError("i036");
+			FREEZE_WITH_ERROR("i036");
 		}
 	}
 #endif
@@ -621,7 +621,7 @@ skipPercStuff:
 
 		int32_t newHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 		if (ALPHA_OR_BETA_VERSION && newHeadBytePos < (int32_t)sample->audioDataStartPosBytes) {
-			display->freezeWithError("E285");
+			FREEZE_WITH_ERROR("E285");
 		}
 		success = sample->getAveragesForCrossfade(newHeadTotals, newHeadBytePos, crossfadeLengthSamplesSource,
 		                                          playDirection, lengthToAverageEach);
@@ -957,7 +957,7 @@ optForDirectReading:
 	// If no one's reading from the buffer anymore, stop filling it
 	if (buffer
 	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 		buffer = NULL;
 		Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
@@ -1040,7 +1040,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 		// If no one's reading from the buffer anymore, stop filling it
 		if (!newerHeadReadingFromBuffer && !olderHeadReadingFromBuffer && bufferFillingMode == BUFFER_FILLING_NEITHER) {
 			bufferFillingMode = BUFFER_FILLING_OFF;
-			GeneralMemoryAllocator::get().dealloc(buffer);
+			delugeDealloc(buffer);
 			buffer = NULL;
 			Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 		}
@@ -1049,8 +1049,8 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
-	buffer = (int32_t*)GeneralMemoryAllocator::get().alloc(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels,
-	                                                       NULL, false, true);
+	buffer =
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
 	return (buffer != NULL);
 }
 
@@ -1154,7 +1154,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
-		display->freezeWithError("E178");
+		FREEZE_WITH_ERROR("E178");
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
@@ -1174,7 +1174,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	// If we're really unlucky, allocating the buffer may have stolen from the cache
 	if (originalCacheWriteBytePos != cache->writeBytePos) {
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 		buffer = NULL;
 		return;
 	}
@@ -1198,7 +1198,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	}
 
 	if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-		display->freezeWithError("E179");
+		FREEZE_WITH_ERROR("E179");
 	}
 
 	for (int32_t i = 0; i < numSamplesThisCacheRead; i++) {

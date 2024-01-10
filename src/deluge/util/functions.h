@@ -23,6 +23,7 @@
 #include "gui/colour/colour.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -45,7 +46,7 @@ extern int32_t paramNeutralValues[];
 
 void functionsInit();
 
-static inline void intToString(int32_t number, char* buffer) {
+[[gnu::always_inline]] static inline void intToString(int32_t number, char* buffer) {
 	intToString(number, buffer, 1);
 }
 
@@ -61,25 +62,8 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
 
-static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturation(int32_t a, int32_t b) {
-	int32_t out;
-	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes limit((val >> rshift), 2**bits)
-template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
-template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) {
-	int32_t out;
-	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
-	return out;
-}
-
 // bits must be *less* than 32! I.e. 31 or less
-inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
+[[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 
 	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just always saturating by the same amount!
 	switch (bits) {
@@ -127,28 +111,28 @@ inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 }
 
 template <uint8_t lshift>
-inline int32_t lshiftAndSaturate(int32_t val) {
+[[gnu::always_inline]] inline int32_t lshiftAndSaturate(int32_t val) {
 	return signed_saturate<32 - lshift>(val) << lshift;
 }
 
 // lshift must be greater than 0! Not 0
-inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
+[[gnu::always_inline]] inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
-static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
+[[gnu::always_inline]] constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
 	return (static_cast<uint32_t>(a)) | (static_cast<uint32_t>(b) << 8) | (static_cast<uint32_t>(c) << 16)
 	       | (static_cast<uint32_t>(d) << 24);
 }
 
-static constexpr uint16_t charsToIntegerConstant(char a, char b) {
+[[gnu::always_inline]] constexpr uint16_t charsToIntegerConstant(char a, char b) {
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
 /**
  * replace asterix with a digit
  * Only works for single digits
 */
-static void asterixToInt(char* str, int32_t i) {
+[[gnu::always_inline]] constexpr void asterixToInt(char* str, int32_t i) {
 	while (*str != 0) {
 		if (*str == '*') {
 			*str = (char)('0' + i);
@@ -232,8 +216,7 @@ void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t num
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
 char const* getPatchedParamDisplayName(int32_t p);
-char const* getUnpatchedParamDisplayName(int32_t p);
-char const* getGlobalEffectableParamDisplayName(int32_t p);
+char const* getParamDisplayName(Param::Kind kind, int32_t p);
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
@@ -245,7 +228,7 @@ bool paramNeedsLPF(int32_t p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
+[[gnu::always_inline]] constexpr void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 
 	//*(int32_t*)pos = *(float*)pos * 2147483648;
 
@@ -261,8 +244,8 @@ static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 	*pos = outputValue;
 }
 
-static int32_t floatToInt(float theFloat) {
-	uint32_t readValue = *(uint32_t*)&theFloat;
+[[gnu::always_inline]] constexpr int32_t floatToInt(float theFloat) {
+	uint32_t readValue = std::bit_cast<uint32_t>(theFloat);
 	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
 
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
@@ -274,7 +257,7 @@ static int32_t floatToInt(float theFloat) {
 	return outputValue;
 }
 
-static int32_t floatBitPatternToInt(uint32_t readValue) {
+[[gnu::always_inline]] constexpr int32_t floatBitPatternToInt(uint32_t readValue) {
 	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
 
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
@@ -287,8 +270,8 @@ static int32_t floatBitPatternToInt(uint32_t readValue) {
 }
 
 // input must not have any extra bits set than numBitsInInput specifies
-inline int32_t interpolateTableSigned(uint32_t input, int32_t numBitsInInput, const int16_t* table,
-                                      int32_t numBitsInTableSize = 8) {
+[[gnu::always_inline]] inline int32_t interpolateTableSigned(uint32_t input, int32_t numBitsInInput,
+                                                             const int16_t* table, int32_t numBitsInTableSize = 8) {
 	int32_t whichValue = input >> (numBitsInInput - numBitsInTableSize);
 	int32_t rshiftAmount = numBitsInInput - 16 - numBitsInTableSize;
 	uint32_t rshifted;
@@ -307,9 +290,10 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupO
 
 // input must not have any extra bits set than numBitsInInput specifies
 // Output of this function (unlike the regular 1d one) is only +- 1073741824
-inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int32_t numBitsInInputX,
-                                        int32_t numBitsInInputY, const int16_t* table, int32_t numBitsInTableSizeX,
-                                        int32_t numBitsInTableSizeY) {
+[[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY,
+                                                               int32_t numBitsInInputX, int32_t numBitsInInputY,
+                                                               const int16_t* table, int32_t numBitsInTableSizeX,
+                                                               int32_t numBitsInTableSizeY) {
 
 	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
 
@@ -334,7 +318,7 @@ inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int32_
 }
 
 template <unsigned saturationAmount>
-inline int32_t getTanH(int32_t input) {
+[[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
 	uint32_t workingValue;
 
 	if (saturationAmount)
@@ -345,7 +329,7 @@ inline int32_t getTanH(int32_t input) {
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
 
-inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
+[[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
 	uint32_t workingValue;
 
 	if (saturationAmount)
@@ -356,7 +340,8 @@ inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
 
-inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue, uint32_t saturationAmount) {
+[[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
+                                                         uint32_t saturationAmount) {
 
 	uint32_t workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
 
@@ -366,15 +351,15 @@ inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue, uin
 	return toReturn;
 }
 
-inline int32_t getSine(uint32_t phase, uint8_t numBitsInInput = 32) {
+[[gnu::always_inline]] inline int32_t getSine(uint32_t phase, uint8_t numBitsInInput = 32) {
 	return interpolateTableSigned(phase, numBitsInInput, sineWaveSmall, 8);
 }
 
-inline int32_t getSquare(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
+[[gnu::always_inline]] inline int32_t getSquare(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
 	return ((phase >= phaseWidth) ? (-2147483648) : 2147483647);
 }
 
-inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
+[[gnu::always_inline]] inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u) {
 	return ((phase >= phaseWidth) ? (-1073741824) : 1073741823);
 }
 
@@ -384,13 +369,13 @@ inline int32_t getSquareSmall(uint32_t phase, uint32_t phaseWidth = 2147483648u)
 	phase *= multiplier;
  */
 
-inline int32_t getTriangleSmall(uint32_t phase) {
+[[gnu::always_inline]] inline int32_t getTriangleSmall(uint32_t phase) {
 	if (phase >= 2147483648u)
 		phase = -phase;
 	return phase - 1073741824;
 }
 
-inline int32_t getTriangle(uint32_t phase) {
+[[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
 	return ((phase < 2147483648u) ? 2 : -2) * phase + 2147483648u;
 	//return getTriangleSmall(phase) << 1;
 }
@@ -405,11 +390,11 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 
 extern uint32_t z, w, jcong;
 
-inline uint8_t getRandom255() {
+[[gnu::always_inline]] inline uint8_t getRandom255() {
 	return CONG >> 24;
 }
 
-inline int32_t getNoise() {
+[[gnu::always_inline]] inline int32_t getNoise() {
 	return CONG;
 }
 
@@ -457,14 +442,14 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
 }
 
-inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
+[[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
 		return number << magnitude;
 	}
 	return number >> (-magnitude);
 }
 
-inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
+[[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
 	if (magnitude > 0) {
 		return lshiftAndSaturateUnknown(number, magnitude);
 	}
@@ -473,38 +458,33 @@ inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL);
+void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor);
 int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor);
 
-inline uint32_t swapEndianness32(uint32_t input) {
+[[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
 	int32_t out;
 	asm("rev %0, %1" : "=r"(out) : "r"(input));
 	return out;
 }
 
-inline uint32_t swapEndianness2x16(uint32_t input) {
+[[gnu::always_inline]] inline uint32_t swapEndianness2x16(uint32_t input) {
 	int32_t out;
 	asm("rev16 %0, %1" : "=r"(out) : "r"(input));
 	return out;
 }
 
-inline int32_t clz(uint32_t input) {
-	int32_t out;
-	asm("clz %0, %1" : "=r"(out) : "r"(input));
-	return out;
-}
-
-inline int32_t getMagnitudeOld(uint32_t input) {
+[[gnu::always_inline]] inline int32_t getMagnitudeOld(uint32_t input) {
 	return 32 - clz(input);
 }
 
-inline int32_t getMagnitude(uint32_t input) {
+[[gnu::always_inline]] inline int32_t getMagnitude(uint32_t input) {
 	return 31 - clz(input);
 }
 
-inline bool isPowerOfTwo(uint32_t input) {
+[[gnu::always_inline]] inline bool isPowerOfTwo(uint32_t input) {
 	return (input == 1 << getMagnitude(input));
 }
 
@@ -519,12 +499,12 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 int32_t fresultToDelugeErrorCode(FRESULT result);
 
-inline void writeInt16(char** address, uint16_t number) {
+[[gnu::always_inline]] inline void writeInt16(char** address, uint16_t number) {
 	*(uint16_t*)*address = number;
 	*address += 2;
 }
 
-inline void writeInt32(char** address, uint32_t number) {
+[[gnu::always_inline]] inline void writeInt32(char** address, uint32_t number) {
 	*(uint32_t*)*address = number;
 	*address += 4;
 }

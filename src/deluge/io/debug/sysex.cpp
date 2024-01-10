@@ -97,11 +97,11 @@ static void firstPacket(uint8_t* data, int32_t len) {
 	load_codesize = (int32_t)(user_code_end - user_code_start);
 	if (load_bufsize < load_codesize) {
 		if (load_buf != nullptr) {
-			GeneralMemoryAllocator::get().dealloc(load_buf);
+			delugeDealloc(load_buf);
 		}
 		load_bufsize = load_codesize + (511 - ((load_codesize - 1) & 511));
 
-		load_buf = (uint8_t*)GeneralMemoryAllocator::get().alloc(load_bufsize, NULL, false, true);
+		load_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(load_bufsize);
 		if (load_buf == nullptr) {
 			// fail :(
 			return;

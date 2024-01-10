@@ -32,7 +32,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		display->freezeWithError("E389");
+		FREEZE_WITH_ERROR("E389");
 	}
 #endif
 
@@ -185,6 +185,10 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	return toReturn;
 }
 
+bool ModelStackWithParamId::isParam(Param::Kind kind, ParamType id) {
+	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
+}
+
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
@@ -213,4 +217,36 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 
 void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
+}
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	ParamCollectionSummary* summary = nullptr;
+
+	summary = paramManager->getUnpatchedParamSetSummary();
+
+	if (summary) {
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+		if (modelStackWithParamId) {
+			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		}
+	}
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	ParamCollectionSummary* summary = nullptr;
+
+	summary = paramManager->getPatchedParamSetSummary();
+
+	if (summary) {
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+		if (modelStackWithParamId) {
+			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		}
+	}
+	return modelStackWithParam;
 }

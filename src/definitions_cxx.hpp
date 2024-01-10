@@ -18,12 +18,11 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
+#include "version.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-
-#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
 #define HARDWARE_TEST_MODE 0
 
@@ -57,15 +56,6 @@
 #define ENABLE_CLIP_CUTTING_DIAGNOSTICS 1
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
-
-struct SemVer {
-	uint8_t major;
-	uint8_t minor;
-	uint8_t patch;
-	// NOTE: below needs C++20
-	//auto operator<=>(const SemVer &) const = default
-};
-constexpr SemVer kCommunityFirmwareVersion{1, 0, 0};
 
 // FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0 release
 // correspondingly, we should probably we storing the semver version in three bytes in the flash rather than trying to compress
@@ -326,6 +316,7 @@ enum class EnvelopeStage : uint8_t {
 	SUSTAIN,
 	RELEASE,
 	FAST_RELEASE,
+	HOLD,
 	OFF,
 };
 constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
@@ -363,12 +354,32 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
-//Automation Instrument Clip View constants
-constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamShortcut = 255;
-constexpr int32_t kNoLastSelectedPad = 255;
-constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
-constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
+//Menu Min Max Values
+
+//regular menu range e.g. 0 - 50
+constexpr int32_t kMaxMenuValue = 50;
+constexpr int32_t kMinMenuValue = 0;
+constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
+
+//relative menu range e.g. -25 to +25 - used with pan and pitch
+constexpr int32_t kMaxMenuRelativeValue = kMaxMenuValue / 2;
+constexpr int32_t kMinMenuRelativeValue = -1 * kMaxMenuRelativeValue;
+
+//patch cable menu range e.g. -5000 to 5000
+constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
+constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
+
+//metronome volume menu range : 22 to 27
+constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
+constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
+
+//Performance View and Automation View Constant
+constexpr uint32_t kNoParamID = 0xFFFFFFFF;
+
+//Automation View constants
+constexpr int32_t kNoSelection = 255;
+constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 56;
+constexpr int32_t kNumKitAffectEntireParamsForAutomation = 23;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
@@ -376,6 +387,28 @@ constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 constexpr int32_t kParamNodeWidth = 3;
 //
+
+//Performance View constant
+constexpr int32_t kNumParamsForPerformance = 16;
+constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
+constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
+constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
+constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
+
+enum class PerformanceEditingMode : int32_t {
+	DISABLED,
+	VALUE,
+	PARAM,
+};
+
+//Midi Follow Mode Feedback Automation Modes
+
+enum class MIDIFollowFeedbackAutomationMode : uint8_t {
+	DISABLED,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
@@ -389,11 +422,15 @@ using ParamType = uint8_t;
 namespace Param {
 
 enum Kind : int32_t {
-	PATCHED,
-	UNPATCHED,
-	GLOBAL_EFFECTABLE,
-
 	NONE,
+
+	PATCHED,
+	UNPATCHED_SOUND,
+	UNPATCHED_GLOBAL,
+	STATIC,
+	MIDI,
+	PATCH_CABLE,
+	EXPRESSION,
 };
 
 namespace Local {
@@ -613,9 +650,10 @@ enum class ModFXType {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
-	GRAIN,
+	GRAIN, // Look below if you want to add another one
 };
 
+// Warning: Currently GRAIN can be disabled and kNumModFXTypes might need to be used - 1
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
@@ -730,6 +768,15 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+
+enum class CompParam {
+	RATIO,
+	ATTACK,
+	RELEASE,
+	SIDECHAIN,
+	LAST,
+};
+
 constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class PatchCableAcceptance {
@@ -762,6 +809,13 @@ enum class MIDITakeoverMode : uint8_t {
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
 constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
+
+enum class MIDIFollowChannelType : uint8_t {
+	SYNTH,
+	KIT,
+	PARAM,
+};
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::PARAM) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
@@ -820,11 +874,13 @@ enum class ExistenceChangeType {
 enum CCNumber {
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
-	CC_NUMBER_NONE = 122,
+	CC_NUMBER_Y_AXIS = 122,
+	CC_NUMBER_NONE = 123,
 };
-constexpr int32_t kNumCCNumbersIncludingFake = 123;
+constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
-
+constexpr int32_t kMaxMIDIValue = 127;
+constexpr int32_t ALL_NOTES_OFF = -32768;
 enum class InstrumentRemoval {
 	NONE,
 	DELETE_OR_HIBERNATE_IF_UNUSED,
@@ -1013,7 +1069,7 @@ constexpr int32_t kMaxImageStoreWidth = kDisplayWidth;
 
 constexpr int32_t kNumExpressionDimensions = 3;
 
-enum class Expression {
+enum Expression {
 	X_PITCH_BEND,
 	Y_SLIDE_TIMBRE,
 	Z_PRESSURE,
@@ -1023,6 +1079,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
@@ -1079,9 +1136,18 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
 
-/// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
+/// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+
+/// Length of a press that delineates a "hold" press.
+/// Used in Performance View and with Sticky Shift
+constexpr uint32_t kHoldTime = kSampleRate / 10;
+
+/// Rate at which midi follow feedback for automation is sent
+constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    //500 ms
+constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; //150 ms
+constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    //40 ms
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
@@ -1095,4 +1161,11 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
+enum GridDefaultActiveMode : uint8_t {
+	GridDefaultActiveModeSelection,
+	GridDefaultActiveModeGreen,
+	GridDefaultActiveModeBlue,
+	GridDefaultActiveModeMaxElement // Keep as boundary
 };

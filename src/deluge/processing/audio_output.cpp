@@ -60,8 +60,6 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	//audio clips are also effectively active if they're monitoring and turned on in arranger
-	isClipActive |= echoing && modelStack->song->isOutputActiveInArrangement(this);
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::AUDIO, 5);
@@ -79,11 +77,12 @@ void AudioOutput::resetEnvelope() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
+bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
                                                 int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
                                                 int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+	bool rendered = false;
 	//audio outputs can have an activeClip while being muted
 	if (isClipActive) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
@@ -123,7 +122,7 @@ renderEnvelope:
 				int32_t* intBuffer = (int32_t*)renderBuffer;
 				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart,
 				                        amplitudeIncrementEffective, pitchAdjust);
-
+				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 
 				// If we need to duplicate mono to stereo...
@@ -210,6 +209,7 @@ renderEnvelope:
 	}
 
 	if (echoing && modelStack->song->isOutputActiveInArrangement(this)) {
+		rendered = true;
 		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		StereoSample const* const outputPosEnd = outputPos + numSamples;
 
@@ -220,7 +220,7 @@ renderEnvelope:
 			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitudeIncrement = (amplitudeAtEnd - amplitudeAtStart) / numSamples;
+		int32_t amplitudeIncrement = (int32_t)((double)(amplitudeAtEnd - amplitudeAtStart) / (double)numSamples);
 		int32_t amplitudeNow = amplitudeAtStart;
 
 		do {
@@ -271,6 +271,7 @@ renderEnvelope:
 			}
 		} while (outputPos < outputPosEnd);
 	}
+	return rendered;
 }
 
 bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
@@ -365,7 +366,7 @@ void AudioOutput::deleteBackedUpParamManagers(Song* song) {
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -375,7 +376,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display->freezeWithError("E422"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
 	}
 #endif
 

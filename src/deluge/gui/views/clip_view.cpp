@@ -34,10 +34,6 @@
 #include "playback/playback_handler.h"
 #include <new>
 
-static Clip* getCurrentClip() {
-	return currentSong->currentClip;
-}
-
 ClipView::ClipView() {
 }
 
@@ -267,7 +263,7 @@ doReRender:
 			action = actionLogger.getNewAction(ACTION_CLIP_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
-				void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipHorizontalShift));
+				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipHorizontalShift));
 
 				if (consMemory) {
 					ConsequenceClipHorizontalShift* newConsequence =

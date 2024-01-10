@@ -19,4 +19,6 @@
 
 GlobalEffectableForSong::GlobalEffectableForSong() {
 	modKnobMode = 1;
+	//UI for kit compressors is TBD so they can only be accessed in song
+	maxCompParam = util::to_underlying(CompParam::LAST);
 }

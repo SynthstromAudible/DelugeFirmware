@@ -67,7 +67,7 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 AudioClip::~AudioClip() {
 	if (recorder) {
-		display->freezeWithError("E278");
+		FREEZE_WITH_ERROR("E278");
 	}
 
 	// Sirhc actually got this in a V3.0.5 RC! No idea how. Also Qui got around V3.1.3.
@@ -79,7 +79,7 @@ AudioClip::~AudioClip() {
 // Will replace the Clip in the modelStack, if success.
 int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -90,7 +90,7 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
 	if (error) {
 		newClip->~AudioClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return error;
 	}
 
@@ -221,7 +221,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
 		display->displayError(ERROR_INSUFFICIENT_RAM);
@@ -240,13 +240,13 @@ ramError:
 
 	if (error) {
 		newClip->~AudioClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		goto ramError;
 	}
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display->freezeWithError("E421"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
 
@@ -388,7 +388,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 #if ALPHA_OR_BETA_VERSION
 	if (!playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)) {
-		display->freezeWithError("E430");
+		FREEZE_WITH_ERROR("E430");
 	}
 #endif
 
@@ -417,7 +417,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	int32_t sequenceSyncStartedNumTicksAgo = currentInternalTickCount - sequenceSyncStartedAtTickTrivialValue;
 	if (sequenceSyncStartedNumTicksAgo < 0) { // Shouldn't happen
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
+			FREEZE_WITH_ERROR("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
 		}
 		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
@@ -533,7 +533,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	// To stop things getting insane, limit to 32x speed
 	//if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
 
-	uint64_t requiredSpeedAdjustment = ((uint64_t)sampleLengthInSamples << 24) / clipLengthInSamples;
+	uint64_t requiredSpeedAdjustment =
+	    (uint64_t)(((double)((uint64_t)sampleLengthInSamples << 24)) / (double)clipLengthInSamples);
 
 	// If we're squishing time...
 	if (sampleControls.pitchAndSpeedAreIndependent) {
@@ -1236,7 +1237,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		reGetParameterAutomation(modelStack);
 
 		// Resume the clip if it was playing before
-		currentSong->currentClip->resumePlayback(modelStack, true);
+		getCurrentClip()->resumePlayback(modelStack, true);
 	}
 	return true;
 }
