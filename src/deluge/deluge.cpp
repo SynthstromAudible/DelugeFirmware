@@ -838,7 +838,6 @@ extern "C" void logAudioAction(char const* string) {
 extern "C" {
 #endif
 
-
 #if ENABLE_TEXT_OUTPUT
 // only called from the D_PRINT macros
 void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
@@ -853,8 +852,8 @@ void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsi
 		vsnprintf(buffer, bufsize, format, args);
 	}
 	else {
-		snprintf_(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
-		vsnprintf_(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
+		snprintf(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
+		vsnprintf(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
 	}
 	// End variadic argument processing
 	va_end(args);

@@ -28,6 +28,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
+#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
