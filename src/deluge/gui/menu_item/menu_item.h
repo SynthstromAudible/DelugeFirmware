@@ -81,6 +81,7 @@ public:
 	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
+	virtual void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {}
 	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
 	virtual bool shouldBlinkLearnLed() { return false; }
 	virtual bool isRangeDependent() { return false; }

@@ -2514,7 +2514,8 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	bool foundAnything = false;
 
 	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+	                                                                                               note)) {
 		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
@@ -2522,18 +2523,18 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	return foundAnything;
 }
 
-void PlaybackHandler::programChangeReceived(int32_t channel, int32_t program) {
-
-	/*
-    // If user assigning MIDI commands, do that
-    if (subMode == UI_MODE_MIDI_LEARN) {
-    	if (getCurrentUI() == &soundEditor && soundEditor.noteOnReceivedForMidiLearn(channel + 16, program, 127)) {}
-    	return;
-    }
-
-
-    tryGlobalMIDICommands(channel + 16, program);
-    */
+void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+	// If user assigning MIDI commands, do that
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+		if (getCurrentUI()->pcReceivedForMidiLearn(fromDevice, channel, program)) {}
+		else {
+			view.pcReceivedForMIDILearn(fromDevice, channel, program);
+		}
+	}
+	else {
+		// we build ontop of the CC hack
+		tryGlobalMIDICommands(fromDevice, channel + IS_A_PC, program);
+	}
 }
 
 void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
@@ -2545,7 +2546,6 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
 		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
-
 		else {
 			view.noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity);
 		}

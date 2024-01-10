@@ -628,6 +628,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 
 		default:
 recordDetailsOfLearnedThing:
+
 			learnedThing->device = fromDevice;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
@@ -777,7 +778,6 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 		// Or, for all other types of things the user might be holding down...
 		else {
-
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
 				noteOnReceivedForMidiLearn(fromDevice, channel + IS_A_CC, cc, 127);

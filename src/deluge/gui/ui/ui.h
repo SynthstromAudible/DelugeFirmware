@@ -109,6 +109,9 @@ public:
 	virtual bool canSeeViewUnderneath() { return false; }
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}
+	virtual const char* getName() { return "UI"; }
+	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
+
 	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 		return false;
 	} // Returns whether it was used, I think?

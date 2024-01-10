@@ -135,6 +135,11 @@ void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKn
 		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	}
 }
+void Submenu::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
+	if (soundEditor.getCurrentMenuItem() == this) {
+		(*current_item_)->learnProgramChange(fromDevice, channel, programNumber);
+	}
+}
 
 bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {

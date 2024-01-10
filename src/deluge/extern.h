@@ -16,7 +16,6 @@
 */
 
 // Was I going to expand this file to have more stuff?
-
 #pragma once
 
 extern bool sdRoutineLock;

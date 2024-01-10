@@ -343,6 +343,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select a row or affect-entire"},
         {STRING_FOR_UNIMPLEMENTED, "Feature not (yet?) implemented"},
         {STRING_FOR_CANT_LEARN, "Can't learn"},
+        {STRING_FOR_CANT_LEARN_PC, "Can't learn Program Change"},
         {STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE, "Folders cannot be deleted on the Deluge"},
         {STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT, "Error creating multisampled instrument"},
         {STRING_FOR_CLIP_IS_RECORDING, "Clip is recording"},

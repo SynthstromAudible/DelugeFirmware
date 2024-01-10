@@ -1111,6 +1111,13 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
+bool SoundEditor::pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
+		getCurrentMenuItem()->learnProgramChange(fromDevice, channel, program);
+		return true;
+	}
+	return false;
+}
 bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
 }
