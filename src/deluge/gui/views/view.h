@@ -58,7 +58,7 @@ public:
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
 	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
-	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc);
+	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
 	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);

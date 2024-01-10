@@ -105,7 +105,7 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 
-	bool programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program);
+	bool programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);

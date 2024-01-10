@@ -757,11 +757,6 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	}
 }
 
-/* adapt program change messages to cc*/
-void View::pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {
-	// to be overridden
-}
-
 void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;

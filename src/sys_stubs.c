@@ -1,7 +1,7 @@
+#include "definitions.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include "definitions.h"
 //doing the minimal amount possible to not break
 
 void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
