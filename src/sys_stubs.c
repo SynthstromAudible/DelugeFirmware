@@ -1,11 +1,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include "definitions.h"
 //doing the minimal amount possible to not break
 
 void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
 
 void* _sbrk(int incr) {
+	FREEZE_WITH_ERROR("ESBRK");
 	static unsigned char* heap = NULL;
 	static unsigned char* end_heap = NULL;
 	unsigned char* prev_heap;

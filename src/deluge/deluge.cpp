@@ -120,9 +120,6 @@ Song* currentSong = NULL;
 Song* preLoadedSong = NULL;
 
 bool sdRoutineLock = true;
-#if !defined(NDEBUG)
-String* debugPath = new String();
-#endif
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 

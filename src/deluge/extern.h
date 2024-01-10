@@ -16,8 +16,6 @@
 */
 
 // Was I going to expand this file to have more stuff?
-#include <deluge/util/d_string.h>
-
 #pragma once
 
 extern bool sdRoutineLock;
