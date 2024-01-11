@@ -123,8 +123,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 	/*
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t duration = endTime - startTime;
-	Debug::print("dft duration: ");
-	Debug::println(duration);
+	D_PRINTLN("dft duration:  %d", duration);
 	*/
 }
 
@@ -516,8 +515,7 @@ gotError5:
 		AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
-		Debug::print("\nCycle: ");
-		Debug::println(cycleIndex);
+		D_PRINTLN("\nCycle:  %d", cycleIndex);
 
 		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain data.
 		if (!rawFileCycleSizeIsAPowerOfTwo) {
@@ -711,8 +709,7 @@ transformBandToTimeDomain:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing wavetable");
 
-	Debug::print("initial num bands: ");
-	Debug::println(bands.getNumElements());
+	D_PRINTLN("initial num bands:  %d", bands.getNumElements());
 
 	// Ok, we've now processed all Cycles.
 
@@ -735,20 +732,18 @@ transformBandToTimeDomain:
 	delugeDealloc(frequencyDomainData);
 
 	// Printout stats
-	Debug::print("initial band size if all populated: ");
-	Debug::println(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-	               * 2);
-	Debug::print("initial band size after trimming: ");
-	Debug::println((initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	               * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	D_PRINTLN("initial band size if all populated: %d",
+	          numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	D_PRINTLN("initial band size after trimming: %d",
+	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
+	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int32_t total = 0;
 	for (int32_t b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		total += (band->toCycleNumber - band->fromCycleNumber)
 		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
-	Debug::print("other bands total size after trimming: ");
-	Debug::println(total);
+	D_PRINTLN("other bands total size after trimming:  %d", total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
@@ -758,8 +753,7 @@ transformBandToTimeDomain:
 		if (band->fromCycleNumber >= band->toCycleNumber) {
 			band->~WaveTableBand();
 			bands.deleteAtIndex(b);
-			Debug::print("deleted whole band - ");
-			Debug::println(b);
+			D_PRINTLN("deleted whole band -  %d", b);
 		}
 
 		// Otherwise, can we shorten the memory?
@@ -768,10 +762,9 @@ transformBandToTimeDomain:
 			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
 				if (!b) {
-					Debug::print("(band 0) ");
+					D_PRINTLN("(band 0) ");
 				}
-				Debug::print("deleting num cycles from right-hand side: ");
-				Debug::println(numCycles - band->toCycleNumber);
+				D_PRINTLN("deleting num cycles from right-hand side:  %d", numCycles - band->toCycleNumber);
 				int32_t newSize = band->toCycleNumber
 				                      * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                      * sizeof(int16_t)
@@ -1013,8 +1006,7 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
 		whichKernel = 1;
 	if (!getRandom255()) {
-		Debug::print("kernel: ");
-		Debug::println(whichKernel);
+		D_PRINTLN("kernel:  %d", whichKernel);
 	}
 #else
 	uint32_t phaseIncrementHere = phaseIncrement;

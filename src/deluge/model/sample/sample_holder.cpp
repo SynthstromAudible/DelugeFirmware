@@ -207,10 +207,10 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
 		if (!newClusters[l]) {
-			Debug::println("NULL!!");
+			D_PRINTLN("NULL!!");
 		}
 		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			Debug::println("not loaded!!");
+			D_PRINTLN("not loaded!!");
 		}
 
 		clusterIndex += playDirection;

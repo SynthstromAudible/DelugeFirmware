@@ -84,12 +84,12 @@ void MemoryRegion::sanityCheck() {
 
 	if (count > 1) {
 		FREEZE_WITH_ERROR("BBBB");
-		Debug::println("multiple 0xc0080bc!!!!");
+		D_PRINTLN("multiple 0xc0080bc!!!!");
 	}
 	else if (count == 1) {
 		if (!seenYet) {
 			seenYet = true;
-			Debug::println("seen 0xc0080bc");
+			D_PRINTLN("seen 0xc0080bc");
 		}
 	}
 }
@@ -98,18 +98,18 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 	for (int32_t i = 0; i < emptySpaces.getNumElements(); i++) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
-			Debug::println("Exact address free!");
+			D_PRINTLN("Exact address free!");
 			FREEZE_WITH_ERROR("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
 			FREEZE_WITH_ERROR("dddd");
-			Debug::println("free mem overlap on left!");
+			D_PRINTLN("free mem overlap on left!");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
 			FREEZE_WITH_ERROR("eeee");
-			Debug::println("free mem overlap on right!");
+			D_PRINTLN("free mem overlap on right!");
 		}
 	}
 }
@@ -215,8 +215,7 @@ justInsertRecord:
 #if ALPHA_OR_BETA_VERSION
 		if (i
 		    == -1) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we should opt to throw away the smallest empty space to make space for this one if this one is bigger?
-			Debug::print("Lost track of empty space in region: ");
-			Debug::println(name);
+			D_PRINTLN("Lost track of empty space in region:  %s", name);
 		}
 #endif
 	}
@@ -229,8 +228,7 @@ goingToReplaceOldRecord:
 		if (i
 		    == -1) { // The record might not exist because there wasn't room to insert it when the empty space was created.
 #if ALPHA_OR_BETA_VERSION
-			Debug::print("Found orphaned empty space in region: ");
-			Debug::println(name);
+			D_PRINTLN("Found orphaned empty space in region:  %s", name);
 #endif
 			goto justInsertRecord;
 		}
@@ -376,7 +374,7 @@ noEmptySpace:
 
 				strncpy(&msgBuffer[strlen(msgBuffer)], name, msgBufferLen - strlen(name));
 
-				Debug::println(msgBuffer);
+				D_PRINTLN(msgBuffer);
 
 #if !defined(NDEBUG)
 				display->displayPopup(msgBuffer);
@@ -389,12 +387,12 @@ noEmptySpace:
 
 #if 0 && TEST_GENERAL_MEMORY_ALLOCATION
 		if (allocatedSize < requiredSize) {
-			Debug::println("freeSomeStealableMemory() got too little memory");
+			D_PRINTLN("freeSomeStealableMemory() got too little memory");
 			while (1);
 		}
 #endif
 
-		//Debug::println("Reclaimed");
+		//D_PRINTLN("Reclaimed");
 
 		// See if there was some extra space left over
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
@@ -652,7 +650,7 @@ tryNotStealingFirst:
 #if TEST_GENERAL_MEMORY_ALLOCATION
 							if (!success) {
 								// TODO: actually, this is basically ok - it should be allowed to not find the key, because the empty space might indeed not have a record if there wasn't room to insert one when the empty space was created.
-								Debug::println("fail to delete key");
+								D_PRINTLN("fail to delete key");
 								while (1) {}
 							}
 #endif
@@ -695,7 +693,7 @@ tryNotStealingFirst:
 				case SPACE_HEADER_ALLOCATED:
 					break;
 				default:
-					Debug::println("no match !!!!!!");
+					D_PRINTLN("no match !!!!!!");
 				}
 			}
 
@@ -710,11 +708,11 @@ tryNotStealingFirst:
 			// If we somehow grabbed without finding min amount, then that shouldn't have happened!
 #if TEST_GENERAL_MEMORY_ALLOCATION
 			if (actuallyGrabbing) {
-				Debug::println("grabbed extension without reaching min size"); // This happened recently!
+				D_PRINTLN("grabbed extension without reaching min size"); // This happened recently!
 				if (originalSpaceNeedsStealing)
-					Debug::println("during steal");
+					D_PRINTLN("during steal");
 				else
-					Debug::println("during extend");
+					D_PRINTLN("during extend");
 				while (1) {}
 			}
 #endif
@@ -757,7 +755,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 		if (grabResult.amountsExtended[0] > 8) {
 
-			//Debug::println("extend leaving empty space right");
+			//D_PRINTLN("extend leaving empty space right");
 
 			int32_t amountToCutRightIncludingHeaders = std::max(12_i32, surplusWeGot);
 			amountToCutRightIncludingHeaders =
@@ -775,7 +773,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 			if (grabResult.amountsExtended[1] > 8) {
 
-				//Debug::println("extend leaving empty space left");
+				//D_PRINTLN("extend leaving empty space left");
 
 				int32_t amountToCutLeftIncludingHeaders = std::max(12_i32, surplusWeGot);
 				amountToCutLeftIncludingHeaders =
@@ -837,8 +835,7 @@ void MemoryRegion::dealloc(void* address) {
 	totalDeallocTime += timeTaken;
 	numDeallocTimes++;
 
-	Debug::print("average dealloc time: ");
-	Debug::println(totalDeallocTime / numDeallocTimes);
+	D_PRINTLN("average dealloc time:  %d", totalDeallocTime / numDeallocTimes);
 	 */
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	numAllocations--;

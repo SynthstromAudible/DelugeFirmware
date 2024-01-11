@@ -44,6 +44,7 @@
 #include "io/debug/print.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -2907,9 +2908,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	// Probability dependence
 	else if (probability <= kNumProbabilityValues) {
 		if (display->haveOLED()) {
-			strcpy(buffer, "Probability: ");
-			intToString(probability * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
+			sprintf(buffer, "Probability %d%%", probability * 5);
 			if (prevBase) {
 				strcat(buffer, " latching");
 			}
@@ -2927,22 +2926,8 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 		int32_t charPos = 0;
 
-		if (display->haveOLED()) {
-			strcpy(buffer, "Iteration dependence: ");
-			charPos = strlen(buffer);
-		}
-
-		buffer[charPos++] = '1' + iterationWithinDivisor;
-		if (display->haveOLED()) {
-			buffer[charPos++] = ' ';
-		}
-		buffer[charPos++] = 'o';
-		buffer[charPos++] = 'f';
-		if (display->haveOLED()) {
-			buffer[charPos++] = ' ';
-		}
-		buffer[charPos++] = '0' + divisor;
-		buffer[charPos++] = 0;
+		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+		        iterationWithinDivisor, divisor);
 	}
 
 	if (display->haveOLED()) {
@@ -3409,7 +3394,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 
 void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording) {
 
-	Debug::println("enterDrumCreator");
+	D_PRINTLN("enterDrumCreator");
 
 	char const* prefix;
 	String soundName;
@@ -4594,7 +4579,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 			modelStackWithNoteRow->getNoteRow()->editNoteRepeatAcrossAllScreens(
 			    squareStart, squareWidth, modelStackWithNoteRow, action, currentClip->getWrapEditLevel(), newNumNotes);
-			Debug::println("did actual note repeat edit");
+			D_PRINTLN("did actual note repeat edit");
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

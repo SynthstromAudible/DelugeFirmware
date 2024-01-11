@@ -21,8 +21,10 @@
 #include "version.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 
 #define HARDWARE_TEST_MODE 0
 

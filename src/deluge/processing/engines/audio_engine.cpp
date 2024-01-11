@@ -283,12 +283,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Debug::print("soft-culled 1 voice.  numSamples: ");
-				Debug::print(smoothedSamples);
-
-				Debug::print(". voices left: ");
-
-				Debug::println(getNumVoices());
+				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d", smoothedSamples);
+				D_PRINTLN(". voices left: %d ", getNumVoices());
 #endif
 			}
 			// Otherwise, it's already fast-releasing, so just leave it
@@ -358,7 +354,7 @@ void routine() {
 	bool finishedOutputting = doSomeOutputting();
 	if (!finishedOutputting) {
 		logAction("AudioDriver::still outputting");
-		//Debug::println("still waiting");
+		//D_PRINTLN("still waiting");
 		return;
 	}
 
@@ -421,10 +417,10 @@ void routine() {
 	//audiolog doesn't work because the render that notices the failure
 	//is one after the render with the problem
 	// if (numSamplesLastTime < numSamples) {
-	// 	Debug::println("rendered ");
-	// 	Debug::println(numSamplesLastTime);
-	// 	Debug::println(" samples but output ");
-	// 	Debug::println(numSamples);
+	// 	D_PRINTLN("rendered ");
+	// 	D_PRINTLN(numSamplesLastTime);
+	// 	D_PRINTLN(" samples but output ");
+	// 	D_PRINTLN(numSamples);
 	// }
 
 	// Consider direness and culling - before increasing the number of samples
@@ -459,13 +455,9 @@ void routine() {
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
-				Debug::print("culled ");
-				Debug::print(numToCull);
-				Debug::print(" voices. numSamples: ");
-				Debug::print(numSamples);
+				D_PRINTLN("culled  %d  voices. numSamples:  %d", numToCull, numSamples);
 
-				Debug::print(". voices left: ");
-				Debug::println(getNumVoices());
+				D_PRINTLN(". voices left:  %d", getNumVoices());
 				logAction("hard cull");
 #endif
 			}
@@ -486,8 +478,7 @@ void routine() {
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
-				Debug::print("Won't cull, but numSamples is ");
-				Debug::println(numSamples);
+				D_PRINTLN("numSamples %d", numSamples);
 				logAction("skipped cull");
 			}
 		}
@@ -502,8 +493,7 @@ void routine() {
 				cpuDireness = 0;
 			}
 			else {
-				//Debug::print("direness: ");
-				//Debug::println(cpuDireness);
+				D_PRINTLN("direness:  %d", cpuDireness);
 			}
 		}
 	}
@@ -671,8 +661,7 @@ startAgain:
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
 		if (total >= 0) { // avoid garbage times.
-			Debug::print("uS ");
-			Debug::println(total / REPORT_AVERAGE_NUM);
+			D_PRINTLN("uS  %d", total / REPORT_AVERAGE_NUM);
 		}
 	}
 #endif
@@ -836,10 +825,7 @@ startAgain:
 
 	/*
     if (!getRandom255()) {
-    	Debug::print("samples: ");
-        Debug::print(numSamples);
-    	Debug::print(". voices: ");
-    	Debug::println(getNumVoices());
+    	D_PRINTLN("samples:  %d . voices:  %d", numSamples, getNumVoices());
     }
 */
 
@@ -899,17 +885,16 @@ startAgain:
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
 	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
 
-		Debug::println("");
+		D_PRINTLN("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			Debug::print(timePassedUS);
-			Debug::print(": ");
-			Debug::println(audioLogStrings[i]);
+			D_PRINT(timePassedUS);
+			D_PRINTLN(":  %d", audioLogStrings[i]);
 		}
 
-		Debug::print(timePassedUSA);
-		Debug::println(": end");
+		D_PRINT(timePassedUSA);
+		D_PRINTLN(": end");
 	}
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
@@ -1251,7 +1236,7 @@ Voice* solicitVoice(Sound* forSound) {
 
 		numSamplesLastTime -=
 		    10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh up to the ones being culled
-		Debug::println("soliciting via culling");
+		D_PRINTLN("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);
 	}
@@ -1422,7 +1407,7 @@ void doRecorderCardRoutines() {
 
 		// If complete, discard it
 		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
-			Debug::println("deleting recorder");
+			D_PRINTLN("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
 			delugeDealloc(recorder);

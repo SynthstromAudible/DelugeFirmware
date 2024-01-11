@@ -133,10 +133,7 @@ int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t
 	int32_t peakHere = std::max(peak1, peak2);
 
 	if (false && peakHere >= maxPeakFromZero) {
-		Debug::print("peak: ");
-		Debug::print(peakHere);
-		Debug::print(" but max: ");
-		Debug::println(maxPeakFromZero);
+		D_PRINTLN("peak:  %d  but max:  %d", peakHere, maxPeakFromZero);
 	}
 
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
@@ -422,7 +419,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
 cantReadData:
-				Debug::println("cant read");
+				D_PRINTLN("cant read");
 				data->colStatus[col] = 0;
 				hadAnyTroubleLoading = true;
 				continue;

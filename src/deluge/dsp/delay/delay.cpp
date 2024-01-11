@@ -88,7 +88,7 @@ setupSecondaryBuffer:
 
 				if (idealBufferSize != secondaryBuffer.size) {
 
-					Debug::println("new secondary buffer before writing starts");
+					D_PRINTLN("new secondary buffer before writing starts");
 
 					// Ditch that secondary buffer, make a new one
 					secondaryBuffer.discard();
@@ -214,7 +214,7 @@ void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 		repeatsUntilAbandon = 255;
 	}
 
-	//if (!getRandom255()) Debug::println(workingState->delayFeedbackAmount);
+	//if (!getRandom255()) D_PRINTLN(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
@@ -224,7 +224,7 @@ void Delay::hasWrapped() {
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {
-		//Debug::println("discarding");
+		//D_PRINTLN("discarding");
 		discardBuffers();
 	}
 }

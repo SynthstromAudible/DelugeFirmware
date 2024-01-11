@@ -1328,7 +1328,7 @@ doMIDIOrCV:
 	}
 	else if (result == MenuPermission::MUST_SELECT_RANGE) {
 
-		Debug::println("must select range");
+		D_PRINTLN("must select range");
 
 		newRange = NULL;
 		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
