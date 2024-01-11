@@ -25,3 +25,20 @@ jobs:
           source: './src'
           extensions: 'c,cpp,h,hpp'
           clangFormatVersion: 14
+  _malloc_r-check:
+    name: Check for non-sanctified allocations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run clang-format style check for C/C++ code
+      - name: Fetch container image
+        run: |
+          docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
+      - name: Run build
+        run: |
+          docker run --rm \
+            --user=$(id --user):$(id --group) \
+            -e DBT_NO_PYTHON_UPGRADE=1 \
+            -v $(pwd):/src \
+            ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            trace-call 

@@ -114,3 +114,18 @@ def vprint(*args, **kwargs):
     """
     if vcheck():
         print(*args, **kwargs)
+
+def platform_arch():
+    # forgive me
+    toolchain_arch_path = os.environ.get("TOOLCHAIN_ARCH_DIR")
+    if toolchain_arch_path is None:
+        if SCons.Platform.platform_default() == "win32":
+            return "win32-x64"
+        else:
+            return "darwin-arm64"
+    else:
+        match = re.search(r"/toolchain/([^/]+)/", toolchain_arch_path)
+        if match:
+            folder = match.group(1)
+            return folder
+
