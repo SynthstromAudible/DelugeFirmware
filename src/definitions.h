@@ -70,3 +70,19 @@ extern void freezeWithError(char const* errmsg);
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from SDRAM, maybe timing?
+#ifndef D_PRINTLN
+
+#if ENABLE_TEXT_OUTPUT
+#include "deluge/deluge.h"
+#define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
+#define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
+#define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
+
+#else
+
+#define D_PRINTLN(...)
+#define D_PRINT(...)
+#define D_PRINT_RAW(...)
+#endif
+
+#endif

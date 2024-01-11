@@ -549,7 +549,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					//Debug::println("settling");
+					//D_PRINTLN("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
 
@@ -1192,12 +1192,11 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
 	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
 	if (result == NO_ERROR) {
-		//Debug::print("new buffer, size: ");
-		//Debug::println(delay.secondaryBuffer.size);
+		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
 
 		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			//Debug::println("making precise");
+			//D_PRINTLN("making precise");
 			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
 		}
 		else {

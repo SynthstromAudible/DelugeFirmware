@@ -61,15 +61,12 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-		Debug::print((uint32_t)&program_stack_end - (int32_t)&a);
-		Debug::println(" bytes in stack");
-		Debug::print(distance);
-		Debug::print(" free bytes in stack at ");
-		Debug::println(caller);
+		D_PRINT("%d bytes in stack %d free bytes in stack at %x", (uint32_t)&program_stack_end - (int32_t)&a, distance,
+		        caller);
 
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
-			Debug::println("COLLISION");
+			D_PRINTLN("COLLISION");
 		}
 	}
 #endif
@@ -145,12 +142,12 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 
 		AudioEngine::logAction("external allocation failed");
 
-		Debug::println("Dire memory, resorting to stealable area");
+		D_PRINTLN("Dire memory, resorting to stealable area");
 	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	if (requiredSize < 1) {
-		Debug::println("alloc too little a bit");
+		D_PRINTLN("alloc too little a bit");
 		while (1) {}
 	}
 #endif
@@ -274,12 +271,9 @@ void testReadingMemory(int32_t i) {
 	uint8_t readValue = *readPos;
 	for (int32_t j = 0; j < sizes[i]; j++) {
 		if (*readPos != readValue) {
-			Debug::println("data corrupted!");
-			Debug::println((int32_t)readPos);
-			Debug::print("allocation total size: ");
-			Debug::println(sizes[i]);
-			Debug::print("num bytes in: ");
-			Debug::println((int32_t)readPos - (int32_t)testAllocations[i]);
+			D_PRINTLN("data corrupted! readPos %d", (int32_t)readPos);
+			D_PRINTLN("allocation total size:  %d num bytes in:  %d", sizes[i],
+			          (int32_t)readPos - (int32_t)testAllocations[i]);
 			while (1) {}
 		}
 		readPos++;
@@ -312,20 +306,19 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 			uint32_t shouldBe = sizes[i] | spaceTypes[i];
 
 			if (*header != shouldBe) {
-				Debug::println("allocation header wrong");
-				Debug::println(errorString);
-				Debug::println(*header);
-				Debug::println(shouldBe);
+				D_PRINTLN("allocation header wrong");
+				D_PRINTLN(errorString);
+				D_PRINTLN(*header);
+				D_PRINTLN(shouldBe);
 				while (1) {}
 			}
 			if (*footer != shouldBe) {
-				Debug::println("allocation footer wrong");
-				Debug::println(errorString);
+				D_PRINTLN("allocation footer wrong");
+				D_PRINTLN(errorString);
 				while (1) {}
 			}
 			if (spaceTypes[i] == SPACE_HEADER_STEALABLE && *(header + 1) != vtableAddress) {
-				Debug::println("vtable address corrupted");
-				Debug::println(errorString);
+				D_PRINT("vtable address corrupted: %s", errorString);
 				while (1) {}
 			}
 		}
@@ -340,13 +333,11 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 		uint32_t shouldBe = record->length | SPACE_HEADER_EMPTY;
 
 		if (*header != shouldBe) {
-			Debug::println("empty space header wrong");
-			Debug::println(errorString);
+			D_PRINTLN("empty space header wrong: %s", errorString);
 			while (1) {}
 		}
 		if (*footer != shouldBe) {
-			Debug::println("empty space footer wrong");
-			Debug::println(errorString);
+			D_PRINTLN("empty space footer wrong: %s", errorString);
 			while (1) {}
 		}
 	}
@@ -366,7 +357,7 @@ void GeneralMemoryAllocator::testShorten(int32_t i) {
 	if (a < 128) {
 
 		if (!getRandom255())
-			Debug::println("shortening left");
+			D_PRINTLN("shortening left");
 		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -382,7 +373,7 @@ void GeneralMemoryAllocator::testShorten(int32_t i) {
 	else {
 
 		if (!getRandom255())
-			Debug::println("shortening right");
+			D_PRINTLN("shortening right");
 		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
@@ -395,7 +386,7 @@ void GeneralMemoryAllocator::testShorten(int32_t i) {
 
 void GeneralMemoryAllocator::test() {
 
-	Debug::println("GeneralMemoryAllocator::test()");
+	D_PRINTLN("GeneralMemoryAllocator::test()");
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
@@ -404,7 +395,7 @@ void GeneralMemoryAllocator::test() {
 	bool goingUp = true;
 
 	while (1) {
-		//if (!(count & 15)) Debug::println("...");
+		//if (!(count & 15)) D_PRINTLN("...");
 		count++;
 
 		for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
@@ -438,7 +429,7 @@ void GeneralMemoryAllocator::test() {
 
 					else {
 						if (!getRandom255())
-							Debug::println("extending");
+							D_PRINTLN("extending");
 						uint32_t amountExtendedLeft, amountExtendedRight;
 
 						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
@@ -470,7 +461,7 @@ void GeneralMemoryAllocator::test() {
 
 						if (amountExtended > 0) {
 							if (amountExtended < minAmountToExtend) {
-								Debug::println("extended too little!");
+								D_PRINTLN("extended too little!");
 								while (1) {}
 							}
 						}
@@ -487,18 +478,15 @@ void GeneralMemoryAllocator::test() {
 			}
 
 			if (getRandom255() < 2) {
-				Debug::print("\nfree spaces: ");
-				Debug::println(regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements());
-				Debug::print("allocations: ");
-				Debug::println(regions[MEMORY_REGION_STEALABLE].numAllocations);
+				D_PRINTLN("\nfree spaces:  %d allocations:  %d",
+				          regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements(),
+				          regions[MEMORY_REGION_STEALABLE].numAllocations);
 
 				if (regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements() == 1) {
 					EmptySpaceRecord* firstRecord =
 					    (EmptySpaceRecord*)regions[MEMORY_REGION_STEALABLE].emptySpaces.getElementAddress(0);
-					Debug::print("free space size: ");
-					Debug::println(firstRecord->length);
-					Debug::print("free space address: ");
-					Debug::println(firstRecord->address);
+					D_PRINTLN("free space size:  %d free space address:  %d", firstRecord->length,
+					          firstRecord->address);
 				}
 				delayMS(200);
 			}
@@ -525,8 +513,8 @@ void GeneralMemoryAllocator::test() {
 					//if ((uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN) actualSize = desiredSize; // If on-chip memory
 
 					if (actualSize < desiredSize) {
-						Debug::println("got too little!!");
-						Debug::println(desiredSize - actualSize);
+						D_PRINTLN("got too little!!");
+						D_PRINTLN(desiredSize - actualSize);
 						while (1) {}
 					}
 

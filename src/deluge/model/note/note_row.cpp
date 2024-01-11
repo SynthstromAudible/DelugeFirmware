@@ -1011,8 +1011,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 			int32_t areaEndPosThisScreen = areaBeginPosThisScreen + squareWidthThisScreen;
 			if (areaEndPosThisScreen > effectiveLength) {
 				squareWidthThisScreen = effectiveLength - areaBeginPosThisScreen;
-				Debug::print("square width cut short: ");
-				Debug::println(newNumNotesThisScreen);
+				D_PRINTLN("square width cut short:  %d", newNumNotesThisScreen);
 
 				// If that's ended up 0 or negative, there's nothing for us to do. Though there'd probably be no harm if this check wasn't here, and in a perfect world
 				// maybe we'd check this before deciding how many search terms?
@@ -1193,7 +1192,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
 		Note* __restrict__ lastSourceNote = notes.getElement(numSourceNotes - 1);
 		if (lastSourceNote->pos == effectiveLength - 1) {
-			Debug::println("wrapping right");
+			D_PRINTLN("wrapping right");
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			*destNote = *lastSourceNote;
 			destNote->pos = 0;
@@ -1210,7 +1209,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 			if (destNote->length > maxLength) {
 				// But only if that next note won't itself get nudged!
 				if (((uint32_t)nextSourceNote->pos % wrapEditLevel) != editPos) {
-					Debug::println("constraining length in right wrap");
+					D_PRINTLN("constraining length in right wrap");
 					destNote->length = maxLength;
 				}
 			}
@@ -1260,7 +1259,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 				if (noteToNudge->pos == preNudgeNotePos) {
 					// Ok, we've got one we'll be nudging left.
-					Debug::println("nudging note left");
+					D_PRINTLN("nudging note left");
 
 					if (preNudgeNotePos == 0) {
 						wrappingLeft = true;
@@ -1274,7 +1273,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 							int32_t postNudgeNotePos = preNudgeNotePos - 1;
 							int32_t maxLength = postNudgeNotePos - destNote->pos;
 							if (destNote->length > maxLength) {
-								Debug::println("constraining length of prev note");
+								D_PRINTLN("constraining length of prev note");
 								destNote->length = maxLength;
 							}
 						}
@@ -1299,7 +1298,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 				// If there was a nudge note, it will be the last one we copied. If so...
 				if (destNote->pos == preNudgeNotePos) {
-					Debug::println("nudging note right");
+					D_PRINTLN("nudging note right");
 
 					int32_t postNudgeNotePos = preNudgeNotePos + 1;
 					destNote->pos = postNudgeNotePos; // Nudge it
@@ -1324,11 +1323,11 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 					else { // Or if there's no more Notes, in which case wrap length
 						Note* __restrict__ firstNote = newNotes.getElement(0);
 						maxLength = firstNote->pos + effectiveLength - postNudgeNotePos;
-						Debug::println("potentially wrapping note length");
+						D_PRINTLN("potentially wrapping note length");
 					}
 
 					if (destNote->length > maxLength) {
-						Debug::println("constraining right-nudged note length");
+						D_PRINTLN("constraining right-nudged note length");
 						destNote->length = maxLength;
 					}
 				}
@@ -1356,7 +1355,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 	// If a nudged note wrapped around left
 	if (wrappingLeft) {
-		Debug::println("placing left-wrapped nudged note at end");
+		D_PRINTLN("placing left-wrapped nudged note at end");
 
 		int32_t nudgedPos = effectiveLength - 1;
 
@@ -1388,11 +1387,11 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	}
 	// Or a less extreme case where we just nudged the very first Note left and it didn't wrap - but we still need to check the final Note's length
 	else if (firstNoteGotNudgedLeft) {
-		Debug::println("checking cos first note got nudged left");
+		D_PRINTLN("checking cos first note got nudged left");
 		Note* __restrict__ firstDestNote = newNotes.getElement(0);
 		int32_t maxLength = firstDestNote->pos + effectiveLength - destNote->pos;
 		if (destNote->length > maxLength) {
-			Debug::println("yup, constraining last note's length");
+			D_PRINTLN("yup, constraining last note's length");
 			destNote->length = maxLength;
 		}
 	}
@@ -2074,8 +2073,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	int32_t timeAgo = AudioEngine::audioSampleTimer - noteOnTime;
 
-	Debug::print("timeAgo: ");
-	Debug::println(timeAgo);
+	D_PRINTLN("timeAgo:  %d", timeAgo);
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
@@ -2113,7 +2111,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
 	    || timeAgo < kAmountNoteOnLatenessAllowed) {
 
-		Debug::println("doing late");
+		D_PRINTLN("doing late");
 
 		if (!allows) {
 			swungTicksBeforeLastActionedOne = 0;
@@ -2779,7 +2777,7 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 	    -1; // Temp variable for this because we can't actually create the expressionParams before we know what kind of Drum (if any) we have.
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Debug::println(tagName); delayMS(50);
+		//D_PRINTLN(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 

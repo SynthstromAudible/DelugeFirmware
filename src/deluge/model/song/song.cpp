@@ -1246,8 +1246,8 @@ int32_t Song::readFromFile() {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
-	Debug::println("");
-	Debug::println("loading song!!!!!!!!!!!!!!");
+	D_PRINTLN("");
+	D_PRINTLN("loading song!!!!!!!!!!!!!!");
 
 	char const* tagName;
 
@@ -1258,7 +1258,7 @@ int32_t Song::readFromFile() {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Debug::println(tagName); delayMS(30);
+		//D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
 
 		// "reverb"
@@ -1745,8 +1745,7 @@ loadOutput:
 						return result;
 					}
 					if (ALPHA_OR_BETA_VERSION) {
-						Debug::print("unknown tag: ");
-						Debug::println(tagName);
+						D_PRINTLN("unknown tag:  %d", tagName);
 					}
 					storageManager.exitTag(tagName);
 				}
@@ -1817,7 +1816,7 @@ traverseClips:
 
 	anyOutputsSoloingInArrangement = false;
 
-	Debug::println("aaa1");
+	D_PRINTLN("aaa1");
 
 	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in arranger
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -1893,7 +1892,7 @@ skipInstance:
 
 	outputClipInstanceListIsCurrentlyInvalid = false; // All clipInstances are valid now.
 
-	Debug::println("aaa2");
+	D_PRINTLN("aaa2");
 
 	// Ensure no arrangement-only Clips with no ClipInstance
 	// For each Clip in arrangement
@@ -1930,7 +1929,7 @@ skipInstance:
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
-	Debug::println("aaa3");
+	D_PRINTLN("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -5176,7 +5175,7 @@ void Song::cullAudioClipVoice() {
 
 	if (bestClip) {
 		bestClip->unassignVoiceSample();
-		Debug::println("audio clip voice culled!");
+		D_PRINTLN("audio clip voice culled!");
 	}
 }
 

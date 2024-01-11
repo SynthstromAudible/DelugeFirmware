@@ -1417,7 +1417,7 @@ int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPos
 
 // Returns whether we are now armed. If not, it means it's just done the swap already in this function
 bool Session::armForSongSwap() {
-	Debug::println("Session::armForSongSwap()");
+	D_PRINTLN("Session::armForSongSwap()");
 
 	Clip* waitForClip = currentSong->getLongestClip(false, true);
 
@@ -1438,8 +1438,7 @@ bool Session::armForSongSwap() {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
-		Debug::print("ticksTilSwap: ");
-		Debug::println(ticksTilSwap);
+		D_PRINTLN("ticksTilSwap:  %d", ticksTilSwap);
 	}
 	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		// Nothing to do!

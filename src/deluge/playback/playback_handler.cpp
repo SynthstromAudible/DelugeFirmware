@@ -137,7 +137,7 @@ void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
 	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
 
-		Debug::println("actioning pending command -----------------------------------------");
+		D_PRINTLN("actioning pending command -----------------------------------------");
 
 		if (actionLogger.allowedToDoReversion()) {
 
@@ -167,12 +167,12 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	// If not currently playing
 	if (!playbackState) {
 		setupPlaybackUsingInternalClock(buttonPressLatency);
-		Debug::println("Play");
+		D_PRINTLN("Play");
 	}
 
 	// Or if currently playing...
 	else {
-		Debug::println("~Play");
+		D_PRINTLN("~Play");
 		// If holding <> encoder down...
 		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
@@ -1342,7 +1342,7 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 }
 
 void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
-	Debug::println("position");
+	D_PRINTLN("position");
 	uint32_t pos = (((uint32_t)data2 << 7) | data1) * 6;
 
 	if (currentSong->insideWorldTickMagnitude >= 0) {
@@ -1373,7 +1373,7 @@ void PlaybackHandler::startMessageReceived() {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	Debug::println("start");
+	D_PRINTLN("start");
 	// If we already are playing
 	if (playbackState) {
 
@@ -1395,7 +1395,7 @@ bool PlaybackHandler::startIgnoringMidiClockInputIfNecessary() {
 
 	if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastMIDIStartOrContinueMessageSent) < 50 * 44) {
-		Debug::println("ignoring midi clock input");
+		D_PRINTLN("ignoring midi clock input");
 		ignoringMidiClockInput = true;
 		return true;
 	}
@@ -1410,7 +1410,7 @@ void PlaybackHandler::continueMessageReceived() {
 		return;
 	}
 
-	Debug::println("continue");
+	D_PRINTLN("continue");
 	// If we already are playing
 	if (playbackState) {
 
@@ -1445,7 +1445,7 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	//Debug::println("clock");
+	//D_PRINTLN("clock");
 
 	if (playbackState) {
 		inputTick(false, time);
@@ -1585,8 +1585,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			// If we've done this enough times, don't do it again
 			if (lastInputTickReceived >= kNumInputTicksToAllowTempoTargeting) {
 				tempoMagnitudeMatchingActiveNow = false;
-				Debug::print("finished tempo magnitude matching. magnitude = ");
-				Debug::println(currentSong->insideWorldTickMagnitude);
+				D_PRINTLN("finished tempo magnitude matching. magnitude =  %d", currentSong->insideWorldTickMagnitude);
 			}
 		}
 	}
@@ -1597,8 +1596,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	if (lastInputTickReceived != 0) {
 		uint32_t timeLastInputTickTook = timeThisInputTick - timeLastInputTicks[0];
 
-		Debug::print("time since last: ");
-		Debug::println(timeLastInputTickTook);
+		D_PRINTLN("time since last:  %d", timeLastInputTickTook);
 
 		uint32_t internalTicksPer;
 		uint32_t inputTicksPer;
@@ -1629,8 +1627,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		// 5% = 1127428915
 		if ((lowpassedTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, stickyTimePerInternalTick)
 		    || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, lowpassedTimePerInternalTick)) {
-			//Debug::println("5% tempo jump");
-			//Debug::println(lowpassedTimePerInternalTick);
+			//D_PRINTLN("5% tempo jump");
+			//D_PRINTLN(lowpassedTimePerInternalTick);
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick;
 
@@ -1640,7 +1638,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		             > multiply_32x32_rshift32(1084479242, stickyTimePerInternalTick)
 		         || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(
 		                1084479242, slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness)) {
-			//Debug::println("1% tempo jump");
+			//D_PRINTLN("1% tempo jump");
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;
 

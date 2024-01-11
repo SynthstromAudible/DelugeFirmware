@@ -92,21 +92,19 @@ bool Browser::checkFP() {
 	String filePath;
 	int32_t error = getCurrentFilePath(&filePath);
 	if (error != 0) {
-		Debug::println("couldn't get filepath");
+		D_PRINTLN("couldn't get filepath");
 		return false;
 	}
 
 	FilePointer tempfp;
 	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
 	if (!fileExists) {
-		Debug::println("couldn't get filepath");
+		D_PRINTLN("couldn't get filepath");
 		return false;
 	}
 	else if (tempfp.sclust != currentFileItem->filePointer.sclust) {
-		Debug::print("FPs don't match: correct is ");
-		Debug::print(tempfp.sclust);
-		Debug::print(" but the browser has ");
-		Debug::println(currentFileItem->filePointer.sclust);
+		D_PRINTLN("FPs don't match: correct is %lu but the browser has %lu", tempfp.sclust,
+		          currentFileItem->filePointer.sclust);
 #if ALPHA_OR_BETA_VERSION
 		display->freezeWithError("B001");
 #endif
@@ -964,7 +962,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
-				Debug::println("treating as numeric");
+				D_PRINTLN("treating as numeric");
 				thisSlot.subSlot = -1;
 				switch (numberEditPosNow) {
 				case 0:
@@ -1013,7 +1011,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
-				Debug::println("treating as numeric");
+				D_PRINTLN("treating as numeric");
 				thisSlot.slot += offset;
 
 				char searchString[9];
@@ -1043,25 +1041,24 @@ nonNumeric:
 	int32_t error;
 
 	if (newFileIndex < 0) {
-		Debug::println("index below 0");
+		D_PRINTLN("index below 0");
 		if (numFileItemsDeletedAtStart) {
 			scrollPosVertical = 9999;
 
 tryReadingItems:
-			Debug::println("reloading");
+			D_PRINTLN("reloading");
 			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
 			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
-				Debug::println("error while reloading, emptying file items");
+				D_PRINTLN("error while reloading, emptying file items");
 				emptyFileItems();
 				return;
 				// TODO - need to close UI or something?
 			}
 
 			newFileIndex = fileItems.search(enteredText.get()) + offset;
-			Debug::print("new file Index is ");
-			Debug::println(newFileIndex);
+			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
 		else if (!shouldWrapFolderContents && display->have7SEG()) {
@@ -1074,7 +1071,7 @@ gotErrorAfterAllocating:
 			if (numFileItemsDeletedAtEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
-				Debug::println("reloading and wrap");
+				D_PRINTLN("reloading and wrap");
 				error =
 				    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL, true,
 				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
@@ -1092,7 +1089,7 @@ searchFromOneEnd:
 	}
 
 	else if (newFileIndex >= fileItems.getNumElements()) {
-		Debug::println("out of file items");
+		D_PRINTLN("out of file items");
 		if (numFileItemsDeletedAtEnd) {
 			scrollPosVertical = 0;
 			goto tryReadingItems;

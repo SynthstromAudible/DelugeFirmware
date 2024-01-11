@@ -639,7 +639,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
 			                                                                         loopingType, getPriorityRating());
 			if (!stillActive) {
-				Debug::println("returned false ---------");
+				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign();
 			}
 			else {
@@ -2067,7 +2067,7 @@ pitchTooHigh:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
 			if (!(getNoise() >> 19)) {
-				//Debug::println("random change");
+				//D_PRINTLN("random change");
 
 				int32_t r = getRandom255();
 
@@ -2090,7 +2090,7 @@ pitchTooHigh:
 					sound->recalculateAllVoicePhaseIncrements(paramManager);
 				}
 
-				//Debug::println("end random change");
+				//D_PRINTLN("end random change");
 			}
 #endif
 
@@ -2296,7 +2296,7 @@ dontUseCache : {}
 
 						if (memory) {
 							source->livePitchShifter = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);
-							Debug::println("start pitch shifting");
+							D_PRINTLN("start pitch shifting");
 						}
 					}
 				}
@@ -2305,7 +2305,7 @@ dontUseCache : {}
 			// If not pitch shifting and we were previously...
 			else {
 				if (source->livePitchShifter && source->livePitchShifter->mayBeRemovedWithoutClick()) {
-					Debug::println("stop pitch shifting");
+					D_PRINTLN("stop pitch shifting");
 					source->livePitchShifter->~LivePitchShifter();
 					delugeDealloc(source->livePitchShifter);
 					source->livePitchShifter = NULL;

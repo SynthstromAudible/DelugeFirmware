@@ -504,11 +504,8 @@ void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
-	Debug::print("writing to flash port ");
-	Debug::print(portNumber);
-	Debug::print(" into ");
+	D_PRINTLN("writing to flash port  %d  into ", portNumber);
 	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
-	Debug::println(*memory);
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {

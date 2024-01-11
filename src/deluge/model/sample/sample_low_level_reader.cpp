@@ -102,7 +102,7 @@ void SampleLowLevelReader::realignPlaybackParameters(Sample* sample) {
 // (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
 bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample,
                                                         int32_t priorityRating) {
-	//Debug::println("reassessing");
+	//D_PRINTLN("reassessing");
 
 	if (!clusters[0]) {
 		return true; // Is this for if we've gone past the end of the audio data, while re-pitching / interpolating?
@@ -116,7 +116,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is called.
 	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
-		Debug::println("saving from being past finalCluster");
+		D_PRINTLN("saving from being past finalCluster");
 		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
 		if (!finalCluster) {
 			return false;
@@ -132,7 +132,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Debug::println("reassessReassessmentLocation fail");
+		D_PRINTLN("reassessReassessmentLocation fail");
 		return false;
 	}
 	setupReassessmentLocation(guide, sample);
@@ -264,7 +264,7 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 	bool success = setupClustersForPlayFromByte(guide, sample, startPlaybackAtByte, priorityRating);
 
 	if (!success) {
-		Debug::println("setupClustersForInitialPlay fail");
+		D_PRINTLN("setupClustersForInitialPlay fail");
 	}
 
 	return success;
@@ -288,9 +288,8 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Debug::println("setupClustersForPlayFromByte fail");
-		Debug::print("byte: ");
-		Debug::println(startPlaybackAtByte);
+		D_PRINTLN("setupClustersForPlayFromByte fail");
+		D_PRINTLN("byte:  %d", startPlaybackAtByte);
 		return false;
 	}
 
@@ -356,17 +355,13 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
-		Debug::print("reached end of waveform. last Cluster was: ");
-		Debug::println(oldClusterIndex);
+		D_PRINTLN("reached end of waveform. last Cluster was:  %d", oldClusterIndex);
 		currentPlayPos = 0;
 		return false;
 	}
 
 	if (!clusters[0]->loaded) {
-		Debug::print("late ");
-		Debug::print(clusters[0]->sample->filePath.get());
-		Debug::print(" p ");
-		Debug::println(clusters[0]->clusterIndex);
+		D_PRINTLN("late  %d  p  %d", clusters[0]->sample->filePath.get(), clusters[0]->clusterIndex);
 
 		return false;
 	}
@@ -427,7 +422,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 		if (reassessmentAction == REASSESSMENT_ACTION_NEXT_CLUSTER) {
 			bool success = moveOnToNextCluster(guide, sample, priorityRating);
 			if (!success) {
-				Debug::println("next failed");
+				D_PRINTLN("next failed");
 				return false;
 			}
 		}
@@ -436,7 +431,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			if (loopingAtLowLevel) {
 				bool success = setupClusersForInitialPlay(guide, sample, byteOvershoot, true, priorityRating);
 				if (!success) {
-					Debug::println("loop failed");
+					D_PRINTLN("loop failed");
 					// TODO: shouldn't we set currentPlayPos = 0 here too?
 					return false;
 				}
@@ -542,7 +537,7 @@ void SampleLowLevelReader::jumpBackSamples(Sample* sample, int32_t numToJumpBack
 
 		// If there was no valid audio data there...
 		if (bytesPastClusterStart < 0) {
-			Debug::println("failed to go back!");
+			D_PRINTLN("failed to go back!");
 			break;
 		}
 
@@ -861,8 +856,7 @@ doZeroes:
 			*numSamples = (uint32_t)bytesLeftWhichMayBeRead / (uint8_t)bytesPerSample;
 
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
-				Debug::print("bytesLeftWhichMayBeRead: ");
-				Debug::println(bytesLeftWhichMayBeRead);
+				D_PRINTLN("bytesLeftWhichMayBeRead:  %d", bytesLeftWhichMayBeRead);
 				FREEZE_WITH_ERROR("E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
 		}
@@ -1241,7 +1235,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 				return false;
 			}
 
-			//Debug::println("one head no longer active for timeStretcher");
+			//D_PRINTLN("one head no longer active for timeStretcher");
 			break;
 		}
 

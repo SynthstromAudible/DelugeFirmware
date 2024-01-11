@@ -2690,28 +2690,32 @@ bool shouldAbortLoading() {
 
 // Must supply a char[5] buffer. Or char[30] for OLED.
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
+	char noteLengthName[64];
+	StringBuf noteLengthBuf(noteLengthName, 64);
+
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
 			uint32_t division = (uint32_t)1 << (0 - magnitude);
 			intToString(division, text);
 			char* writePos = strchr(text, 0);
 			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
-			strcpy(writePos, suffix);
-			strcpy(writePos + 2, "-notes");
+			noteLengthBuf.append(suffix);
+			noteLengthBuf.append("-notes");
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
 			intToString(numBars, text);
 			if (clarifyPerColumn) {
 				if (numBars == 1) {
+					noteLengthBuf.append(" bar (per column)");
 					strcat(text, " bar (per column)");
 				}
 				else {
-					strcat(text, " bars (per column)");
+					noteLengthBuf.append(" bars (per column)");
 				}
 			}
 			else {
-				strcat(text, "-bar");
+				noteLengthBuf.append("-bar");
 			}
 		}
 	}
@@ -2721,17 +2725,17 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 			if (division <= 9999) {
 				intToString(division, text);
 				if (division == 2 || division == 32) {
-					strcat(text, "ND");
+					noteLengthBuf.append("ND");
 				}
 				else if (division <= 99) {
-					strcat(text, "TH");
+					noteLengthBuf.append("TH");
 				}
 				else if (division <= 999) {
-					strcat(text, "T");
+					noteLengthBuf.append("T");
 				}
 			}
 			else {
-				strcpy(text, "TINY");
+				noteLengthBuf.append("TINY");
 			}
 		}
 		else {
@@ -2740,14 +2744,14 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 				intToString(numBars, text);
 				uint8_t length = strlen(text);
 				if (length == 1) {
-					strcat(text, "BAR");
+					noteLengthBuf.append("BAR");
 				}
 				else if (length <= 3) {
-					strcat(text, "B");
+					noteLengthBuf.append("B");
 				}
 			}
 			else {
-				strcpy(text, "BIG");
+				noteLengthBuf.append("BIG");
 			}
 		}
 	}

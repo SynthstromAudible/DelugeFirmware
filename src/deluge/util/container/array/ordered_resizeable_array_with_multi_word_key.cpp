@@ -113,9 +113,7 @@ bool OrderedResizeableArrayWithMultiWordKey::deleteAtKeyMultiWord(uint32_t* __re
 		return true;
 	}
 	else {
-		Debug::println("couldn't find key to delete");
-		Debug::println(keyWords[0]);
-		Debug::println(keyWords[1]);
+		D_PRINTLN("couldn't find key to delete %s / %s", keyWords[0], keyWords[1]);
 		return false;
 	}
 }
