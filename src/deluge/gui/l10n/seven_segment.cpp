@@ -379,6 +379,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_NOTES_CLEARED, "CLEAR"},
         {STRING_FOR_AUTOMATION_CLEARED, "CLEAR"},
 
+        {STRING_FOR_MIDILOOPBACK, "M LP"},
+
         /* Strings Specifically for Automation Instrument Clip View
         * automation_instrument_clip_view.cpp
         */

@@ -61,6 +61,7 @@ MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
+MIDIDeviceLoopback loopbackMidi{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
@@ -341,7 +342,10 @@ MIDIDevice* readDeviceReferenceFromFile() {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = storageManager.readTagOrAttributeValue();
-			if (!strcmp(port, "upstreamUSB")) {
+			if (!strcmp(port, "loopbackMidi")) {
+				device = &loopbackMidi;
+			}
+			else if (!strcmp(port, "upstreamUSB")) {
 				device = &upstreamUSBMIDIDevice_port1;
 			}
 			else if (!strcmp(port, "upstreamUSB2")) {
@@ -388,6 +392,9 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
+	else if (vendorId == VENDOR_ID_LOOPBACK) {
+		device = &loopbackMidi;
+	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -423,6 +430,9 @@ void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uin
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
+	else if (vendorId == VENDOR_ID_LOOPBACK) {
+		device = &loopbackMidi;
+	}
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -454,6 +464,9 @@ void writeDevicesToFile() {
 		goto worthIt;
 	}
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
+		goto worthIt;
+	}
+	if (loopbackMidi.worthWritingToFile()) {
 		goto worthIt;
 	}
 
@@ -489,6 +502,9 @@ worthIt:
 	}
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
 		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+	}
+	if (loopbackMidi.worthWritingToFile()) {
+		loopbackMidi.writeToFile("loopbackMidi");
 	}
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
@@ -541,6 +557,9 @@ void readDevicesFromFile() {
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
 			upstreamUSBMIDIDevice_port3.readFromFile();
+		}
+		else if (!strcmp(tagName, "loopbackMidi")) {
+			loopbackMidi.readFromFile();
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile();
