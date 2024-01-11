@@ -18,8 +18,6 @@ Here is a list of general improvements that have been made, ordered from newest 
   	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 3.2 - MPE
-- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware, kit rows with MIDI learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and MIDI clips. ([#512]) adds further fixes related to channels 0 and 15 always getting received as MPE.
-
 - ([#512]) Change handling of MPE expression when collapsed to a single MIDI channel. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
 
 #### 3.3 - MIDI
@@ -47,20 +45,17 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel MIDI data from non-MPE devices now maps to the `Y` axis.
 
-#### 3.9 - Enable Stutter Automation
-- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
-  	- This feature is not present in the v1.0.0 release.
-
-#### 3.9 - Enable Stutter Automation
-- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
-
 #### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
 - ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the parameter. The `SOUND` and `MODULATION` screens when parameter and modulation editing have also been adjusted to show the same value range as displayed with the Mod Encoders.
 	- This allows for better fine-tuning of values. 
 	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
 	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold `SHIFT` while turning the Select Encoder.
 
-#### 3.9 - Adjust Metronome Volume
+#### 3.9 - Enable Stutter Automation
+- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
+  	- This feature is not present in the v1.0.0 release.
+
+#### 3.10 - Adjust Metronome Volume
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
 	- In addition, a `DEFAULTS` menu entry was created titled `METRONOME` which enables you to set a value between 1-50 to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 50 being the loudest metronome volume.
 
@@ -403,7 +398,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
     Description of said feature, first new feature please replace this
 
 [#17]: https://github.com/SynthstromAudible/DelugeFirmware/pull/17
-[#29]: https://github.com/SynthstromAudible/DelugeFirmware/pull/29
 [#32]: https://github.com/SynthstromAudible/DelugeFirmware/pull/32
 [#46]: https://github.com/SynthstromAudible/DelugeFirmware/pull/46
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
