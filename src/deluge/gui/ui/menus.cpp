@@ -164,6 +164,7 @@
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
@@ -1071,6 +1072,12 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     },
 };
 
+bool* getSongMidiLoopback() {
+	return &(currentSong->midiLoopback);
+}
+
+ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
+
 //Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG_FX,
@@ -1084,6 +1091,8 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
+        &globalStutterRateMenu,
+        &midiLoopbackMenu,
     },
 };
 
