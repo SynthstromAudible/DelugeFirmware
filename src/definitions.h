@@ -73,9 +73,7 @@ extern void freezeWithError(char const* errmsg);
 #ifndef D_PRINTLN
 
 #if ENABLE_TEXT_OUTPUT
-
 #include "deluge/deluge.h"
-#include "lib/printf.h"
 #define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
 #define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
 #define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
