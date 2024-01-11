@@ -18,8 +18,6 @@ Here is a list of general improvements that have been made, ordered from newest 
   	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 3.2 - MPE
-- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware, kit rows with MIDI learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and MIDI clips. ([#512]) adds further fixes related to channels 0 and 15 always getting received as MPE.
-
 - ([#512]) Change handling of MPE expression when collapsed to a single MIDI channel. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
 
 #### 3.3 - MIDI
@@ -60,9 +58,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.10 - Adjust Metronome Volume
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
 	- In addition, a `DEFAULTS` menu entry was created titled `METRONOME` which enables you to set a value between 1-50 to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 50 being the loudest metronome volume.
-
-#### 3.11 - Set Default Mod-FX Type to Disabled for Audio Clip and Kit Affect Entire Parameters
-- ([#945]) Previously, when creating a new Audio clip or Kit clip, the default Mod-FX Type was set to Flanger. This has now been corrected and the default Mod-FX Type has been set to Disabled.
 
 ## 4. New Features Added
 
@@ -403,7 +398,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
     Description of said feature, first new feature please replace this
 
 [#17]: https://github.com/SynthstromAudible/DelugeFirmware/pull/17
-[#29]: https://github.com/SynthstromAudible/DelugeFirmware/pull/29
 [#32]: https://github.com/SynthstromAudible/DelugeFirmware/pull/32
 [#46]: https://github.com/SynthstromAudible/DelugeFirmware/pull/46
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
@@ -460,5 +454,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [#781]: https://github.com/SynthstromAudible/DelugeFirmware/pull/781
-[#945]: https://github.com/SynthstromAudible/DelugeFirmware/pull/945
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
