@@ -498,8 +498,8 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 	}
 
 	// Send loopback (other than clock/sysex) to delly
-	if (currentSong->midiLoopback && statusType != 0x0F &&
-			MIDIDeviceManager::loopbackMidi.wantsToOutputMIDIOnChannel(channel, filter)) {
+	if (currentSong->midiLoopback && statusType != 0x0F
+	    && MIDIDeviceManager::loopbackMidi.wantsToOutputMIDIOnChannel(channel, filter)) {
 		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0);
 	}
 }

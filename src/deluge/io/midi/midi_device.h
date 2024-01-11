@@ -244,9 +244,7 @@ public:
 
 class MIDIDeviceLoopback final : public MIDIDevice {
 public:
-	MIDIDeviceLoopback() {
-		connectionFlags = 1;
-	}
+	MIDIDeviceLoopback() { connectionFlags = 1; }
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
