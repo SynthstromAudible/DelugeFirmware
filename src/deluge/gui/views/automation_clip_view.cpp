@@ -2634,16 +2634,11 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 	//if you're in a synth, kit, or audio clip
 	else if (outputType == OutputType::SYNTH || outputType == OutputType::KIT
 	         || outputType == OutputType::AUDIO) {
-		int32_t lastSelectedParamID = kNoSelection;
-		Param::Kind lastSelectedParamKind = Param::Kind::NONE;
 		//if you're in an audio clip
 		if (outputType == OutputType::AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
 
 			selectAudioClipParam(offset, audioClip);
-
-			lastSelectedParamID = audioClip->lastSelectedParamID;
-			lastSelectedParamKind = audioClip->lastSelectedParamKind;
 		}
 		//non-audio clip
 		else {
@@ -2658,24 +2653,8 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 			         || (outputType == OutputType::KIT && ((Kit*)instrument)->selectedDrum)) {
 				selectNonGlobalParam(offset, instrumentClip);
 			}
-
-			lastSelectedParamID = instrumentClip->lastSelectedParamID;
-			lastSelectedParamKind = instrumentClip->lastSelectedParamKind;
 		}
-		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
-		//just update name on display, the LED mod indicators, and the grid
-		//also de-select the last selected param shortcut
-		if (view.isParamStutter(lastSelectedParamKind, lastSelectedParamID)) {
-			if (outputType == OutputType::AUDIO) {
-				((AudioClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
-			}
-			else {
-				((InstrumentClip*)clip)->lastSelectedParamShortcutX = kNoSelection;
-			}
-		}
-		else {
-			getLastSelectedParamShortcut(clip, outputType);
-		}
+		getLastSelectedParamShortcut(clip, outputType);
 	}
 	//if you're in a midi clip
 	else if (outputType == OutputType::MIDI_OUT) {
