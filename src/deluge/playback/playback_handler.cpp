@@ -2531,7 +2531,7 @@ void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t chan
 	}
 	else {
 		// we build ontop of the CC hack
-		tryGlobalMIDICommands(fromDevice, channel + IS_A_PC, program);
+		offerNoteToLearnedThings(fromDevice, true, channel + IS_A_PC, program);
 	}
 }
 bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note) {
