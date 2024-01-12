@@ -470,7 +470,7 @@ justWriteZeros:
 
 		else {
 
-			// Jump back 1 sample
+			// At each iteration through this loop, we need to jump one sample backwards in time.
 			thisPlayPos = thisPlayPos - playDirection * sample->numChannels * sample->byteDepth;
 			int32_t bytesPastClusterStart = ((int32_t)thisPlayPos - (int32_t)clusterStartLocation) * playDirection;
 

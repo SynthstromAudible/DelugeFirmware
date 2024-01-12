@@ -121,7 +121,8 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
 	deluge::hid::display::OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0],
-	                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY, 0,
+	                                       xPixel + maxNumChars * kTextSpacingX);
 
 	int32_t hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
 	//int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
