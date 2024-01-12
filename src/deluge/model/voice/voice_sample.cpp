@@ -379,19 +379,25 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 
 	// Now that cache is off, the SampleLowLevelReader probably needs to obey loop points (if no time stretching),
 	// Although, as a side note, if we just abandoned reading cache, we might be just about to set time stretching up.
-	if (shouldObeyMarkers()) {
-		bool stillGoing = reassessReassessmentLocation(
-		    guide, sample,
-		    priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
-		if (!stillGoing) {
-			return false;
-		}
+	//if (shouldObeyMarkers()) {	// Nope, we need to do this always now (fix Dec 2023), otherwise if a user does something like change the tempo causing an AudioClip to change pitch
+	// and abandon its cache, well it won't get its reassessmentLocation and clusterStartLocation set up if we don't do this.
+	// Well, this only previously caused problems when shouldObeyMarkers() returned false - so only for AudioClips, and only ones which weren't time-stretching
+	// (so had their pitch/speed set to LINKED and the audio was being sped up or down like a record).
 
-		// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to ensure currentPlayPos isn't past the new reassessmentLocation
-		stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
-		if (!stillGoing) {
-			return false;
-		}
+	// Now that we'll be reading the raw Sample source, we'll need to set up the reassessmentLocation and the clusterStartLocation, so make this call.
+	// Also (I think) another reason for this call is that while writing cache,
+	// low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
+	bool stillGoing = reassessReassessmentLocation(
+	    guide, sample,
+	    priorityRating); // Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before
+	if (!stillGoing) {
+		return false;
+	}
+
+	// This step added Sept 2020 after finding another similar bug which made me fairly sure this needs to be here, to ensure currentPlayPos isn't past the new reassessmentLocation
+	stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
+	if (!stillGoing) {
+		return false;
 	}
 
 	return true;
@@ -650,7 +656,8 @@ readCachedWindow:
 				writingToCache = true;
 			}
 
-			// I think the reason I have it doing reassessReassessmentLocation() here is because while writing cache,
+			// Now that we'll be reading the raw Sample source, we'll need to set up the reassessmentLocation and the clusterStartLocation, so make this call.
+			// Also (I think) another reason for this call is that while writing cache,
 			// low-level loop points aren't obeyed and we loop at the writing-to-cache level instead?
 			bool stillGoing = reassessReassessmentLocation(
 			    guide, sample,
