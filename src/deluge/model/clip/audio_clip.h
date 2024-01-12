@@ -115,7 +115,6 @@ public:
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;
-	InstrumentType lastSelectedInstrumentType;
 
 	//END ~ new Automation Clip View Variables
 

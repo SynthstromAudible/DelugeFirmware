@@ -742,7 +742,7 @@ ramError2:
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);
 
-	((Instrument*)getCurrentInstrument())->beenEdited();
+	getCurrentInstrument()->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
