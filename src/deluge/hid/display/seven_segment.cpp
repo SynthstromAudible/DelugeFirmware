@@ -42,21 +42,67 @@ extern "C" {
 namespace deluge::hid::display {
 uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
-uint8_t letterSegments[26] = {0x77, 0x1F, 0x4E, 0x3D, 0x4F,
-                              0x47, //F
-                              0x5E,
-                              0x37, //H
-                              0x04,
-                              0x38, //J
-                              0x57, //0x2F,
-                              0x0E, //L
-                              0x55,
-                              0x15, //N
-                              0x1D, 0x67,
-                              0x73, //Q
-                              0x05, 0x5B,
-                              0x0F, //T
-                              0x3E, 0x27, 0x5C, 0x49, 0x3B, 0x6D};
+uint8_t letterSegments[] = {
+    0x77,
+    0x1F,
+    0x4E,
+    0x3D,
+    0x4F,
+    0x47, //F
+    0x5E,
+    0x37, //H
+    0x04,
+    0x38, //J
+    0x57, //0x2F,
+    0x0E, //L
+    0x55,
+    0x15, //N
+    0x1D,
+    0x67,
+    0x73, //Q
+    0x05,
+    0x5B,
+    0x0F, //T
+    0x3E,
+    0x27,
+    0x5C,
+    0x49,
+    0x3B,
+    0x6D, // Z
+    0x00, // [
+    0x00, // backslash
+    0x00, // ]
+    0x00, // ^
+    0x00, // _
+    0x00, // `
+          // Lowercase
+    0x77,
+    0x1F,
+    0x0D,
+    0x3D,
+    0x4F,
+    0x47, //F
+    0x5E,
+    0x37, //H
+    0x04,
+    0x38, //J
+    0x57, //0x2F,
+    0x0E, //L
+    0x55,
+    0x15, //N
+    0x1D,
+    0x67,
+    0x73, //Q
+    0x05,
+    0x5B,
+    0x0F, //T
+    0x3E,
+    0x27,
+    0x5C,
+    0x49,
+    0x3B,
+    0x6D,
+};
 
 void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 	newTopLayer->next = topLayer;
@@ -342,7 +388,12 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 				break;
 
 			case 'a' ... 'z':
-				*segments = letterSegments[thisChar - 'a']; // Letters
+				if (use_lowercase) {
+					*segments = letterSegments[thisChar - 'A']; // Letters
+				}
+				else {
+					*segments = letterSegments[thisChar - 'a']; // Letters
+				}
 				break;
 
 			case '0' ... '9':
