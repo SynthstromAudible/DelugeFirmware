@@ -225,7 +225,8 @@ doEndMidiLearnPressSession:
 
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
-		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
+		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -269,7 +270,8 @@ doEndMidiLearnPressSession:
 
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
-		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
+		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
