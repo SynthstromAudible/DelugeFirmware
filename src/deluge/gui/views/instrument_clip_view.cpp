@@ -2927,7 +2927,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 		int32_t charPos = 0;
 
 		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
-		        iterationWithinDivisor, divisor);
+		        iterationWithinDivisor + 1, divisor);
 	}
 
 	if (display->haveOLED()) {
