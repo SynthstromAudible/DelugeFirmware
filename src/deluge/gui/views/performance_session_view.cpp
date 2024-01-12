@@ -750,7 +750,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//save performance view layout
-	else if (b == SAVE) {
+	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
@@ -758,7 +758,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//load performance view layout
-	else if (b == LOAD) {
+	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		if (on) {
 			loadPerformanceViewLayout();
 			renderViewDisplay();

@@ -116,6 +116,7 @@ public:
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
+	bool inSongMenu();
 	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
