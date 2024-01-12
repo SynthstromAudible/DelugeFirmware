@@ -76,6 +76,9 @@ public:
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
 
+	void enableLowercase() { use_lowercase = true; }
+	void disableLowercase() { use_lowercase = false; }
+
 private:
 	NumericLayerBasicText popup;
 	NumericLayer* topLayer = nullptr;
@@ -92,5 +95,6 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
+	bool use_lowercase = false;
 };
 } // namespace deluge::hid::display
