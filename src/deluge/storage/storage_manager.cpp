@@ -97,7 +97,13 @@ void StorageManager::writeTag(char const* tag, int32_t number) {
 void StorageManager::writeTag(char const* tag, char const* contents) {
 
 	printIndents();
-	writef("<%s>%contents</%s>\n", tag, contents);
+	write("<");
+	write(tag);
+	write(">");
+	write(contents);
+	write("</");
+	write(tag);
+	write(">\n");
 }
 
 void StorageManager::writeAttribute(char const* name, int32_t number, bool onNewLine) {
@@ -1067,17 +1073,6 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-void StorageManager::writef(char const* format, ...) {
-
-	va_list args;
-	va_start(args, format);
-
-	char buffer[1024];
-	snprintf(buffer, sizeof(buffer), format, args);
-	va_end(args);
-
-	write(buffer);
-}
 // TODO: this is really inefficient
 void StorageManager::write(char const* output) {
 
