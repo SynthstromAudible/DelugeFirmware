@@ -289,34 +289,19 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu()
-		    && !editingCVOrMIDIClip() && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
+		    && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-
-			if (getRootUI() != &performanceSessionView) {
-				if (Buttons::isShiftButtonPressed()) {
-					if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.deletePress();
-					}
-				}
-				else {
-					openUI(&saveInstrumentPresetUI);
+			if (Buttons::isShiftButtonPressed()) {
+				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+					menu_item::multiRangeMenu.deletePress();
 				}
 			}
 			else {
-				performanceSessionView.savePerformanceViewLayout();
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+				openUI(&saveInstrumentPresetUI);
 			}
-		}
-	}
-
-	//Load button
-	else if (b == LOAD) {
-		if (on && (getRootUI() == &performanceSessionView)) {
-			performanceSessionView.loadPerformanceViewLayout();
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 		}
 	}
 
@@ -1376,6 +1361,11 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+}
+
+bool SoundEditor::inSongMenu() {
+	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
+	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
