@@ -60,7 +60,7 @@ AudioClip* getCurrentAudioClip();
 Output* getCurrentOutput();
 Kit* getCurrentKit();
 Instrument* getCurrentInstrument();
-InstrumentType getCurrentInstrumentType();
+OutputType getCurrentOutputType();
 
 class Section {
 public:
@@ -116,9 +116,9 @@ public:
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
-	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int32_t presetNumber,
-	                                        int32_t presetSubSlotNumber, char const* name, char const* dirPath,
-	                                        bool searchHibernatingToo = true, bool searchNonHibernating = true);
+	Instrument* getInstrumentFromPresetSlot(OutputType outputType, int32_t presetNumber, int32_t presetSubSlotNumber,
+	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
+	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
@@ -127,7 +127,7 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement,
+	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
 	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int32_t clipIndex);
 	void changeSwingInterval(int32_t newValue);
@@ -250,11 +250,11 @@ public:
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
-	bool doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType, int32_t slot, int32_t subSlot = -1);
+	bool doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot = -1);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
-	void deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, char const* name);
+	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly();
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = NULL,
 	                               int32_t* clipIndex = NULL, bool excludePendingOverdubs = false);
@@ -299,7 +299,7 @@ public:
 	bool canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
 	void instrumentSwapped(Instrument* newInstrument);
-	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
+	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
 	void getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn = false);
@@ -321,7 +321,7 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
 	                                          int32_t whichBendRange, int32_t bendSemitones);
-	int32_t addInstrumentsToFileItems(InstrumentType instrumentType);
+	int32_t addInstrumentsToFileItems(OutputType outputType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
@@ -366,7 +366,7 @@ extern int8_t defaultAudioClipOverdubOutputCloning;
 
 inline Instrument* getCurrentInstrumentOrNull() {
 	Output* out = currentSong->currentClip->output;
-	if (out->type != InstrumentType::AUDIO) {
+	if (out->type != OutputType::AUDIO) {
 		return (Instrument*)out;
 	}
 	return nullptr;

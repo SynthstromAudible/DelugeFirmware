@@ -49,7 +49,7 @@ void functionsInit();
 
 bool memIsNumericChars(char const* mem, int32_t size);
 bool stringIsNumericChars(char const* str);
-char const* getThingName(InstrumentType instrumentType);
+char const* getThingName(OutputType outputType);
 
 char halfByteToHexChar(uint8_t thisHalfByte);
 void intToHex(uint32_t number, char* output, int32_t numChars = 8);
@@ -181,7 +181,7 @@ SequenceDirection stringToSequenceDirectionMode(char const* string);
 char const* launchStyleToString(int launchStyle);
 int stringToLaunchStyle(char const* string);
 
-char const* getInstrumentFolder(InstrumentType instrumentType);
+char const* getInstrumentFolder(OutputType outputType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);

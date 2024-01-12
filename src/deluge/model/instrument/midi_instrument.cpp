@@ -44,7 +44,7 @@ extern "C" {
 
 int16_t lastNoteOffOrder = 1;
 
-MIDIInstrument::MIDIInstrument() : NonAudioInstrument(InstrumentType::MIDI_OUT) {
+MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 	channelSuffix = -1;
 	modKnobMode = 0;
 	memset(modKnobCCAssignments, CC_NUMBER_NONE, sizeof(modKnobCCAssignments));
@@ -557,7 +557,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 	if (midiInput.channelOrZone == receivedChannel) {
 
 		// If it's a MIDI Clip, and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-		if (doingMidiThru && type == InstrumentType::MIDI_OUT
+		if (doingMidiThru && type == OutputType::MIDI_OUT
 		    && receivedChannel
 		           == channel) { // We'll just say don't do anything to midi-thru if any MPE in the picture, for now
 			*doingMidiThru = false;

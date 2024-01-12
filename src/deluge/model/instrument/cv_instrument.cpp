@@ -26,7 +26,7 @@
 #include "util/functions.h"
 #include <string.h>
 
-CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
 

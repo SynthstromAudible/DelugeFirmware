@@ -1359,7 +1359,7 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileAccessFailedDuring = false;
 }
 
-int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
+int32_t StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
 	if (!filePointer->sclust) {
@@ -1368,7 +1368,7 @@ int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePo
 	char const* firstTagName;
 	char const* altTagName = "";
 
-	if (instrumentType == InstrumentType::SYNTH) {
+	if (outputType == OutputType::SYNTH) {
 		firstTagName = "sound";
 		altTagName = "synth"; // Compatibility with old xml files
 	}
@@ -1382,7 +1382,7 @@ int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePo
 
 // Returns error status
 // clip may be NULL
-int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
+int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
                                                bool mayReadSamplesFromFiles, Instrument** getInstrument,
                                                FilePointer* filePointer, String* name, String* dirPath) {
 
@@ -1390,14 +1390,14 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
 	          (int32_t)filePointer->sclust);
 
-	int32_t error = openInstrumentFile(instrumentType, filePointer);
+	int32_t error = openInstrumentFile(outputType, filePointer);
 	if (error) {
 		D_PRINTLN("opening instrument file failed -  %s", name->get());
 		return error;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
-	Instrument* newInstrument = createNewInstrument(instrumentType);
+	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
 		closeFile();
@@ -1432,7 +1432,7 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the paramManager to be created when we read the Kit just now.
 		// So, just make one.
-		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && instrumentType == InstrumentType::KIT) {
+		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error) {
@@ -1452,7 +1452,7 @@ paramManagersMissing:
 	}
 
 	// For Kits, ensure that every audio Drum has a ParamManager somewhere
-	if (newInstrument->type == InstrumentType::KIT) {
+	if (newInstrument->type == OutputType::KIT) {
 		Kit* kit = (Kit*)newInstrument;
 		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DrumType::SOUND) {
@@ -1480,7 +1480,7 @@ paramManagersMissing:
 int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
                                         SoundDrum** getInstrument, FilePointer* filePointer, String* name,
                                         String* dirPath) {
-	InstrumentType instrumentType = InstrumentType::SYNTH;
+	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -1488,7 +1488,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
-	int32_t error = openInstrumentFile(instrumentType, filePointer);
+	int32_t error = openInstrumentFile(outputType, filePointer);
 	if (error) {
 		return error;
 	}
@@ -1526,11 +1526,11 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 }
 
 // After calling this, you must make sure you set dirPath of Instrument.
-Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType, ParamManager* paramManager) {
+Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamManager* paramManager) {
 
 	uint32_t instrumentSize;
 
-	if (newInstrumentType == InstrumentType::SYNTH) {
+	if (newOutputType == OutputType::SYNTH) {
 		instrumentSize = sizeof(SoundInstrument);
 	}
 
@@ -1549,7 +1549,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 	int32_t error;
 
 	// Synth
-	if (newInstrumentType == InstrumentType::SYNTH) {
+	if (newOutputType == OutputType::SYNTH) {
 		if (paramManager) {
 			error = paramManager->setupWithPatching();
 			if (error) {
@@ -1578,8 +1578,8 @@ paramManagerSetupError:
 	return newInstrument;
 }
 
-Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot) {
-	int32_t size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
+Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot) {
+	int32_t size = (outputType == OutputType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
 	// Paul: Might make sense to put these into Internal?
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
@@ -1588,7 +1588,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumen
 
 	NonAudioInstrument* newInstrument;
 
-	if (instrumentType == InstrumentType::MIDI_OUT) {
+	if (outputType == OutputType::MIDI_OUT) {
 		newInstrument = new (instrumentMemory) MIDIInstrument();
 		((MIDIInstrument*)newInstrument)->channelSuffix = subSlot;
 	}

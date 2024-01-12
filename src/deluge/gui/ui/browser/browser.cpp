@@ -52,7 +52,7 @@ int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
 char const* Browser::firstFileItemRemaining;
 char const* Browser::lastFileItemRemaining;
-InstrumentType Browser::instrumentTypeToLoad;
+OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
@@ -480,7 +480,7 @@ deleteThisItem:
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
-int32_t Browser::readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
+int32_t Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
                                                   char const* filenameToStartAt, char const* defaultDirToAlsoTry,
                                                   bool allowFolders, Availability availabilityRequirement,
                                                   int32_t newCatalogSearchDirection) {
@@ -526,8 +526,8 @@ tryReadingItems:
 		return error;
 	}
 
-	if (song && instrumentType != InstrumentType::NONE) {
-		error = song->addInstrumentsToFileItems(instrumentType);
+	if (song && outputType != OutputType::NONE) {
+		error = song->addInstrumentsToFileItems(outputType);
 		if (error) {
 			return error;
 		}
@@ -550,7 +550,7 @@ tryReadingItems:
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
-// instrumentTypeToLoad must be set before calling this.
+// outputTypeToLoad must be set before calling this.
 int32_t Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
 	arrivedAtFileByTyping = false;
 
@@ -565,7 +565,7 @@ tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
 	int32_t error =
-	    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, filenameToStartAt,
+	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
 	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error) {
 gotErrorAfterAllocating:
@@ -792,14 +792,14 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(InstrumentType::NONE, &enteredText, "SONG");
+				error = getUnusedSlot(OutputType::NONE, &enteredText, "SONG");
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
 				// Note - this is only hit if we're saving the first song created on boot (because the default name won't match anything)
 				// Because that will have cleared out all the FileItems, we need to get them again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, InstrumentType::NONE, "SONG", enteredText.get(),
-				                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.get(), NULL,
+				                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
 				if (error) {
 					goto gotErrorAfterAllocating;
 				}
@@ -824,22 +824,20 @@ everythingFinalized:
 }
 
 // You must set currentDir before calling this.
-int32_t Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName) {
+int32_t Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
 
 	int32_t error = 0;
 	if (display->haveOLED()) {
 		char filenameToStartAt[6]; // thingName is max 4 chars.
 		strcpy(filenameToStartAt, thingName);
 		strcat(filenameToStartAt, ":");
-		error =
-		    readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-		                                     filenameToStartAt, NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
+		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
+		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
 	}
 	else {
 		char const* filenameToStartAt = ":"; // Colon is the first character after the digits
-		error =
-		    readFileItemsFromFolderAndMemory(currentSong, instrumentType, getThingName(instrumentType),
-		                                     filenameToStartAt, NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
+		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
+		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
 	}
 
 	if (error) {
@@ -1047,8 +1045,8 @@ nonNumeric:
 
 tryReadingItems:
 			D_PRINTLN("reloading");
-			error = readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, enteredText.get(),
-			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
+			error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
+			                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
 				D_PRINTLN("error while reloading, emptying file items");
@@ -1073,7 +1071,7 @@ gotErrorAfterAllocating:
 searchFromOneEnd:
 				D_PRINTLN("reloading and wrap");
 				error =
-				    readFileItemsFromFolderAndMemory(currentSong, instrumentTypeToLoad, filePrefix, NULL, NULL, true,
+				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
 				                                     Availability::ANY, newCatalogSearchDirection); // Load from start
 				if (error) {
 					goto gotErrorAfterAllocating;
@@ -1204,7 +1202,7 @@ doSearch:
 doNewRead:
 			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, instrumentTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
+			    currentSong, outputTypeToLoad, filePrefix, searchString.get(), NULL, true, Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
 			if (error) {
 gotErrorAfterAllocating:

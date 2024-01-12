@@ -52,7 +52,7 @@ SaveSongUI::SaveSongUI() {
 }
 
 bool SaveSongUI::opened() {
-	instrumentTypeToLoad = InstrumentType::NONE;
+	outputTypeToLoad = OutputType::NONE;
 
 	// Grab screenshot of song, for saving, before qwerty drawn
 	memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
