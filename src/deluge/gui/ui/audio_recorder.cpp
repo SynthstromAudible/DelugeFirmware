@@ -139,7 +139,7 @@ gotError:
 }
 
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	deluge::hid::display::OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX,
+	deluge::hid::display::OLED::drawStringCentred("Recording", 19, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX,
 	                                              kTextBigSizeY);
 }
 

@@ -30,7 +30,7 @@ public:
 	void drawPixelsForOled() override {
 		char buffer[12];
 		intToString(96 << this->getValue(), buffer);
-		deluge::hid::display::OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL,
+		deluge::hid::display::OLED::drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL,
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
