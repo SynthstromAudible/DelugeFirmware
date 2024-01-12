@@ -2761,22 +2761,20 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][1] = (value - 64) << 9;
 	}
 	else {
-
+		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.midiCCReceived(fromDevice, channel, ccNumber, value)) {
+			if (soundEditor.midiCCReceived(fromDevice, channelOrZone, ccNumber, value)) {
 				return;
 			}
 		}
 
 		else {
 			if (currentUIMode == UI_MODE_MIDI_LEARN) {
-				view.ccReceivedForMIDILearn(fromDevice, channel, ccNumber, value);
+				view.ccReceivedForMIDILearn(fromDevice, channelOrZone, ccNumber, value);
 				return;
 			}
 		}
-
-		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
 		if (value > 0) {
 			if (tryGlobalMIDICommands(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
