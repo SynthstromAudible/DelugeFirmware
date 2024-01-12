@@ -408,6 +408,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_FEEDBACK, "FEED"},
         {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "AUTO"},
         {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "FLTR"},
+
+        //String for Select Kit Row menu
+        {STRING_FOR_SELECT_KIT_ROW, "KROW"},
     },
     &built_in::english,
 };

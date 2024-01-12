@@ -132,6 +132,7 @@ namespace FlashStorage {
 138-141: midiFollow set follow device kit		product / vendor ids
 142-145: midiFollow set follow device param		product / vendor ids
 146: gridEmptyPadsCreateRec
+147: midi select kit row on learned note message received
 */
 
 uint8_t defaultScale;
@@ -504,6 +505,8 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
 
 	gridEmptyPadsCreateRec = buffer[146];
+
+	midiEngine.midiSelectKitRow = buffer[147];
 }
 
 void writeSettings() {
@@ -627,7 +630,10 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+
 	buffer[146] = gridEmptyPadsCreateRec;
+
+	buffer[147] = midiEngine.midiSelectKitRow;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
