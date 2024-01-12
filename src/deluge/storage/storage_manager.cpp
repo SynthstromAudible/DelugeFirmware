@@ -1073,17 +1073,6 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-void StorageManager::writef(char const* format, ...) {
-
-	va_list args;
-	va_start(args, format);
-
-	char buffer[1024];
-	snprintf(buffer, sizeof(buffer), format, args);
-	va_end(args);
-
-	write(buffer);
-}
 // TODO: this is really inefficient
 void StorageManager::write(char const* output) {
 
