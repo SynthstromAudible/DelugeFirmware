@@ -42,11 +42,11 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/cfunctions.h"
 #include "util/misc.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};

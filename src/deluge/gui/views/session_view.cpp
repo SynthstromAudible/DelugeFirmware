@@ -64,6 +64,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <algorithm>
@@ -72,7 +73,6 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge;

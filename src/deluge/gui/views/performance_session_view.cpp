@@ -52,13 +52,13 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge;

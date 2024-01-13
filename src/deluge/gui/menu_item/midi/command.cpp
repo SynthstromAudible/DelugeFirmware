@@ -21,11 +21,8 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "util/misc.h"
-
-extern "C" {
 #include "util/cfunctions.h"
-}
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::midi {
 

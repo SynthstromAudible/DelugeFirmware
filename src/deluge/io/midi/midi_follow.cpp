@@ -32,13 +32,13 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/song/song.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge;

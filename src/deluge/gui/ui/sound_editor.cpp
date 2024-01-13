@@ -51,6 +51,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/comparison.h"
 #include "util/functions.h"
 #include <new>
@@ -58,7 +59,6 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 #include "menus.h"

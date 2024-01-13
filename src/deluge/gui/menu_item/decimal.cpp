@@ -26,11 +26,8 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "source_selection.h"
-#include "util/functions.h"
-
-extern "C" {
 #include "util/cfunctions.h"
-}
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 
