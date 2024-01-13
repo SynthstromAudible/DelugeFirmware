@@ -829,55 +829,6 @@ bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	}
 }
 
-char halfByteToHexChar(uint8_t thisHalfByte) {
-	if (thisHalfByte < 10) {
-		return 48 + thisHalfByte;
-	}
-	else {
-		return 55 + thisHalfByte;
-	}
-}
-
-char hexCharToHalfByte(unsigned char hexChar) {
-	if (hexChar >= 65) {
-		return hexChar - 55;
-	}
-	else {
-		return hexChar - 48;
-	}
-}
-
-void intToHex(uint32_t number, char* output, int32_t numChars) {
-	output[numChars] = 0;
-	for (int32_t i = numChars - 1; i >= 0; i--) {
-		output[i] = halfByteToHexChar(number & 15);
-		number >>= 4;
-	}
-}
-
-uint32_t hexToInt(char const* string) {
-	int32_t output = 0;
-	while (*string) {
-		output <<= 4;
-		output |= hexCharToHalfByte(*string);
-		string++;
-	}
-	return output;
-}
-
-// length must be >0
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) {
-	uint32_t output = 0;
-	char const* const endChar = hexChars + length;
-	do {
-		output <<= 4;
-		output |= hexCharToHalfByte(*hexChars);
-		hexChars++;
-	} while (hexChars != endChar);
-
-	return output;
-}
-
 const float dbIntervals[] = {
     24, // Not really real
     12.1, 7, 5, 3.9, 3.2, 2.6, 2.4, 2, 1.8, 1.7, 1.5, 1.4, 1.3, 1.2, 1.1,
@@ -2688,27 +2639,25 @@ bool shouldAbortLoading() {
 	        && (Encoders::encoders[ENCODER_SELECT].detentPos || QwertyUI::predictionInterrupted));
 }
 
-// Must supply a char[5] buffer. Or char[30] for OLED.
-void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-
-	StringBuf noteLengthBuf(text, 30);
+void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
+                                    bool clarifyPerColumn) {
+	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
-			intToString(division, text);
-			char* writePos = strchr(text, 0);
-			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
+			noteLengthBuf.appendInt(division);
+			// this is not fully general but since division are always a power of 2, it works out in practice (no need
+			// for "rd")
+			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
 			noteLengthBuf.append(suffix);
-			noteLengthBuf.append("-notes");
+			noteLengthBuf.append(notesString);
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
-			intToString(numBars, text);
+			noteLengthBuf.appendInt(numBars);
 			if (clarifyPerColumn) {
 				if (numBars == 1) {
 					noteLengthBuf.append(" bar (per column)");
-					strcat(text, " bar (per column)");
 				}
 				else {
 					noteLengthBuf.append(" bars (per column)");
@@ -2721,9 +2670,8 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 	}
 	else {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
 			if (division <= 9999) {
-				intToString(division, text);
+				noteLengthBuf.appendInt(division);
 				if (division == 2 || division == 32) {
 					noteLengthBuf.append("ND");
 				}
@@ -2741,12 +2689,12 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
 			if (numBars <= 9999) {
-				intToString(numBars, text);
-				uint8_t length = strlen(text);
-				if (length == 1) {
+				noteLengthBuf.appendInt(numBars);
+				auto size = noteLengthBuf.size();
+				if (size == 1) {
 					noteLengthBuf.append("BAR");
 				}
-				else if (length <= 3) {
+				else if (size <= 3) {
 					noteLengthBuf.append("B");
 				}
 			}
@@ -2814,4 +2762,4 @@ int32_t fresultToDelugeErrorCode(FRESULT result) {
 }
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
-char shortStringBuffer[64] __attribute__((aligned(CACHE_LINE_SIZE)));
+char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));

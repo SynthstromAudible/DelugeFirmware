@@ -4869,8 +4869,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-// Must supply a char[5] buffer. Or char[30] should be more than adequate for OLED.
-void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn) {
+void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
+                             bool clarifyPerColumn) const {
 	int32_t magnitude = -5 - (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	uint32_t level = 3;
 
@@ -4879,7 +4879,7 @@ void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerCol
 		level <<= 1;
 	}
 
-	getNoteLengthNameFromMagnitude(text, magnitude);
+	getNoteLengthNameFromMagnitude(buffer, magnitude, notesString, clarifyPerColumn);
 }
 
 Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
