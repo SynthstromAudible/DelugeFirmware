@@ -238,6 +238,7 @@ private:
 	//void scheduleNextTimerTick();
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
+	bool offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note);
 	bool tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note);
 	bool tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note);
 	void decideOnCurrentPlaybackMode();
