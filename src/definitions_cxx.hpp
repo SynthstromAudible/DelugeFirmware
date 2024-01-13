@@ -262,6 +262,7 @@ enum class GateType : uint8_t {
 	S_TRIG,
 	SPECIAL,
 };
+constexpr int32_t kNumGateTypes = util::to_underlying(GateType::SPECIAL) + 1;
 
 constexpr int32_t kNumSongSlots = 1000;
 constexpr int32_t kNumInstrumentSlots = 1000;
@@ -1087,6 +1088,7 @@ constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 constexpr int32_t IS_A_PC = IS_A_CC + NUM_CHANNELS; // CC128 is max.
+constexpr int32_t MIDI_TYPE_MAX = IS_A_PC + NUM_CHANNELS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 constexpr int32_t kMIDIOutputFilterNoMPE = 0;
