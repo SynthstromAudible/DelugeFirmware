@@ -760,6 +760,20 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	// If no MPE, nice and simple
 	if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+
+		if (!collapseAftertouch) {
+			midiEngine.sendPolyphonicAftertouch(channel, 0, noteCodePostArp, kMIDIOutputFilterNoMPE);
+		}
+		else {
+			combineMPEtoMono(0, Z_PRESSURE);
+		}
+		//this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
+		//behaves more intuitively with multiple notes and mod wheel onto a single midi channel
+		if (collapseMPE) {
+			combineMPEtoMono(0, X_PITCH_BEND);
+			//This is CC74 value of 0
+			combineMPEtoMono(NEGATIVE_ONE_Q31, Y_SLIDE_TIMBRE);
+		}
 	}
 
 	// Or, MPE
