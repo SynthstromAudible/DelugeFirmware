@@ -25,6 +25,7 @@
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "processing/engines/audio_engine.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include <string.h>
 #include <string_view>
@@ -35,7 +36,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "drivers/oled/oled.h"
 #include "gui/fonts/fonts.h"
-#include "util/cfunctions.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 

@@ -19,12 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 const char nothing = 0;
 

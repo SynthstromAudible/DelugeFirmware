@@ -29,6 +29,7 @@
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -38,7 +39,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include "util/cfunctions.h"
 }
 
 void ramTestUart() {

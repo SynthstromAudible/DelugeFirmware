@@ -28,6 +28,7 @@
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <cstdint>
 #include <cstring>
@@ -36,7 +37,6 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 namespace deluge::hid::display {

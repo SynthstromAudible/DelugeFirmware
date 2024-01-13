@@ -81,13 +81,13 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge::gui;

@@ -60,6 +60,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <math.h>
 #include <new>
@@ -67,7 +68,6 @@
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 PlaybackHandler playbackHandler{};

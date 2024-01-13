@@ -45,13 +45,10 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 Slicer slicer{};
 
