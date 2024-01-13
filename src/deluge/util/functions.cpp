@@ -2690,8 +2690,8 @@ bool shouldAbortLoading() {
 
 // Must supply a char[5] buffer. Or char[30] for OLED.
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-	char noteLengthName[64];
-	StringBuf noteLengthBuf(noteLengthName, 64);
+
+	StringBuf noteLengthBuf(text, 30);
 
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
