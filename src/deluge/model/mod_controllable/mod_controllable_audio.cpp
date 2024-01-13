@@ -549,7 +549,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					//Debug::println("settling");
+					//D_PRINTLN("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
 
@@ -1192,12 +1192,11 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
 	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
 	if (result == NO_ERROR) {
-		//Debug::print("new buffer, size: ");
-		//Debug::println(delay.secondaryBuffer.size);
+		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
 
 		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			//Debug::println("making precise");
+			//D_PRINTLN("making precise");
 			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
 		}
 		else {
@@ -1763,8 +1762,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 					//obtain the model stack for the parameter the ccNumber received is learned to
 					//don't display "can't control param" error message if you're in a MIDI or CV clip
 					bool displayError = midiEngine.midiFollowDisplayParam
-					                    && (clip->output->type != InstrumentType::MIDI_OUT)
-					                    && (clip->output->type != InstrumentType::CV);
+					                    && (clip->output->type != OutputType::MIDI_OUT)
+					                    && (clip->output->type != OutputType::CV);
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, ccNumber, displayError);
@@ -2301,18 +2300,9 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
 
-	char* buffer = shortStringBuffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
-	if (display->haveOLED()) {
-		// Need to delete "-notes" from the name
-		std::string noteName(buffer);
-		std::string cleanName = noteName.substr(0, noteName.find("-notes"));
-		display->displayPopup(cleanName.c_str());
-	}
-	else {
-		// 7 Seg just display it
-		display->displayPopup(buffer);
-	}
+	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel), "");
+	display->displayPopup(buffer.data());
 }
 
 void ModControllableAudio::switchLPFMode() {

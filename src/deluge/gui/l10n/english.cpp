@@ -343,6 +343,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select a row or affect-entire"},
         {STRING_FOR_UNIMPLEMENTED, "Feature not (yet?) implemented"},
         {STRING_FOR_CANT_LEARN, "Can't learn"},
+        {STRING_FOR_CANT_LEARN_PC, "Can't learn Program Change"},
         {STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE, "Folders cannot be deleted on the Deluge"},
         {STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT, "Error creating multisampled instrument"},
         {STRING_FOR_CLIP_IS_RECORDING, "Clip is recording"},
@@ -394,6 +395,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER, "Clip has instances in arranger"},
         {STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING, "Can't save while overdubs pending"},
         {STRING_FOR_DIN_PORTS, "DIN ports"},
+        {STRING_FOR_LOOPBACK, "Loopback"},
         {STRING_FOR_UPSTREAM_USB_PORT_3_SYSEX, "upstream USB port 3 (sysex)"},
         {STRING_FOR_UPSTREAM_USB_PORT_2, "upstream USB port 2"},
         {STRING_FOR_UPSTREAM_USB_PORT_1, "upstream USB port 1"},
@@ -808,6 +810,7 @@ PLACE_SDRAM_DATA Language english{
         /* Strings Specifically for Song View
         * session_view.cpp
         */
+        {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
 
         {STRING_FOR_SONG_VIEW, "Song View"},
         {STRING_FOR_SONG_FX, "Song FX"},

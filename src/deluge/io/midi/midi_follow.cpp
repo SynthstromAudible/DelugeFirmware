@@ -32,13 +32,13 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/song/song.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge;
@@ -191,15 +191,15 @@ MidiFollow::getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelS
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH) {
+	if (instrument->type == OutputType::SYNTH) {
 		modelStackWithParam =
 		    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
 	}
-	else if (instrument->type == InstrumentType::KIT) {
+	else if (instrument->type == OutputType::KIT) {
 		modelStackWithParam =
 		    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
 	}
-	else if (instrument->type == InstrumentType::AUDIO) {
+	else if (instrument->type == OutputType::AUDIO) {
 		modelStackWithParam =
 		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
 	}
@@ -390,14 +390,14 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
                                 ModelStack* modelStack) {
 
 	// Only send if not muted - but let note-offs through always, for safety
-	if (clip && (clip->output->type != InstrumentType::AUDIO)
+	if (clip && (clip->output->type != OutputType::AUDIO)
 	    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 		//Output is a kit or melodic instrument
 		if (modelStackWithTimelineCounter) {
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
-			if (clip->output->type == InstrumentType::KIT) {
+			if (clip->output->type == OutputType::KIT) {
 				offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
 				                       shouldRecordNotes, doingMidiThru, clip);
 			}
@@ -467,10 +467,10 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		if (!clip) {
 			clip = currentSong->currentClip;
 		}
-		if (clip && (clip->output->type != InstrumentType::AUDIO)) {
+		if (clip && (clip->output->type != OutputType::AUDIO)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
+				if (clip->output->type == OutputType::KIT) {
 					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
 					                     doingMidiThru, clip);
 				}
@@ -521,11 +521,11 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 	if (match != MIDIMatchType::NO_MATCH) {
 		//obtain clip for active context
 		Clip* clip = getClipForMidiFollow(true);
-		if (clip && (clip->output->type != InstrumentType::AUDIO)) {
+		if (clip && (clip->output->type != OutputType::AUDIO)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
+				if (clip->output->type == OutputType::KIT) {
 					offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
 					                            doingMidiThru, clip);
 				}
@@ -568,11 +568,11 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	if (match != MIDIMatchType::NO_MATCH) {
 		//obtain clip for active context
 		Clip* clip = getClipForMidiFollow(true);
-		if (clip && (clip->output->type != InstrumentType::AUDIO)) {
+		if (clip && (clip->output->type != OutputType::AUDIO)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
+				if (clip->output->type == OutputType::KIT) {
 					offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
 					                             noteCode, doingMidiThru, clip);
 				}

@@ -29,6 +29,7 @@ namespace deluge::gui {
 class ContextMenu : public UI {
 public:
 	ContextMenu() { oledShowsUIUnderneath = true; };
+
 	virtual ~ContextMenu() = default;
 
 	void focusRegained() override;

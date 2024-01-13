@@ -430,14 +430,14 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// Ok, if we're here, we just reached the node!
 
 	/*
-		Debug::println("");
-		Debug::print("at node: ");
-		Debug::print(nodeJustReached->pos);
-		Debug::print(", ");
-		Debug::print(nodeJustReached->value);
-		if (nodeJustReached->interpolated) Debug::print(", interp");
-		Debug::println("");
-		if (renewedOverridingAtTime) Debug::println("overriding");
+		D_PRINTLN("");
+		D_PRINT("at node: ");
+		D_PRINT(nodeJustReached->pos);
+		D_PRINT(", ");
+		D_PRINT(nodeJustReached->value);
+		if (nodeJustReached->interpolated) D_PRINT(", interp");
+		D_PRINTLN("");
+		if (renewedOverridingAtTime) D_PRINTLN("overriding");
 	*/
 
 	// Stop any pre-existing interpolation (though we might set up some more, below)
@@ -522,7 +522,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		if (shouldCancelOverridingNow) {
 yesCancelOverriding:
 			renewedOverridingAtTime = 0;
-			Debug::println("cancel overriding, basic way");
+			D_PRINTLN("cancel overriding, basic way");
 		}
 
 		// Otherwise...
@@ -634,12 +634,12 @@ recordOverNodeJustReached:
 								renewedOverridingAtTime = 0xFFFFFFFF;
 							}
 						}
-						Debug::println("cancel latching");
+						D_PRINTLN("cancel latching");
 					}
 				}
 
 adjustNodeJustReached:
-				//Debug::println("adjusting node value");
+				//D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
 					nodeJustReached->value = currentValue;
 				}
@@ -665,10 +665,7 @@ adjustNodeJustReached:
 						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
 
 						/*
-						Debug::print("new one: ");
-						Debug::print(posOverridingEnds);
-						Debug::print(", ");
-						Debug::println(valueOverridingEnds);
+						D_PRINTLN("new one:  %d ,  %d", posOverridingEnds, valueOverridingEnds);
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
@@ -1892,7 +1889,7 @@ int32_t AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			// Ensure there isn't some problem where nodes are out of order...
 			if (pos <= prevPos) {
-				Debug::println("Automation nodes out of order");
+				D_PRINTLN("Automation nodes out of order");
 				continue;
 			}
 

@@ -188,9 +188,6 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 		// Cool, we've now solved for this search term
 		searchTerms[t] = rangeEnd;
 	}
-
-	//Debug::print("maxSearchRecord: ");
-	//Debug::println(maxSearchRecord);
 }
 
 bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int32_t endPos) {
@@ -309,16 +306,15 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 			while (getKeyAtIndex(i) < searchPos[t]) {
 				if (i >= resultingIndexes[t]) {
 					//FREEZE_WITH_ERROR("FAIL");
-					Debug::println("fail");
+					D_PRINTLN("fail");
 					goto thatsDone;
 				}
 				i++;
 			}
 		}
 
-		Debug::print("search-multiple success. time taken: ");
 thatsDone:
-		Debug::println(timeTaken);
+		D_PRINTLN("search-multiple success. time taken: %d ", timeTaken);
 	}
 }
 
@@ -334,7 +330,7 @@ void OrderedResizeableArray::test() {
 
 	while (true) {
 
-		Debug::print("up ");
+		D_PRINTLN("up ");
 
 		// Insert tons of stuff
 		for (int32_t v = 0; v < NUM_TEST_INSERTIONS;) {
@@ -379,12 +375,12 @@ startAgain:
 			if (numToInsert > NUM_TEST_INSERTIONS - v)
 				numToInsert = NUM_TEST_INSERTIONS - v;
 
-			//if (numToInsert == 15) Debug::println("inserting 15");
+			//if (numToInsert == 15) D_PRINTLN("inserting 15");
 
 			int32_t error = insertAtIndex(i, numToInsert);
 
 			if (error) {
-				Debug::println("insert failed");
+				D_PRINTLN("insert failed");
 				while (1) {}
 			}
 
@@ -399,14 +395,14 @@ startAgain:
 		}
 
 		if (numElements != NUM_TEST_INSERTIONS) {
-			Debug::println("wrong size");
+			D_PRINTLN("wrong size");
 			while (1) {}
 			//empty();
 		}
 
-		Debug::println(moveCount);
+		D_PRINTLN(moveCount);
 
-		Debug::print("down ");
+		D_PRINTLN("down ");
 
 		moveCount = 0;
 
@@ -415,11 +411,11 @@ startAgain:
 
 			int32_t i = search(values[v], GREATER_OR_EQUAL);
 			if (i >= numElements) {
-				Debug::println("value no longer there, end");
+				D_PRINTLN("value no longer there, end");
 				while (1) {}
 			}
 			if (getKeyAtIndex(i) != values[v]) {
-				Debug::println("value no longer there, mid");
+				D_PRINTLN("value no longer there, mid");
 				while (1) {}
 			}
 
@@ -439,19 +435,19 @@ startAgain:
 
 				j++;
 				if (j >= numElements) {
-					Debug::println("multi value no longer there, end");
+					D_PRINTLN("multi value no longer there, end");
 					while (1) {}
 				}
 
 				if (getKeyAtIndex(j) != value) {
-					Debug::println("multi value no longer there, mid");
+					D_PRINTLN("multi value no longer there, mid");
 					while (1) {}
 				}
 
 				numToDelete++;
 			}
 
-			//if (numToDelete == 15) Debug::println("deleting 15");
+			//if (numToDelete == 15) D_PRINTLN("deleting 15");
 
 			deleteAtIndex(i, numToDelete);
 
@@ -459,12 +455,12 @@ startAgain:
 		}
 
 		if (numElements) {
-			Debug::println("some elements left");
+			D_PRINTLN("some elements left");
 			while (1) {}
 			//empty();
 		}
 
-		Debug::println(moveCount);
+		D_PRINTLN(moveCount);
 	}
 }
 #endif
@@ -475,7 +471,7 @@ void OrderedResizeableArray::testDuplicates() {
 	int32_t count = 0;
 	while (1) {
 		if (!(count & 31)) {
-			Debug::println("testing duplicate search...");
+			D_PRINTLN("testing duplicate search...");
 		}
 		count++;
 
@@ -497,7 +493,7 @@ void OrderedResizeableArray::testDuplicates() {
 			if (i < numElements) {
 				keyAtSearchResult = getKeyAtIndex(i);
 				if (keyAtSearchResult < searchKey) {
-					Debug::println("key too low");
+					D_PRINTLN("key too low");
 					while (1)
 						;
 				}
@@ -510,7 +506,7 @@ void OrderedResizeableArray::testDuplicates() {
 			// If here, we got a key higher than our search key, so check the next key to the left is lower
 			if (i) {
 				if (getKeyAtIndex(i - 1) >= searchKey) {
-					Debug::println("invalid");
+					D_PRINTLN("invalid");
 					while (1)
 						;
 				}

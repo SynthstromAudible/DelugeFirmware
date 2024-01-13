@@ -43,7 +43,7 @@ GlobalEffectable::GlobalEffectable() {
 	lpfMode = FilterMode::TRANSISTOR_24DB;
 	filterSet.reset();
 
-	modFXType = ModFXType::FLANGER;
+	modFXType = ModFXType::NONE;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 

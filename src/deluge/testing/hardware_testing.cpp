@@ -29,6 +29,7 @@
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -38,7 +39,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include "util/cfunctions.h"
 }
 
 void ramTestUart() {
@@ -49,7 +49,7 @@ void ramTestUart() {
 	while (1) {
 
 		//while (1) {
-		Debug::println("writing to ram");
+		D_PRINTLN("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			*address = (uint32_t)address;
@@ -58,7 +58,7 @@ void ramTestUart() {
 		//}
 
 		//while (1) {
-		Debug::println("reading back from ram. Checking for errors every megabyte");
+		D_PRINTLN("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			if (*address != (uint32_t)address) {
@@ -68,10 +68,7 @@ void ramTestUart() {
 					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
 					}
-					Debug::print("error at ");
-					Debug::print((uint32_t)address);
-					Debug::print(". got ");
-					Debug::println(*address);
+					D_PRINTLN("error at  %d . got  %d", (uint32_t)address, *address);
 					//while(1);
 					lastErrorAt = errorAtBlockNow;
 				}
@@ -79,7 +76,7 @@ void ramTestUart() {
 			address++;
 		}
 		//}
-		Debug::println("finished checking ram");
+		D_PRINTLN("finished checking ram");
 	}
 }
 
@@ -410,7 +407,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentInstrumentType() == InstrumentType::KIT) {
+		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 

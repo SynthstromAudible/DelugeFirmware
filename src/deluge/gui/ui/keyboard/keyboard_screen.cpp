@@ -148,8 +148,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		}
 
 		// We probably couldn't have got this far if it was a Kit, but let's just check
-		if (getCurrentInstrumentType() != InstrumentType::KIT && lastNotesState.count == 0
-		    && currentNotesState.count == 1) {
+		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
 			exitScaleModeOnButtonRelease = false;
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
@@ -195,7 +194,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// If note range menu is open and row is
 		if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
-		    && activeInstrument->type == InstrumentType::SYNTH) {
+		    && activeInstrument->type == OutputType::SYNTH) {
 			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 				menu_item::multiRangeMenu.noteOnToChangeRange(newNote
 				                                              + ((SoundInstrument*)activeInstrument)->transpose);
@@ -211,7 +210,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Actually sounding the note
-		if (activeInstrument->type == InstrumentType::KIT) {
+		if (activeInstrument->type == OutputType::KIT) {
 			unscrolledPadAudition(currentNotesState.notes[idx].velocity, newNote, false);
 		}
 		else {
@@ -233,7 +232,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
+		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(getCurrentClip());
@@ -284,7 +283,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 		}
 
-		if (activeInstrument->type == InstrumentType::KIT) {
+		if (activeInstrument->type == OutputType::KIT) {
 			unscrolledPadAudition(0, oldNote, false);
 		}
 		else {
@@ -292,7 +291,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
+		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
 		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(getCurrentClip());
@@ -325,7 +324,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (getCurrentInstrumentType() == InstrumentType::KIT) {
+		if (getCurrentOutputType() == OutputType::KIT) {
 			return ActionResult::DEALT_WITH; // Kits can't do scales!
 		}
 
@@ -426,10 +425,10 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(InstrumentType::KIT);
+				createNewInstrument(OutputType::KIT);
 			}
 			else {
-				changeInstrumentType(InstrumentType::KIT);
+				changeOutputType(OutputType::KIT);
 			}
 			selectLayout(0);
 		}
@@ -438,10 +437,10 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(InstrumentType::SYNTH);
+				createNewInstrument(OutputType::SYNTH);
 			}
 			else {
-				changeInstrumentType(InstrumentType::SYNTH);
+				changeOutputType(OutputType::SYNTH);
 			}
 			selectLayout(0);
 		}
@@ -449,14 +448,14 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeInstrumentType(InstrumentType::MIDI_OUT);
+			changeOutputType(OutputType::MIDI_OUT);
 		}
 		selectLayout(0);
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeInstrumentType(InstrumentType::CV);
+			changeOutputType(OutputType::CV);
 		}
 		selectLayout(0);
 	}
@@ -536,10 +535,10 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		    && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
 			// Don't check the next conditions, this one is already lost
 		}
-		else if (getCurrentInstrumentType() == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
+		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {
 			break;
 		}
-		else if (getCurrentInstrumentType() != InstrumentType::KIT && layoutList[nextLayout]->supportsInstrument()) {
+		else if (getCurrentOutputType() != OutputType::KIT && layoutList[nextLayout]->supportsInstrument()) {
 			break;
 		}
 
@@ -558,7 +557,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	}
 
 	// Ensure scale mode is as expected
-	if (getCurrentInstrumentType() != InstrumentType::KIT) {
+	if (getCurrentOutputType() != OutputType::KIT) {
 		auto requiredScaleMode =
 		    layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
@@ -585,7 +584,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 		keyboardButtonUsed = true;
 		selectLayout(offset);
 	}
-	else if (getCurrentInstrumentType() != InstrumentType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
+	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
 		exitScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->rootNote + kOctaveSize) + offset) % kOctaveSize;
@@ -727,7 +726,7 @@ void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 		return;
 	}
 
-	if (getCurrentInstrumentType() != InstrumentType::KIT) {
+	if (getCurrentOutputType() != OutputType::KIT) {
 		drawActualNoteCode(noteCode);
 	}
 }

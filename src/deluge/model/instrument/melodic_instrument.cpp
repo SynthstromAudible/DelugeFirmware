@@ -284,7 +284,7 @@ justAuditionNote:
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
-	    && instrumentClip->output->type == InstrumentType::MIDI_OUT
+	    && instrumentClip->output->type == OutputType::MIDI_OUT
 	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
 		highlightNoteValue = on ? velocity : 0;
 	}
@@ -331,7 +331,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
 		// If it's a MIDIInstrtument...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;
@@ -384,7 +384,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
 		}
 		// If it's a MIDI Clip...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;
@@ -401,7 +401,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	//if you're in automation midi clip view and editing the same CC that was just updated
 	//by a learned midi knob, then re-render the pads on the automation editor grid
-	if (type == InstrumentType::MIDI_OUT) {
+	if (type == OutputType::MIDI_OUT) {
 		if (getRootUI() == &automationInstrumentClipView) {
 			if (((InstrumentClip*)activeClip)->lastSelectedParamID == ccNumber) {
 				uiNeedsRendering(&automationInstrumentClipView);
@@ -435,7 +435,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
 		// If it's a MIDI Clip...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;

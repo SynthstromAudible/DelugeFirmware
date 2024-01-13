@@ -24,7 +24,6 @@
 #include "model/action/action_logger.h"
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/storage_manager.h"
 #include <string.h>
 //#include <algorithm>
 #include "dsp/sidechain/sidechain.h"
@@ -53,8 +52,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
                                            StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive,
-                                           InstrumentType instrumentType, int32_t analogDelaySaturationAmount) {
+                                           bool shouldLimitDelayFeedback, bool isClipActive, OutputType outputType,
+                                           int32_t analogDelaySaturationAmount) {
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -67,7 +66,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
 	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy that I need for AudioOutputs,
 	// and I now have to maintain both for backwards compatibility
-	if (instrumentType == InstrumentType::AUDIO) {
+	if (outputType == OutputType::AUDIO) {
 		volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
 	}
 	else {

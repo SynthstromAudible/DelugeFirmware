@@ -79,8 +79,9 @@ public:
 	void readMPEZone();
 
 	MIDIDevice* device;
-	uint8_t
-	    channelOrZone; // In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or MIDI_CHANNEL_MPE_UPPER_ZONE. C
-	                   // Channels 18-36 signify CCs on channels 1-16+MPE respectively. Check with the constant IS_A_CC
+	// In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or
+	// MIDI_CHANNEL_MPE_UPPER_ZONE. Channels 18-36 signify CCs on channels 1-16+MPE respectively. Check with the
+	// constant IS_A_CC
+	uint8_t channelOrZone;
 	uint8_t noteOrCC;
 };

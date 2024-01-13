@@ -43,7 +43,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 	AudioEngine::logAction("TimeStretcher::init");
 
-	//Debug::println("TimeStretcher::init");
+	//D_PRINTLN("TimeStretcher::init");
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForPercLookahead[l] = NULL;
@@ -254,8 +254,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	/*
 	if (numTimesMissedHop) {
-		Debug::print("missed ");
-		Debug::println(numTimesMissedHop);
+		D_PRINTLN("missed  %d", numTimesMissedHop);
 	}
 	*/
 
@@ -276,8 +275,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	int32_t oldHeadBytePos;
 
-	//Debug::println("");
-	//Debug::println("hopEnd ------");
+	//D_PRINTLN("");
+	//D_PRINTLN("hopEnd ------");
 
 	olderHeadReadingFromBuffer = false;
 	oldHeadBytePos = voiceSample->getPlayByteLowLevel(sample, guide, true);
@@ -355,8 +354,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		//lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
 	}
 
-	//Debug::print("maxBeamWidth: ");
-	//Debug::println(maxBeamWidth);
+	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
 	minBeamWidth = storageManager.devVarA * 10;
@@ -440,8 +438,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						hasLoopedBackIntoPreMargin = true;
 
-						//Debug::print("did special crossfade of length ");
-						//Debug::println(crossfadeLengthSamples);
+						D_PRINTLN("did special crossfade of length  %d", crossfadeLengthSamples);
 
 						// If there's a cache, we can't move a bit sideways to phase-align,
 						// cos our new play-head needs to remain perfectly aligned with the start of the cache.
@@ -463,7 +460,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			}
 		}
 		else {
-			//Debug::println("TimeStretcher sees there's no pre-margin");
+			//D_PRINTLN("TimeStretcher sees there's no pre-margin");
 		}
 	}
 
@@ -505,11 +502,11 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 				if (pixellatedBeamWidth) { // It might be zero near the start
 
 					if ((beamFrontEdge - latestPixellatedPos) * playDirection > 0) {
-						//Debug::println("hit front edge");
+						//D_PRINTLN("hit front edge");
 						break;
 					}
 					if ((beamBackEdge - earliestPixellatedPos) * playDirection < 0) {
-						//Debug::println("hit back edge");
+						//D_PRINTLN("hit back edge");
 						break;
 					}
 
@@ -561,7 +558,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		if (!olderPartReader.clusters[0]) {
-			Debug::println("No cluster!!!");
+			D_PRINTLN("No cluster!!!");
 		}
 
 		samplesTilHopEnd =
@@ -659,8 +656,7 @@ skipPercStuff:
 		    (sample->sampleRate / 45)
 		    >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just for searching in one direction, and we're going to do both directions.
 		maxSearchSize = std::min(maxSearchSize, limit);
-		//Debug::print("max search length: ");
-		//Debug::println(maxSearchSize);
+		D_PRINTLN("max search length:  %d", maxSearchSize);
 
 		int32_t numFullDirectionsSearched = 0;
 		int32_t timesSignFlipped = 0;
@@ -854,8 +850,7 @@ stopSearch:
 		// The above is supposed to not go back beyond the start of the waveform, but there must be some bug because it does. Until I fix that,
 		// this check ensures we stay within the waveform
 		if ((newHeadBytePos - waveformStartByte) * playDirection < 0) {
-			Debug::println("avoided going before 0");
-			Debug::println(newHeadBytePos - waveformStartByte);
+			D_PRINTLN("avoided going before 0: %s", newHeadBytePos - waveformStartByte);
 			newHeadBytePos = waveformStartByte;
 		}
 	}
@@ -868,13 +863,12 @@ skipSearch:
 	    && phaseIncrement != 16777216) {
 
 		if (!olderPartReader.clusters[0]) {
-			Debug::println("aaa");
+			D_PRINTLN("aaa");
 		}
 
 		int32_t bytesBehind = (olderPartReader.getPlayByteLowLevel(sample, guide) - newHeadBytePos) * playDirection;
 
-		//Debug::print("bytesBehind: ");
-		//Debug::println(bytesBehind);
+		D_PRINTLN("bytesBehind:  %d", bytesBehind);
 
 		// Only proceed if newer head is earlier than older one
 		if (bytesBehind < 0)
@@ -890,42 +884,38 @@ skipSearch:
 
 		if (bufferSamplesWritten < samplesBehindOnRepitchedWaveform) {
 
-			Debug::println("nope");
+			D_PRINTLN("nope");
 
-			Debug::print("samplesBehindOnRepitchedWaveform: ");
-			Debug::println(samplesBehindOnRepitchedWaveform);
-			Debug::print("bufferSamplesWritten: ");
-			Debug::println(bufferSamplesWritten);
+			D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d bufferSamplesWritten:  %d",
+			          samplesBehindOnRepitchedWaveform, bufferSamplesWritten);
 			goto optForDirectReading;
 		}
 
-		//Debug::print("samplesBehindOnRepitchedWaveform: ");
-		//Debug::println(samplesBehindOnRepitchedWaveform);
+		D_PRINTLN("samplesBehindOnRepitchedWaveform:  %d", samplesBehindOnRepitchedWaveform);
 
 		if (!samplesBehindOnRepitchedWaveform) {
-			//Debug::println("new head reading non-buffered and writing to buffer");
+			//D_PRINTLN("new head reading non-buffered and writing to buffer");
 			voiceSample->cloneFrom(&olderPartReader, false);
 			newerHeadReadingFromBuffer = false;
 			olderHeadReadingFromBuffer = true;
 			olderBufferReadPos = bufferWritePos; // TODO: is this right?
 			if (olderBufferReadPos != bufferWritePos)
-				Debug::println("aaaaaaaaaaaa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+				D_PRINTLN("aaaaaaaaaaaa!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 			bufferFillingMode = BUFFER_FILLING_NEWER;
 		}
 		else {
-			//Debug::println("new head reading buffered");
+			//D_PRINTLN("new head reading buffered");
 			newerBufferReadPos =
 			    (uint32_t)(bufferWritePos - samplesBehindOnRepitchedWaveform) & (TimeStretch::BUFFER_SIZE - 1);
 			newerHeadReadingFromBuffer = true;
-			//Debug::print("samples behind: ");
-			//Debug::println(samplesBehindOnRepitchedWaveform);
+			D_PRINTLN("samples behind:  %d", samplesBehindOnRepitchedWaveform);
 		}
 	}
 
 	// Or, set up reading directly from audio file Clusters
 	else {
 optForDirectReading:
-		//Debug::println("head reading non-buffered");
+		//D_PRINTLN("head reading non-buffered");
 		newerHeadReadingFromBuffer = false;
 #endif
 
@@ -933,7 +923,7 @@ optForDirectReading:
 		    setupNewPlayHead(sample, voiceSample, guide, newHeadBytePos, additionalOscPos, priorityRating, loopingType);
 		if (!success) {
 
-			Debug::println("setupNewPlayHead failed. Sticking with old");
+			D_PRINTLN("setupNewPlayHead failed. Sticking with old");
 
 			voiceSample->cloneFrom(&olderPartReader, true); // Steals all reasons back
 			playHeadStillActive[PLAY_HEAD_NEWER] = playHeadStillActive[PLAY_HEAD_OLDER];
@@ -959,7 +949,7 @@ optForDirectReading:
 	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
 		delugeDealloc(buffer);
 		buffer = NULL;
-		Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
+		D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
 
 #endif
@@ -967,8 +957,7 @@ optForDirectReading:
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t timeTaken = endTime - startTime;
-	Debug::print("hop end time: ");
-	Debug::println(timeTaken);
+	D_PRINTLN("hop end time:  %d", timeTaken);
 #endif
 
 	AudioEngine::logAction("/hopEnd");
@@ -1003,7 +992,7 @@ bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, S
 	voiceSample->oscPos = additionalOscPos;
 	if (!voiceSample->clusters[0]) {
 		playHeadStillActive[PLAY_HEAD_NEWER] = false;
-		Debug::println("new no longer active");
+		D_PRINTLN("new no longer active");
 	}
 
 	return true;
@@ -1025,11 +1014,11 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 
 				bufferWritePos = 0;
 				bufferSamplesWritten = 0;
-				Debug::println("setting up buffer !!!!!!!!!!!!!!!!");
+				D_PRINTLN("setting up buffer !!!!!!!!!!!!!!!!");
 				if (bufferFillingMode == BUFFER_FILLING_OLDER)
-					Debug::println(" - filling older");
+					D_PRINTLN(" - filling older");
 				else
-					Debug::println(" - filling newer");
+					D_PRINTLN(" - filling newer");
 			}
 		}
 	}
@@ -1042,7 +1031,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 			bufferFillingMode = BUFFER_FILLING_OFF;
 			delugeDealloc(buffer);
 			buffer = NULL;
-			Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
+			D_PRINTLN("abandoning buffer!!!!!!!!!!!!!!!!");
 		}
 	}
 }
@@ -1219,8 +1208,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	crossfadeIncrement = 16777216 / (uint16_t)numSamplesThisCacheRead + 1;
 	crossfadeProgress = 0;
 
-	//Debug::print("doing crossfade from cache, length: ");
-	//Debug::println(numSamplesThisCacheRead);
+	D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
 
 #if TIME_STRETCH_ENABLE_BUFFER
 	bufferWritePos = TimeStretch::BUFFER_SIZE - 1; // To trick it out of trying to do a "normal" thing later

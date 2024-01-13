@@ -51,6 +51,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/comparison.h"
 #include "util/functions.h"
 #include <new>
@@ -58,7 +59,6 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 #include "menus.h"
@@ -143,11 +143,11 @@ SoundEditor::SoundEditor() {
 }
 
 bool SoundEditor::editingKit() {
-	return getCurrentInstrumentType() == InstrumentType::KIT;
+	return getCurrentOutputType() == OutputType::KIT;
 }
 
 bool SoundEditor::editingCVOrMIDIClip() {
-	return (getCurrentInstrumentType() == InstrumentType::MIDI_OUT || getCurrentInstrumentType() == InstrumentType::CV);
+	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
 bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -216,9 +216,8 @@ void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, !inSettingsMenu() && !editingKit() && currentSound);
 	indicator_leds::setLedState(IndicatorLED::KIT, !inSettingsMenu() && editingKit() && currentSound);
 	indicator_leds::setLedState(IndicatorLED::MIDI,
-	                            !inSettingsMenu() && getCurrentInstrumentType() == InstrumentType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV,
-	                            !inSettingsMenu() && getCurrentInstrumentType() == InstrumentType::CV);
+	                            !inSettingsMenu() && getCurrentOutputType() == OutputType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, !inSettingsMenu() && getCurrentOutputType() == OutputType::CV);
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
@@ -289,34 +288,19 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu()
-		    && !editingCVOrMIDIClip() && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
+		    && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-
-			if (getRootUI() != &performanceSessionView) {
-				if (Buttons::isShiftButtonPressed()) {
-					if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-						menu_item::multiRangeMenu.deletePress();
-					}
-				}
-				else {
-					openUI(&saveInstrumentPresetUI);
+			if (Buttons::isShiftButtonPressed()) {
+				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+					menu_item::multiRangeMenu.deletePress();
 				}
 			}
 			else {
-				performanceSessionView.savePerformanceViewLayout();
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+				openUI(&saveInstrumentPresetUI);
 			}
-		}
-	}
-
-	//Load button
-	else if (b == LOAD) {
-		if (on && (getRootUI() == &performanceSessionView)) {
-			performanceSessionView.loadPerformanceViewLayout();
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 		}
 	}
 
@@ -551,7 +535,7 @@ doSetupBlinkingForSessionView:
 		}
 
 		//For Kit Instrument Clip with Affect Entire Enabled
-		else if ((getCurrentInstrumentType() == InstrumentType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
 
 			int32_t x, y;
 
@@ -843,7 +827,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		//For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu && (getCurrentInstrumentType() == InstrumentType::KIT)
+		else if (setupKitGlobalFXMenu && (getCurrentOutputType() == OutputType::KIT)
 		         && (getCurrentInstrumentClip()->affectEntire)) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
@@ -1111,6 +1095,13 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
+bool SoundEditor::pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
+		getCurrentMenuItem()->learnProgramChange(fromDevice, channel, program);
+		return true;
+	}
+	return false;
+}
 bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
 }
@@ -1183,7 +1174,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		// InstrumentClips
 		if (clip->type == CLIP_TYPE_INSTRUMENT) {
 			// Kit
-			if (clip->output->type == InstrumentType::KIT) {
+			if (clip->output->type == OutputType::KIT) {
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
 
 				// If Affect Entire is selected
@@ -1230,7 +1221,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			else {
 
 				// Synth
-				if (clip->output->type == InstrumentType::SYNTH) {
+				if (clip->output->type == OutputType::SYNTH) {
 					newSound = (SoundInstrument*)clip->output;
 					newModControllable = newSound;
 				}
@@ -1260,18 +1251,17 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
-				if (getCurrentInstrumentType() == InstrumentType::MIDI_OUT) {
+				if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
-				else if (getCurrentInstrumentType() == InstrumentType::CV) {
+				else if (getCurrentOutputType() == OutputType::CV) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
 
-				else if ((getCurrentInstrumentType() == InstrumentType::KIT)
-				         && (getCurrentInstrumentClip()->affectEntire)) {
+				else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
@@ -1321,7 +1311,7 @@ doMIDIOrCV:
 	}
 	else if (result == MenuPermission::MUST_SELECT_RANGE) {
 
-		Debug::println("must select range");
+		D_PRINTLN("must select range");
 
 		newRange = NULL;
 		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
@@ -1369,6 +1359,11 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+}
+
+bool SoundEditor::inSongMenu() {
+	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
+	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
@@ -1436,7 +1431,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	if (isUISessionView) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == InstrumentType::KIT && clip->affectEntire) {
+	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
@@ -1444,7 +1439,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	else {
 		NoteRow* noteRow = NULL;
 		int32_t noteRowIndex;
-		if (instrument->type == InstrumentType::KIT) {
+		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
 				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);

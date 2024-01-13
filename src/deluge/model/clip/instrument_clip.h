@@ -146,7 +146,7 @@ public:
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;
-	InstrumentType lastSelectedInstrumentType;
+	OutputType lastSelectedOutputType;
 
 	//END ~ new Automation Clip View Variables
 
@@ -154,7 +154,7 @@ public:
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
 
-	InstrumentType instrumentTypeWhileLoading; // For use only while loading song
+	OutputType outputTypeWhileLoading; // For use only while loading song
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int32_t* getIndex = NULL);
@@ -217,7 +217,7 @@ public:
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
 	int32_t appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited();
-	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType);
+	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
 	int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                  ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);

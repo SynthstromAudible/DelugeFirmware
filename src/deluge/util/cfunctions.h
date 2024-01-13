@@ -19,6 +19,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int32_t getNumDecimalDigits(uint32_t number);
 void intToString(int32_t number, char* buffer, int32_t minNumDigits);
 void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces);
@@ -31,3 +35,7 @@ uint32_t superfastTimerCountToNS(uint32_t timerCount);
 
 void delayMS(uint32_t ms);
 void delayUS(uint32_t us);
+
+#ifdef __cplusplus
+}
+#endif

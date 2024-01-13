@@ -133,7 +133,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
 		if (!actionMemory) {
-			Debug::println("no ram to create new Action");
+			D_PRINTLN("no ram to create new Action");
 			return NULL;
 		}
 
@@ -210,7 +210,7 @@ void ActionLogger::updateAction(Action* newAction) {
 			newAction->numClipStates = 0;
 			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Debug::println("discarded clip states");
+			D_PRINTLN("discarded clip states");
 		}
 
 		else {
@@ -325,7 +325,7 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
-	Debug::println("ActionLogger::revert");
+	D_PRINTLN("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -492,7 +492,7 @@ traverseClips:
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == InstrumentType::KIT) {
+						if (clip->output->type == OutputType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
@@ -511,7 +511,7 @@ traverseClips:
 				}
 			}
 			else {
-				Debug::println("clip states wrong number so not restoring");
+				D_PRINTLN("clip states wrong number so not restoring");
 			}
 		}
 
@@ -879,13 +879,13 @@ gotMultipleConsequencesPerNoteRow:
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Debug::println("did secret undo, just one Consequence");
+			D_PRINTLN("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Debug::println("did secret undo, whole Action");
+			D_PRINTLN("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

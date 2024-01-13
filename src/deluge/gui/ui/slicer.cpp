@@ -28,6 +28,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -44,13 +45,10 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 Slicer slicer{};
 
@@ -269,9 +267,8 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
 		if (display->haveOLED()) {
-			char buffer[24];
-			strcpy(buffer, "Transpose: ");
-			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			char buffer[32];
+			snprintf(buffer, 32, "Transpose: %d", manualSlicePoints[currentSlice].transpose);
 			display->popupTextTemporary(buffer);
 		}
 		else {
@@ -345,6 +342,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
 		if (display->haveOLED()) {
+
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));

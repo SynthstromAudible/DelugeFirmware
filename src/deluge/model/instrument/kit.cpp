@@ -48,7 +48,7 @@
 #include <new>
 #include <string.h>
 
-Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
 }
@@ -165,7 +165,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 		// If saving Kit (not song), only save Drums if some other NoteRow in the song has it - in which case, save as "default" the params from that NoteRow
 		if (clipForSavingOutputOnly) {
-			Debug::println("yup, clipForSavingOutputOnly");
+			D_PRINTLN("yup, clipForSavingOutputOnly");
 			NoteRow* noteRow = song->findNoteRowForDrum(this, thisDrum);
 			if (!noteRow) {
 				goto moveOn;
@@ -179,7 +179,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			// If no activeClip, this means we want to store all Drums
 			// - and for SoundDrums, save as "default" any backedUpParamManagers (if none for a SoundDrum, definitely skip it)
 			if (!activeClip) {
-				Debug::println("nah, !activeClip");
+				D_PRINTLN("nah, !activeClip");
 				if (thisDrum->type == DrumType::SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
@@ -637,7 +637,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
 }
 
 //offer the CC to kit gold knobs without also offering to all drums
@@ -720,7 +720,7 @@ ModControllable* Kit::toModControllable() {
 // newName must be allowed to be edited by this function
 int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
-	Debug::println("making unique newName:");
+	D_PRINTLN("making unique newName:");
 
 	int32_t originalLength = name->getLength();
 

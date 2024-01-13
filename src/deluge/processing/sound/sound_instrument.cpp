@@ -35,7 +35,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 
-SoundInstrument::SoundInstrument() : MelodicInstrument(InstrumentType::SYNTH) {
+SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
 bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {

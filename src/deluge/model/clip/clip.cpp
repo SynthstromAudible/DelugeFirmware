@@ -289,7 +289,7 @@ playingForwardNow:
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = (output->type != InstrumentType::MIDI_OUT && output->type != InstrumentType::CV);
+		bool mayInterpolate = (output->type != OutputType::MIDI_OUT && output->type != OutputType::CV);
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, currentlyPlayingReversed,
 		                               didPingpong, mayInterpolate);
 		if (paramManager.ticksTilNextEvent < playbackHandler.swungTicksTilNextEvent) {
@@ -802,7 +802,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			// But, don't do this if this Clips still would get deleted as an "abandoned overdub" (meaning it has no notes), cos if that happened,
 			// we definitely don't want to have a consequence - pointer pointing to it!
 			if (true || type != CLIP_TYPE_AUDIO) {
-				Debug::println("getting new action");
+				D_PRINTLN("getting new action");
 				Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
 				if (action) {
 					action->recordClipLengthChange(this, oldLength);

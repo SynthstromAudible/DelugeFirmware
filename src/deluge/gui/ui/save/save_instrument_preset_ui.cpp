@@ -47,9 +47,8 @@ SaveInstrumentPresetUI::SaveInstrumentPresetUI() {
 bool SaveInstrumentPresetUI::opened() {
 
 	Instrument* currentInstrument = getCurrentInstrument();
-	instrumentTypeToLoad =
-	    currentInstrument
-	        ->type; // Must set this before calling SaveUI::opened(), which uses this to work out folder name
+	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
+	outputTypeToLoad = currentInstrument->type;
 
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
@@ -62,7 +61,7 @@ doReturnFalse:
 	enteredTextEditPos = enteredText.getLength();
 	currentFolderIsEmpty = false;
 
-	char const* defaultDir = getInstrumentFolder(instrumentTypeToLoad);
+	char const* defaultDir = getInstrumentFolder(outputTypeToLoad);
 
 	currentDir.set(&currentInstrument->dirPath);
 	if (currentDir.isEmpty()) { // Would this even be able to happen?
@@ -71,12 +70,12 @@ tryDefaultDir:
 	}
 
 	if (display->haveOLED()) {
-		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
-		                                                           : deluge::hid::display::OLED::kitIcon;
-		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
+		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
+		                                                   : deluge::hid::display::OLED::kitIcon;
+		title = (outputTypeToLoad == OutputType::SYNTH) ? "Save synth" : "Save kit";
 	}
 
-	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
+	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
 	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
@@ -85,7 +84,7 @@ gotError:
 		goto doReturnFalse;
 	}
 
-	if (instrumentTypeToLoad == InstrumentType::SYNTH) {
+	if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
@@ -115,7 +114,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	if (isDifferentSlot) {
 
 		// We can't save into this slot if another Instrument in this Song already uses it
-		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
+		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 			display->removeWorkingAnimation();
@@ -123,7 +122,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		}
 
 		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking in memory with that slot, which we need to just delete
-		currentSong->deleteHibernatingInstrumentWithSlot(instrumentTypeToLoad, enteredText.get());
+		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
 	}
 
 	String filePath;
@@ -162,7 +161,7 @@ fail:
 
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
-	char const* endString = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
+	char const* endString = (outputTypeToLoad == OutputType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
@@ -197,7 +196,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
 		int32_t error = storageManager.decideNextSaveableSlot(offset,
 				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
-				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, getCurrentInstrument());
+				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(), outputType, getCurrentInstrument());
 		if (error) {
 			display->displayError(error);
 			if (error != ERROR_FOLDER_DOESNT_EXIST) {
@@ -232,7 +231,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 		Instrument* nothingInstrument;
 		bool nothing2;
 
-		storageManager.findNextInstrumentPreset(-1, instrumentType,
+		storageManager.findNextInstrumentPreset(-1, outputType,
 				&bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
 				currentSlot + 1, -1, NULL, currentDir.get(),
 				&nothing, Availability::ANY, &nothingInstrument, &nothing2);

@@ -37,7 +37,7 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
-AudioOutput::AudioOutput() : Output(InstrumentType::AUDIO) {
+AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
 	echoing = false;
@@ -62,7 +62,7 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::AUDIO, 5);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, 5);
 }
 
 void AudioOutput::resetEnvelope() {

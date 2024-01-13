@@ -19,12 +19,9 @@
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "util/cfunctions.h"
 #include <cmath>
 #include <cstring>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 namespace deluge::gui::menu_item::unpatched_param {
 
