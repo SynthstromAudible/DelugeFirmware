@@ -222,25 +222,32 @@ void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichEx
 void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimension) {
 
 	int32_t masterChannel = getOutputMasterChannel();
-	int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
-	                                  lastMonoExpression[whichExpressionDimension]);
 
 	switch (whichExpressionDimension) {
 	case 0: {
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
+		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
 		midiEngine.sendPitchBend(masterChannel, valueSmall & 127, valueSmall >> 7, channel);
 		break;
 	}
 
-	case 1:
+	case 1: {
+		//mono y expression is limited to positive values, double it to match range
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 25) + 64;
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		//send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
-		midiEngine.sendCC(masterChannel, 1, (newValue >> 25) + 64, channel);
+		midiEngine.sendCC(masterChannel, 1, newValue, channel);
 		break;
-
-	case 2:
-		midiEngine.sendChannelAftertouch(masterChannel, newValue >> 24, channel);
+	}
+	case 2: {
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
+		                                  lastMonoExpression[whichExpressionDimension])
+		                   >> 24;
+		midiEngine.sendChannelAftertouch(masterChannel, newValue, channel);
 		break;
-
+	}
 	default:
 		__builtin_unreachable();
 	}
