@@ -59,7 +59,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 				    modelStack->addTimelineCounter(currentSong->currentClip);
-				currentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
 				                                                      modelStackWithTimelineCounter);
 				display->displayPopup(mod32 >> kVelModShift);
 				if (pressed.y == 0) {
