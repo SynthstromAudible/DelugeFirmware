@@ -115,7 +115,7 @@ public:
 	int32_t xScrollWhenPlaybackStarted;
 
 private:
-	void changeInstrumentType(InstrumentType newInstrumentType);
+	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y);
 	void beginAudition(Output* output);
@@ -137,8 +137,8 @@ private:
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
-	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(InstrumentType newInstrumentType);
+	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
+	void changeOutputToInstrument(OutputType newOutputType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);

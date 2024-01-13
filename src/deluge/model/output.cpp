@@ -30,7 +30,7 @@
 #include "storage/storage_manager.h"
 #include <new>
 
-Output::Output(InstrumentType newType) : type(newType) {
+Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
 	soloingInArrangementMode = false;
 	activeClip = NULL;

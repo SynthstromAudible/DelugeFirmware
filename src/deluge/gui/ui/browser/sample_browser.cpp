@@ -104,7 +104,7 @@ bool SampleBrowser::opened() {
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
 	allowFoldersSharingNameWithFile = true;
-	instrumentTypeToLoad = InstrumentType::NONE;
+	outputTypeToLoad = OutputType::NONE;
 	qwertyVisible = false;
 	qwertyCurrentlyDrawnOnscreen = false;
 

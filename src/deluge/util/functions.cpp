@@ -1029,11 +1029,11 @@ bool stringIsNumericChars(char const* str) {
 	return memIsNumericChars(str, strlen(str));
 }
 
-char const* getThingName(InstrumentType instrumentType) {
-	if (instrumentType == InstrumentType::SYNTH) {
+char const* getThingName(OutputType outputType) {
+	if (outputType == OutputType::SYNTH) {
 		return "SYNT";
 	}
-	else if (instrumentType == InstrumentType::KIT) {
+	else if (outputType == OutputType::KIT) {
 		return "KIT";
 	}
 	else {
@@ -1629,11 +1629,11 @@ int stringToLaunchStyle(char const* string) {
 	}
 }
 
-char const* getInstrumentFolder(InstrumentType instrumentType) {
-	if (instrumentType == InstrumentType::SYNTH) {
+char const* getInstrumentFolder(OutputType outputType) {
+	if (outputType == OutputType::SYNTH) {
 		return "SYNTHS";
 	}
-	else if (instrumentType == InstrumentType::KIT) {
+	else if (outputType == OutputType::KIT) {
 		return "KITS";
 	}
 	else {

@@ -48,7 +48,7 @@
 #include <new>
 #include <string.h>
 
-Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
 }
@@ -637,7 +637,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
 }
 
 //offer the CC to kit gold knobs without also offering to all drums

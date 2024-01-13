@@ -55,7 +55,7 @@ public:
 	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return getCurrentInstrumentType() == InstrumentType::MIDI_OUT;
+		return getCurrentOutputType() == OutputType::MIDI_OUT;
 	}
 
 	void selectEncoderAction(int32_t offset) override {
