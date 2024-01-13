@@ -586,8 +586,7 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 			}
 		}
 
-		else if (outputType == OutputType::MIDI_OUT
-		         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+		else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
 			modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 		}
@@ -942,8 +941,7 @@ void AutomationClipView::renderDisplay7SEG(Clip* clip, OutputType outputType, in
 
 //get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationClipView::getParameterName(Clip* clip, OutputType outputType, char* parameterName) {
-	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT
-	    || outputType == OutputType::AUDIO) {
+	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT || outputType == OutputType::AUDIO) {
 		if (outputType == OutputType::AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
 			strncpy(parameterName,
@@ -2631,8 +2629,7 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 	//if you're in a synth, kit, or audio clip
-	else if (outputType == OutputType::SYNTH || outputType == OutputType::KIT
-	         || outputType == OutputType::AUDIO) {
+	else if (outputType == OutputType::SYNTH || outputType == OutputType::KIT || outputType == OutputType::AUDIO) {
 		//if you're in an audio clip
 		if (outputType == OutputType::AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
@@ -3198,8 +3195,7 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 	OutputType outputType = output->type;
 
 	if ((shortcutPress || isOnAutomationOverview())
-	    && (!(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-	          && !((Kit*)output)->selectedDrum)
+	    && (!(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire() && !((Kit*)output)->selectedDrum)
 	        || (outputType == OutputType::KIT
 	            && instrumentClipView.getAffectEntire()))) { //this means you are selecting a parameter
 
@@ -3303,8 +3299,7 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 			}
 		}
 
-		else if (outputType == OutputType::MIDI_OUT
-		         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+		else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
 
 			//if you are in a midi clip and the shortcut is valid, set the current selected ParamID
 			((InstrumentClip*)clip)->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
