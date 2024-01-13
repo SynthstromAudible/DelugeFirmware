@@ -2880,7 +2880,6 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							if (paramKind == Param::Kind::PATCHED) {
 								modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 							}
-
 							else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
 								modelStackWithParam =
 								    modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
