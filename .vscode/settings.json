@@ -8,8 +8,7 @@
     },
     "files.associations": {
         "compare": "cpp",
-        "ranges": "cpp",
-        "any": "cpp"
+        "ranges": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "cSpell.words": [
