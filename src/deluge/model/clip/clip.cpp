@@ -289,7 +289,7 @@ playingForwardNow:
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = (output->type != InstrumentType::MIDI_OUT && output->type != InstrumentType::CV);
+		bool mayInterpolate = (output->type != OutputType::MIDI_OUT && output->type != OutputType::CV);
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, currentlyPlayingReversed,
 		                               didPingpong, mayInterpolate);
 		if (paramManager.ticksTilNextEvent < playbackHandler.swungTicksTilNextEvent) {

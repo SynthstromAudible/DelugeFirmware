@@ -165,7 +165,7 @@ void ArrangerView::goToSongView() {
 ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	InstrumentType newInstrumentType;
+	OutputType newOutputType;
 
 	// Song button
 	if (b == SESSION_VIEW) {
@@ -255,9 +255,9 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
-		newInstrumentType = InstrumentType::SYNTH;
+		newOutputType = OutputType::SYNTH;
 
-doChangeInstrumentType:
+doChangeOutputType:
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && !Buttons::isShiftButtonPressed()) {
 
 			if (inCardRoutine) {
@@ -267,8 +267,8 @@ doChangeInstrumentType:
 			Output* output = outputsOnScreen[yPressedEffective];
 
 			// AudioOutputs - need to replace with Instrument
-			if (output->type == InstrumentType::AUDIO) {
-				changeOutputToInstrument(newInstrumentType);
+			if (output->type == OutputType::AUDIO) {
+				changeOutputToInstrument(newOutputType);
 			}
 
 			// Instruments - just change type
@@ -278,7 +278,7 @@ doChangeInstrumentType:
 				if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
 					// Can't do that for MIDI or CV tracks though
-					if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
+					if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 						goto doActualSimpleChange;
 					}
 
@@ -291,7 +291,7 @@ doChangeInstrumentType:
 					currentUIMode = UI_MODE_NONE;
 					endAudition(output);
 
-					Browser::instrumentTypeToLoad = newInstrumentType;
+					Browser::outputTypeToLoad = newOutputType;
 					loadInstrumentPresetUI.instrumentToReplace = (Instrument*)output;
 					loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
 					loadInstrumentPresetUI.loadingSynthToKitRow = false;
@@ -301,25 +301,25 @@ doChangeInstrumentType:
 				// Otherwise, just change the instrument type
 				else {
 doActualSimpleChange:
-					changeInstrumentType(newInstrumentType);
+					changeOutputType(newOutputType);
 				}
 			}
 		}
 	}
 
 	else if (b == KIT) {
-		newInstrumentType = InstrumentType::KIT;
-		goto doChangeInstrumentType;
+		newOutputType = OutputType::KIT;
+		goto doChangeOutputType;
 	}
 
 	else if (b == MIDI) {
-		newInstrumentType = InstrumentType::MIDI_OUT;
-		goto doChangeInstrumentType;
+		newOutputType = OutputType::MIDI_OUT;
+		goto doChangeOutputType;
 	}
 
 	else if (b == CV) {
-		newInstrumentType = InstrumentType::CV;
-		goto doChangeInstrumentType;
+		newOutputType = OutputType::CV;
+		goto doChangeOutputType;
 	}
 
 	// Back button with <> button held
@@ -560,7 +560,7 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) 
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == InstrumentType::AUDIO || output->type == InstrumentType::KIT) {
+		if (!output || output->type == OutputType::AUDIO || output->type == OutputType::KIT) {
 			goto drawNormally;
 		}
 
@@ -640,7 +640,7 @@ Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 
 void ArrangerView::beginAudition(Output* output) {
 
-	if (output->type == InstrumentType::AUDIO) {
+	if (output->type == OutputType::AUDIO) {
 		return;
 	}
 
@@ -651,7 +651,7 @@ void ArrangerView::beginAudition(Output* output) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-		if (instrument->type == InstrumentType::KIT) {
+		if (instrument->type == OutputType::KIT) {
 
 			Kit* kit = (Kit*)instrument;
 			ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForAudition(modelStack, kit);
@@ -684,7 +684,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
-	if (output->type == InstrumentType::AUDIO) {
+	if (output->type == OutputType::AUDIO) {
 		return;
 	}
 
@@ -695,7 +695,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-		if (instrument->type == InstrumentType::KIT) {
+		if (instrument->type == OutputType::KIT) {
 
 			Kit* kit = (Kit*)instrument;
 			ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForAudition(modelStack, kit);
@@ -722,10 +722,10 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 	}
 }
 
-void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
+void ArrangerView::changeOutputToInstrument(OutputType newOutputType) {
 
 	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type != InstrumentType::AUDIO) {
+	if (oldOutput->type != OutputType::AUDIO) {
 		return;
 	}
 
@@ -739,7 +739,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 
 	bool instrumentAlreadyInSong; // Will always end up false
 
-	Instrument* newInstrument = createNewInstrument(newInstrumentType, &instrumentAlreadyInSong);
+	Instrument* newInstrument = createNewInstrument(newOutputType, &instrumentAlreadyInSong);
 	if (!newInstrument) {
 		return;
 	}
@@ -759,17 +759,17 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 }
 
 // Loads from file, etc - doesn't truly "create"
-Instrument* ArrangerView::createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong) {
+Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 
-	result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
+	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
 	if (result.error) {
 displayError:
 		display->displayError(result.error);
 		return NULL;
 	}
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newInstrumentType,
+	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newOutputType,
 	                                                                                Availability::INSTRUMENT_UNUSED);
 	if (result.error) {
 		goto displayError;
@@ -783,7 +783,7 @@ displayError:
 		String newPresetName;
 		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		result.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, newInstrumentType, false, &newInstrument,
+		    storageManager.loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument,
 		                                          &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
@@ -846,7 +846,7 @@ doNewPress:
 
 				bool instrumentAlreadyInSong; // Will always end up false
 
-				output = createNewInstrument(InstrumentType::SYNTH, &instrumentAlreadyInSong);
+				output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
 				if (!output) {
 					return;
 				}
@@ -916,7 +916,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		switch (currentUIMode) {
 		case UI_MODE_MIDI_LEARN:
 			if (output) {
-				if (output->type == InstrumentType::AUDIO) {
+				if (output->type == OutputType::AUDIO) {
 					if (velocity) {
 						view.endMIDILearn();
 						context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
@@ -924,7 +924,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 						openUI(&context_menu::audioInputSelector);
 					}
 				}
-				else if (output->type == InstrumentType::KIT) {
+				else if (output->type == OutputType::KIT) {
 					if (velocity) {
 						display->displayPopup(deluge::l10n::get(
 						    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
@@ -1076,7 +1076,7 @@ regularMutePadPress:
 				// NAME shortcut
 				if (x == 11 && y == 5) {
 					Output* output = outputsOnScreen[yPressedEffective];
-					if (output && output->type != InstrumentType::MIDI_OUT && output->type != InstrumentType::CV) {
+					if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
 						endAudition(output);
 						currentUIMode = UI_MODE_NONE;
 						renameOutputUI.output = output;
@@ -1520,8 +1520,8 @@ justGetOut:
 									goto justGetOut;
 								}
 
-								int32_t size = (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip)
-								                                                       : sizeof(InstrumentClip);
+								int32_t size =
+								    (output->type == OutputType::AUDIO) ? sizeof(AudioClip) : sizeof(InstrumentClip);
 
 								void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 								if (!memory) {
@@ -1531,7 +1531,7 @@ justGetOut:
 
 								Clip* newClip;
 
-								if (output->type == InstrumentType::AUDIO)
+								if (output->type == OutputType::AUDIO)
 									newClip = new (memory) AudioClip();
 								else
 									newClip = new (memory) InstrumentClip(currentSong);
@@ -1547,7 +1547,7 @@ justGetOut:
 
 								int32_t error;
 
-								if (output->type == InstrumentType::AUDIO) {
+								if (output->type == OutputType::AUDIO) {
 									error = ((AudioClip*)newClip)->setOutput(modelStack, output);
 								}
 								else {
@@ -1562,7 +1562,7 @@ justGetOut:
 									goto justGetOut;
 								}
 
-								if (output->type != InstrumentType::AUDIO) {
+								if (output->type != OutputType::AUDIO) {
 									((Instrument*)output)->setupPatching(modelStack);
 									((InstrumentClip*)newClip)->setupAsNewKitClipIfNecessary(modelStack);
 								}
@@ -1892,8 +1892,8 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 	// Or if Output not the same
 	else {
 		if (clip) {
-			if (newOutputToDragInto->type != InstrumentType::AUDIO
-			    || pressedClipInstanceOutput->type != InstrumentType::AUDIO) {
+			if (newOutputToDragInto->type != OutputType::AUDIO
+			    || pressedClipInstanceOutput->type != OutputType::AUDIO) {
 itsInvalid:
 				pressedClipInstanceIsInValidPosition = false;
 				blinkOn = false;
@@ -2388,7 +2388,7 @@ void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 void ArrangerView::navigateThroughPresets(int32_t offset) {
 	Output* output = outputsOnScreen[yPressedEffective];
-	if (output->type == InstrumentType::AUDIO) {
+	if (output->type == OutputType::AUDIO) {
 		return;
 	}
 
@@ -2405,12 +2405,12 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	beginAudition(output);
 }
 
-void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
+void ArrangerView::changeOutputType(OutputType newOutputType) {
 
 	Instrument* oldInstrument = (Instrument*)outputsOnScreen[yPressedEffective];
-	InstrumentType oldInstrumentType = oldInstrument->type;
+	OutputType oldOutputType = oldInstrument->type;
 
-	if (oldInstrumentType == newInstrumentType) {
+	if (oldOutputType == newOutputType) {
 		return;
 	}
 
@@ -2418,7 +2418,7 @@ void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 
 	endAudition(oldInstrument);
 
-	Instrument* newInstrument = currentSong->changeInstrumentType(oldInstrument, newInstrumentType);
+	Instrument* newInstrument = currentSong->changeOutputType(oldInstrument, newOutputType);
 	if (!newInstrument) {
 		return;
 	}
@@ -2441,7 +2441,7 @@ void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 void ArrangerView::changeOutputToAudio() {
 
 	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type == InstrumentType::AUDIO) {
+	if (oldOutput->type == OutputType::AUDIO) {
 		return;
 	}
 

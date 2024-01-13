@@ -1762,8 +1762,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 					//obtain the model stack for the parameter the ccNumber received is learned to
 					//don't display "can't control param" error message if you're in a MIDI or CV clip
 					bool displayError = midiEngine.midiFollowDisplayParam
-					                    && (clip->output->type != InstrumentType::MIDI_OUT)
-					                    && (clip->output->type != InstrumentType::CV);
+					                    && (clip->output->type != OutputType::MIDI_OUT)
+					                    && (clip->output->type != OutputType::CV);
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, ccNumber, displayError);

@@ -49,10 +49,9 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,
+	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
 	                                                Availability availabilityRequirement);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType,
-	                                                                          String* searchName,
+	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
 	                                                                          Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
@@ -74,8 +73,8 @@ protected:
 
 private:
 	bool showingAuditionPads();
-	int32_t setupForInstrumentType();
-	void changeInstrumentType(InstrumentType newInstrumentType);
+	int32_t setupForOutputType();
+	void changeOutputType(OutputType newOutputType);
 	void revertToInitialPreset();
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
@@ -85,7 +84,7 @@ private:
 
 	int16_t initialChannel;
 	int8_t initialChannelSuffix;
-	InstrumentType initialInstrumentType;
+	OutputType initialOutputType;
 
 	bool changedInstrumentForClip;
 	bool replacedWholeInstrument;

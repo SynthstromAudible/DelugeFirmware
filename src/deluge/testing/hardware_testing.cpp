@@ -407,7 +407,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentInstrumentType() == InstrumentType::KIT) {
+		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 

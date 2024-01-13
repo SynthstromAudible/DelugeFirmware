@@ -79,7 +79,7 @@ public:
 	virtual NotesState& getNotesState() { return currentNotesState; }
 
 protected:
-	inline bool isKit() { return getCurrentInstrumentType() == InstrumentType::KIT; }
+	inline bool isKit() { return getCurrentOutputType() == OutputType::KIT; }
 	/// Song root note can be in any octave, layouts get the normalized one
 	inline int16_t getRootNote() { return (currentSong->rootNote % kOctaveSize); }
 	inline bool getScaleModeEnabled() { return getCurrentInstrumentClip()->inScaleMode; }
@@ -102,7 +102,7 @@ protected:
 		int32_t colourOffset = 0;
 
 		// Get colour offset for kit rows
-		if (getCurrentInstrumentType() == InstrumentType::KIT) {
+		if (getCurrentOutputType() == OutputType::KIT) {
 			if (note >= 0 && note < getCurrentInstrumentClip()->noteRows.getNumElements()) {
 				NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(note);
 				if (noteRow) {

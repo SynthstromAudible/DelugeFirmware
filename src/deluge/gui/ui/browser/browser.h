@@ -83,7 +83,7 @@ public:
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	int32_t getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
+	int32_t getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
 	bool checkFP();
@@ -97,7 +97,7 @@ public:
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 
-	static InstrumentType instrumentTypeToLoad;
+	static OutputType outputTypeToLoad;
 	static char const* filenameToStartSearchAt;
 
 protected:
@@ -114,7 +114,7 @@ protected:
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	int32_t readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
+	int32_t readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
 	                                         char const* filenameToStartAt, char const* defaultDirToAlsoTry,
 	                                         bool allowFoldersint,
 	                                         Availability availabilityRequirement = Availability::ANY,

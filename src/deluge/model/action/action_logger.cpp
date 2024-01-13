@@ -492,7 +492,7 @@ traverseClips:
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == InstrumentType::KIT) {
+						if (clip->output->type == OutputType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
