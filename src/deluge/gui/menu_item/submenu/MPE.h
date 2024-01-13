@@ -26,8 +26,8 @@ public:
 	using Submenu::Submenu;
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		// not relevant for cv currently
-		const auto type = getCurrentInstrumentType();
-		return (type == InstrumentType::MIDI_OUT);
+		const auto type = getCurrentOutputType();
+		return (type == OutputType::MIDI_OUT);
 	}
 };
 
