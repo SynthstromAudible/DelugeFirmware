@@ -545,7 +545,9 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
-void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn = false);
+/// buffer must have at least 5 characters on 7seg, or 30 for OLED
+void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
+                                    bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 int32_t fresultToDelugeErrorCode(FRESULT result);
 
@@ -560,4 +562,6 @@ int32_t fresultToDelugeErrorCode(FRESULT result);
 }
 
 extern char miscStringBuffer[];
+
+constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];

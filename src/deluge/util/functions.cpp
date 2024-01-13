@@ -2639,27 +2639,25 @@ bool shouldAbortLoading() {
 	        && (Encoders::encoders[ENCODER_SELECT].detentPos || QwertyUI::predictionInterrupted));
 }
 
-// Must supply a char[5] buffer. Or char[30] for OLED.
-void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-
-	StringBuf noteLengthBuf(text, 30);
+void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
+                                    bool clarifyPerColumn) {
+	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
-			intToString(division, text);
-			char* writePos = strchr(text, 0);
-			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
+			noteLengthBuf.appendInt(division);
+			// this is not fully general but since division are always a power of 2, it works out in practice (no need
+			// for "rd")
+			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
 			noteLengthBuf.append(suffix);
-			noteLengthBuf.append("-notes");
+			noteLengthBuf.append(notesString);
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
-			intToString(numBars, text);
+			noteLengthBuf.appendInt(numBars);
 			if (clarifyPerColumn) {
 				if (numBars == 1) {
 					noteLengthBuf.append(" bar (per column)");
-					strcat(text, " bar (per column)");
 				}
 				else {
 					noteLengthBuf.append(" bars (per column)");
@@ -2672,9 +2670,8 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 	}
 	else {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
 			if (division <= 9999) {
-				intToString(division, text);
+				noteLengthBuf.appendInt(division);
 				if (division == 2 || division == 32) {
 					noteLengthBuf.append("ND");
 				}
@@ -2692,12 +2689,12 @@ void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyP
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
 			if (numBars <= 9999) {
-				intToString(numBars, text);
-				uint8_t length = strlen(text);
-				if (length == 1) {
+				noteLengthBuf.appendInt(numBars);
+				auto size = noteLengthBuf.size();
+				if (size == 1) {
 					noteLengthBuf.append("BAR");
 				}
-				else if (length <= 3) {
+				else if (size <= 3) {
 					noteLengthBuf.append("B");
 				}
 			}
@@ -2765,4 +2762,4 @@ int32_t fresultToDelugeErrorCode(FRESULT result) {
 }
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
-char shortStringBuffer[64] __attribute__((aligned(CACHE_LINE_SIZE)));
+char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
