@@ -302,7 +302,9 @@ public:
 	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
-	void getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn = false);
+	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
+	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	                       bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);
 	bool deletePendingOverdubs(Output* onlyWithOutput = NULL, int32_t* originalClipIndex = NULL,

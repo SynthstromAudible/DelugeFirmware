@@ -19,6 +19,7 @@
 
 #include "gui/menu_item/enumeration.h"
 #include "gui/menu_item/selection.h"
+#include "util/d_string.h"
 
 namespace deluge::gui::menu_item {
 
@@ -33,7 +34,7 @@ public:
 
 protected:
 	void drawValue() final;
-	virtual void getNoteLengthName(char* buffer);
+	virtual void getNoteLengthName(StringBuf& buffer);
 
 	void drawPixelsForOled() override;
 };
