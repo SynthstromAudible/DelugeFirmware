@@ -32,6 +32,11 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	    modelStack->addTimelineCounter(currentSong->currentClip);
+
 	velocityMinHeld = false;
 	velocityMaxHeld = false;
 
@@ -40,11 +45,11 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
-		if (pressed.active) {
-			// in note columns
-			if (pressed.x == VEL_COL) { // in velocity columns (audition pads)
-				velocity32 = velocityMin + pressed.y * velocityStep;
-				velocity = velocity32 >> kVelModShift;
+		// in note columns
+		if (pressed.x == VEL_COL) { // in velocity columns (audition pads)
+			if (pressed.active) {
+				auto v32 = velocityMin + pressed.y * velocityStep;
+				velocity = (v32 + kHalfStep) >> kVelModShift;
 				display->displayPopup(velocity);
 				if (pressed.y == 0) {
 					velocityMinHeld = true;
@@ -53,21 +58,28 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 					velocityMaxHeld = true;
 				}
 			}
-			else if (pressed.x == MOD_COL) { // in mod columns (audition pads)
-				mod32 = modMin + pressed.y * modStep;
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-				    modelStack->addTimelineCounter(currentSong->currentClip);
-				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
-				                                                      modelStackWithTimelineCounter);
-				display->displayPopup(mod32 >> kVelModShift);
+			else if (!pressed.padPressHeld) {
+				velocity32 = velocityMin + pressed.y * velocityStep;
+				velocity = (velocity32 + kHalfStep) >> kVelModShift;
+			}
+		}
+		else if (pressed.x == MOD_COL) { // in mod columns (audition pads)
+			if (pressed.active) {
+				auto m32 = modMin + pressed.y * modStep;
+				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, m32,
+				                                                         modelStackWithTimelineCounter);
+				display->displayPopup((m32 + kHalfStep) >> kVelModShift);
 				if (pressed.y == 0) {
 					modMinHeld = true;
 				}
 				else {
 					modMaxHeld = true;
 				}
+			}
+			else if (!pressed.padPressHeld) {
+				mod32 = modMin + pressed.y * modStep;
+				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+				                                                         modelStackWithTimelineCounter);
 			}
 		}
 	}
@@ -80,28 +92,28 @@ void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
 bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	if (velocityMinHeld) {
 		velocityMin += offset << kVelModShift;
-		velocityMin = std::clamp(velocityMin, (int32_t)0, velocityMax);
+		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
 		display->displayPopup(velocityMin >> kVelModShift);
 		velocityStep = (velocityMax - velocityMin) / 7;
 		return true;
 	}
 	if (velocityMaxHeld) {
 		velocityMax += offset << kVelModShift;
-		velocityMax = std::clamp(velocityMax, velocityMin, (int32_t)127 << kVelModShift);
+		velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
 		display->displayPopup(velocityMax >> kVelModShift);
 		velocityStep = (velocityMax - velocityMin) / 7;
 		return true;
 	}
 	if (modMinHeld) {
 		modMin += offset << kVelModShift;
-		modMin = std::clamp(modMin, (int32_t)0, modMax);
+		modMin = std::clamp((int32_t)modMin, (int32_t)0, (int32_t)modMax);
 		display->displayPopup(modMin >> kVelModShift);
 		modStep = (modMax - modMin) / 7;
 		return true;
 	}
 	if (modMaxHeld) {
 		modMax += offset << kVelModShift;
-		modMax = std::clamp(modMax, modMin, (int32_t)127 << kVelModShift);
+		modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
 		display->displayPopup(modMax >> kVelModShift);
 		modStep = (modMax - modMin) / 7;
 		return true;

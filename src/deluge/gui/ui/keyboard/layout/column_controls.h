@@ -24,6 +24,7 @@ namespace deluge::gui::ui::keyboard::layout {
 constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
 constexpr uint32_t kVelModShift = 24;
+constexpr uint32_t kHalfStep = 0x7FFFFF;
 
 // Note: may need to make this virtual inheritance in the future if we want multiple mix-in-style
 // keyboard classes
@@ -47,17 +48,17 @@ public:
 	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
 protected:
-	uint8_t velocity = 16;
+	uint8_t velocity = 64;
 
 private:
 	// use higher precision internally so that scaling and stepping is cleaner
-	int32_t velocityMax = 127 << kVelModShift;
-	int32_t velocityMin = 15 << kVelModShift;
+	uint32_t velocityMax = 127 << kVelModShift;
+	uint32_t velocityMin = 15 << kVelModShift;
 	uint32_t velocityStep = 16 << kVelModShift;
 	uint32_t velocity32 = velocity << kVelModShift;
 
-	int32_t modMax = 127 << kVelModShift;
-	int32_t modMin = 15 << kVelModShift;
+	uint32_t modMax = 127 << kVelModShift;
+	uint32_t modMin = 15 << kVelModShift;
 	uint32_t modStep = 16 << kVelModShift;
 	uint32_t mod32 = 0 << kVelModShift;
 
