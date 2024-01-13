@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <bit>
@@ -43,21 +44,7 @@ extern int32_t paramNeutralValues[];
 
 void functionsInit();
 
-[[gnu::always_inline]] static inline void intToString(int32_t number, char* buffer) {
-	intToString(number, buffer, 1);
-}
-
-bool memIsNumericChars(char const* mem, int32_t size);
-bool stringIsNumericChars(char const* str);
 char const* getThingName(OutputType outputType);
-
-char halfByteToHexChar(uint8_t thisHalfByte);
-void intToHex(uint32_t number, char* output, int32_t numChars = 8);
-uint32_t hexToInt(char const* string);
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);
-
-void byteToHex(uint8_t number, char* buffer);
-uint8_t hexToByte(char const* firstChar);
 
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
