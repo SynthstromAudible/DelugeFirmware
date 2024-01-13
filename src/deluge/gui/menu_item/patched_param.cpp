@@ -31,10 +31,7 @@
 #include "patch_cable_strength.h"
 #include "patched_param.h"
 #include "source_selection.h"
-
-extern "C" {
 #include "util/cfunctions.h"
-}
 
 namespace deluge::gui::menu_item {
 MenuItem* PatchedParam::selectButtonPress() {

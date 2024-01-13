@@ -35,12 +35,9 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 int16_t lastNoteOffOrder = 1;
 

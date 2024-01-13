@@ -28,10 +28,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "string.h"
-
-extern "C" {
 #include "util/cfunctions.h"
-}
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
