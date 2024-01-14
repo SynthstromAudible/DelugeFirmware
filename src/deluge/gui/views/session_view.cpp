@@ -3408,9 +3408,12 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				if ((x + currentSong->songGridScrollX) <= trackCount) {
 					Output* track = gridTrackFromX(x, trackCount);
 					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-					// Immediately start playing it for new tracks
-					if (clip != nullptr && track == nullptr) {
-						gridToggleClipPlay(clip, true);
+					if (clip != nullptr) {
+						currentSong->currentClip = clip;
+						// Immediately start playing it for new tracks
+						if (track == nullptr) {
+							gridToggleClipPlay(clip, true);
+						}
 					}
 				}
 			}
@@ -3509,6 +3512,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			if (track != nullptr) {
 				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
 				if (clip != nullptr) {
+					currentSong->currentClip = clip;
 					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
 				}
 
