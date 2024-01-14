@@ -5,6 +5,7 @@ import argparse
 import errno
 import os
 import io
+from itertools import groupby
 import fnmatch
 from pathlib import Path
 import util
@@ -47,18 +48,20 @@ def get_clang_format():
     # failed to find it in toolchains, falling back to path, then string
     return util.find_cmd_with_fallback("clang-format")
 
+globs = [
+    "*.cc",
+    "*.hh",
+    "*.[ch]xx",
+    "*.[ch]pp",
+    "*.[ch]",
+]
 
 def get_header_and_source_files(path, recursive: bool):
     glob = path.rglob if recursive else path.glob
-    globs = [
-        glob("*.cc"),
-        glob("*.hh"),
-        glob("*.[ch]xx"),
-        glob("*.[ch]pp"),
-        glob("*.[ch]"),
-    ]
-    return [file for files in globs for file in list(files)]
+    return [file for pattern in globs for file in list(glob(pattern))]
 
+def get_valid_header_and_source_files(files):
+    return list(filter(bool, [fnmatch.fnmatch(file, pattern) and file for pattern in globs for file in files]))
 
 def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
     path = str(path.absolute())
@@ -94,21 +97,34 @@ def argparser() -> argparse.ArgumentParser:
         "-c", "--check", help="check for format compliance locally", action="store_true"
     )
     parser.add_argument(
-        "directory",
-        nargs="?",
-        help="the directory of source files to format (defaults to whole project)",
+        "files_and_directories",
+        nargs="*",
+        help="files and/or directories of source files to format (defaults to whole project)",
     )
     return parser
 
 
+def get_array(a):
+    return [a, a]
+
 def main() -> int:
     args = argparser().parse_args()
-    directory = (
-        Path(args.directory)
-        if args.directory is not None
-        else (util.get_git_root().absolute() / "src")
+    files_and_directories = (
+        [Path(f) for f in args.files_and_directories]
+        if args.files_and_directories
+        else [util.get_git_root().absolute() / "src"]
     )
-    files = get_header_and_source_files(directory, not args.no_recursive)
+    temp=[[], []]
+    directories, files = temp
+    for is_file, group in groupby(files_and_directories, lambda p: p.is_file()):
+        for thing in group:
+            temp[is_file].append(thing)
+
+    found_files = set(file for dir in directories for file in get_header_and_source_files(dir, not args.no_recursive))
+    remaining_files = set(files).difference(found_files)
+    valid_files = get_valid_header_and_source_files(remaining_files)
+    files = found_files.union(valid_files)
+
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
     clang_format = get_clang_format()
