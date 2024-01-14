@@ -915,7 +915,7 @@ Submenu defaultUIKeyboard{
 
 ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
                                      STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
-                                     FlashStorage::gridUnarmEmptyPads};
+                                     FlashStorage::gridEmptyPadsUnarm};
 ToggleBool defaultGridEmptyPadsCreateRec{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
                                          STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
                                          FlashStorage::gridEmptyPadsCreateRec};

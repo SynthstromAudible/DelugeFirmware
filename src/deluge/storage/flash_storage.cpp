@@ -119,7 +119,7 @@ namespace FlashStorage {
 122: defaultMetronomeVolume
 123: defaultSessionLayout
 124: defaultKeyboardLayout
-125: gridUnarmEmptyPads
+125: gridEmptyPadsUnarm
 126: midiFollow set follow channel synth
 127: midiFollow set follow channel kit
 128: midiFollow set follow channel param
@@ -152,7 +152,7 @@ uint8_t defaultBendRange[2] = {
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
 
-bool gridUnarmEmptyPads;
+bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
@@ -235,7 +235,7 @@ void resetSettings() {
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
-	gridUnarmEmptyPads = false;
+	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
@@ -481,7 +481,7 @@ void readSettings() {
 		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[124]);
 	}
 
-	gridUnarmEmptyPads = buffer[125];
+	gridEmptyPadsUnarm = buffer[125];
 
 	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
 	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
@@ -615,7 +615,7 @@ void writeSettings() {
 	buffer[123] = util::to_underlying(defaultSessionLayout);
 	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
-	buffer[125] = gridUnarmEmptyPads;
+	buffer[125] = gridEmptyPadsUnarm;
 	buffer[126] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone;
 	buffer[127] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone;
 	buffer[128] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
