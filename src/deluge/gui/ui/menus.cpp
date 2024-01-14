@@ -913,17 +913,25 @@ Submenu defaultUIKeyboard{
     {&defaultKeyboardLayoutMenu},
 };
 
+ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
+                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
+                                     FlashStorage::gridEmptyPadsUnarm};
+ToggleBool defaultGridEmptyPadsCreateRec{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                         STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                         FlashStorage::gridEmptyPadsCreateRec};
+Submenu defaultEmptyPadMenu{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS,
+    {&defaultgridEmptyPadsUnarm, &defaultGridEmptyPadsCreateRec},
+};
+
 defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
                                                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
 ToggleBool defaultGridAllowGreenSelection{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
                                           STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
                                           FlashStorage::gridAllowGreenSelection};
-ToggleBool defaultGridUnarmEmptyPads{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
-                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
-                                     FlashStorage::gridUnarmEmptyPads};
 Submenu defaultSessionGridMenu{
     STRING_FOR_DEFAULT_UI_GRID,
-    {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultGridUnarmEmptyPads},
+    {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultEmptyPadMenu},
 };
 
 defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
