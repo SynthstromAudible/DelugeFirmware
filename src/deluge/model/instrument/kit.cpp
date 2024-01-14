@@ -1189,7 +1189,7 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 			//we use this function from midi follow because it was designed to detect clip selections in song / arranger view
 			//and when a clip is selected in song / arranger view, you will need to refresh the mod led indicators
 			//and if using midi follow you may need to send updated midi feedback (because parameter context has changed)
-			Clip* clip = midiFollow.getClipForMidiFollow();
+			Clip* clip = getSelectedClip();
 			if (clip && clip == activeClip) {
 				//are we currently in the instrument clip UI?
 				//if yes, we may need to refresh it (main pads and / or sidebar)
