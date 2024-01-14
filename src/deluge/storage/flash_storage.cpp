@@ -119,7 +119,7 @@ namespace FlashStorage {
 122: defaultMetronomeVolume
 123: defaultSessionLayout
 124: defaultKeyboardLayout
-125: gridUnarmEmptyPads
+125: gridEmptyPadsUnarm
 126: midiFollow set follow channel synth
 127: midiFollow set follow channel kit
 128: midiFollow set follow channel param
@@ -131,6 +131,8 @@ namespace FlashStorage {
 134-137: midiFollow set follow device synth 	product / vendor ids
 138-141: midiFollow set follow device kit		product / vendor ids
 142-145: midiFollow set follow device param		product / vendor ids
+146: gridEmptyPadsCreateRec
+147: midi select kit row on learned note message received
 */
 
 uint8_t defaultScale;
@@ -151,7 +153,8 @@ uint8_t defaultBendRange[2] = {
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
 
-bool gridUnarmEmptyPads;
+bool gridEmptyPadsUnarm;
+bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
@@ -180,17 +183,10 @@ void resetSettings() {
 
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
-	midiEngine.midiThru = false;
-	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
-		midiChannelType.clear();
-	}
-	midiEngine.midiFollowKitRootNote = 36;
-	midiEngine.midiFollowDisplayParam = false;
-	midiEngine.midiFollowFeedback = false;
-	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
-	midiEngine.midiFollowFeedbackFilter = false;
+	resetMidiFollowSettings();
 
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
+	midiEngine.midiSelectKitRow = false;
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
@@ -233,11 +229,24 @@ void resetSettings() {
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
-	gridUnarmEmptyPads = false;
+	gridEmptyPadsUnarm = false;
+	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
+}
+
+void resetMidiFollowSettings() {
+	midiEngine.midiThru = false;
+	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+		midiChannelType.clear();
+	}
+	midiEngine.midiFollowKitRootNote = 36;
+	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowFeedback = false;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	midiEngine.midiFollowFeedbackFilter = false;
 }
 
 void readSettings() {
@@ -478,27 +487,65 @@ void readSettings() {
 		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[124]);
 	}
 
-	gridUnarmEmptyPads = buffer[125];
+	gridEmptyPadsUnarm = buffer[125];
 
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[128];
-	midiEngine.midiFollowKitRootNote = buffer[129];
-	midiEngine.midiFollowDisplayParam = buffer[130];
-	midiEngine.midiFollowFeedback = buffer[131];
-
-	if (buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
-		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	if (areMidiFollowSettingsValid(buffer)) {
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[128];
+		midiEngine.midiFollowKitRootNote = buffer[129];
+		midiEngine.midiFollowDisplayParam = !!buffer[130];
+		midiEngine.midiFollowFeedback = !!buffer[131];
+		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
 	}
 	else {
-		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		resetMidiFollowSettings();
 	}
 
-	midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+	gridEmptyPadsCreateRec = buffer[146];
 
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+	midiEngine.midiSelectKitRow = buffer[147];
+}
+
+bool areMidiFollowSettingsValid(uint8_t* buffer) {
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone
+	if (buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+	else if (buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone
+	else if (buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowKitRootNote
+	else if (buffer[129] < 0 || buffer[129] > kMaxMIDIValue) {
+		return false;
+	}
+	//midiEngine.midiFollowDisplayParam
+	else if (buffer[130] != false && buffer[130] != true) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedback
+	else if (buffer[131] != false && buffer[131] != true) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedbackAutomation
+	else if (buffer[132] < 0 || buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedbackFilter
+	else if (buffer[133] != false && buffer[133] != true) {
+		return false;
+	}
+	//place holder for checking if midi follow devices are valid
+	return true;
 }
 
 void writeSettings() {
@@ -610,7 +657,7 @@ void writeSettings() {
 	buffer[123] = util::to_underlying(defaultSessionLayout);
 	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
-	buffer[125] = gridUnarmEmptyPads;
+	buffer[125] = gridEmptyPadsUnarm;
 	buffer[126] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone;
 	buffer[127] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone;
 	buffer[128] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
@@ -622,6 +669,10 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+
+	buffer[146] = gridEmptyPadsCreateRec;
+
+	buffer[147] = midiEngine.midiSelectKitRow;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

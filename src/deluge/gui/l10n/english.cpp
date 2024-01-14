@@ -475,9 +475,11 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_UI, "UI"},
         {STRING_FOR_DEFAULT_UI_GRID, "Grid"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, "Default active mode"},
-        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS, "Empty pad unarm"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, "Select in green mode"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, "Selection"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS, "Empty pads"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, "Unarm"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC, "Create + Record"},
         {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
@@ -844,6 +846,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
         {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
         {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
+
+        //String for Select Kit Row Menu
+
+        {STRING_FOR_SELECT_KIT_ROW, "Select Kit Row"},
     },
 };
 } // namespace deluge::l10n::built_in

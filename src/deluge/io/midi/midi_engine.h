@@ -69,6 +69,7 @@ public:
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
+	bool midiSelectKitRow;
 
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.
