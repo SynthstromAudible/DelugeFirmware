@@ -42,9 +42,10 @@ file(GLOB_RECURSE deluge_SOURCES
   ../src/deluge/util/*
   # Voice code
   ../src/deluge/dsp/*
+  ../src/deluge/io/midi/learned_midi.cpp
   ../src/deluge/model/action/*
-  ../src/deluge/model/consequence/*
   ../src/deluge/model/clip/*
+  ../src/deluge/model/consequence/*
   ../src/deluge/model/drum/*
   ../src/deluge/model/global_effectable/*
   ../src/deluge/model/instrument/*
@@ -57,20 +58,19 @@ file(GLOB_RECURSE deluge_SOURCES
   ../src/deluge/model/timeline_counter.cpp
   ../src/deluge/model/voice/*
   ../src/deluge/modulation/*
+  ../src/deluge/playback/mode/*
+  ../src/deluge/playback/playback_handler_core.cpp
   ../src/deluge/processing/live/*
   ../src/deluge/processing/sound/*
   ../src/deluge/processing/source.cpp
+  ../src/deluge/storage/audio/audio_file.cpp
+  ../src/deluge/storage/audio/audio_file_holder.cpp
+  ../src/deluge/storage/audio/audio_file_manager_core.cpp
+  ../src/deluge/storage/audio/audio_file_reader.cpp
+  ../src/deluge/storage/audio/audio_file_vector.cpp
   ../src/deluge/storage/cluster/*
   ../src/deluge/storage/multi_range/*
   ../src/deluge/storage/wave_table/*
-
-  ../src/deluge/io/midi/learned_midi.cpp
-
-  ../src/deluge/storage/audio/audio_file.cpp
-  ../src/deluge/storage/audio/audio_file_holder.cpp
-  ../src/deluge/storage/audio/audio_file_reader.cpp
-  ../src/deluge/storage/audio/audio_file_vector.cpp
-  ../src/deluge/storage/audio/audio_file_manager_core.cpp
   # Mock implementations
   mocks/*
 )

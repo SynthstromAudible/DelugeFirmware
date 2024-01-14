@@ -227,6 +227,8 @@ private:
 	int32_t numOutputClocksWaitingToBeSent;
 	int32_t numInputTicksToSkip;
 
+	bool currentlyActioningSwungTickOrResettingPlayPos = false;
+
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);
 	void displayTempoFromParams(int32_t magnitude, int8_t whichValue);

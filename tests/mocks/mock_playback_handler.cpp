@@ -1,28 +1,36 @@
+#include "CppUTest/TestHarness.h"
+
 #include "deluge/playback/playback_handler.h"
 
-PlaybackHandler playbackHandler{};
-
-PlaybackHandler::PlaybackHandler() {
-	// XXX: This is just copied from the main playback handler, but we should probably have an IPlaybackHandler or
-	// something and swap that out for tests
-	tapTempoNumPresses = 0;
-	playbackState = 0;
-	analogInTicksPPQN = 24;
-	analogOutTicksPPQN = 24;
-	analogClockInputAutoStart = true;
-	metronomeOn = false;
-	midiOutClockEnabled = true;
-	midiInClockEnabled = true;
-	tempoMagnitudeMatchingEnabled = false;
-	posToNextContinuePlaybackFrom = 0;
-	stopOutputRecordingAtLoopEnd = false;
-	recording = RECORDING_OFF;
-	countInEnabled = true;
-	timeLastMIDIStartOrContinueMessageSent = 0;
-	currentVisualCountForCountIn = 0;
+void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
+	FAIL("not yet implemented");
 }
 
-uint64_t PlaybackHandler::getTimePerInternalTickBig() {
-	// TODO: add an interface for this, so tests can manipulate it
-	return 100;
+void PlaybackHandler::endPlayback() {
+	FAIL("not yet implemented");
+}
+
+void PlaybackHandler::expectEvent() {
+	FAIL("not yet implemented");
+}
+
+void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
+                                               bool shouldExitRecordMode) {
+	FAIL("not yet implemented");
+}
+
+// This is that special MIDI command for Todd T
+void PlaybackHandler::forceResetPlayPos(Song* song) {
+	FAIL("not yet implemented");
+	if (playbackState) {
+		endPlayback();
+
+		if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+			setupPlaybackUsingExternalClock();
+		}
+
+		else {
+			setupPlaybackUsingInternalClock();
+		}
+	}
 }
