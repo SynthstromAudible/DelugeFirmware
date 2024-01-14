@@ -50,5 +50,7 @@ extern uint8_t defaultMetronomeVolume;
 void readSettings();
 void writeSettings();
 void resetSettings();
+void resetMidiFollowSettings();
+bool areMidiFollowSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage
