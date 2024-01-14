@@ -252,7 +252,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- ([#887]) Added ability to set the parameter value to the middle point between two pads pressed in a single column. E.g. press pads 4 and 5 to set the value to 25/50.
 	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
 	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
-	- ([#924]) Added automation view for audio clips
+	- ([#966]) Added automation view for audio clips
 
 #### 4.3.6 - Set Probability By Row
 
@@ -469,9 +469,9 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
 [#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
-[#924]: https://github.com/SynthstromAudible/DelugeFirmware/pull/924
-[#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
+[#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
+[#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
