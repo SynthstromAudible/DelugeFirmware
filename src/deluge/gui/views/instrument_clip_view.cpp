@@ -3089,18 +3089,27 @@ int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay)
 
 // Beware - supplying shouldRedrawStuff as false will cause the activeModControllable to *not* update! Probably never should do this anymore...
 void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
+	//check if you've already selected this drum
+	//if so, no need to reselect it or redraw the clip or resend midi feedback
+	Kit* currentKit = getCurrentKit();
+	if (currentKit->selectedDrum != drum) {
+		UI* currentUI = getCurrentUI();
+		if (currentUI != &soundEditor && currentUI != &sampleBrowser && currentUI != &sampleMarkerEditor
+		    && currentUI != &renameDrumUI) {
 
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &sampleMarkerEditor
-	    && getCurrentUI() != &renameDrumUI) {
+			currentKit->selectedDrum = drum;
 
-		getCurrentKit()->selectedDrum = drum;
+			Clip* clip = getCurrentClip();
 
-		if (shouldRedrawStuff) {
-			// Do a redraw. Obviously the Clip is the same
-			view.setActiveModControllableTimelineCounter(getCurrentClip());
+			//don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
+			//(you can't control the newly selected row's model stack with gold encoders when affect entire is enabled)
+			if (shouldRedrawStuff && !((InstrumentClip*)clip)->affectEntire) {
+				// Do a redraw. Obviously the Clip is the same
+				view.setActiveModControllableTimelineCounter(clip);
+			}
 		}
 	}
-
+	//used to redraw the audition pads so they light up on press
 	if (shouldRedrawStuff) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
