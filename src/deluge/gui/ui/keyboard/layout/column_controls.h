@@ -33,7 +33,7 @@ enum ColumnControlFunction : int8_t {
 	CHORD,
 	CHORD_MEM,
 	SCALE_MODE,
-	BEAT_REPEAT,
+	//BEAT_REPEAT,
 	COL_CTRL_FUNC_MAX,
 };
 

@@ -29,6 +29,9 @@ struct PressedPad : Cartesian {
 	uint32_t timeLastPadPress;
 	bool padPressHeld;
 	bool active;
+	// all evaluatePads wil be called at least once with pad.active == false on release. Following
+	// that, dead will be set to true to avoid repeatedly processing releases.
+	bool dead;
 };
 
 struct NoteState {

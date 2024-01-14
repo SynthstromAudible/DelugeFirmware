@@ -191,8 +191,9 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
 				currentNotesState.enableNote(chordMem[pad.y][i], velocity);
 			}
+			chordMemNoteCount[pad.y] = noteCount;
 		}
-		else {
+		else if (!pad.dead) {
 			activeChordMem = 0xFF;
 			if (currentNotesState.count) {
 				auto noteCount = currentNotesState.count;
@@ -217,9 +218,9 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			keyboardScreen.setScale(previousScaleMode);
 		}
 		break;
-	case BEAT_REPEAT:
-		/* TODO */
-		break;
+		//case BEAT_REPEAT:
+		//	/* TODO */
+		//	break;
 	}
 }
 
@@ -353,9 +354,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 	case SCALE_MODE:
 		renderColumnScaleMode(image, LEFT_COL);
 		break;
-	case BEAT_REPEAT:
-		renderColumnBeatRepeat(image, LEFT_COL);
-		break;
+		//case BEAT_REPEAT:
+		//	renderColumnBeatRepeat(image, LEFT_COL);
+		//	break;
 	}
 
 	switch (image, rightCol) {
@@ -374,9 +375,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 	case SCALE_MODE:
 		renderColumnScaleMode(image, RIGHT_COL);
 		break;
-	case BEAT_REPEAT:
-		renderColumnBeatRepeat(image, RIGHT_COL);
-		break;
+		//case BEAT_REPEAT:
+		//	renderColumnBeatRepeat(image, RIGHT_COL);
+		//	break;
 	}
 }
 
