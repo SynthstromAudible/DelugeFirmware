@@ -25,6 +25,8 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -1018,6 +1020,9 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDev
                               bool* doingMidiThru, Drum* thisDrum) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
+	//do we need to update the selectedDrum?
+	possiblySetSelectedDrumAndRefreshUI(thisDrum);
+
 	bool recordingNoteOnEarly = false;
 
 	bool shouldRecordNoteOn =
@@ -1169,6 +1174,12 @@ goingToRecordNoteOnEarly:
 		endAuditioningForDrum(
 		    modelStackWithNoteRow, thisDrum,
 		    velocity); // Do this even if not marked as auditioned, to avoid stuck notes in cases like if two note-ons were sent
+	}
+}
+
+void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
+	if (midiEngine.midiSelectKitRow) {
+		instrumentClipView.setSelectedDrum(thisDrum, true, this);
 	}
 }
 

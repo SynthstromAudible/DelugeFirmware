@@ -131,4 +131,5 @@ private:
 
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
+	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
 };

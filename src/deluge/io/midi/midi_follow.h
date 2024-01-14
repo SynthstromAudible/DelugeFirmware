@@ -29,13 +29,13 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
+Clip* getSelectedClip(bool useActiveClip = false);
+
 class MidiFollow final : public GlobalEffectable {
 public:
 	MidiFollow();
 	void readDefaultsFromFile();
 
-	//midi follow context
-	Clip* getClipForMidiFollow(bool useActiveClip = false);
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,

@@ -795,6 +795,9 @@ Submenu midiFollowSubmenu{
     },
 };
 
+// MIDI select kit row
+ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, midiEngine.midiSelectKitRow};
+
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -864,6 +867,7 @@ Submenu midiMenu{
     {
         &midiClockMenu,
         &midiFollowSubmenu,
+        &midiSelectKitRowMenu,
         &midiThruMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,

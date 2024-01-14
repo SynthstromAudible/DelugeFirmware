@@ -3088,21 +3088,70 @@ int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay)
 }
 
 // Beware - supplying shouldRedrawStuff as false will cause the activeModControllable to *not* update! Probably never should do this anymore...
-void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
+void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit* selectedKit) {
+	Clip* clip = getCurrentClip();
+	//check if you've already selected this drum
+	Kit* kit;
+	if (selectedKit) {
+		kit = selectedKit;
+	}
+	else {
+		kit = (Kit*)clip->output;
+	}
+	UI* currentUI = getCurrentUI();
 
-	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &sampleMarkerEditor
-	    && getCurrentUI() != &renameDrumUI) {
+	bool drumSelectionChanged = false;
 
-		getCurrentKit()->selectedDrum = drum;
+	//is the drum the same as the currently selected drum in the kit?
+	//if so, no need to reselect it or redraw the clip or resend midi feedback
+	//if no, update selected drum
+	if (kit->selectedDrum != drum) {
+		if (currentUI != &soundEditor && currentUI != &sampleBrowser && currentUI != &sampleMarkerEditor
+		    && currentUI != &renameDrumUI) {
 
-		if (shouldRedrawStuff) {
-			// Do a redraw. Obviously the Clip is the same
-			view.setActiveModControllableTimelineCounter(getCurrentClip());
+			kit->selectedDrum = drum;
+			drumSelectionChanged = true;
 		}
 	}
 
 	if (shouldRedrawStuff) {
-		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
+		//make sure we're dealing with the same clip that this kit is a part of
+		//if you selected a clip and then sent a midi note to a kit that is part of a different clip, well
+		//we don't need to do anything here because we're in a different clip
+		if (clip == kit->activeClip) {
+			//let's make sure that that the output type for that clip is a kit
+			//(if for some strange reason you changed the drum selection for a hibernated instrument...)
+			if (clip->output->type == OutputType::KIT) {
+				//are we currently in the instrument clip UI?
+				//if yes, we may need to refresh it (main pads and / or sidebar)
+				if (currentUI == &instrumentClipView || currentUI == &automationInstrumentClipView) {
+					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
+
+					//don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
+					//(you can't control the newly selected row's model stack with gold encoders when affect entire is enabled)
+					//no need to potentially send midi follow feedback either because context hasn't changed
+					if (!affectEntire && drumSelectionChanged) {
+						//reset mod controllable stack / send midi feedback
+						//redraw mod (gold) encoder led indicators
+						view.setActiveModControllableTimelineCounter(clip);
+					}
+
+					//if in automation clip view with affect entire disabled
+					//redraw main pads (go back to overview) + sidebar
+					if (currentUI == &automationInstrumentClipView && !affectEntire && drumSelectionChanged) {
+						automationInstrumentClipView.initParameterSelection();
+						uiNeedsRendering(currentUI);
+					}
+					//if in instrument clip view
+					//or automation clip view (with affect entire disabled)
+					//or just auditioning the same drum selection
+					//redraw sidebar
+					else {
+						renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
+					}
+				}
+			}
+		}
 	}
 }
 

@@ -772,6 +772,9 @@ enum class String : size_t {
 	STRING_FOR_INPUT_DIFFERENTIATION_ON,
 	STRING_FOR_INPUT_DIFFERENTIATION_OFF,
 
+	//string for midi select kit row menu
+	STRING_FOR_SELECT_KIT_ROW,
+
 	STRING_LAST
 };
 
