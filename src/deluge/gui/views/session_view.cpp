@@ -3502,7 +3502,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 	if (clip == nullptr) {
 		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
-		if (on && playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL) {
+		if (on && playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL
+		    && FlashStorage::gridEmptyPadsCreateRec) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);
 			if (track != nullptr) {

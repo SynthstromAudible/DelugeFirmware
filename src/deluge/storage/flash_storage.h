@@ -41,6 +41,7 @@ extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
 extern bool gridUnarmEmptyPads;
+extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
 

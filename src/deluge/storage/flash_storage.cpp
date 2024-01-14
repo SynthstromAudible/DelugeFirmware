@@ -131,6 +131,7 @@ namespace FlashStorage {
 134-137: midiFollow set follow device synth 	product / vendor ids
 138-141: midiFollow set follow device kit		product / vendor ids
 142-145: midiFollow set follow device param		product / vendor ids
+146: gridEmptyPadsCreateRec
 */
 
 uint8_t defaultScale;
@@ -152,6 +153,7 @@ SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
 
 bool gridUnarmEmptyPads;
+bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
@@ -234,6 +236,7 @@ void resetSettings() {
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
 	gridUnarmEmptyPads = false;
+	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
@@ -499,6 +502,8 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+
+	gridEmptyPadsCreateRec = buffer[146];
 }
 
 void writeSettings() {
@@ -622,6 +627,7 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+	buffer[146] = gridEmptyPadsCreateRec;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
