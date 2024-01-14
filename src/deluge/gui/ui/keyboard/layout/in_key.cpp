@@ -31,7 +31,7 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
-			currentNotesState.enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
+			enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 		}
 	}
 
@@ -46,6 +46,9 @@ void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
 }
 
 void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
 	KeyboardStateInKey& state = getState().inKey;
 
 	if (shiftEnabled) {

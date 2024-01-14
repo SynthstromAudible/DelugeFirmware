@@ -31,7 +31,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
-			currentNotesState.enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
+			enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 		}
 	}
 
@@ -46,6 +46,9 @@ void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	if (shiftEnabled) {

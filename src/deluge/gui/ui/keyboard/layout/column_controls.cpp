@@ -26,10 +26,53 @@
 #include "util/functions.h"
 #include <limits>
 
-#define VEL_COL kDisplayWidth
-#define MOD_COL (kDisplayWidth + 1)
+#define LEFT_COL kDisplayWidth
+#define RIGHT_COL (kDisplayWidth + 1)
+#define MAX_CHORD_NOTES 4
 
 namespace deluge::gui::ui::keyboard::layout {
+
+uint8_t chordTypeSemitoneOffsets[][MAX_CHORD_NOTES] = {
+    /* NO_CHORD  */ {0, 0, 0, 0},
+    /* FIFTH     */ {7, 0, 0, 0},
+    /* SUS2      */ {2, 7, 0, 0},
+    /* MINOR     */ {3, 7, 0, 0},
+    /* MAJOR     */ {4, 7, 0, 0},
+    /* SUS4      */ {5, 7, 0, 0},
+    /* MINOR7    */ {3, 7, 10, 0},
+    /* DOMINANT7 */ {4, 7, 10, 0},
+    /* MAJOR7    */ {4, 7, 11, 0},
+};
+
+const char* chordNames[] = {
+    /* NO_CHORD  */ "NONE",
+    /* FIFTH     */ "5TH",
+    /* SUS2      */ "SUS2",
+    /* MINOR     */ "MIN",
+    /* MAJOR     */ "MAJ",
+    /* SUS4      */ "SUS4",
+    /* MINOR7    */ "MIN7",
+    /* DOMINANT7 */ "DOM7",
+    /* MAJOR7    */ "MAJ7",
+};
+
+const char* functionNames[] = {
+    /* VELOCITY    */ "VEL",
+    /* MOD         */ "MOD",
+    /* CHORD       */ "CHRD",
+    /* BEAT_REPEAT */ "BEAT",
+};
+
+void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
+	currentNotesState.enableNote(note, velocity);
+	for (int i = 0; i < MAX_CHORD_NOTES; i++) {
+		auto offset = chordSemitoneOffsets[i];
+		if (!offset) {
+			break;
+		}
+		currentNotesState.enableNote(note + offset, velocity, true);
+	}
+}
 
 void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -37,52 +80,119 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 	    modelStack->addTimelineCounter(currentSong->currentClip);
 
-	velocityMinHeld = false;
-	velocityMaxHeld = false;
+	leftColMinHeld = false;
+	leftColMaxHeld = false;
 
-	modMinHeld = false;
-	modMaxHeld = false;
+	rightColMinHeld = false;
+	rightColMaxHeld = false;
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		// in note columns
-		if (pressed.x == VEL_COL) { // in velocity columns (audition pads)
+		if (pressed.x == LEFT_COL) {
 			if (pressed.active) {
-				auto v32 = velocityMin + pressed.y * velocityStep;
-				velocity = (v32 + kHalfStep) >> kVelModShift;
-				display->displayPopup(velocity);
 				if (pressed.y == 0) {
-					velocityMinHeld = true;
+					leftColMinHeld = true;
 				}
-				else {
-					velocityMaxHeld = true;
+				else if (pressed.y == 7) {
+					leftColMaxHeld = true;
 				}
 			}
-			else if (!pressed.padPressHeld) {
-				velocity32 = velocityMin + pressed.y * velocityStep;
-				velocity = (velocity32 + kHalfStep) >> kVelModShift;
+			else if (horizontalScrollingLeftCol && pressed.y == 7) {
+				handlePad(modelStackWithTimelineCounter, leftColPrev, pressed);
+				horizontalScrollingLeftCol = false;
+				continue;
+			}
+			if (!horizontalScrollingLeftCol) {
+				handlePad(modelStackWithTimelineCounter, leftCol, pressed);
 			}
 		}
-		else if (pressed.x == MOD_COL) { // in mod columns (audition pads)
+		else if (pressed.x == RIGHT_COL) {
 			if (pressed.active) {
-				auto m32 = modMin + pressed.y * modStep;
-				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, m32,
-				                                                         modelStackWithTimelineCounter);
-				display->displayPopup((m32 + kHalfStep) >> kVelModShift);
 				if (pressed.y == 0) {
-					modMinHeld = true;
+					rightColMinHeld = true;
 				}
-				else {
-					modMaxHeld = true;
+				else if (pressed.y == 7) {
+					rightColMaxHeld = true;
 				}
 			}
-			else if (!pressed.padPressHeld) {
-				mod32 = modMin + pressed.y * modStep;
-				getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
-				                                                         modelStackWithTimelineCounter);
+			else if (horizontalScrollingRightCol && pressed.y == 7) {
+				handlePad(modelStackWithTimelineCounter, rightColPrev, pressed);
+				horizontalScrollingRightCol = false;
+				continue;
+			}
+			if (!horizontalScrollingRightCol) {
+				handlePad(modelStackWithTimelineCounter, rightCol, pressed);
 			}
 		}
 	}
+}
+
+void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                       ColumnControlFunction func, PressedPad pad) {
+	switch (func) {
+	case VELOCITY:
+		if (pad.active) {
+			auto v32 = velocityMin + pad.y * velocityStep;
+			velocity = (v32 + kHalfStep) >> kVelModShift;
+			display->displayPopup(velocity);
+		}
+		else if (!pad.padPressHeld) {
+			velocity32 = velocityMin + pad.y * velocityStep;
+			velocity = (velocity32 + kHalfStep) >> kVelModShift;
+		}
+		else {
+			velocity = (velocity32 + kHalfStep) >> kVelModShift;
+		}
+		break;
+	case MOD:
+		if (pad.active) {
+			auto m32 = modMin + pad.y * modStep;
+			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, m32,
+			                                                         modelStackWithTimelineCounter);
+			display->displayPopup((m32 + kHalfStep) >> kVelModShift);
+		}
+		else if (!pad.padPressHeld) {
+			mod32 = modMin + pad.y * modStep;
+			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+			                                                         modelStackWithTimelineCounter);
+		}
+		else {
+			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+			                                                         modelStackWithTimelineCounter);
+		}
+		break;
+	case CHORD:
+		if (pad.active) {
+			setActiveChord(static_cast<ChordModeChord>(pad.y + 1));
+			display->displayPopup(chordNames[activeChord]);
+		}
+		else if (!pad.padPressHeld) {
+			if (defaultChord != static_cast<ChordModeChord>(pad.y + 1)) {
+				defaultChord = static_cast<ChordModeChord>(pad.y + 1);
+			}
+			else {
+				defaultChord = NO_CHORD;
+			}
+			setActiveChord(defaultChord);
+			display->displayPopup(chordNames[activeChord]);
+		}
+		else {
+			setActiveChord(defaultChord);
+		}
+		break;
+	case BEAT_REPEAT:
+		/* TODO */
+		break;
+	}
+}
+
+void ColumnControlsKeyboard::setActiveChord(ChordModeChord chord) {
+	activeChord = chord;
+	chordSemitoneOffsets[0] = chordTypeSemitoneOffsets[activeChord][0];
+	chordSemitoneOffsets[1] = chordTypeSemitoneOffsets[activeChord][1];
+	chordSemitoneOffsets[2] = chordTypeSemitoneOffsets[activeChord][2];
+	chordSemitoneOffsets[3] = chordTypeSemitoneOffsets[activeChord][3];
 }
 
 void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
@@ -90,28 +200,48 @@ void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
 }
 
 bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
-	if (velocityMinHeld) {
+	if (leftColMinHeld) {
+		return verticalEncoderMinHandledByFunc(leftCol, offset);
+	}
+	if (leftColMaxHeld) {
+		return verticalEncoderMaxHandledByFunc(leftCol, offset);
+	}
+	if (rightColMinHeld) {
+		return verticalEncoderMinHandledByFunc(rightCol, offset);
+	}
+	if (rightColMaxHeld) {
+		return verticalEncoderMaxHandledByFunc(rightCol, offset);
+	}
+	return false;
+}
+
+bool ColumnControlsKeyboard::verticalEncoderMinHandledByFunc(ColumnControlFunction func, int32_t offset) {
+	switch (func) {
+	case VELOCITY:
 		velocityMin += offset << kVelModShift;
 		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
 		display->displayPopup(velocityMin >> kVelModShift);
 		velocityStep = (velocityMax - velocityMin) / 7;
 		return true;
-	}
-	if (velocityMaxHeld) {
-		velocityMax += offset << kVelModShift;
-		velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
-		display->displayPopup(velocityMax >> kVelModShift);
-		velocityStep = (velocityMax - velocityMin) / 7;
-		return true;
-	}
-	if (modMinHeld) {
+	case MOD:
 		modMin += offset << kVelModShift;
 		modMin = std::clamp((int32_t)modMin, (int32_t)0, (int32_t)modMax);
 		display->displayPopup(modMin >> kVelModShift);
 		modStep = (modMax - modMin) / 7;
 		return true;
 	}
-	if (modMaxHeld) {
+	return false;
+}
+
+bool ColumnControlsKeyboard::verticalEncoderMaxHandledByFunc(ColumnControlFunction func, int32_t offset) {
+	switch (func) {
+	case VELOCITY:
+		velocityMax += offset << kVelModShift;
+		velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
+		display->displayPopup(velocityMax >> kVelModShift);
+		velocityStep = (velocityMax - velocityMin) / 7;
+		return true;
+	case MOD:
 		modMax += offset << kVelModShift;
 		modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
 		display->displayPopup(modMax >> kVelModShift);
@@ -121,30 +251,140 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	return false;
 }
 
+void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	horizontalEncoderHandledByColumns(offset, shiftEnabled);
+}
+
+ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+	auto out = static_cast<ColumnControlFunction>((cur + 1) % COL_CTRL_FUNC_MAX);
+	if (out == skip) {
+		out = static_cast<ColumnControlFunction>((out + 1) % COL_CTRL_FUNC_MAX);
+	}
+	return out;
+}
+
+ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+	auto out = static_cast<ColumnControlFunction>(cur - 1);
+	if (out < 0) {
+		out = static_cast<ColumnControlFunction>(COL_CTRL_FUNC_MAX - 1);
+	}
+	if (out == skip) {
+		out = static_cast<ColumnControlFunction>(out - 1);
+		if (out < 0) {
+			out = static_cast<ColumnControlFunction>(COL_CTRL_FUNC_MAX - 1);
+		}
+	}
+	return out;
+}
+
+bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
+	if (leftColMaxHeld) {
+		if (!horizontalScrollingLeftCol) {
+			leftColPrev = leftCol;
+		}
+		horizontalScrollingLeftCol = true;
+		leftCol = (offset > 0) ? nextControlFunction(leftCol, rightCol) : prevControlFunction(leftCol, rightCol);
+		display->displayPopup(functionNames[leftCol]);
+		return true;
+	}
+	if (rightColMaxHeld) {
+		if (!horizontalScrollingRightCol) {
+			rightColPrev = rightCol;
+		}
+		horizontalScrollingRightCol = true;
+		rightCol = (offset > 0) ? nextControlFunction(rightCol, leftCol) : prevControlFunction(rightCol, leftCol);
+		display->displayPopup(functionNames[rightCol]);
+		return true;
+	}
+	return false;
+}
+
 void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	// Iterate over velocity and mod pads in sidebar
+	switch (leftCol) {
+	case VELOCITY:
+		renderColumnVelocity(image, LEFT_COL);
+		break;
+	case MOD:
+		renderColumnMod(image, LEFT_COL);
+		break;
+	case CHORD:
+		renderColumnChord(image, LEFT_COL);
+		break;
+	case BEAT_REPEAT:
+		renderColumnBeatRepeat(image, LEFT_COL);
+		break;
+	}
+
+	switch (image, rightCol) {
+	case VELOCITY:
+		renderColumnVelocity(image, RIGHT_COL);
+		break;
+	case MOD:
+		renderColumnMod(image, RIGHT_COL);
+		break;
+	case CHORD:
+		renderColumnChord(image, RIGHT_COL);
+		break;
+	case BEAT_REPEAT:
+		renderColumnBeatRepeat(image, RIGHT_COL);
+		break;
+	}
+}
+
+void ColumnControlsKeyboard::renderColumnVelocity(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t velocityVal = velocityMin;
-	uint32_t modVal = modMin;
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool velocity_selected =
-		    velocity32 >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && velocity32 <= velocityVal;
+		    velocity32 >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && velocity32 <= velocityVal + kHalfStep;
 		otherChannels = velocity_selected ? 0xf0 : 0;
-		image[y][VEL_COL][0] = velocity_selected ? 0xff : brightness + 0x04;
-		image[y][VEL_COL][1] = otherChannels;
-		image[y][VEL_COL][2] = otherChannels;
+		image[y][column][0] = velocity_selected ? 0xff : brightness + 0x04;
+		image[y][column][1] = otherChannels;
+		image[y][column][2] = otherChannels;
 		velocityVal += velocityStep;
+		brightness += 10;
+	}
+}
 
+void ColumnControlsKeyboard::renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+	uint8_t brightness = 1;
+	uint8_t otherChannels = 0;
+	uint32_t modVal = modMin;
+
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mod_selected = mod32 >= (y > 0 ? (modVal - (modStep - 1)) : 0) && mod32 <= modVal;
 		otherChannels = mod_selected ? 0xf0 : 0;
-		image[y][MOD_COL][1] = otherChannels;
-		image[y][MOD_COL][0] = otherChannels;
-		image[y][MOD_COL][2] = mod_selected ? 0xff : brightness + 0x04;
+		image[y][column][0] = otherChannels;
+		image[y][column][1] = otherChannels;
+		image[y][column][2] = mod_selected ? 0xff : brightness + 0x04;
 		modVal += modStep;
-
 		brightness += 10;
+	}
+}
+
+void ColumnControlsKeyboard::renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+	uint8_t otherChannels = 0;
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		bool chord_selected = y + 1 == activeChord;
+		otherChannels = chord_selected ? 0xf0 : 0;
+		image[y][column][0] = otherChannels;
+		image[y][column][1] = chord_selected ? 0xff : 0x7F;
+		image[y][column][2] = otherChannels;
+	}
+}
+
+void ColumnControlsKeyboard::renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+	// TODO
+	uint8_t otherChannels = 0;
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		bool beat_selected = false;
+		otherChannels = beat_selected ? 0xf0 : 0;
+		image[y][column][0] = beat_selected ? 0xff : 0x50;
+		image[y][column][1] = otherChannels;
+		image[y][column][2] = beat_selected ? 0xff : 0x50;
 	}
 }
 

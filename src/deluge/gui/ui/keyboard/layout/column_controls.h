@@ -26,16 +26,58 @@ constexpr int32_t kMaxIsomorphicRowInterval = 16;
 constexpr uint32_t kVelModShift = 24;
 constexpr uint32_t kHalfStep = 0x7FFFFF;
 
+enum ColumnControlFunction : int8_t {
+	VELOCITY = 0,
+	MOD,
+	CHORD,
+	BEAT_REPEAT,
+	COL_CTRL_FUNC_MAX,
+};
+
+ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
+ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
+
+enum ChordModeChord {
+	NO_CHORD = 0,
+	FIFTH,
+	SUS2,
+	MINOR,
+	MAJOR,
+	SUS4,
+	MINOR7,
+	DOMINANT7,
+	MAJOR7,
+	CHORD_MODE_CHORD_MAX, /* should be 9, 8 chord pads plus NO_CHORD */
+};
+
+enum BeatRepeat {
+	NO_BEAT_REPEAT = 0,
+	DOT_EIGHT,
+	EIGHT,
+	TRIPLET,
+	DOT_SIXTEENTH,
+	SIXTEENTH,
+	SEXTUPLET,
+	THIRTYSECOND,
+	SIXTYFOURTH,
+	BEAT_REPEAT_MAX, /* should be 9, 8 beat repeat pads plus NO_BEAT_REPEAT */
+};
+
 // Note: may need to make this virtual inheritance in the future if we want multiple mix-in-style
 // keyboard classes
 class ColumnControlsKeyboard : public KeyboardLayout {
 public:
 	ColumnControlsKeyboard() {
 		auto instrument = getCurrentInstrumentOrNull();
-		if (instrument) {
+		if (instrument && instrument->defaultVelocity) {
 			velocity = instrument->defaultVelocity;
+			velocity32 = velocity << kVelModShift;
 		}
 	}
+
+	// call this instead of on notestate directly as chord and beat repeat helper
+	void enableNote(uint8_t note, uint8_t velocity);
+
 	// should be called by any children that override
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 
@@ -43,7 +85,12 @@ public:
 	// true
 	virtual void handleVerticalEncoder(int32_t offset) override;
 
+	// in a child, call horizontalEncoderHandledByColumns and ignore the encoder input if it returns
+	// true
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) override;
+
 	bool verticalEncoderHandledByColumns(int32_t offset);
+	bool horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled);
 
 	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
@@ -51,6 +98,24 @@ protected:
 	uint8_t velocity = 64;
 
 private:
+	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, ColumnControlFunction func,
+	               PressedPad pad);
+
+	bool verticalEncoderMinHandledByFunc(ColumnControlFunction func, int32_t offset);
+	bool verticalEncoderMaxHandledByFunc(ColumnControlFunction func, int32_t offset);
+
+	void setActiveChord(ChordModeChord chord);
+
+	void renderColumnVelocity(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+
+	ColumnControlFunction leftColPrev = VELOCITY;
+	ColumnControlFunction rightColPrev = MOD;
+	ColumnControlFunction leftCol = VELOCITY;
+	ColumnControlFunction rightCol = MOD;
+
 	// use higher precision internally so that scaling and stepping is cleaner
 	uint32_t velocityMax = 127 << kVelModShift;
 	uint32_t velocityMin = 15 << kVelModShift;
@@ -62,11 +127,17 @@ private:
 	uint32_t modStep = 16 << kVelModShift;
 	uint32_t mod32 = 0 << kVelModShift;
 
-	bool velocityMinHeld = false;
-	bool velocityMaxHeld = false;
+	ChordModeChord activeChord = NO_CHORD;
+	ChordModeChord defaultChord = NO_CHORD;
+	uint8_t chordSemitoneOffsets[4] = {0};
 
-	bool modMinHeld = false;
-	bool modMaxHeld = false;
+	bool horizontalScrollingLeftCol = false;
+	bool horizontalScrollingRightCol = false;
+	bool leftColMinHeld = false;
+	bool leftColMaxHeld = false;
+
+	bool rightColMinHeld = false;
+	bool rightColMaxHeld = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout
