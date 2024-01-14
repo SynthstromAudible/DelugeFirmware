@@ -61,14 +61,15 @@ def get_header_and_source_files(path, recursive: bool):
 
 
 def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
-    path = str(path.absolute())
     command = [clang_format, "--style=file"]
     if check:
         command.append("--dry-run")
         command.append("-Werror")
-    else:
+    elif path is not None:
         command.append("-i")
-    command.append(path)
+    if path is not None:
+        path = str(path.absolute())
+        command.append(path)
     return util.run(command, verbose, verbose)
 
 
@@ -94,6 +95,9 @@ def argparser() -> argparse.ArgumentParser:
         "-c", "--check", help="check for format compliance locally", action="store_true"
     )
     parser.add_argument(
+        "-i", "--stdin", help="format stdin to stdout", action="store_true"
+    )
+    parser.add_argument(
         "directory",
         nargs="?",
         help="the directory of source files to format (defaults to whole project)",
@@ -114,7 +118,9 @@ def main() -> int:
     clang_format = get_clang_format()
     check = args.check
 
-    if args.quiet:
+    if args.stdin:
+        result = [format_file(clang_format, False, check, None)]
+    elif args.quiet:
         result = util.do_parallel(partial(format_file, clang_format, False, check), files)
     elif args.verbose:
         # Single-process for output purposes :/
@@ -131,7 +137,8 @@ def main() -> int:
         print("Done, formatting mismatch detected")
         return 1
 
-    print("Done!")
+    if not args.stdin:
+        print("Done!")
     return 0
 
 
