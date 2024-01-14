@@ -31,6 +31,7 @@ class Editor;
 class Instrument;
 class Sound;
 class ModControllable;
+class Kit;
 class Drum;
 class SoundDrum;
 class ParamManagerForTimeline;
@@ -102,7 +103,7 @@ public:
 	void selectEncoderAction(int8_t offset);
 	void doubleClipLengthAction();
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
-	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
+	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true, Kit* selectedKit = nullptr);
 	bool isDrumAuditioned(Drum* drum);
 	int32_t setupForEnteringScaleMode(int32_t newRootNote = 2147483647, int32_t yDisplay = (kDisplayHeight / 2));
 	int32_t setupForExitingScaleMode();

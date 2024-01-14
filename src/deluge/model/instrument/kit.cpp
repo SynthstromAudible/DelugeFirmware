@@ -1179,47 +1179,7 @@ goingToRecordNoteOnEarly:
 
 void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 	if (midiEngine.midiSelectKitRow) {
-		//is the drum for the note received the same as the currently selected drum in the kit?
-		//if no, update selected drum
-		if (selectedDrum != thisDrum) {
-			selectedDrum = thisDrum;
-
-			//is the instrument clip for this kit the currently selected clip? (could be selected by holding clip in song)
-			//only need to potentially refresh the kit clip if we're actively in that clip
-			//we use this function from midi follow because it was designed to detect clip selections in song / arranger view
-			//and when a clip is selected in song / arranger view, you will need to refresh the mod led indicators
-			//and if using midi follow you may need to send updated midi feedback (because parameter context has changed)
-			Clip* clip = getSelectedClip();
-			if (clip && clip == activeClip) {
-				//are we currently in the instrument clip UI?
-				//if yes, we may need to refresh it (main pads and / or sidebar)
-				UI* currentUI = getCurrentUI();
-				if (currentUI == &instrumentClipView || currentUI == &automationInstrumentClipView) {
-					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-
-					//if affectEntire is on, no need to update mod controllable stack cause changing
-					//selected drum does not not have an effect
-					//no need to send midi feedback either because context hasn't changed
-					if (!instrumentClip->affectEntire) {
-						//reset mod controllable stack / send midi feedback
-						//redraw mod (gold) encoder led indicators
-						view.setActiveModControllableTimelineCounter(instrumentClip);
-					}
-
-					//redraw sidebar in instrument clip view
-					//or if you're in automation clip view with affect entire enabled
-					if ((currentUI == &instrumentClipView)
-					    || (currentUI == &automationInstrumentClipView && instrumentClip->affectEntire)) {
-						renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
-					}
-					//if in automation clip view with affect entire disabled, redraw main pads + sidebar
-					else {
-						automationInstrumentClipView.initParameterSelection();
-						uiNeedsRendering(currentUI);
-					}
-				}
-			}
-		}
+		instrumentClipView.setSelectedDrum(thisDrum, true, this);
 	}
 }
 
