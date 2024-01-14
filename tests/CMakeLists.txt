@@ -11,7 +11,7 @@ include(FetchContent)
 FetchContent_Declare(
     CppUTest
     GIT_REPOSITORY https://github.com/cpputest/cpputest.git
-    GIT_TAG        master # or use release tag, eg. v3.8
+    GIT_TAG        eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
 )
 # Set this to ON if you want to have the CppUTests in your project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
