@@ -253,6 +253,7 @@ private:
 
 	//Automation Lanes Functions
 	void initPadSelection();
+	void initInterpolation();
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 

@@ -3166,7 +3166,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				//are we currently in the instrument clip UI?
 				//if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationInstrumentClipView) {
+				if (currentUI == &instrumentClipView || currentUI == &automationClipView) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					//don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
@@ -3180,8 +3180,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 					//if in automation clip view with affect entire disabled
 					//redraw main pads (go back to overview) + sidebar
-					if (currentUI == &automationInstrumentClipView && !affectEntire && drumSelectionChanged) {
-						automationInstrumentClipView.initParameterSelection();
+					if (currentUI == &automationClipView && !affectEntire && drumSelectionChanged) {
+						automationClipView.initParameterSelection();
 						uiNeedsRendering(currentUI);
 					}
 					//if in instrument clip view
