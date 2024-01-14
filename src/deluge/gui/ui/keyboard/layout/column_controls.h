@@ -25,11 +25,13 @@ constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
 constexpr uint32_t kVelModShift = 24;
 constexpr uint32_t kHalfStep = 0x7FFFFF;
+constexpr int32_t kMaxNotesChordMem = 10;
 
 enum ColumnControlFunction : int8_t {
 	VELOCITY = 0,
 	MOD,
 	CHORD,
+	CHORD_MEM,
 	BEAT_REPEAT,
 	COL_CTRL_FUNC_MAX,
 };
@@ -109,6 +111,7 @@ private:
 	void renderColumnVelocity(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnChordMem(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 
 	ColumnControlFunction leftColPrev = VELOCITY;
@@ -130,6 +133,10 @@ private:
 	ChordModeChord activeChord = NO_CHORD;
 	ChordModeChord defaultChord = NO_CHORD;
 	uint8_t chordSemitoneOffsets[4] = {0};
+
+	uint8_t chordMemNoteCount[8] = {0};
+	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
+	uint8_t activeChordMem = 0xFF;
 
 	bool horizontalScrollingLeftCol = false;
 	bool horizontalScrollingRightCol = false;

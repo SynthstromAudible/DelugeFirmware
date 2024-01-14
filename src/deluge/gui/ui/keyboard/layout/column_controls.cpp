@@ -20,6 +20,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -60,6 +61,7 @@ const char* functionNames[] = {
     /* VELOCITY    */ "VEL",
     /* MOD         */ "MOD",
     /* CHORD       */ "CHRD",
+    /* CHORD_MEM   */ "CMEM",
     /* BEAT_REPEAT */ "BEAT",
 };
 
@@ -179,6 +181,29 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		}
 		else {
 			setActiveChord(defaultChord);
+		}
+		break;
+	case CHORD_MEM:
+		if (pad.active) {
+			activeChordMem = pad.y;
+			auto chord = chordMem[pad.y];
+			auto noteCount = chordMemNoteCount[pad.y];
+			for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
+				currentNotesState.enableNote(chord[i], velocity);
+			}
+		}
+		else {
+			activeChordMem = 0xFF;
+			if (currentNotesState.count) {
+				auto noteCount = currentNotesState.count;
+				for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
+					chordMem[pad.y][i] = currentNotesState.notes[i].note;
+				}
+				chordMemNoteCount[pad.y] = noteCount;
+			}
+			else if (Buttons::isShiftButtonPressed()) {
+				chordMemNoteCount[pad.y] = 0;
+			}
 		}
 		break;
 	case BEAT_REPEAT:
@@ -311,6 +336,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 	case CHORD:
 		renderColumnChord(image, LEFT_COL);
 		break;
+	case CHORD_MEM:
+		renderColumnChordMem(image, LEFT_COL);
+		break;
 	case BEAT_REPEAT:
 		renderColumnBeatRepeat(image, LEFT_COL);
 		break;
@@ -325,6 +353,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 		break;
 	case CHORD:
 		renderColumnChord(image, RIGHT_COL);
+		break;
+	case CHORD_MEM:
+		renderColumnChordMem(image, RIGHT_COL);
 		break;
 	case BEAT_REPEAT:
 		renderColumnBeatRepeat(image, RIGHT_COL);
@@ -385,6 +416,18 @@ void ColumnControlsKeyboard::renderColumnBeatRepeat(uint8_t image[][kDisplayWidt
 		image[y][column][0] = beat_selected ? 0xff : 0x50;
 		image[y][column][1] = otherChannels;
 		image[y][column][2] = beat_selected ? 0xff : 0x50;
+	}
+}
+
+void ColumnControlsKeyboard::renderColumnChordMem(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+	uint8_t otherChannels = 0;
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		bool chord_selected = y == activeChordMem;
+		uint8_t chord_slot_filled = chordMemNoteCount[y] > 0 ? 0x7f : 0;
+		otherChannels = chord_selected ? 0xf0 : 0;
+		image[y][column][0] = otherChannels;
+		image[y][column][1] = chord_selected ? 0xff : chord_slot_filled;
+		image[y][column][2] = chord_selected ? 0xff : chord_slot_filled;
 	}
 }
 

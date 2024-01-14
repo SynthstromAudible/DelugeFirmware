@@ -35,6 +35,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 		}
 	}
 
+	// Should be called last so currentNotesState can be read
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 

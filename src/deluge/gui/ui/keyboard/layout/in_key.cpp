@@ -35,6 +35,7 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		}
 	}
 
+	// Should be called last so currentNotesState can be read
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
