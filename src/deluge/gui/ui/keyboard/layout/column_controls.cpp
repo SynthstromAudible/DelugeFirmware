@@ -193,7 +193,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			}
 			chordMemNoteCount[pad.y] = noteCount;
 		}
-		else if (!pad.dead) {
+		else if (!pad.dead && !pad.padPressHeld) {
 			activeChordMem = 0xFF;
 			if (currentNotesState.count) {
 				auto noteCount = currentNotesState.count;
