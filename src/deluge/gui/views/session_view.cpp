@@ -3501,7 +3501,22 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	if (clip == nullptr) {
-		if (on && currentUIMode == UI_MODE_NONE && FlashStorage::gridUnarmEmptyPads) {
+		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
+		if (on && playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL
+		    && FlashStorage::gridEmptyPadsCreateRec) {
+			auto maxTrack = gridTrackCount();
+			Output* track = gridTrackFromX(x, maxTrack);
+			if (track != nullptr) {
+				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+				if (clip != nullptr) {
+					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
+				}
+
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			}
+		}
+
+		if (on && currentUIMode == UI_MODE_NONE && FlashStorage::gridEmptyPadsUnarm) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);
 			if (track != nullptr) {
