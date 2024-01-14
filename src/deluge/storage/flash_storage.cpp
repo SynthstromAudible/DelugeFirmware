@@ -512,28 +512,35 @@ void readSettings() {
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
-
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone
 	if (buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) {
 		return false;
 	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
 	else if (buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) {
 		return false;
 	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone
 	else if (buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) {
 		return false;
 	}
+	//midiEngine.midiFollowKitRootNote
 	else if (buffer[129] < 0 || buffer[129] > kMaxMIDIValue) {
 		return false;
 	}
+	//midiEngine.midiFollowDisplayParam
 	else if (buffer[130] != false && buffer[130] != true) {
 		return false;
 	}
-	else if (buffer[131] != false && buffer[132] != true) {
+	//midiEngine.midiFollowFeedback
+	else if (buffer[131] != false && buffer[131] != true) {
 		return false;
 	}
+	//midiEngine.midiFollowFeedbackAutomation
 	else if (buffer[132] < 0 || buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
 		return false;
 	}
+	//midiEngine.midiFollowFeedbackFilter
 	else if (buffer[133] != false && buffer[133] != true) {
 		return false;
 	}
