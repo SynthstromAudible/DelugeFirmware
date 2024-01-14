@@ -119,7 +119,7 @@ namespace FlashStorage {
 122: defaultMetronomeVolume
 123: defaultSessionLayout
 124: defaultKeyboardLayout
-125: gridUnarmEmptyPads
+125: gridEmptyPadsUnarm
 126: midiFollow set follow channel synth
 127: midiFollow set follow channel kit
 128: midiFollow set follow channel param
@@ -131,6 +131,7 @@ namespace FlashStorage {
 134-137: midiFollow set follow device synth 	product / vendor ids
 138-141: midiFollow set follow device kit		product / vendor ids
 142-145: midiFollow set follow device param		product / vendor ids
+146: gridEmptyPadsCreateRec
 */
 
 uint8_t defaultScale;
@@ -151,7 +152,8 @@ uint8_t defaultBendRange[2] = {
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
 
-bool gridUnarmEmptyPads;
+bool gridEmptyPadsUnarm;
+bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
@@ -233,7 +235,8 @@ void resetSettings() {
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
-	gridUnarmEmptyPads = false;
+	gridEmptyPadsUnarm = false;
+	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
@@ -478,7 +481,7 @@ void readSettings() {
 		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[124]);
 	}
 
-	gridUnarmEmptyPads = buffer[125];
+	gridEmptyPadsUnarm = buffer[125];
 
 	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
 	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
@@ -499,6 +502,8 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+
+	gridEmptyPadsCreateRec = buffer[146];
 }
 
 void writeSettings() {
@@ -610,7 +615,7 @@ void writeSettings() {
 	buffer[123] = util::to_underlying(defaultSessionLayout);
 	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
-	buffer[125] = gridUnarmEmptyPads;
+	buffer[125] = gridEmptyPadsUnarm;
 	buffer[126] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone;
 	buffer[127] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone;
 	buffer[128] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
@@ -622,6 +627,7 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[138]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
+	buffer[146] = gridEmptyPadsCreateRec;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
