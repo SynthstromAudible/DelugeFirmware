@@ -227,6 +227,7 @@ MidiEngine::MidiEngine() {
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
+	midiSelectKitRow = false;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
