@@ -1302,6 +1302,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		}
 
 		for (int32_t i = 0; i < nRows; i++) {
+
 			// SHOULD this row be randomized?
 			if (randomizeAll || auditionPadIsPressed[i]) {
 				NoteRow* thisNoteRow;
@@ -1333,7 +1334,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 					continue;
 				}
 				char const* path = afh->filePath.get();
-				if (path == NULL) {
+				if (path == &nothing) {
 					continue;
 				}
 				char* slashAddress = strrchr(path, '/');
@@ -1344,6 +1345,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				// Open directory of current audio file
 				*slashAddress = 0;
 				FRESULT result = f_opendir(&staticDIR, path);
+				*slashAddress = '/';
 				if (result != FR_OK) {
 					display->displayError(ERROR_SD_CARD);
 					return ActionResult::DEALT_WITH;
@@ -1357,22 +1359,21 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 						continue;
 					}
 					if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
-						strncpy(chosenFilename, staticFNO.fname, 256);
+						strncpy(chosenFilename, staticFNO.fname, sizeof(chosenFilename));
 					}
 				}
 
 				// Assign new audio file
 				if (fileCount) {
-					String filePath;
-					filePath.set(path);
-					filePath.concatenate("/");
-					filePath.concatenate(chosenFilename);
-
 					AudioEngine::stopAnyPreviewing();
 					soundDrum->unassignAllVoices();
+
 					afh->setAudioFile(NULL);
-					afh->filePath.set(&filePath);
+					afh->filePath.set(path);
+					afh->filePath.concatenate("/");
+					afh->filePath.concatenate(chosenFilename);
 					afh->loadFile(false, true, true, 1, 0, false);
+
 					soundDrum->name.set(chosenFilename);
 					getCurrentInstrument()->beenEdited();
 
