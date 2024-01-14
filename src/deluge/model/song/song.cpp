@@ -2635,14 +2635,16 @@ traverseClips:
 }
 
 int32_t Song::cycleThroughScales() {
+	int32_t currentScale = getCurrentPresetScale();
+	int32_t newScale = currentScale + 1;
+	return setPresetScale(newScale);
+}
+
+int32_t Song::setPresetScale(int32_t newScale) {
 	// Can only do it if there are 7 notes in current scale
 	if (numModeNotes != 7) {
 		return 255;
 	}
-
-	int32_t currentScale = getCurrentPresetScale();
-
-	int32_t newScale = currentScale + 1;
 	if (newScale >= NUM_PRESET_SCALES) {
 		newScale = 0;
 	}

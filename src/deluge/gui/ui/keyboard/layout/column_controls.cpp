@@ -62,6 +62,7 @@ const char* functionNames[] = {
     /* MOD         */ "MOD",
     /* CHORD       */ "CHRD",
     /* CHORD_MEM   */ "CMEM",
+    /* SCALE_MODE  */ "SMOD",
     /* BEAT_REPEAT */ "BEAT",
 };
 
@@ -186,10 +187,9 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 	case CHORD_MEM:
 		if (pad.active) {
 			activeChordMem = pad.y;
-			auto chord = chordMem[pad.y];
 			auto noteCount = chordMemNoteCount[pad.y];
 			for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
-				currentNotesState.enableNote(chord[i], velocity);
+				currentNotesState.enableNote(chordMem[pad.y][i], velocity);
 			}
 		}
 		else {
@@ -204,6 +204,17 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			else if (Buttons::isShiftButtonPressed()) {
 				chordMemNoteCount[pad.y] = 0;
 			}
+		}
+		break;
+	case SCALE_MODE:
+		if (pad.active) {
+			keyboardScreen.setScale(pad.y);
+		}
+		else if (!pad.padPressHeld) {
+			previousScaleMode = pad.y;
+		}
+		else {
+			keyboardScreen.setScale(previousScaleMode);
 		}
 		break;
 	case BEAT_REPEAT:
@@ -339,6 +350,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 	case CHORD_MEM:
 		renderColumnChordMem(image, LEFT_COL);
 		break;
+	case SCALE_MODE:
+		renderColumnScaleMode(image, LEFT_COL);
+		break;
 	case BEAT_REPEAT:
 		renderColumnBeatRepeat(image, LEFT_COL);
 		break;
@@ -356,6 +370,9 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 		break;
 	case CHORD_MEM:
 		renderColumnChordMem(image, RIGHT_COL);
+		break;
+	case SCALE_MODE:
+		renderColumnScaleMode(image, RIGHT_COL);
 		break;
 	case BEAT_REPEAT:
 		renderColumnBeatRepeat(image, RIGHT_COL);
@@ -428,6 +445,19 @@ void ColumnControlsKeyboard::renderColumnChordMem(uint8_t image[][kDisplayWidth 
 		image[y][column][0] = otherChannels;
 		image[y][column][1] = chord_selected ? 0xff : chord_slot_filled;
 		image[y][column][2] = chord_selected ? 0xff : chord_slot_filled;
+	}
+}
+
+void ColumnControlsKeyboard::renderColumnScaleMode(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+	uint8_t otherChannels = 0;
+	int32_t currentScale = currentSong->getCurrentPresetScale();
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		bool mode_selected = y == currentScale;
+		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
+		otherChannels = mode_selected ? 0xf0 : 0;
+		image[y][column][0] = mode_selected ? 0xff : mode_available;
+		image[y][column][1] = mode_selected ? 0xff : mode_available;
+		image[y][column][2] = otherChannels;
 	}
 }
 

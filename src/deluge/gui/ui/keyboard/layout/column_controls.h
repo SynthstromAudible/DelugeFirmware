@@ -32,6 +32,7 @@ enum ColumnControlFunction : int8_t {
 	MOD,
 	CHORD,
 	CHORD_MEM,
+	SCALE_MODE,
 	BEAT_REPEAT,
 	COL_CTRL_FUNC_MAX,
 };
@@ -112,6 +113,7 @@ private:
 	void renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnChordMem(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnScaleMode(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 	void renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
 
 	ColumnControlFunction leftColPrev = VELOCITY;
@@ -137,6 +139,8 @@ private:
 	uint8_t chordMemNoteCount[8] = {0};
 	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
 	uint8_t activeChordMem = 0xFF;
+
+	int32_t previousScaleMode = currentSong->getCurrentPresetScale();
 
 	bool horizontalScrollingLeftCol = false;
 	bool horizontalScrollingRightCol = false;

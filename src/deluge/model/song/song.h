@@ -104,6 +104,7 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
+	int32_t setPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
