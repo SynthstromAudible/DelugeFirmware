@@ -183,17 +183,10 @@ void resetSettings() {
 
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
-	midiEngine.midiThru = false;
-	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
-		midiChannelType.clear();
-	}
-	midiEngine.midiFollowKitRootNote = 36;
-	midiEngine.midiFollowDisplayParam = false;
-	midiEngine.midiFollowFeedback = false;
-	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
-	midiEngine.midiFollowFeedbackFilter = false;
+	resetMidiFollowSettings();
 
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
+	midiEngine.midiSelectKitRow = false;
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
@@ -242,6 +235,18 @@ void resetSettings() {
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
+}
+
+void resetMidiFollowSettings() {
+	midiEngine.midiThru = false;
+	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+		midiChannelType.clear();
+	}
+	midiEngine.midiFollowKitRootNote = 36;
+	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowFeedback = false;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	midiEngine.midiFollowFeedbackFilter = false;
 }
 
 void readSettings() {
@@ -484,29 +489,63 @@ void readSettings() {
 
 	gridEmptyPadsUnarm = buffer[125];
 
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[128];
-	midiEngine.midiFollowKitRootNote = buffer[129];
-	midiEngine.midiFollowDisplayParam = buffer[130];
-	midiEngine.midiFollowFeedback = buffer[131];
-
-	if (buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
-		midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	if (areMidiFollowSettingsValid(buffer)) {
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[126];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[127];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[128];
+		midiEngine.midiFollowKitRootNote = buffer[129];
+		midiEngine.midiFollowDisplayParam = !!buffer[130];
+		midiEngine.midiFollowFeedback = !!buffer[131];
+		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
 	}
 	else {
-		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		resetMidiFollowSettings();
 	}
-
-	midiEngine.midiFollowFeedbackFilter = !!buffer[133];
-
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[134]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[138]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[142]);
 
 	gridEmptyPadsCreateRec = buffer[146];
 
 	midiEngine.midiSelectKitRow = buffer[147];
+}
+
+bool areMidiFollowSettingsValid(uint8_t* buffer) {
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone
+	if (buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+	else if (buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone
+	else if (buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) {
+		return false;
+	}
+	//midiEngine.midiFollowKitRootNote
+	else if (buffer[129] < 0 || buffer[129] > kMaxMIDIValue) {
+		return false;
+	}
+	//midiEngine.midiFollowDisplayParam
+	else if (buffer[130] != false && buffer[130] != true) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedback
+	else if (buffer[131] != false && buffer[131] != true) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedbackAutomation
+	else if (buffer[132] < 0 || buffer[132] > util::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)) {
+		return false;
+	}
+	//midiEngine.midiFollowFeedbackFilter
+	else if (buffer[133] != false && buffer[133] != true) {
+		return false;
+	}
+	//place holder for checking if midi follow devices are valid
+	return true;
 }
 
 void writeSettings() {
