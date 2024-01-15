@@ -1160,6 +1160,10 @@ getBrandNewMemoryAgain:
 	LOCK_EXIT
 	return NO_ERROR;
 }
+// swapElements and repositionElements are fine - GCC doesn't like that workingMemory
+// would be unbounded if elementSize is unbounded, but it is so it's all ok
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 
 void ResizeableArray::swapElements(int32_t i1, int32_t i2) {
 	LOCK_ENTRY
@@ -1190,3 +1194,4 @@ void ResizeableArray::repositionElement(int32_t iFrom, int32_t iTo) {
 
 	LOCK_EXIT
 }
+#pragma GCC pop

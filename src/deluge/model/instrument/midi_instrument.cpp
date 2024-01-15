@@ -50,7 +50,7 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 		mpeOutputMemberChannels[c].lastNoteCode = 32767;
 		mpeOutputMemberChannels[c].noteOffOrder = 0;
 	}
-	for (int32_t i = 0; i <= kNumExpressionDimensions; i++) {
+	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		lastMonoExpression[i] = 0;
 		lastCombinedPolyExpression[i] = 0;
 	}

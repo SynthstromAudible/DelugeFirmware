@@ -2928,6 +2928,10 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	displayProbability(probabilityValue, false);
 }
 
+// GCC is fine with 29 or 5 for the size, but does not like that it could be either
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
@@ -2968,6 +2972,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
 	}
 }
+#pragma gcc pop
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
 
@@ -4679,6 +4684,10 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 	}
 }
 
+// GCC doesn't like the MODEL_STACK_MAX_SIZE on the stack
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+
 // Supply offset as 0 to just popup number, not change anything
 void InstrumentClipView::nudgeNotes(int32_t offset) {
 
@@ -5006,6 +5015,7 @@ abandonModRegion:
 		currentClip->reGetParameterAutomation(modelStackWithTimelineCounter);
 	}
 }
+#pragma GCC pop
 
 void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
