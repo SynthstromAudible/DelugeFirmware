@@ -15,20 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "model/clip/clip.h"
-#include "model/output.h"
-#include "model/song/song.h"
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device_manager.h"
+#include "model/instrument/midi_instrument.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Bend final : public Submenu {
+extern Output* getCurrentOutput();
+
+namespace deluge::gui::menu_item::midi {
+class MPEToMono final : public Toggle {
 public:
-	using Submenu::Submenu;
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		// Drums within a Kit don't need the two-item submenu - they have their own single item.
-		const auto type = getCurrentOutputType();
-		return (type == OutputType::SYNTH || type == OutputType::CV || type == OutputType::MIDI_OUT);
+	using Toggle::Toggle;
+	//this is safe since it's only shown in midi clips
+	void readCurrentValue() override { this->setValue(((MIDIInstrument*)getCurrentOutput())->collapseMPE); }
+	void writeCurrentValue() override {
+		((MIDIInstrument*)getCurrentOutput())->collapseMPE = this->getValue();
+		getCurrentInstrument()->editedByUser = true;
 	}
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::midi

@@ -197,6 +197,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+	void initParameterSelection();
 
 private:
 	//Automation View Render Functions
@@ -233,7 +234,6 @@ private:
 	                                          int32_t numParams);
 
 	//Automation Lanes Functions
-	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);

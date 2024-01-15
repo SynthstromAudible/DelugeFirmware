@@ -40,7 +40,8 @@ extern uint8_t defaultBendRange[2];
 extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
-extern bool gridUnarmEmptyPads;
+extern bool gridEmptyPadsUnarm;
+extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
 
@@ -49,5 +50,7 @@ extern uint8_t defaultMetronomeVolume;
 void readSettings();
 void writeSettings();
 void resetSettings();
+void resetMidiFollowSettings();
+bool areMidiFollowSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage

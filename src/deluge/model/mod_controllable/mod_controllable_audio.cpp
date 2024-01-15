@@ -1852,7 +1852,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	//obtain clip for active context
-	Clip* clip = midiFollow.getClipForMidiFollow();
+	Clip* clip = getSelectedClip();
 
 	//setup model stack for the active context
 	if (!clip) {

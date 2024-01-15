@@ -13,7 +13,9 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
-	while (!(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+	//loop through non-null items until we find a relevant one
+	while ((*current_item_ != nullptr)
+	       && !(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 		current_item_++;
 		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
 			current_item_ = items.begin();
