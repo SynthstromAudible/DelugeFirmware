@@ -182,7 +182,7 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-std::array<char const*, 20> presetScaleNames = {
+std::array<char const*, 18> presetScaleNames = {
 	"MAJOR",
 	"MINOR",
 	"DORIAN",
@@ -194,12 +194,10 @@ std::array<char const*, 20> presetScaleNames = {
 	"HARMONIC MINOR",
 	"HUNGARIAN MINOR",
 	"MARVA",
-	"TODI",
 	"ARABIAN",
 	"WHOLE TONE",
 	"BLUES",
 	"PENTATONIC MINOR",
-	"HIRAJOSHI",
 	"CHINESE",
 	"RANDOM",
 	"NONE"
@@ -306,14 +304,12 @@ const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		// Exotic scales
 		{0, 2, 3, 6, 7, 8, 11}, // HUNG Hungarian Minor (matches Launchpad scale)
 		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (matches Launchpad scale)
-		{0, 1, 3, 6, 7, 8, 11}, // TODI Todi (matches Launchpad scale)
 		{0, 2, 4, 5, 6, 8, 10}, // ARAB Arabian (matches Lumi's ARABIC_B scale)
 		// 6-note scales
 		{0, 2, 4, 6, 8, 10, 0}, // WHOL Whole Tone (matches Launchpad and Lumi scale)
 		{0, 3, 5, 6, 7, 10, 0}, // BLUE Blues Minor (matches Launchpad and Lumi BLUES scale)
 		// 5-note scales
 		{0, 3, 5, 7, 10, 0, 0}, // PENT Pentatonic Minor (matches Launchpad and Lumi scale)
-		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale)
 		{0, 4, 6, 7, 11, 0, 0}, // CHIN Chinese (matches Lumi JAPANESE scale)
 
 };
