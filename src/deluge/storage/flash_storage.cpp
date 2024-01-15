@@ -513,15 +513,15 @@ void readSettings() {
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
 	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone
-	if (buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) {
+	if ((buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) && buffer[126] != MIDI_CHANNEL_NONE) {
 		return false;
 	}
 	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
-	else if (buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) {
+	else if ((buffer[127] < 0 || buffer[127] >= NUM_CHANNELS) && buffer[127] != MIDI_CHANNEL_NONE) {
 		return false;
 	}
 	//midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone
-	else if (buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) {
+	else if ((buffer[128] < 0 || buffer[128] >= NUM_CHANNELS) && buffer[128] != MIDI_CHANNEL_NONE) {
 		return false;
 	}
 	//midiEngine.midiFollowKitRootNote
