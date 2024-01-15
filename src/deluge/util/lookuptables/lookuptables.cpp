@@ -305,7 +305,7 @@ const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		{0, 2, 3, 5, 7, 8, 11}, // HARM Harmonic Minor (matches Launchpad scale)
 		// Exotic scales
 		{0, 2, 3, 6, 7, 8, 11}, // HUNG Hungarian Minor (matches Launchpad scale)
-\		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (Indian) (matches Launchpad scale)
+		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (Indian) (matches Launchpad scale)
 		{0, 1, 3, 6, 7, 8, 11}, // TODI Todi (Indian) (matches Launchpad scale)
 		{0, 2, 4, 5, 6, 8, 10}, // ARAB Arabian (matches Lumi's ARABIC_B scale)
 		// 6-note scales
