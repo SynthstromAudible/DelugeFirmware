@@ -40,9 +40,6 @@ public:
 	int32_t monophonicPitchBendValue;
 	int32_t polyPitchBendValue;
 
-	uint8_t cachedBendRanges
-	    [2]; // Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
-
 	char const* getXMLTag() { return "cvChannel"; }
 
 private:
