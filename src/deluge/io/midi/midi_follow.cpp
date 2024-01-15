@@ -108,6 +108,18 @@ Clip* getSelectedClip(bool useActiveClip) {
 	//if you're in session view, check if you're pressing a clip to control that clip
 	if (rootUI == &sessionView) {
 		clip = sessionView.getClipForLayout();
+
+		// If not pressing a clip, find the first clip armed for linear recording (if one exists)
+		if (clip == nullptr) {
+			// Is this even remotely correct? (parts nabbed from Session::doLaunch)
+			for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
+				clip = currentSong->sessionClips.getClipAtIndex(c);
+				if (clip->armState == ArmState::ON_NORMAL && !currentSong->isClipActive(clip)
+				    && clip->getCurrentlyRecordingLinearly()) {
+					break;
+				}
+			}
+		}
 	}
 	//if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
 	else if (rootUI == &arrangerView) {
