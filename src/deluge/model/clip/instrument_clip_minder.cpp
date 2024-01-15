@@ -120,6 +120,9 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(getCurrentOutput(), false);
 }
 
+// GCC is fine with 29 or 5 for the size, but does not like that it could be either
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
 	char buffer[display->haveOLED() ? 30 : 5];
@@ -156,7 +159,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		display->setText(buffer, true, automationExists ? 3 : 255, false);
 	}
 }
-
+#pragma GCC pop
 void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 	int32_t error;
 
