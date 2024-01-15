@@ -305,15 +305,15 @@ const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		{0, 2, 3, 5, 7, 8, 11}, // HARM Harmonic Minor (matches Launchpad scale)
 		// Exotic scales
 		{0, 2, 3, 6, 7, 8, 11}, // HUNG Hungarian Minor (matches Launchpad scale)
-		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (Indian) (matches Launchpad scale)
-		{0, 1, 3, 6, 7, 8, 11}, // TODI Todi (Indian) (matches Launchpad scale)
+		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (matches Launchpad scale)
+		{0, 1, 3, 6, 7, 8, 11}, // TODI Todi (matches Launchpad scale)
 		{0, 2, 4, 5, 6, 8, 10}, // ARAB Arabian (matches Lumi's ARABIC_B scale)
 		// 6-note scales
-		{0, 2, 4, 6, 8, 10, 0}, // WHOL Whole Tone, (matches Launchpad and Lumi scale)
-		{0, 3, 5, 6, 7, 10, 0}, // BLUE Blues (Minor) (matches Launchpad and Lumi BLUES scale)
+		{0, 2, 4, 6, 8, 10, 0}, // WHOL Whole Tone (matches Launchpad and Lumi scale)
+		{0, 3, 5, 6, 7, 10, 0}, // BLUE Blues Minor (matches Launchpad and Lumi BLUES scale)
 		// 5-note scales
 		{0, 3, 5, 7, 10, 0, 0}, // PENT Pentatonic Minor (matches Launchpad and Lumi scale)
-		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (Japanese) (matches Launchpad scale)
+		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale)
 		{0, 4, 6, 7, 11, 0, 0}, // CHIN Chinese (matches Lumi JAPANESE scale)
 
 };
