@@ -2731,7 +2731,7 @@ traverseClips2:
 		goto traverseClips2;
 	}
 
-    int32_t newNumModeNotes = 1;
+	int32_t newNumModeNotes = 1;
 	for (int32_t n = 1; n < 7; n++) {
 		int32_t newNote = presetScaleNotes[newScale][n];
 		if (newNote == 0) {
