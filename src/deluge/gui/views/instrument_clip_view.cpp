@@ -1282,10 +1282,10 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
-	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentOutputType() != OutputType::KIT) {
-			return ActionResult::DEALT_WITH;
-		}
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On
+	    && getCurrentOutputType() == OutputType::KIT
+	    && (isUIModeActive(UI_MODE_AUDITIONING) || Buttons::isShiftButtonPressed())) {
+
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1326,7 +1326,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				}
 				SoundDrum* soundDrum = (SoundDrum*)drum;
 				MultiRange* r = soundDrum->sources[0].getRange(0);
-				if (r == NULL || ((MultisampleRange*)r)->sampleHolder.audioFile == NULL) {
+				if (r == NULL) {
 					continue;
 				}
 				AudioFileHolder* afh = r->getAudioFileHolder();
@@ -1347,6 +1347,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				FRESULT result = f_opendir(&staticDIR, path);
 				*slashAddress = '/';
 				if (result != FR_OK) {
+
 					display->displayError(ERROR_SD_CARD);
 					return ActionResult::DEALT_WITH;
 				}
@@ -1369,14 +1370,17 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 					soundDrum->unassignAllVoices();
 
 					afh->setAudioFile(NULL);
+					// set the slash to 0 again
+					*slashAddress = 0;
 					afh->filePath.set(path);
+
 					afh->filePath.concatenate("/");
 					afh->filePath.concatenate(chosenFilename);
 					afh->loadFile(false, true, true, 1, 0, false);
 
 					soundDrum->name.set(chosenFilename);
 					getCurrentInstrument()->beenEdited();
-
+					*slashAddress = '/';
 					rowsRandomized++;
 				}
 			}
