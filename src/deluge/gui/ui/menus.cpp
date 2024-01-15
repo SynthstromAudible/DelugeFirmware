@@ -60,6 +60,7 @@
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/midi/after_touch_to_mono.h"
 #include "gui/menu_item/midi/bank.h"
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
@@ -69,6 +70,7 @@
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
+#include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"
@@ -137,6 +139,7 @@
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/submenu.h"
+#include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/arpeggiator.h"
 #include "gui/menu_item/submenu/bend.h"
@@ -489,7 +492,10 @@ Submenu fxMenu{
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
 midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
-
+midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
+                                                  STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
+midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
+submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCollapseMenu, &midiMPECollapseMenu}};
 // Clip-level stuff --------------------------------------------------------------------------
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
@@ -1042,6 +1048,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &midiSubMenu,
         &arpMenu,
         &bendMenu,
+        &midiMPEMenu,
         &sequenceDirectionMenu,
     },
 };

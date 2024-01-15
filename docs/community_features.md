@@ -20,6 +20,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.2 - MPE
 - ([#512]) Change handling of MPE expression when collapsed to a single MIDI channel. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
 
+- ([#934]) Allow converting polyphonic expression to monophonic expression. Two settings are added to midi clips under a new menu entry POLY EXPRESSION TO MONO. AFTERTOUCH converts MPE or poly aftertouch to channel aftertouch, and MPE converts poly y-axis to mod wheel and poly pitch bend to an average monophonic pitch bend. For y axis and aftertouch the highest value wins.
+
 #### 3.3 - MIDI
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
@@ -459,6 +461,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
+[#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

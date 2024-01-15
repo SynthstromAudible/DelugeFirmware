@@ -631,6 +631,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEVICES, "Devices"},
         {STRING_FOR_MIDI_DEVICES, "MIDI devices"},
         {STRING_FOR_MPE, "MPE"},
+        {STRING_FOR_MPE_MONO, "Poly Expression to Mono"},
         {STRING_FOR_MIDI_CLOCK, "MIDI clock"},
         {STRING_FOR_MIDI, "MIDI"},
         {STRING_FOR_PPQN, "PPQN"},
