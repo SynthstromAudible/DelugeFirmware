@@ -130,11 +130,11 @@ extern const int16_t oldResonanceCompensation[];
 extern const int16_t windowedSincKernel[][17][16];
 extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 
-#define NUM_PRESET_SCALES 7
+#define NUM_PRESET_SCALES 18
 extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
 extern std::array<char const*, NUM_PRESET_SCALES + 2> presetScaleNames;
-#define PRESET_SCALE_RANDOM 7
-#define PRESET_SCALE_NONE 8
+#define PRESET_SCALE_RANDOM 18
+#define PRESET_SCALE_NONE 19
 
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
