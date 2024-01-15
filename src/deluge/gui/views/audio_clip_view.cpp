@@ -69,7 +69,7 @@ bool AudioClipView::opened() {
 	mustRedrawTickSquares = true;
 	uiNeedsRendering(this);
 
-	getCurrentAudioClip()->onAutomationAudioClipView = false;
+	getCurrentClip()->onAutomationClipView = false;
 
 	focusRegained();
 	return true;

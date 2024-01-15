@@ -368,7 +368,7 @@ Some functions and variables that were previously Private in the Instrument Clip
 
 The Automation Clip View is recognized as a new UI so many of the calls that check the current UI in view (e.g. getCurrentUI(), getRootUI()) were modified to check if the Automation Clip View is currently open.
 
-Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" to tell other views (e.g. Song, Arranger) whether to open up the Keyboard screen (instead of the Instrument Clip View) when transitioning to/from the Instrument Clip View / Audio Clip View, the Automation Clip View also uses a similar variable "onAutomationInstrumentClipView / onAutomationAudioClipView" for the same purpose.
+Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" to tell other views (e.g. Song, Arranger) whether to open up the Keyboard screen (instead of the Instrument Clip View) when transitioning to/from the Instrument Clip View / Audio Clip View, the Automation Clip View also uses a similar variable "onAutomationClipView" for the same purpose.
 
 # De-scoped Items (Future Release)
 

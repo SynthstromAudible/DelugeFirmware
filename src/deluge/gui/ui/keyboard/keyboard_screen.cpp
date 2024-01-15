@@ -379,7 +379,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+			if (getCurrentClip()->onAutomationClipView) {
 				changeRootUI(&automationClipView);
 			}
 			else {
@@ -405,12 +405,12 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
 	else if (b == CLIP_VIEW) {
 		if (on) {
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = false;
+			if (getCurrentClip()->onAutomationClipView) {
+				getCurrentClip()->onAutomationClipView = false;
 				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 			}
 			else {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = true;
+				getCurrentClip()->onAutomationClipView = true;
 				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 			}
 		}

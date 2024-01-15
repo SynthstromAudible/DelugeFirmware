@@ -182,6 +182,18 @@ public:
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
 
+	//START ~ new Automation Clip View Variables
+	bool onAutomationClipView; //new to save the view that you are currently in
+	                           //(e.g. if you leave clip and want to come back where you left off)
+
+	int32_t lastSelectedParamID;       //last selected Parameter to be edited in Automation Instrument Clip View
+	Param::Kind lastSelectedParamKind; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	int32_t lastSelectedParamShortcutX;
+	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
+	OutputType lastSelectedOutputType;
+	//END ~ new Automation Clip View Variables
+
 protected:
 	virtual void
 	posReachedEnd(ModelStackWithTimelineCounter*

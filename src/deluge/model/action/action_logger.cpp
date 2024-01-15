@@ -600,7 +600,7 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
 
-		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+		if (getCurrentClip()->onAutomationClipView) {
 			changeRootUI(&automationClipView);
 		}
 		else {
@@ -637,17 +637,12 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
 		if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
-			if (getCurrentAudioClip()->onAutomationAudioClipView) {
-				changeRootUI(&automationClipView);
-			}
-			else {
-				changeRootUI(&audioClipView);
-			}
+			changeRootUI(&audioClipView);
 		}
 		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+		else if (getCurrentClip()->onAutomationClipView) {
 			changeRootUI(&automationClipView);
 		}
 		else {

@@ -371,7 +371,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-				if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+				if (getCurrentClip()->onAutomationClipView) {
 					swapOutRootUILowLevel(&automationClipView);
 					automationClipView.openedInBackground();
 				}

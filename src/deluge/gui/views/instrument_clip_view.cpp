@@ -142,7 +142,7 @@ void InstrumentClipView::openedInBackground() {
 		uiNeedsRendering(this);
 	}
 	getCurrentInstrumentClip()->onKeyboardScreen = false;
-	getCurrentInstrumentClip()->onAutomationInstrumentClipView = false;
+	getCurrentClip()->onAutomationClipView = false;
 }
 
 // Initializes some stuff to begin a new editing session

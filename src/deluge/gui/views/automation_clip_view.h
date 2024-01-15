@@ -243,10 +243,9 @@ private:
 	void pasteAutomation(Clip* clip);
 
 	//Select Encoder Action
-	void selectAudioClipParam(int32_t offset, AudioClip* clip);
-	void selectKitAffectEntireParam(int32_t offset, InstrumentClip* clip);
-	void selectNonGlobalParam(int32_t offset, InstrumentClip* clip);
-	void selectMIDICC(int32_t offset, InstrumentClip* clip);
+	void selectGlobalParam(int32_t offset, Clip* clip);
+	void selectNonGlobalParam(int32_t offset, Clip* clip);
+	void selectMIDICC(int32_t offset, Clip* clip);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
 	                                          int32_t numParams);
 	void getLastSelectedParamShortcut(Clip* clip, OutputType outputType);

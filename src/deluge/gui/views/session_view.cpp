@@ -2446,8 +2446,37 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
+	if (clip->onAutomationClipView) {
+		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
+
+		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+		if (clip->type == CLIP_TYPE_AUDIO) {
+			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+		}
+		else {
+			// Won't have happened automatically because we haven't begun the "session"
+			instrumentClipView.recalculateColours();
+			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+		}
+
+		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
+		for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
+			PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
+			PadLEDs::animatedRowGoingFrom[y] = y - 1;
+		}
+
+		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+
+		PadLEDs::renderClipExpandOrCollapse();
+
+		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+			// Hook point for specificMidiDevice
+			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+		}
+	}
+
 	// InstrumentClips
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	else if (clip->type == CLIP_TYPE_INSTRUMENT) {
 
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
@@ -2459,25 +2488,6 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y;
-			}
-		}
-
-		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
-
-			// Won't have happened automatically because we haven't begun the "session"
-			instrumentClipView.recalculateColours();
-
-			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-
-			// Important that this is done after currentSong->xScroll is changed, above
-			instrumentClipView.fillOffScreenImageStores();
-
-			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
-				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
-				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
 		}
 
@@ -2510,46 +2520,27 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	// AudioClips
 	else {
-		if (((AudioClip*)clip)->onAutomationAudioClipView) {
-			currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
+		AudioClip* clip = getCurrentAudioClip();
 
-			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
-			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+		Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
-			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
-				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
-				PadLEDs::animatedRowGoingFrom[y] = y - 1;
-			}
+		if (sample) {
 
-			PadLEDs::setupInstrumentClipCollapseAnimation(true);
+			currentUIMode = UI_MODE_AUDIO_CLIP_EXPANDING;
 
-			PadLEDs::renderClipExpandOrCollapse();
+			waveformRenderer.collapseAnimationToWhichRow = clipPlaceOnScreen;
+
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip);
+
+			PadLEDs::renderAudioClipExpandOrCollapse();
+
+			PadLEDs::clearSideBar(); // Sends "now"
 		}
+
+		// If no sample, just skip directly there
 		else {
-			AudioClip* clip = getCurrentAudioClip();
-
-			Sample* sample = (Sample*)clip->sampleHolder.audioFile;
-
-			if (sample) {
-
-				currentUIMode = UI_MODE_AUDIO_CLIP_EXPANDING;
-
-				waveformRenderer.collapseAnimationToWhichRow = clipPlaceOnScreen;
-
-				PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip);
-
-				PadLEDs::renderAudioClipExpandOrCollapse();
-
-				PadLEDs::clearSideBar(); // Sends "now"
-			}
-
-			// If no sample, just skip directly there
-			else {
-				currentUIMode = UI_MODE_NONE;
-				changeRootUI(&audioClipView);
-			}
+			currentUIMode = UI_MODE_NONE;
+			changeRootUI(&audioClipView);
 		}
 	}
 }
@@ -2579,10 +2570,15 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
-		if (getCurrentAudioClip()) {
+		if (getCurrentUI() == &automationClipView) {
 			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+				audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			}
+			else {
+				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			}
 
 			// I didn't see a difference but the + 2 seems intentional
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
@@ -2602,18 +2598,6 @@ void SessionView::transitionToSessionView() {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 					PadLEDs::animatedRowGoingFrom[y] = y;
-				}
-			}
-			else if (instrumentClip->onAutomationInstrumentClipView) {
-				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-				                                  false);
-				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-
-				// I didn't see a difference but the + 2 seems intentional
-				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-				for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
-					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-					PadLEDs::animatedRowGoingFrom[y] = y - 1;
 				}
 			}
 			else {

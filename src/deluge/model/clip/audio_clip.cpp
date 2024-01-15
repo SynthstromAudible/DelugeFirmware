@@ -64,15 +64,6 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 	voicePriority = VoicePriority::MEDIUM;
 	attack = -2147483648;
-
-	//initialize automation audio clip view variables
-	onAutomationAudioClipView = false;
-	lastSelectedParamID = kNoSelection;
-	lastSelectedParamKind = Param::Kind::NONE;
-	lastSelectedParamShortcutX = kNoSelection;
-	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
-	//end initialize of automation audio clip view variables
 }
 
 AudioClip::~AudioClip() {
@@ -123,7 +114,6 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 void AudioClip::copyBasicsFrom(Clip* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
-	onAutomationAudioClipView = ((AudioClip*)otherClip)->onAutomationAudioClipView;
 }
 
 void AudioClip::abortRecording() {
@@ -1016,8 +1006,8 @@ void AudioClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
-	if (onAutomationAudioClipView) {
-		storageManager.writeAttribute("onAutomationAudioClipView", (char*)"1");
+	if (onAutomationClipView) {
+		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1111,8 +1101,8 @@ someError:
 			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
 		}
 
-		else if (!strcmp(tagName, "onAutomationAudioClipView")) {
-			onAutomationAudioClipView = storageManager.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
+			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {

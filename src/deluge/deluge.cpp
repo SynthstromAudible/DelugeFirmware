@@ -425,25 +425,20 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationClipView;
+		}
+		else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
 			}
 		}
 		else {
-			if (((AudioClip*)song->currentClip)->onAutomationAudioClipView) {
-				newUI = &automationClipView;
-			}
-			else {
-				newUI = &audioClipView;
-			}
+			newUI = &audioClipView;
 		}
 	}
 

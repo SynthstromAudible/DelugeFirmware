@@ -1674,16 +1674,19 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		// If going to automationAudioClipView...
-		if (((AudioClip*)clip)->onAutomationAudioClipView) {
-			PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
+	// If going to automationAudioClipView...
+	if (clip->onAutomationClipView) {
+		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
-			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
+		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+			instrumentClipView.recalculateColours();
 		}
+
+		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+	}
+	else if (clip->type == CLIP_TYPE_AUDIO) {
 		// If no sample, just skip directly there
-		else if (!((AudioClip*)clip)->sampleHolder.audioFile) {
+		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
 			changeRootUI(&audioClipView);
 
@@ -1713,13 +1716,6 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
-		}
-
-		// If going to automationClipView...
-		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
-			instrumentClipView.recalculateColours();
-			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1753,7 +1749,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
-	if ((clip->type == CLIP_TYPE_AUDIO) && !(((AudioClip*)clip)->onAutomationAudioClipView)) {
+	if ((clip->type == CLIP_TYPE_AUDIO) && !clip->onAutomationClipView) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {

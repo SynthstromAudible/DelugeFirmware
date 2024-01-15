@@ -62,6 +62,16 @@ Clip::Clip(int32_t newType) : type(newType) {
 	launchStyle = LAUNCH_STYLE_DEFAULT;
 	fillEventAtTickCount = 0;
 
+	//initialize automation clip view variables
+	onAutomationClipView = false;
+	lastSelectedParamID = kNoSelection;
+	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
+	lastSelectedParamArrayPosition = 0;
+	lastSelectedOutputType = OutputType::NONE;
+	//end initialize of automation clip view variables
+
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif
@@ -90,6 +100,7 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	//modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
+	onAutomationClipView = otherClip->onAutomationClipView;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {

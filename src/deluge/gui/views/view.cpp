@@ -1249,15 +1249,8 @@ void View::setModLedStates() {
 			Clip* clip = sessionView.getClipForLayout();
 
 			if (clip) {
-				if (clip->output->type == OutputType::AUDIO) {
-					if ((((AudioClip*)clip)->onAutomationAudioClipView)) {
-						goto setBlinkLED;
-					}
-				}
-				else {
-					if ((((InstrumentClip*)clip)->onAutomationInstrumentClipView)) {
-						goto setBlinkLED;
-					}
+				if (clip->onAutomationClipView) {
+					goto setBlinkLED;
 				}
 			}
 		}
@@ -1265,20 +1258,13 @@ void View::setModLedStates() {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 
 			if (output) {
-				if (output->type == OutputType::AUDIO) {
-					if (((AudioClip*)currentSong->getClipWithOutput(output))->onAutomationAudioClipView) {
-						goto setBlinkLED;
-					}
-				}
-				else {
-					if (((InstrumentClip*)currentSong->getClipWithOutput(output))->onAutomationInstrumentClipView) {
-						goto setBlinkLED;
-					}
+				if (currentSong->getClipWithOutput(output)->onAutomationClipView) {
+					goto setBlinkLED;
 				}
 			}
 		}
 		else if (getRootUI() == &keyboardScreen) {
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+			if (getCurrentClip()->onAutomationClipView) {
 				goto setBlinkLED;
 			}
 		}

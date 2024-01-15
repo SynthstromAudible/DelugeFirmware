@@ -979,7 +979,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 							sessionView.clipNeedsReRendering(clip);
 							if (getCurrentClip()) {
-								if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+								if (getCurrentClip()->onAutomationClipView) {
 									uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 								}
 								else {

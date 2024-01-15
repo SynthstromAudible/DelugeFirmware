@@ -2072,19 +2072,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 // if you're in automation view and editing the same parameter that was just updated
 // by a learned midi knob, then re-render the pads on the automation editor grid
 bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id) {
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		if ((instrumentClip->lastSelectedParamID == id) && (instrumentClip->lastSelectedParamKind == kind)) {
-			uiNeedsRendering(&automationClipView);
-			return true;
-		}
-	}
-	else {
-		AudioClip* audioClip = (AudioClip*)clip;
-		if ((audioClip->lastSelectedParamID == id) && (audioClip->lastSelectedParamKind == kind)) {
-			uiNeedsRendering(&automationClipView);
-			return true;
-		}
+	if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
+		uiNeedsRendering(&automationClipView);
+		return true;
 	}
 	return false;
 }
