@@ -97,7 +97,7 @@ private:
 class StringBuf {
 	// Not templated to optimize binary size.
 public:
-	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) {}
+	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { buf_[0] = 0; }
 
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }
