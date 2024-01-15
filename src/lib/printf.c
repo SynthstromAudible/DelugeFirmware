@@ -144,7 +144,7 @@ static inline void _out_char(char character, void* buffer, size_t idx, size_t ma
 	(void)idx;
 	(void)maxlen;
 	if (character) {
-		_putchar(character);
+		putchar_(character);
 	}
 }
 

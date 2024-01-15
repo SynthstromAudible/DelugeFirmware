@@ -143,8 +143,8 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
 		if (loopLocked) {
-			int32_t intendedLoopEndPos = static_cast<int32_t>(value) + loopLength;
-			if (intendedLoopEndPos >= 0 && intendedLoopEndPos <= getCurrentSampleHolder()->endPos) {
+			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(loopLength);
+			if (uint64_t{intendedLoopEndPos} <= getCurrentSampleHolder()->endPos) {
 				getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
 				getCurrentMultisampleRange()->sampleHolder.loopEndPos = intendedLoopEndPos;
 			}
@@ -156,7 +156,8 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	else if (markerTypeNow == MarkerType::LOOP_END) {
 		if (loopLocked) {
 			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
-			if (intendedLoopStartPos >= getCurrentSampleHolder()->startPos) {
+			if (intendedLoopStartPos >= 0
+			    && static_cast<uint64_t>(intendedLoopStartPos) >= getCurrentSampleHolder()->startPos) {
 				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;
 			}

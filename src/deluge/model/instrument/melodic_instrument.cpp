@@ -356,6 +356,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                    MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                    bool* doingMidiThru) {
+	//ideally this would be configurable
 	int yCC = 1;
 	int32_t value32 = 0;
 	switch (match) {
@@ -375,20 +376,19 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 	case MIDIMatchType::MPE_MASTER:
 		[[fallthrough]];
 	case MIDIMatchType::CHANNEL:
-		if (ccNumber == 1) {
-			value32 = (value) << 24;
-		}
-		if (ccNumber == yCC) {
-			//this also passes CC1 to the instrument, but that's important for midi instruments
-			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
-			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
-		}
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;
 			}
+		}
+		if (ccNumber == yCC) {
+			//this is the same range as mpe Y axis but unipolar
+			value32 = (value) << 24;
+			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
+			//Don't also pass to ccReveived since it will now be handled by output mono expression in midi clips instead
+			return;
 		}
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
