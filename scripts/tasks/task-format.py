@@ -41,12 +41,13 @@ def exclude(files, excludes):
     return fpaths
 
 
-def get_clang_format():
+def get_clang_format_cmd():
     git_path = util.get_git_root()
     for path in git_path.rglob(f"clang-format{EXEC_EXT}"):
         return path
     # failed to find it in toolchains, falling back to path, then string
     return util.find_cmd_with_fallback("clang-format")
+
 
 globs = [
     "*.cc",
@@ -56,24 +57,31 @@ globs = [
     "*.[ch]",
 ]
 
+
 def get_header_and_source_files(path, recursive: bool):
     glob = path.rglob if recursive else path.glob
     return [file for pattern in globs for file in list(glob(pattern))]
 
+
 def get_valid_header_and_source_files(files):
     return list(filter(bool, [fnmatch.fnmatch(file, pattern) and file for pattern in globs for file in files]))
 
-def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
-    command = [clang_format, "--style=file"]
+
+def format_file(verbose: bool, check: bool, path: Path):
+    path = str(path.absolute())
+    command = [get_clang_format_cmd(), "--style=file"]
     if check:
         command.append("--dry-run")
         command.append("-Werror")
-    elif path is not None:
+    else:
         command.append("-i")
-    if path is not None:
-        path = str(path.absolute())
-        command.append(path)
+    command.append(path)
     return util.run(command, verbose, verbose)
+
+
+def format_stdio(filename: str):
+    command = [get_clang_format_cmd(), "--style=file", "--assume-filename", filename]
+    return util.run(command)
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -85,7 +93,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-nr",
         "--no-recursive",
-        help="do not recursively descend and process files",
+        help="do not recursively descend and process files in directories",
         action="store_true",
     )
     parser.add_argument(
@@ -98,7 +106,7 @@ def argparser() -> argparse.ArgumentParser:
         "-c", "--check", help="check for format compliance locally", action="store_true"
     )
     parser.add_argument(
-        "-i", "--stdin", help="format stdin to stdout", action="store_true"
+        "-i", "--stdio", help="format stdin to stdout (must also specify a single filename for clang-format to use)", action="store_true"
     )
     parser.add_argument(
         "files_and_directories",
@@ -108,11 +116,18 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_array(a):
-    return [a, a]
-
 def main() -> int:
     args = argparser().parse_args()
+    if args.stdio:
+        if len(args.files_and_directories) != 1:
+            print("Error: must specify the file name when using stdio")
+            return 1
+        filename = args.files_and_directories[0]
+        if not Path(filename).is_file():
+            print("Error: must specify a valid file name when using stdio")
+            return 1
+        return format_stdio(filename)
+
     files_and_directories = (
         [Path(f) for f in args.files_and_directories]
         if args.files_and_directories
@@ -131,30 +146,27 @@ def main() -> int:
 
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
-    clang_format = get_clang_format()
+
     check = args.check
 
-    if args.stdin:
-        result = [format_file(clang_format, False, check, None)]
-    elif args.quiet:
-        result = util.do_parallel(partial(format_file, clang_format, False, check), files)
+    if args.quiet:
+        result = util.do_parallel(partial(format_file, False, check), files)
     elif args.verbose:
         # Single-process for output purposes :/
         result = [0] * len(files)
         for (i, file) in enumerate(files):
-            result[i] = format_file(clang_format, True, check, file)
+            result[i] = format_file(True, check, file)
             print(f"Formatting {file}")
     else:
         result = util.do_parallel_progressbar(
-            partial(format_file, clang_format, False, check), files, "Formatting: "
+            partial(format_file, False, check), files, "Formatting: "
         )
 
     if any(map(lambda x: x != 0, result)):
         print("Done, formatting mismatch detected")
         return 1
 
-    if not args.stdin:
-        print("Done!")
+    print("Done!")
     return 0
 
 
