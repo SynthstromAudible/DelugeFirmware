@@ -1326,7 +1326,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				}
 				SoundDrum* soundDrum = (SoundDrum*)drum;
 				MultiRange* r = soundDrum->sources[0].getRange(0);
-				if (r == NULL || ((MultisampleRange*)r)->sampleHolder.audioFile == NULL) {
+				if (r == NULL) {
 					continue;
 				}
 				AudioFileHolder* afh = r->getAudioFileHolder();
