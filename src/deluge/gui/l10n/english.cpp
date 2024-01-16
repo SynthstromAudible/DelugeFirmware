@@ -816,7 +816,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
 
         {STRING_FOR_SONG_VIEW, "Song View"},
-        {STRING_FOR_SONG_FX, "Song FX"},
 
         /* Strings Specifically for Arranger View
         * arranger_view.cpp
