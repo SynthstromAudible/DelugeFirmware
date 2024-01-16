@@ -741,7 +741,6 @@ enum class String : size_t {
 	*/
 
 	STRING_FOR_SONG_VIEW,
-	STRING_FOR_SONG_FX,
 
 	/* Strings Specifically for Arranger View
     * arranger_view.cpp
