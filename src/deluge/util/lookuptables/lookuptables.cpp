@@ -198,7 +198,7 @@ std::array<char const*, 18> presetScaleNames = {
 	"WHOLE TONE",
 	"BLUES",
 	"PENTATONIC MINOR",
-	"CHINESE",
+	"HIRAJOSHI",
 	"RANDOM",
 	"NONE"
 };
