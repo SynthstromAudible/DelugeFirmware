@@ -27,7 +27,7 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the MIDI-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE. There are three channel's (A/B/C) available to accomodate learning multiple devices / channels to MIDI Follow Mode.
 - In the MIDI-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the MIDI-Follow > Display Param submenu, enable or disable param pop-ups
-- In the MIDI-Follow > Feedback > Feedback submenu, enable or disable MIDI follow feedback
+- In the MIDI-Follow > Feedback > Channel submenu, enable or disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
 - In the MIDI-Follow > Feedback > Automation Feedback submenu, enabled or disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
 - In the MIDI-Follow > Feedback > Filter Responses submenu, enable or disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
