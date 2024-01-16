@@ -964,7 +964,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 		}
 
 		// If there in fact are multiple notes sharing the channel, to combine...
-		if (numNotesFound > 1) {
+		if (numNotesFound >= 1) {
 			int32_t averageValue16;
 			if (whichExpressionDimension == 0) {
 				averageValue16 = mpeValuesSum / numNotesFound;
