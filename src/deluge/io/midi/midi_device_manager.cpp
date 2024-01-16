@@ -484,8 +484,6 @@ void writeDevicesToFile() {
 worthIt:
 	int32_t error = storageManager.createXMLFile("MIDIDevices.XML", true);
 	if (error) {
-		display->removeWorkingAnimation();
-		display->displayError(error);
 		return;
 	}
 

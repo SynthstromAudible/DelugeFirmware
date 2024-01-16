@@ -230,8 +230,6 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 
 	int32_t error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error) {
-		display->removeWorkingAnimation();
-		display->displayError(error);
 		return;
 	}
 
