@@ -1515,6 +1515,8 @@ void PerformanceSessionView::writeDefaultsToFile() {
 	//PerformanceView.xml
 	int32_t error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error) {
+		display->removeWorkingAnimation();
+		display->displayError(error);
 		return;
 	}
 

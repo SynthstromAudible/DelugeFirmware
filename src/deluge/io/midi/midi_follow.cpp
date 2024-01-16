@@ -652,6 +652,8 @@ void MidiFollow::writeDefaultsToFile() {
 	//MidiFollow.xml
 	int32_t error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error) {
+		display->removeWorkingAnimation();
+		display->displayError(error);
 		return;
 	}
 
