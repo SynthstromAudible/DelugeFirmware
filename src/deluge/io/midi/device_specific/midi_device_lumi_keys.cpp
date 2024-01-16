@@ -39,7 +39,7 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
 	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -76,14 +76,14 @@ void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
 
 void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
 	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
 	setScale(scaleAndRootNoteOffset.first);
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
 	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
 	setScale(scaleAndRootNoteOffset.first);
 }

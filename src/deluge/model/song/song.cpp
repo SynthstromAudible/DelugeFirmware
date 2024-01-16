@@ -506,28 +506,31 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	// Check if the previously set scale could fit the notes present in the clips
-	// If so, we need no check at all, we can directly go back to previous scale safely
 	bool previousScaleFits = true;
 	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
 		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
 		previousScaleFits = false;
 	}
-	for (int32_t i = 1; i < 12; i++) {
-		if (notesWithinOctavePresent[i]) {
-			bool checkPassed = false;
-			for (int32_t n = 1; n < numModeNotes; n++) {
-				if (modeNotes[n] == i) {
-					checkPassed = true;
-					continue;
+	// Check if the previously set scale could fit the notes present in the clips
+	// If so, we need no check at all, we can directly go back to previous scale safely
+	else {
+		for (int32_t i = 1; i < 12; i++) {
+			if (notesWithinOctavePresent[i]) {
+				bool checkPassed = false;
+				for (int32_t n = 1; n < numModeNotes; n++) {
+					if (modeNotes[n] == i) {
+						checkPassed = true;
+						break;
+					}
 				}
-			}
-			if (!checkPassed) {
-				previousScaleFits = false;
-				break;
+				if (!checkPassed) {
+					previousScaleFits = false;
+					break;
+				}
 			}
 		}
 	}
+
 	if (!previousScaleFits) {
 		// Determine the majorness or minorness of the scale
 		int32_t majorness = 0;
