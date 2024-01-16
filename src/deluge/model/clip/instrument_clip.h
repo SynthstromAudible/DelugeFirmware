@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
 #include "model/timeline_counter.h"
@@ -137,19 +138,6 @@ public:
 
 	bool onKeyboardScreen;
 
-	//START ~ new Automation Clip View Variables
-	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
-	                                     //(e.g. if you leave clip and want to come back where you left off)
-
-	int32_t lastSelectedParamID;       //last selected Parameter to be edited in Automation Instrument Clip View
-	Param::Kind lastSelectedParamKind; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
-	int32_t lastSelectedParamShortcutX;
-	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
-	OutputType lastSelectedOutputType;
-
-	//END ~ new Automation Clip View Variables
-
 	uint8_t midiBank; // 128 means none
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
@@ -244,6 +232,11 @@ public:
 
 	// ----- TimelineCounter implementation -------
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
+
+	bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	};
 
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);

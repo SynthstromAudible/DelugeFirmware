@@ -45,7 +45,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -66,6 +66,7 @@
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
@@ -424,13 +425,13 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationClipView;
+		}
+		else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;

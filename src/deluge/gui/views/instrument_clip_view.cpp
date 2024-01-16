@@ -32,7 +32,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -142,7 +142,7 @@ void InstrumentClipView::openedInBackground() {
 		uiNeedsRendering(this);
 	}
 	getCurrentInstrumentClip()->onKeyboardScreen = false;
-	getCurrentInstrumentClip()->onAutomationInstrumentClipView = false;
+	getCurrentClip()->onAutomationClipView = false;
 }
 
 // Initializes some stuff to begin a new editing session
@@ -259,7 +259,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			changeRootUI(&automationInstrumentClipView);
+			changeRootUI(&automationClipView);
 		}
 	}
 
@@ -3166,7 +3166,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				//are we currently in the instrument clip UI?
 				//if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationInstrumentClipView) {
+				if (currentUI == &instrumentClipView || currentUI == &automationClipView) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					//don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
@@ -3180,8 +3180,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 					//if in automation clip view with affect entire disabled
 					//redraw main pads (go back to overview) + sidebar
-					if (currentUI == &automationInstrumentClipView && !affectEntire && drumSelectionChanged) {
-						automationInstrumentClipView.initParameterSelection();
+					if (currentUI == &automationClipView && !affectEntire && drumSelectionChanged) {
+						automationClipView.initParameterSelection();
 						uiNeedsRendering(currentUI);
 					}
 					//if in instrument clip view
@@ -3623,7 +3623,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 
 		//check that you're not in automation instrument clip view and holding an automation pad down
 		//if not, clear popup's / re-draw screen
-		if (!((getCurrentUI() == &automationInstrumentClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+		if (!((getCurrentUI() == &automationClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::removePopup();
 			}

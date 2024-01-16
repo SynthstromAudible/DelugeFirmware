@@ -23,7 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -796,7 +796,7 @@ void timerRoutine() {
 			// Otherwise, there's stuff we want to fade in / to
 			else {
 				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if ((getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 					renderExplodeAnimation(explodedness, false);
 				}
 				else {
@@ -806,16 +806,18 @@ void timerRoutine() {
 
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
-					if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
-						if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
+					if (getCurrentClip()->onAutomationClipView) {
+						changeRootUI(&automationClipView); // We want to fade the sidebar in
+						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						if (anyZoomingDone) {
+							uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 						}
-						else {
-							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
-							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-							if (anyZoomingDone) {
-								uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-							}
+					}
+					else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						if (anyZoomingDone) {
+							uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
 						}
 					}
 					else {
@@ -848,7 +850,7 @@ void timerRoutine() {
 			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
 			explodedness += progress * explodeAnimationDirection;
 
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if ((getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {
@@ -996,23 +998,25 @@ void renderClipExpandOrCollapse() {
 		if (progress >= 65536) {
 			currentUIMode = UI_MODE_NONE;
 
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
-				changeRootUI(&keyboardScreen);
-			}
-			else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				changeRootUI(&automationInstrumentClipView);
+			if (getCurrentClip()->onAutomationClipView) {
+				changeRootUI(&automationClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 				}
 			}
 			else {
-				changeRootUI(&instrumentClipView);
-				// If we need to zoom in horizontally because the Clip's too short...
-				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-				if (anyZoomingDone) {
-					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+				if (getCurrentInstrumentClip()->onKeyboardScreen) {
+					changeRootUI(&keyboardScreen);
+				}
+				else {
+					changeRootUI(&instrumentClipView);
+					// If we need to zoom in horizontally because the Clip's too short...
+					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+					if (anyZoomingDone) {
+						uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+					}
 				}
 			}
 			return;
@@ -1039,8 +1043,8 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-			uiNeedsRendering(&automationInstrumentClipView);
+		if (getCurrentClip()->onAutomationClipView) {
+			uiNeedsRendering(&automationClipView);
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView);

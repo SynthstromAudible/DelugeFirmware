@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 
+class AudioClip;
 class InstrumentClip;
 class Clip;
 class Kit;
@@ -79,7 +80,7 @@ private:
 	                                 InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
+	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
 	//handle midi received for midi follow
