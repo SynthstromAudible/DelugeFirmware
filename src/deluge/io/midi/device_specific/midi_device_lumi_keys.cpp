@@ -38,7 +38,8 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -74,13 +75,15 @@ void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
 	setScale(scaleAndRootNoteOffset.first);
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
 	setScale(scaleAndRootNoteOffset.first);
 }
@@ -238,7 +241,8 @@ void MIDIDeviceLumiKeys::setRootNote(int16_t rootNote) {
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
-std::pair<MIDIDeviceLumiKeys::Scale, int16_t> MIDIDeviceLumiKeys::determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount) {
+std::pair<MIDIDeviceLumiKeys::Scale, int16_t> MIDIDeviceLumiKeys::determineScaleFromNotes(uint8_t* modeNotes,
+                                                                                          uint8_t noteCount) {
 	uint16_t noteInt = 0;
 
 	// Try with all possible transpositions
