@@ -1030,7 +1030,7 @@ int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, b
 
 	int32_t error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	if (error) {
-		if (displayErrors){
+		if (displayErrors) {
 			display->removeWorkingAnimation();
 			display->displayError(error);
 		}
