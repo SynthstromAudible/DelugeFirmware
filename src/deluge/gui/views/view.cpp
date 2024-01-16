@@ -1343,9 +1343,8 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
-	if ((channel != MIDI_CHANNEL_NONE) && midiEngine.midiFollowFeedback
-	    && activeModControllableModelStack.modControllable) {
+	int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
+	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);

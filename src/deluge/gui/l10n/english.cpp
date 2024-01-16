@@ -834,9 +834,9 @@ PLACE_SDRAM_DATA Language english{
         //strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},
-        {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_A, "Channel A"},
+        {STRING_FOR_FOLLOW_CHANNEL_B, "Channel B"},
+        {STRING_FOR_FOLLOW_CHANNEL_C, "Channel C"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
