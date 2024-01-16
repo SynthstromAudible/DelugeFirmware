@@ -30,7 +30,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
@@ -2446,8 +2446,30 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
+	if (clip->onAutomationClipView) {
+		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
+
+		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+		clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
+		for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
+			PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
+			PadLEDs::animatedRowGoingFrom[y] = y - 1;
+		}
+
+		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+
+		PadLEDs::renderClipExpandOrCollapse();
+
+		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+			// Hook point for specificMidiDevice
+			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
+		}
+	}
+
 	// InstrumentClips
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	else if (clip->type == CLIP_TYPE_INSTRUMENT) {
 
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
@@ -2459,25 +2481,6 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y;
-			}
-		}
-
-		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
-
-			// Won't have happened automatically because we haven't begun the "session"
-			instrumentClipView.recalculateColours();
-
-			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                            &PadLEDs::occupancyMaskStore[1], false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-
-			// Important that this is done after currentSong->xScroll is changed, above
-			instrumentClipView.fillOffScreenImageStores();
-
-			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
-				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
-				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
 		}
 
@@ -2510,7 +2513,6 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	// AudioClips
 	else {
-
 		AudioClip* clip = getCurrentAudioClip();
 
 		Sample* sample = (Sample*)clip->sampleHolder.audioFile;
@@ -2542,9 +2544,10 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		AudioClip* clip = getCurrentAudioClip();
-		if (!clip || !clip->sampleHolder.audioFile) { // !clip probably couldn't happen, but just in case...
+		// !clip probably couldn't happen, but just in case...
+		if (!clip || !clip->sampleHolder.audioFile) {
 			memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 			finishedTransitioningHere();
 		}
@@ -2560,26 +2563,42 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
-		InstrumentClip* instrumentClip = getCurrentInstrumentClip();
-		if (instrumentClip->onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
-			keyboardScreen.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-
-			PadLEDs::numAnimatedRows = kDisplayHeight;
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-				PadLEDs::animatedRowGoingFrom[y] = y;
-			}
-		}
-		else {
-			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+		if (getCurrentUI() == &automationClipView) {
+			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			getCurrentClip()->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
-			PadLEDs::numAnimatedRows = kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
+			// I didn't see a difference but the + 2 seems intentional
+			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 				PadLEDs::animatedRowGoingFrom[y] = y - 1;
+			}
+		}
+		else {
+			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+			if (instrumentClip->onKeyboardScreen) {
+				keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                              false);
+				keyboardScreen.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+				PadLEDs::numAnimatedRows = kDisplayHeight;
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
+					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+					PadLEDs::animatedRowGoingFrom[y] = y;
+				}
+			}
+			else {
+				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                                  false);
+				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+				// I didn't see a difference but the + 2 seems intentional
+				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
+				for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
+					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+					PadLEDs::animatedRowGoingFrom[y] = y - 1;
+				}
 			}
 		}
 
@@ -2594,7 +2613,7 @@ void SessionView::transitionToSessionView() {
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
-		if (!instrumentClip->onKeyboardScreen) {
+		if (getCurrentUI() == &instrumentClipView) {
 			instrumentClipView.fillOffScreenImageStores();
 		}
 		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
@@ -3673,7 +3692,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -3695,7 +3714,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -3710,7 +3729,7 @@ void SessionView::gridTransitionToSessionView() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		PadLEDs::clearSideBar();
 	}
 

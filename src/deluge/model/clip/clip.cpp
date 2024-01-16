@@ -17,7 +17,7 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -62,6 +62,16 @@ Clip::Clip(int32_t newType) : type(newType) {
 	launchStyle = LAUNCH_STYLE_DEFAULT;
 	fillEventAtTickCount = 0;
 
+	//initialize automation clip view variables
+	onAutomationClipView = false;
+	lastSelectedParamID = kNoSelection;
+	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
+	lastSelectedParamArrayPosition = 0;
+	lastSelectedOutputType = OutputType::NONE;
+	//end initialize of automation clip view variables
+
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif
@@ -90,6 +100,7 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	//modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
+	onAutomationClipView = otherClip->onAutomationClipView;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
@@ -975,8 +986,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI()
-				    != &automationInstrumentClipView) { //don't clear MPE if you're in the Automation View
+				if (getCurrentUI() != &automationClipView) { //don't clear MPE if you're in the Automation View
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
@@ -984,10 +994,9 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			//Normal case
 			else {
-				if (getCurrentUI() == &automationInstrumentClipView
+				if (getCurrentUI() == &automationClipView
 				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
-				           == RuntimeFeatureStateToggle::Off
-				    || type == CLIP_TYPE_AUDIO) {
+				           == RuntimeFeatureStateToggle::Off) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}

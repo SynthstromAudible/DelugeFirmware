@@ -31,6 +31,7 @@
 class Song;
 class ParamManagerForTimeline;
 class Output;
+class AudioClip;
 class InstrumentClip;
 class Action;
 class TimelineView;
@@ -181,6 +182,21 @@ public:
 	uint8_t launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
+
+	//START ~ new Automation Clip View Variables
+	bool onAutomationClipView; //new to save the view that you are currently in
+	                           //(e.g. if you leave clip and want to come back where you left off)
+
+	int32_t lastSelectedParamID;       //last selected Parameter to be edited in Automation Instrument Clip View
+	Param::Kind lastSelectedParamKind; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	int32_t lastSelectedParamShortcutX;
+	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
+	OutputType lastSelectedOutputType;
+	//END ~ new Automation Clip View Variables
+
+	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) = 0;
 
 protected:
 	virtual void

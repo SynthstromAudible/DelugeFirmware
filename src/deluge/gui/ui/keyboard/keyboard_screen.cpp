@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -379,8 +379,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				changeRootUI(&automationInstrumentClipView);
+			if (getCurrentClip()->onAutomationClipView) {
+				changeRootUI(&automationClipView);
 			}
 			else {
 				changeRootUI(&instrumentClipView);
@@ -405,12 +405,12 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
 	else if (b == CLIP_VIEW) {
 		if (on) {
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = false;
+			if (getCurrentClip()->onAutomationClipView) {
+				getCurrentClip()->onAutomationClipView = false;
 				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 			}
 			else {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = true;
+				getCurrentClip()->onAutomationClipView = true;
 				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 			}
 		}
