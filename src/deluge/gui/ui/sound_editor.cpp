@@ -14,7 +14,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -153,7 +153,7 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &automationClipView || getRootUI() == &instrumentClipView) {
+	else if (getRootUI() == &automationView || getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
 	else {
@@ -340,7 +340,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationClipView)) {
+	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationView)) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -372,8 +372,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 			if (getRootUI() == &keyboardScreen) {
 				if (getCurrentClip()->onAutomationClipView) {
-					swapOutRootUILowLevel(&automationClipView);
-					automationClipView.openedInBackground();
+					swapOutRootUILowLevel(&automationView);
+					automationView.openedInBackground();
 				}
 
 				else {
@@ -385,7 +385,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-			else if (getRootUI() == &automationClipView) {
+			else if (getRootUI() == &automationView) {
 				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					swapOutRootUILowLevel(&keyboardScreen);
 					keyboardScreen.openedInBackground();
@@ -655,7 +655,7 @@ shortcutsPicked:
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+	uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
@@ -1043,9 +1043,9 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	else if (getRootUI() == &automationClipView) {
+	else if (getRootUI() == &automationView) {
 		if (x == kDisplayWidth + 1) {
-			automationClipView.padAction(x, y, on);
+			automationView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1276,9 +1276,8 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if (getCurrentUI() == &automationClipView) {
-				display->cancelPopup();
-				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
+			if (getCurrentUI() == &automationView) {
+				newItem = &defaultUIAutomation;
 			}
 			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;

@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -1743,7 +1743,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationClipView) {
+				if (getRootUI() == &automationView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					// check that the clip that the param is being edited for is the same as the
 					// current clip as the current clip is what's actively displayed in automation view
@@ -1796,9 +1796,12 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 				if (midiFollow.paramToCC[xDisplay][yDisplay] == ccNumber) {
 					// obtain the model stack for the parameter the ccNumber received is learned to
 					// don't display "can't control param" error message if you're in a MIDI or CV clip
-					bool displayError = midiEngine.midiFollowDisplayParam
-					                    && (clip->output->type != OutputType::MIDI_OUT)
-					                    && (clip->output->type != OutputType::CV);
+					bool isMIDIORCV = false;
+					if (clip) {
+						isMIDIORCV =
+						    (clip->output->type == OutputType::MIDI_OUT) || (clip->output->type == OutputType::CV);
+					}
+					bool displayError = midiEngine.midiFollowDisplayParam && !isMIDIORCV;
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, ccNumber, displayError);
@@ -1842,11 +1845,11 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								// performance view
 								bool editingParamInAutomationOrPerformanceView = false;
 								RootUI* rootUI = getRootUI();
-								if (rootUI == &automationClipView || rootUI == &performanceSessionView) {
+								if (rootUI == &automationView || rootUI == &performanceSessionView) {
 									int32_t id = modelStackWithParam->paramId;
 									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-									if (rootUI == &automationClipView) {
+									if (rootUI == &automationView) {
 										// pass the current clip because you want to check that you're editing the param
 										// for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
@@ -2118,8 +2121,19 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 // if you're in automation view and editing the same parameter that was just updated
 // by a learned midi knob, then re-render the pads on the automation editor grid
 bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind kind, int32_t id) {
-	if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
-		uiNeedsRendering(&automationClipView);
+	bool doRefreshGrid = false;
+	if (clip && !automationView.onArrangerView) {
+		if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
+			doRefreshGrid = true;
+		}
+	}
+	else if (automationView.onArrangerView) {
+		if ((currentSong->lastSelectedParamID == id) && (currentSong->lastSelectedParamKind == kind)) {
+			doRefreshGrid = true;
+		}
+	}
+	if (doRefreshGrid) {
+		uiNeedsRendering(&automationView);
 		return true;
 	}
 	return false;

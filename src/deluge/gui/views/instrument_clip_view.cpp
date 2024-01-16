@@ -32,7 +32,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -262,7 +262,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			changeRootUI(&automationClipView);
+			changeRootUI(&automationView);
 		}
 	}
 
@@ -875,15 +875,18 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 	}
 }
 
-void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
+void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysId) {
+	int32_t xScroll = currentSong->xScroll[navSysId];
+	int32_t xZoom = currentSong->xZoom[navSysId];
+
 	if (copiedParamAutomation.nodes) {
 		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
 		copiedParamAutomation.numNodes = 0;
 	}
 
-	int32_t startPos = getPosFromSquare(0);
-	int32_t endPos = getPosFromSquare(kDisplayWidth);
+	int32_t startPos = getPosFromSquare(0, xScroll, xZoom);
+	int32_t endPos = getPosFromSquare(kDisplayWidth, xScroll, xZoom);
 	if (startPos == endPos) {
 		return;
 	}
@@ -1020,14 +1023,17 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 	}
 }
 
-void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
+void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSysId) {
+	int32_t xScroll = currentSong->xScroll[navSysId];
+	int32_t xZoom = currentSong->xZoom[navSysId];
+
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
 	}
 
-	int32_t startPos = getPosFromSquare(0);
-	int32_t endPos = getPosFromSquare(kDisplayWidth);
+	int32_t startPos = getPosFromSquare(0, xScroll, xZoom);
+	int32_t endPos = getPosFromSquare(kDisplayWidth, xScroll, xZoom);
 
 	int32_t pastedAutomationWidth = endPos - startPos;
 	if (pastedAutomationWidth == 0) {
@@ -3287,7 +3293,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				// are we currently in the instrument clip UI?
 				// if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationClipView) {
+				if (currentUI == &instrumentClipView || currentUI == &automationView) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					// don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
@@ -3301,8 +3307,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 					// if in automation clip view with affect entire disabled
 					// redraw main pads (go back to overview) + sidebar
-					if (currentUI == &automationClipView && !affectEntire && drumSelectionChanged) {
-						automationClipView.initParameterSelection();
+					if (currentUI == &automationView && !affectEntire && drumSelectionChanged) {
+						automationView.initParameterSelection();
 						uiNeedsRendering(currentUI);
 					}
 					// if in instrument clip view
@@ -3746,7 +3752,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 
 		// check that you're not in automation instrument clip view and holding an automation pad down
 		// if not, clear popup's / re-draw screen
-		if (!((getCurrentUI() == &automationClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+		if (!((getCurrentUI() == &automationView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::removePopup();
 			}

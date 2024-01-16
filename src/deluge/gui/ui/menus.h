@@ -39,11 +39,7 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
-extern deluge::gui::menu_item::Submenu midiFollowSubmenu;
-
-namespace deluge::gui::menu_item::runtime_feature {
-extern Submenu subMenuAutomation;
-}
+extern deluge::gui::menu_item::Submenu defaultUIAutomation;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 

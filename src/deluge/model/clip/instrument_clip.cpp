@@ -21,7 +21,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -3329,7 +3329,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI() != &automationClipView) { // don't shift MPE if you're in the automation view
+				if (getCurrentUI() != &automationView) { // don't shift MPE if you're in the automation view
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
@@ -3339,8 +3339,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 			else {
 				// this never gets called from Automation View because in the Automation View we shift specific
 				// parameters not all parameters
-				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
-				    == RuntimeFeatureStateToggle::Off) {
+				if (!FlashStorage::automationShift) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
 			}

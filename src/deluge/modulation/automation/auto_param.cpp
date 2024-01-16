@@ -18,7 +18,7 @@
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -996,9 +996,9 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		// when this feature is enabled, interpolation is enforced on manual automation editing in the automation
 		// instrument clip view
 
-		if (getCurrentUI() == &automationClipView) {
-			firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolationBefore,
-			                          automationClipView.interpolationAfter, effectiveLength, false);
+		if (getCurrentUI() == &automationView) {
+			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
+			                          automationView.interpolationAfter, effectiveLength, false);
 		}
 		else {
 			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);

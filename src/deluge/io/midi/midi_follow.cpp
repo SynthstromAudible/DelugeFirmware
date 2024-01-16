@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/menus.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -127,8 +127,9 @@ Clip* getSelectedClip(bool useActiveClip) {
 		}
 	}
 	// if you're in performance view, no clip will be selected for param control
+	// if you're in arranger automation view, no clip will be selected for param control
 	// if you're not in sessionView, arrangerView, or performanceView, then you're in a clip
-	else if (rootUI != &performanceSessionView) {
+	else if ((rootUI != &performanceSessionView) && !(rootUI == &automationView && automationView.onArrangerView)) {
 		clip = getCurrentClip();
 	}
 	// special case for instruments where you want to let notes and MPE through to the active clip
@@ -146,8 +147,9 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
                                    int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	bool isUISessionView = (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)
+	                       || (getRootUI() == &arrangerView)
+	                       || (getRootUI() == &automationView && automationView.onArrangerView);
 
 	if (!clip && isUISessionView) {
 		if (modelStackWithThreeMainThings) {
@@ -173,14 +175,8 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
                                               int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	int32_t paramID = kNoParamID;
+	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
-	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
-	}
-	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-	}
 	if (paramID != kNoParamID) {
 		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 	}
@@ -230,8 +226,8 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationClipView.getModelStackWithParamForSynthClip(modelStackWithTimelineCounter,
-		                                                                            instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationView.getModelStackWithParamForSynthClip(modelStackWithTimelineCounter,
+		                                                                        instrumentClip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
@@ -258,22 +254,14 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 		}
 	}
 	else {
-		if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			// don't allow control of Portamento or Arp Gate in Kit Affect Entire
-			if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != params::UNPATCHED_PORTAMENTO)
-			    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != params::UNPATCHED_ARP_GATE)) {
-				paramKind = params::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
-			}
-		}
-		else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			paramKind = params::Kind::UNPATCHED_GLOBAL;
 			paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 		}
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationClipView.getModelStackWithParamForKitClip(modelStackWithTimelineCounter,
-		                                                                          instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationView.getModelStackWithParamForKitClip(modelStackWithTimelineCounter,
+		                                                                      instrumentClip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
@@ -283,20 +271,11 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	params::Kind paramKind = params::Kind::NONE;
-	int32_t paramID = kNoParamID;
+	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
-	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = params::Kind::UNPATCHED_SOUND;
-		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
-	}
-	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = params::Kind::UNPATCHED_GLOBAL;
-		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-	}
-	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
+	if (paramID != kNoParamID) {
 		modelStackWithParam =
-		    automationClipView.getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, audioClip, paramID);
+		    automationView.getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, audioClip, paramID);
 	}
 
 	return modelStackWithParam;

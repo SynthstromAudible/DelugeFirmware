@@ -20,7 +20,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -434,10 +434,10 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Then entering or exiting automation view
-			else if (action->view == &automationClipView && getCurrentUI() != &automationClipView) {
+			else if (action->view == &automationView && getCurrentUI() != &automationView) {
 				whichAnimation = Animation::ENTER_AUTOMATION_VIEW;
 			}
-			else if (action->view != &automationClipView && getCurrentUI() == &automationClipView) {
+			else if (action->view != &automationView && getCurrentUI() == &automationView) {
 				whichAnimation = Animation::EXIT_AUTOMATION_VIEW;
 			}
 
@@ -611,7 +611,7 @@ currentClipSwitchedOver:
 	else if (whichAnimation == Animation::EXIT_KEYBOARD_VIEW) {
 
 		if (getCurrentClip()->onAutomationClipView) {
-			changeRootUI(&automationClipView);
+			changeRootUI(&automationView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -619,7 +619,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == Animation::ENTER_AUTOMATION_VIEW) {
-		changeRootUI(&automationClipView);
+		changeRootUI(&automationView);
 	}
 
 	else if (whichAnimation == Animation::EXIT_AUTOMATION_VIEW) {
@@ -654,7 +654,7 @@ currentClipSwitchedOver:
 			changeRootUI(&keyboardScreen);
 		}
 		else if (getCurrentClip()->onAutomationClipView) {
-			changeRootUI(&automationClipView);
+			changeRootUI(&automationView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -681,7 +681,7 @@ currentClipSwitchedOver:
 				}
 			}
 		}
-		else if (getCurrentUI() == &automationClipView) {
+		else if (getCurrentUI() == &automationView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
@@ -689,7 +689,7 @@ currentClipSwitchedOver:
 					instrumentClipView.recalculateColours();
 				}
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(&automationClipView);
+					uiNeedsRendering(&automationView);
 				}
 			}
 		}

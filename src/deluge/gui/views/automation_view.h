@@ -46,9 +46,9 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
-class AutomationClipView final : public ClipView, public InstrumentClipMinder {
+class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
-	AutomationClipView();
+	AutomationView();
 	bool opened();
 	void openedInBackground();
 	void focusRegained();
@@ -73,11 +73,12 @@ public:
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
-	// audition pad action
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
-
 	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
+	uint32_t getMaxLength();
+	uint32_t getMaxZoom();
+	int32_t getNavSysId();
+	int32_t navSysId;
 
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
@@ -85,8 +86,10 @@ public:
 
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	bool modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset);
-	void modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset);
+	bool modEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
+	                                    int32_t offset, int32_t effectiveLength);
+	void modEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
+	                                      int32_t offset, int32_t effectiveLength);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
@@ -132,22 +135,53 @@ public:
 
 	// public so instrument clip view can access it
 	void initParameterSelection();
+	bool onArrangerView;
 
 private:
+	// button action functions
+	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
+	void handleSessionButtonAction(Clip* clip, bool on);
+	void handleKeyboardButtonAction(bool on);
+	void handleClipButtonAction(bool on, bool isAudioClip);
+	void handleCrossScreenButtonAction(bool on);
+	void handleKitButtonAction(OutputType outputType, bool on);
+	void handleSynthButtonAction(OutputType outputType, bool on);
+	void handleMidiButtonAction(OutputType outputType, bool on);
+	void handleCVButtonAction(OutputType outputType, bool on);
+	bool handleHorizontalEncoderButtonAction(bool on, bool isAudioClip);
+	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
+	void handleSelectEncoderButtonAction(bool on);
+
+	// audition pad action
+	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
+	                                     int32_t y, int32_t velocity);
+	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+
+	// mute pad action
+	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
+	                                 int32_t velocity);
+
 	// edit pad action
-	void editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
+	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, OutputType outputType,
+	                                 int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity);
+	void editPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, bool state, uint8_t yDisplay,
+	                   uint8_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	// Automation View Render Functions
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip, OutputType outputType,
-	                              RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, RGB* image,
+	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
+	                              OutputType outputType, RGB* image, uint8_t occupancyMask[], int32_t yDisplay);
+	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
 	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
-	                            int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam, RGB* image,
-	               uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
+	                            int32_t effectiveLength, int32_t yDisplay, bool drawUndefinedArea);
+	void renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
+	               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom);
+	void renderUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
+	                         int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
@@ -159,11 +193,13 @@ private:
 	void exitScaleMode();
 
 	// Horizontal Encoder Action
-	void shiftAutomationHorizontally(int32_t offset);
+	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
+	                                 int32_t effectiveLength);
 
 	// Mod Encoder Action
-	void copyAutomation(Clip* clip);
-	void pasteAutomation(Clip* clip);
+	void copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll, int32_t xZoom);
+	void pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
+	                     int32_t xScroll, int32_t xZoom);
 
 	// Select Encoder Action
 	void selectGlobalParam(int32_t offset, Clip* clip);
@@ -177,26 +213,35 @@ private:
 	void initPadSelection();
 	void initInterpolation();
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
-	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
+	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	void getParameterName(Clip* clip, OutputType outputType, char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength, bool modEncoderAction = false);
+	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
+	                                 bool modEncoderAction = false);
 	void setKnobIndicatorLevels(int32_t knobPos);
 	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
 	                       bool updateIndicatorLevels = true);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay, int32_t yDisplay,
+	void handleSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+	                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                          bool shortcutPress = false);
+	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
+	void handleParameterAutomationChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
+	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	int32_t calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay);
 
-	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
-	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
-	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	void handleMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t firstPadX,
+	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, int32_t effectiveLength,
+	                         int32_t xScroll, int32_t xZoom, bool modEncoderAction = false);
+	void renderDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                                   int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
@@ -219,4 +264,4 @@ private:
 	bool playbackStopped;
 };
 
-extern AutomationClipView automationClipView;
+extern AutomationView automationView;

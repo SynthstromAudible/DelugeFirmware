@@ -41,11 +41,6 @@ Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 Setting menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
-Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
-Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
-Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
-Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
-Setting menuAutomationDisableAuditionPadShortcuts(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
@@ -54,17 +49,6 @@ ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 EmulatedDisplay menuEmulatedDisplay{};
-
-Submenu subMenuAutomation{
-    l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
-    {
-        &menuAutomationInterpolate,
-        &menuAutomationClearClip,
-        &menuAutomationNudgeNote,
-        &menuAutomationShiftClip,
-        &menuAutomationDisableAuditionPadShortcuts,
-    },
-};
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -75,7 +59,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
-    &subMenuAutomation,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,

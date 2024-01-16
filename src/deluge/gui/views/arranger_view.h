@@ -42,6 +42,9 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
+	ActionResult handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void selectEncoderAction(int8_t offset) override;
@@ -118,7 +121,7 @@ public:
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
-	void auditionPadAction(bool on, int32_t y);
+	void auditionPadAction(bool on, int32_t y, UI* ui);
 	void beginAudition(Output* output);
 	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);

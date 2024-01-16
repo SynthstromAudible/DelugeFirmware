@@ -17,7 +17,7 @@
 
 #include "modulation/params/param_set.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
