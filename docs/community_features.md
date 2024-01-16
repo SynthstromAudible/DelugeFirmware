@@ -389,6 +389,11 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
   	* When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with sticky shift.
 * Grain FX (GRFX)
 	* When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to only use one instance per song or resample and remove instance afterwards.	 
+* Emulated Display (EMUL)
+	* This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
+	* In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at any time.
+	* With the "7SEG" mode, the deluge will boot with the emulated display.
+	* This option is technically available also on deluge with 7SEG hardware. But as you need an external display to render the OLED screen, it is of more limited use.
 
 ## 6. Sysex Handling
 

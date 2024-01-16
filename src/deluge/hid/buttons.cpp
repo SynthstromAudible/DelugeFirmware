@@ -97,6 +97,16 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
+	if (b == AFFECT_ENTIRE) {
+		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {
+				deluge::hid::display::swapDisplayType();
+				goto dealtWith;
+			}
+		}
+	}
+
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {

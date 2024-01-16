@@ -353,7 +353,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -591,6 +591,8 @@ extern "C" int32_t deluge_main(void) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
+	// remember the physical display type
+	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -685,6 +687,11 @@ extern "C" int32_t deluge_main(void) {
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
 
 	usbLock = 1;
 	openUSBHost();
@@ -792,7 +799,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->haveOLED()) {
+		if (deluge::hid::display::have_oled_screen) {
 			oledRoutine();
 		}
 		PIC::flush();
