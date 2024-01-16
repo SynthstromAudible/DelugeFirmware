@@ -194,6 +194,9 @@ public:
 	OutputType lastSelectedOutputType;
 	//END ~ new Automation Clip View Variables
 
+	bool renderSidebarForCurrentClipView(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+
 protected:
 	virtual void
 	posReachedEnd(ModelStackWithTimelineCounter*

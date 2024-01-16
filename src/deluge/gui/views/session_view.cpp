@@ -2450,14 +2450,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
 		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
-		if (clip->type == CLIP_TYPE_AUDIO) {
-			audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-		}
-		else {
-			// Won't have happened automatically because we haven't begun the "session"
-			instrumentClipView.recalculateColours();
-			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-		}
+		clip->renderSidebarForCurrentClipView(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 		for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -2573,12 +2566,8 @@ void SessionView::transitionToSessionView() {
 		if (getCurrentUI() == &automationClipView) {
 			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
-				audioClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-			}
-			else {
-				instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-			}
+			getCurrentClip()->renderSidebarForCurrentClipView(0xFFFFFFFF, &PadLEDs::imageStore[1],
+			                                                  &PadLEDs::occupancyMaskStore[1]);
 
 			// I didn't see a difference but the + 2 seems intentional
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;

@@ -17,7 +17,9 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -1152,4 +1154,14 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+}
+
+bool Clip::renderSidebarForCurrentClipView(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	if (type == CLIP_TYPE_AUDIO) {
+		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+	}
+	else {
+		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	}
 }
