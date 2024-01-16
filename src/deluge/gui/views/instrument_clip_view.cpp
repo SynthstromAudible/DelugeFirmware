@@ -2148,15 +2148,21 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								prevBase = false;
 							}
 							else {
-								// See if there's a prev-base
-								if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-								    && getCurrentInstrumentClip()->doesProbabilityExist(
-								        editPadPresses[i].intendedPos, probabilityValue,
-								        kNumProbabilityValues - probabilityValue)) {
+								if (probabilityValue == 0) {
+									// If we are in Fill iteration, we must go to Not Fill
 									prevBase = true;
 								}
+								// See if there's a prev-base
 								else {
-									probabilityValue++;
+									if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+									    && getCurrentInstrumentClip()->doesProbabilityExist(
+									        editPadPresses[i].intendedPos, probabilityValue,
+									        kNumProbabilityValues - probabilityValue)) {
+										prevBase = true;
+									}
+									else {
+										probabilityValue++;
+									}
 								}
 							}
 						}
@@ -2170,11 +2176,18 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								prevBase = false;
 							}
 							else {
-								probabilityValue--;
-								prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-								            && getCurrentInstrumentClip()->doesProbabilityExist(
-								                editPadPresses[i].intendedPos, probabilityValue,
-								                kNumProbabilityValues - probabilityValue));
+								if (probabilityValue == 1) {
+									// We jump from 5% to  "Not Fill"
+									prevBase = true;
+									probabilityValue = 0;
+								}
+								else {
+									probabilityValue--;
+									prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+									            && getCurrentInstrumentClip()->doesProbabilityExist(
+									                editPadPresses[i].intendedPos, probabilityValue,
+									                kNumProbabilityValues - probabilityValue));
+								}
 							}
 						}
 					}
@@ -2903,7 +2916,9 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		return; // Get out if NoteRow doesn't exist and can't be created
 	}
 
-	uint8_t probabilityValue = noteRow->probabilityValue;
+	uint8_t probability = noteRow->probabilityValue;
+	int32_t probabilityValue = probability & 127;
+	bool prevBase = (probability & 128);
 
 	// If editing, continue edit
 	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
@@ -2916,20 +2931,59 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
 		                                                     false); // Snapshot for undoability. Don't steal data.
 
-		bool prevBase = false;
-		// Covers the probabilities and iterations
-		probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
-		                                       kNumProbabilityValues + kNumIterationValues);
+		// Covers the probabilities and iterations and the special case of Not Fill
+		// Incrementing
+		if (offset == 1) {
+			if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+				if (prevBase) {
+					probabilityValue++;
+					prevBase = false;
+				}
+				else {
+					if (probabilityValue == 0) {
+						// If we are in Fill iteration, we must go to Not Fill
+						prevBase = true;
+					}
+					// Next probability
+					else {
+						probabilityValue++;
+					}
+				}
+			}
+		}
+		// Decrementing
+		else {
+			// Allow going down to probability 0 for FILL notes
+			if (probabilityValue > 0 || prevBase) {
+				if (prevBase) {
+					prevBase = false;
+				}
+				else {
+					if (probabilityValue == 1) {
+						// We jump from 5% to  "Not Fill"
+						prevBase = true;
+						probabilityValue = 0;
+					}
+					else {
+						probabilityValue--;
+					}
+				}
+			}
+		}
 
-		noteRow->probabilityValue = probabilityValue;
+		uint8_t probabilityForFow = probabilityValue;
+		if (prevBase) {
+			probabilityForFow |= 128;
+		}
+		noteRow->probabilityValue = probabilityForFow;
 
 		uint32_t numNotes = noteRow->notes.getNumElements();
 		for (int i = 0; i < numNotes; i++) {
 			Note* note = noteRow->notes.getElement(i);
-			note->setProbability(probabilityValue);
+			note->setProbability(probabilityForFow);
 		}
 	}
-	displayProbability(probabilityValue, false);
+	displayProbability(probabilityValue, prevBase);
 }
 
 // GCC is fine with 29 or 5 for the size, but does not like that it could be either
@@ -2939,9 +2993,15 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
+	sprintf(buffer, "P %d %d", probability, prevBase);
 	// FILL mode
-	if (probability == kFillProbabilityValue) {
+	if (probability == kFillProbabilityValue && !prevBase) {
 		strcpy(buffer, "FILL");
+	}
+
+	// NO-FILL mode
+	else if (probability == kFillProbabilityValue && prevBase) {
+		strcpy(buffer, "NO FILL");
 	}
 
 	// Probability dependence
