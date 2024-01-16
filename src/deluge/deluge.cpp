@@ -45,7 +45,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -66,6 +66,7 @@
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
@@ -352,7 +353,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -424,13 +425,13 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationClipView;
+		}
+		else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
@@ -590,6 +591,8 @@ extern "C" int32_t deluge_main(void) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
+	// remember the physical display type
+	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -684,6 +687,11 @@ extern "C" int32_t deluge_main(void) {
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
 
 	usbLock = 1;
 	openUSBHost();
@@ -791,7 +799,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->haveOLED()) {
+		if (deluge::hid::display::have_oled_screen) {
 			oledRoutine();
 		}
 		PIC::flush();
