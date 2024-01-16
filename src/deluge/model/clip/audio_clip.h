@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
@@ -105,6 +106,11 @@ public:
 
 	bool doingLateStart;
 	bool maySetupCache;
+
+	bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+	};
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);

@@ -31,6 +31,7 @@
 class Song;
 class ParamManagerForTimeline;
 class Output;
+class AudioClip;
 class InstrumentClip;
 class Action;
 class TimelineView;
@@ -194,8 +195,8 @@ public:
 	OutputType lastSelectedOutputType;
 	//END ~ new Automation Clip View Variables
 
-	bool renderSidebarForCurrentClipView(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) = 0;
 
 protected:
 	virtual void

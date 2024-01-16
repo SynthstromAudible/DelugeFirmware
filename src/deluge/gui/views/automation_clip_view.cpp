@@ -369,8 +369,8 @@ void AutomationClipView::openedInBackground() {
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
 		               true);
-		clip->renderSidebarForCurrentClipView(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
-		                                      &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+		clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                    &PadLEDs::occupancyMaskStore[kDisplayHeight]);
 	}
 	else {
 		uiNeedsRendering(this);
@@ -674,7 +674,7 @@ void AutomationClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int
 //depending on the active clip
 bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	return getCurrentClip()->renderSidebarForCurrentClipView(whichRows, image, occupancyMask);
+	return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
 }
 
 /*render's what is displayed on OLED or 7SEG screens when in Automation View

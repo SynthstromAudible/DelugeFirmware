@@ -2450,7 +2450,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
 		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
-		clip->renderSidebarForCurrentClipView(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+		clip->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 		for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -2566,8 +2566,7 @@ void SessionView::transitionToSessionView() {
 		if (getCurrentUI() == &automationClipView) {
 			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			getCurrentClip()->renderSidebarForCurrentClipView(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                                  &PadLEDs::occupancyMaskStore[1]);
+			getCurrentClip()->renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			// I didn't see a difference but the + 2 seems intentional
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;

@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
 #include "model/timeline_counter.h"
@@ -231,6 +232,11 @@ public:
 
 	// ----- TimelineCounter implementation -------
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
+
+	bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	};
 
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);
