@@ -4,6 +4,6 @@
 		"editorconfig.editorconfig",
 		"xaver.clang-format",
 		"marus25.cortex-debug",
-		"jkillian.custom-local-formatters"
+		"webfreak.advanced-local-formatters"
 	]
 }
