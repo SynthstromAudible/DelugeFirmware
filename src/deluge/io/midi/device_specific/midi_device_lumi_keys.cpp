@@ -242,10 +242,10 @@ std::pair<MIDIDeviceLumiKeys::Scale, int16_t> MIDIDeviceLumiKeys::determineScale
 	uint16_t noteInt = 0;
 
 	// Try with all possible transpositions
-	for (int32_t i = 0; i < 7; i++) {
+	for (int32_t i = 0; i < kOctaveSize; i++) {
 		// Turn notes in octave into 12 bit binary
 		for (uint8_t note = 0; note < noteCount; note++) {
-			noteInt |= 1 << modeNotes[(note + i) % 7];
+			noteInt |= 1 << modeNotes[(note + i) % kOctaveSize];
 		}
 
 		// Compare with pre-built binary list of scales
