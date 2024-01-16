@@ -2251,7 +2251,9 @@ multiplePresses:
 		}
 
 		// Decide the probability, based on the existing probability of the leftmost note
-		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
+		uint8_t probability = editPadPresses[leftMostIndex].intendedProbability;
+		probabilityValue = probability & 127;
+		bool leftMostNotePrevBase = (probability & 128);
 
 		// If editing, continue edit
 		if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
@@ -2260,15 +2262,51 @@ multiplePresses:
 				return;
 			}
 
-			probabilityValue += offset;
-			probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
+			// Incrementing
+			if (offset == 1) {
+				if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+					if (probabilityValue == 0) {
+						if (leftMostNotePrevBase) {
+							probabilityValue = 1;
+							leftMostNotePrevBase = false;
+						}
+						else {
+							leftMostNotePrevBase = true;
+						}
+					}
+					else {
+						probabilityValue++;
+					}
+				}
+			}
+			// Decrementing
+			else {
+				// Allow going down to probability 0 for FILL notes
+				if (probabilityValue == 1) {
+					leftMostNotePrevBase = true;
+					probabilityValue = 0;
+				}
+				else if (probabilityValue == 0 && leftMostNotePrevBase) {
+					leftMostNotePrevBase = false;
+				}
+				else if (probabilityValue > 1) {
+					probabilityValue--;
+				}
+			}
+
+			prevBase = leftMostNotePrevBase;
+
+			uint8_t probabilityForMultipleNotes = probabilityValue;
+			if (prevBase) {
+				probabilityForMultipleNotes |= 128;
+			}
 
 			// Set the probability of the other presses, and update all probabilities with the actual notes
 			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 				if (editPadPresses[i].isActive) {
 
 					// Update probability
-					editPadPresses[i].intendedProbability = probabilityValue;
+					editPadPresses[i].intendedProbability = probabilityForMultipleNotes;
 
 					int32_t noteRowIndex;
 					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
@@ -2935,39 +2973,32 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		// Incrementing
 		if (offset == 1) {
 			if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
-				if (prevBase) {
-					probabilityValue++;
-					prevBase = false;
-				}
-				else {
-					if (probabilityValue == 0) {
-						// If we are in Fill iteration, we must go to Not Fill
+				if (probabilityValue == 0) {
+					if (prevBase) {
+						probabilityValue = 1;
+						prevBase = false;
+					}
+					else {
 						prevBase = true;
 					}
-					// Next probability
-					else {
-						probabilityValue++;
-					}
+				}
+				else {
+					probabilityValue++;
 				}
 			}
 		}
 		// Decrementing
 		else {
 			// Allow going down to probability 0 for FILL notes
-			if (probabilityValue > 0 || prevBase) {
-				if (prevBase) {
-					prevBase = false;
-				}
-				else {
-					if (probabilityValue == 1) {
-						// We jump from 5% to  "Not Fill"
-						prevBase = true;
-						probabilityValue = 0;
-					}
-					else {
-						probabilityValue--;
-					}
-				}
+			if (probabilityValue == 1) {
+				prevBase = true;
+				probabilityValue = 0;
+			}
+			else if (probabilityValue == 0 && prevBase) {
+				prevBase = false;
+			}
+			else if (probabilityValue > 1) {
+				probabilityValue--;
 			}
 		}
 
