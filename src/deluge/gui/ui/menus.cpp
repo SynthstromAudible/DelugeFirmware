@@ -753,15 +753,16 @@ midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
 //MIDI Follow
 midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
-                                                     MIDIFollowChannelType::A};
+                                           MIDIFollowChannelType::A};
 midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_FOR_FOLLOW_CHANNEL_B,
-                                                     MIDIFollowChannelType::B};
+                                           MIDIFollowChannelType::B};
 midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
-                                                     MIDIFollowChannelType::C};
+                                           MIDIFollowChannelType::C};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
                                       midiEngine.midiFollowDisplayParam};
-midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL, MIDIFollowChannelType::FEEDBACK};
+midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
+                                                  MIDIFollowChannelType::FEEDBACK};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};

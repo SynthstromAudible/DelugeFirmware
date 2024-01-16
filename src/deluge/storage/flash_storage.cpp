@@ -497,7 +497,8 @@ void readSettings() {
 		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::C, &buffer[142]);
 		midiEngine.midiFollowKitRootNote = buffer[129];
 		midiEngine.midiFollowDisplayParam = !!buffer[130];
-		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone = buffer[131];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone =
+		    buffer[131];
 		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
 	}

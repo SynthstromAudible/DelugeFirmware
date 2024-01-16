@@ -631,7 +631,8 @@ MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t c
 }
 
 bool MidiFollow::isFeedbackEnabled() {
-	uint8_t channel = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
+	uint8_t channel =
+	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
 	if (channel != MIDI_CHANNEL_NONE) {
 		return true;
 	}
