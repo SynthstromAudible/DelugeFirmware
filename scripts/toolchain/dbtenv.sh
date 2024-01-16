@@ -15,6 +15,7 @@ fi
 
 DBT_TOOLCHAIN_PATH="${DBT_TOOLCHAIN_PATH:-$DEFAULT_SCRIPT_PATH}";
 DBT_VERBOSE="${DBT_VERBOSE:-""}";
+DBT_DID_UNPACKING=""
 
 dbtenv_show_usage()
 {
@@ -236,7 +237,25 @@ dbtenv_unpack_toolchain()
     mkdir -p "$DBT_TOOLCHAIN_PATH/toolchain" || return 1;
     mv "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_DIR" "$TOOLCHAIN_ARCH_DIR" || return 1;
     echo "done";
+
+    DBT_DID_UNPACKING=1
+
     return 0;
+}
+
+dbtenv_setup_python()
+{
+    if [ -z "$DBT_NO_PYTHON_UPGRADE" ]; then
+        # Install python wheels if not already installed, upgrade pip
+        # afterward (needs certifi in place).
+        pip_cmd="python3 -m pip";
+        pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
+        pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
+        pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
+        $pip_cmd install -q "${pip_certifi_wheel}"
+        $pip_cmd install -q --upgrade pip
+        $pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
+    fi
 }
 
 dbtenv_cleanup()
@@ -356,6 +375,10 @@ dbtenv_main()
     if [ "$SYS_TYPE" = "Linux" ]; then
         export SAVED_TERMINFO_DIRS="${TERMINFO_DIRS:-""}";
         export TERMINFO_DIRS="$TOOLCHAIN_ARCH_DIR/ncurses/share/terminfo";
+    fi
+
+    if [ -n "${DBT_DID_UNPACKING}" ]; then
+      dbtenv_setup_python
     fi
 }
 
