@@ -60,20 +60,8 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 		}
 	}
 	else if (data[4] == 4) { // SWAP
-		bool was_oled = display->haveOLED();
-		delete display;
-		if (was_oled) {
-			display = new deluge::hid::display::SevenSegment;
-		}
-		else {
-			deluge::l10n::chosenLanguage = nullptr;
-			display = new deluge::hid::display::OLED;
-			oledDeltaForce = true;
-		}
-		UI* ui = getCurrentUI();
-		if (ui) {
-			ui->displayOrLanguageChanged();
-		}
+		deluge::hid::display::swapDisplayType();
+		oledDeltaForce = true;
 	}
 }
 
