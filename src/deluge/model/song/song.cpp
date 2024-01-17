@@ -249,7 +249,17 @@ void Song::setupDefault() {
 	else if (whichScale == PRESET_SCALE_RANDOM) {
 		whichScale = random(NUM_PRESET_SCALES - 1);
 	}
-	memcpy(modeNotes, presetScaleNotes[whichScale], sizeof(presetScaleNotes[whichScale]));
+	int32_t newNumModeNotes = 1;
+	for (int32_t n = 1; n < 7; n++) {
+		int32_t newNote = presetScaleNotes[whichScale][n];
+		if (newNote == 0) {
+			continue;
+		}
+		newNumModeNotes = newNumModeNotes + 1;
+		modeNotes[n] = newNote;
+	}
+	numModeNotes = newNumModeNotes;
+
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
