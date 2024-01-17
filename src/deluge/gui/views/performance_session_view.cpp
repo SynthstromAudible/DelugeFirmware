@@ -568,7 +568,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 			//display parameter value
 			yPos = yPos + 24;
 
-			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamQuantizedStutter(paramKind, paramID)) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -601,7 +601,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 		}
 		//7Seg Display
 		else {
-			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamQuantizedStutter(paramKind, paramID)) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -942,7 +942,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	else {
 		//if releasing a pad with "held" status shortly after being given that status
 		//or releasing a pad that was not in "held" status but was a longer press and release
-		if ((view.isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
+		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
@@ -1223,7 +1223,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay) {
-				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1260,7 +1260,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1451,7 +1451,7 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 		}
 	}
 	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
-	    && view.isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
+	    && params::isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
 		return;
 	}
 	else {
@@ -1711,8 +1711,8 @@ void PerformanceSessionView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeParamsForPerformance);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-			                                 layoutForPerformance[xDisplay].paramID)) {
+			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+			                                    layoutForPerformance[xDisplay].paramID)) {
 				defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -1798,8 +1798,8 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-				                                 layoutForPerformance[xDisplay].paramID)) {
+				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+				                                    layoutForPerformance[xDisplay].paramID)) {
 					defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
 				}
 
@@ -1820,8 +1820,8 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
-				if (!view.isParamStutter(layoutForPerformance[xDisplay].paramKind,
-				                         layoutForPerformance[xDisplay].paramID)) {
+				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
+				                            layoutForPerformance[xDisplay].paramID)) {
 					fxPress[xDisplay].padPressHeld = true;
 					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 
