@@ -52,6 +52,8 @@
 
 Slicer slicer{};
 
+namespace Param = deluge::modulation::params::Param;
+
 void Slicer::focusRegained() {
 
 	actionLogger.deleteAllLogs();

@@ -44,7 +44,9 @@
 #include "util/fast_fixed_math.h"
 #include "util/misc.h"
 #include <string.h>
-extern "C" {}
+
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -1717,7 +1719,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						//pass the current clip because you want to check that you're editing the param
 						//for the same clip active in automation view
 						int32_t id = modelStackWithParam->paramId;
-						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 						possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
@@ -1809,7 +1811,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								RootUI* rootUI = getRootUI();
 								if (rootUI == &automationClipView || rootUI == &performanceSessionView) {
 									int32_t id = modelStackWithParam->paramId;
-									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 									if (rootUI == &automationClipView) {
 										//pass the current clip because you want to check that you're editing the param
@@ -1827,7 +1829,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								//if you're in the automation view editor or performance view non-editing mode
 								//don't display popup if you're currently editing the same param
 								if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
-									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 								}
 							}
@@ -2071,7 +2073,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 
 // if you're in automation view and editing the same parameter that was just updated
 // by a learned midi knob, then re-render the pads on the automation editor grid
-bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id) {
+bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind kind, int32_t id) {
 	if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
 		uiNeedsRendering(&automationClipView);
 		return true;
@@ -2083,7 +2085,7 @@ bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param
 // and current value is displayed on the screen, don't show pop-up as the display already shows it
 // this checks that the param displayed on the screen in performance view
 // is the same param currently being edited with mod encoder and updates the display if needed
-bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos) {
+bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
 	//check if you're not in editing mode
 	//and a param hold press is currently active
 	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {

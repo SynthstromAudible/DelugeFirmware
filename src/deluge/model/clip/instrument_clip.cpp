@@ -68,6 +68,9 @@
 #include <math.h>
 #include <new>
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	arpeggiatorRate = 0;
@@ -2448,7 +2451,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {

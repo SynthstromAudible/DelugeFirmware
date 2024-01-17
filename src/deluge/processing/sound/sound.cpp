@@ -57,6 +57,9 @@
 #include <new>
 #include <string.h>
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
@@ -71,7 +74,7 @@ const PatchableInfo patchableInfoForSound = {
     Param::Global::FIRST_NON_VOLUME,
     Param::Global::FIRST_HYBRID,
     Param::Global::FIRST_EXP,
-    kNumParams,
+    params::kNumParams,
     GLOBALITY_GLOBAL};
 
 Sound::Sound() : patcher(&patchableInfoForSound) {
@@ -164,7 +167,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->kind = Param::Kind::UNPATCHED_SOUND;
+	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[Param::Unpatched::Sound::ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
@@ -4400,7 +4403,7 @@ char const* Sound::paramToString(uint8_t param) {
 }
 
 int32_t Sound::stringToParam(char const* string) {
-	for (int32_t p = 0; p < kNumParams; p++) {
+	for (int32_t p = 0; p < params::kNumParams; p++) {
 		if (!strcmp(string, Sound::paramToString(p))) {
 			return p;
 		}

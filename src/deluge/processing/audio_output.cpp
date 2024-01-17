@@ -37,6 +37,8 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;

@@ -102,7 +102,7 @@ void PatchCableStrength::renderOLED() {
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
-	deluge::hid::display::OLED::drawString(getPatchedParamDisplayName(p), 0, yPixel,
+	deluge::hid::display::OLED::drawString(deluge::modulation::params::getPatchedParamDisplayName(p), 0, yPixel,
 	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                                       kTextSpacingX, kTextSizeYUpdated);
 
@@ -195,8 +195,9 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 		}
 
 		// Local source - range must be for cable going to local param
-		return (destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST) ? MenuPermission::YES
-		                                                                          : MenuPermission::NO;
+		return (destinationDescriptor.getJustTheParam() < deluge::modulation::params::Param::Global::FIRST)
+		           ? MenuPermission::YES
+		           : MenuPermission::NO;
 	}
 
 	int32_t p = destinationDescriptor.getJustTheParam();
@@ -211,9 +212,9 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 }
 
 uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
-	if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == ::Param::Local::VOLUME) {
-		return ::Param::Global::VOLUME_POST_FX;
+	if (soundEditor.patchingParamSelected == deluge::modulation::params::Param::Global::VOLUME_POST_REVERB_SEND
+	    || soundEditor.patchingParamSelected == deluge::modulation::params::Param::Local::VOLUME) {
+		return deluge::modulation::params::Param::Global::VOLUME_POST_FX;
 	}
 	return soundEditor.patchingParamSelected;
 }

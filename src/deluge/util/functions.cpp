@@ -36,7 +36,11 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 using namespace deluge;
+using params::kNumParams;
+
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
@@ -501,13 +505,13 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	}
 }
 
-char const* getParamDisplayName(Param::Kind kind, int32_t p) {
+char const* getParamDisplayName(params::Kind kind, int32_t p) {
 	using enum l10n::String;
-	if (kind == Param::Kind::PATCHED) {
+	if (kind == params::Kind::PATCHED) {
 		return getPatchedParamDisplayName(p);
 	}
 
-	if (kind == Param::Kind::UNPATCHED_SOUND || kind == Param::Kind::UNPATCHED_GLOBAL) {
+	if (kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) {
 		// These can basically be 13 chars long, or 14 if the last one is a dot.
 		switch (p) {
 
@@ -548,7 +552,7 @@ char const* getParamDisplayName(Param::Kind kind, int32_t p) {
 		}
 	}
 
-	if (kind == Param::Kind::UNPATCHED_SOUND) {
+	if (kind == params::Kind::UNPATCHED_SOUND) {
 		switch (p) {
 		case Param::Unpatched::Sound::ARP_GATE:
 			return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
@@ -557,7 +561,7 @@ char const* getParamDisplayName(Param::Kind kind, int32_t p) {
 		}
 	}
 
-	if (kind == Param::Kind::UNPATCHED_GLOBAL) {
+	if (kind == params::Kind::UNPATCHED_GLOBAL) {
 		// These can basically be 13 chars long, or 14 if the last one is a dot.
 		switch (p) {
 		//Master Volume, Pitch, Pan

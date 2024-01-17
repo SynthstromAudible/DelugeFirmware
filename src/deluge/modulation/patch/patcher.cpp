@@ -24,6 +24,9 @@
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
@@ -102,8 +105,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	uint8_t params[std::max<int32_t>(Param::Global::FIRST, kNumParams - Param::Global::FIRST) + 1];
-	int32_t cableCombinations[std::max<int32_t>(Param::Global::FIRST, kNumParams - Param::Global::FIRST)];
+	uint8_t params[std::max<int32_t>(Param::Global::FIRST, params::kNumParams - Param::Global::FIRST) + 1];
+	int32_t cableCombinations[std::max<int32_t>(Param::Global::FIRST, params::kNumParams - Param::Global::FIRST)];
 	int32_t numParamsPatched = 0;
 
 	// Go through regular Destinations going directly to a param

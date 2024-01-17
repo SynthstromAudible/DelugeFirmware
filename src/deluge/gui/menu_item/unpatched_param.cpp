@@ -71,7 +71,7 @@ int32_t UnpatchedParam::getFinalValue() {
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + ::Param::Unpatched::START);
+	paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::Param::Unpatched::START);
 	return paramDescriptor;
 }
 

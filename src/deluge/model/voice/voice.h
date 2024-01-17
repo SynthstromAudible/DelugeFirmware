@@ -23,6 +23,7 @@
 #include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
 #include "modulation/lfo.h"
+#include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
 
 class StereoSample;
@@ -42,7 +43,8 @@ public:
 
 	Sound* assignedToSound;
 
-	int32_t paramFinalValues[Param::Global::FIRST]; // This is just for the *local* params, specific to this Voice only
+	int32_t paramFinalValues[deluge::modulation::params::Param::Global::
+	                             FIRST]; // This is just for the *local* params, specific to this Voice only
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];

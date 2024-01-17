@@ -33,6 +33,9 @@
 #include "util/misc.h"
 #include <string.h>
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 void flagCable(uint32_t* flags, int32_t c) {
 	int32_t idx;
 	if constexpr (kNumUnsignedIntegersToRepPatchCables > 1) {

@@ -25,6 +25,7 @@
 #include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/timeline_counter.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
@@ -205,7 +206,7 @@ public:
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[kMaxNumUnpatchedParams];
+	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
 
 	String dirPath;
 

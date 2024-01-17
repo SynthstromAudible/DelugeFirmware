@@ -18,6 +18,7 @@
 #pragma once
 
 #include "hid/display/display.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 
 class Song;
@@ -268,7 +269,7 @@ public:
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
 
-	bool isParam(Param::Kind kind, ParamType id);
+	bool isParam(deluge::modulation::params::Kind kind, deluge::modulation::params::ParamType id);
 };
 
 class ModelStackWithAutoParam : public ModelStackWithParamId {

@@ -28,7 +28,7 @@ public:
 	void drawValue() override {
 		if (this->getValue() == kMaxMenuValue
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        ::Param::Local::LPF_FREQ)) {
+		        deluge::modulation::params::Param::Local::LPF_FREQ)) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {

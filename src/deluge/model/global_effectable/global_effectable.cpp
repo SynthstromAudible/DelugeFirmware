@@ -38,6 +38,8 @@
 #include <new>
 
 using namespace deluge;
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = FilterMode::TRANSISTOR_24DB;
@@ -64,7 +66,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->kind = Param::Kind::UNPATCHED_GLOBAL;
+	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 
 	unpatchedParams->params[Param::Unpatched::GlobalEffectable::MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
@@ -999,7 +1001,7 @@ char const* GlobalEffectable::paramToString(uint8_t param) {
 
 int32_t GlobalEffectable::stringToParam(char const* string) {
 	for (int32_t p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
-	     p < Param::Unpatched::START + kMaxNumUnpatchedParams; p++) {
+	     p < Param::Unpatched::START + params::kMaxNumUnpatchedParams; p++) {
 		if (!strcmp(string, GlobalEffectable::paramToString(p))) {
 			return p;
 		}

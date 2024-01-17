@@ -46,6 +46,8 @@
 #include "util/misc.h"
 #include <new>
 
+namespace params = deluge::modulation::params;
+
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 extern uint8_t currentlyAccessingCard;
@@ -1110,7 +1112,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {

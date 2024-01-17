@@ -86,6 +86,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;
 
@@ -877,12 +879,12 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
 
-				Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
-				if (kind == Param::Kind::MIDI && (newKnobPos == 64)) {
+				if (kind == params::Kind::MIDI && (newKnobPos == 64)) {
 					return;
 				}
 
@@ -958,7 +960,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos) {
+void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos) {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 
 	// On OLED, display the name of the parameter on the first line of the popup
@@ -997,8 +999,8 @@ void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_
 }
 
 //convert deluge internal knobPos range to same range as used by menu's.
-int32_t View::calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos) {
-	if (kind == Param::Kind::MIDI) {
+int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int32_t knobPos) {
+	if (kind == params::Kind::MIDI) {
 		return knobPos;
 	}
 
@@ -1022,37 +1024,37 @@ returnValue:
 }
 
 //check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
-bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
+bool View::isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
 		return false;
 	}
 	return isParamStutter(kind, paramID);
 }
 
-bool View::isParamPan(Param::Kind kind, int32_t paramID) {
-	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PAN)
-	    || (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
+bool View::isParamPan(params::Kind kind, int32_t paramID) {
+	if ((kind == params::Kind::PATCHED && paramID == Param::Local::PAN)
+	    || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
 		return true;
 	}
 
 	return false;
 }
 
-bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
-	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
-	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
-	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
-	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
-	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
-	    || (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
+bool View::isParamPitch(params::Kind kind, int32_t paramID) {
+	if ((kind == params::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
+	    || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
+	    || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
+	    || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
+	    || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
+	    || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
 		return true;
 	}
 
 	return false;
 }
 
-bool View::isParamStutter(Param::Kind kind, int32_t paramID) {
-	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
+bool View::isParamStutter(params::Kind kind, int32_t paramID) {
+	if ((kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
 	    && paramID == Param::Unpatched::STUTTER_RATE) {
 		return true;
 	}
@@ -1347,7 +1349,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
 	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
 			if (ccNumber != MIDI_CC_NONE) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)

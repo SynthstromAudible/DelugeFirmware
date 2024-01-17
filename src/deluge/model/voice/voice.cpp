@@ -55,6 +55,9 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 #pragma GCC diagnostic push
 //This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"

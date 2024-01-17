@@ -25,6 +25,8 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+using namespace deluge::modulation::params;
+
 // Takes the NoteRow's *index*, not id!
 // NoteRow must have a paramManager.
 ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int32_t noteRowIndex,
@@ -184,7 +186,7 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	return toReturn;
 }
 
-bool ModelStackWithParamId::isParam(Param::Kind kind, ParamType id) {
+bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
 	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
 }
 

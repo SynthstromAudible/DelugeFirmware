@@ -53,8 +53,9 @@ public:
 
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(::Param::Unpatched::START
-		                                   + ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+		paramDescriptor.setToHaveParamOnly(
+		    deluge::modulation::params::Param::Unpatched::START
+		    + deluge::modulation::params::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
 		return paramDescriptor;
 	}
 };

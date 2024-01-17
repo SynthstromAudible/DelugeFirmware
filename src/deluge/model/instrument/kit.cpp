@@ -50,6 +50,8 @@
 #include <new>
 #include <string.h>
 
+namespace Param = deluge::modulation::params::Param;
+
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
@@ -560,7 +562,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 				ParamCollectionSummary* patchedParamsSummary = &thisNoteRow->paramManager.summaries[1];
 
 				bool anyInterpolating = false;
-				if constexpr (kNumParams > 64) {
+				if constexpr (deluge::modulation::params::kNumParams > 64) {
 					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[1]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[2];

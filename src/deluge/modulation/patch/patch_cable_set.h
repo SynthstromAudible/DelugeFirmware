@@ -101,7 +101,7 @@ public:
 
 	Destination* getDestinationForParam(int32_t p);
 
-	Param::Kind getParamKind() { return Param::Kind::PATCH_CABLE; }
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 

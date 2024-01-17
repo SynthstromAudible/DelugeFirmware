@@ -46,7 +46,7 @@ void RMSFeedbackCompressor::updateER(float numSamples) {
 		int32_t volumePostFX =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       Param::Unpatched::GlobalEffectable::VOLUME)))
+		                       deluge::modulation::params::Param::Unpatched::GlobalEffectable::VOLUME)))
 		    >> 1;
 		songVolume = std::log(volumePostFX) - 2;
 	}
