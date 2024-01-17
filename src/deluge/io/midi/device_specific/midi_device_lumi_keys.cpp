@@ -241,8 +241,8 @@ void MIDIDeviceLumiKeys::setRootNote(int16_t rootNote) {
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
-std::pair<MIDIDeviceLumiKeys::Scale, int16_t> MIDIDeviceLumiKeys::determineScaleFromNotes(uint8_t* modeNotes,
-                                                                                          uint8_t noteCount) {
+std::pair<MIDIDeviceLumiKeys::Scale, int16_t>
+MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount) {
 	uint16_t noteInt = 0;
 
 	// Try with all possible transpositions
