@@ -98,8 +98,6 @@ public:
 	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	virtual char const* paramToString(uint8_t param);
-	virtual int32_t stringToParam(char const* string);
 	bool isBitcrushingEnabled(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
@@ -184,6 +182,12 @@ protected:
 	void switchLPFMode();
 	void switchHPFMode();
 	void clearModFXMemory();
+
+	/// What kind of unpatched parameters this ModControllable uses.
+	///
+	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
+	/// subclass is
+	deluge::modulation::params::Kind unpatchedParamKind_;
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);

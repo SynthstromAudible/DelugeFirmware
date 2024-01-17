@@ -256,8 +256,6 @@ public:
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile();
-	char const* paramToString(uint8_t param) final;
-	int32_t stringToParam(char const* string) final;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);

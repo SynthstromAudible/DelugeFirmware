@@ -811,7 +811,7 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 				}
 				else if (!strcmp(tagName, "destination")) {
 					destinationParamDescriptor.setToHaveParamOnly(
-					    ((Sound*)NULL)->Sound::stringToParam(storageManager.readTagOrAttributeValue()));
+					    params::fileStringToParam(params::UNPATCHED_SOUND, storageManager.readTagOrAttributeValue()));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(readAutomationUpToPos);
@@ -932,8 +932,8 @@ void PatchCableSet::writePatchCablesToFile(bool writeAutomation) {
 		storageManager.writeOpeningTagBeginning("patchCable");
 		storageManager.writeAttribute("source", sourceToString(patchCables[c].from));
 		storageManager.writeAttribute(
-		    "destination",
-		    ((Sound*)NULL)->Sound::paramToString(patchCables[c].destinationParamDescriptor.getJustTheParam()));
+		    "destination", params::paramNameForFile(params::UNPATCHED_SOUND,
+		                                            patchCables[c].destinationParamDescriptor.getJustTheParam()));
 
 		storageManager.write("\n");
 		storageManager.printIndents();

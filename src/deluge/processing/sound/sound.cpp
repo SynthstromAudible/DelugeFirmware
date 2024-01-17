@@ -39,6 +39,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_vector.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -845,7 +846,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
-						p = stringToParam(storageManager.readTagOrAttributeValue());
+						p = params::fileStringToParam(params::UNPATCHED_SOUND,
+						                              storageManager.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(storageManager.readTagOrAttributeValue());
@@ -3803,8 +3805,9 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ModKnob* knob = &modKnobs[k][w];
 			storageManager.writeOpeningTagBeginning("modKnob");
-			storageManager.writeAttribute("controlsParam", paramToString(knob->paramDescriptor.getJustTheParam()),
-			                              false);
+			storageManager.writeAttribute(
+			    "controlsParam",
+			    params::paramNameForFile(params::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()), false);
 			if (!knob->paramDescriptor.isJustAParam()) {
 				storageManager.writeAttribute("patchAmountFromSource",
 				                              sourceToString(knob->paramDescriptor.getTopLevelSource()), false);
@@ -4248,179 +4251,6 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// No stereo stuff found - we're rendering in mono.
 	return false;
-}
-
-char const* Sound::paramToString(uint8_t param) {
-
-	switch (param) {
-
-	case Param::Local::OSC_A_VOLUME:
-		return "oscAVolume";
-
-	case Param::Local::OSC_B_VOLUME:
-		return "oscBVolume";
-
-	case Param::Local::VOLUME:
-		return "volume";
-
-	case Param::Local::NOISE_VOLUME:
-		return "noiseVolume";
-
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "oscAPhaseWidth";
-
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "oscBPhaseWidth";
-
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return "oscAWavetablePosition";
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return "oscBWavetablePosition";
-
-	case Param::Local::LPF_RESONANCE:
-		return "lpfResonance";
-
-	case Param::Local::HPF_RESONANCE:
-		return "hpfResonance";
-
-	case Param::Local::PAN:
-		return "pan";
-
-	case Param::Local::MODULATOR_0_VOLUME:
-		return "modulator1Volume";
-
-	case Param::Local::MODULATOR_1_VOLUME:
-		return "modulator2Volume";
-
-	case Param::Local::LPF_FREQ:
-		return "lpfFrequency";
-
-	case Param::Local::LPF_MORPH:
-		return "lpfMorph";
-
-	case Param::Local::HPF_MORPH:
-		return "hpfMorph";
-
-	case Param::Local::PITCH_ADJUST:
-		return "pitch";
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "oscAPitch";
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "oscBPitch";
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "modulator1Pitch";
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "modulator2Pitch";
-
-	case Param::Local::HPF_FREQ:
-		return "hpfFrequency";
-
-	case Param::Local::LFO_LOCAL_FREQ:
-		return "lfo2Rate";
-
-	case Param::Local::ENV_0_ATTACK:
-		return "env1Attack";
-
-	case Param::Local::ENV_0_DECAY:
-		return "env1Decay";
-
-	case Param::Local::ENV_0_SUSTAIN:
-		return "env1Sustain";
-
-	case Param::Local::ENV_0_RELEASE:
-		return "env1Release";
-
-	case Param::Local::ENV_1_ATTACK:
-		return "env2Attack";
-
-	case Param::Local::ENV_1_DECAY:
-		return "env2Decay";
-
-	case Param::Local::ENV_1_SUSTAIN:
-		return "env2Sustain";
-
-	case Param::Local::ENV_1_RELEASE:
-		return "env2Release";
-
-	case Param::Global::LFO_FREQ:
-		return "lfo1Rate";
-
-	case Param::Global::VOLUME_POST_FX:
-		return "volumePostFX";
-
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "volumePostReverbSend";
-
-	case Param::Global::DELAY_RATE:
-		return "delayRate";
-
-	case Param::Global::DELAY_FEEDBACK:
-		return "delayFeedback";
-
-	case Param::Global::REVERB_AMOUNT:
-		return "reverbAmount";
-
-	case Param::Global::MOD_FX_RATE:
-		return "modFXRate";
-
-	case Param::Global::MOD_FX_DEPTH:
-		return "modFXDepth";
-
-	case Param::Global::ARP_RATE:
-		return "arpRate";
-
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "modulator1Feedback";
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "modulator2Feedback";
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return "carrier1Feedback";
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return "carrier2Feedback";
-
-	case Param::Local::FOLD:
-		return "waveFold";
-
-		// Unpatched params just for Sounds
-
-	case Param::Unpatched::START + Param::Unpatched::Sound::ARP_GATE:
-		return "arpGate";
-
-	case Param::Unpatched::START + Param::Unpatched::Sound::PORTAMENTO:
-		return "portamento";
-
-	default:
-		return ModControllableAudio::paramToString(param);
-	}
-}
-
-int32_t Sound::stringToParam(char const* string) {
-	for (int32_t p = 0; p < params::kNumParams; p++) {
-		if (!strcmp(string, Sound::paramToString(p))) {
-			return p;
-		}
-	}
-
-	for (int32_t p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
-	     p < Param::Unpatched::START + Param::Unpatched::Sound::MAX_NUM; p++) {
-		if (!strcmp(string, Sound::paramToString(p))) {
-			return p;
-		}
-	}
-
-	if (!strcmp(string, "range")) {
-		return Param::PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
-	}
-
-	return ModControllableAudio::stringToParam(string);
 }
 
 ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) {

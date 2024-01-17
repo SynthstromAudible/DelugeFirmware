@@ -35,6 +35,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -1279,7 +1280,9 @@ void ModControllableAudio::writeTagsToFile() {
 			knob->midiInput.writeAttributesToFile(
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
 			storageManager.writeAttribute("relative", knob->relative);
-			storageManager.writeAttribute("controlsParam", paramToString(knob->paramDescriptor.getJustTheParam()));
+			storageManager.writeAttribute(
+			    "controlsParam",
+			    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
 				storageManager.writeAttribute("patchAmountFromSource",
 				                              sourceToString(knob->paramDescriptor.getTopLevelSource()));
@@ -1531,7 +1534,7 @@ doReadPatchedParam:
 						relative = storageManager.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = stringToParam(storageManager.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(storageManager.readTagOrAttributeValue());
@@ -2465,55 +2468,6 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	}
 
 	return anythingFound;
-}
-
-char const* ModControllableAudio::paramToString(uint8_t param) {
-
-	switch (param) {
-
-		// Unpatched params
-	case Param::Unpatched::START + Param::Unpatched::STUTTER_RATE:
-		return "stutterRate";
-
-	case Param::Unpatched::START + Param::Unpatched::BASS:
-		return "bass";
-
-	case Param::Unpatched::START + Param::Unpatched::TREBLE:
-		return "treble";
-
-	case Param::Unpatched::START + Param::Unpatched::BASS_FREQ:
-		return "bassFreq";
-
-	case Param::Unpatched::START + Param::Unpatched::TREBLE_FREQ:
-		return "trebleFreq";
-
-	case Param::Unpatched::START + Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return "sampleRateReduction";
-
-	case Param::Unpatched::START + Param::Unpatched::BITCRUSHING:
-		return "bitcrushAmount";
-
-	case Param::Unpatched::START + Param::Unpatched::MOD_FX_OFFSET:
-		return "modFXOffset";
-
-	case Param::Unpatched::START + Param::Unpatched::MOD_FX_FEEDBACK:
-		return "modFXFeedback";
-
-	case Param::Unpatched::START + Param::Unpatched::COMPRESSOR_SHAPE:
-		return "compressorShape";
-
-	default:
-		return "none";
-	}
-}
-
-int32_t ModControllableAudio::stringToParam(char const* string) {
-	for (int32_t p = Param::Unpatched::START; p < Param::Unpatched::START + Param::Unpatched::NUM_SHARED; p++) {
-		if (!strcmp(string, ModControllableAudio::paramToString(p))) {
-			return p;
-		}
-	}
-	return Param::Global::NONE;
 }
 
 ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t whichModEncoder,
