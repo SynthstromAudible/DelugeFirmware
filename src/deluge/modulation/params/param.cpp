@@ -17,11 +17,38 @@
 
 #include "modulation/params/param.h"
 #include "gui/l10n/l10n.h"
+#include "model/settings/runtime_feature_settings.h"
 #include <cstring>
 
 namespace deluge {
 namespace modulation {
 namespace params {
+
+bool isParamPan(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::PATCHED && paramID == Param::Local::PAN)
+	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN);
+}
+
+bool isParamPitch(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
+	       || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
+	       || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
+	       || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
+	       || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
+	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+}
+
+bool isParamStutter(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
+	       && paramID == Param::Unpatched::STUTTER_RATE;
+}
+
+bool isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
+		return false;
+	}
+	return isParamStutter(kind, paramID);
+}
 
 char const* getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;

@@ -1023,44 +1023,6 @@ returnValue:
 	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
-//check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
-bool View::isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
-		return false;
-	}
-	return isParamStutter(kind, paramID);
-}
-
-bool View::isParamPan(params::Kind kind, int32_t paramID) {
-	if ((kind == params::Kind::PATCHED && paramID == Param::Local::PAN)
-	    || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
-		return true;
-	}
-
-	return false;
-}
-
-bool View::isParamPitch(params::Kind kind, int32_t paramID) {
-	if ((kind == params::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
-	    || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
-	    || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
-	    || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
-	    || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
-	    || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
-		return true;
-	}
-
-	return false;
-}
-
-bool View::isParamStutter(params::Kind kind, int32_t paramID) {
-	if ((kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
-	    && paramID == Param::Unpatched::STUTTER_RATE) {
-		return true;
-	}
-	return false;
-}
-
 void View::instrumentBeenEdited() {
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		activeModControllableModelStack.getTimelineCounter()->instrumentBeenEdited();
