@@ -92,6 +92,14 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace params = deluge::modulation::params;
+namespace Param = deluge::modulation::params::Param;
+using deluge::modulation::params::kNoParamID;
+using deluge::modulation::params::ParamType;
+using deluge::modulation::params::patchedParamShortcuts;
+using deluge::modulation::params::unpatchedGlobalParamShortcuts;
+using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
+
 using namespace deluge::gui;
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
@@ -108,91 +116,92 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
 //synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
-const std::array<std::pair<Param::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
-    {Param::Kind::PATCHED, Param::Global::VOLUME_POST_FX}, //Master Volume, Pitch, Pan
-    {Param::Kind::PATCHED, Param::Local::PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::PAN},
-    {Param::Kind::PATCHED, Param::Local::LPF_FREQ}, //LPF Cutoff, Resonance, Morph
-    {Param::Kind::PATCHED, Param::Local::LPF_RESONANCE},
-    {Param::Kind::PATCHED, Param::Local::LPF_MORPH},
-    {Param::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance, Morph
-    {Param::Kind::PATCHED, Param::Local::HPF_RESONANCE},
-    {Param::Kind::PATCHED, Param::Local::HPF_MORPH},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
-    {Param::Kind::PATCHED, Param::Global::REVERB_AMOUNT}, //Reverb Amount
-    {Param::Kind::PATCHED, Param::Global::DELAY_RATE},    //Delay Rate, Amount
-    {Param::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
-    {Param::Kind::PATCHED, Param::Local::FOLD},
-    {Param::Kind::PATCHED, Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
-    {Param::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
-    {Param::Kind::PATCHED,
+const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
+    {params::Kind::PATCHED, Param::Global::VOLUME_POST_FX}, //Master Volume, Pitch, Pan
+    {params::Kind::PATCHED, Param::Local::PITCH_ADJUST},
+    {params::Kind::PATCHED, Param::Local::PAN},
+    {params::Kind::PATCHED, Param::Local::LPF_FREQ}, //LPF Cutoff, Resonance, Morph
+    {params::Kind::PATCHED, Param::Local::LPF_RESONANCE},
+    {params::Kind::PATCHED, Param::Local::LPF_MORPH},
+    {params::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance, Morph
+    {params::Kind::PATCHED, Param::Local::HPF_RESONANCE},
+    {params::Kind::PATCHED, Param::Local::HPF_MORPH},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
+    {params::Kind::PATCHED, Param::Global::REVERB_AMOUNT}, //Reverb Amount
+    {params::Kind::PATCHED, Param::Global::DELAY_RATE},    //Delay Rate, Amount
+    {params::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
+    {params::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
+    {params::Kind::PATCHED, Param::Local::FOLD},
+    {params::Kind::PATCHED,
+     Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
+    {params::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
+    {params::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
+    {params::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
+    {params::Kind::PATCHED,
      Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {Param::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
-    {Param::Kind::PATCHED, Param::Local::CARRIER_1_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_WAVE_INDEX},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_VOLUME}, //FM Mod 1 Volume, Pitch, Feedback
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_VOLUME}, //FM Mod 2 Volume, Pitch, Feedback
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_ATTACK}, //Env 1 ADSR
-    {Param::Kind::PATCHED, Param::Local::ENV_0_DECAY},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_SUSTAIN},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_RELEASE},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_ATTACK}, //Env 2 ADSR
-    {Param::Kind::PATCHED, Param::Local::ENV_1_DECAY},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_SUSTAIN},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_RELEASE},
-    {Param::Kind::PATCHED, Param::Global::LFO_FREQ},                 //LFO 1 Freq
-    {Param::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},            //LFO 2 Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Global::MOD_FX_DEPTH},
-    {Param::Kind::PATCHED, Param::Global::MOD_FX_RATE},
-    {Param::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},
-    {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME},                  //Noise
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
+    {params::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
+    {params::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
+    {params::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
+    {params::Kind::PATCHED, Param::Local::CARRIER_1_FEEDBACK},
+    {params::Kind::PATCHED, Param::Local::OSC_B_WAVE_INDEX},
+    {params::Kind::PATCHED, Param::Local::MODULATOR_0_VOLUME}, //FM Mod 1 Volume, Pitch, Feedback
+    {params::Kind::PATCHED, Param::Local::MODULATOR_0_PITCH_ADJUST},
+    {params::Kind::PATCHED, Param::Local::MODULATOR_0_FEEDBACK},
+    {params::Kind::PATCHED, Param::Local::MODULATOR_1_VOLUME}, //FM Mod 2 Volume, Pitch, Feedback
+    {params::Kind::PATCHED, Param::Local::MODULATOR_1_PITCH_ADJUST},
+    {params::Kind::PATCHED, Param::Local::MODULATOR_1_FEEDBACK},
+    {params::Kind::PATCHED, Param::Local::ENV_0_ATTACK}, //Env 1 ADSR
+    {params::Kind::PATCHED, Param::Local::ENV_0_DECAY},
+    {params::Kind::PATCHED, Param::Local::ENV_0_SUSTAIN},
+    {params::Kind::PATCHED, Param::Local::ENV_0_RELEASE},
+    {params::Kind::PATCHED, Param::Local::ENV_1_ATTACK}, //Env 2 ADSR
+    {params::Kind::PATCHED, Param::Local::ENV_1_DECAY},
+    {params::Kind::PATCHED, Param::Local::ENV_1_SUSTAIN},
+    {params::Kind::PATCHED, Param::Local::ENV_1_RELEASE},
+    {params::Kind::PATCHED, Param::Global::LFO_FREQ},                 //LFO 1 Freq
+    {params::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},            //LFO 2 Freq
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
+    {params::Kind::PATCHED, Param::Global::MOD_FX_DEPTH},
+    {params::Kind::PATCHED, Param::Global::MOD_FX_RATE},
+    {params::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},
+    {params::Kind::PATCHED, Param::Local::NOISE_VOLUME},                  //Noise
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
 }};
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
-const std::array<std::pair<Param::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PAN},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_RES},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_RES},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send, Shape
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
-    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
+const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PAN},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_RES},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_RES},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send, Shape
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
+    {params::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {params::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
 }};
 
 //grid sized array to assign midi cc values to each pad on the grid
@@ -515,7 +524,7 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 
 				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, patchedParamShortcuts[xDisplay][yDisplay], Param::Kind::PATCHED);
+				    modelStack, clip, patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
 			}
 
 			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
@@ -528,7 +537,7 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 
 				modelStackWithParam =
 				    getModelStackWithParam(modelStack, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
-				                           Param::Kind::UNPATCHED_SOUND);
+				                           params::Kind::UNPATCHED_SOUND);
 			}
 		}
 
@@ -2610,7 +2619,7 @@ void AutomationClipView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 	                                             kNumNonGlobalParamsForAutomation);
 	{
 		auto [kind, id] = nonGlobalParamsForAutomation[idx];
-		if ((clip->output->type == OutputType::KIT) && (kind == Param::Kind::UNPATCHED_SOUND)
+		if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
 		    && (id == Param::Unpatched::Sound::PORTAMENTO)) {
 			if (offset < 0) {
 				offset -= 1;
@@ -2678,11 +2687,11 @@ void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType out
 				}
 			}
 			else {
-				if ((clip->lastSelectedParamKind == Param::Kind::PATCHED
+				if ((clip->lastSelectedParamKind == params::Kind::PATCHED
 				     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
+				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
 				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
+				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
 				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
@@ -2717,7 +2726,7 @@ void AutomationClipView::initParameterSelection() {
 	initPadSelection();
 
 	clip->lastSelectedParamID = kNoSelection;
-	clip->lastSelectedParamKind = Param::Kind::NONE;
+	clip->lastSelectedParamKind = params::Kind::NONE;
 	clip->lastSelectedParamShortcutX = kNoSelection;
 	clip->lastSelectedParamShortcutY = kNoSelection;
 	clip->lastSelectedParamArrayPosition = 0;
@@ -2752,7 +2761,7 @@ void AutomationClipView::initInterpolation() {
 //the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
 ModelStackWithAutoParam* AutomationClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
                                                                     Clip* clip, int32_t paramID,
-                                                                    Param::Kind paramKind) {
+                                                                    params::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	OutputType outputType = clip->output->type;
@@ -2783,18 +2792,18 @@ ModelStackWithAutoParam* AutomationClipView::getModelStackWithParam(ModelStackWi
 
 ModelStackWithAutoParam*
 AutomationClipView::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-                                                       int32_t paramID, Param::Kind paramKind) {
+                                                       int32_t paramID, params::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(clip->output->toModControllable(), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
-		if (paramKind == Param::Kind::PATCHED) {
+		if (paramKind == params::Kind::PATCHED) {
 			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 		}
 
-		else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
+		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
 			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 	}
@@ -2804,7 +2813,7 @@ AutomationClipView::getModelStackWithParamForSynthClip(ModelStackWithTimelineCou
 
 ModelStackWithAutoParam* AutomationClipView::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
                                                                               InstrumentClip* clip, int32_t paramID,
-                                                                              Param::Kind paramKind) {
+                                                                              params::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Output* output = clip->output;
@@ -2825,11 +2834,11 @@ ModelStackWithAutoParam* AutomationClipView::getModelStackWithParamForKitClip(Mo
 					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
 					if (modelStackWithThreeMainThings) {
-						if (paramKind == Param::Kind::PATCHED) {
+						if (paramKind == params::Kind::PATCHED) {
 							modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 						}
 
-						else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
+						else if (paramKind == params::Kind::UNPATCHED_SOUND) {
 							modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 						}
 					}
@@ -3086,12 +3095,12 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 
 			//if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected ParamID
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				clip->lastSelectedParamKind = Param::Kind::PATCHED;
+				clip->lastSelectedParamKind = params::Kind::PATCHED;
 				clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
 			}
 
 			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
+				clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
 				clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 
@@ -3118,12 +3127,12 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 
 			//if you are in a kit instrumentClip with affect entire enabled and the shortcut is valid, set current selected ParamID
 			if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
+				clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
 				clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 
 			else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_GLOBAL;
+				clip->lastSelectedParamKind = params::Kind::UNPATCHED_GLOBAL;
 				clip->lastSelectedParamID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 

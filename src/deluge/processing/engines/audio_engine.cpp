@@ -58,6 +58,9 @@ extern "C" {
 #include "RZA1/compiler/asm/inc/asm.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
 #endif

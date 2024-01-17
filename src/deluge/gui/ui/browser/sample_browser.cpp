@@ -79,6 +79,7 @@ extern "C" {
 }
 
 using namespace deluge;
+using namespace deluge::modulation::params;
 using namespace gui;
 
 SampleBrowser sampleBrowser{};

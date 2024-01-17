@@ -235,22 +235,24 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST;
+			return destinationDescriptor.getJustTheParam() < deluge::modulation::params::Param::Global::FIRST;
 		}
 	}
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
 	// Check that this source is allowed to be patched to the selected param
-	if (p == ::Param::Global::VOLUME_POST_FX) {
+	if (p == deluge::modulation::params::Param::Global::VOLUME_POST_FX) {
 		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, ::Param::Global::VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		            source, deluge::modulation::params::Param::Global::VOLUME_POST_FX,
+		            (ParamManagerForTimeline*)soundEditor.currentParamManager)
 		            != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, ::Param::Local::VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		               source, deluge::modulation::params::Param::Local::VOLUME,
+		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
 		               != PatchCableAcceptance::DISALLOWED
 		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, ::Param::Global::VOLUME_POST_REVERB_SEND,
+		               source, deluge::modulation::params::Param::Global::VOLUME_POST_REVERB_SEND,
 		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
 		               != PatchCableAcceptance::DISALLOWED);
 	}

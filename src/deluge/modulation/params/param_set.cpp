@@ -36,6 +36,8 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
+namespace Param = deluge::modulation::params::Param;
+
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
