@@ -42,6 +42,7 @@ namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 GlobalEffectable::GlobalEffectable() {
+	unpatchedParamKind_ = params::UNPATCHED_GLOBAL;
 	lpfMode = FilterMode::TRANSISTOR_24DB;
 	filterSet.reset();
 
@@ -947,64 +948,4 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
 	          paramManager, analogDelaySaturationAmount);
-}
-
-char const* GlobalEffectable::paramToString(uint8_t param) {
-
-	switch (param) {
-
-		// Unpatched params just for GlobalEffectables
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-		return "modFXRate";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-		return "modFXDepth";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_RATE:
-		return "delayRate";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-		return "delayFeedback";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN:
-		return "pan";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_FREQ:
-		return "lpfFrequency";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_RES:
-		return "lpfResonance";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_FREQ:
-		return "hpfFrequency";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_RES:
-		return "hpfResonance";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-		return "reverbAmount";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::VOLUME:
-		return "volume";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-		return "sidechainCompressorVolume";
-
-	case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
-		return "pitchAdjust";
-
-	default:
-		return ModControllableAudio::paramToString(param);
-	}
-}
-
-int32_t GlobalEffectable::stringToParam(char const* string) {
-	for (int32_t p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
-	     p < Param::Unpatched::START + params::kMaxNumUnpatchedParams; p++) {
-		if (!strcmp(string, GlobalEffectable::paramToString(p))) {
-			return p;
-		}
-	}
-	return ModControllableAudio::stringToParam(string);
 }

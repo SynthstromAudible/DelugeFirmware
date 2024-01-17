@@ -32,6 +32,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
@@ -697,25 +698,19 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			char const* paramName;
 
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
+				paramName = params::paramNameForFile(params::Kind::PATCHED, patchedParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
-				    || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
-					paramName = ((Sound*)NULL)
-					                ->Sound::paramToString(Param::Unpatched::START
-					                                       + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
-				}
-				else {
-					paramName = ModControllableAudio::paramToString(
-					    Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
-				}
+				paramName = params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+				                                     Param::Unpatched::START
+				                                         + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 			else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramName = GlobalEffectable::paramToString(Param::Unpatched::START
-				                                            + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]);
+				paramName = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                     Param::Unpatched::START
+				                                         + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 
@@ -777,23 +772,20 @@ void MidiFollow::readDefaultMappingsFromFile() {
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]))) {
+				if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
+				                                              patchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName,
-				                 ((Sound*)NULL)
-				                     ->Sound::paramToString(Param::Unpatched::START
-				                                            + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
-				}
-				else if (!strcmp(tagName,
-				                 ModControllableAudio::paramToString(
+				                 params::paramNameForFile(
+				                     params::Kind::UNPATCHED_SOUND,
 				                     Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName,
-				                 GlobalEffectable::paramToString(
-				                     Param::Unpatched::START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
+				                 params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                          Param::Unpatched::START
+				                                              + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 			}

@@ -46,7 +46,7 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
-class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
+class AutomationClipView final : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationClipView();
 	bool opened();

@@ -17,6 +17,7 @@
 
 #include "modulation/params/param.h"
 #include "gui/l10n/l10n.h"
+#include <cstring>
 
 namespace deluge {
 namespace modulation {
@@ -294,6 +295,256 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		}
 	}
 	return l10n::get(STRING_FOR_NONE);
+}
+
+char const* paramNameForFile(Kind const kind, ParamType const param) {
+	if (kind == UNPATCHED_SOUND) {
+		// Unpatched params just for Sounds
+		switch (param) {
+		case Param::Unpatched::START + Param::Unpatched::Sound::ARP_GATE:
+			return "arpGate";
+
+		case Param::Unpatched::START + Param::Unpatched::Sound::PORTAMENTO:
+			return "portamento";
+
+		default:
+		    // Fall through to the other param kind handling
+		    ;
+		}
+	}
+	else if (kind == UNPATCHED_GLOBAL) {
+		// Params for GlobalEffectable
+		switch (param) {
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+			return "modFXRate";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+			return "modFXDepth";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_RATE:
+			return "delayRate";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+			return "delayFeedback";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN:
+			return "pan";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_FREQ:
+			return "lpfFrequency";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_RES:
+			return "lpfResonance";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_FREQ:
+			return "hpfFrequency";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_RES:
+			return "hpfResonance";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+			return "reverbAmount";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::VOLUME:
+			return "volume";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+			return "sidechainCompressorVolume";
+
+		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+			return "pitchAdjust";
+
+		default:
+		    // Fall through to the other param kind handling
+		    ;
+		}
+	}
+
+	// Local params
+	switch (param) {
+	case Param::Local::OSC_A_VOLUME:
+		return "oscAVolume";
+
+	case Param::Local::OSC_B_VOLUME:
+		return "oscBVolume";
+
+	case Param::Local::VOLUME:
+		return "volume";
+
+	case Param::Local::NOISE_VOLUME:
+		return "noiseVolume";
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return "oscAPhaseWidth";
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return "oscBPhaseWidth";
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return "oscAWavetablePosition";
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return "oscBWavetablePosition";
+
+	case Param::Local::LPF_RESONANCE:
+		return "lpfResonance";
+
+	case Param::Local::HPF_RESONANCE:
+		return "hpfResonance";
+
+	case Param::Local::PAN:
+		return "pan";
+
+	case Param::Local::MODULATOR_0_VOLUME:
+		return "modulator1Volume";
+
+	case Param::Local::MODULATOR_1_VOLUME:
+		return "modulator2Volume";
+
+	case Param::Local::LPF_FREQ:
+		return "lpfFrequency";
+
+	case Param::Local::LPF_MORPH:
+		return "lpfMorph";
+
+	case Param::Local::HPF_MORPH:
+		return "hpfMorph";
+
+	case Param::Local::PITCH_ADJUST:
+		return "pitch";
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return "oscAPitch";
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return "oscBPitch";
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return "modulator1Pitch";
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return "modulator2Pitch";
+
+	case Param::Local::HPF_FREQ:
+		return "hpfFrequency";
+
+	case Param::Local::LFO_LOCAL_FREQ:
+		return "lfo2Rate";
+
+	case Param::Local::ENV_0_ATTACK:
+		return "env1Attack";
+
+	case Param::Local::ENV_0_DECAY:
+		return "env1Decay";
+
+	case Param::Local::ENV_0_SUSTAIN:
+		return "env1Sustain";
+
+	case Param::Local::ENV_0_RELEASE:
+		return "env1Release";
+
+	case Param::Local::ENV_1_ATTACK:
+		return "env2Attack";
+
+	case Param::Local::ENV_1_DECAY:
+		return "env2Decay";
+
+	case Param::Local::ENV_1_SUSTAIN:
+		return "env2Sustain";
+
+	case Param::Local::ENV_1_RELEASE:
+		return "env2Release";
+
+	case Param::Global::LFO_FREQ:
+		return "lfo1Rate";
+
+	case Param::Global::VOLUME_POST_FX:
+		return "volumePostFX";
+
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return "volumePostReverbSend";
+
+	case Param::Global::DELAY_RATE:
+		return "delayRate";
+
+	case Param::Global::DELAY_FEEDBACK:
+		return "delayFeedback";
+
+	case Param::Global::REVERB_AMOUNT:
+		return "reverbAmount";
+
+	case Param::Global::MOD_FX_RATE:
+		return "modFXRate";
+
+	case Param::Global::MOD_FX_DEPTH:
+		return "modFXDepth";
+
+	case Param::Global::ARP_RATE:
+		return "arpRate";
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return "modulator1Feedback";
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return "modulator2Feedback";
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return "carrier1Feedback";
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return "carrier2Feedback";
+
+	case Param::Local::FOLD:
+		return "waveFold";
+
+		// Unpatched params
+	case Param::Unpatched::START + Param::Unpatched::STUTTER_RATE:
+		return "stutterRate";
+
+	case Param::Unpatched::START + Param::Unpatched::BASS:
+		return "bass";
+
+	case Param::Unpatched::START + Param::Unpatched::TREBLE:
+		return "treble";
+
+	case Param::Unpatched::START + Param::Unpatched::BASS_FREQ:
+		return "bassFreq";
+
+	case Param::Unpatched::START + Param::Unpatched::TREBLE_FREQ:
+		return "trebleFreq";
+
+	case Param::Unpatched::START + Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "sampleRateReduction";
+
+	case Param::Unpatched::START + Param::Unpatched::BITCRUSHING:
+		return "bitcrushAmount";
+
+	case Param::Unpatched::START + Param::Unpatched::MOD_FX_OFFSET:
+		return "modFXOffset";
+
+	case Param::Unpatched::START + Param::Unpatched::MOD_FX_FEEDBACK:
+		return "modFXFeedback";
+
+	case Param::Unpatched::START + Param::Unpatched::COMPRESSOR_SHAPE:
+		return "compressorShape";
+
+	default:
+		return "none";
+	}
+}
+
+uint8_t fileStringToParam(Kind kind, char const* string) {
+	for (int32_t p = 0; p < kAbsoluteMaximumParam; ++p) {
+		if (strcmp(string, paramNameForFile(kind, p)) == 0) {
+			return p;
+		}
+	}
+
+	if (strcmp(string, "range") == 0) {
+		return Param::PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
+	}
+
+	return Param::Global::NONE;
 }
 
 } // namespace params

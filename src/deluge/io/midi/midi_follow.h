@@ -33,7 +33,7 @@ enum class MIDIMatchType;
 
 Clip* getSelectedClip(bool useActiveClip = false);
 
-class MidiFollow final : public GlobalEffectable {
+class MidiFollow final {
 public:
 	MidiFollow();
 	void readDefaultsFromFile();

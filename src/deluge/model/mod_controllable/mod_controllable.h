@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
@@ -32,6 +33,10 @@ class ModelStackWithThreeMainThings;
 class MIDIKnob;
 class ModelStackWithSoundFlags;
 
+/// Base class for things that the internal modulation engine knows how to control.
+///
+/// Responsible for reacting to the mod (gold) encoders and MIDI data (CC+MPE) as well as providing a consistent
+/// interface to the rest of the system when displaying information about the underlying modulation state.
 class ModControllable {
 public:
 	ModControllable();
@@ -60,4 +65,11 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {}
+
+protected:
+	/// What kind of unpatched parameters this ModControllable uses.
+	///
+	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
+	/// subclass is
+	deluge::modulation::params::Kind unpatchedParamKind_;
 };
