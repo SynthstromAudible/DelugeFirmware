@@ -1498,7 +1498,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 	if (error || !fileSuccess) {
 
 		void* toDealloc = static_cast<void*>(newDrum);
-		newDrum->~Drum();
+		newDrum->~SoundDrum();
 		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		return error;
 
@@ -1512,7 +1512,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
 		(*getInstrument)->wontBeRenderedForAWhile();
 		void* toDealloc = static_cast<void*>(*getInstrument);
-		(*getInstrument)->~Drum();
+		(*getInstrument)->~SoundDrum();
 		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 

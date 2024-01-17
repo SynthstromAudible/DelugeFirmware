@@ -693,7 +693,7 @@ ramError:
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
 			if (!range) {
 ramError2:
-				newDrum->~Drum();
+				newDrum->~SoundDrum();
 				delugeDealloc(drumMemory);
 				goto ramError;
 			}
