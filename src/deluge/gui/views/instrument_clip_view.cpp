@@ -2149,7 +2149,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								if (probabilityValue == 0) {
-									// From FILL (value: 0) we go up to NO FILL (value: 0 | 128)
+									// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
 									prevBase = true;
 								}
 								// See if there's a prev-base
@@ -2176,7 +2176,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								if (probabilityValue == 1) {
-									// From 5% (value: 1) we go down to NO FILL (value: 0 | 128)
+									// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
 									prevBase = true;
 									probabilityValue = 0;
 								}
@@ -2264,12 +2264,12 @@ multiplePresses:
 			// Incrementing
 			if (offset == 1) {
 				if (probabilityValue == 0) {
-					// From NO FILL (value: 0 | 128) we go up to 5% (value: 1)
+					// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
 					if (prevBase) {
 						probabilityValue = 1;
 						prevBase = false;
 					}
-					// From FILL (value: 0) we go up to NO FILL (value: 0 | 128)
+					// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
 					else {
 						prevBase = true;
 					}
@@ -2284,12 +2284,12 @@ multiplePresses:
 			// Decrementing
 			else {
 				if (probabilityValue == 1) {
-					// From 5% (value: 1) we go down to NO FILL (value: 0 | 128)
+					// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
 					prevBase = true;
 					probabilityValue = 0;
 				}
 				else if (probabilityValue == 0 && prevBase) {
-					// From NO FILL (value: 0 | 128) we go down to FILL (value: 0)
+					// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
 					prevBase = false;
 				}
 				// In any other case we just increment probability value
@@ -2973,16 +2973,16 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
 		                                                     false); // Snapshot for undoability. Don't steal data.
 
-		// Covers the probabilities and iterations and the special case of No Fill
+		// Covers the probabilities and iterations and the special case of Not Fill
 		// Incrementing
 		if (offset == 1) {
 			if (probabilityValue == 0) {
-				// From NO FILL (value: 0 | 128) we go up to 5% (value: 1)
+				// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
 				if (prevBase) {
 					probabilityValue = 1;
 					prevBase = false;
 				}
-				// From FILL (value: 0) we go up to NO FILL (value: 0 | 128)
+				// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
 				else {
 					prevBase = true;
 				}
@@ -2997,12 +2997,12 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		// Decrementing
 		else {
 			if (probabilityValue == 1) {
-				// From 5% (value: 1) we go down to NO FILL (value: 0 | 128)
+				// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
 				prevBase = true;
 				probabilityValue = 0;
 			}
 			else if (probabilityValue == 0 && prevBase) {
-				// From NO FILL (value: 0 | 128) we go down to FILL (value: 0)
+				// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
 				prevBase = false;
 			}
 			// In any other case we just increment probability value
@@ -3043,7 +3043,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 	// NO-FILL mode
 	else if (probability == kFillProbabilityValue && prevBase) {
-		strcpy(buffer, "NO FILL");
+		strcpy(buffer, "NOT FILL");
 	}
 
 	// Probability dependence

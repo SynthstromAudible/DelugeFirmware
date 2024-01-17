@@ -818,7 +818,7 @@ skipDoingSumTo100:
 			}
 
 			// else check if it's a NO-FILL note and only play if SYNC_SCALING is *not* pressed
-			else if (pendingNoteOnList.pendingNoteOns[i].probability == kNoFillProbabilityValue) {
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == kNotFillProbabilityValue) {
 				conditionPassed = !currentSong->isFillModeActive();
 			}
 

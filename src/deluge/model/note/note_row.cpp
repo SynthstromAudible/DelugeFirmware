@@ -1650,7 +1650,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 					pixel[1] = 0;
 					pixel[2] = 255;
 				}
-				else if (note->probability == kNoFillProbabilityValue) {
+				else if (note->probability == kNotFillProbabilityValue) {
 					//make em red
 					pixel[0] = 255;
 					pixel[1] = 0;
