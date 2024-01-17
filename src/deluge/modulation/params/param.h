@@ -144,6 +144,7 @@ constexpr ParamType FIRST_EXP = Global::DELAY_RATE;
 constexpr ParamType PLACEHOLDER_RANGE = 89; // Not a real param. For the purpose of reading old files from before V3.2.0
 namespace Unpatched {
 constexpr ParamType START = 90;
+static_assert(Global::NONE <= START, "We must have enough headroom for the params to be in order");
 
 enum Shared : ParamType {
 	// For all ModControllables
@@ -213,9 +214,25 @@ static_assert(std::max<ParamType>(Unpatched::GlobalEffectable::MAX_NUM, Unpatche
 //None is the last global param, 0 indexed so it's also the number of real params
 constexpr ParamType kNumParams = util::to_underlying(Param::Global::NONE);
 constexpr ParamType kMaxNumUnpatchedParams = Param::Unpatched::GlobalEffectable::MAX_NUM;
+constexpr ParamType kAbsoluteMaximumParam =
+    std::max<ParamType>(Param::Unpatched::GlobalEffectable::MAX_NUM, Param::Unpatched::Sound::MAX_NUM)
+    + Param::Unpatched::START;
 
 char const* getPatchedParamDisplayName(int32_t p);
 char const* getParamDisplayName(Kind kind, int32_t p);
+
+/// Convert a ParamType (along with its Kind) in to a string suitable for use as an XML attribute name.
+///
+/// This handles Param::Local and Param::Unpatched. If an Param::Unpatched is passed for param, it *must* be offset by
+/// Param::Unpatched::START. The Kind is used to distinguish between Param::Unpatched::Sound
+/// (when kind == UNPATCHED_SOUND) and Param::Unpatched::GlobalEffectable (when kind == UNPATCHED_GLOBAL) as these
+/// two sub-ranges would otherwise overlap.
+char const* paramNameForFile(Kind kind, ParamType param);
+
+/// Given a string and the expected Kind, attempts to find the ParamType value for that param.
+///
+/// As with paramNameForFile, the returned ParamType is offset by Param::Unpatched::START for unpatched params.
+ParamType fileStringToParam(Kind kind, char const* name);
 
 /// Magic number which represents an invalid or missing param type
 constexpr uint32_t kNoParamID = 0xFFFFFFFF;

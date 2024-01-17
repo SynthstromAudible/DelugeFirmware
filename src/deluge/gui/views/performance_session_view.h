@@ -87,7 +87,7 @@ const int32_t sizePadPress = sizeof(PadPress);
 const int32_t sizeFXPress = sizeof(FXColumnPress);
 const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
 
-class PerformanceSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
+class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
 	bool opened();
