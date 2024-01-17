@@ -259,7 +259,6 @@ void Song::setupDefault() {
 		modeNotes[n] = newNote;
 	}
 	numModeNotes = newNumModeNotes;
-
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
