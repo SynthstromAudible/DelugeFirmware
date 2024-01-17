@@ -218,6 +218,11 @@ constexpr ParamType kAbsoluteMaximumParam =
     std::max<ParamType>(Param::Unpatched::GlobalEffectable::MAX_NUM, Param::Unpatched::Sound::MAX_NUM)
     + Param::Unpatched::START;
 
+bool isParamPan(Kind kind, int32_t paramID);
+bool isParamPitch(Kind kind, int32_t paramID);
+bool isParamStutter(Kind kind, int32_t paramID);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID);
+
 char const* getPatchedParamDisplayName(int32_t p);
 char const* getParamDisplayName(Kind kind, int32_t p);
 

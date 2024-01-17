@@ -123,12 +123,8 @@ public:
 	// == activeModControllableTimelineCounter
 	uint32_t modLength;
 
-	bool isParamPan(deluge::modulation::params::Kind kind, int32_t paramID);
-	bool isParamPitch(deluge::modulation::params::Kind kind, int32_t paramID);
-	bool isParamStutter(deluge::modulation::params::Kind kind, int32_t paramID);
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
-	bool isParamQuantizedStutter(deluge::modulation::params::Kind kind, int32_t paramID);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
 
