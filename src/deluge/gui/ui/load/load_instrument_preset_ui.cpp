@@ -462,19 +462,19 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 	}
 
 	Availability availabilityRequirement;
-	bool oldInstrumentCanBeReplaced;
+	bool oldInstrumentShouldBeReplaced;
 	if (instrumentClipToLoadFor) {
-		oldInstrumentCanBeReplaced =
-		    currentSong->canOldOutputBeReplaced(instrumentClipToLoadFor, &availabilityRequirement);
+		oldInstrumentShouldBeReplaced =
+		    currentSong->shouldOldOutputBeReplaced(instrumentClipToLoadFor, &availabilityRequirement);
 	}
 
 	else {
-		oldInstrumentCanBeReplaced = true;
+		oldInstrumentShouldBeReplaced = true;
 		availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 	}
 
 	// If we're looking to replace the whole Instrument, but we're not allowed, that's obviously a no-go
-	if (replacedWholeInstrument && !oldInstrumentCanBeReplaced) {
+	if (replacedWholeInstrument && !oldInstrumentShouldBeReplaced) {
 		return;
 	}
 
@@ -805,14 +805,14 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
-	bool oldInstrumentCanBeReplaced;
+	bool oldInstrumentShouldBeReplaced;
 	if (instrumentClipToLoadFor) {
-		oldInstrumentCanBeReplaced =
-		    currentSong->canOldOutputBeReplaced(instrumentClipToLoadFor, &availabilityRequirement);
+		oldInstrumentShouldBeReplaced =
+		    currentSong->shouldOldOutputBeReplaced(instrumentClipToLoadFor, &availabilityRequirement);
 	}
 
 	else {
-		oldInstrumentCanBeReplaced = true;
+		oldInstrumentShouldBeReplaced = true;
 		availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 	}
 
@@ -843,7 +843,9 @@ giveUsedError:
 		}
 
 		// Ok, we can have it!
-		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && newInstrumentWasHibernating);
+		//this can only happen when changing a clip that is the only instance of its instrument to another instrument
+		//that has an inactive clip already
+		shouldReplaceWholeInstrument = (oldInstrumentShouldBeReplaced && newInstrumentWasHibernating);
 		needToAddInstrumentToSong = newInstrumentWasHibernating;
 	}
 
@@ -869,7 +871,7 @@ giveUsedError:
 			return error;
 		}
 
-		shouldReplaceWholeInstrument = oldInstrumentCanBeReplaced;
+		shouldReplaceWholeInstrument = oldInstrumentShouldBeReplaced;
 		needToAddInstrumentToSong = true;
 		loadedFromFile = true;
 

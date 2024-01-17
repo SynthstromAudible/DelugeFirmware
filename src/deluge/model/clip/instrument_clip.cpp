@@ -2999,7 +2999,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 				chosenNoteRowIndex = i;
 				break;
 			}
-noteRowFailed : {}
+noteRowFailed: {}
 		}
 	}
 
@@ -3539,7 +3539,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	Availability availabilityRequirement;
-	bool canReplaceWholeInstrument = modelStack->song->canOldOutputBeReplaced(this, &availabilityRequirement);
+	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
 
 	bool shouldReplaceWholeInstrument;
 
