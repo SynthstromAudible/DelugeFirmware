@@ -22,6 +22,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
+namespace Param = deluge::modulation::params::Param;
+
 Envelope::Envelope() {
 }
 

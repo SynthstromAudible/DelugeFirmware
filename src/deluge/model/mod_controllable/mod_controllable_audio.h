@@ -25,6 +25,7 @@
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 
 #define STUTTERER_STATUS_OFF 0
@@ -168,8 +169,8 @@ private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
 	                                        int32_t ccNumber = MIDI_CC_NONE);
-	bool possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id);
-	bool possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos);
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind kind, int32_t id);
+	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,

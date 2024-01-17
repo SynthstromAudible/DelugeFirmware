@@ -74,6 +74,9 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 Clip* getCurrentClip() {
 	return currentSong->currentClip;
 }
@@ -2181,7 +2184,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 	    && currentPlaybackMode == &arrangement) {
-		const bool result = kMaxNumUnpatchedParams > 32
+		const bool result = params::kMaxNumUnpatchedParams > 32
 		                        ? paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
 		                              || paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
 		                        : paramManager.getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
@@ -4346,7 +4349,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 	if (newState) {
 
 		// Back up the unautomated values
-		for (int32_t p = 0; p < kMaxNumUnpatchedParams; p++) {
+		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			unautomatedParamValues[p] = unpatchedParams->params[p].getCurrentValue();
 		}
 	}
@@ -4355,7 +4358,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 	else {
 
 		// Restore the unautomated values, where automation is present
-		for (int32_t p = 0; p < kMaxNumUnpatchedParams; p++) {
+		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated()) {
 				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
 			}

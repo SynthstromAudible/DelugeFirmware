@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/model_stack.h"
+#include "modulation/params/param.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -122,12 +123,12 @@ public:
 	// == activeModControllableTimelineCounter
 	uint32_t modLength;
 
-	bool isParamPan(Param::Kind kind, int32_t paramID);
-	bool isParamPitch(Param::Kind kind, int32_t paramID);
-	bool isParamStutter(Param::Kind kind, int32_t paramID);
-	int32_t calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos);
-	void displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos);
-	bool isParamQuantizedStutter(Param::Kind kind, int32_t paramID);
+	bool isParamPan(deluge::modulation::params::Kind kind, int32_t paramID);
+	bool isParamPitch(deluge::modulation::params::Kind kind, int32_t paramID);
+	bool isParamStutter(deluge::modulation::params::Kind kind, int32_t paramID);
+	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
+	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
+	bool isParamQuantizedStutter(deluge::modulation::params::Kind kind, int32_t paramID);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
 

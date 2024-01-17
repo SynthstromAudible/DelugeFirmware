@@ -40,6 +40,9 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
+namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
+
 GlobalEffectableForClip::GlobalEffectableForClip() {
 	postReverbVolumeLastTime = paramNeutralValues[Param::Global::VOLUME_POST_REVERB_SEND];
 
@@ -188,7 +191,7 @@ doNormal:
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 		const bool result =
-		    kMaxNumUnpatchedParams > 32
+		    params::kMaxNumUnpatchedParams > 32
 		        ? paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0]
 		              || paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[1]
 		        : paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating[0];
