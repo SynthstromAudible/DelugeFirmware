@@ -230,6 +230,8 @@ bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID);
 
 char const* getPatchedParamDisplayName(int32_t p);
+/// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
+char const* getPatchedParamShortName(ParamType type);
 char const* getParamDisplayName(Kind kind, int32_t p);
 
 /// Convert a ParamType (along with its Kind) in to a string suitable for use as an XML attribute name.
