@@ -234,6 +234,8 @@ char const* getPatchedParamDisplayName(int32_t p);
 char const* getPatchedParamShortName(ParamType type);
 char const* getParamDisplayName(Kind kind, int32_t p);
 
+bool paramNeedsLPF(ParamType p, bool fromAutomation);
+
 /// Convert a ParamType (along with its Kind) in to a string suitable for use as an XML attribute name.
 ///
 /// This handles Param::Local and Param::Unpatched. If an Param::Unpatched is passed for param, it *must* be offset by
