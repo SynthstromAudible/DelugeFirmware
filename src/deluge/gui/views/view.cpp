@@ -1052,7 +1052,8 @@ bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
 }
 
 bool View::isParamStutter(Param::Kind kind, int32_t paramID) {
-	if (kind == Param::Kind::UNPATCHED_SOUND && paramID == Param::Unpatched::STUTTER_RATE) {
+	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
+	    && paramID == Param::Unpatched::STUTTER_RATE) {
 		return true;
 	}
 	return false;
