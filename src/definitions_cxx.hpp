@@ -814,11 +814,12 @@ constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCA
 constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
 enum class MIDIFollowChannelType : uint8_t {
-	SYNTH,
-	KIT,
-	PARAM,
+	A,
+	B,
+	C,
+	FEEDBACK,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::PARAM) + 1;
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::FEEDBACK) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 

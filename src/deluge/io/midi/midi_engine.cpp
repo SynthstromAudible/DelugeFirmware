@@ -223,7 +223,6 @@ MidiEngine::MidiEngine() {
 	}
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
-	midiFollowFeedback = false;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
