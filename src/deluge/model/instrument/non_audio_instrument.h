@@ -20,13 +20,17 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/arpeggiator.h"
+#include "storage/flash_storage.h"
 
 class ModelStack;
 class ModelStackWithSoundFlags;
 
 class NonAudioInstrument : public MelodicInstrument, public ModControllable {
 public:
-	NonAudioInstrument(InstrumentType newType) : MelodicInstrument(newType) {}
+	NonAudioInstrument(OutputType newType) : MelodicInstrument(newType) {
+		cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
+		cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+	}
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
@@ -53,6 +57,8 @@ public:
 	ModControllable* toModControllable() { return this; }
 
 	int32_t channel = 0;
+	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
+	uint8_t cachedBendRanges[2];
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,

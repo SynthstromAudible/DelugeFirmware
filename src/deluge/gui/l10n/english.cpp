@@ -340,9 +340,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLIPPING_OCCURRED, "Clipping occurred"},
         {STRING_FOR_NO_SAMPLE, "No sample"},
         {STRING_FOR_PARAMETER_NOT_APPLICABLE, "Parameter not applicable"},
-        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select a row or affect-entire"},
+        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select row / affect-entire"},
         {STRING_FOR_UNIMPLEMENTED, "Feature not (yet?) implemented"},
         {STRING_FOR_CANT_LEARN, "Can't learn"},
+        {STRING_FOR_CANT_LEARN_PC, "Can't learn Program Change"},
         {STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE, "Folders cannot be deleted on the Deluge"},
         {STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT, "Error creating multisampled instrument"},
         {STRING_FOR_CLIP_IS_RECORDING, "Clip is recording"},
@@ -394,6 +395,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER, "Clip has instances in arranger"},
         {STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING, "Can't save while overdubs pending"},
         {STRING_FOR_DIN_PORTS, "DIN ports"},
+        {STRING_FOR_LOOPBACK, "Loopback"},
         {STRING_FOR_UPSTREAM_USB_PORT_3_SYSEX, "upstream USB port 3 (sysex)"},
         {STRING_FOR_UPSTREAM_USB_PORT_2, "upstream USB port 2"},
         {STRING_FOR_UPSTREAM_USB_PORT_1, "upstream USB port 1"},
@@ -473,9 +475,11 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_UI, "UI"},
         {STRING_FOR_DEFAULT_UI_GRID, "Grid"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, "Default active mode"},
-        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS, "Empty pad unarm"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, "Select in green mode"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, "Selection"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS, "Empty pads"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, "Unarm"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC, "Create + Record"},
         {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
@@ -627,6 +631,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEVICES, "Devices"},
         {STRING_FOR_MIDI_DEVICES, "MIDI devices"},
         {STRING_FOR_MPE, "MPE"},
+        {STRING_FOR_MPE_MONO, "Poly Expression to Mono"},
         {STRING_FOR_MIDI_CLOCK, "MIDI clock"},
         {STRING_FOR_MIDI, "MIDI"},
         {STRING_FOR_PPQN, "PPQN"},
@@ -808,9 +813,9 @@ PLACE_SDRAM_DATA Language english{
         /* Strings Specifically for Song View
         * session_view.cpp
         */
+        {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
 
         {STRING_FOR_SONG_VIEW, "Song View"},
-        {STRING_FOR_SONG_FX, "Song FX"},
 
         /* Strings Specifically for Arranger View
         * arranger_view.cpp
@@ -829,9 +834,9 @@ PLACE_SDRAM_DATA Language english{
         //strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},
-        {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_A, "Channel A"},
+        {STRING_FOR_FOLLOW_CHANNEL_B, "Channel B"},
+        {STRING_FOR_FOLLOW_CHANNEL_C, "Channel C"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
@@ -841,6 +846,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
         {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
         {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
+
+        //String for Select Kit Row Menu
+
+        {STRING_FOR_SELECT_KIT_ROW, "Select Kit Row"},
     },
 };
 } // namespace deluge::l10n::built_in

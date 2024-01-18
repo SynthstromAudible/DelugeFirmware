@@ -315,7 +315,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		numClipStates = 0;
 		delugeDealloc(clipStates);
 		clipStates = NULL;
-		Debug::println("discarded clip states");
+		D_PRINTLN("discarded clip states");
 		return;
 	}
 

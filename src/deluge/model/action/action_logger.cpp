@@ -20,7 +20,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -30,6 +30,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_clip_state.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
@@ -133,7 +134,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
 		if (!actionMemory) {
-			Debug::println("no ram to create new Action");
+			D_PRINTLN("no ram to create new Action");
 			return NULL;
 		}
 
@@ -210,7 +211,7 @@ void ActionLogger::updateAction(Action* newAction) {
 			newAction->numClipStates = 0;
 			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Debug::println("discarded clip states");
+			D_PRINTLN("discarded clip states");
 		}
 
 		else {
@@ -325,7 +326,7 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
-	Debug::println("ActionLogger::revert");
+	D_PRINTLN("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -426,10 +427,10 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Then entering or exiting automation view
-			else if (action->view == &automationInstrumentClipView && getCurrentUI() != &automationInstrumentClipView) {
+			else if (action->view == &automationClipView && getCurrentUI() != &automationClipView) {
 				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
 			}
-			else if (action->view != &automationInstrumentClipView && getCurrentUI() == &automationInstrumentClipView) {
+			else if (action->view != &automationClipView && getCurrentUI() == &automationClipView) {
 				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
 			}
 
@@ -492,7 +493,7 @@ traverseClips:
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == InstrumentType::KIT) {
+						if (clip->output->type == OutputType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
@@ -511,7 +512,7 @@ traverseClips:
 				}
 			}
 			else {
-				Debug::println("clip states wrong number so not restoring");
+				D_PRINTLN("clip states wrong number so not restoring");
 			}
 		}
 
@@ -599,8 +600,8 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
 
-		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-			changeRootUI(&automationInstrumentClipView);
+		if (getCurrentClip()->onAutomationClipView) {
+			changeRootUI(&automationClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -608,11 +609,16 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
-		changeRootUI(&automationInstrumentClipView);
+		changeRootUI(&automationClipView);
 	}
 
 	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
-		changeRootUI(&instrumentClipView);
+		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			changeRootUI(&instrumentClipView);
+		}
+		else {
+			changeRootUI(&audioClipView);
+		}
 	}
 
 	else if (whichAnimation == ANIMATION_CHANGE_CLIP) {
@@ -636,8 +642,8 @@ currentClipSwitchedOver:
 		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-			changeRootUI(&automationInstrumentClipView);
+		else if (getCurrentClip()->onAutomationClipView) {
+			changeRootUI(&automationClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -664,13 +670,15 @@ currentClipSwitchedOver:
 				}
 			}
 		}
-		else if (getCurrentUI() == &automationInstrumentClipView) {
+		else if (getCurrentUI() == &automationClipView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
 			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
-				instrumentClipView.recalculateColours();
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+					instrumentClipView.recalculateColours();
+				}
 				if (!whichAnimation) {
-					uiNeedsRendering(&automationInstrumentClipView);
+					uiNeedsRendering(&automationClipView);
 				}
 			}
 		}
@@ -879,13 +887,13 @@ gotMultipleConsequencesPerNoteRow:
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Debug::println("did secret undo, just one Consequence");
+			D_PRINTLN("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Debug::println("did secret undo, whole Action");
+			D_PRINTLN("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

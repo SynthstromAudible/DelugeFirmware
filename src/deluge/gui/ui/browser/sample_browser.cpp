@@ -104,7 +104,7 @@ bool SampleBrowser::opened() {
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
 	allowFoldersSharingNameWithFile = true;
-	instrumentTypeToLoad = InstrumentType::NONE;
+	outputTypeToLoad = OutputType::NONE;
 	qwertyVisible = false;
 	qwertyCurrentlyDrawnOnscreen = false;
 
@@ -524,7 +524,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	/*
 	// Was this in case they've already turned the knob further?
 	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-		Debug::println("returned 1");
+		D_PRINTLN("returned 1");
 		return;
 	}
 	*/
@@ -567,7 +567,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-			Debug::println("returned 2");
+			D_PRINTLN("returned 2");
 			return;
 		}
 		*/
@@ -1158,8 +1158,7 @@ int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples
 		}
 	}
 
-	Debug::print("timesIncorrectOrderSeen: ");
-	Debug::println(timesIncorrectOrderSeen);
+	D_PRINT("timesIncorrectOrderSeen: %d", timesIncorrectOrderSeen);
 
 	return timesIncorrectOrderSeen;
 }
@@ -1309,8 +1308,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Ok, the samples are now all in memory.
 
-	Debug::print("loaded from folder: ");
-	Debug::println(numSamples);
+	D_PRINT("loaded from folder: %d", numSamples);
 
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
@@ -1356,8 +1354,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	numSamples = sampleI; // In case it's lower now, e.g. due to some samples' pitch detection failing
 
-	Debug::print("successfully detected pitch: ");
-	Debug::println(numSamples);
+	D_PRINTLN("successfully detected pitch: %d", numSamples);
 
 	Sample** sortAreas[2];
 	sortAreas[0] = sortArea;
@@ -1402,7 +1399,7 @@ removeReasonsFromSamplesAndGetOut:
 			// But if C is actually bad enough, we might conclude that the filenames are irrelevant
 			if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
 
-			Debug::println("going back to ordering from C");
+			D_PRINTLN("going back to ordering from C");
 			sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 		}
 
@@ -1415,7 +1412,7 @@ removeReasonsFromSamplesAndGetOut:
 		*/
 
 		// Ok, we're here, the samples are optimally ordered by file, but, the pitch is out.
-		Debug::println("sample order by file finalized");
+		D_PRINTLN("sample order by file finalized");
 
 		float prevNote = sortAreas[readArea][0]->midiNote; // May be MIDI_NOTE_ERROR
 
@@ -1547,10 +1544,7 @@ removeReasonsFromSamplesAndGetOut:
 				continue;
 			}
 
-			Debug::print("redoing, limited to ");
-			Debug::print(minFreqHz);
-			Debug::print(" to ");
-			Debug::println(maxFreqHz);
+			D_PRINT("redoing, limited to %d to %d", minFreqHz, maxFreqHz);
 
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1561,7 +1555,7 @@ removeReasonsFromSamplesAndGetOut:
 				minFreqHz *= 2;
 				maxFreqHz *= 2;
 
-				Debug::println("pretending an octave up...");
+				D_PRINTLN("pretending an octave up...");
 
 				thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1619,7 +1613,7 @@ doReturnFalse:
 		return false;
 	}
 
-	Debug::println("loaded and sorted samples");
+	D_PRINTLN("loaded and sorted samples");
 
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
@@ -1675,7 +1669,7 @@ doReturnFalse:
 			else {
 				// If there are other intervals of more than a semitone, we can't really take it for granted what's going on, so get out
 				if (noteHere >= prevNote + 1.85) {
-					Debug::println("aaa");
+					D_PRINTLN("aaa");
 					uartPrintlnFloat(noteHere - prevNote);
 					goto skipOctaveCorrection;
 				}
@@ -1685,7 +1679,7 @@ doReturnFalse:
 		}
 
 		if (whichSampleIsAnOctaveUp) {
-			Debug::println("correcting octaves");
+			D_PRINTLN("correcting octaves");
 			// Correct earlier ones?
 			if (whichSampleIsAnOctaveUp * 2 < numSamples) {
 				for (int32_t s = 0; s < whichSampleIsAnOctaveUp; s++) {
@@ -1718,7 +1712,7 @@ skipOctaveCorrection:
 		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
-	Debug::println("creating ranges");
+	D_PRINTLN("creating ranges");
 
 	for (int32_t s = 0; s < numSamples; s++) {
 
@@ -1729,7 +1723,7 @@ skipOctaveCorrection:
 		Sample* thisSample = sortArea[s];
 
 		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
-			Debug::println("dismissing 1 sample for which pitch couldn't be detected");
+			D_PRINTLN("dismissing 1 sample for which pitch couldn't be detected");
 			// TODO: shouldn't we remove a reason here?
 			continue;
 		}
@@ -1742,10 +1736,7 @@ skipOctaveCorrection:
 			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
 			topNote = midPoint; // Round down
 			if (topNote <= lastTopNote) {
-				Debug::print("skipping sample cos ");
-				Debug::print(topNote);
-				Debug::print(" <= ");
-				Debug::println(lastTopNote);
+				D_PRINTLN("skipping sample cos %d <= %d", topNote, lastTopNote);
 				// TODO: shouldn't we remove a reason here?
 				continue;
 			}
@@ -1765,8 +1756,7 @@ skipOctaveCorrection:
 			    rangeIndex); // We know it's gonna succeed
 		}
 
-		Debug::print("top note: ");
-		Debug::println(topNote);
+		D_PRINT("top note:  %d", topNote);
 
 		range->topNote = topNote;
 
@@ -1801,8 +1791,7 @@ skipOctaveCorrection:
 		goto doReturnFalse;
 	}
 
-	Debug::print("distinct ranges: ");
-	Debug::println(numSamples);
+	D_PRINTLN("distinct ranges: %d", numSamples);
 
 	delugeDealloc(sortArea);
 

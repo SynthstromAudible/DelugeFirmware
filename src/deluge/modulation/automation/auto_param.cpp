@@ -18,7 +18,7 @@
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -430,14 +430,14 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	// Ok, if we're here, we just reached the node!
 
 	/*
-		Debug::println("");
-		Debug::print("at node: ");
-		Debug::print(nodeJustReached->pos);
-		Debug::print(", ");
-		Debug::print(nodeJustReached->value);
-		if (nodeJustReached->interpolated) Debug::print(", interp");
-		Debug::println("");
-		if (renewedOverridingAtTime) Debug::println("overriding");
+		D_PRINTLN("");
+		D_PRINT("at node: ");
+		D_PRINT(nodeJustReached->pos);
+		D_PRINT(", ");
+		D_PRINT(nodeJustReached->value);
+		if (nodeJustReached->interpolated) D_PRINT(", interp");
+		D_PRINTLN("");
+		if (renewedOverridingAtTime) D_PRINTLN("overriding");
 	*/
 
 	// Stop any pre-existing interpolation (though we might set up some more, below)
@@ -522,7 +522,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 		if (shouldCancelOverridingNow) {
 yesCancelOverriding:
 			renewedOverridingAtTime = 0;
-			Debug::println("cancel overriding, basic way");
+			D_PRINTLN("cancel overriding, basic way");
 		}
 
 		// Otherwise...
@@ -634,12 +634,12 @@ recordOverNodeJustReached:
 								renewedOverridingAtTime = 0xFFFFFFFF;
 							}
 						}
-						Debug::println("cancel latching");
+						D_PRINTLN("cancel latching");
 					}
 				}
 
 adjustNodeJustReached:
-				//Debug::println("adjusting node value");
+				//D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
 					nodeJustReached->value = currentValue;
 				}
@@ -665,10 +665,7 @@ adjustNodeJustReached:
 						nextNodeInOurDirection->interpolated = newNodeShouldBeInterpolated;
 
 						/*
-						Debug::print("new one: ");
-						Debug::print(posOverridingEnds);
-						Debug::print(", ");
-						Debug::println(valueOverridingEnds);
+						D_PRINTLN("new one:  %d ,  %d", posOverridingEnds, valueOverridingEnds);
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
@@ -964,9 +961,9 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		//automation interpolation
 		//when this feature is enabled, interpolation is enforced on manual automation editing in the automation instrument clip view
 
-		if (getCurrentUI() == &automationInstrumentClipView) {
-			firstI = homogenizeRegion(modelStack, pos, length, value, automationInstrumentClipView.interpolationBefore,
-			                          automationInstrumentClipView.interpolationAfter, effectiveLength, false);
+		if (getCurrentUI() == &automationClipView) {
+			firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolationBefore,
+			                          automationClipView.interpolationAfter, effectiveLength, false);
 		}
 		else {
 			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
@@ -1892,7 +1889,7 @@ int32_t AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			// Ensure there isn't some problem where nodes are out of order...
 			if (pos <= prevPos) {
-				Debug::println("Automation nodes out of order");
+				D_PRINTLN("Automation nodes out of order");
 				continue;
 			}
 

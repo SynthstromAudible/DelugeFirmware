@@ -16,4 +16,13 @@
         "Synthstrom"
     ],
     "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin",
+    "advancedLocalFormatters.formatters": [
+        {
+            "command": {
+                "win32": ["dbt.cmd", "format", "--stdio", "$absoluteFilePath"],
+                "*": ["./dbt", "format", "--stdio", "$absoluteFilePath"]
+            },
+            "languages": ["cpp"]
+        }
+    ]
 }

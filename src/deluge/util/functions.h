@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
 #include "gui/colour/colour.h"
+#include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <bit>
@@ -46,21 +47,7 @@ extern int32_t paramNeutralValues[];
 
 void functionsInit();
 
-[[gnu::always_inline]] static inline void intToString(int32_t number, char* buffer) {
-	intToString(number, buffer, 1);
-}
-
-bool memIsNumericChars(char const* mem, int32_t size);
-bool stringIsNumericChars(char const* str);
-char const* getThingName(InstrumentType instrumentType);
-
-char halfByteToHexChar(uint8_t thisHalfByte);
-void intToHex(uint32_t number, char* output, int32_t numChars = 8);
-uint32_t hexToInt(char const* string);
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);
-
-void byteToHex(uint8_t number, char* buffer);
-uint8_t hexToByte(char const* firstChar);
+char const* getThingName(OutputType outputType);
 
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
@@ -184,7 +171,7 @@ SequenceDirection stringToSequenceDirectionMode(char const* string);
 char const* launchStyleToString(int launchStyle);
 int stringToLaunchStyle(char const* string);
 
-char const* getInstrumentFolder(InstrumentType instrumentType);
+char const* getInstrumentFolder(OutputType outputType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
@@ -495,7 +482,9 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
-void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn = false);
+/// buffer must have at least 5 characters on 7seg, or 30 for OLED
+void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
+                                    bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 int32_t fresultToDelugeErrorCode(FRESULT result);
 
@@ -510,4 +499,6 @@ int32_t fresultToDelugeErrorCode(FRESULT result);
 }
 
 extern char miscStringBuffer[];
+
+constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];

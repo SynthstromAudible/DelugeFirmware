@@ -88,7 +88,7 @@ bool AudioRecorder::opened() {
 	}
 
 	// If recording for a Drum, set the name of the Drum
-	if (getCurrentInstrumentType() == InstrumentType::KIT) {
+	if (getCurrentOutputType() == OutputType::KIT) {
 		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
@@ -139,7 +139,7 @@ gotError:
 }
 
 void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	deluge::hid::display::OLED::drawStringCentred("Recording", 15, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX,
+	deluge::hid::display::OLED::drawStringCentred("Recording", 19, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX,
 	                                              kTextBigSizeY);
 }
 

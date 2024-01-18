@@ -24,6 +24,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -70,6 +71,8 @@ inline Sample* getSample() {
 bool AudioClipView::opened() {
 	mustRedrawTickSquares = true;
 	uiNeedsRendering(this);
+
+	getCurrentClip()->onAutomationClipView = false;
 
 	focusRegained();
 	return true;
@@ -294,6 +297,17 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 doOther:
 				sessionView.transitionToSessionView();
 			}
+		}
+	}
+
+	// Clip view button
+	else if (b == CLIP_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			changeRootUI(&automationClipView);
 		}
 	}
 

@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -56,11 +56,11 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 int16_t InstrumentClipMinder::defaultRootNote;
@@ -120,6 +120,9 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(getCurrentOutput(), false);
 }
 
+// GCC is fine with 29 or 5 for the size, but does not like that it could be either
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
 	char buffer[display->haveOLED() ? 30 : 5];
@@ -156,24 +159,24 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		display->setText(buffer, true, automationExists ? 3 : 255, false);
 	}
 }
-
-void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
+#pragma GCC pop
+void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 	int32_t error;
 
-	InstrumentType oldInstrumentType = getCurrentInstrumentType();
+	OutputType oldOutputType = getCurrentOutputType();
 
 	bool shouldReplaceWholeInstrument = currentSong->canOldOutputBeReplaced(getCurrentInstrumentClip());
 
 	String newName;
-	char const* thingName = (newInstrumentType == InstrumentType::SYNTH) ? "SYNT" : "KIT";
-	error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
+	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
+	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
 	if (error) {
 gotError:
 		display->displayError(error);
 		return;
 	}
 
-	error = loadInstrumentPresetUI.getUnusedSlot(newInstrumentType, &newName, thingName);
+	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
 	if (error) {
 		goto gotError;
 	}
@@ -184,14 +187,14 @@ gotError:
 	}
 
 	ParamManagerForTimeline newParamManager;
-	Instrument* newInstrument = storageManager.createNewInstrument(newInstrumentType, &newParamManager);
+	Instrument* newInstrument = storageManager.createNewInstrument(newOutputType, &newParamManager);
 	if (!newInstrument) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto gotError;
 	}
 
 	// Set dirPath.
-	error = newInstrument->dirPath.set(getInstrumentFolder(newInstrumentType));
+	error = newInstrument->dirPath.set(getInstrumentFolder(newOutputType));
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
@@ -205,14 +208,14 @@ gotError:
 
 	getCurrentInstrumentClip()->backupPresetSlot();
 
-	if (newInstrumentType == InstrumentType::KIT) {
+	if (newOutputType == OutputType::KIT) {
 		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
 	}
 	else {
 		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_SYNTH_CREATED));
 	}
 
-	if (newInstrumentType == InstrumentType::SYNTH) {
+	if (newOutputType == OutputType::SYNTH) {
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager);
 	}
 
@@ -241,9 +244,9 @@ gotError:
 	newInstrument->editedByUser = true;
 	newInstrument->existsOnCard = false;
 
-	if (newInstrumentType == InstrumentType::KIT) {
+	if (newOutputType == OutputType::KIT) {
 		// If we weren't a Kit already...
-		if (oldInstrumentType != InstrumentType::KIT) {
+		if (oldOutputType != OutputType::KIT) {
 			getCurrentInstrumentClip()->yScroll = 0;
 		}
 
@@ -279,13 +282,13 @@ void InstrumentClipMinder::displayOrLanguageChanged() {
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentInstrumentType() == InstrumentType::SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentInstrumentType() == InstrumentType::KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentInstrumentType() == InstrumentType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, getCurrentInstrumentType() == InstrumentType::CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentOutputType() == OutputType::SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentOutputType() == OutputType::KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentOutputType() == OutputType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
 
 	//cross screen editing doesn't currently work in automation view, so don't light it up
-	if (getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentUI() != &automationClipView) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
 	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentInstrumentClip()->isScaleModeClip());
@@ -323,14 +326,14 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (b == SYNTH) {
-			if (getCurrentInstrumentType() == InstrumentType::SYNTH) {
+			if (getCurrentOutputType() == OutputType::SYNTH) {
 yesSaveInstrument:
 				openUI(&saveInstrumentPresetUI);
 			}
 		}
 
 		else if (b == KIT) {
-			if (getCurrentInstrumentType() == InstrumentType::KIT) {
+			if (getCurrentOutputType() == OutputType::KIT) {
 				goto yesSaveInstrument;
 			}
 		}
@@ -342,7 +345,7 @@ yesSaveInstrument:
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
 		if (b == SYNTH) {
-			Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
+			Browser::outputTypeToLoad = OutputType::SYNTH;
 
 yesLoadInstrument:
 			loadInstrumentPresetUI.instrumentToReplace = getCurrentInstrument();
@@ -356,7 +359,7 @@ yesLoadInstrument:
 				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
 			}
 			else {
-				Browser::instrumentTypeToLoad = InstrumentType::KIT;
+				Browser::outputTypeToLoad = OutputType::KIT;
 				goto yesLoadInstrument;
 			}
 		}
@@ -365,7 +368,7 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((getCurrentInstrumentType() == InstrumentType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
 				soundEditor.setupKitGlobalFXMenu = true;
 			}
 
@@ -379,7 +382,7 @@ yesLoadInstrument:
 	// Affect-entire
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (getCurrentInstrumentType() == InstrumentType::KIT) {
+			if (getCurrentOutputType() == OutputType::KIT) {
 
 				getCurrentInstrumentClip()->affectEntire = !getCurrentInstrumentClip()->affectEntire;
 				view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
@@ -407,9 +410,9 @@ yesLoadInstrument:
 
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 			    == RuntimeFeatureStateToggle::On) {
-				if (getCurrentUI() == &automationInstrumentClipView) {
+				if (getCurrentUI() == &automationClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &instrumentClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
@@ -421,9 +424,9 @@ yesLoadInstrument:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
-				else if (getCurrentUI() == &automationInstrumentClipView) {
+				else if (getCurrentUI() == &automationClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
-					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 				}
 			}
 		}
@@ -433,23 +436,23 @@ yesLoadInstrument:
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(InstrumentType::SYNTH);
+				createNewInstrument(OutputType::SYNTH);
 			}
 			else {
-				changeInstrumentType(InstrumentType::SYNTH);
+				changeOutputType(OutputType::SYNTH);
 			}
 		}
 	}
 
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeInstrumentType(InstrumentType::MIDI_OUT);
+			changeOutputType(OutputType::MIDI_OUT);
 		}
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeInstrumentType(InstrumentType::CV);
+			changeOutputType(OutputType::CV);
 		}
 	}
 
@@ -460,12 +463,12 @@ yesLoadInstrument:
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipMinder::changeInstrumentType(InstrumentType newInstrumentType) {
+void InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool success = view.changeInstrumentType(newInstrumentType, modelStack);
+	bool success = view.changeOutputType(newOutputType, modelStack);
 
 	if (success) {
 		setLedStates(); // Might need to change the scale LED's state

@@ -35,7 +35,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -225,7 +225,8 @@ doEndMidiLearnPressSession:
 
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
-		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
+		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -269,7 +270,8 @@ doEndMidiLearnPressSession:
 
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
-		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
+		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -628,6 +630,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 
 		default:
 recordDetailsOfLearnedThing:
+
 			learnedThing->device = fromDevice;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
@@ -723,7 +726,7 @@ isMPEZone:
 			learnedThing->device = fromDevice;
 			melodicInstrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
-			if (melodicInstrumentPressedForMIDILearn->type == InstrumentType::SYNTH) {
+			if (melodicInstrumentPressedForMIDILearn->type == OutputType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
 				    fromDevice, (SoundInstrument*)melodicInstrumentPressedForMIDILearn);
 			}
@@ -764,7 +767,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			if (getCurrentInstrumentType() == InstrumentType::MIDI_OUT) {
+			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (highestMIDIChannelSeenWhileLearning < lowestMIDIChannelSeenWhileLearning) {
@@ -777,7 +780,6 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 		// Or, for all other types of things the user might be holding down...
 		else {
-
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
 				noteOnReceivedForMidiLearn(fromDevice, channel + IS_A_CC, cc, 127);
@@ -1024,11 +1026,7 @@ bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
 		return false;
 	}
-	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
-	    && paramID == Param::Unpatched::Shared::STUTTER_RATE) {
-		return true;
-	}
-	return false;
+	return isParamStutter(kind, paramID);
 }
 
 bool View::isParamPan(Param::Kind kind, int32_t paramID) {
@@ -1050,6 +1048,14 @@ bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
 		return true;
 	}
 
+	return false;
+}
+
+bool View::isParamStutter(Param::Kind kind, int32_t paramID) {
+	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
+	    && paramID == Param::Unpatched::STUTTER_RATE) {
+		return true;
+	}
 	return false;
 }
 
@@ -1110,7 +1116,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	//don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+	if ((getCurrentUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1189,7 +1195,7 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	//ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1226,8 +1232,8 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
-		    && getRootUI() != &keyboardScreen) {
+		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen)
+		    || (getRootUI() == &automationClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
 			affectEntire = true;
 		}
 		else {
@@ -1244,8 +1250,7 @@ void View::setModLedStates() {
 			Clip* clip = sessionView.getClipForLayout();
 
 			if (clip) {
-				if ((clip->output->type != InstrumentType::AUDIO)
-				    && (((InstrumentClip*)clip)->onAutomationInstrumentClipView)) {
+				if (clip->onAutomationClipView) {
 					goto setBlinkLED;
 				}
 			}
@@ -1254,18 +1259,17 @@ void View::setModLedStates() {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 
 			if (output) {
-				if ((output->type != InstrumentType::AUDIO)
-				    && (((InstrumentClip*)currentSong->getClipWithOutput(output))->onAutomationInstrumentClipView)) {
+				if (currentSong->getClipWithOutput(output)->onAutomationClipView) {
 					goto setBlinkLED;
 				}
 			}
 		}
 		else if (getRootUI() == &keyboardScreen) {
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
+			if (getCurrentClip()->onAutomationClipView) {
 				goto setBlinkLED;
 			}
 		}
-		else if (getRootUI() == &automationInstrumentClipView) {
+		else if (getRootUI() == &automationClipView) {
 			goto setBlinkLED;
 		}
 
@@ -1307,7 +1311,7 @@ setNextLED:
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		//if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+		if ((getRootUI() == &automationClipView) && !automationClipView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {
@@ -1339,9 +1343,9 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
-	if ((channel != MIDI_CHANNEL_NONE) && midiEngine.midiFollowFeedback
-	    && activeModControllableModelStack.modControllable) {
+	int32_t channel =
+	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
+	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
@@ -1463,15 +1467,15 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 	int32_t channel, channelSuffix;
 	bool editedByUser = true;
-	if (output->type != InstrumentType::AUDIO) {
+	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
 		editedByUser = !instrument->existsOnCard;
 		switch (output->type) {
-		case InstrumentType::MIDI_OUT:
+		case OutputType::MIDI_OUT:
 			channelSuffix = ((MIDIInstrument*)instrument)->channelSuffix;
 			// No break
 
-		case InstrumentType::CV:
+		case OutputType::CV:
 			channel = ((NonAudioInstrument*)instrument)->channel;
 			break;
 		}
@@ -1481,41 +1485,41 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 }
 
 // If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
-void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
-                                     char const* name, bool editedByUser, bool doBlink, Clip* clip) {
+void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
+                                     bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
 		using namespace indicator_leds;
 		LED led;
 
-		if (instrumentType == InstrumentType::SYNTH) {
+		if (outputType == OutputType::SYNTH) {
 			led = LED::SYNTH;
 		}
 		else {
 			setLedState(LED::SYNTH, false);
 		}
 
-		if (instrumentType == InstrumentType::KIT) {
+		if (outputType == OutputType::KIT) {
 			led = LED::KIT;
 		}
 		else {
 			setLedState(LED::KIT, false);
 		}
 
-		if (instrumentType == InstrumentType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			led = LED::MIDI;
 		}
 		else {
 			setLedState(LED::MIDI, false);
 		}
 
-		if (instrumentType == InstrumentType::CV) {
+		if (outputType == OutputType::CV) {
 			led = LED::CV;
 		}
 		else {
 			setLedState(LED::CV, false);
 		}
 
-		if (instrumentType != InstrumentType::AUDIO) {
+		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
 		}
 
@@ -1525,17 +1529,17 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		}
 
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
-		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != InstrumentType::KIT));
+		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
 	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
-	if (getCurrentUI() == &automationInstrumentClipView) {
-		if (!automationInstrumentClipView.isOnAutomationOverview()) {
-			automationInstrumentClipView.displayAutomation(true, !display->have7SEG());
+	if (getCurrentUI() == &automationClipView) {
+		if (!automationClipView.isOnAutomationOverview()) {
+			automationClipView.displayAutomation(true, !display->have7SEG());
 		}
 		else {
-			automationInstrumentClipView.renderDisplay();
+			automationClipView.renderDisplay();
 		}
 		return;
 	}
@@ -1543,20 +1547,20 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 		char const* outputTypeText;
-		switch (instrumentType) {
-		case InstrumentType::SYNTH:
+		switch (outputType) {
+		case OutputType::SYNTH:
 			outputTypeText = "Synth";
 			break;
-		case InstrumentType::KIT:
+		case OutputType::KIT:
 			outputTypeText = "Kit";
 			break;
-		case InstrumentType::MIDI_OUT:
+		case OutputType::MIDI_OUT:
 			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
 			break;
-		case InstrumentType::CV:
+		case OutputType::CV:
 			outputTypeText = "CV / gate channel";
 			break;
-		case InstrumentType::AUDIO:
+		case OutputType::AUDIO:
 			outputTypeText = "Audio track";
 			break;
 		default:
@@ -1644,7 +1648,7 @@ yesAlignRight:
 			}
 		}
 	}
-	else if (instrumentType == InstrumentType::MIDI_OUT) {
+	else if (outputType == OutputType::MIDI_OUT) {
 		if (display->haveOLED()) {
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
@@ -1665,7 +1669,7 @@ yesAlignRight:
 			}
 		}
 	}
-	else if (instrumentType == InstrumentType::CV) {
+	else if (outputType == OutputType::CV) {
 		if (display->haveOLED()) {
 			intToString(channel + 1, buffer);
 oledOutputBuffer:
@@ -1734,7 +1738,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	InstrumentType instrumentType = clip->output->type;
+	OutputType outputType = clip->output->type;
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
 
@@ -1748,19 +1752,19 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	Instrument* oldInstrument = (Instrument*)clip->output;
 
 	// If we're in MIDI or CV mode, easy - just change the channel
-	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 		int32_t newChannel = oldNonAudioInstrument->channel;
 		int32_t newChannelSuffix;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 		}
 
-		// TODO: the contents of these badly wants to be replaced with how I did it in changeInstrumentType()!
+		// TODO: the contents of these badly wants to be replaced with how I did it in changeOutputType()!
 
 		// CV
-		if (instrumentType == InstrumentType::CV) {
+		if (outputType == OutputType::CV) {
 			while (true) {
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
@@ -1773,13 +1777,12 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					break;
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(instrumentType, newChannel)) {
+					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, newChannel)) {
 						break;
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL,
-					                                                   false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, NULL, NULL, false)) {
 						break;
 					}
 				}
@@ -1833,14 +1836,14 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					break;
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(instrumentType, newChannel,
+					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, newChannel,
 					                                                               newChannelSuffix)) {
 						break;
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix,
-					                                                   NULL, NULL, false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL,
+					                                                   NULL, false)) {
 						break;
 					}
 				}
@@ -1849,8 +1852,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			oldNonAudioInstrument->channel = oldChannel; // Put it back
 		}
 
-		newInstrument = modelStack->song->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix,
-		                                                              NULL, NULL, false);
+		newInstrument =
+		    modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL, NULL, false);
 
 		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && !newInstrument);
 
@@ -1867,7 +1870,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
 			oldNonAudioInstrument->channel = newChannel;
-			if (instrumentType == InstrumentType::MIDI_OUT) {
+			if (outputType == OutputType::MIDI_OUT) {
 				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 			}
 
@@ -1881,21 +1884,20 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 			// If an Instrument doesn't yet exist for the new channel we're gonna use...
 			if (!newInstrument) {
-				if (instrumentType == InstrumentType::MIDI_OUT) {
+				if (outputType == OutputType::MIDI_OUT) {
 					newInstrument = modelStack->song->grabHibernatingMIDIInstrument(newChannel, newChannelSuffix);
 					if (newInstrument) {
 						goto gotAnInstrument;
 					}
 				}
-				newInstrument =
-				    storageManager.createNewNonAudioInstrument(instrumentType, newChannel, newChannelSuffix);
+				newInstrument = storageManager.createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
 					display->displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
 				// We just allocated a brand new Instrument in RAM. If MIDI, copy knob assignments from old Instrument
-				if (instrumentType == InstrumentType::MIDI_OUT) {
+				if (outputType == OutputType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
 					memcpy(newMIDIInstrument->modKnobCCAssignments, oldMIDIInstrument->modKnobCCAssignments,
@@ -1946,7 +1948,7 @@ getOut:
 
 		// For Kits, ensure that every SoundDrum has a ParamManager somewhere
 #if ALPHA_OR_BETA_VERSION
-		if (newInstrument->type == InstrumentType::KIT) {
+		if (newInstrument->type == OutputType::KIT) {
 			Kit* kit = (Kit*)newInstrument;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
@@ -2000,12 +2002,12 @@ getOut:
 		}
 
 		// Kit-specific stuff
-		if (instrumentType == InstrumentType::KIT) {
+		if (outputType == OutputType::KIT) {
 			clip->ensureScrollWithinKitBounds();
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
 
-		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
 		}
@@ -2014,8 +2016,8 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-		else if (getCurrentUI() == &automationInstrumentClipView) {
-			uiNeedsRendering(&automationInstrumentClipView);
+		else if (getCurrentUI() == &automationClipView) {
+			uiNeedsRendering(&automationClipView);
 		}
 
 		display->removeLoadingAnimation();
@@ -2029,17 +2031,16 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
-                                bool doBlink) {
+bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	InstrumentType oldInstrumentType = clip->output->type;
-	if (oldInstrumentType == newInstrumentType) {
+	OutputType oldOutputType = clip->output->type;
+	if (oldOutputType == newOutputType) {
 		return false;
 	}
 
-	Instrument* newInstrument = clip->changeInstrumentType(modelStack, newInstrumentType);
+	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {
 		return false;
 	}

@@ -28,6 +28,7 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
@@ -569,8 +570,7 @@ justDontTimeStretch:
 						goto justDontTimeStretch;
 					}
 					else {
-						//Debug::print("sync: ");
-						//Debug::println(numSamplesDrift);
+						D_PRINTLN("sync:  %d", numSamplesDrift);
 					}
 				}
 			}
@@ -641,8 +641,8 @@ justDontTimeStretch:
 					}
 
 					if (numSamplesOfPreMarginAvailable > 2) {
-						//Debug::println("");
-						//Debug::println("might attempt fudge");
+						//D_PRINTLN("");
+						//D_PRINTLN("might attempt fudge");
 
 						int32_t crossfadeLength = std::min(numSamplesOfPreMarginAvailable, kAntiClickCrossfadeLength);
 
@@ -787,9 +787,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	// If recording from session to arranger...
 	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
 
-		Debug::println("");
-		Debug::print("AudioClip::posReachedEnd, at pos: ");
-		Debug::println(playbackHandler.getActualArrangementRecordPos());
+		D_PRINTLN("");
+		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());
 
 		if (!modelStack->song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 			return;
@@ -938,7 +937,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
                                   bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                   int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
-	//Debug::println("AudioClip::renderAsSingleRow");
+	//D_PRINTLN("AudioClip::renderAsSingleRow");
 
 	Sample* sample;
 	if (recorder) {
@@ -1006,6 +1005,17 @@ void AudioClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
+	if (onAutomationClipView) {
+		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+	}
+	if (lastSelectedParamID != kNoSelection) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	}
+
 	Clip::writeDataToFile(song);
 
 	storageManager.writeOpeningTagBeginning("params");
@@ -1032,7 +1042,7 @@ someError:
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Debug::println(tagName); delayMS(30);
+		//D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
 			storageManager.readTagOrAttributeValueString(&outputNameWhileLoading);
@@ -1088,6 +1098,30 @@ someError:
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
 			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
+		}
+
+		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
+			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamKind")) {
+			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else {
@@ -1216,9 +1250,13 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		return false;
 	}
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+	//this never gets called from Automation View because in the Automation View we shift specific parameters not all parameters
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			paramManager.shiftHorizontally(
+			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount,
+			    loopLength);
+		}
 	}
 
 	uint64_t length = sampleHolder.endPos - sampleHolder.startPos;

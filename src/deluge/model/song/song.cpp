@@ -101,11 +101,20 @@ Kit* getCurrentKit() {
 }
 
 Instrument* getCurrentInstrument() {
-	return (Instrument*)getCurrentClip()->output;
+	auto output = getCurrentClip()->output;
+	if (output == nullptr) {
+		return nullptr;
+	}
+	auto outputType = output->type;
+	if (outputType == OutputType::AUDIO || outputType == OutputType::NONE) {
+		return nullptr;
+	}
+
+	return static_cast<Instrument*>(output);
 }
 
-InstrumentType getCurrentInstrumentType() {
-	return (InstrumentType)getCurrentInstrument()->type;
+OutputType getCurrentOutputType() {
+	return getCurrentClip()->output->type;
 }
 
 using namespace deluge;
@@ -161,6 +170,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	arrangerAutoScrollModeActive = false;
 
 	paramsInAutomationMode = false;
+
+	// default to off
+	midiLoopback = false;
 
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
@@ -344,7 +356,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 			goto couldntLoad;
 		}
 
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, InstrumentType::SYNTH,
+		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, OutputType::SYNTH,
 		                                                                                Availability::ANY);
 
 		Instrument* newInstrument;
@@ -352,7 +364,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		if (!result.error) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, firstClip, InstrumentType::SYNTH, false,
+			result.error = storageManager.loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
 			                                                     &newInstrument, &result.fileItem->filePointer,
 			                                                     &newPresetName, &Browser::currentDir);
 
@@ -363,7 +375,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		}
 		else {
 couldntLoad:
-			newInstrument = storageManager.createNewInstrument(InstrumentType::SYNTH, &newParamManager);
+			newInstrument = storageManager.createNewInstrument(OutputType::SYNTH, &newParamManager);
 
 			// If that failed (really unlikely) we're really screwed
 			if (!newInstrument) {
@@ -1125,6 +1137,8 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
+	storageManager.writeAttribute("midiLoopback", midiLoopback);
+
 	globalEffectable.writeAttributesToFile(false);
 
 	storageManager
@@ -1241,8 +1255,8 @@ int32_t Song::readFromFile() {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
-	Debug::println("");
-	Debug::println("loading song!!!!!!!!!!!!!!");
+	D_PRINTLN("");
+	D_PRINTLN("loading song!!!!!!!!!!!!!!");
 
 	char const* tagName;
 
@@ -1253,7 +1267,7 @@ int32_t Song::readFromFile() {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Debug::println(tagName); delayMS(30);
+		//D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
 
 		// "reverb"
@@ -1515,6 +1529,11 @@ unknownTag:
 				storageManager.exitTag("affectEntire");
 			}
 
+			else if (!strcmp(tagName, "midiLoopback")) {
+				midiLoopback = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("midiLoopback");
+			}
+
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {
@@ -1735,8 +1754,7 @@ loadOutput:
 						return result;
 					}
 					if (ALPHA_OR_BETA_VERSION) {
-						Debug::print("unknown tag: ");
-						Debug::println(tagName);
+						D_PRINTLN("unknown tag:  %d", tagName);
 					}
 					storageManager.exitTag(tagName);
 				}
@@ -1787,7 +1805,7 @@ traverseClips:
 		// Correct different non-synced rates of old song files
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
 		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P5P0_PREBETA
-		    && thisClip->output->type == InstrumentType::SYNTH) {
+		    && thisClip->output->type == OutputType::SYNTH) {
 			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
@@ -1807,7 +1825,7 @@ traverseClips:
 
 	anyOutputsSoloingInArrangement = false;
 
-	Debug::println("aaa1");
+	D_PRINTLN("aaa1");
 
 	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in arranger
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -1868,7 +1886,7 @@ skipInstance:
 
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
 		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
-			if (thisOutput->type == InstrumentType::SYNTH) {
+			if (thisOutput->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)thisOutput;
 
 				for (int32_t s = 0; s < kNumSources; s++) {
@@ -1883,7 +1901,7 @@ skipInstance:
 
 	outputClipInstanceListIsCurrentlyInvalid = false; // All clipInstances are valid now.
 
-	Debug::println("aaa2");
+	D_PRINTLN("aaa2");
 
 	// Ensure no arrangement-only Clips with no ClipInstance
 	// For each Clip in arrangement
@@ -1920,7 +1938,7 @@ skipInstance:
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
-	Debug::println("aaa3");
+	D_PRINTLN("aaa3");
 	AudioEngine::logAction("aaa3.1");
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -2318,7 +2336,7 @@ traverseClips:
 				}
 			}
 			else {
-				if (clip->output->type != InstrumentType::KIT) {
+				if (clip->output->type != OutputType::KIT) {
 					continue;
 				}
 			}
@@ -2563,7 +2581,7 @@ traverseClips:
 
 		Output* output = clip->output;
 
-		if (output->type == InstrumentType::SYNTH) {
+		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* synth = (SoundInstrument*)output;
 			if (synth->midiInput.containsSomething() && synth->midiInput.device == device) {
 
@@ -2581,7 +2599,7 @@ traverseClips:
 			}
 		}
 
-		else if (output->type == InstrumentType::KIT) {
+		else if (output->type == OutputType::KIT) {
 			Kit* kit = (Kit*)output;
 
 			for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
@@ -2820,7 +2838,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 	int32_t maxSuffix = -2;
 
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == InstrumentType::MIDI_OUT) {
+		if (output->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
 			if (instrument->channel == channel) {
 				int32_t suffix = instrument->channelSuffix;
@@ -3036,7 +3054,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good, because
 	// then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager during that call.
-	if (newOutput->type != InstrumentType::KIT && oldOutput->type != InstrumentType::KIT) {
+	if (newOutput->type != OutputType::KIT && oldOutput->type != OutputType::KIT) {
 		((MelodicInstrument*)newOutput)->midiInput = ((MelodicInstrument*)oldOutput)->midiInput;
 		((MelodicInstrument*)oldOutput)->midiInput.clear();
 	}
@@ -3067,7 +3085,7 @@ traverseClips:
 			clip = clipInstance->clip;
 		}
 
-		if (oldOutput->type != InstrumentType::AUDIO) {
+		if (oldOutput->type != OutputType::AUDIO) {
 			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -3122,8 +3140,7 @@ traverseClips:
 // NOTE: for Instruments not currently in any list
 void Song::deleteOrAddToHibernationListOutput(Output* output) {
 	// If un-edited (which will include all CV Instruments, and any MIDI without mod knob assignments)
-	if (output->type == InstrumentType::AUDIO || output->type == InstrumentType::CV
-	    || !((Instrument*)output)->editedByUser) {
+	if (output->type == OutputType::AUDIO || output->type == OutputType::CV || !((Instrument*)output)->editedByUser) {
 		output->prepareForHibernationOrDeletion();
 		deleteOutput(output);
 	}
@@ -3137,7 +3154,7 @@ void Song::deleteOrAddToHibernationListOutput(Output* output) {
 // NOTE: for Instruments currently in the main list
 void Song::deleteOrHibernateOutput(Output* output) {
 	// If edited (which won't include any CV Instruments), just hibernate it. Only allowed for audio Instruments
-	if (output->type != InstrumentType::CV && output->type != InstrumentType::AUDIO) {
+	if (output->type != OutputType::CV && output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
 		if (!instrument->editedByUser) {
 			goto deleteIt;
@@ -3164,7 +3181,7 @@ void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
 	removeOutputFromMainList(instrument);
 
-	if (instrument->type == InstrumentType::MIDI_OUT) {
+	if (instrument->type == OutputType::MIDI_OUT) {
 		setHibernatingMIDIInstrument((MIDIInstrument*)instrument);
 	}
 	else {
@@ -3207,7 +3224,7 @@ void Song::deleteOrHibernateOutputIfNoClips(Output* output) {
 	}
 }
 
-void Song::deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, char const* name) {
+void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name) {
 
 	// Remove the Instrument from the list of Instruments of this type
 	Instrument** prevPointer = &firstHibernatingInstrument;
@@ -3218,7 +3235,7 @@ void Song::deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, ch
 			return; // Shouldn't be necessary, but better to safeguard
 		}
 
-		if (instrument->type == instrumentType) {
+		if (instrument->type == outputType) {
 
 			if (!strcasecmp(name, instrument->name.get())) {
 				*prevPointer = (Instrument*)instrument->next;
@@ -3235,7 +3252,7 @@ void Song::deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, ch
 
 void Song::markAllInstrumentsAsEdited() {
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == InstrumentType::AUDIO) {
+		if (output->type == OutputType::AUDIO) {
 			continue;
 		}
 
@@ -3247,7 +3264,7 @@ void Song::markAllInstrumentsAsEdited() {
 
 AudioOutput* Song::getAudioOutputFromName(String* name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->type == InstrumentType::AUDIO) {
+		if (thisOutput->type == OutputType::AUDIO) {
 			if (thisOutput->name.equalsCaseIrrespective(name)) {
 				return (AudioOutput*)thisOutput;
 			}
@@ -3257,24 +3274,24 @@ AudioOutput* Song::getAudioOutputFromName(String* name) {
 }
 
 // You can put name as NULL if it's MIDI or CV
-Instrument* Song::getInstrumentFromPresetSlot(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
+Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t channel, int32_t channelSuffix,
                                               char const* name, char const* dirPath, bool searchHibernating,
                                               bool searchNonHibernating) {
 
 	if (searchNonHibernating) {
 		for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == instrumentType) {
+			if (thisOutput->type == outputType) {
 
 				bool match;
 
-				if (instrumentType == InstrumentType::SYNTH || instrumentType == InstrumentType::KIT) {
+				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
 					match = !strcasecmp(name, thisOutput->name.get())
 					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
 				}
 
 				else {
 					match = (((NonAudioInstrument*)thisOutput)->channel == channel
-					         && (instrumentType == InstrumentType::CV
+					         && (outputType == OutputType::CV
 					             || ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix));
 				}
 
@@ -3287,11 +3304,11 @@ Instrument* Song::getInstrumentFromPresetSlot(InstrumentType instrumentType, int
 
 	if (searchHibernating) {
 		for (Output* thisOutput = firstHibernatingInstrument; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == instrumentType) {
+			if (thisOutput->type == outputType) {
 
 				bool match;
 
-				if (instrumentType == InstrumentType::SYNTH || instrumentType == InstrumentType::KIT) {
+				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
 					match = !strcasecmp(name, thisOutput->name.get())
 					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
 				}
@@ -3664,7 +3681,7 @@ bool Song::doesOutputHaveActiveClipInSession(Output* output) {
 }
 
 // This is for non-audio Instruments only, so no name is relevant
-bool Song::doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType, int32_t slot, int32_t subSlot) {
+bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot) {
 
 	// For each Clip in session
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
@@ -3674,8 +3691,8 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType
 
 			Instrument* instrument = (Instrument*)clip->output;
 
-			if (instrument->type == instrumentType && ((NonAudioInstrument*)instrument)->channel == slot
-			    && (instrumentType == InstrumentType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
+			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->channel == slot
+			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
 				return true;
 			}
 		}
@@ -3912,7 +3929,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		// Also while we're at it, for SoundInstruments (Synths), get them to grab a copy of the arp settings
 		if (output->activeClip) {
-			if (output->type == InstrumentType::SYNTH) {
+			if (output->type == OutputType::SYNTH) {
 				((SoundInstrument*)output)
 				    ->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->activeClip)->arpSettings);
 			}
@@ -3920,7 +3937,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		// Ok, back to the main task - if there's no activeClip...
 		else {
-			if (output->type == InstrumentType::SYNTH || output->type == InstrumentType::KIT) {
+			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
 				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                               NULL)) {
 #if ALPHA_OR_BETA_VERSION
@@ -3938,7 +3955,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 #if ALPHA_OR_BETA_VERSION
 		// For Kits, ensure that every audio Drum has a ParamManager somewhere
-		if (output->type == InstrumentType::KIT) {
+		if (output->type == OutputType::KIT) {
 			Kit* kit = (Kit*)output;
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
@@ -4083,7 +4100,7 @@ traverseClips:
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (isClipActive(instrumentClip) && instrumentClip->output->type != InstrumentType::SYNTH) {
+		if (isClipActive(instrumentClip) && instrumentClip->output->type != OutputType::SYNTH) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
 			instrumentClip->stopAllNotesPlaying(modelStackWithTimelineCounter);
@@ -4112,7 +4129,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 	// Non-hibernating Instruments
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->type != InstrumentType::SYNTH && thisOutput->type != InstrumentType::KIT) {
+		if (thisOutput->type != OutputType::SYNTH && thisOutput->type != OutputType::KIT) {
 			continue;
 		}
 
@@ -4132,7 +4149,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 	// And hibernating Instruments
 	for (Instrument* thisInstrument = firstHibernatingInstrument; thisInstrument;
 	     thisInstrument = (Instrument*)thisInstrument->next) {
-		if (thisInstrument->type != InstrumentType::SYNTH && thisInstrument->type != InstrumentType::KIT) {
+		if (thisInstrument->type != OutputType::SYNTH && thisInstrument->type != OutputType::KIT) {
 			continue;
 		}
 
@@ -4378,7 +4395,7 @@ bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirem
 }
 
 Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
-	if (output->type == InstrumentType::AUDIO) {
+	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
 
@@ -4386,12 +4403,12 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 	Instrument* oldInstrument = (Instrument*)output;
 
-	InstrumentType instrumentType = oldInstrument->type;
+	OutputType outputType = oldInstrument->type;
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
 
 	// If we're in MIDI or CV mode, easy - just change the channel
-	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 
@@ -4399,13 +4416,13 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		int32_t newChannel = oldNonAudioInstrument->channel;
 
 		int32_t oldChannelSuffix, newChannelSuffix;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
 		}
 
 		// CV
-		if (instrumentType == InstrumentType::CV) {
+		if (outputType == OutputType::CV) {
 			do {
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
@@ -4415,7 +4432,7 @@ cantDoIt:
 					return output;
 				}
 
-			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL, false));
+			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, -1, NULL, NULL, false));
 		}
 
 		// Or MIDI
@@ -4447,8 +4464,8 @@ cantDoIt:
 					goto cantDoIt;
 				}
 
-			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix, NULL, NULL,
-			                                                  false));
+			} while (
+			    currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL, NULL, false));
 
 			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
 		}
@@ -4459,7 +4476,7 @@ cantDoIt:
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
 		oldNonAudioInstrument->channel = newChannel;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
+		if (outputType == OutputType::MIDI_OUT) {
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
@@ -4560,7 +4577,7 @@ tryAgain:
 	newInstrument->pickAnActiveClipIfPossible(modelStack);
 }
 
-Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType) {
+Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutputType) {
 
 	int16_t newSlot = 0;
 	int8_t newSubSlot = -1;
@@ -4570,13 +4587,13 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 	Instrument* newInstrument = NULL;
 
 	// MIDI / CV
-	if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
+	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 
-		int32_t numChannels = (newInstrumentType == InstrumentType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
 
 		while (true) {
 
-			if (!getInstrumentFromPresetSlot(newInstrumentType, newSlot, newSubSlot, NULL, NULL, false)) {
+			if (!getInstrumentFromPresetSlot(newOutputType, newSlot, newSubSlot, NULL, NULL, false)) {
 				break;
 			}
 
@@ -4590,13 +4607,13 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 			}
 		}
 
-		if (newInstrumentType == InstrumentType::MIDI_OUT) {
+		if (newOutputType == OutputType::MIDI_OUT) {
 			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
 			if (newInstrument) {
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
+		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
@@ -4608,7 +4625,7 @@ gotAnInstrument : {}
 	// Synth or Kit
 	else {
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-		result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
+		result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
 		if (result.error) {
 displayError:
 			display->displayError(result.error);
@@ -4616,7 +4633,7 @@ displayError:
 		}
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		    this, newInstrumentType, Availability::INSTRUMENT_UNUSED);
+		    this, newOutputType, Availability::INSTRUMENT_UNUSED);
 		if (result.error) {
 			goto displayError;
 		}
@@ -4627,7 +4644,7 @@ displayError:
 		if (!newInstrument) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, NULL, newInstrumentType, false, &newInstrument,
+			result.error = storageManager.loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
 			                                                     &result.fileItem->filePointer, &newPresetName,
 			                                                     &Browser::currentDir);
 		}
@@ -4681,7 +4698,7 @@ traverseClips:
 
 AudioOutput* Song::getFirstAudioOutput() {
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == InstrumentType::AUDIO) {
+		if (output->type == OutputType::AUDIO) {
 			return (AudioOutput*)output;
 		}
 	}
@@ -4695,7 +4712,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	// Find highest number existent so far
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == InstrumentType::AUDIO) {
+		if (output->type == OutputType::AUDIO) {
 			char const* nameChars = output->name.get();
 			if (memcasecmp(nameChars, "AUDIO", 5)) {
 				continue;
@@ -4747,7 +4764,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 		defaultAudioOutputInputChannel = AudioInputChannel::LEFT;
 		for (Output* output = firstOutput; output; output = output->next) {
-			if (output->type == InstrumentType::AUDIO) {
+			if (output->type == OutputType::AUDIO) {
 				defaultAudioOutputInputChannel = ((AudioOutput*)output)->inputChannel;
 				break;
 			}
@@ -4788,7 +4805,7 @@ Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability
 			    && doesOutputHaveActiveClipInSession(newOutput)) {
 				continue;
 			}
-			if (newOutput->type == InstrumentType::AUDIO) {
+			if (newOutput->type == OutputType::AUDIO) {
 				break;
 			}
 		}
@@ -4809,7 +4826,7 @@ Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability
 			    && doesOutputHaveActiveClipInSession(investigatingOutput)) {
 				continue;
 			}
-			if (investigatingOutput->type == InstrumentType::AUDIO) {
+			if (investigatingOutput->type == OutputType::AUDIO) {
 				newOutput = investigatingOutput;
 			}
 		}
@@ -4852,8 +4869,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-// Must supply a char[5] buffer. Or char[30] should be more than adequate for OLED.
-void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn) {
+void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
+                             bool clarifyPerColumn) const {
 	int32_t magnitude = -5 - (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	uint32_t level = 3;
 
@@ -4862,19 +4879,19 @@ void Song::getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerCol
 		level <<= 1;
 	}
 
-	getNoteLengthNameFromMagnitude(text, magnitude);
+	getNoteLengthNameFromMagnitude(buffer, magnitude, notesString, clarifyPerColumn);
 }
 
-Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType,
-                                                  Availability availabilityRequirement, int16_t newSlot,
-                                                  int8_t newSubSlot, bool* instrumentWasAlreadyInSong) {
-	int32_t numChannels = (newInstrumentType == InstrumentType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
+                                                  int16_t newSlot, int8_t newSubSlot,
+                                                  bool* instrumentWasAlreadyInSong) {
+	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
 	Instrument* newInstrument;
 	int32_t oldSlot = newSlot;
 
 	while (true) {
 
-		newInstrument = getInstrumentFromPresetSlot(newInstrumentType, newSlot, newSubSlot, NULL, NULL,
+		newInstrument = getInstrumentFromPresetSlot(newOutputType, newSlot, newSubSlot, NULL, NULL,
 		                                            false); // This will always be false! Might rework this though
 
 		if (availabilityRequirement == Availability::ANY) {
@@ -4906,13 +4923,13 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 	// If that didn't work... make a new Instrument to switch to
 	if (!newInstrument) {
 
-		if (newInstrumentType == InstrumentType::MIDI_OUT) {
+		if (newOutputType == OutputType::MIDI_OUT) {
 			newInstrument = grabHibernatingMIDIInstrument(newSlot, newSubSlot);
 			if (newInstrument) {
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
+		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
@@ -5152,7 +5169,7 @@ void Song::cullAudioClipVoice() {
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
 
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type == InstrumentType::AUDIO) {
+		if (output->type == OutputType::AUDIO) {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
 				if (clip->voiceSample) {
@@ -5166,7 +5183,7 @@ void Song::cullAudioClipVoice() {
 
 	if (bestClip) {
 		bestClip->unassignVoiceSample();
-		Debug::println("audio clip voice culled!");
+		D_PRINTLN("audio clip voice culled!");
 	}
 }
 
@@ -5350,7 +5367,7 @@ TimelineCounter* Song::getTimelineCounterToRecordTo() {
 
 void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
 	for (Output* output = firstOutput; output; output = output->next) {
-		if (output->type != InstrumentType::AUDIO) {
+		if (output->type != OutputType::AUDIO) {
 			((Instrument*)output)->defaultVelocity = newDefaultVelocity;
 		}
 	}
@@ -5400,7 +5417,7 @@ void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevi
 	}
 }
 
-int32_t Song::addInstrumentsToFileItems(InstrumentType instrumentType) {
+int32_t Song::addInstrumentsToFileItems(OutputType outputType) {
 	bool doingHibernatingOnes;
 	Output* thisOutput;
 	if (false) {
@@ -5416,7 +5433,7 @@ doHibernatingInstruments:
 	// First, check all other Instruments in memory, in case the next one in line isn't saved
 	for (; thisOutput; thisOutput = thisOutput->next) {
 
-		if (thisOutput->type != instrumentType) {
+		if (thisOutput->type != outputType) {
 			continue;
 		}
 

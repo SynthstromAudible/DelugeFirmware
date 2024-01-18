@@ -26,6 +26,7 @@ target_link_libraries(deluge PUBLIC
     fatfs
     NE10
     RZA1
+    eyalroz_printf
 )
 
 target_compile_definitions(deluge PUBLIC

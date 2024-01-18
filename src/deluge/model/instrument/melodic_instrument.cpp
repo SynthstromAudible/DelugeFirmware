@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
@@ -284,7 +284,7 @@ justAuditionNote:
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
-	    && instrumentClip->output->type == InstrumentType::MIDI_OUT
+	    && instrumentClip->output->type == OutputType::MIDI_OUT
 	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
 		highlightNoteValue = on ? velocity : 0;
 	}
@@ -331,7 +331,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
 		// If it's a MIDIInstrtument...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;
@@ -356,6 +356,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                    MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                    bool* doingMidiThru) {
+	//ideally this would be configurable
 	int yCC = 1;
 	int32_t value32 = 0;
 	switch (match) {
@@ -375,20 +376,19 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 	case MIDIMatchType::MPE_MASTER:
 		[[fallthrough]];
 	case MIDIMatchType::CHANNEL:
-		if (ccNumber == 1) {
-			value32 = (value) << 24;
-		}
-		if (ccNumber == yCC) {
-			//this also passes CC1 to the instrument, but that's important for midi instruments
-			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
-			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
-		}
 		// If it's a MIDI Clip...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;
 			}
+		}
+		if (ccNumber == yCC) {
+			//this is the same range as mpe Y axis but unipolar
+			value32 = (value) << 24;
+			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
+			//Don't also pass to ccReveived since it will now be handled by output mono expression in midi clips instead
+			return;
 		}
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
@@ -401,10 +401,10 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	//if you're in automation midi clip view and editing the same CC that was just updated
 	//by a learned midi knob, then re-render the pads on the automation editor grid
-	if (type == InstrumentType::MIDI_OUT) {
-		if (getRootUI() == &automationInstrumentClipView) {
-			if (((InstrumentClip*)activeClip)->lastSelectedParamID == ccNumber) {
-				uiNeedsRendering(&automationInstrumentClipView);
+	if (type == OutputType::MIDI_OUT) {
+		if (getRootUI() == &automationClipView) {
+			if (activeClip->lastSelectedParamID == ccNumber) {
+				uiNeedsRendering(&automationClipView);
 			}
 		}
 	}
@@ -435,7 +435,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
 		// If it's a MIDI Clip...
-		if (type == InstrumentType::MIDI_OUT) {
+		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 				*doingMidiThru = false;

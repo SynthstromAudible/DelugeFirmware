@@ -87,7 +87,7 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 		if (shouldBeActiveWhileExistent && !(playbackHandler.playbackState && currentPlaybackMode == &arrangement)) {
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 			if (!clip->activeIfNoSolo) {
-				Debug::println("still not active!");
+				D_PRINTLN("still not active!");
 			}
 		}
 

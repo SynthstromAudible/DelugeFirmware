@@ -143,24 +143,24 @@ startRenderAgain:
 			nextCrossfadeLength = std::min(nextCrossfadeLength, maxTotalPlayable >> 1);
 
 			samplesTilHopEnd = maxPlayableSamplesNewer - nextCrossfadeLength;
-			//Debug::println("shortening hop");
+			//D_PRINTLN("shortening hop");
 
 			if (samplesTilHopEnd < 0) {
 				samplesTilHopEnd = 0;
 				nextCrossfadeLength = std::max(maxPlayableSamplesNewer, 0_i32);
-				//Debug::println("nex");
+				//D_PRINTLN("nex");
 				crossfadeProgress = 16777216;
 			}
 
 			else if (samplesTilHopEnd == 0) {
-				//Debug::println("to zero");
+				//D_PRINTLN("to zero");
 			}
 
 			else if (samplesTilHopEnd > 0 && olderPlayHeadIsCurrentlySounding()) {
 				uint32_t minCrossfadeIncrement = (uint32_t)(16777216 - crossfadeProgress) / samplesTilHopEnd + 1;
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//Debug::println("d");
+					//D_PRINTLN("d");
 				}
 			}
 		}
@@ -173,7 +173,7 @@ startRenderAgain:
 			    0,
 #endif
 			    liveInputBuffer, phaseIncrement);
-			//Debug::println(maxPlayableSamplesOlder);
+			//D_PRINTLN(maxPlayableSamplesOlder);
 			if (!maxPlayableSamplesOlder) {
 				crossfadeIncrement = 16777216;
 			}
@@ -182,7 +182,7 @@ startRenderAgain:
 				//crossfadeIncrement = std::max(crossfadeIncrement, minCrossfadeIncrement);
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//Debug::println("c");
+					//D_PRINTLN("c");
 				}
 			}
 		}
@@ -212,9 +212,8 @@ startRenderAgain:
 
 			if (percLatest >= percNewerPlayHead + percThresholdForCut) {
 				/*
-				Debug::print(percLatest);
-				Debug::print(" vs ");
-				Debug::println(percNewerPlayHead);
+				D_PRINT(percLatest);
+				D_PRINTLN(" vs  %d", percNewerPlayHead);
 				*/
 				samplesTilHopEnd = 0;
 			}
@@ -366,16 +365,15 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	//int32_t numChannelsNow = numChannels;
 
-	//Debug::println("");
-	//Debug::print("hop at ");
-	//Debug::println(numRawSamplesProcessedAtNowTime);
+	//D_PRINTLN("");
+	D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
-		Debug::println("last crossfade not finished");
+		D_PRINTLN("last crossfade not finished");
 		//if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
 	}
-	//Debug::println(phaseIncrement);
+	//D_PRINTLN(phaseIncrement);
 
-	//Debug::println((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
+	//D_PRINTLN((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
 
 	// What was new is now old
 	playHeads[PLAY_HEAD_OLDER] = playHeads[PLAY_HEAD_NEWER];
@@ -773,7 +771,7 @@ stopSearch:
 	if (phaseIncrement == 16777216) {
 		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
-		Debug::println("raw hop");
+		D_PRINTLN("raw hop");
 	}
 
 	else {
@@ -783,8 +781,7 @@ stopSearch:
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
 
-		//Debug::print("playing from: ");
-		//Debug::println(playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
+		D_PRINTLN("playing from:  %d", playHeads[PLAY_HEAD_NEWER].rawBufferReadPos);
 	}
 
 thatsDone:
@@ -799,8 +796,7 @@ thatsDone:
 		crossfadeProgress = 16777216;
 	}
 
-	//Debug::print("crossfade length: ");
-	//Debug::println(thisCrossfadeLength);
+	D_PRINTLN("crossfade length:  %d", thisCrossfadeLength);
 
 	/*
 	if (phaseIncrement > 16777216) {
@@ -830,8 +826,7 @@ thatsDone:
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t timeTaken = endTime - startTime;
-	Debug::print("hop end time: ");
-	Debug::println(timeTaken);
+	D_PRINTLN("hop end time:  %d", timeTaken);
 #endif
 }
 

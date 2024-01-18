@@ -26,12 +26,9 @@
 #include "util/functions.h"
 #include <string.h>
 
-CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
-
-	cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
-	cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {

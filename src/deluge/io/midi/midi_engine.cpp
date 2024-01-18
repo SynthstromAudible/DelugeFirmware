@@ -223,10 +223,10 @@ MidiEngine::MidiEngine() {
 	}
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
-	midiFollowFeedback = false;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
+	midiSelectKitRow = false;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
@@ -486,6 +486,7 @@ void MidiEngine::sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_
 
 void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter,
                           bool sendUSB) {
+
 	// Send USB MIDI
 	if (sendUSB) {
 		sendUsbMidi(statusType, channel, data1, data2, filter);
@@ -494,6 +495,12 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 	// Send serial MIDI
 	if (statusType == 0x0F || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(channel, filter)) {
 		sendSerialMidi(statusType, channel, data1, data2);
+	}
+
+	// Send loopback (other than clock/sysex) to delly
+	if (currentSong->midiLoopback && statusType != 0x0F
+	    && MIDIDeviceManager::loopbackMidi.wantsToOutputMIDIOnChannel(channel, filter)) {
+		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0);
 	}
 }
 
@@ -586,7 +593,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 	uint8_t thisSerialByte;
 	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	if (timer) {
-		//Debug::println((uint32_t)thisSerialByte);
+		//D_PRINTLN((uint32_t)thisSerialByte);
 		MIDIDevice* dev = &MIDIDeviceManager::dinMIDIPorts;
 
 		// If this is a status byte, then we have to store it as the first byte.
@@ -603,7 +610,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 			// Or if it's a SysEx start...
 			case 0xF0:
 				currentlyReceivingSysExSerial = true;
-				Debug::println("Sysex start");
+				D_PRINTLN("Sysex start");
 				dev->incomingSysexBuffer[0] = thisSerialByte;
 				dev->incomingSysexPos = 1;
 				//numSerialMidiInput = 0; // This would throw away any running status stuff...
@@ -614,7 +621,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 
 			// If it was a Sysex stop, that's all we need to do
 			if (thisSerialByte == 0xF7) {
-				Debug::println("Sysex end");
+				D_PRINTLN("Sysex end");
 				if (currentlyReceivingSysExSerial) {
 					currentlyReceivingSysExSerial = false;
 					if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
@@ -638,8 +645,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 				if (dev->incomingSysexPos < sizeof dev->incomingSysexBuffer) {
 					dev->incomingSysexBuffer[dev->incomingSysexPos++] = thisSerialByte;
 				}
-				Debug::print("Sysex: ");
-				Debug::println(thisSerialByte);
+				D_PRINTLN("Sysex:  %d", thisSerialByte);
 				return true;
 			}
 
@@ -1014,7 +1020,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				break;
 
 			case 0x0C: // Program change message
-				playbackHandler.programChangeReceived(channel, data1);
+				playbackHandler.programChangeReceived(fromDevice, channel, data1);
 				break;
 
 			case 0x0D: // Channel pressure
@@ -1029,7 +1035,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	}
 
 	// Do MIDI-thru if that's on and we didn't decide not to, above. This will let clock messages through along with all other messages, rather than using our special clock-specific system
-	if (shouldDoMidiThruNow) {
+	if (shouldDoMidiThruNow && fromDevice != &MIDIDeviceManager::loopbackMidi) {
 		bool shouldSendUSB =
 		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
 		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,

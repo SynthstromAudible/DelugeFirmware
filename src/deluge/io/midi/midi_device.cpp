@@ -504,11 +504,8 @@ void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
-	Debug::print("writing to flash port ");
-	Debug::print(portNumber);
-	Debug::print(" into ");
+	D_PRINTLN("writing to flash port  %d  into ", portNumber);
 	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
-	Debug::println(*memory);
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
@@ -554,4 +551,26 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 	for (int32_t i = 0; i < len; i++) {
 		bufferMIDIUart(data[i]);
 	}
+}
+
+void MIDIDeviceLoopback::writeReferenceAttributesToFile() {
+	storageManager.writeAttribute("port", "loopbackMidi", false);
+}
+
+void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {
+	*(uint16_t*)memory = VENDOR_ID_LOOPBACK;
+}
+
+char const* MIDIDeviceLoopback::getDisplayName() {
+	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_LOOPBACK);
+}
+
+void MIDIDeviceLoopback::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+}
+
+int32_t MIDIDeviceLoopback::sendBufferSpace() {
+	return 0;
+}
+
+void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {
 }

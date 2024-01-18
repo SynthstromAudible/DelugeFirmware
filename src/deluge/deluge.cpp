@@ -45,7 +45,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -63,8 +63,10 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
@@ -153,15 +155,13 @@ void inputRoutine() {
 
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		Debug::print("headphone ");
-		Debug::println(headphoneNow);
+		D_PRINT("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
 	if (micNow != AudioEngine::micPluggedIn) {
-		Debug::print("mic ");
-		Debug::println(micNow);
+		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
@@ -175,8 +175,7 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		Debug::print("line in ");
-		Debug::println(lineInNow);
+		D_PRINT("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -192,8 +191,8 @@ void inputRoutine() {
 
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
-		//Debug::print("batt mV: ");
-		//Debug::println(batteryMV);
+		//D_PRINT("batt mV: ");
+		//D_PRINTLN(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -267,9 +266,9 @@ bool readButtonsAndPads() {
 
 	/*
 	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		Debug::println("closing peripheral");
+		D_PRINTLN("closing peripheral");
 		closeUSBPeripheral();
-		Debug::println("switching back to host");
+		D_PRINTLN("switching back to host");
 		openUSBHost();
 		closedPeripheral = true;
 	}
@@ -279,7 +278,7 @@ bool readButtonsAndPads() {
 		if (sdRoutineLock) {
 			return false;
 		}
-		Debug::println("got to end of sd routine");
+		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
 	}
 
@@ -297,13 +296,13 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
-			Debug::println("");
-			Debug::println("undoing");
+			D_PRINTLN("");
+			D_PRINTLN("undoing");
 			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
-			Debug::println("");
-			Debug::println("beginning playback");
+			D_PRINTLN("");
+			D_PRINTLN("beginning playback");
 			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
@@ -337,7 +336,7 @@ bool readButtonsAndPads() {
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
-				Debug::println("putCharBack ---------");
+				D_PRINTLN("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
 				waitingForSDRoutineToEnd = true;
 				return false;
@@ -354,7 +353,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -426,13 +425,13 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationClipView;
+		}
+		else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
@@ -592,6 +591,8 @@ extern "C" int32_t deluge_main(void) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
+	// remember the physical display type
+	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -650,8 +651,7 @@ extern "C" int32_t deluge_main(void) {
 
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
-			Debug::print("PIC firmware version reported: ");
-			Debug::println(value);
+			D_PRINTLN("PIC firmware version reported: %s", value);
 			return 0; // continue
 		}
 
@@ -688,6 +688,11 @@ extern "C" int32_t deluge_main(void) {
 
 	runtimeFeatureSettings.init();
 
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
 	usbLock = 1;
 	openUSBHost();
 
@@ -696,7 +701,7 @@ extern "C" int32_t deluge_main(void) {
 	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
 	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
 	if (!anythingInitiallyAttachedAsUSBHost) {
-		Debug::println("switching from host to peripheral");
+		D_PRINTLN("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();
 	}
@@ -786,7 +791,7 @@ extern "C" int32_t deluge_main(void) {
 
 	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
 
-	Debug::println("going into main loop");
+	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 	while (1) {
@@ -794,7 +799,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->haveOLED()) {
+		if (deluge::hid::display::have_oled_screen) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -838,6 +843,43 @@ bool inSpamMode = false;
 extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if ENABLE_TEXT_OUTPUT
+// only called from the D_PRINT macros
+void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
+	static char buffer[512];
+	va_list args;
+
+	// Start variadic argument processing
+	va_start(args, format);
+	// Compose the log message into the buffer
+	const char* baseFile = getFileNameFromEndOfPath(file);
+	if (mode == kDebugPrintModeRaw) {
+		vsnprintf(buffer, bufsize, format, args);
+	}
+	else {
+		snprintf(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
+		vsnprintf(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
+	}
+	// End variadic argument processing
+	va_end(args);
+
+	// Pass the buffer to another logging library
+	if (mode == kDebugPrintModeNewlined) {
+		Debug::println(buffer);
+	}
+	else {
+		Debug::print(buffer);
+	}
+}
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 extern "C" void routineForSD(void) {
 
@@ -1056,11 +1098,11 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//Debug::println("couldn't create");
+						//D_PRINTLN("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("writing");
+							D_PRINTLN("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1070,13 +1112,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) Debug::println("couldn't write");
+					//if (result) D_PRINTLN("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//Debug::println("finished writing");
+						//D_PRINTLN("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1091,12 +1133,12 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//Debug::println("file not found");
+						//D_PRINTLN("file not found");
 					}
 
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("reading");
+							D_PRINTLN("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1110,7 +1152,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//Debug::println("finished file");
+						//D_PRINTLN("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;

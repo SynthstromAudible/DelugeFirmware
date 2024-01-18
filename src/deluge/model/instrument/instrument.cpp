@@ -35,7 +35,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <new>
 
-Instrument::Instrument(InstrumentType newType) : Output(newType) {
+Instrument::Instrument(OutputType newType) : Output(newType) {
 	editedByUser = false;
 	existsOnCard = true;
 	defaultVelocity = FlashStorage::defaultVelocity;
@@ -75,7 +75,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 		else {
 			char const* slotXMLTag = getSlotXMLTag();
-			if (type == InstrumentType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
+			if (type == OutputType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
 				storageManager.writeAttribute(
 				    slotXMLTag,
 				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
@@ -88,7 +88,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
 			}
 		}
-		if (!dirPath.isEmpty() && (type == InstrumentType::SYNTH || type == InstrumentType::KIT)) {
+		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
 		}
 		storageManager.writeAttribute("defaultVelocity", defaultVelocity);
@@ -152,7 +152,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might not be, and we don't want to clone it.
 	// Instead, the call to setInstrument will create one.
 
-	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
+	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
 		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
@@ -161,7 +161,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 			return NULL;
 		}
 	}
-	else if (type == InstrumentType::CV) {
+	else if (type == OutputType::CV) {
 		if (activeClip) {
 			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false,
 			                                          true); // Because we want the bend ranges
@@ -187,7 +187,7 @@ int32_t Instrument::setupDefaultAudioFileDir() {
 		return error;
 	}
 
-	// TODO: (Kate) Why is InstrumentType getting converted to ThingType here???
+	// TODO: (Kate) Why is OutputType getting converted to ThingType here???
 	audioFileManager.thingBeginningLoading(static_cast<ThingType>(type));
 	return NO_ERROR;
 }

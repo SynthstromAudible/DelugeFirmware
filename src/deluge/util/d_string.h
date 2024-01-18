@@ -17,9 +17,26 @@
 
 #pragma once
 
-#include "functions.h"
 #include <cstdint>
 #include <cstring>
+extern "C" {
+#include "util/cfunctions.h"
+}
+
+[[gnu::always_inline]] static inline void intToString(int32_t number, char* buffer) {
+	intToString(number, buffer, 1);
+}
+
+bool memIsNumericChars(char const* mem, int32_t size);
+bool stringIsNumericChars(char const* str);
+
+char halfByteToHexChar(uint8_t thisHalfByte);
+void intToHex(uint32_t number, char* output, int32_t numChars = 8);
+uint32_t hexToInt(char const* string);
+uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);
+
+void byteToHex(uint8_t number, char* buffer);
+uint8_t hexToByte(char const* firstChar);
 
 extern const char nothing;
 
@@ -80,7 +97,7 @@ private:
 class StringBuf {
 	// Not templated to optimize binary size.
 public:
-	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) {}
+	StringBuf(char* buf, size_t capacity) : capacity_(capacity), buf_(buf) { buf_[0] = 0; }
 
 	void append(const char* str) { ::strncat(buf_, str, capacity_ - size() - 1); }
 	void append(char c) { ::strncat(buf_, &c, 1); }

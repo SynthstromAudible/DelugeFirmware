@@ -32,7 +32,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -52,13 +52,13 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 using namespace deluge;
@@ -750,7 +750,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//save performance view layout
-	else if (b == SAVE) {
+	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
@@ -758,7 +758,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//load performance view layout
-	else if (b == LOAD) {
+	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_LOAD_BUTTON)) {
 		if (on) {
 			loadPerformanceViewLayout();
 			renderViewDisplay();
@@ -932,7 +932,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	else {
 		//if releasing a pad with "held" status shortly after being given that status
 		//or releasing a pad that was not in "held" status but was a longer press and release
-		if ((isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
+		if ((view.isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
@@ -1159,14 +1159,6 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 		}
 	}
 	updateLayoutChangeStatus();
-}
-
-/// check if parameter is stutter
-bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t paramID) {
-	if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)) {
-		return true;
-	}
-	return false;
 }
 
 /// check if stutter is active and release it if it is
@@ -1448,7 +1440,7 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 		}
 	}
 	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
-	    && isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
+	    && view.isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
 		return;
 	}
 	else {
@@ -1823,7 +1815,8 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
-				if (!isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)) {
+				if (!view.isParamStutter(layoutForPerformance[xDisplay].paramKind,
+				                         layoutForPerformance[xDisplay].paramID)) {
 					fxPress[xDisplay].padPressHeld = true;
 					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 

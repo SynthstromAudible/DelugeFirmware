@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 
+class AudioClip;
 class InstrumentClip;
 class Clip;
 class Kit;
@@ -29,13 +30,13 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
+Clip* getSelectedClip(bool useActiveClip = false);
+
 class MidiFollow final : public GlobalEffectable {
 public:
 	MidiFollow();
 	void readDefaultsFromFile();
 
-	//midi follow context
-	Clip* getClipForMidiFollow(bool useActiveClip = false);
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
@@ -79,7 +80,7 @@ private:
 	                                 InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
+	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
 	//handle midi received for midi follow
@@ -110,6 +111,7 @@ private:
 	                                                int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip);
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
+	bool isFeedbackEnabled();
 	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
 
 	//saving

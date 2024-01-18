@@ -17,7 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -1011,8 +1011,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 			int32_t areaEndPosThisScreen = areaBeginPosThisScreen + squareWidthThisScreen;
 			if (areaEndPosThisScreen > effectiveLength) {
 				squareWidthThisScreen = effectiveLength - areaBeginPosThisScreen;
-				Debug::print("square width cut short: ");
-				Debug::println(newNumNotesThisScreen);
+				D_PRINTLN("square width cut short:  %d", newNumNotesThisScreen);
 
 				// If that's ended up 0 or negative, there's nothing for us to do. Though there'd probably be no harm if this check wasn't here, and in a perfect world
 				// maybe we'd check this before deciding how many search terms?
@@ -1193,7 +1192,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	if (nudgeOffset >= 0 && (numScreens - 1) * wrapEditLevel + editPos + 1 == effectiveLength) {
 		Note* __restrict__ lastSourceNote = notes.getElement(numSourceNotes - 1);
 		if (lastSourceNote->pos == effectiveLength - 1) {
-			Debug::println("wrapping right");
+			D_PRINTLN("wrapping right");
 			destNote = newNotes.getElement(nextIndexToCopyTo);
 			*destNote = *lastSourceNote;
 			destNote->pos = 0;
@@ -1210,7 +1209,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 			if (destNote->length > maxLength) {
 				// But only if that next note won't itself get nudged!
 				if (((uint32_t)nextSourceNote->pos % wrapEditLevel) != editPos) {
-					Debug::println("constraining length in right wrap");
+					D_PRINTLN("constraining length in right wrap");
 					destNote->length = maxLength;
 				}
 			}
@@ -1260,7 +1259,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 				if (noteToNudge->pos == preNudgeNotePos) {
 					// Ok, we've got one we'll be nudging left.
-					Debug::println("nudging note left");
+					D_PRINTLN("nudging note left");
 
 					if (preNudgeNotePos == 0) {
 						wrappingLeft = true;
@@ -1274,7 +1273,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 							int32_t postNudgeNotePos = preNudgeNotePos - 1;
 							int32_t maxLength = postNudgeNotePos - destNote->pos;
 							if (destNote->length > maxLength) {
-								Debug::println("constraining length of prev note");
+								D_PRINTLN("constraining length of prev note");
 								destNote->length = maxLength;
 							}
 						}
@@ -1299,7 +1298,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 				// If there was a nudge note, it will be the last one we copied. If so...
 				if (destNote->pos == preNudgeNotePos) {
-					Debug::println("nudging note right");
+					D_PRINTLN("nudging note right");
 
 					int32_t postNudgeNotePos = preNudgeNotePos + 1;
 					destNote->pos = postNudgeNotePos; // Nudge it
@@ -1324,11 +1323,11 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 					else { // Or if there's no more Notes, in which case wrap length
 						Note* __restrict__ firstNote = newNotes.getElement(0);
 						maxLength = firstNote->pos + effectiveLength - postNudgeNotePos;
-						Debug::println("potentially wrapping note length");
+						D_PRINTLN("potentially wrapping note length");
 					}
 
 					if (destNote->length > maxLength) {
-						Debug::println("constraining right-nudged note length");
+						D_PRINTLN("constraining right-nudged note length");
 						destNote->length = maxLength;
 					}
 				}
@@ -1356,7 +1355,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 
 	// If a nudged note wrapped around left
 	if (wrappingLeft) {
-		Debug::println("placing left-wrapped nudged note at end");
+		D_PRINTLN("placing left-wrapped nudged note at end");
 
 		int32_t nudgedPos = effectiveLength - 1;
 
@@ -1388,11 +1387,11 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	}
 	// Or a less extreme case where we just nudged the very first Note left and it didn't wrap - but we still need to check the final Note's length
 	else if (firstNoteGotNudgedLeft) {
-		Debug::println("checking cos first note got nudged left");
+		D_PRINTLN("checking cos first note got nudged left");
 		Note* __restrict__ firstDestNote = newNotes.getElement(0);
 		int32_t maxLength = firstDestNote->pos + effectiveLength - destNote->pos;
 		if (destNote->length > maxLength) {
-			Debug::println("yup, constraining last note's length");
+			D_PRINTLN("yup, constraining last note's length");
 			destNote->length = maxLength;
 		}
 	}
@@ -1755,7 +1754,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 			paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
 		}
 
-		bool mayInterpolate = drum ? drum->type == DrumType::SOUND : (clip->output->type == InstrumentType::SYNTH);
+		bool mayInterpolate = drum ? drum->type == DrumType::SOUND : (clip->output->type == OutputType::SYNTH);
 		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this is probably reasonably reasonable.
 
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, playingReversedNow, didPingpong,
@@ -1860,7 +1859,7 @@ stopNote:
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from the start.
 						// Same for time-stretching - although those can loop themselves, caching comes along and stuffs that up, so let's just stop em.
-						if (clip->output->type == InstrumentType::SYNTH) { // For Sounds
+						if (clip->output->type == OutputType::SYNTH) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -1870,7 +1869,7 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == InstrumentType::KIT && drum
+						else if (clip->output->type == OutputType::KIT && drum
 						         && drum->type == DrumType::SOUND) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
@@ -2011,7 +2010,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type == InstrumentType::KIT) {
+	if (output->type == OutputType::KIT) {
 		return drum && drum->auditioned;
 	}
 	else {
@@ -2065,8 +2064,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	int32_t timeAgo = AudioEngine::audioSampleTimer - noteOnTime;
 
-	Debug::print("timeAgo: ");
-	Debug::println(timeAgo);
+	D_PRINTLN("timeAgo:  %d", timeAgo);
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
@@ -2092,7 +2090,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 		sound = (SoundDrum*)drum;
 		thisParamManager = &paramManager;
 	}
-	else if (((Clip*)modelStack->getTimelineCounter())->output->type == InstrumentType::SYNTH) {
+	else if (((Clip*)modelStack->getTimelineCounter())->output->type == OutputType::SYNTH) {
 		sound = (SoundInstrument*)((Clip*)modelStack->getTimelineCounter())->output;
 		thisParamManager = &modelStack->getTimelineCounter()->paramManager;
 	}
@@ -2104,7 +2102,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	             sound->allowsVeryLateNoteStart(((InstrumentClip*)modelStack->getTimelineCounter()), thisParamManager)))
 	    || timeAgo < kAmountNoteOnLatenessAllowed) {
 
-		Debug::println("doing late");
+		D_PRINTLN("doing late");
 
 		if (!allows) {
 			swungTicksBeforeLastActionedOne = 0;
@@ -2121,14 +2119,14 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
-	if (output->type != InstrumentType::KIT) {
+	if (output->type != OutputType::KIT) {
 		// If it's a note-on, we'll send it "soon", after all note-offs
 
 		if (on) {
 			if (noteMightBeConstant) {
 
 				// Special case for Sounds
-				if (output->type == InstrumentType::SYNTH) {
+				if (output->type == OutputType::SYNTH) {
 					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
@@ -2414,7 +2412,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 			paramManagerNow = &paramManager;
 		}
 
-		else if (clip->output->type == InstrumentType::SYNTH) {
+		else if (clip->output->type == OutputType::SYNTH) {
 			sound = (SoundInstrument*)clip->output;
 			paramManagerNow = &clip->paramManager;
 		}
@@ -2770,7 +2768,7 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 	    -1; // Temp variable for this because we can't actually create the expressionParams before we know what kind of Drum (if any) we have.
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//Debug::println(tagName); delayMS(50);
+		//D_PRINTLN(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 
@@ -3034,7 +3032,7 @@ getOut : {}
 void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 	storageManager.writeOpeningTagBeginning("noteRow");
 
-	bool forKit = (clip->output->type == InstrumentType::KIT);
+	bool forKit = (clip->output->type == OutputType::KIT);
 
 	if (!forKit) {
 		storageManager.writeAttribute("y", y);
@@ -3117,7 +3115,7 @@ void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 }
 
 int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
-	if (clip->output->type == InstrumentType::KIT) {
+	if (clip->output->type == OutputType::KIT) {
 		return colourOffset;
 	}
 	else {
@@ -3393,8 +3391,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI()
-				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
+				if (getCurrentUI() != &automationClipView) { //don't shift MPE if you're in the automation view
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 				}
@@ -3415,7 +3412,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	//New addition as part of Automation Clip View Implementation
 	//If you are in Automation Clip View, shifting a note row will not shift notes, only NON MPE automations.
-	if (getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentUI() != &automationClipView) {
 
 		notes.shiftHorizontal(amount, effectiveLength);
 	}
@@ -3443,8 +3440,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI()
-				    != &automationInstrumentClipView) { //don't clear MPE if you're in the automation view
+				if (getCurrentUI() != &automationClipView) { //don't clear MPE if you're in the automation view
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
@@ -3452,7 +3448,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 			//Normal case
 			else {
-				if (getCurrentUI() == &automationInstrumentClipView
+				if (getCurrentUI() == &automationClipView
 				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 				           == RuntimeFeatureStateToggle::Off) {
 
@@ -3466,7 +3462,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 	//New addition as part of Automation Clip View Implementation
 	//If you are in Automation Clip View, clearing a kit note row will not clear notes, only NON MPE automations.
-	if (getCurrentUI() != &automationInstrumentClipView) {
+	if (getCurrentUI() != &automationClipView) {
 
 		stopCurrentlyPlayingNote(modelStack);
 
@@ -3612,7 +3608,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 		}
 
 		else {
-			if (clip->output->type == InstrumentType::SYNTH) {
+			if (clip->output->type == OutputType::SYNTH) {
 				sound = (SoundInstrument*)clip->output;
 				paramManagerNow = &clip->paramManager;
 			}

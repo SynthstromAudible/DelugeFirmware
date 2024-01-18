@@ -24,7 +24,9 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
+#include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"
+#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include <string.h>
 #include <string_view>
@@ -35,7 +37,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "drivers/oled/oled.h"
 #include "gui/fonts/fonts.h"
-#include "util/cfunctions.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
@@ -898,6 +899,35 @@ void OLED::removeWorkingAnimation() {
 	if (workingAnimationText) {
 		removePopup();
 	}
+}
+
+static void drawSegment(int32_t xMin, int32_t width, int32_t startY, int32_t height, bool fill) {
+	if (fill) {
+		OLED::invertArea(xMin, width, startY, startY + height - 1, OLED::oledMainImage);
+	}
+}
+
+void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
+	clearMainImage();
+	for (int i = 0; i < 4; i++) {
+		int ix = 30 * i + 8;
+		const int dy = 13;
+
+		const int horz[] = {6, 0, 3};
+		for (int y = 0; y < 3; y++) {
+			drawSegment(ix + 4, 10, 9 + dy * y, 3, display[i] & (1 << horz[y]));
+		}
+
+		const int vert[] = {1, 2, 5, 4};
+		for (int x = 0; x < 2; x++) {
+			for (int y = 0; y < 2; y++) {
+				drawSegment(ix + 15 * x, 3, 13 + dy * y, 8, display[i] & (1 << vert[2 * x + y]));
+			}
+		}
+
+		drawSegment(ix + 21, 3, 40, 3, display[i] & (1 << 7));
+	}
+	sendMainImage();
 }
 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6

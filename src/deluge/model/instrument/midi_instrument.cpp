@@ -35,16 +35,13 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
 
-extern "C" {
-#include "util/cfunctions.h"
-}
-
 int16_t lastNoteOffOrder = 1;
 
-MIDIInstrument::MIDIInstrument() : NonAudioInstrument(InstrumentType::MIDI_OUT) {
+MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 	channelSuffix = -1;
 	modKnobMode = 0;
 	memset(modKnobCCAssignments, CC_NUMBER_NONE, sizeof(modKnobCCAssignments));
@@ -53,6 +50,14 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(InstrumentType::MIDI_OUT) 
 		mpeOutputMemberChannels[c].lastNoteCode = 32767;
 		mpeOutputMemberChannels[c].noteOffOrder = 0;
 	}
+	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+		lastMonoExpression[i] = 0;
+		lastCombinedPolyExpression[i] = 0;
+	}
+
+	collapseAftertouch = false;
+	collapseMPE = true;
+	ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -215,25 +220,39 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 }
 
 void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
+	lastMonoExpression[whichExpressionDimension] = newValue;
+	sendMonophonicExpressionEvent(whichExpressionDimension);
+}
+
+void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimension) {
 
 	int32_t masterChannel = getOutputMasterChannel();
 
 	switch (whichExpressionDimension) {
 	case 0: {
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
+		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
 		midiEngine.sendPitchBend(masterChannel, valueSmall & 127, valueSmall >> 7, channel);
 		break;
 	}
 
-	case 1:
+	case 1: {
+		//mono y expression is limited to positive values, double it to match range
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 25) + 64;
+		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		//send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
-		midiEngine.sendCC(masterChannel, 1, (newValue >> 25) + 64, channel);
+		midiEngine.sendCC(masterChannel, 1, newValue, channel);
 		break;
-
-	case 2:
-		midiEngine.sendChannelAftertouch(masterChannel, newValue >> 24, channel);
+	}
+	case 2: {
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
+		                                  lastMonoExpression[whichExpressionDimension])
+		                   >> 24;
+		midiEngine.sendChannelAftertouch(masterChannel, newValue, channel);
 		break;
-
+	}
 	default:
 		__builtin_unreachable();
 	}
@@ -253,6 +272,15 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 
 	if (shouldSendPGMs) {
 		sendMIDIPGM();
+	}
+	if (clipChanged) {
+		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		if (expressionParams) {
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+		}
 	}
 
 	return clipChanged;
@@ -291,6 +319,11 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 			storageManager.closeTag();
 		}
 		storageManager.writeClosingTag("modKnobs");
+
+		storageManager.writeOpeningTagBeginning("polyToMonoConversion");
+		storageManager.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
+		storageManager.writeAttribute("mpe", (int32_t)collapseMPE);
+		storageManager.closeTag();
 	}
 	else {
 		if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
@@ -311,6 +344,18 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
 		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I think it'd only be relevant for pre-V2.0 song file... maybe?
+	}
+	else if (!strcmp(tagName, "polyToMonoConversion")) {
+		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "aftertouch")) {
+				collapseAftertouch = (bool)storageManager.readTagOrAttributeValueInt();
+			}
+			else if (!strcmp(tagName, "mpe")) {
+				collapseMPE = (bool)storageManager.readTagOrAttributeValueInt();
+			}
+			else
+				break;
+		}
 	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = storageManager.readTagOrAttributeValue();
@@ -557,7 +602,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 	if (midiInput.channelOrZone == receivedChannel) {
 
 		// If it's a MIDI Clip, and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-		if (doingMidiThru && type == InstrumentType::MIDI_OUT
+		if (doingMidiThru && type == OutputType::MIDI_OUT
 		    && receivedChannel
 		           == channel) { // We'll just say don't do anything to midi-thru if any MPE in the picture, for now
 			*doingMidiThru = false;
@@ -720,6 +765,20 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	// If no MPE, nice and simple
 	if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+
+		if (!collapseAftertouch) {
+			midiEngine.sendPolyphonicAftertouch(channel, 0, noteCodePostArp, kMIDIOutputFilterNoMPE);
+		}
+		else {
+			combineMPEtoMono(0, Z_PRESSURE);
+		}
+		//this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
+		//behaves more intuitively with multiple notes and mod wheel onto a single midi channel
+		if (collapseMPE) {
+			combineMPEtoMono(0, X_PITCH_BEND);
+			//This is CC74 value of 0
+			combineMPEtoMono(NEGATIVE_ONE_Q31, Y_SLIDE_TIMBRE);
+		}
 	}
 
 	// Or, MPE
@@ -792,11 +851,19 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 
 	// If we don't have MPE output...
 	if (!sendsToMPE()) {
-
-		// We can only send Z - and that's as polyphonic aftertouch
 		if (whichExpressionDimension == 2) {
-			midiEngine.sendPolyphonicAftertouch(channel, value32 >> 24, noteCodeAfterArpeggiation,
-			                                    kMIDIOutputFilterNoMPE);
+			if (!collapseAftertouch) {
+				// We can only send Z - and that's as polyphonic aftertouch
+				midiEngine.sendPolyphonicAftertouch(channel, value32 >> 24, noteCodeAfterArpeggiation,
+				                                    kMIDIOutputFilterNoMPE);
+				return;
+			}
+			else {
+				combineMPEtoMono(value32, whichExpressionDimension);
+			}
+		}
+		else if (collapseMPE) {
+			combineMPEtoMono(value32, whichExpressionDimension);
 		}
 	}
 
@@ -864,5 +931,57 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		default:
 			__builtin_unreachable();
 		}
+	}
+}
+
+void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension) {
+
+	ParamManager* paramManager = getParamManager(NULL);
+	if (paramManager) {
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		if (expressionParams) {
+			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+		}
+	}
+
+	// Are multiple notes sharing the same output member channel?
+	ArpeggiatorSettings* settings = getArpSettings();
+	if (settings == nullptr || settings->mode == ArpMode::OFF) { // Only if not arpeggiating...
+		int32_t numNotesFound = 0;
+		int32_t mpeValuesSum = 0; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
+		int32_t mpeValuesMax = -ONE_Q31;
+		// This traversal will include the original note, which will get counted up too
+		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
+			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+
+			numNotesFound++;
+
+			int32_t value = lookingAtArpNote->mpeValues[whichExpressionDimension];
+			mpeValuesSum += value;
+			mpeValuesMax = std::max(mpeValuesMax, value);
+		}
+
+		// If there in fact are multiple notes sharing the channel, to combine...
+		if (numNotesFound >= 1) {
+			int32_t averageValue16;
+			if (whichExpressionDimension == 0) {
+				averageValue16 = mpeValuesSum / numNotesFound;
+			}
+			else {
+				averageValue16 = mpeValuesMax;
+			}
+
+			value32 = averageValue16 << 16;
+		}
+		if (whichExpressionDimension == 0) {
+			//this can be bigger than 2^31
+			float fbend = value32 * ratio;
+			//casting down will truncate
+			value32 = (int32_t)fbend;
+		}
+		lastCombinedPolyExpression[whichExpressionDimension] = value32;
+		sendMonophonicExpressionEvent(whichExpressionDimension);
 	}
 }

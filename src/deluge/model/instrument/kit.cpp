@@ -18,13 +18,15 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -48,7 +50,7 @@
 #include <new>
 #include <string.h>
 
-Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
 }
@@ -165,7 +167,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 		// If saving Kit (not song), only save Drums if some other NoteRow in the song has it - in which case, save as "default" the params from that NoteRow
 		if (clipForSavingOutputOnly) {
-			Debug::println("yup, clipForSavingOutputOnly");
+			D_PRINTLN("yup, clipForSavingOutputOnly");
 			NoteRow* noteRow = song->findNoteRowForDrum(this, thisDrum);
 			if (!noteRow) {
 				goto moveOn;
@@ -179,7 +181,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			// If no activeClip, this means we want to store all Drums
 			// - and for SoundDrums, save as "default" any backedUpParamManagers (if none for a SoundDrum, definitely skip it)
 			if (!activeClip) {
-				Debug::println("nah, !activeClip");
+				D_PRINTLN("nah, !activeClip");
 				if (thisDrum->type == DrumType::SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
@@ -637,7 +639,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
 }
 
 //offer the CC to kit gold knobs without also offering to all drums
@@ -720,7 +722,7 @@ ModControllable* Kit::toModControllable() {
 // newName must be allowed to be edited by this function
 int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
-	Debug::println("making unique newName:");
+	D_PRINTLN("making unique newName:");
 
 	int32_t originalLength = name->getLength();
 
@@ -1018,6 +1020,9 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDev
                               bool* doingMidiThru, Drum* thisDrum) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
+	//do we need to update the selectedDrum?
+	possiblySetSelectedDrumAndRefreshUI(thisDrum);
+
 	bool recordingNoteOnEarly = false;
 
 	bool shouldRecordNoteOn =
@@ -1172,6 +1177,12 @@ goingToRecordNoteOnEarly:
 	}
 }
 
+void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
+	if (midiEngine.midiSelectKitRow) {
+		instrumentClipView.setSelectedDrum(thisDrum, true, this);
+	}
+}
+
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
 
@@ -1198,8 +1209,8 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
 
-				if (getCurrentUI() == &automationInstrumentClipView) {
-					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+				if (getCurrentUI() == &automationClipView) {
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 				}
 				else {
 					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);

@@ -29,6 +29,7 @@ class Action;
 class CopiedNoteRow;
 class Drum;
 class Editor;
+class AudioClip;
 class Instrument;
 class InstrumentClip;
 class MidiInstrument;
@@ -77,13 +78,14 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
      kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::STUTTER_RATE},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
      Param::Unpatched::BITCRUSHING, kNoParamID},
     {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
@@ -100,7 +102,7 @@ const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
@@ -125,9 +127,9 @@ const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
+class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
-	AutomationInstrumentClipView();
+	AutomationClipView();
 	bool opened();
 	void openedInBackground();
 	void focusRegained();
@@ -136,9 +138,9 @@ public:
 	void graphicsRoutine();
 
 	//rendering
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
@@ -152,9 +154,6 @@ public:
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
-	//edit pad action
-	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-
 	//audition pad action
 	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
 
@@ -163,7 +162,7 @@ public:
 
 	//vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
+	ActionResult scrollVertical(int32_t scrollAmount);
 
 	//mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
@@ -194,26 +193,42 @@ public:
 	bool interpolationAfter;
 
 	//public to midi follow can access it
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                            Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
+	                                                          InstrumentClip* clip, int32_t paramID = kNoParamID,
+	                                                          Param::Kind paramKind = Param::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
+	                                                           InstrumentClip* clip, int32_t paramID = kNoParamID);
+	ModelStackWithAutoParam* getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
+	                                                            AudioClip* clip, int32_t paramID = kNoParamID);
+
+	//public so instrument clip view can access it
+	void initParameterSelection();
 
 private:
+	//edit pad action
+	void editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
+
 	//Automation View Render Functions
-	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                              Instrument* instrument, RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Instrument* instrument,
-	                            RGB* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
-	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
+	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip, OutputType outputType,
+	                              uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, uint8_t* image,
+	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
+	                            int32_t yDisplay = 0, bool drawUndefinedArea = true);
 	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
-	               RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
-	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderDisplayOLED(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	               uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
+	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
-	void renderDisplay7SEG(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft = kNoSelection,
+	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       bool modEncoderAction = false);
 
 	//Enter/Exit Scale Mode
@@ -224,21 +239,24 @@ private:
 	void shiftAutomationHorizontally(int32_t offset);
 
 	//Mod Encoder Action
-	void copyAutomation();
-	void pasteAutomation();
+	void copyAutomation(Clip* clip);
+	void pasteAutomation(Clip* clip);
 
 	//Select Encoder Action
+	void selectGlobalParam(int32_t offset, Clip* clip);
+	void selectNonGlobalParam(int32_t offset, Clip* clip);
+	void selectMIDICC(int32_t offset, Clip* clip);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
 	                                          int32_t numParams);
+	void getLastSelectedParamShortcut(Clip* clip, OutputType outputType);
 
 	//Automation Lanes Functions
-	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
-	void getParameterName(InstrumentClip* clip, Instrument* instrument, char* parameterName);
+	void getParameterName(Clip* clip, OutputType outputType, char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
@@ -249,13 +267,13 @@ private:
 	                       bool updateIndicatorLevels = true);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
-	                          int32_t yDisplay, bool shortcutPress = false);
-	int32_t calculateKnobPosForSinglePadPress(Instrument* instrument, int32_t yDisplay);
+	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay, int32_t yDisplay,
+	                          bool shortcutPress = false);
+	int32_t calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay);
 
-	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
+	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
-	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
@@ -278,4 +296,4 @@ private:
 	bool playbackStopped;
 };
 
-extern AutomationInstrumentClipView automationInstrumentClipView;
+extern AutomationClipView automationClipView;

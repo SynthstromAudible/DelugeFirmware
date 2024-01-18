@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -29,6 +29,7 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -549,7 +550,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					//Debug::println("settling");
+					//D_PRINTLN("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
 
@@ -1192,12 +1193,11 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
 	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
 	if (result == NO_ERROR) {
-		//Debug::print("new buffer, size: ");
-		//Debug::println(delay.secondaryBuffer.size);
+		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
 
 		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			//Debug::println("making precise");
+			//D_PRINTLN("making precise");
 			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
 		}
 		else {
@@ -1709,7 +1709,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				//if you're in automation view and editing the same parameter that was just updated
 				//by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationInstrumentClipView) {
+				if (getRootUI() == &automationClipView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					//check that the clip that the param is being edited for is the same as the
 					//current clip as the current clip is what's actively displayed in automation view
@@ -1763,8 +1763,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 					//obtain the model stack for the parameter the ccNumber received is learned to
 					//don't display "can't control param" error message if you're in a MIDI or CV clip
 					bool displayError = midiEngine.midiFollowDisplayParam
-					                    && (clip->output->type != InstrumentType::MIDI_OUT)
-					                    && (clip->output->type != InstrumentType::CV);
+					                    && (clip->output->type != OutputType::MIDI_OUT)
+					                    && (clip->output->type != OutputType::CV);
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, ccNumber, displayError);
@@ -1807,11 +1807,11 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								//if so, you will need to refresh the automation editor grid or the performance view
 								bool editingParamInAutomationOrPerformanceView = false;
 								RootUI* rootUI = getRootUI();
-								if (rootUI == &automationInstrumentClipView || rootUI == &performanceSessionView) {
+								if (rootUI == &automationClipView || rootUI == &performanceSessionView) {
 									int32_t id = modelStackWithParam->paramId;
 									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-									if (rootUI == &automationInstrumentClipView) {
+									if (rootUI == &automationClipView) {
 										//pass the current clip because you want to check that you're editing the param
 										//for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
@@ -1853,7 +1853,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	//obtain clip for active context
-	Clip* clip = midiFollow.getClipForMidiFollow();
+	Clip* clip = getSelectedClip();
 
 	//setup model stack for the active context
 	if (!clip) {
@@ -1904,7 +1904,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
-	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)];
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)];
 
 	if (midiInput.isForMPEZone()) {
 		channel = midiInput.getMasterChannel();
@@ -2072,12 +2072,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 // if you're in automation view and editing the same parameter that was just updated
 // by a learned midi knob, then re-render the pads on the automation editor grid
 bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id) {
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		if ((instrumentClip->lastSelectedParamID == id) && (instrumentClip->lastSelectedParamKind == kind)) {
-			uiNeedsRendering(&automationInstrumentClipView);
-			return true;
-		}
+	if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
+		uiNeedsRendering(&automationClipView);
+		return true;
 	}
 	return false;
 }
@@ -2301,18 +2298,9 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
 
-	char* buffer = shortStringBuffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
-	if (display->haveOLED()) {
-		// Need to delete "-notes" from the name
-		std::string noteName(buffer);
-		std::string cleanName = noteName.substr(0, noteName.find("-notes"));
-		display->displayPopup(cleanName.c_str());
-	}
-	else {
-		// 7 Seg just display it
-		display->displayPopup(buffer);
-	}
+	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel), "");
+	display->displayPopup(buffer.data());
 }
 
 void ModControllableAudio::switchLPFMode() {

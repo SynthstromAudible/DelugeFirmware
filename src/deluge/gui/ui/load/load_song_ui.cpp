@@ -67,7 +67,7 @@ LoadSongUI::LoadSongUI() {
 
 bool LoadSongUI::opened() {
 
-	instrumentTypeToLoad = InstrumentType::NONE;
+	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
 	int32_t error = beginSlotSession(false, true);

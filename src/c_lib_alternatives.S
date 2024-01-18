@@ -707,6 +707,8 @@ END (memcpy)
 #define src2		r1
 #define result		r0	/* Overlaps src1.  */
 
+#undef tmp1
+#undef tmp2
 /* Internal variables.  */
 #define tmp1		r4
 #define tmp2		r5

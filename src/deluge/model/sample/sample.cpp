@@ -262,7 +262,7 @@ void Sample::deleteCache(SampleCache* cache) {
 
 		cache->~SampleCache();
 		pitchAdjustmentCaches.deleteElement(i);
-		Debug::println("cache deleted");
+		D_PRINTLN("cache deleted");
 	}
 	*/
 }
@@ -327,7 +327,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			//Debug::println("allocated percCacheMemory");
+			//D_PRINTLN("allocated percCacheMemory");
 		}
 	}
 
@@ -393,7 +393,7 @@ doReturnNoError:
 					if (startPosSamples
 					    & ((1 << audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude) - 1)) {
 						// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
-						Debug::println(startPosSamples);
+						D_PRINTLN("startPosSamples: %d", startPosSamples);
 						FREEZE_WITH_ERROR("E139");
 					}
 				}
@@ -531,7 +531,7 @@ doLoading:
 				FREEZE_WITH_ERROR("E136");
 			}
 			if (!percCacheClusters[reversed][percClusterIndex]) {
-				//Debug::println("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+				//D_PRINTLN("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				// We tell it not to steal any other per cache Cluster from this Sample - not because those Clusters are definitely a high priority to keep, but
 				// because doing so would probably alter our percCacheZones, which we're currently working with, which could really muck things up. Scenario only discovered Jan 2021.
 				percCacheClusters[reversed][percClusterIndex] = audioFileManager.allocateCluster(
@@ -694,8 +694,7 @@ doLoading:
 	{
 		uint16_t endTime = MTU2.TCNT_0;
 		uint16_t timeTaken = endTime - startTime;
-		Debug::print("perc cache fill time: ");
-		Debug::println(timeTaken);
+		D_PRINTLN("perc cache fill time:  %d", timeTaken);
 	}
 #endif
 
@@ -883,7 +882,7 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 void Sample::percCacheClusterStolen(Cluster* cluster) {
 	LOCK_ENTRY
 
-	Debug::println("percCacheClusterStolen -----------------------------------------------------------!!");
+	D_PRINTLN("percCacheClusterStolen -----------------------------------------------------------!!");
 	int32_t reversed = (cluster->type == ClusterType::PERC_CACHE_REVERSED);
 	int32_t playDirection = reversed ? -1 : 1;
 	int32_t comparison = reversed ? GREATER_OR_EQUAL : LESS;
@@ -942,7 +941,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				    iNew, 1,
 				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even happen given the above comment? Not sure.
 				if (error) {
-					Debug::println("insert fail");
+					D_PRINTLN("insert fail");
 					LOCK_EXIT
 					return;
 				}
@@ -1037,8 +1036,7 @@ calculateMIDINote:
 		}
 	}
 
-	//Debug::print("midiNote: ");
-	//Debug::printlnfloat(midiNote);
+	D_PRINTLN("midiNote:  %d", midiNote);
 }
 
 uint32_t Sample::getLengthInMSec() {
@@ -1203,19 +1201,14 @@ examineHarmonic:
 		lastHFound = h;
 
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
-		Debug::print("found harmonic ");
-		Debug::print(h);
-		Debug::print(". value ");
-		Debug::print(heightTable[currentIndex]);
-		Debug::print(", ");
-		Debug::print((heightRelativeToSurroundings * 100) >> 18);
+		D_PRINTLN("found harmonic  %d . value  %d ,  %d", h, heightTable[currentIndex],
+		          (heightRelativeToSurroundings * 100) >> 18);
 		float fundamentalPeriod = (float)PITCH_DETECT_WINDOW_SIZE / fundamentalIndexForContinuedHarmonicInvestigation;
 		float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 		float freq = freqBeforeAdjustment / (1 << numDoublings);
-		Debug::print("%. proposed freq: ");
+		D_PRINT("%. proposed freq: ");
 		Debug::printfloat(freq);
-		Debug::print(". uc: ");
-		Debug::printlnfloat(uncertaintyCount);
+		D_PRINTLN(". uc:  %d", uncertaintyCount);
 		delayMS(30);
 #endif
 	}
@@ -1233,7 +1226,7 @@ examineHarmonic:
 
 			//if (primeTotals[p] >= (total - primeTotals[p]) / (thisPrime - 1) * threshold) return 0;
 			if (primeTotals[p] * (thisPrime - 1) >= (total - primeTotals[p]) * threshold) {
-				//Debug::println("failing due to prime thing");
+				//D_PRINTLN("failing due to prime thing");
 				return 0;
 			}
 		}
@@ -1266,9 +1259,9 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 
 #if PITCH_DETECT_DEBUG_LEVEL
 	delayMS(200);
-	Debug::println("");
-	Debug::println("det. pitch --");
-	Debug::println(filePath.get());
+	D_PRINTLN("");
+	D_PRINTLN("det. pitch --");
+	D_PRINTLN(filePath.get());
 #endif
 
 	// Get the FFT config we'll need
@@ -1317,9 +1310,8 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 startAgain:
 
 #if PITCH_DETECT_DEBUG_LEVEL
-	Debug::println("");
-	Debug::print("doublings: ");
-	Debug::println(lengthDoublings);
+	D_PRINTLN("");
+	D_PRINTLN("doublings:  %d", lengthDoublings);
 #endif
 
 	// Load the sample into memory
@@ -1330,7 +1322,7 @@ startAgain:
 	Cluster* cluster =
 	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!cluster) {
-		Debug::println("failed to load first");
+		D_PRINTLN("failed to load first");
 getOut:
 		delugeDealloc(fftInput);
 		return 0;
@@ -1356,7 +1348,7 @@ continueWhileLoop:
 			                  ->getCluster(this, currentClusterIndex + 1, CLUSTER_LOAD_IMMEDIATELY);
 			if (!nextCluster) {
 				audioFileManager.removeReasonFromCluster(cluster, "imcwn4o");
-				Debug::println("failed to load next");
+				D_PRINTLN("failed to load next");
 				goto getOut;
 			}
 		}
@@ -1455,7 +1447,7 @@ doneReading:
 			goto startAgain;
 		}
 
-		Debug::println("no sound found");
+		D_PRINTLN("no sound found");
 		goto getOut;
 	}
 
@@ -1468,21 +1460,19 @@ doneReading:
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 	/*
-	Debug::print("doing fft ----------------");
-	Debug::println(PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
+	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
 	uint16_t startTime = MTU2.TCNT_0;
 	*/
 
 	// Perform the FFT
 	ne10_fft_r2c_1d_int32_neon(fftOutput, (ne10_int32_t*)fftInput, fftCFG, false);
 
-	//Debug::println("fft done");
+	//D_PRINTLN("fft done");
 
 	/*
 	uint16_t endTime = MTU2.TCNT_0;
 	uint16_t time = endTime - startTime;
-	Debug::print("fft time uSec: ");
-	Debug::println(timerCountToUS(time));
+	D_PRINTLN("fft time uSec:  %d", timerCountToUS(time));
 	*/
 	AudioEngine::logAction("bypassing culling in pitch detection");
 	AudioEngine::bypassCulling = true;
@@ -1505,13 +1495,13 @@ doneReading:
 
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
 		if (!(i & 31)) {
-			Debug::println("");
-			Debug::print(i);
-			Debug::print(": ");
+			D_PRINTLN("");
+			D_PRINT(i);
+			D_PRINT(": ");
 			delayMS(50);
 		}
-		Debug::print(thisValue);
-		Debug::print(", ");
+		D_PRINT(thisValue);
+		D_PRINT(", ");
 #endif
 	}
 
@@ -1559,7 +1549,7 @@ doneReading:
 	}
 
 #if PITCH_DETECT_DEBUG_LEVEL
-	Debug::println("");
+	D_PRINTLN("");
 #endif
 
 	int32_t minFreqAdjusted = minFreqHz * (1 << lengthDoublings);
@@ -1606,14 +1596,9 @@ doneReading:
 			float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 			float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 
-			Debug::print("strength ");
-			Debug::print(strengthHere);
-			//Debug::print(" at i ");
-			//Debug::print(i);
-			Debug::print(", freq ");
-			Debug::printlnfloat(freq);
+			D_PRINTLN("strength  %d  at i  %d , freq  %d", strengthHere, i, freq);
 #if PITCH_DETECT_DEBUG_LEVEL >= 2
-			Debug::println("");
+			D_PRINTLN("");
 #endif
 		}
 #endif
@@ -1627,23 +1612,20 @@ doneReading:
 
 	// If no peaks found, print out the FFT for debugging
 	if (!bestStrength) {
-		Debug::println("no peaks found.");
+		D_PRINTLN("no peaks found.");
 
-		Debug::print("searching ");
-		Debug::print(minFundamentalPeakIndex);
-		Debug::print(" to ");
-		Debug::println(maxFundamentalPeakIndex);
+		D_PRINTLN("searching  %d  to  %d", minFundamentalPeakIndex, maxFundamentalPeakIndex);
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		for (int32_t i = 0; i < (PITCH_DETECT_WINDOW_SIZE >> 1); i++) {
 			if (!(i & 31)) {
-				Debug::println("");
-				Debug::print(i);
-				Debug::print(": ");
+				D_PRINTLN("");
+				D_PRINT(i);
+				D_PRINT(": ");
 				delayMS(50);
 			}
-			Debug::print(fftHeights[i]);
-			Debug::print(", ");
+			D_PRINT(fftHeights[i]);
+			D_PRINT(", ");
 		}
 #endif
 		goto getOut;
@@ -1661,8 +1643,7 @@ doneReading:
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-		Debug::print("proposed freq: ");
-		Debug::printlnfloat(freq);
+		D_PRINTLN("proposed freq: ");
 #endif
 		// Only do one doubling at a time - this can help to correct an incorrect reading
 		freqBeforeAdjustment *= 2;
@@ -1674,7 +1655,7 @@ doneReading:
 	delugeDealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
-	Debug::print("freq: ");
+	D_PRINT("freq: ");
 	uartPrintlnFloat(freq);
 
 	return freq;
@@ -1761,28 +1742,28 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 	}
 
 	if (numClusterReasons) {
-		Debug::println("reason dump---");
+		D_PRINTLN("reason dump---");
 		for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 
 			Cluster* cluster = clusters.getElement(c)->cluster;
 			if (cluster) {
-				Debug::print(cluster->numReasonsToBeLoaded);
+				D_PRINT("cluster->numReasonsToBeLoaded[%d]", cluster->numReasonsToBeLoaded);
 
 				if (cluster == audioFileManager.clusterBeingLoaded) {
-					Debug::println(" (loading)");
+					D_PRINTLN(" (loading)");
 				}
 				else if (!cluster->loaded) {
-					Debug::println(" (unloaded)");
+					D_PRINTLN(" (unloaded)");
 				}
 				else {
-					Debug::println("");
+					D_PRINTLN("");
 				}
 			}
 			else {
-				Debug::println("*");
+				D_PRINTLN("*");
 			}
 		}
-		Debug::println("/reason dump---");
+		D_PRINTLN("/reason dump---");
 
 		// LegsMechanical got, V4.0.0-beta2. https://forums.synthstrom.com/discussion/4106/v4-0-beta2-e078-crash-when-recording-audio-clip
 		FREEZE_WITH_ERROR("E078");

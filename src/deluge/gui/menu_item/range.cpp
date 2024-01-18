@@ -185,8 +185,9 @@ void Range::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * textLength;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	deluge::hid::display::OLED::drawString(buffer, stringStartX, baseY, deluge::hid::display::OLED::oledMainImage[0],
-	                                       OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
+	deluge::hid::display::OLED::drawString(buffer, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL,
+	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       digitWidth, digitHeight);
 
 	int32_t hilightStartX, hilightWidth;
 

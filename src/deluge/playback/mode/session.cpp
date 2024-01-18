@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -979,8 +979,8 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 							sessionView.clipNeedsReRendering(clip);
 							if (getCurrentClip()) {
-								if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-									uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+								if (getCurrentClip()->onAutomationClipView) {
+									uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
 								}
 								else {
 									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
@@ -1417,7 +1417,7 @@ int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPos
 
 // Returns whether we are now armed. If not, it means it's just done the swap already in this function
 bool Session::armForSongSwap() {
-	Debug::println("Session::armForSongSwap()");
+	D_PRINTLN("Session::armForSongSwap()");
 
 	Clip* waitForClip = currentSong->getLongestClip(false, true);
 
@@ -1438,8 +1438,7 @@ bool Session::armForSongSwap() {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
-		Debug::print("ticksTilSwap: ");
-		Debug::println(ticksTilSwap);
+		D_PRINTLN("ticksTilSwap:  %d", ticksTilSwap);
 	}
 	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		// Nothing to do!

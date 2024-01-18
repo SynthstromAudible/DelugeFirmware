@@ -36,7 +36,7 @@ void ActionClipState::grabFromClip(Clip* thisClip) {
 		wrapEditing = instrumentClip->wrapEditing;
 		wrapEditLevel = instrumentClip->wrapEditLevel;
 
-		if (thisClip->output->type != InstrumentType::KIT) {
+		if (thisClip->output->type != OutputType::KIT) {
 			selectedDrumIndex = -1;
 		}
 		else {
