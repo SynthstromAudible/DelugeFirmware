@@ -332,14 +332,26 @@ void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
 /// it does this by finding the grid shortcut that corresponds to that param
 /// and then returns what cc or no cc (255) has been mapped to that param shortcut
 int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
+	RootUI* rootUI = getRootUI();
+	Clip* clip = getSelectedClip();
+	//are we dealing with Param::Kind::UNPATCHED_GLOBAL?
+	//we are if we are: in a Song, in Arranger, in Performance View, in an Audio Clip, or in a Kit Clip with Affect Entire enabled
+	bool isGlobalParamContext = !clip || clip->type == CLIP_TYPE_AUDIO
+	                            || (clip->output->type == OutputType::KIT && instrumentClipView.getAffectEntire());
+
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			//if you're not in a global param context, the param is either Param::Kind::PATCHED or Param::Kind::UNPATCHED_SOUND
 			bool foundParamShortcut =
-			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
-			     || (((paramKind == Param::Kind::UNPATCHED_SOUND) || (paramKind == Param::Kind::UNPATCHED_GLOBAL))
-			         && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID))
-			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
-			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] == paramID)));
+			    (!isGlobalParamContext
+			     && (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
+			         || ((paramKind == Param::Kind::UNPATCHED_SOUND)
+			             && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID))))
+			    || (isGlobalParamContext && (paramKind == Param::Kind::UNPATCHED_GLOBAL)
+			        && (((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID)
+			             && (paramID != Param::Unpatched::Sound::ARP_GATE)
+			             && (paramID != Param::Unpatched::Sound::PORTAMENTO))
+			            || (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] == paramID)));
 
 			if (foundParamShortcut) {
 				return paramToCC[xDisplay][yDisplay];
