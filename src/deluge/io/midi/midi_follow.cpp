@@ -453,8 +453,8 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			//if it was greater or equal than 1 second ago, allow received midi cc to go through
 			//this helps avoid additional processing of midi cc's receiver
-			if (!midiEngine.midiFollowFeedback
-			    || (midiEngine.midiFollowFeedback
+			if (!isFeedbackEnabled()
+			    || (isFeedbackEnabled()
 			        && (!midiEngine.midiFollowFeedbackFilter
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
@@ -618,15 +618,25 @@ void MidiFollow::offerReceivedAftertouchToMelodicInstrument(
 
 /// obtain match to check if device is compatible with the midi follow channel
 /// a valid match is passed through to the instruments for further evaluation
+/// don't check for match to the midi feedback channel type
 MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel) {
 	MIDIMatchType m = MIDIMatchType::NO_MATCH;
-	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
-		m = midiChannelType.checkMatch(fromDevice, channel);
+	for (auto i = 0; i < (kNumMIDIFollowChannelTypes - 1); i++) {
+		m = midiEngine.midiFollowChannelType[i].checkMatch(fromDevice, channel);
 		if (m != MIDIMatchType::NO_MATCH) {
 			return m;
 		}
 	}
 	return m;
+}
+
+bool MidiFollow::isFeedbackEnabled() {
+	uint8_t channel =
+	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
+	if (channel != MIDI_CHANNEL_NONE) {
+		return true;
+	}
+	return false;
 }
 
 /// based on the midi follow root kit note and note received

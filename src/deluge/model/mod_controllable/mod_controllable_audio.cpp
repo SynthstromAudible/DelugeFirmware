@@ -1904,7 +1904,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
-	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)];
+	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)];
 
 	if (midiInput.isForMPEZone()) {
 		channel = midiInput.getMasterChannel();
