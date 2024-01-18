@@ -255,7 +255,7 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 			//don't allow control of Portamento or Arp Gate in Kit Affect Entire
 			if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
 			    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramKind = Param::Kind::UNPATCHED_GLOBAL;
 				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 		}
@@ -280,7 +280,7 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 	int32_t paramID = kNoParamID;
 
 	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramKind = Param::Kind::UNPATCHED_GLOBAL;
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
@@ -336,7 +336,7 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			bool foundParamShortcut =
 			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
-			     || ((paramKind == Param::Kind::UNPATCHED_SOUND)
+			     || (((paramKind == Param::Kind::UNPATCHED_SOUND) || (paramKind == Param::Kind::UNPATCHED_GLOBAL))
 			         && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID))
 			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
 			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] == paramID)));

@@ -168,7 +168,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonGlobalParamsForAutoma
     {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
 }};
 
-//kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
+//audio clip / kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<Param::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
@@ -177,22 +177,22 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumGlobalParamsForAutomatio
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_RES},
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_RES},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::BASS}, //Bass, Bass Freq
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::BASS_FREQ},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::TREBLE_FREQ},
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send, Shape
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::COMPRESSOR_SHAPE},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::BITCRUSHING},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::MOD_FX_FEEDBACK},
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
     {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
 }};
 
 //grid sized array to assign midi cc values to each pad on the grid
@@ -2683,6 +2683,8 @@ void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType out
 				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
 				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
 				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
+				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
 				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
@@ -3118,7 +3120,7 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 
 			//if you are in a kit instrumentClip with affect entire enabled and the shortcut is valid, set current selected ParamID
 			if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
+				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_GLOBAL;
 				clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 
