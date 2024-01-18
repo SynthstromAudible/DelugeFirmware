@@ -33,7 +33,6 @@
 #include "util/misc.h"
 #include <string.h>
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 void flagCable(uint32_t* flags, int32_t c) {
@@ -110,7 +109,7 @@ void PatchCableSet::swapCables(int32_t c1, int32_t c2) {
 }
 
 Destination* PatchCableSet::getDestinationForParam(int32_t p) {
-	int32_t globality = (p < Param::Global::FIRST) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
+	int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
 
 	// Special case - no Destinations at all
 	if (!destinations[globality]) {
@@ -217,7 +216,7 @@ goAgainWithoutIncrement:
 
 		ParamDescriptor destinationParamDescriptor = patchCables[c].destinationParamDescriptor;
 		int32_t p = destinationParamDescriptor.getJustTheParam();
-		int32_t globality = (p < Param::Global::FIRST) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
+		int32_t globality = (p < params::FIRST_GLOBAL) ? GLOBALITY_LOCAL : GLOBALITY_GLOBAL;
 
 		// Remember that this is the first cable for the param
 		destinations[globality][numDestinations[globality]].destinationParamDescriptor = destinationParamDescriptor;
@@ -350,19 +349,19 @@ bool PatchCableSet::doesDestinationDescriptorHaveAnyCables(ParamDescriptor desti
 
 bool PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
                                                                            ParamDescriptor destinationParamDescriptor) {
-	if (destinationParamDescriptor.getJustTheParam() == Param::Global::VOLUME_POST_FX) {
+	if (destinationParamDescriptor.getJustTheParam() == params::GLOBAL_VOLUME_POST_FX) {
 
 		if (getPatchCableIndex(s, destinationParamDescriptor) != 255) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(Param::Global::VOLUME_POST_REVERB_SEND);
+		destinationParamDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
 		if (getPatchCableIndex(s, destinationParamDescriptor) != 255) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(Param::Local::VOLUME);
+		destinationParamDescriptor.changeParam(params::LOCAL_VOLUME);
 
 		return (getPatchCableIndex(s, destinationParamDescriptor) != 255);
 	}
@@ -373,19 +372,19 @@ bool PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific(Patch
 
 bool PatchCableSet::isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor) {
 
-	if (destinationParamDescriptor.getJustTheParam() == Param::Global::VOLUME_POST_FX) {
+	if (destinationParamDescriptor.getJustTheParam() == params::GLOBAL_VOLUME_POST_FX) {
 
 		if (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor)) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(Param::Global::VOLUME_POST_REVERB_SEND);
+		destinationParamDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
 		if (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor)) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(Param::Local::VOLUME);
+		destinationParamDescriptor.changeParam(params::LOCAL_VOLUME);
 
 		return (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor));
 	}
@@ -498,18 +497,18 @@ int32_t PatchCableSet::getModifiedPatchCableAmount(int32_t c, int32_t p) {
 	int32_t output;
 	int32_t amount = patchCables[c].param.getCurrentValue();
 	switch (p) {
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-	case Param::Global::DELAY_RATE:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case params::GLOBAL_DELAY_RATE:
 		output = (amount >> 15) * (amount >> 16);
 		if (amount < 0) {
 			output = -output;
 		}
 
-		if (p == Param::Local::PITCH_ADJUST) {
+		if (p == params::LOCAL_PITCH_ADJUST) {
 			// If patching to master pitch, adjust range so that, on max range, the velocity-editing steps correspond with whole semitones
 			if (patchCables[c].from == PatchSource::VELOCITY) {
 				//output = (output / 3 << 1);
@@ -810,8 +809,8 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 					source = stringToSource(storageManager.readTagOrAttributeValue());
 				}
 				else if (!strcmp(tagName, "destination")) {
-					destinationParamDescriptor.setToHaveParamOnly(
-					    params::fileStringToParam(params::UNPATCHED_SOUND, storageManager.readTagOrAttributeValue()));
+					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
+					    params::Kind::UNPATCHED_SOUND, storageManager.readTagOrAttributeValue()));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(readAutomationUpToPos);
@@ -863,7 +862,7 @@ doneWithThisRangeCable:
 
 				if (source == PatchSource::X
 				    && destinationParamDescriptor.isSetToParamWithNoSource(
-				        Param::Local::PITCH_ADJUST)) { // Because I briefly made this possible in a 3.2.0 alpha.
+				        params::LOCAL_PITCH_ADJUST)) { // Because I briefly made this possible in a 3.2.0 alpha.
 					goto abandonThisCable;
 				}
 
@@ -907,7 +906,7 @@ abandonThisCable:
 
 	if (rangeAdjustableCableP != 255) {
 		for (int32_t c = 0; c < numPatchCables; c++) {
-			if (patchCables[c].destinationParamDescriptor.isSetToParamWithNoSource(Param::PLACEHOLDER_RANGE)) {
+			if (patchCables[c].destinationParamDescriptor.isSetToParamWithNoSource(params::PLACEHOLDER_RANGE)) {
 				patchCables[c].destinationParamDescriptor.setToHaveParamAndSource(rangeAdjustableCableP,
 				                                                                  rangeAdjustableCableS);
 			}
@@ -932,7 +931,7 @@ void PatchCableSet::writePatchCablesToFile(bool writeAutomation) {
 		storageManager.writeOpeningTagBeginning("patchCable");
 		storageManager.writeAttribute("source", sourceToString(patchCables[c].from));
 		storageManager.writeAttribute(
-		    "destination", params::paramNameForFile(params::UNPATCHED_SOUND,
+		    "destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 		                                            patchCables[c].destinationParamDescriptor.getJustTheParam()));
 
 		storageManager.write("\n");
@@ -1152,7 +1151,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* devi
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(Param::Local::VOLUME);
+	paramDescriptor.setToHaveParamOnly(params::LOCAL_VOLUME);
 
 	int32_t i = getPatchCableIndex(
 	    PatchSource::VELOCITY, paramDescriptor, NULL,

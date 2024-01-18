@@ -74,7 +74,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 Clip* getCurrentClip() {
@@ -182,7 +181,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbDamp = (float)36 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
-	reverbCompressorVolume = getParamFromUserValue(Param::Static::COMPRESSOR_VOLUME, -1);
+	reverbCompressorVolume = getParamFromUserValue(params::STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
@@ -1812,7 +1811,7 @@ traverseClips:
 			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-				thisParamManager->getPatchedParamSet()->params[Param::Global::ARP_RATE].shiftValues((1 << 30)
+				thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
 				                                                                                    + (1 << 28));
 			}
 		}
@@ -2130,11 +2129,12 @@ traverseClips2:
 void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
                        int32_t sideChainHitPending) {
 
-	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	int32_t volumePostFX = getFinalParameterValueVolume(
-	                           134217728, cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                          Param::Unpatched::GlobalEffectable::VOLUME)))
-	                       >> 1;
+	//int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
+	int32_t volumePostFX =
+	    getFinalParameterValueVolume(
+	        134217728,
+	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+	    >> 1;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really because that's where filters are happening
 
@@ -2173,11 +2173,11 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
 	                                              &delayWorkingState, 8);
 
-	int32_t postReverbVolume = paramNeutralValues[Param::Global::VOLUME_POST_REVERB_SEND];
+	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(paramNeutralValues[Param::Global::REVERB_AMOUNT],
+	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
 	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT)));
+	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);

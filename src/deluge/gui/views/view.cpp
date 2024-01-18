@@ -86,7 +86,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;

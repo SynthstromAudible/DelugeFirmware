@@ -43,7 +43,7 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 		volumePostFX =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       deluge::modulation::params::Param::Unpatched::GlobalEffectable::VOLUME)))
+		                       deluge::modulation::params::UNPATCHED_VOLUME)))
 		    >> 1;
 	}
 	else {

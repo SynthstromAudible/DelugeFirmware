@@ -52,7 +52,7 @@
 
 Slicer slicer{};
 
-namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 void Slicer::focusRegained() {
 
@@ -481,16 +481,16 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_ATTACK);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
 	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
@@ -620,14 +620,14 @@ getOut:
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-		int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
+		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 		ModelStackWithAutoParam* modelStackWithParam =
 		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
+			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
 		}
 
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
@@ -666,11 +666,11 @@ getOut:
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =
-			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
+			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		}
 
 		// Do the rest of the Drums
@@ -722,11 +722,11 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(
-				    getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
+				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(
-					    getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 				}
 			}
 

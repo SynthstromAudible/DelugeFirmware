@@ -78,8 +78,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace params = deluge::modulation::params;
 using namespace deluge;
-using namespace deluge::modulation::params;
 using namespace gui;
 
 SampleBrowser sampleBrowser{};
@@ -872,17 +872,17 @@ doLoadAsWaveTable:
 
 			if (soundEditor.currentSourceIndex == 0) { // Osc 1
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    Param::Local::OSC_A_WAVE_INDEX);
+				    params::LOCAL_OSC_A_WAVE_INDEX);
 
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-				        Param::Local::OSC_B_WAVE_INDEX)) {
+				        params::LOCAL_OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    Param::Local::OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
+					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
 				}
 			}
 			else { // Osc 2
 				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-				    Param::Local::OSC_B_WAVE_INDEX);
+				    params::LOCAL_OSC_B_WAVE_INDEX);
 			}
 			getCurrentOutput()->modKnobMode = 7;
 			view.setKnobIndicatorLevels(); // Visually update.
@@ -1025,15 +1025,15 @@ doLoadAsSample:
 			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
-			int32_t p = Param::Local::OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
+			int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
 			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
 				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-				    Param::Unpatched::BITCRUSHING + Param::Unpatched::START);
+				    params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
 				anyChange = true;
 			}
 			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    Param::Unpatched::SAMPLE_RATE_REDUCTION + Param::Unpatched::START);
+				    params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
 				anyChange = true;
 			}
 
@@ -1075,7 +1075,7 @@ void SampleBrowser::audioFileIsNowSet() {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
-	int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
+	int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 	ModelStackWithAutoParam* modelStackWithParam =
 	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1084,7 +1084,7 @@ void SampleBrowser::audioFileIsNowSet() {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
 	}
 }
 
@@ -1881,7 +1881,7 @@ getOut:
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
+				int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 				ModelStackWithAutoParam* modelStackWithParam =
 				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1889,7 +1889,7 @@ getOut:
 				if (!modelStackWithParam->autoParam->isAutomated()) {
 					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
 					                                                                          2147483647);
-					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, getCurrentClip(), false);
+					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, getCurrentClip(), false);
 				}
 
 				drum->unassignAllVoices();

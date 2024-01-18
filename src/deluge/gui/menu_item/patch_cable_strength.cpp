@@ -195,7 +195,7 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 		}
 
 		// Local source - range must be for cable going to local param
-		return (destinationDescriptor.getJustTheParam() < deluge::modulation::params::Param::Global::FIRST)
+		return (destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL)
 		           ? MenuPermission::YES
 		           : MenuPermission::NO;
 	}
@@ -212,9 +212,9 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 }
 
 uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
-	if (soundEditor.patchingParamSelected == deluge::modulation::params::Param::Global::VOLUME_POST_REVERB_SEND
-	    || soundEditor.patchingParamSelected == deluge::modulation::params::Param::Local::VOLUME) {
-		return deluge::modulation::params::Param::Global::VOLUME_POST_FX;
+	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || soundEditor.patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
+		return deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
 	}
 	return soundEditor.patchingParamSelected;
 }

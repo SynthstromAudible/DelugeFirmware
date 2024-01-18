@@ -38,7 +38,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::Param::Global::ARP_RATE],
+			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
 			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;

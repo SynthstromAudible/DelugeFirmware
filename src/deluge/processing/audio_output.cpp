@@ -37,7 +37,7 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
@@ -90,7 +90,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 		if (activeAudioClip->voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[Param::Local::ENV_0_ATTACK];
+			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
 
 renderEnvelope:

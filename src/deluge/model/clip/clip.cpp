@@ -42,7 +42,6 @@
 #include "util/functions.h"
 #include <new>
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;

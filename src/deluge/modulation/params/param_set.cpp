@@ -36,7 +36,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
@@ -379,16 +379,16 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
-	case Param::Unpatched::STUTTER_RATE:
+	case params::UNPATCHED_STUTTER_RATE:
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
 		           == RuntimeFeatureStateToggle::Off
 		       || isUIModeActive(UI_MODE_STUTTERING);
-	case Param::Unpatched::BASS:
-	case Param::Unpatched::TREBLE:
-	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-	case Param::Unpatched::GlobalEffectable::PAN:
-	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+	case params::UNPATCHED_BASS:
+	case params::UNPATCHED_TREBLE:
+	case params::UNPATCHED_DELAY_RATE:
+	case params::UNPATCHED_DELAY_AMOUNT:
+	case params::UNPATCHED_PAN:
+	case params::UNPATCHED_PITCH_ADJUST:
 		return true;
 	default:
 		return false;
@@ -396,7 +396,7 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != Param::Unpatched::STUTTER_RATE);
+	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
 }
 
 // PatchedParamSet --------------------------------------------------------------------------------------------
@@ -429,7 +429,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		}
 
 		if (!automatedNow) {
-			if (modelStack->paramId == Param::Global::REVERB_AMOUNT) {
+			if (modelStack->paramId == params::GLOBAL_REVERB_AMOUNT) {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 			}
 		}
@@ -437,15 +437,15 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 	// Because some patch cables are marked as "unusable" under certain circumstances, see if those circumstances have changed
 	switch (modelStack->paramId) {
-	case Param::Local::OSC_A_VOLUME:
-	case Param::Local::OSC_B_VOLUME:
-	case Param::Local::NOISE_VOLUME:
-	case Param::Local::MODULATOR_0_VOLUME:
-	case Param::Local::MODULATOR_1_VOLUME:
-	case Param::Local::CARRIER_0_FEEDBACK:
-	case Param::Local::CARRIER_1_FEEDBACK:
-	case Param::Local::MODULATOR_0_FEEDBACK:
-	case Param::Local::MODULATOR_1_FEEDBACK:
+	case params::LOCAL_OSC_A_VOLUME:
+	case params::LOCAL_OSC_B_VOLUME:
+	case params::LOCAL_NOISE_VOLUME:
+	case params::LOCAL_MODULATOR_0_VOLUME:
+	case params::LOCAL_MODULATOR_1_VOLUME:
+	case params::LOCAL_CARRIER_0_FEEDBACK:
+	case params::LOCAL_CARRIER_1_FEEDBACK:
+	case params::LOCAL_MODULATOR_0_FEEDBACK:
+	case params::LOCAL_MODULATOR_1_FEEDBACK:
 		bool containsSomethingNow = modelStack->autoParam->containsSomething(-2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
@@ -467,8 +467,8 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (modelStack
-	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
+	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -478,8 +478,8 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
 	if (modelStack
-	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
+	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
 		int32_t paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;
@@ -493,15 +493,15 @@ int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
-	case Param::Local::PAN:
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-	case Param::Global::DELAY_FEEDBACK:
-	case Param::Global::DELAY_RATE:
-	case Param::Global::ARP_RATE:
+	case params::LOCAL_PAN:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case params::GLOBAL_DELAY_FEEDBACK:
+	case params::GLOBAL_DELAY_RATE:
+	case params::GLOBAL_ARP_RATE:
 		return true;
 	default:
 		return false;
