@@ -325,6 +325,8 @@ public:
 	                                          int32_t whichBendRange, int32_t bendSemitones);
 	int32_t addInstrumentsToFileItems(OutputType outputType);
 
+	int32_t getNumPresetScales();
+
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);

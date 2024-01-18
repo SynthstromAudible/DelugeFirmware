@@ -182,7 +182,7 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-std::array<char const*, 18> presetScaleNames = {
+std::array<char const*, 16> presetScaleNames = {
 	"MAJOR",
 	"MINOR",
 	"DORIAN",
@@ -199,8 +199,6 @@ std::array<char const*, 18> presetScaleNames = {
 	"BLUES",
 	"PENTATONIC MINOR",
 	"HIRAJOSHI",
-	"RANDOM",
-	"NONE"
 };
 
 deluge::l10n::String presetReverbNames[] = {
@@ -287,7 +285,7 @@ const int16_t oldResonanceCompensation[] = {
 
 
 // Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
-const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
+const uint8_t presetScaleNotes[NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH][7] = {
 		// Major modes (Original Deluge scales)
 		{0, 2, 4, 5, 7, 9, 11}, // MAJO Major (Ionian)
 		{0, 2, 3, 5, 7, 8, 10}, // MINO Natural Minor (Aeolian)

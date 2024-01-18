@@ -188,6 +188,11 @@ void RuntimeFeatureSettings::init() {
 	// EmulatedDisplay
 	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay], "Emulated Display",
 	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
+
+	// UnevenLengthScales
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::UnevenLengthScales],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_UNEVEN_LENGTH_SCALES), "unevenLengthScales",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

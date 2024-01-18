@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 
@@ -24,10 +25,55 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
-	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
+	void readCurrentValue() override {
+		int32_t numPresetScales = NUM_PRESET_SCALES;
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
+		    == RuntimeFeatureStateToggle::On) {
+			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
+		}
+		int32_t savedScale = FlashStorage::defaultScale;
+		if (savedScale == PRESET_SCALE_RANDOM) {
+			this->setValue(NUM_PRESET_SCALES);
+		}
+		else if (savedScale == PRESET_SCALE_NONE) {
+			this->setValue(NUM_PRESET_SCALES + 1);
+		}
+		else if (savedScale >= numPresetScales) {
+			// Index is out of bounds, so set to 0
+			this->setValue(0);
+		}
+		else {
+			// Otherwise set to the saved scale
+			this->setValue(savedScale);
+		}
+	}
+	void writeCurrentValue() override {
+		int32_t numPresetScales = NUM_PRESET_SCALES;
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
+		    == RuntimeFeatureStateToggle::On) {
+			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
+		}
+		int32_t v = this->getValue();
+		if (v == numPresetScales) {
+			FlashStorage::defaultScale = PRESET_SCALE_RANDOM;
+		}
+		else if (v == numPresetScales + 1) {
+			FlashStorage::defaultScale = PRESET_SCALE_NONE;
+		}
+		else {
+			FlashStorage::defaultScale = this->getValue();
+		}
+	}
 	std::vector<std::string_view> getOptions() override {
-		return {presetScaleNames.begin(), presetScaleNames.begin() + NUM_PRESET_SCALES + 2};
+		int32_t numPresetScales = NUM_PRESET_SCALES;
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
+		    == RuntimeFeatureStateToggle::On) {
+			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
+		}
+		std::vector<std::string_view> scales = {presetScaleNames.begin(), presetScaleNames.begin() + numPresetScales};
+		scales.push_back("RANDOM");
+		scales.push_back("NONE");
+		return scales;
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

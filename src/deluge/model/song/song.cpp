@@ -243,11 +243,14 @@ void Song::setupDefault() {
 
 	// Do scale
 	int32_t whichScale = FlashStorage::defaultScale;
-	if (whichScale == PRESET_SCALE_NONE) {
-		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
+
+	int32_t numPresetScales = getNumPresetScales();
+
+	if (whichScale == PRESET_SCALE_RANDOM) {
+		whichScale = random(numPresetScales - 1);
 	}
-	else if (whichScale == PRESET_SCALE_RANDOM) {
-		whichScale = random(NUM_PRESET_SCALES - 1);
+	else if (whichScale >= numPresetScales) {
+		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
 	}
 	int32_t newNumModeNotes = 1;
 	for (int32_t n = 1; n < 7; n++) {
@@ -485,6 +488,13 @@ traverseClips:
 	return false;
 }
 
+int32_t Song::getNumPresetScales() {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales) == RuntimeFeatureStateToggle::On) {
+		return NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
+	}
+	return NUM_PRESET_SCALES;
+}
+
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 
 	int32_t oldRootNote = rootNote;
@@ -516,7 +526,7 @@ traverseClips:
 	}
 
 	bool previousScaleFits = true;
-	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
+	if (getCurrentPresetScale() >= getNumPresetScales()) {
 		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
 		previousScaleFits = false;
 	}
@@ -2679,8 +2689,79 @@ int32_t Song::cycleThroughScales() {
 	int32_t currentScale = getCurrentPresetScale();
 
 	int32_t newScale = currentScale + 1;
-	if (newScale >= NUM_PRESET_SCALES) {
+	if (newScale >= getNumPresetScales()) {
 		newScale = 0;
+	}
+
+	// When the feature is off, we can transpose the notes to the new scale, rather than just changing the scale
+	// because all the scales are the same length and there is a 1:1 mapping between notes in a scale octave
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales) == RuntimeFeatureStateToggle::Off) {
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+
+		// Firstly, make all current mode notes as high as they can possibly go, so there'll be no crossing over when we go to actually do it, below
+		// For each InstrumentClip in session and arranger
+		ClipArray* clipArray = &sessionClips;
+traverseClips:
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* clip = clipArray->getClipAtIndex(c);
+			if (clip->type != CLIP_TYPE_INSTRUMENT) {
+				continue;
+			}
+			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+			if (instrumentClip->isScaleModeClip()) {
+				for (int32_t n = 6; n >= 1; n--) {
+					int32_t newNote = 5 + n;
+					int32_t oldNote = modeNotes[n];
+					if (oldNote != newNote) {
+						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						    modelStack->addTimelineCounter(clip);
+						instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
+					}
+				}
+			}
+		}
+		if (clipArray != &arrangementOnlyClips) {
+			clipArray = &arrangementOnlyClips;
+			goto traverseClips;
+		}
+
+		for (int32_t n = 1; n < 7; n++) {
+			modeNotes[n] = 5 + n;
+		}
+
+		// And now, set the mode notes to what they're actually supposed to be
+		// For each InstrumentClip in session and arranger
+		clipArray = &sessionClips;
+traverseClips2:
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* clip = clipArray->getClipAtIndex(c);
+			if (clip->type != CLIP_TYPE_INSTRUMENT) {
+				continue;
+			}
+			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+			if (instrumentClip->isScaleModeClip()) {
+				for (int32_t n = 1; n < 7; n++) {
+					int32_t newNote = presetScaleNotes[newScale][n];
+					if (newNote == 0) {
+						continue;
+					}
+					int32_t oldNote = modeNotes[n];
+					if (oldNote != newNote) {
+						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						    modelStack->addTimelineCounter(clip);
+						instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
+					}
+				}
+			}
+		}
+		if (clipArray != &arrangementOnlyClips) {
+			clipArray = &arrangementOnlyClips;
+			goto traverseClips2;
+		}
 	}
 
 	int32_t newNumModeNotes = 1;
@@ -2703,7 +2784,8 @@ int32_t Song::getCurrentPresetScale() {
 		return 255;
 	}
 
-	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
+	int32_t numPresetScales = getNumPresetScales();
+	for (int32_t p = 0; p < numPresetScales; p++) {
 		for (int32_t n = 1; n < 7; n++) {
 			int32_t newNote = presetScaleNotes[p][n];
 			if (newNote == 0) {
