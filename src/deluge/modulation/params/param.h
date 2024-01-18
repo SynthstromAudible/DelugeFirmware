@@ -22,11 +22,20 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace deluge {
-namespace modulation {
-namespace params {
+/// \namespace deluge::modulation::params
+/// "Param"s are at the heart of the Deluge's modulation capabilities.
+///
+/// Each Param is identified by its Kind and its Type.
+/// The Kind identifies how the numeric value of the Type should be interpreted.
+///
+/// Params have 4 separate modes via which they can be combined:
+///   - Linear params have different sources multiplied together, then multiplied by the neutral value.
+///   - Volume params act like linear params in how they are combined, but the sum is squared at the end.
+///   - Hybrid params have different sources added together, then added to the neutral value
+///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
 
-enum Kind : int32_t {
+namespace deluge::modulation::params {
+enum class Kind : int32_t {
 	NONE,
 
 	/// Voice-local parameters which can be modulated via the mod matrix
@@ -51,172 +60,169 @@ enum Kind : int32_t {
 /// to audit for that if you need to change it.
 using ParamType = uint8_t;
 
-/// Parameters in the Deluge can be divided in to classes on several axies:
-///   - The source kind of the parameter. This is encapsulated in the Kind of the param.
-///   - The domain of the param (Local, Global, Shared, Sound, or GlobalEffectable)
-///   -
-/// Linear params have different sources multiplied together, then multiplied by the neutral value
-/// -- and "volume" ones get squared at the end
-/// Hybrid params have different sources added together, then added to the neutral value
-/// Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
-namespace Param {
-
-namespace Local {
-enum : ParamType {
+/// "Local" patched params, which apply to individual voices within the sound
+enum Local : ParamType {
 	// Local linear params begin
-	OSC_A_VOLUME,
-	OSC_B_VOLUME,
-	VOLUME,
-	NOISE_VOLUME,
-	MODULATOR_0_VOLUME,
-	MODULATOR_1_VOLUME,
-	FOLD,
+	LOCAL_OSC_A_VOLUME,
+	LOCAL_OSC_B_VOLUME,
+	LOCAL_VOLUME,
+	LOCAL_NOISE_VOLUME,
+	LOCAL_MODULATOR_0_VOLUME,
+	LOCAL_MODULATOR_1_VOLUME,
+	LOCAL_FOLD,
 
 	// Local non-volume params begin
-	MODULATOR_0_FEEDBACK,
-	MODULATOR_1_FEEDBACK,
-	CARRIER_0_FEEDBACK,
-	CARRIER_1_FEEDBACK,
-	LPF_RESONANCE,
-	HPF_RESONANCE,
-	ENV_0_SUSTAIN,
-	ENV_1_SUSTAIN,
-	LPF_MORPH,
-	HPF_MORPH,
+	FIRST_LOCAL_NON_VOLUME,
+	LOCAL_MODULATOR_0_FEEDBACK = FIRST_LOCAL_NON_VOLUME,
+	LOCAL_MODULATOR_1_FEEDBACK,
+	LOCAL_CARRIER_0_FEEDBACK,
+	LOCAL_CARRIER_1_FEEDBACK,
+	LOCAL_LPF_RESONANCE,
+	LOCAL_HPF_RESONANCE,
+	LOCAL_ENV_0_SUSTAIN,
+	LOCAL_ENV_1_SUSTAIN,
+	LOCAL_LPF_MORPH,
+	LOCAL_HPF_MORPH,
 
 	// Local hybrid params begin
-	OSC_A_PHASE_WIDTH,
-	OSC_B_PHASE_WIDTH,
-	OSC_A_WAVE_INDEX,
-	OSC_B_WAVE_INDEX,
-	PAN,
+	FIRST_LOCAL__HYBRID,
+	LOCAL_OSC_A_PHASE_WIDTH = FIRST_LOCAL__HYBRID,
+	LOCAL_OSC_B_PHASE_WIDTH,
+	LOCAL_OSC_A_WAVE_INDEX,
+	LOCAL_OSC_B_WAVE_INDEX,
+	LOCAL_PAN,
 
 	// Local exp params begin
-	LPF_FREQ,
-	PITCH_ADJUST,
-	OSC_A_PITCH_ADJUST,
-	OSC_B_PITCH_ADJUST,
-	MODULATOR_0_PITCH_ADJUST,
-	MODULATOR_1_PITCH_ADJUST,
-	HPF_FREQ,
-	LFO_LOCAL_FREQ,
-	ENV_0_ATTACK,
-	ENV_1_ATTACK,
-	ENV_0_DECAY,
-	ENV_1_DECAY,
-	ENV_0_RELEASE,
-	ENV_1_RELEASE,
+	FIRST_LOCAL_EXP,
+	LOCAL_LPF_FREQ = FIRST_LOCAL_EXP,
+	LOCAL_PITCH_ADJUST,
+	LOCAL_OSC_A_PITCH_ADJUST,
+	LOCAL_OSC_B_PITCH_ADJUST,
+	LOCAL_MODULATOR_0_PITCH_ADJUST,
+	LOCAL_MODULATOR_1_PITCH_ADJUST,
+	LOCAL_HPF_FREQ,
+	LOCAL_LFO_LOCAL_FREQ,
+	LOCAL_ENV_0_ATTACK,
+	LOCAL_ENV_1_ATTACK,
+	LOCAL_ENV_0_DECAY,
+	LOCAL_ENV_1_DECAY,
+	LOCAL_ENV_0_RELEASE,
+	LOCAL_ENV_1_RELEASE,
 
-	LAST,
+	/// Special value used to chain in to the Global params.
+	LOCAL_LAST,
 };
-constexpr ParamType FIRST_NON_VOLUME = MODULATOR_0_FEEDBACK;
-constexpr ParamType FIRST_HYBRID = OSC_A_PHASE_WIDTH;
-constexpr ParamType FIRST_EXP = LPF_FREQ;
-} // namespace Local
 
-namespace Global {
-enum : ParamType {
+/// "Global" patched params, which apply to the whole sound.
+/// ANY TIME YOU UPDATE THIS LIST, please also update getParamDisplayName and paramNameForFile!
+enum Global : ParamType {
+	FIRST_GLOBAL = LOCAL_LAST,
 	// Global (linear) params begin
-	VOLUME_POST_FX = Local::LAST,
-	VOLUME_POST_REVERB_SEND,
-	REVERB_AMOUNT,
-	MOD_FX_DEPTH,
+	GLOBAL_VOLUME_POST_FX = FIRST_GLOBAL,
+	GLOBAL_VOLUME_POST_REVERB_SEND,
+	GLOBAL_REVERB_AMOUNT,
+	GLOBAL_MOD_FX_DEPTH,
 
 	// Global non-volume params begin
-	DELAY_FEEDBACK,
+	FIRST_GLOBAL_NON_VOLUME,
+	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
 
 	// Global hybrid params begin
+
+	// There are no global hybrid params, so FIRST_GLOBAL_EXP is set to the same value. If you add a GLOBAL_HYBRID
+	// param, make sure you undo that!
+	FIRST_GLOBAL_HYBRID,
+
 	// Global exp params begin
-	DELAY_RATE,
-	MOD_FX_RATE,
-	LFO_FREQ,
-	ARP_RATE,
-	// ANY TIME YOU UPDATE THIS LIST! CHANGE Sound::paramToString()
+	FIRST_GLOBAL_EXP = FIRST_GLOBAL_HYBRID,
+	GLOBAL_DELAY_RATE = FIRST_GLOBAL_EXP,
+	GLOBAL_MOD_FX_RATE,
+	GLOBAL_LFO_FREQ,
+	GLOBAL_ARP_RATE,
 
-	NONE,
-};
-constexpr ParamType FIRST = Global::VOLUME_POST_FX;
-constexpr ParamType FIRST_NON_VOLUME = Global::DELAY_FEEDBACK;
-constexpr ParamType FIRST_HYBRID = Global::DELAY_RATE;
-constexpr ParamType FIRST_EXP = Global::DELAY_RATE;
-} // namespace Global
-
-constexpr ParamType PLACEHOLDER_RANGE = 89; // Not a real param. For the purpose of reading old files from before V3.2.0
-namespace Unpatched {
-constexpr ParamType START = 90;
-static_assert(Global::NONE <= START, "We must have enough headroom for the params to be in order");
-
-enum Shared : ParamType {
-	// For all ModControllables
-	STUTTER_RATE,
-	BASS,
-	TREBLE,
-	BASS_FREQ,
-	TREBLE_FREQ,
-	SAMPLE_RATE_REDUCTION,
-	BITCRUSHING,
-	MOD_FX_OFFSET,
-	MOD_FX_FEEDBACK,
-	COMPRESSOR_SHAPE,
-	// ANY TIME YOU UPDATE THIS LIST! paramToString() in functions.cpp
-	NUM_SHARED,
+	GLOBAL_NONE,
 };
 
-// Just for Sounds
-namespace Sound {
-enum : ParamType {
-	ARP_GATE = Param::Unpatched::NUM_SHARED,
-	PORTAMENTO,
-	// ANY TIME YOU UPDATE THIS LIST! paramToString() in functions.cpp
-	MAX_NUM,
+/// Fake param IDs for use when loading old presets
+enum Placeholder : ParamType {
+	/// Not a real param. For the purpose of reading old files from before V3.2.0
+	PLACEHOLDER_RANGE = 89,
 };
-}
 
-// Just for GlobalEffectables
-namespace GlobalEffectable {
-enum : ParamType {
-	MOD_FX_RATE = Param::Unpatched::NUM_SHARED,
-	MOD_FX_DEPTH,
-	DELAY_RATE,
-	DELAY_AMOUNT,
-	PAN,
-	LPF_FREQ,
-	LPF_RES,
-	HPF_FREQ,
-	HPF_RES,
-	REVERB_SEND_AMOUNT,
-	VOLUME,
-	SIDECHAIN_VOLUME,
-	PITCH_ADJUST,
-	MAX_NUM,
+static_assert(util::to_underlying(PLACEHOLDER_RANGE) > util::to_underlying(GLOBAL_NONE),
+              "RANGE placeholder collides with global params");
+
+/// Offset to use for the start of unpatched params when patched and unpatched params need to be compressed in to a single array.
+constexpr ParamType UNPATCHED_START = 90;
+static_assert(UNPATCHED_START > PLACEHOLDER_RANGE, "UNPATCHED params collide with placeholders");
+
+/// IDs for UNPATCHED_* params, for all ModControllables. This is the prefix of UNPATCHED params shared between Sounds
+/// and GlobalEffectables.
+/// ANY TIME YOU UPDATE THIS LIST! paramNameForFile() in param.cpp
+enum UnpatchedShared : ParamType {
+	UNPATCHED_STUTTER_RATE,
+	UNPATCHED_BASS,
+	UNPATCHED_TREBLE,
+	UNPATCHED_BASS_FREQ,
+	UNPATCHED_TREBLE_FREQ,
+	UNPATCHED_SAMPLE_RATE_REDUCTION,
+	UNPATCHED_BITCRUSHING,
+	UNPATCHED_MOD_FX_OFFSET,
+	UNPATCHED_MOD_FX_FEEDBACK,
+	UNPATCHED_COMPRESSOR_SHAPE,
+	/// Special value for chaining the UNPATCHED_* params
+	UNPATCHED_NUM_SHARED,
 };
-}
-} // namespace Unpatched
 
-namespace Static {
-constexpr ParamType START = 162;
+/// Unpatched params which are only used for Sounds
+enum UnpatchedSound : ParamType {
+	UNPATCHED_ARP_GATE = UNPATCHED_NUM_SHARED,
+	UNPATCHED_PORTAMENTO,
+	UNPATCHED_SOUND_MAX_NUM,
+};
 
-enum : ParamType {
-	COMPRESSOR_ATTACK = START,
-	COMPRESSOR_RELEASE,
+/// Just for GlobalEffectables
+enum UnpatchedGlobal : ParamType {
+	UNPATCHED_MOD_FX_RATE = UNPATCHED_NUM_SHARED,
+	UNPATCHED_MOD_FX_DEPTH,
+	UNPATCHED_DELAY_RATE,
+	UNPATCHED_DELAY_AMOUNT,
+	UNPATCHED_PAN,
+	UNPATCHED_LPF_FREQ,
+	UNPATCHED_LPF_RES,
+	UNPATCHED_HPF_FREQ,
+	UNPATCHED_HPF_RES,
+	UNPATCHED_REVERB_SEND_AMOUNT,
+	UNPATCHED_VOLUME,
+	UNPATCHED_SIDECHAIN_VOLUME,
+	UNPATCHED_PITCH_ADJUST,
+	UNPATCHED_GLOBAL_MAX_NUM,
+};
+
+constexpr ParamType STATIC_START = 162;
+
+enum Static : ParamType {
+	STATIC_COMPRESSOR_ATTACK = STATIC_START,
+	STATIC_COMPRESSOR_RELEASE,
 
 	// Only used for the reverb compressor. Normally this is done with patching
-	COMPRESSOR_VOLUME,
-	PATCH_CABLE = 190, // Special case
+	STATIC_COMPRESSOR_VOLUME,
 };
-} // namespace Static
-static_assert(std::max<ParamType>(Unpatched::GlobalEffectable::MAX_NUM, Unpatched::Sound::MAX_NUM) + Unpatched::START
-                  < Static::START,
-              "Error: Too many Param::Unpatched (collision with Param::Static)");
 
-} // namespace Param
+/// Special case for representing patch cables
+constexpr ParamType PATCH_CABLE = 190;
 
-//None is the last global param, 0 indexed so it's also the number of real params
-constexpr ParamType kNumParams = util::to_underlying(Param::Global::NONE);
-constexpr ParamType kMaxNumUnpatchedParams = Param::Unpatched::GlobalEffectable::MAX_NUM;
-constexpr ParamType kAbsoluteMaximumParam =
-    std::max<ParamType>(Param::Unpatched::GlobalEffectable::MAX_NUM, Param::Unpatched::Sound::MAX_NUM)
-    + Param::Unpatched::START;
+/// None is the last global param, 0 indexed so it's also the number of patched params
+constexpr ParamType kNumParams = GLOBAL_NONE;
+constexpr ParamType kMaxNumUnpatchedParams =
+    std::max<ParamType>(util::to_underlying(UNPATCHED_GLOBAL_MAX_NUM), util::to_underlying(UNPATCHED_SOUND_MAX_NUM));
+
+/// The absolute highest param number used by patched or unpatched params
+///
+/// fileStrongToParam uses this to iterate over all known parameters.
+constexpr ParamType kUnpatchedAndPatchedMaximum = kMaxNumUnpatchedParams + UNPATCHED_START;
+
+static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED parameters, (collision with STATIC)");
 
 bool isParamPan(Kind kind, int32_t paramID);
 bool isParamPitch(Kind kind, int32_t paramID);
@@ -229,14 +235,14 @@ char const* getParamDisplayName(Kind kind, int32_t p);
 /// Convert a ParamType (along with its Kind) in to a string suitable for use as an XML attribute name.
 ///
 /// This handles Param::Local and Param::Unpatched. If an Param::Unpatched is passed for param, it *must* be offset by
-/// Param::Unpatched::START. The Kind is used to distinguish between Param::Unpatched::Sound
-/// (when kind == UNPATCHED_SOUND) and Param::Unpatched::GlobalEffectable (when kind == UNPATCHED_GLOBAL) as these
+/// UNPATCHED_START. The Kind is used to distinguish between UNPATCHED_Sound
+/// (when kind == UNPATCHED_SOUND) and UNPATCHED_GlobalEffectable (when kind == UNPATCHED_GLOBAL) as these
 /// two sub-ranges would otherwise overlap.
 char const* paramNameForFile(Kind kind, ParamType param);
 
 /// Given a string and the expected Kind, attempts to find the ParamType value for that param.
 ///
-/// As with paramNameForFile, the returned ParamType is offset by Param::Unpatched::START for unpatched params.
+/// As with paramNameForFile, the returned ParamType is offset by UNPATCHED_START for unpatched params.
 ParamType fileStringToParam(Kind kind, char const* name);
 
 /// Magic number which represents an invalid or missing param type
@@ -247,30 +253,28 @@ constexpr uint32_t kNoParamID = 0xFFFFFFFF;
 const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, kNoParamID, Param::Local::OSC_A_PHASE_WIDTH,
-     kNoParamID, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
-    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, kNoParamID, Param::Local::OSC_B_PHASE_WIDTH,
-     kNoParamID, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, kNoParamID},
-    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
-     Param::Local::MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
-    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
-     Param::Local::MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
-    {Param::Global::VOLUME_POST_FX, Param::Local::PITCH_ADJUST, kNoParamID, Param::Local::PAN, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Local::FOLD},
-    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
-     Param::Local::LPF_MORPH, kNoParamID, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
-    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
-     Param::Local::HPF_MORPH, kNoParamID, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
-    {kNoParamID, kNoParamID, Param::Global::VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+    {LOCAL_OSC_A_VOLUME, LOCAL_OSC_A_PITCH_ADJUST, kNoParamID, LOCAL_OSC_A_PHASE_WIDTH, kNoParamID,
+     LOCAL_CARRIER_0_FEEDBACK, LOCAL_OSC_A_WAVE_INDEX, LOCAL_NOISE_VOLUME},
+    {LOCAL_OSC_B_VOLUME, LOCAL_OSC_B_PITCH_ADJUST, kNoParamID, LOCAL_OSC_B_PHASE_WIDTH, kNoParamID,
+     LOCAL_CARRIER_1_FEEDBACK, LOCAL_OSC_B_WAVE_INDEX, kNoParamID},
+    {LOCAL_MODULATOR_0_VOLUME, LOCAL_MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     LOCAL_MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
+    {LOCAL_MODULATOR_1_VOLUME, LOCAL_MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     LOCAL_MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
+    {GLOBAL_VOLUME_POST_FX, LOCAL_PITCH_ADJUST, kNoParamID, LOCAL_PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, LOCAL_FOLD},
+    {LOCAL_ENV_0_RELEASE, LOCAL_ENV_0_SUSTAIN, LOCAL_ENV_0_DECAY, LOCAL_ENV_0_ATTACK, LOCAL_LPF_MORPH, kNoParamID,
+     LOCAL_LPF_RESONANCE, LOCAL_LPF_FREQ},
+    {LOCAL_ENV_1_RELEASE, LOCAL_ENV_1_SUSTAIN, LOCAL_ENV_1_DECAY, LOCAL_ENV_1_ATTACK, LOCAL_HPF_MORPH, kNoParamID,
+     LOCAL_HPF_RESONANCE, LOCAL_HPF_FREQ},
+    {kNoParamID, kNoParamID, GLOBAL_VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
      kNoParamID},
-    {Param::Global::ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Global::LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Global::MOD_FX_DEPTH,
-     Param::Global::MOD_FX_RATE},
-    {Param::Local::LFO_LOCAL_FREQ, kNoParamID, kNoParamID, Param::Global::REVERB_AMOUNT, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {Param::Global::DELAY_RATE, kNoParamID, kNoParamID, Param::Global::DELAY_FEEDBACK, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
+    {GLOBAL_ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {GLOBAL_LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, GLOBAL_MOD_FX_DEPTH,
+     GLOBAL_MOD_FX_RATE},
+    {LOCAL_LFO_LOCAL_FREQ, kNoParamID, kNoParamID, GLOBAL_REVERB_AMOUNT, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {GLOBAL_DELAY_RATE, kNoParamID, kNoParamID, GLOBAL_DELAY_FEEDBACK, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
 /// Grid sized array (unpatched, non-global) to assign automatable parameters to the grid
@@ -281,20 +285,18 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::STUTTER_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
-     Param::Unpatched::BITCRUSHING, kNoParamID},
-    {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_STUTTER_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING,
      kNoParamID},
+    {UNPATCHED_PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::COMPRESSOR_SHAPE, kNoParamID,
-     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
-    {kNoParamID, kNoParamID, Param::Unpatched::Sound::ARP_GATE, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
-     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_COMPRESSOR_SHAPE, kNoParamID, UNPATCHED_BASS,
+     UNPATCHED_BASS_FREQ},
+    {kNoParamID, kNoParamID, UNPATCHED_ARP_GATE, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_TREBLE,
+     UNPATCHED_TREBLE_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_MOD_FX_OFFSET, UNPATCHED_MOD_FX_FEEDBACK, kNoParamID,
+     kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
@@ -308,24 +310,18 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Unpatched::GlobalEffectable::VOLUME, Param::Unpatched::GlobalEffectable::PITCH_ADJUST, kNoParamID,
-     Param::Unpatched::GlobalEffectable::PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {UNPATCHED_VOLUME, UNPATCHED_PITCH_ADJUST, kNoParamID, UNPATCHED_PAN, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
-    {kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_LPF_RES, UNPATCHED_LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_HPF_RES, UNPATCHED_HPF_FREQ},
+    {kNoParamID, kNoParamID, UNPATCHED_SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_MOD_FX_DEPTH,
+     UNPATCHED_MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {UNPATCHED_DELAY_RATE, kNoParamID, kNoParamID, UNPATCHED_DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-} // namespace params
-} // namespace modulation
-} // namespace deluge
+} // namespace deluge::modulation::params

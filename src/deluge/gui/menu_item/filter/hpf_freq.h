@@ -29,7 +29,7 @@ public:
 	void drawValue() override {
 		if (this->getValue() == kMinMenuValue
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        deluge::modulation::params::Param::Local::HPF_FREQ)) {
+		        deluge::modulation::params::LOCAL_HPF_FREQ)) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {

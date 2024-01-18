@@ -55,7 +55,6 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 #pragma GCC diagnostic push
@@ -71,10 +70,10 @@ PLACE_INTERNAL_FRUNK int32_t oscSyncRenderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES + 
 const PatchableInfo patchableInfoForVoice = {offsetof(Voice, paramFinalValues) - offsetof(Voice, patcher),
                                              offsetof(Voice, sourceValues) - offsetof(Voice, patcher),
                                              0,
-                                             Param::Local::FIRST_NON_VOLUME,
-                                             Param::Local::FIRST_HYBRID,
-                                             Param::Local::FIRST_EXP,
-                                             Param::Global::FIRST,
+                                             params::FIRST_LOCAL_NON_VOLUME,
+                                             params::FIRST_LOCAL__HYBRID,
+                                             params::FIRST_LOCAL_EXP,
+                                             params::FIRST_GLOBAL,
                                              GLOBALITY_LOCAL};
 
 int32_t Voice::combineExpressionValues(Sound* sound, int32_t whichExpressionDimension) {
@@ -143,7 +142,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 
 		// If no attack-stage...
-		if (paramManager->getPatchedParamSet()->getValue(Param::Local::ENV_0_ATTACK + e) == -2147483648u) {
+		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
 			envelopes[e].lastValue = 2147483647;
 		}
 
@@ -183,7 +182,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 	// Porta
 	if (sound->polyphonic != PolyphonyMode::LEGATO
-	    && paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::Sound::PORTAMENTO) != -2147483648
+	    && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
 	    && sound->lastNoteCode != -2147483648) {
 		setupPorta(sound);
 	}
@@ -208,7 +207,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 	if (resetEnvelopes) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sourceWaveIndexesLastTime[s] = paramFinalValues[Param::Local::OSC_A_WAVE_INDEX + s];
+			sourceWaveIndexesLastTime[s] = paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s];
 		}
 	}
 
@@ -363,7 +362,7 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeB
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
 
-	if (paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::Sound::PORTAMENTO) != -2147483648) {
+	if (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648) {
 		setupPorta(sound);
 	}
 
@@ -519,7 +518,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound->getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound->getSmoothedPatchedParamValue(Param::Local::MODULATOR_0_VOLUME + m, paramManager)
+			if (sound->getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager)
 			    == -2147483648) {
 				continue; // Only if modulator active
 			}
@@ -583,7 +582,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 			envelopes[0].noteOff(0, sound, paramManager);
 
 			// Only start releasing envelope 2 if release wasn't at max value
-			if (sound->paramFinalValues[Param::Local::ENV_1_RELEASE] >= 9) {
+			if (sound->paramFinalValues[params::LOCAL_ENV_1_RELEASE] >= 9) {
 				envelopes[1].noteOff(1, sound, paramManager);
 			}
 		}
@@ -653,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 	// If none of this source still active, and no noise, see if the other source still has any...
 	if (!anyStillActive
-	    && !paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		s = 1 - s;
 
@@ -698,14 +697,14 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 		    || (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 		        & (1 << (util::to_underlying(PatchSource::ENVELOPE_0) + e)))) {
 			int32_t old = sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e];
-			int32_t release = paramFinalValues[Param::Local::ENV_0_RELEASE + e];
+			int32_t release = paramFinalValues[params::LOCAL_ENV_0_RELEASE + e];
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
 				release = overrideAmplitudeEnvelopeReleaseRate;
 			}
 			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
-			    envelopes[e].render(numSamples, paramFinalValues[Param::Local::ENV_0_ATTACK + e],
-			                        paramFinalValues[Param::Local::ENV_0_DECAY + e],
-			                        paramFinalValues[Param::Local::ENV_0_SUSTAIN + e], release, decayTableSmall8);
+			    envelopes[e].render(numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
+			                        paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
+			                        paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release, decayTableSmall8);
 			uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
@@ -720,7 +719,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[Param::Local::LFO_LOCAL_FREQ]);
+		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}
@@ -763,7 +762,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	}
 
 	// Sort out pitch
-	int32_t overallPitchAdjust = paramFinalValues[Param::Local::PITCH_ADJUST];
+	int32_t overallPitchAdjust = paramFinalValues[params::LOCAL_PITCH_ADJUST];
 
 	// Pitch adjust from "external" - e.g. the Kit
 	if (externalPitchAdjust != 16777216) {
@@ -800,10 +799,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 		overallPitchAdjust = a << 8;
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
-		int32_t envelopeSpeed =
-		    lookupReleaseRate(cableToExpParamShortcut(
-		        paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::Sound::PORTAMENTO)))
-		    >> 13;
+		int32_t envelopeSpeed = lookupReleaseRate(cableToExpParamShortcut(
+		                            paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO)))
+		                        >> 13;
 		portaEnvelopePos += envelopeSpeed * numSamples;
 	}
 
@@ -812,7 +810,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 
 	// If not already releasing and some release is set, and no noise-source...
 	if (sound->getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
-	    && !paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
 		uint32_t whichSourcesNeedAttention = 0;
 
@@ -842,7 +840,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 		if (whichSourcesNeedAttention) {
 
 			int32_t releaseStageLengthSamples =
-			    (uint32_t)8388608 / (uint32_t)paramFinalValues[Param::Local::ENV_0_RELEASE];
+			    (uint32_t)8388608 / (uint32_t)paramFinalValues[params::LOCAL_ENV_0_RELEASE];
 
 			int32_t highestNumSamplesLeft = 0;
 
@@ -878,7 +876,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					if (!adjustPitch(&actualSampleReadRate, overallPitchAdjust)) {
 						continue;
 					}
-					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[Param::Local::OSC_A_PITCH_ADJUST + s])) {
+					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 						continue;
 					}
 					// TODO: actualSampleReadRate should probably be affected by time stretching, too. BUT that'd stuff up some existing users' songs -
@@ -917,16 +915,16 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	}
 skipAutoRelease : {}
 
-	if (!doneFirstRender && paramFinalValues[Param::Local::ENV_0_ATTACK] > 245632) {
+	if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
-			modulatorAmplitudeLastTime[m] = paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m];
+			modulatorAmplitudeLastTime[m] = paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
 		}
 	}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is unaffected.
 	// Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high velocity patching with big LFO
 	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
-	    multiply_32x32_rshift32(paramFinalValues[Param::Local::VOLUME],
+	    multiply_32x32_rshift32(paramFinalValues[params::LOCAL_VOLUME],
 	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
 
 	// This is the gain which gets applied to compensate for any change in gain that the filter is going to cause
@@ -935,10 +933,10 @@ skipAutoRelease : {}
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
 	filterGain = filterSet.setConfig(
-	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF, sound->lpfMode,
-	    paramFinalValues[Param::Local::LPF_MORPH], paramFinalValues[Param::Local::HPF_FREQ],
-	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-	    doHPF, sound->hpfMode, paramFinalValues[Param::Local::HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
+	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], doLPF, sound->lpfMode,
+	    paramFinalValues[params::LOCAL_LPF_MORPH], paramFinalValues[params::LOCAL_HPF_FREQ],
+	    (paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
+	    doHPF, sound->hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
 	    sound->filterRoute); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
@@ -954,8 +952,8 @@ skipAutoRelease : {}
 	// If not ringmod, then sources need their volume calculated
 	if (synthMode != SynthMode::RINGMOD) {
 
-		// Param::Local::OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to full-range
-		// overallOscAmplitude (same range as) Param::Local::VOLUME, is the same.
+		// params::LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to full-range
+		// overallOscAmplitude (same range as) params::LOCAL_VOLUME, is the same.
 
 		// Let's impose a new limit, that only a total of 4x amplification via patching is possible (not 16x).
 		// Chances are, the user won't even need that much, let alone would have the osc volume *and* the synth master volume on full
@@ -968,8 +966,8 @@ skipAutoRelease : {}
 			overallOscAmplitude =
 			    multiply_32x32_rshift32_rounded(overallOscAmplitude, sound->volumeNeutralValueForUnison) << 3;
 
-			int32_t a = multiply_32x32_rshift32(paramFinalValues[Param::Local::OSC_A_VOLUME], overallOscAmplitude);
-			int32_t b = multiply_32x32_rshift32(paramFinalValues[Param::Local::OSC_B_VOLUME], overallOscAmplitude);
+			int32_t a = multiply_32x32_rshift32(paramFinalValues[params::LOCAL_OSC_A_VOLUME], overallOscAmplitude);
+			int32_t b = multiply_32x32_rshift32(paramFinalValues[params::LOCAL_OSC_B_VOLUME], overallOscAmplitude);
 
 			// Clip off those amplitudes before they get too high. I think these were originally intended to stop the amplitude rising to more than "4", whatever that meant?
 			sourceAmplitudes[0] = std::min(a, (int32_t)134217727);
@@ -980,18 +978,18 @@ skipAutoRelease : {}
 		else {
 			if (sound->hasFilters()) {
 				sourceAmplitudes[0] =
-				    multiply_32x32_rshift32_rounded(paramFinalValues[Param::Local::OSC_A_VOLUME], filterGain);
+				    multiply_32x32_rshift32_rounded(paramFinalValues[params::LOCAL_OSC_A_VOLUME], filterGain);
 				sourceAmplitudes[1] =
-				    multiply_32x32_rshift32_rounded(paramFinalValues[Param::Local::OSC_B_VOLUME], filterGain);
+				    multiply_32x32_rshift32_rounded(paramFinalValues[params::LOCAL_OSC_B_VOLUME], filterGain);
 			}
 			else {
-				sourceAmplitudes[0] = paramFinalValues[Param::Local::OSC_A_VOLUME] >> 4;
-				sourceAmplitudes[1] = paramFinalValues[Param::Local::OSC_B_VOLUME] >> 4;
+				sourceAmplitudes[0] = paramFinalValues[params::LOCAL_OSC_A_VOLUME] >> 4;
+				sourceAmplitudes[1] = paramFinalValues[params::LOCAL_OSC_B_VOLUME] >> 4;
 			}
 		}
 
 		bool shouldAvoidIncrementing = doneFirstRender ? (filterGainLastTime != filterGain)
-		                                               : (paramFinalValues[Param::Local::ENV_0_ATTACK] > 245632);
+		                                               : (paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632);
 
 		if (shouldAvoidIncrementing) {
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -1009,10 +1007,10 @@ skipAutoRelease : {}
 		if (synthMode == SynthMode::FM) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
 				modulatorsActive[m] =
-				    (paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
+				    (paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
 
 				if (modulatorsActive[m]) {
-					modulatorAmplitudeIncrements[m] = (int32_t)(paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m]
+					modulatorAmplitudeIncrements[m] = (int32_t)(paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
 					                                            - modulatorAmplitudeLastTime[m])
 					                                  / numSamples;
 				}
@@ -1023,14 +1021,14 @@ skipAutoRelease : {}
 	int32_t sourceWaveIndexIncrements[kNumSources];
 
 	if (synthMode != SynthMode::FM) {
-		if (!doneFirstRender && paramFinalValues[Param::Local::ENV_0_ATTACK] > 245632) {
+		if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 			overallOscAmplitudeLastTime = overallOscAmplitude;
 		}
 		overallOscillatorAmplitudeIncrement = (int32_t)(overallOscAmplitude - overallOscAmplitudeLastTime) / numSamples;
 
 		for (int32_t s = 0; s < kNumSources; s++) {
 			sourceWaveIndexIncrements[s] =
-			    (int32_t)(paramFinalValues[Param::Local::OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s])
+			    (int32_t)(paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s])
 			    / numSamples;
 		}
 	}
@@ -1061,10 +1059,10 @@ skipAutoRelease : {}
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
 	    || filterSet.isHPFOn() || filterSet.isLPFOn()
-	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
+	    || (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
-	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)
-	    || (paramFinalValues[Param::Local::FOLD] != NEGATIVE_ONE_Q31)) {
+	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN)
+	    || (paramFinalValues[params::LOCAL_FOLD] != NEGATIVE_ONE_Q31)) {
 		renderingDirectlyIntoSoundBuffer = false;
 	}
 
@@ -1134,12 +1132,12 @@ decidedWhichBufferRenderingInto:
 		int32_t const* const oscBufferEnd = oscBuffer + numSamples;
 
 		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each unison. Increasing number of unison cuts the volume of the oscillators
-		if (paramFinalValues[Param::Local::NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) {
+		if (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) {
 
 			// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
 			// I'm now making this louder to compensate and remain consistent by going just >>1.
 			// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I ever do this? Who knows...)
-			int32_t n = paramFinalValues[Param::Local::NOISE_VOLUME] >> 1;
+			int32_t n = paramFinalValues[params::LOCAL_NOISE_VOLUME] >> 1;
 			if (sound->hasFilters()) {
 				n = multiply_32x32_rshift32(n, filterGain) << 4;
 			}
@@ -1169,7 +1167,7 @@ decidedWhichBufferRenderingInto:
 		else {
 			// Set up panning
 			doPanning = (AudioEngine::renderInStereo
-			             && shouldDoPanning(paramFinalValues[Param::Local::PAN], &amplitudeL, &amplitudeR));
+			             && shouldDoPanning(paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
 		}
 	}
 
@@ -1306,7 +1304,7 @@ decidedWhichBufferRenderingInto:
 
 			// If individual source pitch adjusted...
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!adjustPitch(&phaseIncrements[s], paramFinalValues[Param::Local::OSC_A_PITCH_ADJUST + s])) {
+				if (!adjustPitch(&phaseIncrements[s], paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 					if (synthMode == SynthMode::RINGMOD) {
 						goto skipUnisonPart;
 					}
@@ -1335,7 +1333,7 @@ decidedWhichBufferRenderingInto:
 cantBeDoingOscSyncForFirstOsc:
 					// Work out pulse width, from parameter. This has no effect if we're not actually using square waves, but just do it anyway, it's a simple calculation
 					int32_t pulseWidth =
-					    (uint32_t)lshiftAndSaturate<1>(paramFinalValues[Param::Local::OSC_A_PHASE_WIDTH + s]);
+					    (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 					OscType oscType = sound->sources[s].oscType;
 
@@ -1405,7 +1403,7 @@ cantBeDoingOscSyncForFirstOsc:
 				for (int32_t m = 0; m < kNumModulators; m++) {
 					if (modulatorsActive[m]) {
 						if (!adjustPitch(&phaseIncrementModulator[m],
-						                 paramFinalValues[Param::Local::MODULATOR_0_PITCH_ADJUST + m])) {
+						                 paramFinalValues[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m])) {
 							modulatorsActive[m] = false;
 						}
 					}
@@ -1429,7 +1427,7 @@ cantBeDoingOscSyncForFirstOsc:
 					// Render mod1
 					renderSineWaveWithFeedback(spareRenderingBuffer[2], numSamples, &unisonParts[u].modulatorPhase[1],
 					                           modulatorAmplitudeLastTime[1], phaseIncrementModulator[1],
-					                           paramFinalValues[Param::Local::MODULATOR_1_FEEDBACK],
+					                           paramFinalValues[params::LOCAL_MODULATOR_1_FEEDBACK],
 					                           &unisonParts[u].modulatorFeedback[1], false,
 					                           modulatorAmplitudeIncrements[1]);
 
@@ -1439,7 +1437,7 @@ cantBeDoingOscSyncForFirstOsc:
 						renderFMWithFeedback(spareRenderingBuffer[2], numSamples, NULL,
 						                     &unisonParts[u].modulatorPhase[0], modulatorAmplitudeLastTime[0],
 						                     phaseIncrementModulator[0],
-						                     paramFinalValues[Param::Local::MODULATOR_0_FEEDBACK],
+						                     paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK],
 						                     &unisonParts[u].modulatorFeedback[0], modulatorAmplitudeIncrements[0]);
 					}
 
@@ -1448,7 +1446,7 @@ cantBeDoingOscSyncForFirstOsc:
 						renderSineWaveWithFeedback(
 						    spareRenderingBuffer[2], numSamples, &unisonParts[u].modulatorPhase[0],
 						    modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
-						    paramFinalValues[Param::Local::MODULATOR_0_FEEDBACK], &unisonParts[u].modulatorFeedback[0],
+						    paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK], &unisonParts[u].modulatorFeedback[0],
 						    true, modulatorAmplitudeIncrements[0]);
 					}
 				}
@@ -1457,7 +1455,7 @@ cantBeDoingOscSyncForFirstOsc:
 						renderSineWaveWithFeedback(
 						    spareRenderingBuffer[2], numSamples, &unisonParts[u].modulatorPhase[0],
 						    modulatorAmplitudeLastTime[0], phaseIncrementModulator[0],
-						    paramFinalValues[Param::Local::MODULATOR_0_FEEDBACK], &unisonParts[u].modulatorFeedback[0],
+						    paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK], &unisonParts[u].modulatorFeedback[0],
 						    false, modulatorAmplitudeIncrements[0]);
 					}
 					else {
@@ -1466,7 +1464,7 @@ noModulatorsActive:
 							if (sourceAmplitudes[s]) {
 								renderSineWaveWithFeedback(
 								    fmOscBuffer, numSamples, &unisonParts[u].sources[s].oscPos, sourceAmplitudesNow[s],
-								    phaseIncrements[s], paramFinalValues[Param::Local::CARRIER_0_FEEDBACK + s],
+								    phaseIncrements[s], paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s],
 								    &unisonParts[u].sources[s].carrierFeedback, true, sourceAmplitudeIncrements[s]);
 							}
 						}
@@ -1481,7 +1479,7 @@ noModulatorsActive:
 						renderFMWithFeedbackAdd(
 						    fmOscBuffer, numSamples, spareRenderingBuffer[2], &unisonParts[u].sources[s].oscPos,
 						    sourceAmplitudesNow[s], phaseIncrements[s],
-						    paramFinalValues[Param::Local::CARRIER_0_FEEDBACK + s],
+						    paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s],
 						    &unisonParts[u].sources[s].carrierFeedback, sourceAmplitudeIncrements[s]);
 					}
 				}
@@ -1504,8 +1502,8 @@ skipUnisonPart : {}
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 			//fold
-			if (paramFinalValues[Param::Local::FOLD] > 0) {
-				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[Param::Local::FOLD]);
+			if (paramFinalValues[params::LOCAL_FOLD] > 0) {
+				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 			}
 			// Filters
 			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
@@ -1585,8 +1583,8 @@ skipUnisonPart : {}
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
 			//wavefolding pre filter
-			if (paramFinalValues[Param::Local::FOLD] > 0) {
-				q31_t foldAmount = paramFinalValues[Param::Local::FOLD];
+			if (paramFinalValues[params::LOCAL_FOLD] > 0) {
+				q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
 				dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 			}
@@ -1661,10 +1659,10 @@ renderingDone:
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sourceAmplitudesLastTime[s] = sourceAmplitudes[s];
-		sourceWaveIndexesLastTime[s] = paramFinalValues[Param::Local::OSC_A_WAVE_INDEX + s];
+		sourceWaveIndexesLastTime[s] = paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s];
 	}
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		modulatorAmplitudeLastTime[m] = paramFinalValues[Param::Local::MODULATOR_0_VOLUME + m];
+		modulatorAmplitudeLastTime[m] = paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m];
 	}
 	overallOscAmplitudeLastTime = overallOscAmplitude;
 
@@ -1673,7 +1671,7 @@ renderingDone:
 
 bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
 	// If no noise-source, then it might be time to unassign the voice...
-	if (!modelStack->paramManager->getPatchedParamSet()->params[Param::Local::NOISE_VOLUME].containsSomething(
+	if (!modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
 
 		// See if all unison parts are now inactive
@@ -2042,7 +2040,7 @@ pitchTooHigh:
 		}
 
 		// Individual source pitch adjustment
-		if (!adjustPitch(&phaseIncrement, paramFinalValues[Param::Local::OSC_A_PITCH_ADJUST + s])) {
+		if (!adjustPitch(&phaseIncrement, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 			goto pitchTooHigh;
 		}
 
@@ -2188,9 +2186,9 @@ pitchTooHigh:
 						PatchCable* cable = &paramManager->getPatchCableSet()->patchCables[c];
 
 						// If it's going to pitch...
-						if (cable->destinationParamDescriptor.isSetToParamWithNoSource(Param::Local::PITCH_ADJUST)
+						if (cable->destinationParamDescriptor.isSetToParamWithNoSource(params::LOCAL_PITCH_ADJUST)
 						    || cable->destinationParamDescriptor.isSetToParamWithNoSource(
-						        Param::Local::OSC_A_PITCH_ADJUST + s)) {
+						        params::LOCAL_OSC_A_PITCH_ADJUST + s)) {
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
@@ -2431,7 +2429,7 @@ dontUseCache : {}
 			    renderBuffer + numSamples; // TODO: we don't really want to be calculating this so early do we?
 
 			// Work out pulse width
-			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[Param::Local::OSC_A_PHASE_WIDTH + s]);
+			uint32_t pulseWidth = (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
 			renderOsc(s, sound->sources[s].oscType, sourceAmplitude, renderBuffer, oscBufferEnd, numSamples,
 			          phaseIncrement, pulseWidth, &unisonParts[u].sources[s].oscPos, true, amplitudeIncrement,
@@ -3212,7 +3210,7 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 }
 
 bool Voice::hasReleaseStage() {
-	return (paramFinalValues[Param::Local::ENV_0_RELEASE] <= 18359);
+	return (paramFinalValues[params::LOCAL_ENV_0_RELEASE] <= 18359);
 }
 
 static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");

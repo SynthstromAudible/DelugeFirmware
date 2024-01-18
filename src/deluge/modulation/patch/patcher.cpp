@@ -24,7 +24,6 @@
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 extern "C" {
@@ -105,8 +104,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	uint8_t params[std::max<int32_t>(Param::Global::FIRST, params::kNumParams - Param::Global::FIRST) + 1];
-	int32_t cableCombinations[std::max<int32_t>(Param::Global::FIRST, params::kNumParams - Param::Global::FIRST)];
+	uint8_t params[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL) + 1];
+	int32_t cableCombinations[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL)];
 	int32_t numParamsPatched = 0;
 
 	// Go through regular Destinations going directly to a param
@@ -291,7 +290,7 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_
 		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the opposite end to be reached even if the user's
 		// preset value is all the way to one end.
 		// These params are "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I can't break users' songs.
-		if (p == Param::Local::OSC_A_WAVE_INDEX || p == Param::Local::OSC_B_WAVE_INDEX) {
+		if (p == params::LOCAL_OSC_A_WAVE_INDEX || p == params::LOCAL_OSC_B_WAVE_INDEX) {
 			runningTotalCombination <<= 1;
 		}
 	}
