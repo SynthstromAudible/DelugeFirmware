@@ -2731,7 +2731,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne: {}
+notThisOne : {}
 	}
 
 	return 255;
@@ -4366,12 +4366,12 @@ void Song::setParamsInAutomationMode(bool newState) {
 }
 
 // returns true if the whole instrument should be replaced, and not just the instrument for the given clip
-// returns false iff in clip view for a clip that does not have an instance in arranger
+// returns false iff in clip view for a clip that does not have an instance in arranger. Or if called with no clip which could happen from the arranger audition pad
 // availability will be unused in session or arranger view, available in session for active clips in clip view, and any for inactive clips
 bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
 	// If in session view, change the whole instrument
-	if (clip->output->clipHasInstance(clip) || getRootUI() != &instrumentClipView) {
+	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
@@ -4622,7 +4622,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return NULL;
 		}
 
-gotAnInstrument: {}
+gotAnInstrument : {}
 	}
 
 	// Synth or Kit
