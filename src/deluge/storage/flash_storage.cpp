@@ -80,7 +80,7 @@ namespace FlashStorage {
 56: default swing max
 57: default key min
 58: default key max
-59: default scale
+59: default scale (deprecated)
 60: shortcuts version
 61: audioClipRecordMargins
 62: count-in for recording
@@ -133,6 +133,7 @@ namespace FlashStorage {
 142-145: midiFollow set follow device param		product / vendor ids
 146: gridEmptyPadsCreateRec
 147: midi select kit row on learned note message received
+148: default scale (NEW)
 */
 
 uint8_t defaultScale;
@@ -368,7 +369,7 @@ void readSettings() {
 		defaultKeyMenu.lower = buffer[57];
 		defaultKeyMenu.upper = buffer[58];
 
-		defaultScale = buffer[59];
+		defaultScale = buffer[148];
 	}
 
 	soundEditor.setShortcutsVersion((previouslySavedByFirmwareVersion < FIRMWARE_2P1P3_BETA) ? SHORTCUTS_VERSION_1
@@ -625,7 +626,7 @@ void writeSettings() {
 	buffer[57] = defaultKeyMenu.lower;
 	buffer[58] = defaultKeyMenu.upper;
 
-	buffer[59] = defaultScale;
+	buffer[148] = defaultScale;
 	buffer[60] = soundEditor.shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
