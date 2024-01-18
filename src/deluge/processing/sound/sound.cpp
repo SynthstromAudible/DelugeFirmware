@@ -1973,7 +1973,7 @@ void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStack
 	}
 
 	// If doing param LPF
-	if (paramNeedsLPF(p, fromAutomation)) {
+	if (params::paramNeedsLPF(p, fromAutomation)) {
 
 		// If the param LPF was already busy...
 		if (paramLPF.p != PARAM_LPF_OFF) {
