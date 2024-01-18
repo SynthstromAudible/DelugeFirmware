@@ -1417,6 +1417,7 @@ notFound:	if (offset < 0) {
 		}
 	}
 */
+	int32_t wrapped = 0;
 	if (false) {
 moveAgain:
 		// Move along list
@@ -1429,6 +1430,7 @@ moveAgain:
 			goto readAgain;
 		}
 		else { // Wrap to end
+			wrapped += 1;
 			if (numFileItemsDeletedAtEnd) {
 searchFromOneEnd:
 				oldNameString.clear();
@@ -1447,6 +1449,7 @@ searchFromOneEnd:
 			goto readAgain;
 		}
 		else { // Wrap to start
+			wrapped += 1;
 			if (numFileItemsDeletedAtStart) {
 				goto searchFromOneEnd;
 			}
@@ -1460,7 +1463,8 @@ doneMoving:
 	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
-	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong) {
+	//wrapped is here to prevent an infinite loop
+	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2) {
 		goto moveAgain;
 	}
 
@@ -1500,7 +1504,7 @@ doPendingPresetNavigation:
 	}
 
 	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified that we were looking for "unused" ones only
-
+	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
 		toReturn.error =
 		    storageManager.loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
