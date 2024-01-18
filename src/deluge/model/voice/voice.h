@@ -43,8 +43,10 @@ public:
 
 	Sound* assignedToSound;
 
-	int32_t paramFinalValues[deluge::modulation::params::Param::Global::
-	                             FIRST]; // This is just for the *local* params, specific to this Voice only
+	///
+	/// This is just for the *local* params, specific to this Voice only
+	///
+	int32_t paramFinalValues[deluge::modulation::params::LOCAL_LAST];
 
 	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];

@@ -54,15 +54,15 @@ PatchSource Regular::getS() {
 
 MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 
-	if (soundEditor.patchingParamSelected == deluge::modulation::params::Param::Global::VOLUME_POST_FX) {
+	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
 		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
 		                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
 		    == PatchCableAcceptance::DISALLOWED) {
-			soundEditor.patchingParamSelected = deluge::modulation::params::Param::Global::VOLUME_POST_REVERB_SEND;
+			soundEditor.patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND;
 			if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
 			                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
 			    == PatchCableAcceptance::DISALLOWED) {
-				soundEditor.patchingParamSelected = deluge::modulation::params::Param::Local::VOLUME;
+				soundEditor.patchingParamSelected = deluge::modulation::params::LOCAL_VOLUME;
 			}
 		}
 	}

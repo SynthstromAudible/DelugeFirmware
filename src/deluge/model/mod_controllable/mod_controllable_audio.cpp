@@ -46,7 +46,6 @@
 #include "util/misc.h"
 #include <string.h>
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
@@ -123,30 +122,30 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->params[Param::Unpatched::BASS].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[Param::Unpatched::TREBLE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[Param::Unpatched::BASS_FREQ].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[Param::Unpatched::TREBLE_FREQ].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[Param::Unpatched::MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[Param::Unpatched::SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[Param::Unpatched::BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[Param::Unpatched::COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(-601295438);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(Param::Unpatched::BASS) != 0);
+	return (unpatchedParams->getValue(params::UNPATCHED_BASS) != 0);
 }
 
 bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(Param::Unpatched::TREBLE) != 0);
+	return (unpatchedParams->getValue(params::UNPATCHED_TREBLE) != 0);
 }
 
 void ModControllableAudio::setWrapsToShutdown() {
@@ -184,7 +183,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER) {
 
-			int32_t a = unpatchedParams->getValue(Param::Unpatched::MOD_FX_FEEDBACK) >> 1;
+			int32_t a = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
 			int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
 			int32_t c = multiply_32x32_rshift32(b, b);
 			int32_t d = multiply_32x32_rshift32(b, c);
@@ -215,7 +214,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		}
 		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
 			modFXDelayOffset = multiply_32x32_rshift32(
-			    kModFXMaxDelay, (unpatchedParams->getValue(Param::Unpatched::MOD_FX_OFFSET) >> 1) + 1073741824);
+			    kModFXMaxDelay, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
 			thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
 			modFXLFOWaveType = LFOType::SINE;
 			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
@@ -229,7 +228,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			// Shift
 			grainShift = 44 * 300; //(kSampleRate / 1000) * 300;
 			// Size
-			grainSize = 44 * ((((unpatchedParams->getValue(Param::Unpatched::MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
+			grainSize = 44 * ((((unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
 			grainSize = std::clamp<int32_t>(grainSize, 440, 35280); //10ms - 800ms
 			// Rate
 			int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
@@ -238,7 +237,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			grainRate = (kSampleRate << 1) / grainRate;
 			// Preset 0=default
 			grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
-			    unpatchedParams->getValue(Param::Unpatched::MOD_FX_FEEDBACK), 5)); //Select 5 presets -2 to 2
+			    unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), 5)); //Select 5 presets -2 to 2
 			grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
 			// Temposync
 			if (grainPitchType == 2) {
@@ -507,21 +506,21 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	bool thisDoTreble = hasTrebleAdjusted(paramManager);
 
 	// Bass. No-change represented by 0. Off completely represented by -536870912
-	int32_t positive = (unpatchedParams->getValue(Param::Unpatched::BASS) >> 1) + 1073741824;
+	int32_t positive = (unpatchedParams->getValue(params::UNPATCHED_BASS) >> 1) + 1073741824;
 	int32_t bassAmount = (multiply_32x32_rshift32_rounded(positive, positive) << 1) - 536870912;
 
 	// Treble. No-change represented by 536870912
-	positive = (unpatchedParams->getValue(Param::Unpatched::TREBLE) >> 1) + 1073741824;
+	positive = (unpatchedParams->getValue(params::UNPATCHED_TREBLE) >> 1) + 1073741824;
 	int32_t trebleAmount = multiply_32x32_rshift32_rounded(positive, positive) << 1;
 
 	if (thisDoBass || thisDoTreble) {
 
 		if (thisDoBass) {
-			bassFreq = getExp(120000000, (unpatchedParams->getValue(Param::Unpatched::BASS_FREQ) >> 5) * 6);
+			bassFreq = getExp(120000000, (unpatchedParams->getValue(params::UNPATCHED_BASS_FREQ) >> 5) * 6);
 		}
 
 		if (thisDoTreble) {
-			trebleFreq = getExp(700000000, (unpatchedParams->getValue(Param::Unpatched::TREBLE_FREQ) >> 5) * 6);
+			trebleFreq = getExp(700000000, (unpatchedParams->getValue(params::UNPATCHED_TREBLE_FREQ) >> 5) * 6);
 		}
 
 		StereoSample* currentSample = buffer;
@@ -944,12 +943,12 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(Param::Unpatched::BITCRUSHING) >= -2113929216);
+	return (unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING) >= -2113929216);
 }
 
 bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(Param::Unpatched::SAMPLE_RATE_REDUCTION) != -2147483648);
+	return (unpatchedParams->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) != -2147483648);
 }
 
 void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
@@ -963,7 +962,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 	// Bitcrushing ------------------------------------------------------------------------------
 	if (isBitcrushingEnabled(paramManager)) {
 		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::BITCRUSHING) + 2147483648) >> 29;
+		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
 		if (positivePreset > 4) {
 			*postFXVolume >>= (positivePreset - 4);
 		}
@@ -997,7 +996,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff started clipping off where I needed it if sample rate too low
 
 		uint32_t positivePreset =
-		    paramManager->getUnpatchedParamSet()->getValue(Param::Unpatched::SAMPLE_RATE_REDUCTION) + 2147483648;
+		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
 		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		//int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
@@ -1165,7 +1164,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+	int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
@@ -1176,7 +1175,7 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
 
 	int32_t rate =
-	    getFinalParameterValueExp(paramNeutralValues[Param::Global::DELAY_RATE], cableToExpParamShortcut(paramValue));
+	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
 
 	if (stutterer.sync != 0) {
 		rate = multiply_32x32_rshift32(rate, playbackHandler.getTimePerInternalTickInverse());
@@ -1311,15 +1310,15 @@ void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager
                                                       int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("stutterRate", Param::Unpatched::STUTTER_RATE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("sampleRateReduction", Param::Unpatched::SAMPLE_RATE_REDUCTION,
+	unpatchedParams->writeParamAsAttribute("sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bitCrush", Param::Unpatched::BITCRUSHING, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXOffset", Param::Unpatched::MOD_FX_OFFSET, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXFeedback", Param::Unpatched::MOD_FX_FEEDBACK, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
 }
 
@@ -1328,12 +1327,12 @@ void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	storageManager.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute("bass", Param::Unpatched::BASS, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("treble", Param::Unpatched::TREBLE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("bass", params::UNPATCHED_BASS, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("treble", params::UNPATCHED_TREBLE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bassFrequency", Param::Unpatched::BASS_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("trebleFrequency", Param::Unpatched::TREBLE_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	storageManager.closeTag();
 }
@@ -1346,19 +1345,19 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 	if (!strcmp(tagName, "equalizer")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::BASS, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
 				storageManager.exitTag("bass");
 			}
 			else if (!strcmp(tagName, "treble")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::TREBLE, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE, readAutomationUpToPos);
 				storageManager.exitTag("treble");
 			}
 			else if (!strcmp(tagName, "bassFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::BASS_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("bassFrequency");
 			}
 			else if (!strcmp(tagName, "trebleFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::TREBLE_FREQ,
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
 				                           readAutomationUpToPos);
 				storageManager.exitTag("trebleFrequency");
 			}
@@ -1367,28 +1366,28 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::STUTTER_RATE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
 		storageManager.exitTag("stutterRate");
 	}
 
 	else if (!strcmp(tagName, "sampleRateReduction")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::SAMPLE_RATE_REDUCTION,
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 		                           readAutomationUpToPos);
 		storageManager.exitTag("sampleRateReduction");
 	}
 
 	else if (!strcmp(tagName, "bitCrush")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::BITCRUSHING, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
 		storageManager.exitTag("bitCrush");
 	}
 
 	else if (!strcmp(tagName, "modFXOffset")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::MOD_FX_OFFSET, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET, readAutomationUpToPos);
 		storageManager.exitTag("modFXOffset");
 	}
 
 	else if (!strcmp(tagName, "modFXFeedback")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, Param::Unpatched::MOD_FX_FEEDBACK, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modFXFeedback");
 	}
 
@@ -1432,7 +1431,7 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
 			if (!strcmp(tagName, "feedback")) {
-				p = Param::Global::DELAY_FEEDBACK;
+				p = params::GLOBAL_DELAY_FEEDBACK;
 doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
@@ -1443,13 +1442,13 @@ doReadPatchedParam:
 					}
 					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(patchedParamsSummary, Param::Global::DELAY_FEEDBACK,
+					patchedParams->readParam(patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
 					                         readAutomationUpToPos);
 				}
 				storageManager.exitTag();
 			}
 			else if (!strcmp(tagName, "rate")) {
-				p = Param::Global::DELAY_RATE;
+				p = params::GLOBAL_DELAY_RATE;
 				goto doReadPatchedParam;
 			}
 
@@ -1516,7 +1515,7 @@ doReadPatchedParam:
 				uint8_t channel;
 				uint8_t ccNumber;
 				bool relative;
-				uint8_t p = Param::Global::NONE;
+				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
@@ -1545,7 +1544,7 @@ doReadPatchedParam:
 					storageManager.exitTag();
 				}
 
-				if (p != Param::Global::NONE && p != Param::PLACEHOLDER_RANGE) {
+				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
 					if (newKnob) {
 						newKnob->midiInput.device = device;
@@ -1583,7 +1582,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* kn
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int32_t paramId = knob->paramDescriptor.getJustTheParam() - Param::Unpatched::START;
+	int32_t paramId = knob->paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
 
 	ModelStackWithParamId* modelStackWithParamId =
 	    modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
@@ -2170,7 +2169,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	// Quantized Stutter FX
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-		int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
 		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
@@ -2193,7 +2192,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 
 		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
 		// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
-		unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 		view.notifyParamAutomationOccurred(paramManager);
 	}
 
@@ -2219,15 +2218,15 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
 		    == RuntimeFeatureStateToggle::On) {
 			// Quantized Stutter FX (set back the value it had just before stuttering so orange LEDs are redrawn)
-			unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(
+			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
 			    stutterer.valueBeforeStuttering);
 			view.notifyParamAutomationOccurred(paramManager);
 		}
 		else {
 			// Regular Stutter FX (if below middle value, reset it back to middle)
 			// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
-			if (unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE) < 0) {
-				unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+			if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
+				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 				view.notifyParamAutomationOccurred(paramManager);
 			}
 		}

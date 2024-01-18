@@ -20,27 +20,30 @@
 #include "model/settings/runtime_feature_settings.h"
 #include <cstring>
 
-namespace deluge {
-namespace modulation {
-namespace params {
+namespace deluge::modulation::params {
 
 bool isParamPan(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::PATCHED && paramID == Param::Local::PAN)
-	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN);
+	return (kind == params::Kind::PATCHED && paramID == LOCAL_PAN)
+	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
 }
 
 bool isParamPitch(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
-	       || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
-	       || (kind == params::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
-	       || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
-	       || (kind == params::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
-	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+	if (kind == Kind::PATCHED) {
+		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
+		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
+		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST);
+	}
+	else if (kind == Kind::UNPATCHED_GLOBAL) {
+		return static_cast<UnpatchedGlobal>(paramID) == UNPATCHED_PITCH_ADJUST;
+	}
+	else {
+		return false;
+	}
 }
 
 bool isParamStutter(params::Kind kind, int32_t paramID) {
 	return (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
-	       && paramID == Param::Unpatched::STUTTER_RATE;
+	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE;
 }
 
 bool isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
@@ -52,165 +55,60 @@ bool isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
 
 char const* getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
-	auto lang = l10n::chosenLanguage;
 
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
+	static l10n::String const NAMES[GLOBAL_NONE] = {
+	    [LOCAL_OSC_A_VOLUME] = STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME,
+	    [LOCAL_OSC_B_VOLUME] = STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME,
+	    [LOCAL_VOLUME] = STRING_FOR_PARAM_LOCAL_VOLUME,
+	    [LOCAL_NOISE_VOLUME] = STRING_FOR_PARAM_LOCAL_NOISE_VOLUME,
+	    [LOCAL_MODULATOR_0_VOLUME] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME,
+	    [LOCAL_MODULATOR_1_VOLUME] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME,
+	    [LOCAL_FOLD] = STRING_FOR_WAVEFOLDER,
+	    [LOCAL_MODULATOR_0_FEEDBACK] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK,
+	    [LOCAL_MODULATOR_1_FEEDBACK] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK,
+	    [LOCAL_CARRIER_0_FEEDBACK] = STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK,
+	    [LOCAL_CARRIER_1_FEEDBACK] = STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK,
+	    [LOCAL_LPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_LPF_RESONANCE,
+	    [LOCAL_HPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_HPF_RESONANCE,
+	    [LOCAL_ENV_0_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN,
+	    [LOCAL_ENV_1_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN,
+	    [LOCAL_LPF_MORPH] = STRING_FOR_PARAM_LOCAL_LPF_MORPH,
+	    [LOCAL_HPF_MORPH] = STRING_FOR_PARAM_LOCAL_HPF_MORPH,
+	    [LOCAL_OSC_A_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH,
+	    [LOCAL_OSC_B_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH,
+	    [LOCAL_OSC_A_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX,
+	    [LOCAL_OSC_B_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX,
+	    [LOCAL_PAN] = STRING_FOR_PARAM_LOCAL_PAN,
+	    [LOCAL_LPF_FREQ] = STRING_FOR_PARAM_LOCAL_LPF_FREQ,
+	    [LOCAL_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_PITCH_ADJUST,
+	    [LOCAL_OSC_A_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST,
+	    [LOCAL_OSC_B_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST,
+	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST,
+	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST,
+	    [LOCAL_HPF_FREQ] = STRING_FOR_PARAM_LOCAL_HPF_FREQ,
+	    [LOCAL_LFO_LOCAL_FREQ] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ,
+	    [LOCAL_ENV_0_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK,
+	    [LOCAL_ENV_1_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK,
+	    [LOCAL_ENV_0_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_0_DECAY,
+	    [LOCAL_ENV_1_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_1_DECAY,
+	    [LOCAL_ENV_0_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE,
+	    [LOCAL_ENV_1_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE,
+	    [GLOBAL_VOLUME_POST_FX] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX,
+	    [GLOBAL_VOLUME_POST_REVERB_SEND] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
+	    [GLOBAL_REVERB_AMOUNT] = STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT,
+	    [GLOBAL_MOD_FX_DEPTH] = STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH,
+	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
+	    [GLOBAL_DELAY_RATE] = STRING_FOR_PARAM_GLOBAL_DELAY_RATE,
+	    [GLOBAL_MOD_FX_RATE] = STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE,
+	    [GLOBAL_LFO_FREQ] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ,
+	    [GLOBAL_ARP_RATE] = STRING_FOR_PARAM_GLOBAL_ARP_RATE,
+	};
 
-	//Master Level, Pitch, Pan
-	case Param::Local::VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
-
-	case Param::Global::VOLUME_POST_FX:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
-
-	case Param::Local::PAN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
-
-	case Param::Local::PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
-
-	//LPF Frequency, Resonance, Morph
-	case Param::Local::LPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
-
-	case Param::Local::LPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
-
-	case Param::Local::LPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
-
-	//HPF Frequency, Resonance, Morph
-	case Param::Local::HPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
-
-	case Param::Local::HPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
-
-	case Param::Local::HPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
-
-	//Reverb Amount
-	case Param::Global::REVERB_AMOUNT:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
-
-	//Delay Rate, Amount
-	case Param::Global::DELAY_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
-
-	case Param::Global::DELAY_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
-
-	//Sidechain Level
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
-
-	//Wavefolder
-	case Param::Local::FOLD:
-		return l10n::get(STRING_FOR_WAVEFOLDER);
-
-	//OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Index
-	case Param::Local::OSC_A_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
-
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
-
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
-
-	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-	case Param::Local::OSC_B_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
-
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
-
-	//FM Mod 1 Volume, Pitch, Feedback
-	case Param::Local::MODULATOR_0_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
-
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
-
-	//FM Mod 2 Volume, Pitch, Feedback
-	case Param::Local::MODULATOR_1_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
-
-	//Env 1 ADSR
-	case Param::Local::ENV_0_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
-
-	case Param::Local::ENV_0_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
-
-	case Param::Local::ENV_0_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
-
-	case Param::Local::ENV_0_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
-
-	//Env 2 ADSR
-	case Param::Local::ENV_1_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
-
-	case Param::Local::ENV_1_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
-
-	case Param::Local::ENV_1_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
-
-	case Param::Local::ENV_1_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
-
-	//LFO 1 Freq
-	case Param::Global::LFO_FREQ:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
-
-	//LFO 2 Freq
-	case Param::Local::LFO_LOCAL_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
-
-	//Mod FX Depth, Rate
-	case Param::Global::MOD_FX_DEPTH:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
-
-	case Param::Global::MOD_FX_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
-
-	//Arp Rate
-	case Param::Global::ARP_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
-
-	//Noise
-	case Param::Local::NOISE_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
-
-	default:
+	if (p < GLOBAL_NONE) {
+		// These can basically be 13 chars long, or 14 if the last one is a dot.
+		return l10n::get(NAMES[p]);
+	}
+	else {
 		return l10n::get(STRING_FOR_NONE);
 	}
 }
@@ -221,117 +119,66 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		return getPatchedParamDisplayName(p);
 	}
 
-	if (kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL) {
-		// These can basically be 13 chars long, or 14 if the last one is a dot.
-		switch (p) {
-
-		//Bass, Bass Freq
-		case Param::Unpatched::BASS:
-			return l10n::get(STRING_FOR_BASS);
-
-		case Param::Unpatched::BASS_FREQ:
-			return l10n::get(STRING_FOR_BASS_FREQUENCY);
-
-		//Treble, Treble Freq
-		case Param::Unpatched::TREBLE:
-			return l10n::get(STRING_FOR_TREBLE);
-
-		case Param::Unpatched::TREBLE_FREQ:
-			return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
-
-		//Sidechain Shape
-		case Param::Unpatched::COMPRESSOR_SHAPE:
-			return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
-
-		//Decimation, Bitcrush
-		case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-			return l10n::get(STRING_FOR_DECIMATION);
-
-		case Param::Unpatched::BITCRUSHING:
-			return l10n::get(STRING_FOR_BITCRUSH);
-
-		//Mod FX Offset, Feedback
-		case Param::Unpatched::MOD_FX_OFFSET:
-			return l10n::get(STRING_FOR_MODFX_OFFSET);
-
-		case Param::Unpatched::MOD_FX_FEEDBACK:
-			return l10n::get(STRING_FOR_MODFX_FEEDBACK);
-
-		case Param::Unpatched::STUTTER_RATE:
-			return l10n::get(STRING_FOR_STUTTER_RATE);
-		}
+	if ((kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL) && p < (UNPATCHED_NUM_SHARED)) {
+		static l10n::String const NAMES[UNPATCHED_NUM_SHARED] = {
+		    [UNPATCHED_STUTTER_RATE] = STRING_FOR_STUTTER_RATE,
+		    [UNPATCHED_BASS] = STRING_FOR_BASS,
+		    [UNPATCHED_TREBLE] = STRING_FOR_TREBLE,
+		    [UNPATCHED_BASS_FREQ] = STRING_FOR_BASS_FREQUENCY,
+		    [UNPATCHED_TREBLE_FREQ] = STRING_FOR_TREBLE_FREQUENCY,
+		    [UNPATCHED_SAMPLE_RATE_REDUCTION] = STRING_FOR_DECIMATION,
+		    [UNPATCHED_BITCRUSHING] = STRING_FOR_BITCRUSH,
+		    [UNPATCHED_MOD_FX_OFFSET] = STRING_FOR_MODFX_OFFSET,
+		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
+		    [UNPATCHED_COMPRESSOR_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
+		};
+		return l10n::get(NAMES[p]);
 	}
 
-	if (kind == Kind::UNPATCHED_SOUND) {
-		switch (p) {
-		case Param::Unpatched::Sound::ARP_GATE:
-			return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
-		case Param::Unpatched::Sound::PORTAMENTO:
-			return l10n::get(STRING_FOR_PORTAMENTO);
-		}
+	constexpr ParamType unc = UNPATCHED_NUM_SHARED;
+
+	if (kind == Kind::UNPATCHED_SOUND && p < util::to_underlying(UNPATCHED_SOUND_MAX_NUM)) {
+		using enum UnpatchedSound;
+		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
+		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
+		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
+		};
+		return l10n::get(NAMES[p]);
 	}
 
-	if (kind == Kind::UNPATCHED_GLOBAL) {
-		// These can basically be 13 chars long, or 14 if the last one is a dot.
-		switch (p) {
-		//Master Volume, Pitch, Pan
-		case Param::Unpatched::GlobalEffectable::VOLUME:
-			return l10n::get(STRING_FOR_MASTER_LEVEL);
+	if (kind == Kind::UNPATCHED_GLOBAL && p < UNPATCHED_GLOBAL_MAX_NUM) {
+		using enum UnpatchedGlobal;
 
-		case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
-			return l10n::get(STRING_FOR_MASTER_PITCH);
-
-		case Param::Unpatched::GlobalEffectable::PAN:
-			return l10n::get(STRING_FOR_MASTER_PAN);
-
-		//LPF Cutoff, Resonance
-		case Param::Unpatched::GlobalEffectable::LPF_FREQ:
-			return l10n::get(STRING_FOR_LPF_FREQUENCY);
-
-		case Param::Unpatched::GlobalEffectable::LPF_RES:
-			return l10n::get(STRING_FOR_LPF_RESONANCE);
-
-		//HPF Cutoff, Resonance
-		case Param::Unpatched::GlobalEffectable::HPF_FREQ:
-			return l10n::get(STRING_FOR_HPF_FREQUENCY);
-
-		case Param::Unpatched::GlobalEffectable::HPF_RES:
-			return l10n::get(STRING_FOR_HPF_RESONANCE);
-
-		//Reverb Amount
-		case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-			return l10n::get(STRING_FOR_REVERB_AMOUNT);
-
-		//Delay Rate, Amount
-		case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-			return l10n::get(STRING_FOR_DELAY_RATE);
-
-		case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-			return l10n::get(STRING_FOR_DELAY_AMOUNT);
-
-		//Sidechain Send
-		case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-			return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
-
-		//Mod FX Depth, Rate
-		case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-			return l10n::get(STRING_FOR_MODFX_DEPTH);
-
-		case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-			return l10n::get(STRING_FOR_MODFX_RATE);
-		}
+		static l10n::String const NAMES[UNPATCHED_GLOBAL_MAX_NUM - unc]{
+		    [UNPATCHED_MOD_FX_RATE - unc] = STRING_FOR_MOD_FX_RATE,
+		    [UNPATCHED_MOD_FX_DEPTH - unc] = STRING_FOR_MOD_FX_DEPTH,
+		    [UNPATCHED_DELAY_RATE - unc] = STRING_FOR_DELAY_RATE,
+		    [UNPATCHED_DELAY_AMOUNT - unc] = STRING_FOR_DELAY_AMOUNT,
+		    [UNPATCHED_PAN - unc] = STRING_FOR_PAN,
+		    [UNPATCHED_LPF_FREQ - unc] = STRING_FOR_LPF_FREQUENCY,
+		    [UNPATCHED_LPF_RES - unc] = STRING_FOR_LPF_RESONANCE,
+		    [UNPATCHED_HPF_FREQ - unc] = STRING_FOR_HPF_FREQUENCY,
+		    [UNPATCHED_HPF_RES - unc] = STRING_FOR_HPF_RESONANCE,
+		    [UNPATCHED_REVERB_SEND_AMOUNT - unc] = STRING_FOR_REVERB_AMOUNT,
+		    [UNPATCHED_VOLUME - unc] = STRING_FOR_MASTER_LEVEL,
+		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
+		    [UNPATCHED_PITCH_ADJUST - unc] = STRING_FOR_MASTER_PITCH,
+		};
+		return l10n::get(NAMES[p]);
 	}
+
 	return l10n::get(STRING_FOR_NONE);
 }
 
 char const* paramNameForFile(Kind const kind, ParamType const param) {
-	if (kind == UNPATCHED_SOUND) {
+	using enum Kind;
+	if (kind == UNPATCHED_SOUND && param > UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Unpatched params just for Sounds
-		switch (param) {
-		case Param::Unpatched::START + Param::Unpatched::Sound::ARP_GATE:
+		switch (static_cast<UnpatchedSound>(param - UNPATCHED_START)) {
+		case UNPATCHED_ARP_GATE:
 			return "arpGate";
 
-		case Param::Unpatched::START + Param::Unpatched::Sound::PORTAMENTO:
+		case UNPATCHED_PORTAMENTO:
 			return "portamento";
 
 		default:
@@ -339,241 +186,259 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		    ;
 		}
 	}
-	else if (kind == UNPATCHED_GLOBAL) {
+	else if (kind == UNPATCHED_GLOBAL && param > UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Params for GlobalEffectable
-		switch (param) {
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		switch (static_cast<UnpatchedGlobal>(param - UNPATCHED_START)) {
+		case UNPATCHED_MOD_FX_RATE:
 			return "modFXRate";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		case UNPATCHED_MOD_FX_DEPTH:
 			return "modFXDepth";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		case UNPATCHED_DELAY_RATE:
 			return "delayRate";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		case UNPATCHED_DELAY_AMOUNT:
 			return "delayFeedback";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN:
+		case UNPATCHED_PAN:
 			return "pan";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		case UNPATCHED_LPF_FREQ:
 			return "lpfFrequency";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::LPF_RES:
+		case UNPATCHED_LPF_RES:
 			return "lpfResonance";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		case UNPATCHED_HPF_FREQ:
 			return "hpfFrequency";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::HPF_RES:
+		case UNPATCHED_HPF_RES:
 			return "hpfResonance";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		case UNPATCHED_REVERB_SEND_AMOUNT:
 			return "reverbAmount";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::VOLUME:
+		case UNPATCHED_VOLUME:
 			return "volume";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		case UNPATCHED_SIDECHAIN_VOLUME:
 			return "sidechainCompressorVolume";
 
-		case Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+		case UNPATCHED_PITCH_ADJUST:
 			return "pitchAdjust";
 
-		default:
-		    // Fall through to the other param kind handling
+		case UNPATCHED_GLOBAL_MAX_NUM:
+		    // Intentional fallthrough, not handled
 		    ;
 		}
 	}
 
-	// Local params
-	switch (param) {
-	case Param::Local::OSC_A_VOLUME:
-		return "oscAVolume";
+	else if (param >= UNPATCHED_START) {
+		switch (static_cast<UnpatchedShared>(param - UNPATCHED_START)) {
+		case UNPATCHED_STUTTER_RATE:
+			return "stutterRate";
 
-	case Param::Local::OSC_B_VOLUME:
-		return "oscBVolume";
+		case UNPATCHED_BASS:
+			return "bass";
 
-	case Param::Local::VOLUME:
-		return "volume";
+		case UNPATCHED_TREBLE:
+			return "treble";
 
-	case Param::Local::NOISE_VOLUME:
-		return "noiseVolume";
+		case UNPATCHED_BASS_FREQ:
+			return "bassFreq";
 
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "oscAPhaseWidth";
+		case UNPATCHED_TREBLE_FREQ:
+			return "trebleFreq";
 
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "oscBPhaseWidth";
+		case UNPATCHED_SAMPLE_RATE_REDUCTION:
+			return "sampleRateReduction";
 
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return "oscAWavetablePosition";
+		case UNPATCHED_BITCRUSHING:
+			return "bitcrushAmount";
 
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return "oscBWavetablePosition";
+		case UNPATCHED_MOD_FX_OFFSET:
+			return "modFXOffset";
 
-	case Param::Local::LPF_RESONANCE:
-		return "lpfResonance";
+		case UNPATCHED_MOD_FX_FEEDBACK:
+			return "modFXFeedback";
 
-	case Param::Local::HPF_RESONANCE:
-		return "hpfResonance";
+		case UNPATCHED_COMPRESSOR_SHAPE:
+			return "compressorShape";
 
-	case Param::Local::PAN:
-		return "pan";
-
-	case Param::Local::MODULATOR_0_VOLUME:
-		return "modulator1Volume";
-
-	case Param::Local::MODULATOR_1_VOLUME:
-		return "modulator2Volume";
-
-	case Param::Local::LPF_FREQ:
-		return "lpfFrequency";
-
-	case Param::Local::LPF_MORPH:
-		return "lpfMorph";
-
-	case Param::Local::HPF_MORPH:
-		return "hpfMorph";
-
-	case Param::Local::PITCH_ADJUST:
-		return "pitch";
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "oscAPitch";
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "oscBPitch";
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "modulator1Pitch";
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "modulator2Pitch";
-
-	case Param::Local::HPF_FREQ:
-		return "hpfFrequency";
-
-	case Param::Local::LFO_LOCAL_FREQ:
-		return "lfo2Rate";
-
-	case Param::Local::ENV_0_ATTACK:
-		return "env1Attack";
-
-	case Param::Local::ENV_0_DECAY:
-		return "env1Decay";
-
-	case Param::Local::ENV_0_SUSTAIN:
-		return "env1Sustain";
-
-	case Param::Local::ENV_0_RELEASE:
-		return "env1Release";
-
-	case Param::Local::ENV_1_ATTACK:
-		return "env2Attack";
-
-	case Param::Local::ENV_1_DECAY:
-		return "env2Decay";
-
-	case Param::Local::ENV_1_SUSTAIN:
-		return "env2Sustain";
-
-	case Param::Local::ENV_1_RELEASE:
-		return "env2Release";
-
-	case Param::Global::LFO_FREQ:
-		return "lfo1Rate";
-
-	case Param::Global::VOLUME_POST_FX:
-		return "volumePostFX";
-
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "volumePostReverbSend";
-
-	case Param::Global::DELAY_RATE:
-		return "delayRate";
-
-	case Param::Global::DELAY_FEEDBACK:
-		return "delayFeedback";
-
-	case Param::Global::REVERB_AMOUNT:
-		return "reverbAmount";
-
-	case Param::Global::MOD_FX_RATE:
-		return "modFXRate";
-
-	case Param::Global::MOD_FX_DEPTH:
-		return "modFXDepth";
-
-	case Param::Global::ARP_RATE:
-		return "arpRate";
-
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "modulator1Feedback";
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "modulator2Feedback";
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return "carrier1Feedback";
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return "carrier2Feedback";
-
-	case Param::Local::FOLD:
-		return "waveFold";
-
-		// Unpatched params
-	case Param::Unpatched::START + Param::Unpatched::STUTTER_RATE:
-		return "stutterRate";
-
-	case Param::Unpatched::START + Param::Unpatched::BASS:
-		return "bass";
-
-	case Param::Unpatched::START + Param::Unpatched::TREBLE:
-		return "treble";
-
-	case Param::Unpatched::START + Param::Unpatched::BASS_FREQ:
-		return "bassFreq";
-
-	case Param::Unpatched::START + Param::Unpatched::TREBLE_FREQ:
-		return "trebleFreq";
-
-	case Param::Unpatched::START + Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return "sampleRateReduction";
-
-	case Param::Unpatched::START + Param::Unpatched::BITCRUSHING:
-		return "bitcrushAmount";
-
-	case Param::Unpatched::START + Param::Unpatched::MOD_FX_OFFSET:
-		return "modFXOffset";
-
-	case Param::Unpatched::START + Param::Unpatched::MOD_FX_FEEDBACK:
-		return "modFXFeedback";
-
-	case Param::Unpatched::START + Param::Unpatched::COMPRESSOR_SHAPE:
-		return "compressorShape";
-
-	default:
-		return "none";
+		case UNPATCHED_NUM_SHARED:
+		    // Intentionally not handled
+		    ;
+		}
 	}
+
+	else if (param >= FIRST_GLOBAL && param <= FIRST_GLOBAL) {
+		// global patched params
+		switch (static_cast<Global>(param)) {
+		case GLOBAL_LFO_FREQ:
+			return "lfo1Rate";
+
+		case GLOBAL_VOLUME_POST_FX:
+			return "volumePostFX";
+
+		case GLOBAL_VOLUME_POST_REVERB_SEND:
+			return "volumePostReverbSend";
+
+		case GLOBAL_DELAY_RATE:
+			return "delayRate";
+
+		case GLOBAL_DELAY_FEEDBACK:
+			return "delayFeedback";
+
+		case GLOBAL_REVERB_AMOUNT:
+			return "reverbAmount";
+
+		case GLOBAL_MOD_FX_RATE:
+			return "modFXRate";
+
+		case GLOBAL_MOD_FX_DEPTH:
+			return "modFXDepth";
+
+		case GLOBAL_ARP_RATE:
+			return "arpRate";
+
+		case GLOBAL_NONE:
+		    // Intentionally not handled
+		    ;
+		}
+	}
+	else if (param <= util::to_underlying(LOCAL_LAST)) {
+		// Local patched params
+		switch (static_cast<Local>(param)) {
+		case LOCAL_OSC_A_VOLUME:
+			return "oscAVolume";
+
+		case LOCAL_OSC_B_VOLUME:
+			return "oscBVolume";
+
+		case LOCAL_VOLUME:
+			return "volume";
+
+		case LOCAL_NOISE_VOLUME:
+			return "noiseVolume";
+
+		case LOCAL_OSC_A_PHASE_WIDTH:
+			return "oscAPhaseWidth";
+
+		case LOCAL_OSC_B_PHASE_WIDTH:
+			return "oscBPhaseWidth";
+
+		case LOCAL_OSC_A_WAVE_INDEX:
+			return "oscAWavetablePosition";
+
+		case LOCAL_OSC_B_WAVE_INDEX:
+			return "oscBWavetablePosition";
+
+		case LOCAL_LPF_RESONANCE:
+			return "lpfResonance";
+
+		case LOCAL_HPF_RESONANCE:
+			return "hpfResonance";
+
+		case LOCAL_PAN:
+			return "pan";
+
+		case LOCAL_MODULATOR_0_VOLUME:
+			return "modulator1Volume";
+
+		case LOCAL_MODULATOR_1_VOLUME:
+			return "modulator2Volume";
+
+		case LOCAL_LPF_FREQ:
+			return "lpfFrequency";
+
+		case LOCAL_LPF_MORPH:
+			return "lpfMorph";
+
+		case LOCAL_HPF_MORPH:
+			return "hpfMorph";
+
+		case LOCAL_PITCH_ADJUST:
+			return "pitch";
+
+		case LOCAL_OSC_A_PITCH_ADJUST:
+			return "oscAPitch";
+
+		case LOCAL_OSC_B_PITCH_ADJUST:
+			return "oscBPitch";
+
+		case LOCAL_MODULATOR_0_PITCH_ADJUST:
+			return "modulator1Pitch";
+
+		case LOCAL_MODULATOR_1_PITCH_ADJUST:
+			return "modulator2Pitch";
+
+		case LOCAL_HPF_FREQ:
+			return "hpfFrequency";
+
+		case LOCAL_LFO_LOCAL_FREQ:
+			return "lfo2Rate";
+
+		case LOCAL_ENV_0_ATTACK:
+			return "env1Attack";
+
+		case LOCAL_ENV_0_DECAY:
+			return "env1Decay";
+
+		case LOCAL_ENV_0_SUSTAIN:
+			return "env1Sustain";
+
+		case LOCAL_ENV_0_RELEASE:
+			return "env1Release";
+
+		case LOCAL_ENV_1_ATTACK:
+			return "env2Attack";
+
+		case LOCAL_ENV_1_DECAY:
+			return "env2Decay";
+
+		case LOCAL_ENV_1_SUSTAIN:
+			return "env2Sustain";
+
+		case LOCAL_ENV_1_RELEASE:
+			return "env2Release";
+
+		case LOCAL_MODULATOR_0_FEEDBACK:
+			return "modulator1Feedback";
+
+		case LOCAL_MODULATOR_1_FEEDBACK:
+			return "modulator2Feedback";
+
+		case LOCAL_CARRIER_0_FEEDBACK:
+			return "carrier1Feedback";
+
+		case LOCAL_CARRIER_1_FEEDBACK:
+			return "carrier2Feedback";
+
+		case LOCAL_FOLD:
+			return "waveFold";
+
+		case LOCAL_LAST:
+		    // Intentionally not handled
+		    ;
+		}
+	}
+
+	return "none";
 }
 
-uint8_t fileStringToParam(Kind kind, char const* string) {
-	for (int32_t p = 0; p < kAbsoluteMaximumParam; ++p) {
-		if (strcmp(string, paramNameForFile(kind, p)) == 0) {
+ParamType fileStringToParam(Kind kind, char const* name) {
+	for (int32_t p = 0; p < kUnpatchedAndPatchedMaximum; ++p) {
+		if (strcmp(name, paramNameForFile(kind, p)) == 0) {
 			return p;
 		}
 	}
 
-	if (strcmp(string, "range") == 0) {
-		return Param::PLACEHOLDER_RANGE; // For compatibility reading files from before V3.2.0
+	if (strcmp(name, "range") == 0) {
+		return util::to_underlying(PLACEHOLDER_RANGE); // For compatibility reading files from before V3.2.0
 	}
 
-	return Param::Global::NONE;
+	return util::to_underlying(GLOBAL_NONE);
 }
 
-} // namespace params
-} // namespace modulation
-} // namespace deluge
+} // namespace deluge::modulation::params

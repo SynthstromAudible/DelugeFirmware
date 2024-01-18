@@ -22,7 +22,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
-namespace Param = deluge::modulation::params::Param;
+namespace params = deluge::modulation::params;
 
 Envelope::Envelope() {
 }
@@ -123,7 +123,7 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 }
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
-	int32_t attack = voice->paramFinalValues[Param::Local::ENV_0_ATTACK + envelopeIndex];
+	int32_t attack = voice->paramFinalValues[params::LOCAL_ENV_0_ATTACK + envelopeIndex];
 
 	bool directlyToDecay = (attack > 245632);
 

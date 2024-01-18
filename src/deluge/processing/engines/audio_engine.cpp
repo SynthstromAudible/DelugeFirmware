@@ -58,7 +58,6 @@ extern "C" {
 #include "RZA1/compiler/asm/inc/asm.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 
 #if AUTOMATED_TESTER_ENABLED
@@ -750,8 +749,8 @@ startAgain:
 	}
 
 	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
-	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	masterVolumeAdjustmentL = 167763968; //getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
+	masterVolumeAdjustmentR = 167763968; //getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
@@ -765,8 +764,7 @@ startAgain:
 		currentSong->globalEffectable.processStutter(renderingBuffer, numSamples, &currentSong->paramManager);
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below anyway
-		int32_t pan =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(Param::Unpatched::GlobalEffectable::PAN) >> 1;
+		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
 
 		if (pan != 0) {
 			// Set up panning
@@ -1120,8 +1118,8 @@ void updateReverbParams() {
 
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain. If nothing found with more reverb,
 		// then we don't want the reverb affected by sidechain
-		int32_t highestReverbAmountFound = currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		    Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT);
+		int32_t highestReverbAmountFound =
+		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
 		for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
@@ -1134,14 +1132,14 @@ void updateReverbParams() {
 			modControllable = soundWithMostReverb;
 
 			ParamDescriptor paramDescriptor;
-			paramDescriptor.setToHaveParamOnly(Param::Global::VOLUME_POST_REVERB_SEND);
+			paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
 			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
 			if (whichCable != 255) {
 				reverbCompressorVolumeInEffect =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, Param::Global::VOLUME_POST_REVERB_SEND);
+				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
 				reverbCompressorVolumeInEffect = 0;
@@ -1156,7 +1154,7 @@ void updateReverbParams() {
 
 compressorFound:
 			reverbCompressorShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(Param::Unpatched::COMPRESSOR_SHAPE);
+			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE);
 			reverbCompressor.attack = modControllable->compressor.attack;
 			reverbCompressor.release = modControllable->compressor.release;
 			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;

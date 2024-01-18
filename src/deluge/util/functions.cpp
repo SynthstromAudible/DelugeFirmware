@@ -36,7 +36,6 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
-namespace Param = deluge::modulation::params::Param;
 namespace params = deluge::modulation::params;
 using namespace deluge;
 using params::kNumParams;
@@ -52,21 +51,21 @@ int32_t paramNeutralValues[kNumParams];
 // This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
 int32_t getParamRange(int32_t p) {
 	switch (p) {
-	case Param::Local::ENV_0_ATTACK:
-	case Param::Local::ENV_1_ATTACK:
+	case params::LOCAL_ENV_0_ATTACK:
+	case params::LOCAL_ENV_1_ATTACK:
 		return 536870912 * 1.5;
 
-	case Param::Global::DELAY_RATE:
+	case params::GLOBAL_DELAY_RATE:
 		return 536870912;
 
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 		return 536870912;
 
-	case Param::Local::LPF_FREQ:
+	case params::LOCAL_LPF_FREQ:
 		return 536870912 * 1.4;
 
 		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
@@ -78,74 +77,74 @@ int32_t getParamRange(int32_t p) {
 
 int32_t getParamNeutralValue(int32_t p) {
 	switch (p) {
-	case Param::Local::OSC_A_VOLUME:
-	case Param::Local::OSC_B_VOLUME:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-	case Param::Local::NOISE_VOLUME:
-	case Param::Global::REVERB_AMOUNT:
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Local::VOLUME:
+	case params::LOCAL_OSC_A_VOLUME:
+	case params::LOCAL_OSC_B_VOLUME:
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
+	case params::LOCAL_NOISE_VOLUME:
+	case params::GLOBAL_REVERB_AMOUNT:
+	case params::GLOBAL_VOLUME_POST_FX:
+	case params::LOCAL_VOLUME:
 		return 134217728;
 
-	case Param::Local::MODULATOR_0_VOLUME:
-	case Param::Local::MODULATOR_1_VOLUME:
+	case params::LOCAL_MODULATOR_0_VOLUME:
+	case params::LOCAL_MODULATOR_1_VOLUME:
 		return 33554432;
 
-	case Param::Local::LPF_FREQ:
+	case params::LOCAL_LPF_FREQ:
 		return 2000000;
-	case Param::Local::HPF_FREQ:
+	case params::LOCAL_HPF_FREQ:
 		return 2672947;
 
-	case Param::Global::LFO_FREQ:
-	case Param::Local::LFO_LOCAL_FREQ:
-	case Param::Global::MOD_FX_RATE:
+	case params::GLOBAL_LFO_FREQ:
+	case params::LOCAL_LFO_LOCAL_FREQ:
+	case params::GLOBAL_MOD_FX_RATE:
 		return 121739; //lfoRateTable[userValue];
 
-	case Param::Local::LPF_RESONANCE:
-	case Param::Local::HPF_RESONANCE:
-	case Param::Local::LPF_MORPH:
-	case Param::Local::HPF_MORPH:
-	case Param::Local::FOLD:
+	case params::LOCAL_LPF_RESONANCE:
+	case params::LOCAL_HPF_RESONANCE:
+	case params::LOCAL_LPF_MORPH:
+	case params::LOCAL_HPF_MORPH:
+	case params::LOCAL_FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
-	case Param::Local::PAN:
-	case Param::Local::OSC_A_PHASE_WIDTH:
-	case Param::Local::OSC_B_PHASE_WIDTH:
+	case params::LOCAL_PAN:
+	case params::LOCAL_OSC_A_PHASE_WIDTH:
+	case params::LOCAL_OSC_B_PHASE_WIDTH:
 		return 0;
 
-	case Param::Local::ENV_0_ATTACK:
-	case Param::Local::ENV_1_ATTACK:
+	case params::LOCAL_ENV_0_ATTACK:
+	case params::LOCAL_ENV_1_ATTACK:
 		return 4096; //attackRateTable[userValue];
 
-	case Param::Local::ENV_0_RELEASE:
-	case Param::Local::ENV_1_RELEASE:
+	case params::LOCAL_ENV_0_RELEASE:
+	case params::LOCAL_ENV_1_RELEASE:
 		return 140 << 9; //releaseRateTable[userValue];
 
-	case Param::Local::ENV_0_DECAY:
-	case Param::Local::ENV_1_DECAY:
+	case params::LOCAL_ENV_0_DECAY:
+	case params::LOCAL_ENV_1_DECAY:
 		return 70 << 9; //releaseRateTable[userValue] >> 1;
 
-	case Param::Local::ENV_0_SUSTAIN:
-	case Param::Local::ENV_1_SUSTAIN:
-	case Param::Global::DELAY_FEEDBACK:
+	case params::LOCAL_ENV_0_SUSTAIN:
+	case params::LOCAL_ENV_1_SUSTAIN:
+	case params::GLOBAL_DELAY_FEEDBACK:
 		return 1073741824; //536870912;
 
-	case Param::Local::MODULATOR_0_FEEDBACK:
-	case Param::Local::MODULATOR_1_FEEDBACK:
-	case Param::Local::CARRIER_0_FEEDBACK:
-	case Param::Local::CARRIER_1_FEEDBACK:
+	case params::LOCAL_MODULATOR_0_FEEDBACK:
+	case params::LOCAL_MODULATOR_1_FEEDBACK:
+	case params::LOCAL_CARRIER_0_FEEDBACK:
+	case params::LOCAL_CARRIER_1_FEEDBACK:
 		return 5931642;
 
-	case Param::Global::DELAY_RATE:
-	case Param::Global::ARP_RATE:
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+	case params::GLOBAL_DELAY_RATE:
+	case params::GLOBAL_ARP_RATE:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it 16x smaller)
 
-	case Param::Global::MOD_FX_DEPTH:
+	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
 	default:
@@ -225,10 +224,10 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= Param::Local::ENV_0_DECAY && p <= Param::Local::ENV_1_RELEASE) {
+	if (p >= params::LOCAL_ENV_0_DECAY && p <= params::LOCAL_ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == Param::Local::ENV_0_ATTACK || p == Param::Local::ENV_1_ATTACK) {
+	if (p == params::LOCAL_ENV_0_ATTACK || p == params::LOCAL_ENV_1_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
@@ -669,128 +668,128 @@ char const* sourceToStringShort(PatchSource source) {
 char const* patchedParamToStringShort(int32_t p) {
 	switch (p) {
 
-	case Param::Local::OSC_A_VOLUME:
+	case params::LOCAL_OSC_A_VOLUME:
 		return "Osc1 level";
 
-	case Param::Local::OSC_B_VOLUME:
+	case params::LOCAL_OSC_B_VOLUME:
 		return "Osc2 level";
 
-	case Param::Local::VOLUME:
+	case params::LOCAL_VOLUME:
 		return "Level";
 
-	case Param::Local::NOISE_VOLUME:
+	case params::LOCAL_NOISE_VOLUME:
 		return "Noise";
 
-	case Param::Local::OSC_A_PHASE_WIDTH:
+	case params::LOCAL_OSC_A_PHASE_WIDTH:
 		return "Osc1 PW";
 
-	case Param::Local::OSC_B_PHASE_WIDTH:
+	case params::LOCAL_OSC_B_PHASE_WIDTH:
 		return "Osc2 PW";
 
-	case Param::Local::OSC_A_WAVE_INDEX:
+	case params::LOCAL_OSC_A_WAVE_INDEX:
 		return "Osc1 wave";
 
-	case Param::Local::OSC_B_WAVE_INDEX:
+	case params::LOCAL_OSC_B_WAVE_INDEX:
 		return "Osc2 wave";
 
-	case Param::Local::LPF_RESONANCE:
+	case params::LOCAL_LPF_RESONANCE:
 		return "LPF reso";
 
-	case Param::Local::HPF_RESONANCE:
+	case params::LOCAL_HPF_RESONANCE:
 		return "HPF reso";
 
-	case Param::Local::PAN:
+	case params::LOCAL_PAN:
 		return "Pan";
 
-	case Param::Local::MODULATOR_0_VOLUME:
+	case params::LOCAL_MODULATOR_0_VOLUME:
 		return "Mod1 level";
 
-	case Param::Local::MODULATOR_1_VOLUME:
+	case params::LOCAL_MODULATOR_1_VOLUME:
 		return "Mod2 level";
 
-	case Param::Local::LPF_FREQ:
+	case params::LOCAL_LPF_FREQ:
 		return "LPf freq";
 
-	case Param::Local::PITCH_ADJUST:
+	case params::LOCAL_PITCH_ADJUST:
 		return "Pitch";
 
-	case Param::Local::OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
 
-	case Param::Local::OSC_B_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
 		return "Osc2 pitch";
 
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 		return "Mod1 pitch";
 
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 		return "Mod1 pitch";
 
-	case Param::Local::HPF_FREQ:
+	case params::LOCAL_HPF_FREQ:
 		return "HPF freq";
 
-	case Param::Local::LFO_LOCAL_FREQ:
+	case params::LOCAL_LFO_LOCAL_FREQ:
 		return "LFO2 rate";
 
-	case Param::Local::ENV_0_ATTACK:
+	case params::LOCAL_ENV_0_ATTACK:
 		return "Env1attack";
 
-	case Param::Local::ENV_0_DECAY:
+	case params::LOCAL_ENV_0_DECAY:
 		return "Env1 decay";
 
-	case Param::Local::ENV_0_SUSTAIN:
+	case params::LOCAL_ENV_0_SUSTAIN:
 		return "Env1 sus";
 
-	case Param::Local::ENV_0_RELEASE:
+	case params::LOCAL_ENV_0_RELEASE:
 		return "Env1 rel";
 
-	case Param::Local::ENV_1_ATTACK:
+	case params::LOCAL_ENV_1_ATTACK:
 		return "Env2attack";
 
-	case Param::Local::ENV_1_DECAY:
+	case params::LOCAL_ENV_1_DECAY:
 		return "Env2 decay";
 
-	case Param::Local::ENV_1_SUSTAIN:
+	case params::LOCAL_ENV_1_SUSTAIN:
 		return "Env2 sus";
 
-	case Param::Local::ENV_1_RELEASE:
+	case params::LOCAL_ENV_1_RELEASE:
 		return "Env2 rel";
 
-	case Param::Global::LFO_FREQ:
+	case params::GLOBAL_LFO_FREQ:
 		return "LFO1 rate";
 
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
+	case params::GLOBAL_VOLUME_POST_FX:
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
 		return "Level";
 
-	case Param::Global::DELAY_RATE:
+	case params::GLOBAL_DELAY_RATE:
 		return "Delay rate";
 
-	case Param::Global::DELAY_FEEDBACK:
+	case params::GLOBAL_DELAY_FEEDBACK:
 		return "Delay feed";
 
-	case Param::Global::REVERB_AMOUNT:
+	case params::GLOBAL_REVERB_AMOUNT:
 		return "Reverb amt";
 
-	case Param::Global::MOD_FX_RATE:
+	case params::GLOBAL_MOD_FX_RATE:
 		return "ModFX rate";
 
-	case Param::Global::MOD_FX_DEPTH:
+	case params::GLOBAL_MOD_FX_DEPTH:
 		return "ModFXdepth";
 
-	case Param::Global::ARP_RATE:
+	case params::GLOBAL_ARP_RATE:
 		return "Arp. rate";
 
-	case Param::Local::MODULATOR_0_FEEDBACK:
+	case params::LOCAL_MODULATOR_0_FEEDBACK:
 		return "Mod1 feed";
 
-	case Param::Local::MODULATOR_1_FEEDBACK:
+	case params::LOCAL_MODULATOR_1_FEEDBACK:
 		return "Mod2 feed";
 
-	case Param::Local::CARRIER_0_FEEDBACK:
+	case params::LOCAL_CARRIER_0_FEEDBACK:
 		return "Osc1 feed";
 
-	case Param::Local::CARRIER_1_FEEDBACK:
+	case params::LOCAL_CARRIER_1_FEEDBACK:
 		return "Osc2 feed";
 
 	default:
@@ -805,27 +804,27 @@ bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
 	// so we don't get stepping, but if it's from step automation, we do want it to adjust instantly,
 	// so the new step is instantly at the right volume
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-	case Param::Global::REVERB_AMOUNT:
-	case Param::Local::VOLUME:
-	case Param::Local::PAN:
-	case Param::Local::LPF_FREQ:
-	case Param::Local::HPF_FREQ:
-	case Param::Local::OSC_A_VOLUME:
-	case Param::Local::OSC_B_VOLUME:
-	case Param::Local::OSC_A_WAVE_INDEX:
-	case Param::Local::OSC_B_WAVE_INDEX:
+	case params::GLOBAL_VOLUME_POST_FX:
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
+	case params::GLOBAL_REVERB_AMOUNT:
+	case params::LOCAL_VOLUME:
+	case params::LOCAL_PAN:
+	case params::LOCAL_LPF_FREQ:
+	case params::LOCAL_HPF_FREQ:
+	case params::LOCAL_OSC_A_VOLUME:
+	case params::LOCAL_OSC_B_VOLUME:
+	case params::LOCAL_OSC_A_WAVE_INDEX:
+	case params::LOCAL_OSC_B_WAVE_INDEX:
 		return !fromAutomation;
 
-	case Param::Local::MODULATOR_0_VOLUME:
-	case Param::Local::MODULATOR_1_VOLUME:
-	case Param::Local::MODULATOR_0_FEEDBACK:
-	case Param::Local::MODULATOR_1_FEEDBACK:
-	case Param::Local::CARRIER_0_FEEDBACK:
-	case Param::Local::CARRIER_1_FEEDBACK:
-	case Param::Global::MOD_FX_DEPTH:
-	case Param::Global::DELAY_FEEDBACK:
+	case params::LOCAL_MODULATOR_0_VOLUME:
+	case params::LOCAL_MODULATOR_1_VOLUME:
+	case params::LOCAL_MODULATOR_0_FEEDBACK:
+	case params::LOCAL_MODULATOR_1_FEEDBACK:
+	case params::LOCAL_CARRIER_0_FEEDBACK:
+	case params::LOCAL_CARRIER_1_FEEDBACK:
+	case params::GLOBAL_MOD_FX_DEPTH:
+	case params::GLOBAL_DELAY_FEEDBACK:
 		return true;
 
 	default:
@@ -1641,22 +1640,22 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case Param::Static::COMPRESSOR_ATTACK:
+	case params::STATIC_COMPRESSOR_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case Param::Static::COMPRESSOR_RELEASE:
+	case params::STATIC_COMPRESSOR_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
-	case Param::Local::OSC_A_PHASE_WIDTH:
-	case Param::Local::OSC_B_PHASE_WIDTH:
+	case params::LOCAL_OSC_A_PHASE_WIDTH:
+	case params::LOCAL_OSC_B_PHASE_WIDTH:
 		return (uint32_t)userValue * (85899345 >> 1);
 
-	case Param::Static::PATCH_CABLE:
-	case Param::Static::COMPRESSOR_VOLUME:
+	case params::PATCH_CABLE:
+	case params::STATIC_COMPRESSOR_VOLUME:
 		return userValue * 21474836;
 
-	case Param::Unpatched::START + Param::Unpatched::BASS:
-	case Param::Unpatched::START + Param::Unpatched::TREBLE:
+	case params::UNPATCHED_START + params::UNPATCHED_BASS:
+	case params::UNPATCHED_START + params::UNPATCHED_TREBLE:
 		if (userValue == -50) {
 			return -2147483648;
 		}
