@@ -53,6 +53,67 @@ bool isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
 	return isParamStutter(kind, paramID);
 }
 
+char const* getPatchedParamShortName(ParamType type) {
+	// clang-format off
+	static char const* const NAMES[GLOBAL_NONE] = {
+	                                      //          //
+	    [LOCAL_OSC_A_VOLUME]             = "Osc1 level",
+	    [LOCAL_OSC_B_VOLUME]             = "Osc2 level",
+	    [LOCAL_VOLUME]                   = "Level",
+	    [LOCAL_NOISE_VOLUME]             = "Noise",
+	    [LOCAL_MODULATOR_0_VOLUME]       = "Mod1 level",
+	    [LOCAL_MODULATOR_1_VOLUME]       = "Mod2 level",
+	    [LOCAL_FOLD]                     = "Fold",
+	    [LOCAL_MODULATOR_0_FEEDBACK]     = "Mod1 feed",
+	    [LOCAL_MODULATOR_1_FEEDBACK]     = "Mod2 feed",
+	    [LOCAL_CARRIER_0_FEEDBACK]       = "Osc1 feed",
+	    [LOCAL_CARRIER_1_FEEDBACK]       = "Osc2 feed",
+	    [LOCAL_LPF_RESONANCE]            = "LPF reso",
+	    [LOCAL_HPF_RESONANCE]            = "HPF reso",
+	    [LOCAL_ENV_0_SUSTAIN]            = "Env1 sus",
+	    [LOCAL_ENV_1_SUSTAIN]            = "Env2 sus",
+	    [LOCAL_LPF_MORPH]                = "LPF Morph",
+	    [LOCAL_HPF_MORPH]                = "HPF Morph",
+	    [LOCAL_OSC_A_PHASE_WIDTH]        = "Osc1 PW",
+	    [LOCAL_OSC_B_PHASE_WIDTH]        = "Osc2 PW",
+	    [LOCAL_OSC_A_WAVE_INDEX]         = "Osc1 wave",
+	    [LOCAL_OSC_B_WAVE_INDEX]         = "Osc2 wave",
+	    [LOCAL_PAN]                      = "Pan",
+	    [LOCAL_LPF_FREQ]                 = "LPf freq",
+	    [LOCAL_PITCH_ADJUST]             = "Pitch",
+	    [LOCAL_OSC_A_PITCH_ADJUST]       = "Osc1 pitch",
+	    [LOCAL_OSC_B_PITCH_ADJUST]       = "Osc2 pitch",
+	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = "Mod1 pitch",
+	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = "Mod1 pitch",
+	    [LOCAL_HPF_FREQ]                 = "HPF freq",
+	    [LOCAL_LFO_LOCAL_FREQ]           = "LFO2 rate",
+	    [LOCAL_ENV_0_ATTACK]             = "Env1attack",
+	    [LOCAL_ENV_1_ATTACK]             = "Env2attack",
+	    [LOCAL_ENV_0_DECAY]              = "Env1 decay",
+	    [LOCAL_ENV_1_DECAY]              = "Env2 decay",
+	    [LOCAL_ENV_0_RELEASE]            = "Env1 rel",
+	    [LOCAL_ENV_1_RELEASE]            = "Env2 rel",
+	    [GLOBAL_VOLUME_POST_FX]          = "POSTFXLVL",
+	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "POSTRVLVL",
+	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
+	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
+	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
+	    [GLOBAL_DELAY_RATE]              = "Delay rate",
+	    [GLOBAL_MOD_FX_RATE]             = "ModFX rate",
+	    [GLOBAL_LFO_FREQ]                = "LFO1 rate",
+	    [GLOBAL_ARP_RATE]                = "Arp. rate",
+	};
+	// clang-format on
+
+	if (type < GLOBAL_NONE) {
+		return NAMES[type];
+	}
+	else {
+		__builtin_unreachable();
+		return nullptr;
+	}
+}
+
 char const* getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
 
