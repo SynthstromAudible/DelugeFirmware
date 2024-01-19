@@ -285,7 +285,7 @@ const int16_t oldResonanceCompensation[] = {
 
 
 // Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
-const uint8_t presetScaleNotes[NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH][7] = {
+const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		// Major modes (Original Deluge scales)
 		{0, 2, 4, 5, 7, 9, 11}, // MAJO Major (Ionian)
 		{0, 2, 3, 5, 7, 8, 10}, // MINO Natural Minor (Aeolian)

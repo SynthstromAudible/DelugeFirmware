@@ -244,7 +244,7 @@ void Song::setupDefault() {
 	// Do scale
 	int32_t whichScale = FlashStorage::defaultScale;
 
-	int32_t numPresetScales = getNumPresetScales();
+	int32_t numPresetScales = NUM_PRESET_SCALES;
 
 	if (whichScale == PRESET_SCALE_RANDOM) {
 		whichScale = random(numPresetScales - 1);
@@ -488,13 +488,6 @@ traverseClips:
 	return false;
 }
 
-int32_t Song::getNumPresetScales() {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales) == RuntimeFeatureStateToggle::On) {
-		return NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
-	}
-	return NUM_PRESET_SCALES;
-}
-
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 
 	int32_t oldRootNote = rootNote;
@@ -526,7 +519,7 @@ traverseClips:
 	}
 
 	bool previousScaleFits = true;
-	if (getCurrentPresetScale() >= getNumPresetScales()) {
+	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
 		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
 		previousScaleFits = false;
 	}
@@ -2689,7 +2682,7 @@ int32_t Song::cycleThroughScales() {
 	int32_t currentScale = getCurrentPresetScale();
 
 	int32_t newScale = currentScale + 1;
-	if (newScale >= getNumPresetScales()) {
+	if (newScale >= NUM_PRESET_SCALES) {
 		newScale = 0;
 	}
 
@@ -2784,7 +2777,7 @@ int32_t Song::getCurrentPresetScale() {
 		return 255;
 	}
 
-	int32_t numPresetScales = getNumPresetScales();
+	int32_t numPresetScales = NUM_PRESET_SCALES;
 	for (int32_t p = 0; p < numPresetScales; p++) {
 		for (int32_t n = 1; n < 7; n++) {
 			int32_t newNote = presetScaleNotes[p][n];

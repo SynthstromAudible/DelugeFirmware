@@ -53,7 +53,6 @@ Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
-Setting menuUnevenLengthScales(RuntimeFeatureSettingType::UnevenLengthScales);
 EmulatedDisplay menuEmulatedDisplay{};
 
 Submenu subMenuAutomation{
@@ -84,8 +83,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuShiftIsSticky,
     &menuLightShiftLed,
     &menuEnableGrainFX,
-    &menuEmulatedDisplay,
-    &menuUnevenLengthScales};
+    &menuEmulatedDisplay};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

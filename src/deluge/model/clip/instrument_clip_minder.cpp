@@ -503,7 +503,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 
 void InstrumentClipMinder::cycleThroughScales() {
 	int32_t newScale = currentSong->cycleThroughScales();
-	if (newScale >= currentSong->getNumPresetScales()) {
+	if (newScale >= NUM_PRESET_SCALES) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
 	}
@@ -513,7 +513,7 @@ void InstrumentClipMinder::cycleThroughScales() {
 }
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {
-	if (scale >= currentSong->getNumPresetScales()) {
+	if (scale >= NUM_PRESET_SCALES)) {
 		// Other scale
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE));
 	}

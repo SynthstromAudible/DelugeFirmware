@@ -130,10 +130,12 @@ extern const int16_t oldResonanceCompensation[];
 extern const int16_t windowedSincKernel[][17][16];
 extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 
-#define NUM_PRESET_SCALES 12
-#define NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH 16
-extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH][7];
-extern std::array<char const*, NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH> presetScaleNames;
+#define NUM_PRESET_SCALES 16
+#define FIRST_7_NOTE_SCALE_INDEX 0
+#define FIRST_6_NOTE_SCALE_INDEX 12
+#define FIRST_5_NOTE_SCALE_INDEX 14
+extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
+extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 #define PRESET_SCALE_RANDOM 254
 #define PRESET_SCALE_NONE 255
 

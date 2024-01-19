@@ -27,10 +27,6 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override {
 		int32_t numPresetScales = NUM_PRESET_SCALES;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
-		    == RuntimeFeatureStateToggle::On) {
-			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
-		}
 		int32_t savedScale = FlashStorage::defaultScale;
 		if (savedScale == PRESET_SCALE_RANDOM) {
 			this->setValue(NUM_PRESET_SCALES);
@@ -49,10 +45,6 @@ public:
 	}
 	void writeCurrentValue() override {
 		int32_t numPresetScales = NUM_PRESET_SCALES;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
-		    == RuntimeFeatureStateToggle::On) {
-			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
-		}
 		int32_t v = this->getValue();
 		if (v == numPresetScales) {
 			FlashStorage::defaultScale = PRESET_SCALE_RANDOM;
@@ -66,10 +58,6 @@ public:
 	}
 	std::vector<std::string_view> getOptions() override {
 		int32_t numPresetScales = NUM_PRESET_SCALES;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnevenLengthScales)
-		    == RuntimeFeatureStateToggle::On) {
-			numPresetScales = NUM_PRESET_SCALES_INCLUDING_UNEVEN_LENGTH;
-		}
 		std::vector<std::string_view> scales = {presetScaleNames.begin(), presetScaleNames.begin() + numPresetScales};
 		scales.push_back("RANDOM");
 		scales.push_back("NONE");
