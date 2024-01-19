@@ -1643,11 +1643,19 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 					}
 				}
 			}
-			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
-				//make em blue
-				pixel[0] = 0;
-				pixel[1] = 0;
-				pixel[2] = 255;
+			if (drewNote && currentSong->isFillModeActive()) {
+				if (note->probability == kFillProbabilityValue) {
+					//make em blue
+					pixel[0] = 0;
+					pixel[1] = 0;
+					pixel[2] = 255;
+				}
+				else if (note->probability == kNotFillProbabilityValue) {
+					//make em red
+					pixel[0] = 255;
+					pixel[1] = 0;
+					pixel[2] = 0;
+				}
 			}
 		}
 

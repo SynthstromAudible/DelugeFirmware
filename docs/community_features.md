@@ -227,8 +227,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- This is destructive (your original note positions are not saved) The implementation of this feature is likely to change in the future
 	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.3.4 - Fill Mode
- - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range, right before `5%`. Notes set to `FILL` are only played when fill mode is active. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+#### 4.3.4 - Fill / Not Fill Modes
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range. Notes set to `FILL` are only played when fill mode is active. These notes will be highlighted in bright blue color when the Fill button is held. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+ - ([#994]) Additionaly, there is also the Not Fill Mode, which is right before the `FILL` setting in the probability selector. On the OLED Deluge, this is shown as `NOT FILL`, and on 7-SEG Deluge, this will be shown as `FILL.` (with a dot). Notes set to `NOT FILL` are only played when fill mode is NOT active, that is, while regular playback, and, contrary to `FILL` notes, will be silenced when the fill mode is active. These notes will be highlighted in bright red color when the Fill button is held.
 
 #### 4.3.5 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
@@ -477,6 +478,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
+[#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
