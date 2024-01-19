@@ -552,7 +552,8 @@ doNormalLaunch:
 		}
 
 		// Arm it again if a ONCE clip, so it stops at the launchEvent
-		if ((clip->activeIfNoSolo || clip->soloingInSessionMode) && clip->launchStyle == LAUNCH_STYLE_ONCE && clip->armState == ArmState::OFF) {
+		if ((clip->activeIfNoSolo || clip->soloingInSessionMode) && clip->launchStyle == LAUNCH_STYLE_ONCE
+		    && clip->armState == ArmState::OFF) {
 			clip->armState = ArmState::ON_NORMAL;
 			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 		}
