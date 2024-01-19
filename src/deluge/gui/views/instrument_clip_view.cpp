@@ -2174,7 +2174,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								probabilityValue--;
 								// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128, that is prob=0 + prevBase=true)
 								// From any other percentage-probability we set prevBase if there are previous notes with the same probability
-								prevBase = (probabilityValue == 1
+								prevBase = (probabilityValue == 0
 								            || probabilityValue < kNumProbabilityValues
 								                   && getCurrentInstrumentClip()->doesProbabilityExist(
 								                       editPadPresses[i].intendedPos, probabilityValue,
