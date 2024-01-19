@@ -52,7 +52,8 @@ struct ParamsForPerformance {
 	int32_t xDisplay = kNoSelection;
 	int32_t yDisplay = kNoSelection;
 	RGB rowColour = deluge::gui::colours::black;
-	RGB rowTailColour = deluge::gui::colours::black;;
+	RGB rowTailColour = deluge::gui::colours::black;
+	;
 
 	ParamsForPerformance() = default;
 

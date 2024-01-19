@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "io/midi/midi_device.h"
 #include "gui/colour/colour.h"
+#include "io/midi/midi_device.h"
 
 #define MIDI_DEVICE_LUMI_KEYS_VP_COUNT 1
 

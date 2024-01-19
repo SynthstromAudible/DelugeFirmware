@@ -223,8 +223,8 @@ private:
 	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, RGB* image,
 	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
 	                            int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
-	               RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
+	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam, RGB* image,
+	               uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
 	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);

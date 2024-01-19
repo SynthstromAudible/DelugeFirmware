@@ -408,9 +408,9 @@ void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int3
 				if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
 				    && (fxPress[xDisplay].yDisplay == yDisplay)) {
 					pixel = {
-						.r = 130,
-						.g = 120,
-						.b = 130,
+					    .r = 130,
+					    .g = 120,
+					    .b = 130,
 					};
 				}
 			}
