@@ -23,6 +23,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patcher.h"
@@ -72,8 +73,8 @@ public:
 
 	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with Global::FIRST_PARAM, so subtract that from your p value before accessing this array!
-	int32_t paramFinalValues[kNumParams - Param::Global::FIRST];
+	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
+	int32_t paramFinalValues[deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL];
 	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
@@ -255,8 +256,6 @@ public:
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile();
-	char const* paramToString(uint8_t param) final;
-	int32_t stringToParam(char const* string) final;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);

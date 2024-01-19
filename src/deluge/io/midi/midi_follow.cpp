@@ -32,10 +32,17 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
+
+namespace params = deluge::modulation::params;
+using deluge::modulation::params::kNoParamID;
+using deluge::modulation::params::patchedParamShortcuts;
+using deluge::modulation::params::unpatchedGlobalParamShortcuts;
+using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -211,18 +218,18 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	Param::Kind paramKind = Param::Kind::NONE;
+	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
 	if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::PATCHED;
+		paramKind = params::Kind::PATCHED;
 		paramID = patchedParamShortcuts[xDisplay][yDisplay];
 	}
 	else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramKind = params::Kind::UNPATCHED_SOUND;
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
-	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam = automationClipView.getModelStackWithParamForSynthClip(modelStackWithTimelineCounter,
 		                                                                            instrumentClip, paramID, paramKind);
 	}
@@ -234,18 +241,18 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                              InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	Param::Kind paramKind = Param::Kind::NONE;
+	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
 	if (!instrumentClipView.getAffectEntire()) {
 		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::PATCHED;
+			paramKind = params::Kind::PATCHED;
 			paramID = patchedParamShortcuts[xDisplay][yDisplay];
 		}
 		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			//don't allow control of Portamento in Kit's
-			if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
+			if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != params::UNPATCHED_PORTAMENTO) {
+				paramKind = params::Kind::UNPATCHED_SOUND;
 				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 		}
@@ -253,18 +260,18 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 	else {
 		if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			//don't allow control of Portamento or Arp Gate in Kit Affect Entire
-			if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
-			    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
+			if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != params::UNPATCHED_PORTAMENTO)
+			    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != params::UNPATCHED_ARP_GATE)) {
+				paramKind = params::Kind::UNPATCHED_SOUND;
 				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 		}
 		else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_GLOBAL;
+			paramKind = params::Kind::UNPATCHED_GLOBAL;
 			paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 		}
 	}
-	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam = automationClipView.getModelStackWithParamForKitClip(modelStackWithTimelineCounter,
 		                                                                          instrumentClip, paramID, paramKind);
 	}
@@ -276,18 +283,18 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	Param::Kind paramKind = Param::Kind::NONE;
+	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
 	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramKind = params::Kind::UNPATCHED_SOUND;
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_GLOBAL;
+		paramKind = params::Kind::UNPATCHED_GLOBAL;
 		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 	}
-	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam =
 		    automationClipView.getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, audioClip, paramID);
 	}
@@ -296,19 +303,19 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 }
 
 void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
-	Param::Kind paramKind = Param::Kind::NONE;
+	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
 	if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::PATCHED;
+		paramKind = params::Kind::PATCHED;
 		paramID = patchedParamShortcuts[xDisplay][yDisplay];
 	}
 	else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramKind = params::Kind::UNPATCHED_SOUND;
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramKind = Param::Kind::UNPATCHED_GLOBAL;
+		paramKind = params::Kind::UNPATCHED_GLOBAL;
 		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 
@@ -331,14 +338,14 @@ void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
 /// for a given parameter, find and return the cc that has been learned (if any)
 /// it does this by finding the grid shortcut that corresponds to that param
 /// and then returns what cc or no cc (255) has been mapped to that param shortcut
-int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
+int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			bool foundParamShortcut =
-			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
-			     || ((paramKind == Param::Kind::UNPATCHED_SOUND)
+			    (((paramKind == params::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
+			     || ((paramKind == params::Kind::UNPATCHED_SOUND)
 			         && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID))
-			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
+			     || ((paramKind == params::Kind::UNPATCHED_GLOBAL)
 			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] == paramID)));
 
 			if (foundParamShortcut) {
@@ -690,25 +697,19 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			char const* paramName;
 
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
+				paramName = params::paramNameForFile(params::Kind::PATCHED, patchedParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
-				    || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
-					paramName = ((Sound*)NULL)
-					                ->Sound::paramToString(Param::Unpatched::START
-					                                       + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
-				}
-				else {
-					paramName = ModControllableAudio::paramToString(
-					    Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
-				}
+				paramName = params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+				                                     params::UNPATCHED_START
+				                                         + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 			else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramName = GlobalEffectable::paramToString(Param::Unpatched::START
-				                                            + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]);
+				paramName = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                     params::UNPATCHED_START
+				                                         + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 
@@ -770,23 +771,20 @@ void MidiFollow::readDefaultMappingsFromFile() {
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]))) {
+				if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
+				                                              patchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName,
-				                 ((Sound*)NULL)
-				                     ->Sound::paramToString(Param::Unpatched::START
-				                                            + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
+				                 params::paramNameForFile(
+				                     params::Kind::UNPATCHED_SOUND,
+				                     params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName,
-				                 ModControllableAudio::paramToString(
-				                     Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
-				}
-				else if (!strcmp(tagName,
-				                 GlobalEffectable::paramToString(
-				                     Param::Unpatched::START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
+				                 params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
+				                                          params::UNPATCHED_START
+				                                              + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 			}
