@@ -307,12 +307,6 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
 		return;
 	}
-	patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
-	    PatchSource::AFTERTOUCH, Param::Local::VOLUME, getParamFromUserValue(Param::Static::PATCH_CABLE, 33));
-
-	if (patchCableSet->numPatchCables >= kMaxNumPatchCables) {
-		return;
-	}
 
 	if (synthMode == SynthMode::FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
