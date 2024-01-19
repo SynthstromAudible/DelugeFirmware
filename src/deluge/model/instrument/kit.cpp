@@ -50,6 +50,8 @@
 #include <new>
 #include <string.h>
 
+namespace params = deluge::modulation::params;
+
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
@@ -560,7 +562,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 				ParamCollectionSummary* patchedParamsSummary = &thisNoteRow->paramManager.summaries[1];
 
 				bool anyInterpolating = false;
-				if constexpr (kNumParams > 64) {
+				if constexpr (deluge::modulation::params::kNumParams > 64) {
 					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[1]
 					                   || patchedParamsSummary->whichParamsAreInterpolating[2];
@@ -582,7 +584,7 @@ yesTickParamManager:
 
 				// No time to call the proper function and do error checking, sorry.
 				ParamCollectionSummary* unpatchedParamsSummary = &thisNoteRow->paramManager.summaries[0];
-				if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
+				if constexpr (params::UNPATCHED_SOUND_MAX_NUM > 32) {
 					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
 					    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
 						goto yesTickParamManager;
@@ -894,13 +896,12 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		int32_t compensation =
-		    interpolateTableSigned(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES) + 2147483648,
-		                           32, oldResonanceCompensation, 3);
+		int32_t compensation = interpolateTableSigned(unpatchedParams->getValue(params::UNPATCHED_LPF_RES) + 2147483648,
+		                                              32, oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
-			unpatchedParams->shiftParamVolumeByDB(Param::Unpatched::GlobalEffectable::VOLUME, compensationDB);
+			unpatchedParams->shiftParamVolumeByDB(params::UNPATCHED_VOLUME, compensationDB);
 		}
 
 		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.

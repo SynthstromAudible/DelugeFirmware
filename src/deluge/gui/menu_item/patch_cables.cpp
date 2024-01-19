@@ -66,7 +66,7 @@ void PatchCables::renderOptions() {
 		char* buf = bufs[i];
 
 		const char* src_name = sourceToStringShort(src); // exactly 4 chars
-		const char* dest_name = patchedParamToStringShort(dest);
+		const char* dest_name = deluge::modulation::params::getPatchedParamShortName(dest);
 
 		memcpy(buf, src_name, 4);
 		buf[4] = ' ';
@@ -156,8 +156,9 @@ void PatchCables::blinkShortcuts() {
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	int dest = desc.getJustTheParam();
 
-	if (dest == ::Param::Global::VOLUME_POST_REVERB_SEND || dest == ::Param::Local::VOLUME) {
-		dest = ::Param::Global::VOLUME_POST_FX;
+	if (dest == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+	    || dest == deluge::modulation::params::LOCAL_VOLUME) {
+		dest = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
 	}
 
 	int32_t x, y;
