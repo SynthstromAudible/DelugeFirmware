@@ -285,8 +285,19 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 ##### 4.4.1.4 - Display Norns Layout
 
- - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
+ - ([#250]) Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`).
+	- Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
+	- The Midigrid mod translates MIDI notes between norns and Deluge to use the grid as a controller for a norns script. Midigrid sends MIDI notes on channel 16 from norns to Deluge to light up grid LEDs. When a pad is pressed on Deluge, it sends out a MIDI note on channel 16 to norns. This means that Deluge's usual way of learning a MIDI controller to a synth clip will be constantly interrupted by the stream of MIDI notes coming in on channel 16 from norns. To learn external MIDI controls to Deluge while using the Midigrid mod, first stop the running script on norns, turn off the Midigrid mod in the mod menu, or determine another method to pause the grid updating MIDI messages from norns.
+	- The functionality of the grid changes with each norns script.  
+
+	**1.** Connect Deluge to norns with a USB cable for MIDI.  
+	**2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on your norns, turn on the mod, set to 128 grid size.  
+	**3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+	**4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16 by turning the `SELECT` encoder.  
+	**5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to select "Norns Layout" (NORN).  
+	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
+	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
    
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -383,7 +394,7 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 * Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
-  	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+  	* When On, enables keyboard layout which emulates monome grid for monome norns using midigrid mod where incoming midi notes on channel 16 are rendered as white pads using velocity for brightness.
 * Sticky Shift (STIC)
   	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
 * Light Shift (LIGH)
