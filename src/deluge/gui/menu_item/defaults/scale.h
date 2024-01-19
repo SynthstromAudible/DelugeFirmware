@@ -26,7 +26,6 @@ class Scale final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
-		int32_t numPresetScales = NUM_PRESET_SCALES;
 		int32_t savedScale = FlashStorage::defaultScale;
 		if (savedScale == PRESET_SCALE_RANDOM) {
 			this->setValue(NUM_PRESET_SCALES);
@@ -34,26 +33,43 @@ public:
 		else if (savedScale == PRESET_SCALE_NONE) {
 			this->setValue(NUM_PRESET_SCALES + 1);
 		}
-		else if (savedScale >= numPresetScales) {
-			// Index is out of bounds, so set to 0
-			this->setValue(0);
-		}
 		else {
-			// Otherwise set to the saved scale
-			this->setValue(savedScale);
+			if (savedScale >= OFFSET_5_NOTE_SCALE) {
+				// remove offset for 5 note scales
+				savedScale = FIRST_5_NOTE_SCALE_INDEX + savedScale - OFFSET_5_NOTE_SCALE;
+			}
+			else if (savedScale >= OFFSET_6_NOTE_SCALE) {
+				// remove offset for 6 note scales
+				savedScale = FIRST_6_NOTE_SCALE_INDEX + savedScale - OFFSET_6_NOTE_SCALE;
+			}
+			if (savedScale >= NUM_PRESET_SCALES) {
+				// Index is out of bounds, so reset to 0
+				this->setValue(0);
+			}
+			else {
+				// Otherwise set to the saved scale
+				this->setValue(savedScale);
+			}
 		}
 	}
 	void writeCurrentValue() override {
-		int32_t numPresetScales = NUM_PRESET_SCALES;
 		int32_t v = this->getValue();
-		if (v == numPresetScales) {
+		if (v == NUM_PRESET_SCALES) {
 			FlashStorage::defaultScale = PRESET_SCALE_RANDOM;
 		}
-		else if (v == numPresetScales + 1) {
+		else if (v == NUM_PRESET_SCALES + 1) {
 			FlashStorage::defaultScale = PRESET_SCALE_NONE;
 		}
 		else {
-			FlashStorage::defaultScale = this->getValue();
+			if (v >= FIRST_5_NOTE_SCALE_INDEX) {
+				// apply offset to 5 note scales
+				v = OFFSET_5_NOTE_SCALE + v - FIRST_5_NOTE_SCALE_INDEX;
+			}
+			else if (v >= FIRST_6_NOTE_SCALE_INDEX) {
+				// apply offset to 6 note scales
+				v = OFFSET_6_NOTE_SCALE + v - FIRST_6_NOTE_SCALE_INDEX;
+			}
+			FlashStorage::defaultScale = v;
 		}
 	}
 	std::vector<std::string_view> getOptions() override {

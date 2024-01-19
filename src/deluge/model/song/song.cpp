@@ -243,14 +243,25 @@ void Song::setupDefault() {
 
 	// Do scale
 	int32_t whichScale = FlashStorage::defaultScale;
-
-	int32_t numPresetScales = NUM_PRESET_SCALES;
-
 	if (whichScale == PRESET_SCALE_RANDOM) {
-		whichScale = random(numPresetScales - 1);
+		whichScale = random(NUM_PRESET_SCALES - 1);
 	}
-	else if (whichScale >= numPresetScales) {
+	else if (whichScale == PRESET_SCALE_NONE) {
 		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
+	}
+	else {
+		if (whichScale >= OFFSET_5_NOTE_SCALE) {
+			// remove offset for 5 note scales
+			whichScale = FIRST_5_NOTE_SCALE_INDEX + whichScale - OFFSET_5_NOTE_SCALE;
+		}
+		else if (whichScale >= OFFSET_6_NOTE_SCALE) {
+			// remove offset for 6 note scales
+			whichScale = FIRST_6_NOTE_SCALE_INDEX + whichScale - OFFSET_6_NOTE_SCALE;
+		}
+		if (whichScale >= NUM_PRESET_SCALES) {
+			// Index is out of bounds, so reset to 0
+			whichScale = 0;
+		}
 	}
 	int32_t newNumModeNotes = 1;
 	for (int32_t n = 1; n < 7; n++) {

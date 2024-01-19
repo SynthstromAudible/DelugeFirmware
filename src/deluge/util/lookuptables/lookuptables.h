@@ -138,6 +138,10 @@ extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
 extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 #define PRESET_SCALE_RANDOM 254
 #define PRESET_SCALE_NONE 255
+// These offsets allows us to introduce new 7, 6 and 5 note scales in between the existing ones
+// keeping the decreasing order and without breaking backwards compatibility
+#define OFFSET_6_NOTE_SCALE 64
+#define OFFSET_5_NOTE_SCALE 128
 
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
