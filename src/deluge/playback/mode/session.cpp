@@ -551,6 +551,12 @@ doNormalLaunch:
 			}
 		}
 
+		// Arm it again if a ONCE clip, so it stops at the launchEvent
+		if (clip->activeIfNoSolo && clip->launchStyle == LAUNCH_STYLE_ONCE && clip->armState == ArmState::OFF) {
+			clip->armState = ArmState::ON_NORMAL;
+			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+		}
+
 		bool clipActiveAfter = clip->soloingInSessionMode || (clip->activeIfNoSolo && !anySoloingAfter);
 
 		if (clipActiveAfter) {
@@ -1487,7 +1493,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+		if (clip->launchStyle != LAUNCH_STYLE_FILL) {
 			if (!doLateStart
 			    && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's not that useful, and tricky to implement
 
@@ -1509,7 +1515,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
-			if (thisClip->launchStyle != LAUNCH_STYLE_DEFAULT) {
+			if (thisClip->launchStyle == LAUNCH_STYLE_FILL) {
 				continue;
 			}
 
@@ -1703,7 +1709,7 @@ setPosAndStuff:
  *                    then than the clip is long, start right now mid way
  *                    through. Otherwise schedule for the correct time.
  *
- * @param section - the section number to launch fill clips for.
+ * @param clip - the clip to launch.
  *
 */
 void Session::scheduleFillClip(Clip* clip) {
@@ -2493,11 +2499,12 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill effects of this are pretty minor.
 	bool willLoop =
-	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
-	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop
-	    || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
-	    || (clip->soloingInSessionMode
-	        && clip->activeIfNoSolo); // We know from the previous test that clip is armed. If it's soloing, that means it's armed to stop soloing. And if it is activeIfNoSolo, that means it'll keep playing, if we assume *all* clips are going to stop soloing (a false positive here doesn't matter too much)
+	    clip->launchStyle == LAUNCH_STYLE_DEFAULT
+	    && (!launchEventAtSwungTickCount // If no launch event scheduled, obviously it'll loop
+	        || numRepeatsTilLaunch > 1   // If the launch event is gonna just trigger another repeat, it'll loop
+	        || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
+	        || (clip->soloingInSessionMode
+	            && clip->activeIfNoSolo)); // We know from the previous test that clip is armed. If it's soloing, that means it's armed to stop soloing. And if it is activeIfNoSolo, that means it'll keep playing, if we assume *all* clips are going to stop soloing (a false positive here doesn't matter too much)
 
 	// Ok, that's most of our tests done. If one of them gave a true, we can get out now.
 	if (willLoop) {
