@@ -204,7 +204,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
-		return l10n::get(NAMES[p]);
+		return l10n::get(NAMES[p - unc]);
 	}
 
 	if (kind == Kind::UNPATCHED_GLOBAL && p < UNPATCHED_GLOBAL_MAX_NUM) {
@@ -225,7 +225,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
 		    [UNPATCHED_PITCH_ADJUST - unc] = STRING_FOR_MASTER_PITCH,
 		};
-		return l10n::get(NAMES[p]);
+		return l10n::get(NAMES[p - unc]);
 	}
 
 	return l10n::get(STRING_FOR_NONE);
