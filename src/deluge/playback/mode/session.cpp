@@ -1494,7 +1494,8 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle != LAUNCH_STYLE_FILL) {
+		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT || clip->launchStyle == LAUNCH_STYLE_FILL
+		    || (clip->launchStyle == LAUNCH_STYLE_ONCE && !doLateStart)) {
 			if (!doLateStart
 			    && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's not that useful, and tricky to implement
 
