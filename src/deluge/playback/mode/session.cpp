@@ -2500,12 +2500,11 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill effects of this are pretty minor.
 	bool willLoop =
-	    clip->launchStyle == LAUNCH_STYLE_DEFAULT
-	    && (!launchEventAtSwungTickCount // If no launch event scheduled, obviously it'll loop
-	        || numRepeatsTilLaunch > 1   // If the launch event is gonna just trigger another repeat, it'll loop
-	        || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
-	        || (clip->soloingInSessionMode
-	            && clip->activeIfNoSolo)); // We know from the previous test that clip is armed. If it's soloing, that means it's armed to stop soloing. And if it is activeIfNoSolo, that means it'll keep playing, if we assume *all* clips are going to stop soloing (a false positive here doesn't matter too much)
+	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
+	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop
+	    || clip->armState != ArmState::ON_NORMAL // If not armed, or armed to solo, it'll loop (except see above)
+	    || (clip->soloingInSessionMode
+	        && clip->activeIfNoSolo); // We know from the previous test that clip is armed. If it's soloing, that means it's armed to stop soloing. And if it is activeIfNoSolo, that means it'll keep playing, if we assume *all* clips are going to stop soloing (a false positive here doesn't matter too much)
 
 	// Ok, that's most of our tests done. If one of them gave a true, we can get out now.
 	if (willLoop) {
