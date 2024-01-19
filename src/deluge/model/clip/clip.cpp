@@ -42,6 +42,8 @@
 #include "util/functions.h"
 #include <new>
 
+namespace params = deluge::modulation::params;
+
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
 Clip::Clip(int32_t newType) : type(newType) {
@@ -65,7 +67,7 @@ Clip::Clip(int32_t newType) : type(newType) {
 	//initialize automation clip view variables
 	onAutomationClipView = false;
 	lastSelectedParamID = kNoSelection;
-	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;

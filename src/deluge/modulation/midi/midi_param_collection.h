@@ -61,7 +61,7 @@ public:
 	void writeToFile();
 	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithParamCollection* modelStack);
 
-	Param::Kind getParamKind() { return Param::Kind::MIDI; }
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::MIDI; }
 
 	MIDIParamVector params;
 

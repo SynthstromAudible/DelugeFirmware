@@ -21,6 +21,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 #include "model/global_effectable/global_effectable.h"
+#include "modulation/params/param.h"
 #include "storage/flash_storage.h"
 
 class Editor;
@@ -34,7 +35,7 @@ struct PadPress {
 	bool isActive;
 	int32_t xDisplay;
 	int32_t yDisplay;
-	Param::Kind paramKind;
+	deluge::modulation::params::Kind paramKind;
 	int32_t paramID;
 };
 
@@ -47,32 +48,25 @@ struct FXColumnPress {
 };
 
 struct ParamsForPerformance {
-	Param::Kind paramKind = Param::Kind::NONE;
-	ParamType paramID = kNoSelection;
+	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
+	deluge::modulation::params::ParamType paramID;
 	int32_t xDisplay = kNoSelection;
 	int32_t yDisplay = kNoSelection;
 	RGB rowColour = deluge::gui::colours::black;
 	RGB rowTailColour = deluge::gui::colours::black;
-	;
 
 	ParamsForPerformance() = default;
 
-	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const RGB colour,
-	                     const RGB tailColour) {
-		paramKind = kind;
-		paramID = param;
-		xDisplay = x;
-		yDisplay = y;
-		rowColour = colour;
-		rowTailColour = tailColour;
-	}
+	ParamsForPerformance(deluge::modulation::params::Kind kind, deluge::modulation::params::ParamType param, int32_t x,
+	                     int32_t y, const RGB colour, const RGB tailColour)
+	    : paramKind(kind), paramID(param), xDisplay(x), yDisplay(y), rowColour(colour), rowTailColour(tailColour) {}
 };
 
 const int32_t sizePadPress = sizeof(PadPress);
 const int32_t sizeFXPress = sizeof(FXColumnPress);
 const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
 
-class PerformanceSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
+class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
 	bool opened();
@@ -133,7 +127,7 @@ public:
 
 	//public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
-	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
+	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
 private:
@@ -145,7 +139,7 @@ private:
 
 	//rendering
 	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	bool isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID);
+	bool isParamAssignedToFXColumn(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
 
 	//pad action
@@ -153,14 +147,14 @@ private:
 	void paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
 	                          int32_t on);
 	bool isPadShortcut(int32_t xDisplay, int32_t yDisplay);
-	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
-	                       int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
-	void getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
-	                       int32_t xDisplay, bool renderDisplay = true);
-	void padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
-	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
-	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
-	                      int32_t xDisplay, bool renderDisplay = true);
+	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
+	                       int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
+	void getParameterValue(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
+	                       int32_t paramID, int32_t xDisplay, bool renderDisplay = true);
+	void padPressAction(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
+	                    int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
+	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
+	                      int32_t paramID, int32_t xDisplay, bool renderDisplay = true);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 

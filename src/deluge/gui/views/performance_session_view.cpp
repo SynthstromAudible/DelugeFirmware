@@ -49,6 +49,7 @@
 #include "model/consequence/consequence_performance_view_press.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -62,6 +63,9 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+namespace params = deluge::modulation::params;
+using deluge::modulation::params::Kind;
+using deluge::modulation::params::kNoParamID;
 using namespace deluge;
 using namespace gui;
 
@@ -97,67 +101,93 @@ constexpr RGB rowTailColourPastelPink = {37, 15, 37};  //Mod FX Rate, Depth, Fee
 constexpr RGB rowTailColourPink = {53, 0, 53};         //Decimation, Bitcrush
 constexpr RGB rowTailColourBlue = {2, 2, 53};          //Stutter
 
-using namespace Param;
-using namespace Unpatched;
-using namespace GlobalEffectable;
+using namespace deluge::modulation::params;
 
 //list of parameters available for assignment to FX columns in performance view
 const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = {
-    {ParamsForPerformance(UNPATCHED_GLOBAL, LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, HPF_FREQ, 9, 7, rowColourPastelOrange, rowTailColourPastelOrange)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, HPF_RES, 9, 6, rowColourPastelOrange, rowTailColourPastelOrange)},
-    {ParamsForPerformance(UNPATCHED_SOUND, BASS, 10, 6, rowColourPastelYellow, rowTailColourPastelYellow)},
-    {ParamsForPerformance(UNPATCHED_SOUND, TREBLE, 11, 6, rowColourPastelYellow, rowTailColourPastelYellow)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen, rowTailColourPastelGreen)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, DELAY_AMOUNT, 14, 3, rowColourPastelBlue, rowTailColourPastelBlue)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, DELAY_RATE, 14, 0, rowColourPastelBlue, rowTailColourPastelBlue)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, MOD_FX_RATE, 12, 7, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, MOD_FX_DEPTH, 12, 6, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, MOD_FX_OFFSET, 12, 4, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, rowColourPastelOrange,
+                          rowTailColourPastelOrange)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, rowColourPastelOrange,
+                          rowTailColourPastelOrange)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, rowColourPastelYellow,
+                          rowTailColourPastelYellow)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, rowColourPastelYellow,
+                          rowTailColourPastelYellow)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen,
+                          rowTailColourPastelGreen)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, rowColourPastelBlue,
+                          rowTailColourPastelBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, rowColourPastelBlue,
+                          rowTailColourPastelBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink,
+                          rowTailColourPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
 };
 
 const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
-    {ParamsForPerformance(UNPATCHED_GLOBAL, LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, HPF_FREQ, 9, 7, rowColourPastelOrange, rowTailColourPastelOrange)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, HPF_RES, 9, 6, rowColourPastelOrange, rowTailColourPastelOrange)},
-    {ParamsForPerformance(UNPATCHED_SOUND, BASS, 10, 6, rowColourPastelYellow, rowTailColourPastelYellow)},
-    {ParamsForPerformance(UNPATCHED_SOUND, TREBLE, 11, 6, rowColourPastelYellow, rowTailColourPastelYellow)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen, rowTailColourPastelGreen)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, DELAY_AMOUNT, 14, 3, rowColourPastelBlue, rowTailColourPastelBlue)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, DELAY_RATE, 14, 0, rowColourPastelBlue, rowTailColourPastelBlue)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, MOD_FX_RATE, 12, 7, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_GLOBAL, MOD_FX_DEPTH, 12, 6, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, MOD_FX_OFFSET, 12, 4, rowColourPastelPink, rowTailColourPastelPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(UNPATCHED_SOUND, STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, rowColourPastelOrange,
+                          rowTailColourPastelOrange)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, rowColourPastelOrange,
+                          rowTailColourPastelOrange)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, rowColourPastelYellow,
+                          rowTailColourPastelYellow)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, rowColourPastelYellow,
+                          rowTailColourPastelYellow)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen,
+                          rowTailColourPastelGreen)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, rowColourPastelBlue,
+                          rowTailColourPastelBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, rowColourPastelBlue,
+                          rowTailColourPastelBlue)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, rowColourPastelPink,
+                          rowTailColourPastelPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink,
+                          rowTailColourPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
+    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
 };
 
 //mapping shortcuts to paramKind
-const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+const Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, UNPATCHED_SOUND, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_SOUND,
+     Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, UNPATCHED_SOUND, UNPATCHED_GLOBAL,
-     UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
+     Kind::UNPATCHED_GLOBAL},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
+     Kind::UNPATCHED_GLOBAL},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_SOUND,
+     Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
+    {Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE,
+     Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
 };
 
@@ -168,16 +198,20 @@ const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight]
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, STUTTER_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, SAMPLE_RATE_REDUCTION, BITCRUSHING, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_STUTTER_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING,
+     kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, LPF_RES, LPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, HPF_RES, HPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, BASS, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, TREBLE, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, MOD_FX_OFFSET, MOD_FX_FEEDBACK, MOD_FX_DEPTH, MOD_FX_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {DELAY_RATE, kNoParamID, kNoParamID, DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    // XXX(sean,sapphire): is it correct to use the UNPATCHED_*PF_* constants here?
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_LPF_RES, UNPATCHED_LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_HPF_RES, UNPATCHED_HPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_BASS, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_TREBLE, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_MOD_FX_OFFSET, UNPATCHED_MOD_FX_FEEDBACK,
+     UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {UNPATCHED_DELAY_RATE, kNoParamID, kNoParamID, UNPATCHED_DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
 };
 
@@ -218,7 +252,7 @@ void PerformanceSessionView::initPadPress(PadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
-	padPress.paramKind = Param::Kind::NONE;
+	padPress.paramKind = params::Kind::NONE;
 	padPress.paramID = kNoSelection;
 }
 
@@ -231,7 +265,7 @@ void PerformanceSessionView::initFXPress(FXColumnPress& columnPress) {
 }
 
 void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
-	layout.paramKind = Param::Kind::NONE;
+	layout.paramKind = params::Kind::NONE;
 	layout.paramID = kNoSelection;
 	layout.xDisplay = kNoSelection;
 	layout.yDisplay = kNoSelection;
@@ -421,7 +455,7 @@ void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int3
 }
 
 /// check if a param has been assinged to any of the FX columns
-bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID) {
+bool PerformanceSessionView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
 		    && (layoutForPerformance[xDisplay].paramID == paramID)) {
@@ -514,7 +548,7 @@ void PerformanceSessionView::renderViewDisplay() {
 }
 
 /// Render Parameter Name and Value set when using Performance Pads
-void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
+void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
 	if (editingParam) {
 		//display parameter name
 		char parameterName[30];
@@ -559,7 +593,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 			//display parameter value
 			yPos = yPos + 24;
 
-			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamQuantizedStutter(paramKind, paramID)) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -592,7 +626,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		}
 		//7Seg Display
 		else {
-			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+			if (params::isParamQuantizedStutter(paramKind, paramID)) {
 				char const* buffer;
 				if (knobPos < -39) { // 4ths stutter: no leds turned on
 					buffer = "4ths";
@@ -904,8 +938,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 /// process pad actions in the normal performance view or value editor
 void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
                                              int32_t yDisplay, int32_t on) {
-	//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
-	Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+	//obtain Kind, ParamID corresponding to the column pressed on performance grid
+	Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
 	//pressing a pad
@@ -933,7 +967,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	else {
 		//if releasing a pad with "held" status shortly after being given that status
 		//or releasing a pad that was not in "held" status but was a longer press and release
-		if ((view.isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
+		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
@@ -972,7 +1006,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	}
 }
 
-void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
 	                      renderDisplay)) {
@@ -997,7 +1031,7 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 	}
 }
 
-void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
 	                      renderDisplay)) {
@@ -1072,7 +1106,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 
 /// check if pad press corresponds to a shortcut pad on the grid
 bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
-	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != Param::Kind::NONE)
+	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != params::Kind::NONE)
 	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != kNoParamID)) {
 		return true;
 	}
@@ -1133,8 +1167,8 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 			initLayout(layoutForPerformance[xDisplay]);
 		}
 		else if (fxPress[xDisplay].padPressHeld) {
-			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
-			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+			//obtain params::Kind and ParamID corresponding to the column in focus (xDisplay)
+			params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
 			if (lastSelectedParamID != kNoSelection) {
@@ -1151,8 +1185,8 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 /// and reset the param value assigned to that FX column to pre-held state
 void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
-		//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
-		Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+		//obtain Kind and ParamID corresponding to the column in focus (xDisplay)
+		params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
 		if (lastSelectedParamID != kNoSelection) {
@@ -1165,7 +1199,7 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 /// check if stutter is active and release it if it is
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		padReleaseAction(modelStack, Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE,
+		padReleaseAction(modelStack, params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
 		                 lastPadPress.xDisplay, false);
 	}
 }
@@ -1176,7 +1210,7 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 /// if you're in the value editor, pressing a column and changing the value will also open the sound editor
 /// menu for the parameter to show you the current value in the menu
 /// in regular performance view, this function will also update the parameter value shown on the display
-bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
 
@@ -1187,7 +1221,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 			//if switching to a new pad in the stutter column and stuttering is already active
 			//e.g. it means a pad was held before, end previous stutter before starting stutter again
-			if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)
+			if ((paramKind == params::Kind::UNPATCHED_SOUND)
+			    && (paramID == deluge::modulation::params::UNPATCHED_STUTTER_RATE)
 			    && (isUIModeActive(UI_MODE_STUTTERING))) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
@@ -1206,14 +1241,14 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
 			                                                          view.modPos, view.modLength);
 
-			if (!defaultEditingMode && (paramKind == Param::Kind::UNPATCHED_SOUND)
-			    && (paramID == Param::Unpatched::STUTTER_RATE) && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
+			if (!defaultEditingMode && (paramKind == params::Kind::UNPATCHED_SOUND)
+			    && (paramID == UNPATCHED_STUTTER_RATE) && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
 
 			if (renderDisplay) {
-				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1236,7 +1271,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 /// get the current value for a parameter and update display if value is different than currently shown
 /// update current value stored
-void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
 
@@ -1250,7 +1285,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				if (params::isParamQuantizedStutter(paramKind, paramID)) {
 					renderFXDisplay(paramKind, paramID, knobPos);
 				}
 				else {
@@ -1284,11 +1319,10 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
-	Param::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
+	params::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
 	int32_t paramID = defaultLayoutForPerformance[xDisplay].paramID;
 
-	bool isDelayAmount =
-	    ((paramKind == Param::Kind::UNPATCHED_GLOBAL) && (paramID == Param::Unpatched::GlobalEffectable::DELAY_AMOUNT));
+	bool isDelayAmount = ((paramKind == params::Kind::UNPATCHED_GLOBAL) && (paramID == UNPATCHED_DELAY_AMOUNT));
 
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
 	//exception: delay amount increment is set to 9 by default
@@ -1441,7 +1475,7 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 		}
 	}
 	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
-	    && view.isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
+	    && params::isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
 		return;
 	}
 	else {
@@ -1560,12 +1594,11 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
 
-	if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_GLOBAL) {
-		paramName = GlobalEffectable::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
-	}
-	else if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_SOUND) {
-		paramName =
-		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
+	auto kind = layoutForPerformance[xDisplay].paramKind;
+	if (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND) {
+		// XXX(sapphire): this will break old presets if they had ARP_GATE or PORTAMENTO on a UNPATCHED_SOUND (this may
+		// not be a problem in practice)
+		paramName = params::paramNameForFile(kind, layoutForPerformance[xDisplay].paramID);
 	}
 	else {
 		paramName = PERFORM_DEFAULTS_NO_PARAM;
@@ -1702,8 +1735,8 @@ void PerformanceSessionView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeParamsForPerformance);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-			                                 layoutForPerformance[xDisplay].paramID)) {
+			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+			                                    layoutForPerformance[xDisplay].paramID)) {
 				defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -1760,13 +1793,8 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* tagName = storageManager.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-		if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED_GLOBAL) {
-			paramName = GlobalEffectable::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
-		}
-		else if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED_SOUND) {
-			paramName =
-			    ModControllableAudio::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
-		}
+		paramName =
+		    params::paramNameForFile(songParamsForPerformance[i].paramKind, songParamsForPerformance[i].paramID);
 		if (!strcmp(tagName, paramName)) {
 			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
 
@@ -1794,8 +1822,8 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-				                                 layoutForPerformance[xDisplay].paramID)) {
+				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+				                                    layoutForPerformance[xDisplay].paramID)) {
 					defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
 				}
 
@@ -1816,8 +1844,8 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
-				if (!view.isParamStutter(layoutForPerformance[xDisplay].paramKind,
-				                         layoutForPerformance[xDisplay].paramID)) {
+				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
+				                            layoutForPerformance[xDisplay].paramID)) {
 					fxPress[xDisplay].padPressHeld = true;
 					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 
@@ -1860,7 +1888,7 @@ void PerformanceSessionView::initializeHeldFX(int32_t xDisplay) {
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			if ((layoutForPerformance[xDisplay].paramKind != Param::Kind::NONE)
+			if ((layoutForPerformance[xDisplay].paramKind != params::Kind::NONE)
 			    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
 				setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
 				                  layoutForPerformance[xDisplay].paramID, xDisplay,

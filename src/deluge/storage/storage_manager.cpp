@@ -1026,10 +1026,14 @@ cutFolderPathAndTryCreating:
 	return NO_ERROR;
 }
 
-int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite) {
+int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
 	int32_t error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	if (error) {
+		if (displayErrors) {
+			display->removeWorkingAnimation();
+			display->displayError(error);
+		}
 		return error;
 	}
 

@@ -1637,8 +1637,13 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 			}
-			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
-				pixel = deluge::gui::colours::blue; //make em blue
+			if (drewNote && currentSong->isFillModeActive()) {
+				if (note->probability == kFillProbabilityValue) {
+					pixel = deluge::gui::colours::blue;
+				}
+				else if (note->probability == kNotFillProbabilityValue) {
+					pixel = deluge::gui::colours::red;
+				}
 			}
 		}
 
