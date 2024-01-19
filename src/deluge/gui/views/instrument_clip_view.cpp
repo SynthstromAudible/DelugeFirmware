@@ -2148,21 +2148,17 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								prevBase = false;
 							}
 							else {
-								if (probabilityValue == 0) {
-									// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
+								// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128, that is prob=0 + prevBase=true)
+								// And for percentage-probabilities we set preBase if there are previous notes with the same probability
+								if (probabilityValue == 0
+								    || (probabilityValue < kNumProbabilityValues
+								        && getCurrentInstrumentClip()->doesProbabilityExist(
+								            editPadPresses[i].intendedPos, probabilityValue,
+								            kNumProbabilityValues - probabilityValue))) {
 									prevBase = true;
 								}
-								// See if there's a prev-base
 								else {
-									if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-									    && getCurrentInstrumentClip()->doesProbabilityExist(
-									        editPadPresses[i].intendedPos, probabilityValue,
-									        kNumProbabilityValues - probabilityValue)) {
-										prevBase = true;
-									}
-									else {
-										probabilityValue++;
-									}
+									probabilityValue++;
 								}
 							}
 						}
@@ -2175,18 +2171,14 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								prevBase = false;
 							}
 							else {
-								if (probabilityValue == 1) {
-									// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
-									prevBase = true;
-									probabilityValue = 0;
-								}
-								else {
-									probabilityValue--;
-									prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-									            && getCurrentInstrumentClip()->doesProbabilityExist(
-									                editPadPresses[i].intendedPos, probabilityValue,
-									                kNumProbabilityValues - probabilityValue));
-								}
+								probabilityValue--;
+								// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128, that is prob=0 + prevBase=true)
+								// From any other percentage-probability we set prevBase if there are previous notes with the same probability
+								prevBase = (probabilityValue == 1
+								            || probabilityValue < kNumProbabilityValues
+								                   && getCurrentInstrumentClip()->doesProbabilityExist(
+								                       editPadPresses[i].intendedPos, probabilityValue,
+								                       kNumProbabilityValues - probabilityValue));
 							}
 						}
 					}
