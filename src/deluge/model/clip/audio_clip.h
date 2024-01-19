@@ -107,8 +107,8 @@ public:
 	bool doingLateStart;
 	bool maySetupCache;
 
-	bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
 

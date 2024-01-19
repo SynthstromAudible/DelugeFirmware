@@ -196,8 +196,8 @@ public:
 	OutputType lastSelectedOutputType;
 	//END ~ new Automation Clip View Variables
 
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
-	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) = 0;
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 
 protected:
 	virtual void
@@ -207,6 +207,5 @@ protected:
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
 	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                            Clip* favourClipForCloningParamManager = NULL);
-	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
-	}
+	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

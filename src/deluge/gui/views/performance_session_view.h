@@ -47,38 +47,23 @@ struct FXColumnPress {
 };
 
 struct ParamsForPerformance {
-	Param::Kind paramKind;
-	ParamType paramID;
-	int32_t xDisplay;
-	int32_t yDisplay;
-	uint8_t rowColour[3];
-	uint8_t rowTailColour[3];
+	Param::Kind paramKind = Param::Kind::NONE;
+	ParamType paramID = kNoSelection;
+	int32_t xDisplay = kNoSelection;
+	int32_t yDisplay = kNoSelection;
+	RGB rowColour = deluge::gui::colours::black;
+	RGB rowTailColour = deluge::gui::colours::black;;
 
-	ParamsForPerformance() {
-		paramKind = Param::Kind::NONE;
-		paramID = kNoSelection;
-		xDisplay = kNoSelection;
-		yDisplay = kNoSelection;
-		rowColour[0] = 0;
-		rowColour[1] = 0;
-		rowColour[2] = 0;
-		rowTailColour[0] = 0;
-		rowTailColour[1] = 0;
-		rowTailColour[2] = 0;
-	}
+	ParamsForPerformance() = default;
 
-	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const uint8_t colour[3],
-	                     const uint8_t tailColour[3]) {
+	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const RGB colour,
+	                     const RGB tailColour) {
 		paramKind = kind;
 		paramID = param;
 		xDisplay = x;
 		yDisplay = y;
-		rowColour[0] = colour[0];
-		rowColour[1] = colour[1];
-		rowColour[2] = colour[2];
-		rowTailColour[0] = tailColour[0];
-		rowTailColour[1] = tailColour[1];
-		rowTailColour[2] = tailColour[2];
+		rowColour = colour;
+		rowTailColour = tailColour;
 	}
 };
 
@@ -96,9 +81,9 @@ public:
 	ActionResult timerCallback();
 
 	//rendering
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderViewDisplay();
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -158,7 +143,7 @@ private:
 	void initDefaultFXValues(int32_t xDisplay);
 
 	//rendering
-	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
 

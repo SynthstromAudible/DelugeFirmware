@@ -234,7 +234,7 @@ public:
 	// ----- TimelineCounter implementation -------
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
 
-	bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
 		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	};

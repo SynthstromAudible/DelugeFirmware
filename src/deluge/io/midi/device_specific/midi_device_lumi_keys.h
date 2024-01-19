@@ -18,6 +18,7 @@
 #pragma once
 
 #include "io/midi/midi_device.h"
+#include "gui/colour/colour.h"
 
 #define MIDI_DEVICE_LUMI_KEYS_VP_COUNT 1
 
@@ -161,5 +162,5 @@ private:
 	void setRootNote(RootNote rootNote);
 	Scale determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
-	void setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b);
+	void setColour(ColourZone zone, RGB rgb);
 };

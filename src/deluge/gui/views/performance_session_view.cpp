@@ -19,7 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
+#include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/menu_item/colour.h"
@@ -78,23 +79,23 @@ using namespace gui;
 
 //colours for performance view
 
-constexpr uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
-constexpr uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
-constexpr uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
-constexpr uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
-constexpr uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
-constexpr uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
-constexpr uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
-constexpr uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
+constexpr RGB rowColourRed = {255, 0, 0};            //LPF Cutoff, Resonance
+constexpr RGB rowColourPastelOrange = {221, 72, 13}; //HPF Cutoff, Resonance
+constexpr RGB rowColourPastelYellow = {170, 182, 0}; //EQ Bass, Treble
+constexpr RGB rowColourPastelGreen = {85, 182, 72};  //Reverb Amount
+constexpr RGB rowColourPastelBlue = {51, 109, 145};  //Delay Amount, Rate
+constexpr RGB rowColourPastelPink = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
+constexpr RGB rowColourPink = {128, 0, 128};         //Decimation, Bitcrush
+constexpr RGB rowColourBlue = {0, 0, 255};           //Stutter
 
-constexpr uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
-constexpr uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
-constexpr uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
-constexpr uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
-constexpr uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
-constexpr uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
-constexpr uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
-constexpr uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
+constexpr RGB rowTailColourRed = {53, 2, 2};           //LPF Cutoff, Resonance
+constexpr RGB rowTailColourPastelOrange = {46, 16, 2}; //HPF Cutoff, Resonance
+constexpr RGB rowTailColourPastelYellow = {36, 38, 2}; //EQ Bass, Treble
+constexpr RGB rowTailColourPastelGreen = {19, 38, 16}; //Reverb Amount
+constexpr RGB rowTailColourPastelBlue = {12, 23, 31};  //Delay Amount, Rate
+constexpr RGB rowTailColourPastelPink = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
+constexpr RGB rowTailColourPink = {53, 0, 53};         //Decimation, Bitcrush
+constexpr RGB rowTailColourBlue = {2, 2, 53};          //Stutter
 
 using namespace Param;
 using namespace Unpatched;
@@ -322,7 +323,7 @@ ActionResult PerformanceSessionView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                             bool drawUndefinedArea) {
 	if (!image) {
@@ -336,7 +337,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 	PadLEDs::renderingLock = true;
 
 	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
@@ -347,7 +348,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
 
-		renderRow(&image[0][0][0] + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+		renderRow(&image[0][0] + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
 	}
 
 	PadLEDs::renderingLock = false;
@@ -356,10 +357,10 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 }
 
 /// render every column, one row at a time
-void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		uint8_t* pixel = image + (xDisplay * 3);
+		RGB& pixel = image[xDisplay];
 
 		if (editingParam) {
 			//if you're in param editing mode, highlight shortcuts for performance view params
@@ -367,14 +368,14 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			if (isPadShortcut(xDisplay, yDisplay)) {
 				if (isParamAssignedToFXColumn(paramKindShortcutsForPerformanceView[xDisplay][yDisplay],
 				                              paramIDShortcutsForPerformanceView[xDisplay][yDisplay])) {
-					pixel[0] = 130;
-					pixel[1] = 120;
-					pixel[2] = 130;
+					pixel = {
+					    .r = 130,
+					    .g = 120,
+					    .b = 130,
+					};
 				}
 				else {
-					pixel[0] = kUndefinedGreyShade;
-					pixel[1] = kUndefinedGreyShade;
-					pixel[2] = kUndefinedGreyShade;
+					pixel = colours::grey;
 				}
 			}
 			//if you're in param editing mode and pressing a shortcut pad, highlight the columns
@@ -382,7 +383,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			if (firstPadPress.isActive) {
 				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
 				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
-					memcpy(pixel, &layoutForPerformance[xDisplay].rowTailColour, 3);
+					pixel = layoutForPerformance[xDisplay].rowTailColour;
 				}
 			}
 		}
@@ -390,27 +391,27 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			//elsewhere in performance view, if an FX column has not been assigned a param,
 			//highlight the column grey
 			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
-				pixel[0] = kUndefinedGreyShade;
-				pixel[1] = kUndefinedGreyShade;
-				pixel[2] = kUndefinedGreyShade;
+				pixel = colours::grey;
 			}
 			else {
 				//if you're currently pressing an FX column, highlight it a bright colour
 				if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
 				    && (fxPress[xDisplay].padPressHeld == false)) {
-					memcpy(pixel, &layoutForPerformance[xDisplay].rowColour, 3);
+					pixel = layoutForPerformance[xDisplay].rowColour;
 				}
 				//if you're not currently pressing an FX column, highlight it a dimmer colour
 				else {
-					memcpy(pixel, &layoutForPerformance[xDisplay].rowTailColour, 3);
+					pixel = layoutForPerformance[xDisplay].rowTailColour;
 				}
 
 				//if you're currently pressing an FX column, highlight the pad you're pressing white
 				if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
 				    && (fxPress[xDisplay].yDisplay == yDisplay)) {
-					pixel[0] = 130;
-					pixel[1] = 120;
-					pixel[2] = 130;
+					pixel = {
+						.r = 130,
+						.g = 120,
+						.b = 130,
+					};
 				}
 			}
 		}
@@ -431,7 +432,7 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, in
 }
 
 /// nothing to render in sidebar (yet)
-bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
