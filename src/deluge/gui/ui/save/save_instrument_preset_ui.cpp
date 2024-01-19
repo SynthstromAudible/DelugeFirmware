@@ -133,7 +133,7 @@ fail:
 		return false;
 	}
 
-	error = storageManager.createXMLFile(filePath.get(), mayOverwrite);
+	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
 
 	if (error == ERROR_FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;

@@ -416,7 +416,7 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = storageManager.createXMLFile(filePathDuringWrite.get(), false);
+	error = storageManager.createXMLFile(filePathDuringWrite.get(), false, false);
 	if (error) {
 		goto gotError;
 	}

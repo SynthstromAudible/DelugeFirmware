@@ -66,7 +66,7 @@ public:
 	char const* readTagOrAttributeValue();
 
 	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false);
+	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
 	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                    bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
