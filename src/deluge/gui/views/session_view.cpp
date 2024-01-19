@@ -2960,6 +2960,8 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 	if (greyout) {
 		return resultColour.greyOut(6500000);
 	}
+
+	return resultColour;
 }
 
 Clip* SessionView::gridCloneClip(Clip* sourceClip) {

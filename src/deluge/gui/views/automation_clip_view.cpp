@@ -417,7 +417,7 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	}
 
 	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
@@ -477,20 +477,20 @@ void AutomationClipView::performActualRender(uint32_t whichRows, RGB* image,
 
 				//if parameter has been selected, show Automation Editor
 				if (!isOnAutomationOverview()) {
-					renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow,
+					renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth), occupancyMaskOfRow,
 					                       renderWidth, xScroll, xZoom, yDisplay, drawUndefinedArea);
 				}
 
 				//if not editing a parameter, show Automation Overview
 				else {
-					renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth * 3),
+					renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth),
 					                         occupancyMaskOfRow, yDisplay);
 				}
 			}
 
 			else {
 				if (outputType == OutputType::CV) {
-					renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+					renderLove(image + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
 				}
 			}
 		}
