@@ -35,6 +35,8 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 
+namespace params = deluge::modulation::params;
+
 SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
@@ -102,7 +104,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		// No time to call the proper function and do error checking, sorry.
 		ParamCollectionSummary* patchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[1];
 		bool anyInterpolating = false;
-		if constexpr (kNumParams > 64) {
+		if constexpr (params::kNumParams > 64) {
 			anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
 			                   || patchedParamsSummary->whichParamsAreInterpolating[1]
 			                   || patchedParamsSummary->whichParamsAreInterpolating[2];
@@ -122,7 +124,7 @@ yesTickParamManagerForClip:
 
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* unpatchedParamsSummary = &modelStackWithThreeMainThings->paramManager->summaries[0];
-			if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
+			if constexpr (params::UNPATCHED_SOUND_MAX_NUM > 32) {
 				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
 				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
 					goto yesTickParamManagerForClip;

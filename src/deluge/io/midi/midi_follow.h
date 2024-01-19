@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
+#include "modulation/params/param.h"
 
 class AudioClip;
 class InstrumentClip;
@@ -32,7 +33,7 @@ enum class MIDIMatchType;
 
 Clip* getSelectedClip(bool useActiveClip = false);
 
-class MidiFollow final : public GlobalEffectable {
+class MidiFollow final {
 public:
 	MidiFollow();
 	void readDefaultsFromFile();
@@ -53,7 +54,7 @@ public:
 	                        bool* doingMidiThru, ModelStack* modelStack);
 
 	//midi CC mappings
-	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
+	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kMaxMIDIValue + 1];
