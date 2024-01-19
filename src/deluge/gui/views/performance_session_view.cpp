@@ -1077,9 +1077,8 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 				for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 					if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
 					    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
-						memcpy(&layoutForPerformance[xDisplay].rowColour, &songParamsForPerformance[i].rowColour, 3);
-						memcpy(&layoutForPerformance[xDisplay].rowTailColour,
-						       &songParamsForPerformance[i].rowTailColour, 3);
+						layoutForPerformance[xDisplay].rowColour = &songParamsForPerformance[i].rowColour;
+						layoutForPerformance[xDisplay].rowTailColour = &songParamsForPerformance[i].rowTailColour;
 						break;
 					}
 				}
