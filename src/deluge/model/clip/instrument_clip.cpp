@@ -743,12 +743,15 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 			// If we found a 100%, we know we're not doing sum-to-100
-			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues
+			    && pendingNoteOnList.pendingNoteOns[i].probability <= kNumProbabilityValues + kNumIterationValues) {
 				goto skipDoingSumTo100;
 			}
 
 			// If any follow-previous-probability, skip this statistics-grabbing
-			if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
+			// Or if any Fill note, skip this statistics-grabbing
+			if (pendingNoteOnList.pendingNoteOns[i].probability & 128
+			    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 				continue;
 			}
 
@@ -771,7 +774,9 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 				// If any follow-previous-probability, skip this statistics-grabbing
-				if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
+				// Or if any Fill note, skip this statistics-grabbing
+				if (pendingNoteOnList.pendingNoteOns[i].probability & 128
+				    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 					continue;
 				}
 
@@ -810,6 +815,11 @@ skipDoingSumTo100:
 			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 				conditionPassed = currentSong->isFillModeActive();
+			}
+
+			// else check if it's a NO-FILL note and only play if SYNC_SCALING is *not* pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == kNotFillProbabilityValue) {
+				conditionPassed = !currentSong->isFillModeActive();
 			}
 
 			// Otherwise...
