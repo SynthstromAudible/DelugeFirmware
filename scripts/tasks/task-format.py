@@ -64,12 +64,21 @@ def get_header_and_source_files(path, recursive: bool):
 
 
 def get_valid_header_and_source_files(files):
-    return list(filter(bool, [fnmatch.fnmatch(file, pattern) and file for pattern in globs for file in files]))
+    return list(
+        filter(
+            bool,
+            [
+                fnmatch.fnmatch(file, pattern) and file
+                for pattern in globs
+                for file in files
+            ],
+        )
+    )
 
 
-def format_file(verbose: bool, check: bool, path: Path):
+def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
     path = str(path.absolute())
-    command = [get_clang_format_cmd(), "--style=file"]
+    command = [clang_format, "--style=file"]
     if check:
         command.append("--dry-run")
         command.append("-Werror")
@@ -106,7 +115,10 @@ def argparser() -> argparse.ArgumentParser:
         "-c", "--check", help="check for format compliance locally", action="store_true"
     )
     parser.add_argument(
-        "-i", "--stdio", help="format stdin to stdout (must also specify a single filename for clang-format to use)", action="store_true"
+        "-i",
+        "--stdio",
+        help="format stdin to stdout (must also specify a single filename for clang-format to use)",
+        action="store_true",
     )
     parser.add_argument(
         "files_and_directories",
@@ -133,13 +145,17 @@ def main() -> int:
         if args.files_and_directories
         else [util.get_git_root().absolute() / "src"]
     )
-    temp=[[], []]
+    temp = [[], []]
     directories, files = temp
     for is_file, group in groupby(files_and_directories, lambda p: p.is_file()):
         for thing in group:
             temp[is_file].append(thing)
 
-    found_files = set(file for dir in directories for file in get_header_and_source_files(dir, not args.no_recursive))
+    found_files = set(
+        file
+        for dir in directories
+        for file in get_header_and_source_files(dir, not args.no_recursive)
+    )
     remaining_files = set(files).difference(found_files)
     valid_files = get_valid_header_and_source_files(remaining_files)
     files = found_files.union(valid_files)
@@ -150,16 +166,21 @@ def main() -> int:
     check = args.check
 
     if args.quiet:
-        result = util.do_parallel(partial(format_file, False, check), files)
+        result = util.do_parallel(
+            partial(format_file, get_clang_format_cmd(), False, check), files
+        )
     elif args.verbose:
+        clang_format = get_clang_format_cmd()
         # Single-process for output purposes :/
         result = [0] * len(files)
-        for (i, file) in enumerate(files):
-            result[i] = format_file(True, check, file)
+        for i, file in enumerate(files):
+            result[i] = format_file(clang_format, True, check, file)
             print(f"Formatting {file}")
     else:
         result = util.do_parallel_progressbar(
-            partial(format_file, False, check), files, "Formatting: "
+            partial(format_file, get_clang_format_cmd(), False, check),
+            files,
+            "Formatting: ",
         )
 
     if any(map(lambda x: x != 0, result)):
