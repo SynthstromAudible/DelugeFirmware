@@ -1565,6 +1565,9 @@ char const* launchStyleToString(int launchStyle) {
 	case LAUNCH_STYLE_FILL:
 		return "fill";
 
+	case LAUNCH_STYLE_ONCE:
+		return "once";
+
 	default:
 		__builtin_unreachable();
 		return "";
@@ -1574,6 +1577,9 @@ char const* launchStyleToString(int launchStyle) {
 int stringToLaunchStyle(char const* string) {
 	if (!strcmp(string, "fill")) {
 		return LAUNCH_STYLE_FILL;
+	}
+	else if (!strcmp(string, "once")) {
+		return LAUNCH_STYLE_ONCE;
 	}
 	else {
 		return LAUNCH_STYLE_DEFAULT;

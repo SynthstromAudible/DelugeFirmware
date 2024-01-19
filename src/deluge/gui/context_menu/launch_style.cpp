@@ -14,8 +14,9 @@ namespace deluge::gui::context_menu {
 enum class LaunchStyle::Value {
 	DEFAULT,
 	FILL,
+	ONCE,
 };
-constexpr size_t kNumValues = 2;
+constexpr size_t kNumValues = 3;
 
 LaunchStyle launchStyle{};
 
@@ -29,6 +30,7 @@ Sized<char const**> LaunchStyle::getOptions() {
 	static const char* optionsls[] = {
 	    l10n::get(STRING_FOR_DEFAULT_LAUNCH),
 	    l10n::get(STRING_FOR_FILL_LAUNCH),
+	    l10n::get(STRING_FOR_ONCE_LAUNCH),
 	};
 	return {optionsls, kNumValues};
 }
@@ -42,6 +44,9 @@ bool LaunchStyle::setupAndCheckAvailability() {
 		break;
 	case LAUNCH_STYLE_FILL:
 		valueOption = Value::FILL;
+		break;
+	case LAUNCH_STYLE_ONCE:
+		valueOption = Value::ONCE;
 		break;
 	default:
 		valueOption = Value::DEFAULT;
@@ -70,6 +75,9 @@ void LaunchStyle::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::FILL:
 		clip->launchStyle = LAUNCH_STYLE_FILL;
+		break;
+	case Value::ONCE:
+		clip->launchStyle = LAUNCH_STYLE_ONCE;
 		break;
 
 	default:

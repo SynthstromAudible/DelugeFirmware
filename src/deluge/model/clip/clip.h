@@ -27,6 +27,7 @@
 
 #define LAUNCH_STYLE_DEFAULT 0
 #define LAUNCH_STYLE_FILL 1
+#define LAUNCH_STYLE_ONCE 2
 
 class Song;
 class ParamManagerForTimeline;
