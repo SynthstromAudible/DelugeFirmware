@@ -25,6 +25,7 @@
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 
 #define STUTTERER_STATUS_OFF 0
@@ -97,8 +98,6 @@ public:
 	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	virtual char const* paramToString(uint8_t param);
-	virtual int32_t stringToParam(char const* string);
 	bool isBitcrushingEnabled(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
@@ -168,8 +167,8 @@ private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
 	                                        int32_t ccNumber = MIDI_CC_NONE);
-	bool possiblyRefreshAutomationEditorGrid(Clip* clip, Param::Kind kind, int32_t id);
-	bool possiblyRefreshPerformanceViewDisplay(Param::Kind kind, int32_t id, int32_t newKnobPos);
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind kind, int32_t id);
+	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
@@ -183,6 +182,12 @@ protected:
 	void switchLPFMode();
 	void switchHPFMode();
 	void clearModFXMemory();
+
+	/// What kind of unpatched parameters this ModControllable uses.
+	///
+	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
+	/// subclass is
+	deluge::modulation::params::Kind unpatchedParamKind_;
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
