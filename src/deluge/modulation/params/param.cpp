@@ -367,7 +367,7 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		}
 	}
 
-	else if (param >= FIRST_GLOBAL && param <= FIRST_GLOBAL) {
+	else if (param >= FIRST_GLOBAL && param <= GLOBAL_NONE) {
 		// global patched params
 		switch (static_cast<Global>(param)) {
 		case GLOBAL_LFO_FREQ:
