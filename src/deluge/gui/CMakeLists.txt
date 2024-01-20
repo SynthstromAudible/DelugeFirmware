@@ -21,7 +21,6 @@ set_target_properties(deluge_gui
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
 )
 
 target_link_libraries(deluge_gui PUBLIC
