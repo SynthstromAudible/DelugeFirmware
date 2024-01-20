@@ -386,7 +386,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				keyboardScreen.openedInBackground();
 			}
 			else if (getRootUI() == &automationClipView) {
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					swapOutRootUILowLevel(&keyboardScreen);
 					keyboardScreen.openedInBackground();
 				}

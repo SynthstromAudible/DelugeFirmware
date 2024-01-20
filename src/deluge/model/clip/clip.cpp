@@ -61,7 +61,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	overdubNature = OverDubType::Normal;
 	originalLength = 0;
 	armedForRecording = true;
-	launchStyle = LAUNCH_STYLE_DEFAULT;
+	launchStyle = LaunchStyle::DEFAULT;
 	fillEventAtTickCount = 0;
 
 	//initialize automation clip view variables
@@ -673,7 +673,7 @@ void Clip::writeDataToFile(Song* song) {
 	if (song->getSyncScalingClip() == this) {
 		storageManager.writeAttribute("isSyncScaleClip", "1");
 	}
-	if (launchStyle != LAUNCH_STYLE_DEFAULT) {
+	if (launchStyle != LaunchStyle::DEFAULT) {
 		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
 	storageManager.writeOpeningTagEnd();

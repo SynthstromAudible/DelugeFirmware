@@ -2958,7 +2958,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 	// If editing, continue edit
 	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
 		if (!action) {
 			return;
 		}
@@ -3296,7 +3296,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
 	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		//in case we were editing quantize/humanize
-		actionLogger.closeAction(ACTION_NOTE_NUDGE);
+		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);

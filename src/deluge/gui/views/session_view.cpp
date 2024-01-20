@@ -1179,7 +1179,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -2536,7 +2536,7 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		AudioClip* clip = getCurrentAudioClip();
 		// !clip probably couldn't happen, but just in case...
 		if (!clip || !clip->sampleHolder.audioFile) {
@@ -2885,7 +2885,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 	// Handle record button pressed
 	if (viewingRecordArmingActive && clip->armedForRecording) {
 		if (view.blinkOn) {
-			bool shouldGoPurple = (clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
+			bool shouldGoPurple = (clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
 
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
@@ -2999,7 +2999,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-	Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR);
 	newClip->clear(action, modelStack);
 	actionLogger.deleteAllLogs();
 
@@ -3133,7 +3133,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
 
 	newClip->section = targetSection;
-	if (newClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (newClip->type == ClipType::INSTRUMENT) {
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
@@ -3147,7 +3147,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
 	// Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
-		if (sourceClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (sourceClip->type == ClipType::INSTRUMENT) {
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
@@ -3175,7 +3175,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			}
 		}
 
-		else if (sourceClip->type == CLIP_TYPE_AUDIO) {
+		else if (sourceClip->type == ClipType::AUDIO) {
 			AudioClip* newAudioClip = (AudioClip*)newClip;
 
 			if (targetOutput == nullptr) {
@@ -3357,7 +3357,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (clip != nullptr) {
-			if (clip->type != CLIP_TYPE_AUDIO) {
+			if (clip->type != ClipType::AUDIO) {
 				// Learn + Holding pad = Learn MIDI channel
 				Output* output = gridTrackFromX(x, gridTrackCount());
 				if (output
@@ -3658,7 +3658,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -3680,7 +3680,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -3707,7 +3707,7 @@ void SessionView::gridTransitionToSessionView() {
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
 		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
@@ -3722,7 +3722,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		int64_t xScrollSamples;
@@ -3767,7 +3767,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {

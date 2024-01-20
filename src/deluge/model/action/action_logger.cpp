@@ -80,7 +80,7 @@ void ActionLogger::deleteLastAction() {
 	delugeDealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition32_t addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
 
 	deleteLog(AFTER);
 
@@ -308,7 +308,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
                                               FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
 
-	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
+	Action* action = getNewAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, ActionAddition::ALLOWED);
 
 	if (!action) {
 		return;

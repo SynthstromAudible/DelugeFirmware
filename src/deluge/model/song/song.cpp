@@ -82,14 +82,14 @@ Clip* getCurrentClip() {
 }
 
 InstrumentClip* getCurrentInstrumentClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 		return (InstrumentClip*)getCurrentClip();
 	}
 	return nullptr;
 }
 
 AudioClip* getCurrentAudioClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return (AudioClip*)getCurrentClip();
 	}
 	return nullptr;
@@ -4030,7 +4030,7 @@ traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LAUNCH_STYLE_FILL) {
+		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LaunchStyle::FILL) {
 			int32_t clipLength = clip->loopLength;
 			if (clipLength == targetLength
 			    || (clipLength > targetLength && ((uint32_t)clipLength % (uint32_t)targetLength) == 0)

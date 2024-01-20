@@ -1196,7 +1196,7 @@ void View::setModLedStates() {
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
 		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen)
-		    || (getRootUI() == &automationClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
+		    || (getRootUI() == &automationClipView && getCurrentClip()->type == ClipType::AUDIO)) {
 			affectEntire = true;
 		}
 		else {
@@ -2063,7 +2063,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	// Or if not soloing...
 	else {
-		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+		if (clip->launchStyle == LaunchStyle::DEFAULT) {
 			// If it's stopped, red.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {

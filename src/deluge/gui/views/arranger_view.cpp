@@ -1667,7 +1667,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	if (clip->onAutomationClipView) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
 		}
 

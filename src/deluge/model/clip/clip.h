@@ -24,9 +24,6 @@
 #include "modulation/params/param.h"
 #include <cstdint>
 
-#define LAUNCH_STYLE_DEFAULT 0
-#define LAUNCH_STYLE_FILL 1
-
 class Song;
 class ParamManagerForTimeline;
 class Output;
@@ -178,7 +175,7 @@ public:
 
 	uint32_t indexForSaving; // For use only while saving song
 
-	uint8_t launchStyle;
+	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
 
@@ -204,7 +201,7 @@ protected:
 	                  modelStack); // May change the TimelineCounter in the modelStack if new Clip got created
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
-	int solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
-	                        Clip* favourClipForCloningParamManager = NULL);
+	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
+	                            Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

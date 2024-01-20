@@ -687,7 +687,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				// Make sure we weren't already playing...
 				if (!playbackHandler.playbackState) {
 
-					Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_RECORD, false);
+					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
@@ -1086,7 +1086,7 @@ void PerformanceSessionView::logPerformanceViewPress(int32_t xDisplay, bool clos
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
 		if (closeAction) {
-			actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+			actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 		}
 	}
 }
