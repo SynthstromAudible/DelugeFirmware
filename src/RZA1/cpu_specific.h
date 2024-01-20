@@ -39,9 +39,11 @@
 #define DMARS_FOR_RSPI_TX 0b100100001
 
 // UART ----------------------------------------------------
-#define UART_ITEM_PIC  0
-#define UART_ITEM_MIDI 1
-#define NUM_UART_ITEMS 2
+enum UartItemType {
+    UART_ITEM_PIC,
+    UART_ITEM_MIDI,
+    NUM_UART_ITEMS,
+};
 
 // Aliases, cos multiple things on same PIC for this device
 #define UART_ITEM_PIC_PADS       UART_ITEM_PIC

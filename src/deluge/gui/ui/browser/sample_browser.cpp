@@ -724,7 +724,7 @@ void SampleBrowser::drawKeysOverWaveform() {
 	// Do manual greyout on all main pads
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			greyColourOut(PadLEDs::image[y][x], PadLEDs::image[y][x], 6500000);
+			PadLEDs::image[y][x] = PadLEDs::image[y][x].greyOut(6500000);
 		}
 	}
 
@@ -2065,7 +2065,7 @@ bool SampleBrowser::canSeeViewUnderneath() {
 	return !currentlyShowingSamplePreview && !qwertyVisible;
 }
 
-bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleBrowser::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	return (qwertyVisible || currentlyShowingSamplePreview);

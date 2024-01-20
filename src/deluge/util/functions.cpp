@@ -18,6 +18,7 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
@@ -1244,14 +1245,6 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 	return closestIndex;
 }
 
-uint32_t rshift_round(uint32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
-int32_t rshift_round_signed(int32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
 int32_t instantTan(int32_t input) {
 	int32_t whichValue = input >> 25;                   // 25
 	int32_t howMuchFurther = (input << 6) & 2147483647; // 6
@@ -1287,64 +1280,6 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
-}
-
-void hueToRGB(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
-		}
-		else {
-			rgb[c] = 0;
-		}
-	}
-}
-
-#define PASTEL_RANGE 230
-
-void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10)
-			                      + 2147483648u; // Goes all the way up to 4294967295
-			uint32_t flipped = 4294967295 - basicValue;
-			uint32_t flippedScaled = (flipped >> 8) * PASTEL_RANGE;
-			rgb[c] = (4294967295 - flippedScaled) >> 24;
-		}
-		else {
-			rgb[c] = 256 - PASTEL_RANGE;
-		}
-	}
 }
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
@@ -2163,36 +2098,6 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 		b++;
 	}
 	return count;
-}
-
-void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion) {
-	int32_t totalColour;
-	totalColour = (int32_t)input[0] + input[1] + input[2]; // max 765
-
-	for (int32_t colour = 0; colour < 3; colour++) {
-
-		int32_t colourValue = input[colour];
-
-		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
-		                               + ((int32_t)totalColour * (greyProportion >> 5)),
-		                           23);
-		if (colourValue >= 256) {
-			colourValue = 255;
-		}
-
-		output[colour] = colourValue;
-	}
-}
-
-void dimColour(uint8_t colour[3]) {
-	for (int32_t c = 0; c < 3; c++) {
-		if (colour[c] >= 64) {
-			colour[c] = 50;
-		}
-		else {
-			colour[c] = 5;
-		}
-	}
 }
 
 bool shouldAbortLoading() {

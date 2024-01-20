@@ -41,12 +41,12 @@ public:
 	int32_t performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,

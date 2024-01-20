@@ -874,8 +874,6 @@ enum StealableQueue {
 	NUM_STEALABLE_QUEUES,
 };
 
-constexpr int32_t kUndefinedGreyShade = 7;
-
 enum class SequenceDirection {
 	FORWARD,
 	REVERSE,

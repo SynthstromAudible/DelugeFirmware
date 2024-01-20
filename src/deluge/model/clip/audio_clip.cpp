@@ -935,7 +935,7 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 
 // Returns false if can't because in card routine
 bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-                                  int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+                                  int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
                                   bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                   int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
@@ -957,8 +957,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 		getScrollAndZoomInSamples(xScroll, xZoom, &xScrollSamples, &xZoomSamples);
 
-		uint8_t rgb[3];
-		getColour(rgb);
+		RGB rgb = getColour();
 
 		bool success = waveformRenderer.renderAsSingleRow(sample, xScrollSamples, xZoomSamples, image, &renderData,
 		                                                  recorder, rgb, sampleControls.reversed, xStart, xEnd);
@@ -1175,8 +1174,8 @@ int32_t AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* 
 	return NO_ERROR;
 }
 
-void AudioClip::getColour(uint8_t rgb[]) {
-	hueToRGBPastel(colourOffset * -8 / 3, rgb);
+RGB AudioClip::getColour() {
+	return RGB::fromHuePastel(colourOffset * -8 / 3);
 }
 
 void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack,

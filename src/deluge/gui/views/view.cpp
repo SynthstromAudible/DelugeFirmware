@@ -20,7 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/l10n/l10n.h"
@@ -2025,7 +2025,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2034,53 +2034,31 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimIna
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
 				if (shouldGoPurple) {
-					thisColour[0] = 128;
-					thisColour[1] = 0;
-					thisColour[2] = 128;
+					return colours::magenta;
 				}
-				else {
-					thisColour[0] = 255;
-					thisColour[1] = 1;
-					thisColour[2] = 0;
-				}
+				return colours::red;
 			}
 			// Dull colour, cos can't actually begin linear recording despite being armed
-			else {
-				if (shouldGoPurple) {
-					thisColour[0] = 60;
-					thisColour[1] = 15;
-					thisColour[2] = 60;
-				}
-				else {
-					thisColour[0] = 60;
-					thisColour[1] = 15;
-					thisColour[2] = 15;
-				}
+			if (shouldGoPurple) {
+				return colours::magenta_dull;
 			}
+			return colours::red_dull;
 		}
-		else {
-			memset(thisColour, 0, 3);
-		}
-		return;
+		return colours::black;
 	}
 
 	// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 	if (allowMIDIFlash && midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
-		thisColour[0] = midiCommandColour.r;
-		thisColour[1] = midiCommandColour.g;
-		thisColour[2] = midiCommandColour.b;
-		return;
+		return colours::midi_command;
 	}
 
 	if (clipArmFlashOn && clip->armState != ArmState::OFF) {
-		thisColour[0] = 0;
-		thisColour[1] = 0;
-		thisColour[2] = 0;
+		thisColour = colours::black;
 	}
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
-		menu_item::soloColourMenu.getRGB(thisColour);
+		thisColour = menu_item::soloColourMenu.getRGB();
 	}
 
 	// Or if not soloing...
@@ -2089,54 +2067,45 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimIna
 			// If it's stopped, red.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {
-					thisColour[0] = 20;
-					thisColour[1] = 20;
-					thisColour[2] = 20;
+					thisColour = RGB::monochrome(20);
 				}
 				else {
-					menu_item::stoppedColourMenu.getRGB(thisColour);
+					thisColour = menu_item::stoppedColourMenu.getRGB();
 				}
 			}
 
 			// Or, green.
 			else {
-				menu_item::activeColourMenu.getRGB(thisColour);
+				thisColour = menu_item::activeColourMenu.getRGB();
 			}
 		}
 		else {
 			// If it's stopped, orange.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {
-					thisColour[0] = 10;
-					thisColour[1] = 7;
-					thisColour[2] = 3;
+					thisColour = RGB(10, 7, 3); // dim red-orange
 				}
 				else {
-					thisColour[0] = 255;
-					thisColour[1] = 64;
-					thisColour[2] = 0;
+					thisColour = colours::red_orange;
 				}
 			}
 
 			// Or, cyan.
 			else {
-				thisColour[0] = 0;
-				thisColour[1] = 255;
-				thisColour[2] = 255;
+				thisColour = colours::cyan;
 			}
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
-			dimColour(thisColour);
+			thisColour = thisColour.dull();
 		}
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
-	if (allowMIDIFlash && midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
-		thisColour[0] >>= 1;
-		thisColour[1] >>= 1;
-		thisColour[2] >>= 1;
+	if (midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
+		thisColour = thisColour.dim();
 	}
+	return thisColour;
 }
 
 ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
@@ -92,7 +93,7 @@ public:
 
 	virtual int32_t undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+	                               int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
 	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                               int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
@@ -102,7 +103,7 @@ public:
 	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
 	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
 	virtual int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
-	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, uint8_t* image, uint8_t[],
+	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
 	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);
@@ -197,8 +198,8 @@ public:
 	OutputType lastSelectedOutputType;
 	//END ~ new Automation Clip View Variables
 
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
-	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) = 0;
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 
 protected:
 	virtual void

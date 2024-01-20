@@ -137,23 +137,23 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 				offset = noteRow->getColourOffset(clip);
 			}
 
-			uint8_t rgb_main[3];
+			RGB rgb_main;
 			// uint8_t rgb_tail[3];
-			uint8_t rgb_blur[3];
+			RGB rgb_blur;
 
-			clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset, rgb_main);
+			rgb_main = clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset);
 			// getTailColour(rgb_tail, rgb_main);
-			getBlurColour(rgb_blur, rgb_main);
+			rgb_blur = rgb_main.forBlur();
 
-			setColour(ColourZone::ROOT, rgb_main[0], rgb_main[1], rgb_main[2]);
-			setColour(ColourZone::GLOBAL, rgb_blur[0], rgb_blur[1], rgb_blur[2]);
+			setColour(ColourZone::ROOT, rgb_main);
+			setColour(ColourZone::GLOBAL, rgb_blur);
 
 			return;
 		}
 	}
 
-	setColour(ColourZone::ROOT, 0, 0, 0);
-	setColour(ColourZone::GLOBAL, 0, 0, 0);
+	setColour(ColourZone::ROOT, deluge::gui::colours::black);
+	setColour(ColourZone::GLOBAL, deluge::gui::colours::black);
 }
 
 // Private functions
@@ -263,8 +263,8 @@ void MIDIDeviceLumiKeys::setScale(Scale scale) {
 	sendLumiCommand(command, 8);
 }
 
-void MIDIDeviceLumiKeys::setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b) {
-	uint64_t colourBits = 0b00100 | b << 6 | g << 15 | r << 24 | (uint64_t)0b11111100 << 32;
+void MIDIDeviceLumiKeys::setColour(ColourZone zone, RGB rgb) {
+	uint64_t colourBits = 0b00100 | rgb.b << 6 | rgb.g << 15 | rgb.r << 24 | (uint64_t)0b11111100 << 32;
 
 	uint8_t command[7];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;

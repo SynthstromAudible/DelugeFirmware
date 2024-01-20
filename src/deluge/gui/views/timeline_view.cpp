@@ -329,7 +329,7 @@ bool TimelineView::zoomToMax(bool inOnly) {
 void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
 
 	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? kDisplayHeight : 0], PadLEDs::image,
-	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
 	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
 

@@ -27,7 +27,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) {
 		return true;
 	}

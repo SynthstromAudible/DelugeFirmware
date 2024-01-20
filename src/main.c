@@ -124,24 +124,14 @@ int main(void) {
 	// Uart for MIDI
 	uartInit(UART_ITEM_MIDI, 31250);
 
-#if UART_CHANNEL_MIDI == 1
-	setPinMux(3, 15, 5); // TX
-	setPinMux(1, 9, 3);  // RX
-#elif UART_CHANNEL_MIDI == 0
 	setPinMux(6, 15, 5); // TX
 	setPinMux(6, 14, 5); // RX
-#endif
 
 	// Uart for PIC / display
 	uartInit(UART_ITEM_PIC, UART_INITIAL_SPEED_PIC_PADS_HZ);
 
-#if UART_CHANNEL_PIC == 2
-	setPinMux(7, 1, 4); // TX
-	setPinMux(1, 7, 3); // RX
-#elif UART_CHANNEL_PIC == 1
 	setPinMux(3, 15, 5); // TX
 	setPinMux(1, 9, 3);  // RX
-#endif
 
 	initUartDMA();
 

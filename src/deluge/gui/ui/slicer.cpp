@@ -17,6 +17,7 @@
 
 #include "gui/ui/slicer.h"
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -49,6 +50,8 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
+
+using namespace deluge::gui;
 
 Slicer slicer{};
 
@@ -104,56 +107,52 @@ void Slicer::redraw() {
 	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 
-bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	if (slicerMode == SLICER_MODE_REGION) {
-		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 	}
 	else if (slicerMode == SLICER_MODE_MANUAL) {
 
-		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, myImage, &waveformBasicNavigator.renderData);
 
 		for (int32_t xx = 0; xx < kDisplayWidth; xx++) {
 			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
-				image[yy + 4][xx][0] = (myImage[yy * 2][xx][0] + myImage[yy * 2 + 1][xx][0]) / 2;
-				image[yy + 4][xx][1] = (myImage[yy * 2][xx][1] + myImage[yy * 2 + 1][xx][1]) / 2;
-				image[yy + 4][xx][2] = (myImage[yy * 2][xx][2] + myImage[yy * 2 + 1][xx][2]) / 2;
+				image[yy + 4][xx] = RGB::average(myImage[yy * 2][xx], myImage[yy * 2 + 1][xx]);
 			}
 		}
 		for (int32_t i = 0; i < numManualSlice; i++) { // Slices
 			int32_t x = manualSlicePoints[i].startPos / (waveformBasicNavigator.sample->lengthInSamples + 0.0) * 16;
-			image[4][x][0] = 1;
-			image[4][x][1] = (i == currentSlice) ? 200 : 16;
-			image[4][x][2] = 1;
+			image[4][x] = RGB{
+			    1,
+			    (i == currentSlice) ? 200_u8 : 16_u8,
+			    1,
+			};
 		}
 
 		for (int32_t i = 0; i < MAX_MANUAL_SLICES; i++) { // Lower screen
 			int32_t xx = (i % 4) + (i / 16) * 4;
 			int32_t yy = (i / 4) % 4;
 			int32_t page = i / 16;
-			uint8_t colour[] = {3, 3, 3};
 
+			RGB colour = RGB::monochrome(3);
+			size_t dimLevel = (i < numManualSlice) ? 2 : 6;
 			if (page % 2 == 0) {
-				colour[0] = (i < numManualSlice) ? 0 : 0;
-				colour[1] = (i < numManualSlice) ? 0 : 0;
-				colour[2] = (i < numManualSlice) ? 64 : 3;
+				colour = colours::green.dim(dimLevel);
 			}
 			else {
-				colour[0] = (i < numManualSlice) ? 0 : 0;
-				colour[1] = (i < numManualSlice) ? 32 : 1;
-				colour[2] = (i < numManualSlice) ? 64 : 3;
+				colour = colours::darkblue.dim(dimLevel);
 			}
 			if (i == this->currentSlice) {
-				colour[0] = 0;
-				colour[1] = 127;
-				colour[2] = 0;
+				colour = colours::green.dim();
 			}
-			memcpy(image[yy][xx], colour, 3);
+
+			image[yy][xx] = colour;
 		}
 	}
 	return true;
@@ -423,7 +422,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
-			uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);

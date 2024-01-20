@@ -18,6 +18,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour/colour.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -30,6 +31,8 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <string.h>
+
+using namespace deluge::gui;
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
@@ -56,46 +59,44 @@ void QwertyUI::drawKeys() {
 	PadLEDs::clearTickSquares(false);
 
 	// General key area
-	memset(PadLEDs::image[kQwertyHomeRow + 2][3], 64, 10 * 3); // 1234
-	memset(PadLEDs::image[kQwertyHomeRow + 2][13], 10, 3);
-	memset(PadLEDs::image[kQwertyHomeRow + 1][3], 10, 10 * 3); // qwer
-	memset(PadLEDs::image[kQwertyHomeRow][3], 10, 11 * 3);     // asdf
-	memset(PadLEDs::image[kQwertyHomeRow - 1][3], 10, 9 * 3);  // zxcv
+	for (size_t i = 0; i < 11; i++) {
+		if (i < 10) {
+			PadLEDs::image[kQwertyHomeRow + 2][3 + i] = RGB::monochrome(64); // 1234
+			PadLEDs::image[kQwertyHomeRow + 1][3 + i] = RGB::monochrome(10); // qwer
+		}
+		PadLEDs::image[kQwertyHomeRow][3 + i] = RGB::monochrome(10); // asdf
+		if (i < 9) {
+			PadLEDs::image[kQwertyHomeRow - 1][3 + i] = RGB::monochrome(10); // zxcv
+		}
+	}
 
-	// Home row
-	memset(PadLEDs::image[kQwertyHomeRow][3], 64, 3 * 3);
-	memset(PadLEDs::image[kQwertyHomeRow][6], 160, 3);
+	PadLEDs::image[kQwertyHomeRow + 2][13] = RGB::monochrome(10);
 
-	memset(PadLEDs::image[kQwertyHomeRow][10], 64, 3 * 3);
-	memset(PadLEDs::image[kQwertyHomeRow][9], 160, 3);
+	// Home rows
+	PadLEDs::image[kQwertyHomeRow][3] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][4] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][5] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][6] = RGB::monochrome(160);
+	PadLEDs::image[kQwertyHomeRow][9] = RGB::monochrome(160);
+	PadLEDs::image[kQwertyHomeRow][10] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][11] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][12] = RGB::monochrome(64);
 
 	// Space bar
-	memset(PadLEDs::image[kQwertyHomeRow - 2][5], 160, 6 * 3);
-
-	// Backspace
-	for (int32_t x = 14; x < 16; x++) {
-		PadLEDs::image[kQwertyHomeRow + 2][x][0] = 255;
-		PadLEDs::image[kQwertyHomeRow + 2][x][1] = 0;
-		PadLEDs::image[kQwertyHomeRow + 2][x][2] = 0;
+	for (size_t i = 0; i < 6; i++) {
+		PadLEDs::image[kQwertyHomeRow - 2][5 + i] = RGB::monochrome(160);
 	}
 
-	// Enter
-	for (int32_t x = 14; x < 16; x++) {
-		PadLEDs::image[kQwertyHomeRow][x][0] = 0;
-		PadLEDs::image[kQwertyHomeRow][x][1] = 255;
-		PadLEDs::image[kQwertyHomeRow][x][2] = 0;
-	}
+	for (int32_t x = 0; x < 2; x++) {
+		// Backspace
+		PadLEDs::image[kQwertyHomeRow + 2][14 + x] = colours::red;
 
-	// Shift
-	for (int32_t x = 1; x < 3; x++) {
-		PadLEDs::image[kQwertyHomeRow - 1][x][0] = 0;
-		PadLEDs::image[kQwertyHomeRow - 1][x][1] = 0;
-		PadLEDs::image[kQwertyHomeRow - 1][x][2] = 255;
-	}
-	for (int32_t x = 13; x < 15; x++) {
-		PadLEDs::image[kQwertyHomeRow - 1][x][0] = 0;
-		PadLEDs::image[kQwertyHomeRow - 1][x][1] = 0;
-		PadLEDs::image[kQwertyHomeRow - 1][x][2] = 255;
+		// Enter
+		PadLEDs::image[kQwertyHomeRow][14 + x] = colours::green;
+
+		// Shift
+		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colours::blue;
+		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
 }
 

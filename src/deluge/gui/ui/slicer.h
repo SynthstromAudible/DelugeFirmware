@@ -40,7 +40,7 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea);
 	void graphicsRoutine();
 	ActionResult horizontalEncoderAction(int32_t offset);
