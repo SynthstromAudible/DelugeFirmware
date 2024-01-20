@@ -1074,7 +1074,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;

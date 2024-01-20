@@ -91,14 +91,14 @@ public:
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
-	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
+	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 
-	void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]);
 	void flashDefaultRootNote();
 	void selectEncoderAction(int8_t offset);
 	void doubleClipLengthAction();
@@ -116,12 +116,12 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun();
 	void openedInBackground();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void playbackEnded();
@@ -202,9 +202,9 @@ private:
 
 	int32_t quantizeAmount;
 
-	uint8_t rowColour[kDisplayHeight][3];
-	uint8_t rowTailColour[kDisplayHeight][3];
-	uint8_t rowBlurColour[kDisplayHeight][3];
+	std::array<RGB, kDisplayHeight> rowColour;
+	std::array<RGB, kDisplayHeight> rowTailColour;
+	std::array<RGB, kDisplayHeight> rowBlurColour;
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);

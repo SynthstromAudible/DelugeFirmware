@@ -48,7 +48,7 @@ Includes   <System Includes> , "Project Includes"
 
 #include "deluge/drivers/uart/uart.h"
 
-char picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+uint8_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 char picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));

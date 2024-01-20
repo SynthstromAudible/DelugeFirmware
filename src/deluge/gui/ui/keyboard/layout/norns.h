@@ -26,15 +26,15 @@ constexpr int32_t kMaxNornsRowInterval = 16;
 
 class KeyboardLayoutNorns : public KeyboardLayout {
 public:
-	KeyboardLayoutNorns() {}
-	~KeyboardLayoutNorns() override {}
+	KeyboardLayoutNorns() = default;
+	~KeyboardLayoutNorns() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
 	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) override;
 	void precalculate() override;
 
-	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
+	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
 	char const* name() override { return "Norns"; }
 	bool supportsInstrument() override { return true; }

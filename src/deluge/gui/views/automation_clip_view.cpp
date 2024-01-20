@@ -18,7 +18,8 @@
 #include "gui/views/automation_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
+#include "gui/colour/palette.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/multi_range.h"
@@ -245,17 +246,17 @@ const uint32_t love[kDisplayWidth][kDisplayHeight] = {
 
 //VU meter style colours for the automation editor
 
-const uint8_t rowColour[kDisplayHeight][3] = {
+const RGB rowColour[kDisplayHeight] = {
+    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0},
+};
 
-    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
+const RGB rowTailColour[kDisplayHeight] = {
+    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2},
+};
 
-const uint8_t rowTailColour[kDisplayHeight][3] = {
-
-    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2}};
-
-const uint8_t rowBlurColour[kDisplayHeight][3] = {
-
-    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}};
+const RGB rowBlurColour[kDisplayHeight] = {
+    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39},
+};
 
 AutomationClipView automationClipView{};
 
@@ -400,7 +401,7 @@ void AutomationClipView::graphicsRoutine() {
 //called whenever you call uiNeedsRendering(this) somewhere else
 //used to render automation overview, automation editor
 //used to setup the shortcut blinking
-bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AutomationClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 
@@ -424,12 +425,12 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 	}
 
 	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
+	performActualRender(whichRows, &image[0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
 
@@ -461,7 +462,7 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 }
 
 //determines whether you should render the automation editor, automation overview or just render some love <3
-void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
+void AutomationClipView::performActualRender(uint32_t whichRows, RGB* image,
                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
                                              uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
                                              bool drawUndefinedArea) {
@@ -484,20 +485,20 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 				//if parameter has been selected, show Automation Editor
 				if (!isOnAutomationOverview()) {
-					renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow,
+					renderAutomationEditor(modelStack, clip, image + (yDisplay * imageWidth), occupancyMaskOfRow,
 					                       renderWidth, xScroll, xZoom, yDisplay, drawUndefinedArea);
 				}
 
 				//if not editing a parameter, show Automation Overview
 				else {
-					renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth * 3),
+					renderAutomationOverview(modelStack, clip, outputType, image + (yDisplay * imageWidth),
 					                         occupancyMaskOfRow, yDisplay);
 				}
 			}
 
 			else {
 				if (outputType == OutputType::CV) {
-					renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+					renderLove(image + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
 				}
 			}
 		}
@@ -506,12 +507,12 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 //renders automation overview
 void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                  OutputType outputType, uint8_t* image, uint8_t occupancyMask[],
+                                                  OutputType outputType, RGB* image, uint8_t occupancyMask[],
                                                   int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint8_t* pixel = image + (xDisplay * 3);
+		RGB& pixel = image[xDisplay];
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -572,9 +573,11 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			//highlight pad white if the parameter it represents is currently automated
 			if (modelStackWithParam->autoParam->isAutomated()) {
-				pixel[0] = 130;
-				pixel[1] = 120;
-				pixel[2] = 130;
+				pixel = {
+				    .r = 130,
+				    .g = 120,
+				    .b = 130,
+				};
 			}
 
 			else {
@@ -582,17 +585,18 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 				if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] <= 119) {
 
 					//formula I came up with to render pad colours from green to red across 119 Midi CC pads
-					pixel[0] = 2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20;
-					pixel[1] = 53 - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20);
-					pixel[2] = 2;
+					pixel = {
+					    .r = static_cast<RGB::channel_type>(
+					        (2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119))) >> 20),
+					    .g = static_cast<RGB::channel_type>(
+					        53 - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20)),
+					    .b = 2,
+					};
 				}
 
 				//if we're not in a midi clip, highlight the automatable pads dimly grey
 				else {
-
-					pixel[0] = kUndefinedGreyShade;
-					pixel[1] = kUndefinedGreyShade;
-					pixel[2] = kUndefinedGreyShade;
+					pixel = colours::grey;
 				}
 			}
 
@@ -603,7 +607,7 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 
 //gets the length of the clip, renders the pads corresponding to current parameter values set up to the clip length
 //renders the undefined area of the clip that the user can't interact with
-void AutomationClipView::renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, uint8_t* image,
+void AutomationClipView::renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, RGB* image,
                                                 uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
                                                 uint32_t xZoom, int32_t yDisplay, bool drawUndefinedArea) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
@@ -627,22 +631,22 @@ void AutomationClipView::renderAutomationEditor(ModelStackWithTimelineCounter* m
 //it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
 //which always works. hoping to bring back the other code once I've worked out the bugs.
 void AutomationClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
-                                   ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
-                                   uint8_t occupancyMask[], int32_t yDisplay, bool isAutomated) {
+                                   ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
+                                   int32_t yDisplay, bool isAutomated) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 		uint32_t squareStart = getMiddlePosFromSquare(modelStack, xDisplay);
 		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
-		uint8_t* pixel = image + (xDisplay * 3);
+		RGB& pixel = image[xDisplay];
 
 		if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
 			if (isAutomated) { //automated, render bright colour
-				memcpy(pixel, &rowColour[yDisplay], 3);
+				pixel = rowColour[yDisplay];
 			}
 			else { //not automated, render less bright tail colour
-				memcpy(pixel, &rowTailColour[yDisplay], 3);
+				pixel = rowTailColour[yDisplay];
 			}
 			occupancyMask[xDisplay] = 64;
 		}
@@ -650,12 +654,10 @@ void AutomationClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
 		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
 
 			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
-				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+				pixel = rowBlurColour[yDisplay];
 			}
 			else {
-				pixel[0] = kUndefinedGreyShade;
-				pixel[1] = kUndefinedGreyShade;
-				pixel[2] = kUndefinedGreyShade;
+				pixel = colours::grey;
 			}
 			occupancyMask[xDisplay] = 64;
 		}
@@ -664,15 +666,15 @@ void AutomationClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
 
 //easter egg lol. it is rendered when you press the CV clip button as you can't use automation view there
 //it draws a cute heart and musical note
-void AutomationClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void AutomationClipView::renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint8_t* pixel = image + (xDisplay * 3);
+		RGB& pixel = image[xDisplay];
 
 		if (love[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-			memcpy(pixel, &rowColour[yDisplay], 3);
+			pixel = rowColour[yDisplay];
 			occupancyMask[xDisplay] = 64;
 		}
 	}
@@ -680,7 +682,7 @@ void AutomationClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int
 
 //defers to audio clip or instrument clip sidebar render functions
 //depending on the active clip
-bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AutomationClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
 }
