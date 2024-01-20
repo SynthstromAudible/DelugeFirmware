@@ -28,13 +28,12 @@ ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub
 }
 
-void ClipInstance::getColour(uint8_t* colour) {
+RGB ClipInstance::getColour() {
 	if (!clip || clip->isArrangementOnlyClip()) {
-		memset(colour, 128, 3);
+		return RGB::monochrome(128);
 	}
-	else {
-		hueToRGB(defaultClipGroupColours[clip->section], colour);
-	}
+
+	return RGB::fromHue(defaultClipGroupColours[clip->section]);
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {

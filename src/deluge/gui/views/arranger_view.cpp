@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -488,7 +488,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	}
 }
 
-bool ArrangerView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -503,36 +503,31 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWid
 	return true;
 }
 
-void ArrangerView::drawMuteSquare(int32_t yDisplay, uint8_t thisImage[][3]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth];
+void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
+	RGB& thisColour = thisImage[kDisplayWidth];
 
 	// If no Instrument, black
 	if (!outputsOnScreen[yDisplay]) {
-doBlack:
-		memset(thisColour, 0, 3);
+		thisColour = colours::black;
 	}
 
 	else if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && outputsOnScreen[yDisplay]->armedForRecording) {
 		if (blinkOn) {
 			if (outputsOnScreen[yDisplay]->wantsToBeginArrangementRecording()) {
-				thisColour[0] = 255;
-				thisColour[1] = 1;
-				thisColour[2] = 0;
+				thisColour = {255, 1, 0};
 			}
 			else {
-				thisColour[0] = 60;
-				thisColour[1] = 25;
-				thisColour[2] = 15;
+				thisColour = {60, 25, 15};
 			}
 		}
 		else {
-			goto doBlack;
+			thisColour = colours::black;
 		}
 	}
 
 	// Soloing - blue
 	else if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
-		menu_item::soloColourMenu.getRGB(thisColour);
+		thisColour = menu_item::soloColourMenu.getRGB();
 	}
 
 	// Or if not soloing...
@@ -540,22 +535,22 @@ doBlack:
 
 		// Muted - yellow
 		if (outputsOnScreen[yDisplay]->mutedInArrangementMode) {
-			menu_item::mutedColourMenu.getRGB(thisColour);
+			thisColour = menu_item::mutedColourMenu.getRGB();
 		}
 
 		// Otherwise, green
 		else {
-			menu_item::activeColourMenu.getRGB(thisColour);
+			thisColour = menu_item::activeColourMenu.getRGB();
 		}
 
 		if (currentSong->getAnyOutputsSoloingInArrangement()) {
-			dimColour(thisColour);
+			thisColour = thisColour.dull();
 		}
 	}
 }
 
-void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth + 1];
+void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
+	RGB& thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
@@ -568,17 +563,13 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) 
 
 		// If MIDI command already assigned...
 		if (melodicInstrument->midiInput.containsSomething()) {
-			thisColour[0] = midiCommandColour.r;
-			thisColour[1] = midiCommandColour.g;
-			thisColour[2] = midiCommandColour.b;
+			thisColour = colours::midi_command;
 		}
 
 		// Or if not assigned but we're holding it down...
 		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
-			thisColour[0] = 128;
-			thisColour[1] = 0;
-			thisColour[2] = 0;
+			thisColour = colours::red.dim();
 		}
 		else {
 			goto drawNormally;
@@ -588,12 +579,10 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) 
 	else {
 drawNormally:
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective) {
-			thisColour[0] = 255;
-			thisColour[1] = 0;
-			thisColour[2] = 0;
+			thisColour = colours::red;
 		}
 		else {
-			memset(thisColour, 0, 3);
+			thisColour = colours::black;
 		}
 	}
 }
@@ -1787,7 +1776,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 	memcpy(PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
@@ -2004,7 +1993,7 @@ itsInvalid:
 
 // Returns which rows couldn't be rendered
 // occupancyMask can be NULL
-uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
+uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
                                       int32_t imageWidth) {
 	uint32_t whichRowsCouldntBeRendered = 0;
@@ -2031,7 +2020,7 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 	return whichRowsCouldntBeRendered;
 }
 
-bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -2041,7 +2030,7 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWi
 
 	uint32_t whichRowsCouldntBeRendered =
 	    doActualRender(currentSong->xScroll[NAVIGATION_ARRANGEMENT], currentSong->xZoom[NAVIGATION_ARRANGEMENT],
-	                   whichRows, &image[0][0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+	                   whichRows, &image[0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
 
 	PadLEDs::renderingLock = false;
 
@@ -2055,16 +2044,16 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWi
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom,
-                             uint8_t* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
+                             RGB* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
 
 	Output* output = outputsOnScreen[yDisplay];
 
 	if (!output) {
 
-		uint8_t* imageEnd = imageThisRow + renderWidth * 3;
+		const RGB* imageEnd = imageThisRow + renderWidth;
 
-		while (imageThisRow < imageEnd) {
-			*(imageThisRow++) = 0;
+		for (; imageThisRow < imageEnd; imageThisRow++) {
+			*(imageThisRow) = colours::black;
 		}
 
 		// Occupancy mask doesn't need to be cleared in this case
@@ -2104,23 +2093,24 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 		newEndSquare = std::min(newEndSquare, renderWidth);
 
 		if (blinkOn) {
-			clipInstance->getColour(&imageThisRow[newStartSquare * 3]);
+			imageThisRow[newStartSquare] = clipInstance->getColour();
 			int32_t lengthInSquares = newEndSquare - newStartSquare;
 			if (lengthInSquares >= 2) {
-				getTailColour(&imageThisRow[newStartSquare * 3 + 3], &imageThisRow[newStartSquare * 3]);
+				imageThisRow[newStartSquare + 3] = imageThisRow[newStartSquare].forTail();
 			}
 			for (int32_t x = newStartSquare + 2; x < newEndSquare; x++) {
-				memcpy(&imageThisRow[x * 3], &imageThisRow[newStartSquare * 3 + 3], 3);
+				imageThisRow[x] = imageThisRow[newStartSquare + 3];
 			}
 
 			if (!rightOnSquare) {
-				uint8_t blurColour[3];
-				getBlurColour(blurColour, &imageThisRow[newStartSquare * 3]);
-				memcpy(&imageThisRow[newStartSquare * 3], blurColour, 3);
+				imageThisRow[newStartSquare] = imageThisRow[newStartSquare].forBlur();
 			}
 		}
 		else {
-			memset(&imageThisRow[newStartSquare * 3], 0, 3 * (newEndSquare - newStartSquare));
+			for (auto* it = &imageThisRow[newStartSquare];
+			     it != &imageThisRow[newStartSquare] + (newEndSquare - newStartSquare); it++) {
+				*it = colours::black;
+			}
 		}
 	}
 
@@ -2131,16 +2121,16 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom,
-                                      uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI) {
+                                      RGB* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI) {
 
-	uint8_t* imageNow = image;
-	uint8_t* const imageEnd = image + renderWidth * 3;
+	RGB* imageNow = image;
+	RGB* const imageEnd = image + renderWidth;
 
 	int32_t firstXDisplayNotLeftOf0 = 0;
 
 	if (!output->clipInstances.getNumElements()) {
 		while (imageNow < imageEnd) {
-			*(imageNow++) = 0;
+			*(imageNow++) = colours::black;
 		}
 		return true;
 	}
@@ -2175,13 +2165,12 @@ squareStartPosSet:
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
 		if (clipInstance) {
-			uint8_t colour[3];
-			clipInstance->getColour(colour);
+			RGB colour = clipInstance->getColour();
 
 			// If Instance starts exactly on square or somewhere within square, draw "head".
 			// We don't do the "blur" colour in arranger - it looks too white and would be confused with white/unique instances
 			if (clipInstance->pos >= squareStartPos) {
-				memcpy(&image[xDisplay * 3], colour, 3);
+				image[xDisplay] = colour;
 			}
 
 			// Otherwise...
@@ -2207,7 +2196,9 @@ squareStartPosSet:
 
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
 					if (!clipInstance->clip) {
-						memset(&image[xDisplay * 3], 0, 3 * (squareEnd - xDisplay));
+						for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+							*it = colours::black;
+						}
 					}
 
 					// Or the real Clip - for all squares in the Instance
@@ -2223,31 +2214,29 @@ squareStartPosSet:
 						}
 					}
 
-					uint32_t averageBrightnessSection = (uint32_t)colour[0] + colour[1] + colour[2];
-					uint32_t sectionColour[3];
-					for (int32_t c = 0; c < 3; c++) {
-						sectionColour[c] = (int32_t)colour[c] * 140 + averageBrightnessSection * 280;
-					}
+					uint32_t averageBrightnessSection = (uint32_t)colour.r + colour.g + colour.b;
+					RGB sectionColour = colour.transform([averageBrightnessSection](uint8_t channel) {
+						return (int32_t)channel * 140 + averageBrightnessSection * 280;
+					});
 
 					// Mix the colours for all the squares
 					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						for (int32_t c = 0; c < 3; c++) {
-							image[reworkSquare * 3 + c] =
-							    ((int32_t)image[reworkSquare * 3 + c] * 525 + sectionColour[c]) >> 13;
-						}
+						image[reworkSquare] =
+						    RGB::transform2(image[reworkSquare], sectionColour, [](uint8_t channelA, uint8_t channelB) {
+							    return ((int32_t)channelA * 525 + channelB) >> 13;
+						    });
 					}
 
 					xDisplay = squareEnd - 1;
 				}
 				else {
-					goto nothing;
+					image[xDisplay] = colours::black;
 				}
 			}
 		}
 
 		else {
-nothing:
-			memset(&image[xDisplay * 3], 0, 3);
+			image[xDisplay] = colours::black;
 		}
 
 		xDisplay++;

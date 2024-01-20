@@ -18,6 +18,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
@@ -55,6 +56,8 @@ void routineForSD(void);
 #include "RZA1/uart/sio_char.h"
 }
 extern void setupBlankSong();
+
+using namespace deluge::gui;
 
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
@@ -689,7 +692,7 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	uint8_t(*imageStore)[kDisplayWidth + kSideBarWidth][3];
+	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
 	}
@@ -697,7 +700,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		imageStore = PadLEDs::image;
 	}
 
-	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -722,22 +725,12 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			storageManager.exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
-
-			int32_t startX, startY, endX, endY;
 			int32_t skipNumCharsAfterRow = 0;
 
-			if (previewNumPads == 40) {
-				startX = 4;
-				endX = 14;
-				startY = 2;
-				endY = 6;
-				memset(imageStore, 0, sizeof(imageStore));
-			}
-			else {
-				startX = startY = 0;
-				endX = kDisplayWidth + kSideBarWidth;
-				endY = kDisplayHeight;
-			}
+			int32_t startX = 0;
+			int32_t startY = 0;
+			int32_t endX = kDisplayWidth + kSideBarWidth;
+			int32_t endY = kDisplayHeight;
 
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
@@ -757,7 +750,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 						imageStore[y][x][colour] = hexToByte(hexChars);
 						hexChars += 2;
 					}
-					greyColourOut(imageStore[y][x], imageStore[y][x], 6500000);
+					imageStore[y][x] = imageStore[y][x].greyOut(6500000);
 				}
 			}
 			goto stopLoadingPreview;

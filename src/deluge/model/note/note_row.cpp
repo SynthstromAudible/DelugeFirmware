@@ -1529,10 +1529,10 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 }
 
 // occupancyMask now optional!
-void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t rowTailColour[],
-                        uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
-                        uint32_t effectiveRowLength, bool allowNoteTails, int32_t renderWidth, int32_t xScroll,
-                        uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats) {
+void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailColour, RGB rowBlurColour, RGB* image,
+                        uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
+                        bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
+                        int32_t xEnd, bool drawRepeats) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -1598,14 +1598,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 			bool drewNote = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
-			uint8_t* pixel = image + xDisplay * 3;
+			RGB& pixel = image[xDisplay];
 
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
-				pixel[0] = rowBlurColour[0];
-				pixel[1] = rowBlurColour[1];
-				pixel[2] = rowBlurColour[2];
+				pixel = rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1614,9 +1612,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				pixel[0] = rowColour[0];
-				pixel[1] = rowColour[1];
-				pixel[2] = rowColour[2];
+				pixel = rowColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1635,9 +1631,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
 					drewNote = true;
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
+					pixel = rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
@@ -1645,16 +1639,10 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 			}
 			if (drewNote && currentSong->isFillModeActive()) {
 				if (note->probability == kFillProbabilityValue) {
-					//make em blue
-					pixel[0] = 0;
-					pixel[1] = 0;
-					pixel[2] = 255;
+					pixel = deluge::gui::colours::blue;
 				}
 				else if (note->probability == kNotFillProbabilityValue) {
-					//make em red
-					pixel[0] = 255;
-					pixel[1] = 0;
-					pixel[2] = 0;
+					pixel = deluge::gui::colours::red;
 				}
 			}
 		}

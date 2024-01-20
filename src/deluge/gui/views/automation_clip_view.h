@@ -57,9 +57,9 @@ public:
 	void graphicsRoutine();
 
 	//rendering
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
@@ -138,17 +138,17 @@ private:
 	void editPadAction(Clip* clip, bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 
 	//Automation View Render Functions
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, Clip* clip, OutputType outputType,
-	                              uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, uint8_t* image,
+	                              RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, Clip* clip, RGB* image,
 	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
 	                            int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
-	               uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
-	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam, RGB* image,
+	               uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
+	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,

@@ -624,11 +624,11 @@ void Clip::expectEvent() {
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
-                             uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
+                             uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
                              int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart, int32_t xEnd,
                              bool allowBlur, bool drawRepeats) {
 
-	memset(&image[xStart * 3], 0, (xEnd - xStart) * 3);
+	std::fill(&image[xStart], &image[xStart] + (xEnd - xStart), gui::colours::black);
 	if (occupancyMask) {
 		memset(&occupancyMask[xStart], 0, (xEnd - xStart));
 	}
@@ -848,7 +848,7 @@ void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldL
 }
 
 // occupancyMask now optional
-void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, uint8_t* rowImage,
+void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, RGB* rowImage,
                              uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView,
                              bool tripletsOnHere) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
@@ -859,7 +859,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	}
 
 	if (greyStart < imageWidth) {
-		memset(rowImage + greyStart * 3, kUndefinedGreyShade, (imageWidth - greyStart) * 3);
+		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), deluge::gui::colours::grey);
 		if (occupancyMask) {
 			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
 		}
@@ -868,10 +868,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	if (tripletsOnHere && timelineView->supportsTriplets()) {
 		for (int32_t xDisplay = 0; xDisplay < imageWidth; xDisplay++) {
 			if (!timelineView->isSquareDefined(xDisplay, xScroll, xZoom)) {
-				uint8_t* pixel = rowImage + xDisplay * 3;
-				pixel[0] = kUndefinedGreyShade;
-				pixel[1] = kUndefinedGreyShade;
-				pixel[2] = kUndefinedGreyShade;
+				rowImage[xDisplay] = deluge::gui::colours::grey;
 
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
