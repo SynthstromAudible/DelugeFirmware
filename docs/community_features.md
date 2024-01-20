@@ -229,8 +229,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- This is destructive (your original note positions are not saved) The implementation of this feature is likely to change in the future
 	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.3.4 - Fill Mode
- - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range, right before `5%`. Notes set to `FILL` are only played when fill mode is active. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+#### 4.3.4 - Fill / Not Fill Modes
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range. Notes set to `FILL` are only played when fill mode is active. These notes will be highlighted in bright blue color when the Fill button is held. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+ - ([#994]) Additionaly, there is also the Not Fill Mode, which is right before the `FILL` setting in the probability selector. On the OLED Deluge, this is shown as `NOT FILL`, and on 7-SEG Deluge, this will be shown as `FILL.` (with a dot). Notes set to `NOT FILL` are only played when fill mode is NOT active, that is, while regular playback, and, contrary to `FILL` notes, will be silenced when the fill mode is active. These notes will be highlighted in bright red color when the Fill button is held.
 
 #### 4.3.5 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
@@ -286,8 +287,19 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 ##### 4.4.1.4 - Display Norns Layout
 
- - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
+ - ([#250]) Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`).
+	- Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
+	- The Midigrid mod translates MIDI notes between norns and Deluge to use the grid as a controller for a norns script. Midigrid sends MIDI notes on channel 16 from norns to Deluge to light up grid LEDs. When a pad is pressed on Deluge, it sends out a MIDI note on channel 16 to norns. This means that Deluge's usual way of learning a MIDI controller to a synth clip will be constantly interrupted by the stream of MIDI notes coming in on channel 16 from norns. To learn external MIDI controls to Deluge while using the Midigrid mod, first stop the running script on norns, turn off the Midigrid mod in the mod menu, or determine another method to pause the grid updating MIDI messages from norns.
+	- The functionality of the grid changes with each norns script.  
+
+	**1.** Connect Deluge to norns with a USB cable for MIDI.  
+	**2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on your norns, turn on the mod, set to 128 grid size.  
+	**3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+	**4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16 by turning the `SELECT` encoder.  
+	**5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to select "Norns Layout" (NORN).  
+	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
+	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
    
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -384,7 +396,7 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 * Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
-  	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+  	* When On, enables keyboard layout which emulates monome grid for monome norns using midigrid mod where incoming midi notes on channel 16 are rendered as white pads using velocity for brightness.
 * Sticky Shift (STIC)
   	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
 * Light Shift (LIGH)
@@ -481,6 +493,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
 [#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
+[#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

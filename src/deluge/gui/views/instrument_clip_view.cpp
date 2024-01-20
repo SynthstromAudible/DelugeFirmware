@@ -2148,11 +2148,13 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 								prevBase = false;
 							}
 							else {
-								// See if there's a prev-base
-								if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-								    && getCurrentInstrumentClip()->doesProbabilityExist(
-								        editPadPresses[i].intendedPos, probabilityValue,
-								        kNumProbabilityValues - probabilityValue)) {
+								// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128, that is prob=0 + prevBase=true)
+								// And for percentage-probabilities we set preBase if there are previous notes with the same probability
+								if (probabilityValue == 0
+								    || (probabilityValue < kNumProbabilityValues
+								        && getCurrentInstrumentClip()->doesProbabilityExist(
+								            editPadPresses[i].intendedPos, probabilityValue,
+								            kNumProbabilityValues - probabilityValue))) {
 									prevBase = true;
 								}
 								else {
@@ -2164,17 +2166,19 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Decrementing
 					else {
-						// Allow going down to probability 0 for FILL notes
 						if (probabilityValue > 0 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
 							}
 							else {
 								probabilityValue--;
-								prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-								            && getCurrentInstrumentClip()->doesProbabilityExist(
-								                editPadPresses[i].intendedPos, probabilityValue,
-								                kNumProbabilityValues - probabilityValue));
+								// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128, that is prob=0 + prevBase=true)
+								// From any other percentage-probability we set prevBase if there are previous notes with the same probability
+								prevBase = (probabilityValue == 0
+								            || probabilityValue < kNumProbabilityValues
+								                   && getCurrentInstrumentClip()->doesProbabilityExist(
+								                       editPadPresses[i].intendedPos, probabilityValue,
+								                       kNumProbabilityValues - probabilityValue));
 							}
 						}
 					}
@@ -2238,7 +2242,9 @@ multiplePresses:
 		}
 
 		// Decide the probability, based on the existing probability of the leftmost note
-		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
+		uint8_t probability = editPadPresses[leftMostIndex].intendedProbability;
+		probabilityValue = probability & 127;
+		prevBase = (probability & 128);
 
 		// If editing, continue edit
 		if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
@@ -2247,15 +2253,56 @@ multiplePresses:
 				return;
 			}
 
-			probabilityValue += offset;
-			probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
+			// Incrementing
+			if (offset == 1) {
+				if (probabilityValue == 0) {
+					// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
+					if (prevBase) {
+						probabilityValue = 1;
+						prevBase = false;
+					}
+					// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
+					else {
+						prevBase = true;
+					}
+				}
+				// In any other case we just increment probability value
+				else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+					probabilityValue++;
+					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for leftMostNote
+					prevBase = false;
+				}
+			}
+			// Decrementing
+			else {
+				if (probabilityValue == 1) {
+					// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
+					prevBase = true;
+					probabilityValue = 0;
+				}
+				else if (probabilityValue == 0 && prevBase) {
+					// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
+					prevBase = false;
+				}
+				// In any other case we just increment probability value
+				else if (probabilityValue > 1) {
+					probabilityValue--;
+					// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for leftMostNote
+					prevBase = false;
+				}
+			}
+
+			uint8_t probabilityForMultipleNotes = probabilityValue;
+			if (prevBase) {
+				probabilityForMultipleNotes |= 128;
+			}
 
 			// Set the probability of the other presses, and update all probabilities with the actual notes
 			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 				if (editPadPresses[i].isActive) {
 
 					// Update probability
-					editPadPresses[i].intendedProbability = probabilityValue;
+					editPadPresses[i].intendedProbability = probabilityForMultipleNotes;
 
 					int32_t noteRowIndex;
 					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
@@ -2274,7 +2321,7 @@ multiplePresses:
 							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
 							if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 							    && note->pos != leftMostPos) {
-								editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
+								editPadPresses[i].intendedProbability |= 128;
 							}
 							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 							                                     CORRESPONDING_NOTES_SET_PROBABILITY,
@@ -2903,7 +2950,9 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		return; // Get out if NoteRow doesn't exist and can't be created
 	}
 
-	uint8_t probabilityValue = noteRow->probabilityValue;
+	uint8_t probability = noteRow->probabilityValue;
+	int32_t probabilityValue = probability & 127;
+	bool prevBase = (probability & 128);
 
 	// If editing, continue edit
 	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
@@ -2916,20 +2965,59 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
 		                                                     false); // Snapshot for undoability. Don't steal data.
 
-		bool prevBase = false;
-		// Covers the probabilities and iterations
-		probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
-		                                       kNumProbabilityValues + kNumIterationValues);
+		// Covers the probabilities and iterations and the special case of Not Fill
+		// Incrementing
+		if (offset == 1) {
+			if (probabilityValue == 0) {
+				// From NOT FILL (value: 0 | 128) we go up to 5% (value: 1)
+				if (prevBase) {
+					probabilityValue = 1;
+					prevBase = false;
+				}
+				// From FILL (value: 0) we go up to NOT FILL (value: 0 | 128)
+				else {
+					prevBase = true;
+				}
+			}
+			// In any other case we just increment probability value
+			else if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
+				probabilityValue++;
+				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for leftMostNote
+				prevBase = false;
+			}
+		}
+		// Decrementing
+		else {
+			if (probabilityValue == 1) {
+				// From 5% (value: 1) we go down to NOT FILL (value: 0 | 128)
+				prevBase = true;
+				probabilityValue = 0;
+			}
+			else if (probabilityValue == 0 && prevBase) {
+				// From NOT FILL (value: 0 | 128) we go down to FILL (value: 0)
+				prevBase = false;
+			}
+			// In any other case we just increment probability value
+			else if (probabilityValue > 1) {
+				probabilityValue--;
+				// As we are treating multiple notes, we need to reset prevBase and remove the "latching" state for leftMostNote
+				prevBase = false;
+			}
+		}
 
-		noteRow->probabilityValue = probabilityValue;
+		uint8_t probabilityForFow = probabilityValue;
+		if (prevBase) {
+			probabilityForFow |= 128;
+		}
+		noteRow->probabilityValue = probabilityForFow;
 
 		uint32_t numNotes = noteRow->notes.getNumElements();
 		for (int i = 0; i < numNotes; i++) {
 			Note* note = noteRow->notes.getElement(i);
-			note->setProbability(probabilityValue);
+			note->setProbability(probabilityForFow);
 		}
 	}
-	displayProbability(probabilityValue, false);
+	displayProbability(probabilityValue, prevBase);
 }
 
 // GCC is fine with 29 or 5 for the size, but does not like that it could be either
@@ -2939,9 +3027,15 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
+	sprintf(buffer, "P %d %d", probability, prevBase);
 	// FILL mode
-	if (probability == kFillProbabilityValue) {
+	if (probability == kFillProbabilityValue && !prevBase) {
 		strcpy(buffer, "FILL");
+	}
+
+	// NO-FILL mode
+	else if (probability == kFillProbabilityValue && prevBase) {
+		strcpy(buffer, "NOT FILL");
 	}
 
 	// Probability dependence
@@ -5107,18 +5201,18 @@ void InstrumentClipView::fillOffScreenImageStores() {
 	getCurrentClip()->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[0][0],
 	                                    PadLEDs::occupancyMaskStore[0], false, 0, noteRowIndexBottom, 0, kDisplayWidth,
 	                                    true, false);
-	getCurrentClip()->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[kDisplayHeight + 1][0],
-	                                    PadLEDs::occupancyMaskStore[kDisplayHeight + 1], false, noteRowIndexTop,
-	                                    2147483647, 0, kDisplayWidth, true, false);
+	getCurrentClip()->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[kDisplayHeight][0],
+	                                    PadLEDs::occupancyMaskStore[kDisplayHeight], false, noteRowIndexTop, 2147483647,
+	                                    0, kDisplayWidth, true, false);
 
 	// Clear sidebar pads from offscreen image stores
 	for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
 		for (int32_t colour = 0; colour < 3; colour++) {
 			PadLEDs::imageStore[0][x][colour] = 0;
-			PadLEDs::imageStore[kDisplayHeight + 1][x][colour] = 0;
+			PadLEDs::imageStore[kDisplayHeight][x][colour] = 0;
 		}
 		PadLEDs::occupancyMaskStore[0][x] = 0;
-		PadLEDs::occupancyMaskStore[kDisplayHeight + 1][x] = 0;
+		PadLEDs::occupancyMaskStore[kDisplayHeight][x] = 0;
 	}
 }
 

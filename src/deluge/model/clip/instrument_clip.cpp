@@ -68,6 +68,8 @@
 #include <math.h>
 #include <new>
 
+namespace params = deluge::modulation::params;
+
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	arpeggiatorRate = 0;
@@ -743,12 +745,15 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 			// If we found a 100%, we know we're not doing sum-to-100
-			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues
+			    && pendingNoteOnList.pendingNoteOns[i].probability <= kNumProbabilityValues + kNumIterationValues) {
 				goto skipDoingSumTo100;
 			}
 
 			// If any follow-previous-probability, skip this statistics-grabbing
-			if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
+			// Or if any Fill note, skip this statistics-grabbing
+			if (pendingNoteOnList.pendingNoteOns[i].probability & 128
+			    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 				continue;
 			}
 
@@ -771,7 +776,9 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 				// If any follow-previous-probability, skip this statistics-grabbing
-				if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
+				// Or if any Fill note, skip this statistics-grabbing
+				if (pendingNoteOnList.pendingNoteOns[i].probability & 128
+				    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 					continue;
 				}
 
@@ -810,6 +817,11 @@ skipDoingSumTo100:
 			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
 				conditionPassed = currentSong->isFillModeActive();
+			}
+
+			// else check if it's a NO-FILL note and only play if SYNC_SCALING is *not* pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == kNotFillProbabilityValue) {
+				conditionPassed = !currentSong->isFillModeActive();
 			}
 
 			// Otherwise...
@@ -2438,7 +2450,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
@@ -3814,10 +3826,10 @@ haveNoDrum:
 								Source* source = &sound->sources[s];
 								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
-									    || patchedParams->params[Param::Local::PITCH_ADJUST].containsSomething(0)
-									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(Param::Local::PITCH_ADJUST) // No, can't call these cos patching isn't set up yet. Oh well
-									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(Param::Local::OSC_A_PITCH_ADJUST + s)
-									    || patchedParams->params[Param::Local::OSC_A_PITCH_ADJUST + s]
+									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(0)
+									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_PITCH_ADJUST) // No, can't call these cos patching isn't set up yet. Oh well
+									    //|| thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_OSC_A_PITCH_ADJUST + s)
+									    || patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
 									           .containsSomething(0)) {
 
 										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
@@ -3911,10 +3923,10 @@ haveNoDrum:
 						    modelStackWithThreeMainThings->addParamCollection(patchedParams, patchedParamsSummary);
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
-						                                                     Param::Local::OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[Param::Local::OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
+						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
-						                                        Param::Local::OSC_A_PHASE_WIDTH + s);
+						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
 					}
 				}
 			}
