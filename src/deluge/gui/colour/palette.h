@@ -45,6 +45,10 @@ constexpr Colour yellow = RGB(170, 182, 0);
 constexpr Colour green = RGB(85, 182, 72);
 constexpr Colour blue = RGB(51, 109, 145);
 constexpr Colour pink = RGB(144, 72, 91);
+
+// Custom Tail colours for Performance View by @seangoodvibes
+constexpr Colour orangeTail = RGB(46, 16, 2);
+constexpr Colour pinkTail = RGB(37, 15, 37);
 } // namespace pastel
 
 /**
