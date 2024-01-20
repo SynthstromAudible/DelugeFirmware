@@ -552,8 +552,8 @@ doNormalLaunch:
 		}
 
 		// Arm it again if a ONCE clip, so it stops at the launchEvent
-		if ((clip->activeIfNoSolo || clip->soloingInSessionMode) && clip->launchStyle == LAUNCH_STYLE_ONCE
-		    && clip->armState == ArmState::OFF) {
+		if (!isFillLaunch && (clip->activeIfNoSolo || clip->soloingInSessionMode)
+		    && clip->launchStyle == LAUNCH_STYLE_ONCE && clip->armState == ArmState::OFF) {
 			clip->armState = ArmState::ON_NORMAL;
 			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 		}
@@ -1494,7 +1494,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT || clip->launchStyle == LAUNCH_STYLE_FILL
+		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT || (clip->launchStyle == LAUNCH_STYLE_FILL && !doLateStart)
 		    || (clip->launchStyle == LAUNCH_STYLE_ONCE && !doLateStart)) {
 			if (!doLateStart
 			    && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's not that useful, and tricky to implement
@@ -1560,7 +1560,7 @@ wantActive:
 					// If it's already active (less common)...
 					if (thisClip->activeIfNoSolo) {
 						// If it's armed to stop, cancel that
-						if (thisClip->armState != ArmState::OFF) {
+						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LAUNCH_STYLE_ONCE) {
 							thisClip->armState = ArmState::OFF;
 						}
 						output->nextClipFoundShouldGetArmed = true;
@@ -1674,7 +1674,8 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		// If late start...
 		if (doLateStart) {
 
-			if (thisClip->armState != ArmState::OFF) { // In case also already armed
+			if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LAUNCH_STYLE_FILL
+			    && thisClip->launchStyle != LAUNCH_STYLE_ONCE) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
