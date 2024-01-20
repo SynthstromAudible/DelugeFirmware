@@ -109,7 +109,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	if (isPlaying) {
 
 		// If recording...
-		if (playbackHandler.recording && modelStack->timelineCounterIsSet()) {
+		if (playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()) {
 
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
@@ -561,7 +561,7 @@ recordOverNodeJustReached:
 				if (insertingNodeAtEndOfClearing) {
 
 					// Special case for song params for recording session->arrangement. TODO: think about reversing for this
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 					    && modelStack->getTimelineCounter() == modelStack->song) {
 
 						// If there's already a node at 0, we don't need to do anything

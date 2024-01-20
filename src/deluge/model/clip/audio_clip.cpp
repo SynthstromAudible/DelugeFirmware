@@ -787,7 +787,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	Clip::posReachedEnd(modelStack);
 
 	// If recording from session to arranger...
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 		D_PRINTLN("");
 		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());

@@ -137,7 +137,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 // Returns whether it began
 bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency) {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return false; // Not allowed if recording to arranger
 	}
 
@@ -408,7 +408,7 @@ becameInactiveNormally:
 becameInactiveBecauseOfAnotherClipSoloing:
 					clip->expectNoFurtherTicks(currentSong, true);
 
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						clip->getClipToRecordTo()->endInstance(playbackHandler.getActualArrangementRecordPos(), true);
 					}
 				}
@@ -546,7 +546,7 @@ doNormalLaunch:
 					output->setActiveClip(
 					    modelStackWithTimelineCounter); // Must be after giveClipOpportunityToBeginLinearRecording(), cos this call clears any recorded-early notes
 
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						clip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos());
 					}
 				}
@@ -628,8 +628,8 @@ doNormalLaunch:
 
 	// If we were doing linear recording before, but we just stopped, then exit RECORD mode, as indicated on LED
 	if (anyLinearRecordingBefore && !anyLinearRecordingAfter) {
-		if (playbackHandler.recording == RECORDING_NORMAL) {
-			playbackHandler.recording = RECORDING_OFF;
+		if (playbackHandler.recording == RecordingMode::NORMAL) {
+			playbackHandler.recording = RecordingMode::OFF;
 			playbackHandler.setLedStates();
 		}
 	}
@@ -649,8 +649,8 @@ void Session::justAbortedSomeLinearRecording() {
 		}
 
 		// Exit RECORD mode, as indicated on LED
-		if (playbackHandler.recording == RECORDING_NORMAL) {
-			playbackHandler.recording = RECORDING_OFF;
+		if (playbackHandler.recording == RecordingMode::NORMAL) {
+			playbackHandler.recording = RecordingMode::OFF;
 			playbackHandler.setLedStates();
 		}
 	}
@@ -994,7 +994,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 						else {
 							clip->expectNoFurtherTicks(currentSong);
 
-							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+							if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 								clip->getClipToRecordTo()->endInstance(playbackHandler.getActualArrangementRecordPos());
 							}
 
@@ -1361,7 +1361,7 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 			if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || playbackHandler.midiOutClockEnabled
 			    || playbackHandler.metronomeOn
 			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL
-			    || playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 
 				uint32_t oneBar = currentSong->getBarLength();
 
@@ -1686,7 +1686,7 @@ setPosAndStuff:
 			thisClip->resumePlayback(modelStack);
 
 			// If recording session to arranger, do that
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				thisClip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos() - pos);
 			}
 		}
@@ -1752,7 +1752,7 @@ void Session::scheduleFillClip(Clip* clip) {
 				clip->resumePlayback(modelStack);
 
 				// If recording session to arranger, do that
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					clip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos() - pos);
 				}
 
@@ -1914,7 +1914,7 @@ traverseClips:
 
 void Session::setupPlayback() {
 
-	currentSong->setParamsInAutomationMode(playbackHandler.recording == RECORDING_ARRANGEMENT);
+	currentSong->setParamsInAutomationMode(playbackHandler.recording == RecordingMode::ARRANGEMENT);
 
 	lastSectionArmed = 255;
 }
@@ -1955,8 +1955,8 @@ bool Session::endPlayback() {
 		uiNeedsRendering(&sessionView);
 
 		// And exit RECORD mode, as indicated on LED
-		if (playbackHandler.recording == RECORDING_NORMAL) {
-			playbackHandler.recording = RECORDING_OFF;
+		if (playbackHandler.recording == RecordingMode::NORMAL) {
+			playbackHandler.recording = RecordingMode::OFF;
 			// I guess we're gonna update the LED states sometime soon...
 		}
 	}
@@ -1966,7 +1966,7 @@ bool Session::endPlayback() {
 bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 
 	bool mightDoTempolessRecord =
-	    (!newPos && playbackHandler.recording == RECORDING_NORMAL && !playbackHandler.metronomeOn);
+	    (!newPos && playbackHandler.recording == RecordingMode::NORMAL && !playbackHandler.metronomeOn);
 	if (!mightDoTempolessRecord) {
 		return false;
 	}
@@ -2008,7 +2008,7 @@ void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPre
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStack);
 
@@ -2219,7 +2219,7 @@ void Session::doTickForward(int32_t posIncrement) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->addToModelStack(modelStack);
 
 		if (currentSong->paramManager.mightContainAutomation()) {
@@ -2327,7 +2327,7 @@ void Session::unsoloClip(Clip* clip) {
 	if (anyClipsStillSoloing || !clip->activeIfNoSolo) {
 		clip->expectNoFurtherTicks(currentSong);
 
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			clip->getClipToRecordTo()->endInstance(playbackHandler.getActualArrangementRecordPos());
 		}
 	}
@@ -2387,7 +2387,7 @@ void Session::soloClipRightNow(ModelStackWithTimelineCounter* modelStack) {
 					if (thisClip->activeIfNoSolo) {
 						thisClip->expectNoFurtherTicks(modelStack->song);
 
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+						if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 							thisClip->getClipToRecordTo()->endInstance(playbackHandler.getActualArrangementRecordPos());
 						}
 					}
@@ -2445,7 +2445,7 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 
 	// If recording arrangement, pretend it's gonna cut at the end of the current length, cos we're actually going to auto-extend it when we get
 	// there, so we don't want any wrapping-around happening
-	if (clip->isArrangementOnlyClip() && playbackHandler.recording == RECORDING_ARRANGEMENT
+	if (clip->isArrangementOnlyClip() && playbackHandler.recording == RecordingMode::ARRANGEMENT
 	    && clip->beingRecordedFromClip) {
 		return clip->currentlyPlayingReversed ? 0 : clip->loopLength;
 	}

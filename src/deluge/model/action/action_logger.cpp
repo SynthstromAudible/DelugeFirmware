@@ -93,7 +93,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	Action* newAction;
 
 	// If recording arrangement...
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return NULL;
 
 		// If there's no action for that, we're really screwed, we'd better get out
@@ -666,10 +666,9 @@ currentClipSwitchedOver:
 		if (getCurrentUI() == &instrumentClipView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
-			    && whichAnimation != Animation::
-			               CLIP_MINDER_TO_ARRANGEMENT) {
+			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
-				if ( whichAnimation == Animation::NONE) {
+				if (whichAnimation == Animation::NONE) {
 					uiNeedsRendering(&instrumentClipView);
 				}
 			}
@@ -789,8 +788,8 @@ void ActionLogger::undo() {
 	// So instead, do just use regular Actions and Consequences for everything possible. And definitely don't delete any Clips here.
 
 	// If currently recording an arrangement from session, we have to stop doing so first
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-		playbackHandler.recording = RECORDING_OFF;
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		playbackHandler.recording = RecordingMode::OFF;
 		currentSong->resumeClipsClonedForArrangementRecording();
 
 		view.setModLedStates(); // Set song LED back
@@ -804,7 +803,8 @@ void ActionLogger::undo() {
 	}
 
 	// Or if recording linearly to arrangement, gotta exit that mode
-	else if (playbackHandler.playbackState && playbackHandler.recording && currentPlaybackMode == &arrangement) {
+	else if (playbackHandler.playbackState && playbackHandler.recording != RecordingMode::OFF
+	         && currentPlaybackMode == &arrangement) {
 		arrangement.endAnyLinearRecording();
 	}
 
@@ -830,8 +830,13 @@ void ActionLogger::redo() {
 	}
 }
 
-const uint32_t reversionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
-                                     UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+const uint32_t reversionUIModes[] = {
+    UI_MODE_AUDITIONING,
+    UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
+    UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
+    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+    0,
+};
 
 bool ActionLogger::allowedToDoReversion() {
 	return (currentSong && getCurrentUI() == getRootUI() && isUIModeWithinRange(reversionUIModes));

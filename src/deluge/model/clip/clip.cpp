@@ -386,7 +386,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 	*newOutputCreated = false;
 
-	if (playbackHandler.recording && wantsToBeginLinearRecording(modelStack->song)) {
+	if (playbackHandler.recording != RecordingMode::OFF && wantsToBeginLinearRecording(modelStack->song)) {
 
 		// Allow addition to existing Action - one might have already been created because
 		// note recorded slightly early just before end of count-in
@@ -797,7 +797,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	if (getCurrentlyRecordingLinearly()) {
 
 		// If they exited recording mode (as in the illuminated RECORD button), don't auto extend
-		if (!playbackHandler.recording) {
+		if (playbackHandler.recording == RecordingMode::OFF) {
 			finishLinearRecording(modelStack);
 		}
 
@@ -1037,7 +1037,7 @@ int32_t Clip::getMaxLength() {
 
 bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && playbackHandler.isEitherClockActive()
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
 
 		if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {

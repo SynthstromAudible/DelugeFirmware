@@ -98,7 +98,7 @@ PlaybackHandler::PlaybackHandler() {
 	tempoMagnitudeMatchingEnabled = false;
 	posToNextContinuePlaybackFrom = 0;
 	stopOutputRecordingAtLoopEnd = false;
-	recording = RECORDING_OFF;
+	recording = RecordingMode::OFF;
 	countInEnabled = true;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
@@ -194,7 +194,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			else {
 
 				if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
-				    && recording != RECORDING_ARRANGEMENT) {
+				    && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
@@ -229,20 +229,24 @@ void PlaybackHandler::recordButtonPressed() {
 
 	if (isUIModeWithinRange(recordButtonUIModes)) {
 
-		if (!recording) {
+		if (recording == RecordingMode::OFF) {
 			actionLogger.closeAction(ActionType::RECORD);
 		}
 
 		// Disallow recording to begin if song pre-loaded
-		if (!recording && preLoadedSong) {
+		if (recording == RecordingMode::OFF && preLoadedSong) {
 			return;
 		}
 
-		bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
+		bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
-		recording = !recording;
+		if (recording == RecordingMode::OFF) {
+			recording = RecordingMode::NORMAL;
+		} else {
+			recording = RecordingMode::OFF;
+		}
 
-		if (!recording) {
+		if (recording == RecordingMode::OFF) {
 
 			if (!wasRecordingArrangement && playbackState) {
 				if (currentPlaybackMode == &session) {
@@ -276,7 +280,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// Allow playback to start from current scroll if holding down <> knob
 	int32_t newPos = 0;
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || (getRootUI() == &arrangerView && recording == RECORDING_NORMAL)) {
+	    || (getRootUI() == &arrangerView && recording == RecordingMode::NORMAL)) {
 
 		int32_t navSys;
 		if (getRootUI() && getRootUI()->isTimelineView()) {
@@ -297,7 +301,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 
 	// See if we want a count-in
-	if (allowCountIn && !doingTempolessRecord && recording == RECORDING_NORMAL && countInEnabled
+	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInEnabled
 	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	    && getCurrentUI() == getRootUI()) {
 
@@ -457,7 +461,7 @@ void PlaybackHandler::endPlayback() {
 		currentUIMode = UI_MODE_NONE;
 	}
 
-	bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
+	bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
 	bool shouldDoInstantSongSwap =
 	    currentPlaybackMode
@@ -477,7 +481,7 @@ void PlaybackHandler::endPlayback() {
 	else {
 		if (wasRecordingArrangement) {
 			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos(), true);
-			recording = RECORDING_OFF;
+			recording = RecordingMode::OFF;
 			view.setModLedStates();
 		}
 
@@ -1084,10 +1088,10 @@ goAgain:
 			if (t >= lastInputTickReceived) {
 				return 0; // If all the input ticks received so far have not yet "happened"
 			}
-			if (t >= NUM_INPUT_TICKS_FOR_MOVING_AVERAGE
-			             - 1) { // If we just didn't remember that far back - should never really happen
-				currentInputTick =
-				    lastInputTickReceived - NUM_INPUT_TICKS_FOR_MOVING_AVERAGE; // Gonna be inexact, sorry!
+			// If we just didn't remember that far back - should never really happen
+			if (t >= kNumInputTicksForMovingAverage - 1) {
+				// Gonna be inexact, sorry!
+				currentInputTick = lastInputTickReceived - kNumInputTicksForMovingAverage;
 				goto gotCurrentInputTick;
 			}
 			goto goAgain;
@@ -1654,7 +1658,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		resetTimePerInternalTickMovingAverage();
 	}
 
-	if (numInputTickTimesCounted < NUM_INPUT_TICKS_FOR_MOVING_AVERAGE) {
+	if (numInputTickTimesCounted < kNumInputTicksForMovingAverage) {
 		numInputTickTimesCounted++;
 	}
 	for (int32_t i = numInputTickTimesCounted - 1; i >= 1; i--) {
@@ -2165,8 +2169,8 @@ void PlaybackHandler::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::PLAY, playbackState);
 
 	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
-	    && recording != RECORDING_ARRANGEMENT) {
-		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RECORDING_NORMAL);
+	    && recording != RecordingMode::ARRANGEMENT) {
+		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RecordingMode::NORMAL);
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
@@ -2348,8 +2352,8 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 		endPlayback();
 	}
 
-	if (shouldExitRecordMode && recording == RECORDING_NORMAL) {
-		recording = RECORDING_OFF;
+	if (shouldExitRecordMode && recording == RecordingMode::NORMAL) {
+		recording = RecordingMode::OFF;
 		setLedStates();
 	}
 
@@ -2377,7 +2381,7 @@ static const uint32_t noteRecordingUIModes[] = {UI_MODE_HORIZONTAL_ZOOM, UI_MODE
 
 bool PlaybackHandler::shouldRecordNotesNow() {
 	return (
-	    isEitherClockActive() && recording && isUIModeWithinRange(noteRecordingUIModes)
+	    isEitherClockActive() && recording != RecordingMode::OFF && isUIModeWithinRange(noteRecordingUIModes)
 	    && (!playbackHandler.ticksLeftInCountIn
 	        || getTimeLeftInCountIn()
 	               <= kLinearRecordingEarlyFirstNoteAllowance) // If doing a count-in, only allow notes to be recorded up to 100mS early
@@ -2396,9 +2400,9 @@ int32_t PlaybackHandler::getTimeLeftInCountIn() {
 }
 
 void PlaybackHandler::stopAnyRecording() {
-	if (playbackState && recording) {
-		bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
-		recording = RECORDING_OFF;
+	if (playbackState && recording != RecordingMode::OFF) {
+		bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
+		recording = RecordingMode::OFF;
 
 		setLedStates();
 		if (wasRecordingArrangement) {
@@ -2450,7 +2454,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
-				if (recording != RECORDING_ARRANGEMENT) {
+				if (recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				break;
@@ -2661,7 +2665,7 @@ void PlaybackHandler::songSelectReceived(uint8_t songId) {
 }
 
 bool PlaybackHandler::isCurrentlyRecording() {
-	return (playbackState && recording);
+	return (playbackState && recording != RecordingMode::OFF);
 }
 
 void PlaybackHandler::switchToArrangement() {
@@ -2687,7 +2691,7 @@ void PlaybackHandler::switchToArrangement() {
 }
 
 void PlaybackHandler::switchToSession() {
-	if (recording) {
+	if (recording != RecordingMode::OFF) {
 		arrangement.endAnyLinearRecording();
 	}
 	currentPlaybackMode = &session;
@@ -2862,8 +2866,8 @@ void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 
 	// If not playing yet, start
 	if (!playbackState) {
-		if (!recording) {
-			recording = RECORDING_NORMAL;
+		if (recording == RecordingMode::OFF) {
+			recording = RecordingMode::NORMAL;
 		}
 		playButtonPressed(kMIDIKeyInputLatency);
 	}
@@ -2874,8 +2878,8 @@ void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 
 probablyExitRecordMode:
 		// Exit RECORD mode, as indicated on LED
-		if (playbackHandler.recording == RECORDING_NORMAL) {
-			playbackHandler.recording = RECORDING_OFF;
+		if (playbackHandler.recording == RecordingMode::NORMAL) {
+			playbackHandler.recording = RecordingMode::OFF;
 			playbackHandler.setLedStates();
 		}
 	}
@@ -2884,7 +2888,7 @@ probablyExitRecordMode:
 	else if (currentPlaybackMode == &arrangement) {}
 
 	// Or if recording from session to arrangement, we're not allowed to do any loopy stuff during that
-	else if (playbackHandler.recording == RECORDING_ARRANGEMENT) {}
+	else if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {}
 
 	// Or if tempoless recording, close that
 	else if (!isEitherClockActive()) {
@@ -2953,13 +2957,13 @@ doCreateNextOverdub:
 					if (!clipToCreateOverdubFrom->armedForRecording) {
 
 						// Ron's suggestion - just exit out of record mode.
-						if (recording) {
-							recording = RECORDING_OFF;
+						if (recording != RecordingMode::OFF) {
+							recording = RecordingMode::OFF;
 						}
 
 						// Or if we weren't in record mode... heck, who knows, maybe just switch it back on?
 						else {
-							recording = RECORDING_NORMAL;
+							recording = RecordingMode::NORMAL;
 						}
 						setLedStates();
 					}
@@ -2971,8 +2975,8 @@ doCreateNextOverdub:
 							clipToCreateOverdubFrom->overdubsShouldCloneOutput = true;
 						}
 
-						if (!recording) {
-							recording = RECORDING_NORMAL;
+						if (recording == RecordingMode::OFF) {
+							recording = RecordingMode::NORMAL;
 							setLedStates();
 						}
 

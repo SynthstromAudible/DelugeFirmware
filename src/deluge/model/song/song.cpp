@@ -3797,7 +3797,7 @@ traverseClips:
 
 			if (playbackHandler.isEitherClockActive() && currentSong == this) {
 				clip->expectNoFurtherTicks(this, true);
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT && endInstanceAtTime != -1) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT && endInstanceAtTime != -1) {
 					clip->getClipToRecordTo()->endInstance(endInstanceAtTime);
 				}
 			}
@@ -5314,7 +5314,7 @@ uint32_t Song::getBarLength() {
 // ----- PlayPositionCounter implementation -------
 
 bool Song::isPlayingAutomationNow() {
-	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RECORDING_ARRANGEMENT);
+	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RecordingMode::ARRANGEMENT);
 }
 
 bool Song::backtrackingCouldLoopBackToEnd() {
@@ -5342,7 +5342,7 @@ void Song::expectEvent() {
 
 uint32_t Song::getLivePos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getActualArrangementRecordPos();
 	}
 	else {
@@ -5353,7 +5353,7 @@ uint32_t Song::getLivePos() {
 // I think I created this function to be called during the actioning of a swung tick, when we know that no further swung ticks have passed since the last actioned one
 int32_t Song::getLastProcessedPos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getArrangementRecordPosAtLastActionedSwungTick();
 	}
 	else {

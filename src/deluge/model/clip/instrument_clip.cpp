@@ -654,7 +654,7 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack) {
 	Clip::posReachedEnd(thisModelStack);
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 		char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* otherModelStack =
@@ -4217,7 +4217,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 				if (quantizedPos >= effectiveLength) {
 
 					// If recording to arrangement, go and extend the Clip/NoteRow early, to create the place where we'll put the Note.
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 						int32_t error;
 

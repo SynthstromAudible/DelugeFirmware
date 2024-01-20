@@ -170,7 +170,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -220,7 +220,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
-					playbackHandler.recording = RECORDING_ARRANGEMENT;
+					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
 
 					arrangement.playbackStartedAtPos =
@@ -233,7 +233,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return ActionResult::DEALT_WITH;
 				}
@@ -320,11 +320,11 @@ moveAfterClipInstance:
 		// Release without special mode
 		else if (!on && currentUIMode == UI_MODE_NONE) {
 			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridFirstPadActive()) {
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
 					currentSong->resumeClipsClonedForArrangementRecording();
-					playbackHandler.recording = RECORDING_OFF;
+					playbackHandler.recording = RecordingMode::OFF;
 					view.setModLedStates();
 					playbackHandler.setLedStates();
 				}
@@ -396,7 +396,7 @@ moveAfterClipInstance:
 	else if (b == SAVE && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || gridFirstPadActive())) {
 		if (on) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				performActionOnPadRelease = false;
 				return ActionResult::DEALT_WITH;
@@ -483,7 +483,7 @@ changeOutputType:
 
 			performActionOnPadRelease = false;
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
@@ -651,7 +651,7 @@ holdingRecord:
 							return ActionResult::DEALT_WITH;
 						}
 
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+						if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 							display->displayPopup(
 							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 							return ActionResult::DEALT_WITH;
@@ -677,8 +677,8 @@ holdingRecord:
 
 							session.scheduleOverdubToStartRecording(overdub, sourceClip);
 
-							if (!playbackHandler.recording) {
-								playbackHandler.recording = RECORDING_NORMAL;
+							if (playbackHandler.recording == RecordingMode::OFF) {
+								playbackHandler.recording = RecordingMode::NORMAL;
 								playbackHandler.setLedStates();
 							}
 
@@ -778,7 +778,7 @@ startHoldingDown:
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						return ActionResult::DEALT_WITH;
@@ -839,7 +839,7 @@ midiLearnMelodicInstrumentAction:
 				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
 					// Not allowed if recording arrangement
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
@@ -1006,7 +1006,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			if (Buttons::isShiftButtonPressed()) {
 
 				// Not allowed if recording arrangement
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return;
 				}
@@ -1168,7 +1168,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		performActionOnPadRelease = false;
 
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return;
 		}
@@ -1317,7 +1317,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		performActionOnPadRelease = false;
 
 		// Not allowed if recording arrangement
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return ActionResult::DEALT_WITH;
 		}
@@ -3430,7 +3430,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
 				// Not allowed if recording arrangement
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				}
 				else {
@@ -3487,7 +3487,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 	if (clip == nullptr) {
 		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
-		if (on && playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL
+		if (on && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
 		    && FlashStorage::gridEmptyPadsCreateRec) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);

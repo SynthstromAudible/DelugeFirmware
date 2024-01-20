@@ -146,7 +146,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 
 						// Special case - if recording session to arrangement, then yes we do want to record to the Clip always
 						// (even if not designated as "active")
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT
+						if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 						    && instrumentClip->isArrangementOnlyClip()) {
 							goto doRecord;
 
@@ -245,11 +245,11 @@ justAuditionNote:
 				if (noteRow) {
 					// If we get here, we know there is a Clip
 					if (shouldRecordNotes
-					    && ((playbackHandler.recording == RECORDING_ARRANGEMENT
+					    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
 					         && instrumentClip->isArrangementOnlyClip())
 					        || currentSong->isClipActive(instrumentClip))) {
 
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT
+						if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 						    && !instrumentClip->isArrangementOnlyClip()) {}
 						else {
 							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
