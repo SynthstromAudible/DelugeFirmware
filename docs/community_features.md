@@ -29,6 +29,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- For a detailed description of this feature, please refer to the feature documentation: [MIDI Follow Mode Documentation]
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`. 
+	- ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+		- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
 - ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
 - ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
@@ -286,8 +288,19 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 ##### 4.4.1.4 - Display Norns Layout
 
- - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
+ - ([#250]) Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`).
+	- Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
+	- The Midigrid mod translates MIDI notes between norns and Deluge to use the grid as a controller for a norns script. Midigrid sends MIDI notes on channel 16 from norns to Deluge to light up grid LEDs. When a pad is pressed on Deluge, it sends out a MIDI note on channel 16 to norns. This means that Deluge's usual way of learning a MIDI controller to a synth clip will be constantly interrupted by the stream of MIDI notes coming in on channel 16 from norns. To learn external MIDI controls to Deluge while using the Midigrid mod, first stop the running script on norns, turn off the Midigrid mod in the mod menu, or determine another method to pause the grid updating MIDI messages from norns.
+	- The functionality of the grid changes with each norns script.  
+
+	**1.** Connect Deluge to norns with a USB cable for MIDI.  
+	**2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on your norns, turn on the mod, set to 128 grid size.  
+	**3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+	**4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16 by turning the `SELECT` encoder.  
+	**5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to select "Norns Layout" (NORN).  
+	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
+	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
    
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -384,7 +397,7 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 * Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
-  	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+  	* When On, enables keyboard layout which emulates monome grid for monome norns using midigrid mod where incoming midi notes on channel 16 are rendered as white pads using velocity for brightness.
 * Sticky Shift (STIC)
   	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
 * Light Shift (LIGH)
@@ -473,14 +486,17 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
+[#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
 [#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
 [#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
+[#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
 [#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
