@@ -72,7 +72,7 @@ The default MIDI CC to parameter mappings, as mapped the to the parameter shortc
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
 
-> * See Appendix for detailed listing and description of default CC # to Parameter mappings.
+> * See Appendix A for detailed listing and description of default CC # to Parameter mappings.
 
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
@@ -119,6 +119,16 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 6. MIDI feedback for automated parameters can also be sent and can be enabled or disabled in the MIDI feedback sub menu. When enabled, you choose between 3 speeds at which to send feedback for automated parameters: Low (500 ms), Medium (150 ms), High (40 ms). Sending automated parameter feedback can be taxing on the deluge MIDI output system, so depending on the amount of automation you do, you may want to adjust the speed (e.g. slow it down) to not affect the performance of the Deluge.
 7. MIDI feedback can cause an undesirable result with certain applications when the application responds back to the Deluge after the Deluge has sent it an updated value (Loopy Pro and Drambo on iPad are known to do this). This can cause lag in the deluge and potential feedback loops. To handle this, a toggable filter was added which ignores messages received for the same ccNumber within 1 second of sending a MIDI feedback update. If the application receiving the MIDI feedback update does not send responses back to the Deluge, then this setting should be set to Disabled in the MIDI Feedback Filter Responses sub menu.
 
-## Appendix - List of Deluge Parameters with Default Mapped CC's
+## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
 <img width="470" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/bef76865-e591-415a-9fa7-04c79c8b310d">
+
+## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
+
+For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+    
+- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+
+<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
+
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
