@@ -1,11 +1,6 @@
 configure_file(version.h.in version.h @ONLY)
 
-# Ask GCC to generate thumb-mode code for all the GUI code.
-file(GLOB_RECURSE deluge_THUMB_SOURCES
-  CONFIGURE_DEPENDS
-  ${CMAKE_CURRENT_LIST_DIR}/gui/*.c
-  ${CMAKE_CURRENT_LIST_DIR}/gui/*.cpp
-)
+add_subdirectory(gui)
 
 set_source_files_properties(${deluge_THUMB_SOURCES}
   TARGET_DIRECTORY deluge
@@ -13,7 +8,46 @@ set_source_files_properties(${deluge_THUMB_SOURCES}
 )
 
 # Add the sources to the target
-file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS *.S *.c *.h *.cpp *.hpp)
+file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
+  deluge.cpp
+  drivers/*.S
+  dsp/*.S
+  hid/*.S
+  io/*.S
+  memory/*.S
+  model/*.S
+  modulation/*.S
+  playback/*.S
+  processing/*.S
+  storage/*.S
+  testing/*.S
+  util/*.S
+  drivers/*.c
+  dsp/*.c
+  hid/*.c
+  io/*.c
+  memory*.c/
+  model/*.c
+  modulatio*.cn/
+  playback/*.c
+  processing/*.c
+  storage/*.c
+  testing/*.c
+  util/*.c
+  drivers/*.cpp
+  dsp/*.cpp
+  hid/*.cpp
+  io/*.cpp
+  memory/*.cpp
+  model/*.cpp
+  modulation/*.cpp
+  playback/*.cpp
+  processing/*.cpp
+  storage/*.cpp
+  testing/*.cpp
+  util/*.cpp
+)
+
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 
 target_include_directories(deluge PUBLIC
@@ -27,6 +61,7 @@ target_link_libraries(deluge PUBLIC
     NE10
     RZA1
     eyalroz_printf
+    deluge_gui
 )
 
 target_compile_definitions(deluge PUBLIC
