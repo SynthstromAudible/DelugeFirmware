@@ -1003,9 +1003,4 @@ enum class ClipType {
 	AUDIO,
 };
 
-enum class OverdubType {
-	NORMAL,
-	CONTINUOUS_LAYERING,
-};
-
 enum class LaunchStyle { DEFAULT, FILL };
