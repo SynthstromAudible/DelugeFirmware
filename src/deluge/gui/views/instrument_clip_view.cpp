@@ -3999,7 +3999,6 @@ void InstrumentClipView::exitScaleMode() {
 			RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
 			RGB tailColour = mainColour.forTail();
 			RGB blurColour = mainColour.forBlur();
-			;
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 

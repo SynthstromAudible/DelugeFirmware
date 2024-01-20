@@ -54,12 +54,6 @@ struct ParamsForPerformance {
 	int32_t yDisplay = kNoSelection;
 	RGB rowColour = deluge::gui::colours::black;
 	RGB rowTailColour = deluge::gui::colours::black;
-
-	ParamsForPerformance() = default;
-
-	ParamsForPerformance(deluge::modulation::params::Kind kind, deluge::modulation::params::ParamType param, int32_t x,
-	                     int32_t y, const RGB colour, const RGB tailColour)
-	    : paramKind(kind), paramID(param), xDisplay(x), yDisplay(y), rowColour(colour), rowTailColour(tailColour) {}
 };
 
 const int32_t sizePadPress = sizeof(PadPress);

@@ -81,93 +81,51 @@ using namespace gui;
 #define PERFORM_DEFAULTS_ON "On"
 #define PERFORM_DEFAULTS_OFF "Off"
 
-//colours for performance view
-
-constexpr RGB rowColourRed = {255, 0, 0};            //LPF Cutoff, Resonance
-constexpr RGB rowColourPastelOrange = {221, 72, 13}; //HPF Cutoff, Resonance
-constexpr RGB rowColourPastelYellow = {170, 182, 0}; //EQ Bass, Treble
-constexpr RGB rowColourPastelGreen = {85, 182, 72};  //Reverb Amount
-constexpr RGB rowColourPastelBlue = {51, 109, 145};  //Delay Amount, Rate
-constexpr RGB rowColourPastelPink = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
-constexpr RGB rowColourPink = {128, 0, 128};         //Decimation, Bitcrush
-constexpr RGB rowColourBlue = {0, 0, 255};           //Stutter
-
-constexpr RGB rowTailColourRed = {53, 2, 2};           //LPF Cutoff, Resonance
-constexpr RGB rowTailColourPastelOrange = {46, 16, 2}; //HPF Cutoff, Resonance
-constexpr RGB rowTailColourPastelYellow = {36, 38, 2}; //EQ Bass, Treble
-constexpr RGB rowTailColourPastelGreen = {19, 38, 16}; //Reverb Amount
-constexpr RGB rowTailColourPastelBlue = {12, 23, 31};  //Delay Amount, Rate
-constexpr RGB rowTailColourPastelPink = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
-constexpr RGB rowTailColourPink = {53, 0, 53};         //Decimation, Bitcrush
-constexpr RGB rowTailColourBlue = {2, 2, 53};          //Stutter
-
 using namespace deluge::modulation::params;
 
 //list of parameters available for assignment to FX columns in performance view
-const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = {
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, rowColourPastelOrange,
-                          rowTailColourPastelOrange)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, rowColourPastelOrange,
-                          rowTailColourPastelOrange)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, rowColourPastelYellow,
-                          rowTailColourPastelYellow)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, rowColourPastelYellow,
-                          rowTailColourPastelYellow)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen,
-                          rowTailColourPastelGreen)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, rowColourPastelBlue,
-                          rowTailColourPastelBlue)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, rowColourPastelBlue,
-                          rowTailColourPastelBlue)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink,
-                          rowTailColourPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
-};
+constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orange.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orange.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
+     colours::pastel::green.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+}};
 
-const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, rowColourRed, rowTailColourRed)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, rowColourPastelOrange,
-                          rowTailColourPastelOrange)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, rowColourPastelOrange,
-                          rowTailColourPastelOrange)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, rowColourPastelYellow,
-                          rowTailColourPastelYellow)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, rowColourPastelYellow,
-                          rowTailColourPastelYellow)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, rowColourPastelGreen,
-                          rowTailColourPastelGreen)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, rowColourPastelBlue,
-                          rowTailColourPastelBlue)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, rowColourPastelBlue,
-                          rowTailColourPastelBlue)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, rowColourPastelPink,
-                          rowTailColourPastelPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, rowColourPink,
-                          rowTailColourPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, rowColourPink, rowTailColourPink)},
-    {ParamsForPerformance(Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, rowColourBlue, rowTailColourBlue)},
-};
+constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerformance = {{
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orange.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orange.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
+     colours::pastel::green.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pink.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+}};
 
 //mapping shortcuts to paramKind
-const Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
@@ -192,7 +150,7 @@ const Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] =
 };
 
 //mapping shortcuts to paramID
-const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},

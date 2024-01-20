@@ -39,6 +39,14 @@ constexpr Colour midi_command = RGB(255, 80, 120);
 constexpr Colour midi_no_command = RGB::monochrome(60);
 constexpr Colour selected_drum = RGB(30, 30, 10);
 
+namespace pastel {
+constexpr Colour orange = RGB(221, 72, 13);
+constexpr Colour yellow = RGB(170, 182, 0);
+constexpr Colour green = RGB(85, 182, 72);
+constexpr Colour blue = RGB(51, 109, 145);
+constexpr Colour pink = RGB(144, 72, 91);
+} // namespace pastel
+
 /**
  * @brief These are from "Twenty-two Colours of Maximum Contrast" by Kelly
  * @see http://www.iscc-archive.org/pdf/PC54_1724_001.pdf

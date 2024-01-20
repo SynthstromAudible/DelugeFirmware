@@ -103,7 +103,7 @@ public:
 	 * @return RGB The dimmed colour
 	 */
 	[[nodiscard]] constexpr RGB dim(uint8_t level = 1) const {
-		return transform([level](auto channel) { return channel >> level; });
+		return transform([level](channel_type channel) { return channel >> level; });
 	}
 
 	/**
@@ -145,7 +145,7 @@ public:
 	 * @param index The blend amount. You can think of this as a slider from one RGB to the other
 	 * @return RGB The new blended colour
 	 */
-	static constexpr RGB blend(RGB sourceA, RGB sourceB, uint16_t index) {
+	[[nodiscard]] static constexpr RGB blend(RGB sourceA, RGB sourceB, uint16_t index) {
 		return transform2(sourceA, sourceB, [index](channel_type channelA, channel_type channelB) { //<
 			return blendChannel(channelA, channelB, index);
 		});
@@ -160,7 +160,7 @@ public:
 	 * @param indexB The blend amount for sourceB
 	 * @return RGB The new blended colour
 	 */
-	static constexpr RGB blend2(RGB sourceA, RGB sourceB, uint16_t indexA, uint16_t indexB) {
+	[[nodiscard]] static constexpr RGB blend2(RGB sourceA, RGB sourceB, uint16_t indexA, uint16_t indexB) {
 		return transform2(sourceA, sourceB, [indexA, indexB](channel_type channelA, channel_type channelB) {
 			return blendChannel2(channelA, channelB, indexA, indexB);
 		});
@@ -273,9 +273,9 @@ private:
 
 	constexpr RGB xform(const uint32_t mat[4][4]) {
 		return {
-		    (uint8_t)((r * mat[0][0] + g * mat[1][0] + b * mat[2][0] + mat[3][0]) >> 16),
-		    (uint8_t)((r * mat[0][1] + g * mat[1][1] + b * mat[2][1] + mat[3][1]) >> 16),
-		    (uint8_t)((r * mat[0][2] + g * mat[1][2] + b * mat[2][2] + mat[3][2]) >> 16),
+		    .r = static_cast<channel_type>((r * mat[0][0] + g * mat[1][0] + b * mat[2][0] + mat[3][0]) >> 16),
+		    .g = static_cast<channel_type>((r * mat[0][1] + g * mat[1][1] + b * mat[2][1] + mat[3][1]) >> 16),
+		    .b = static_cast<channel_type>((r * mat[0][2] + g * mat[1][2] + b * mat[2][2] + mat[3][2]) >> 16),
 		};
 	}
 
