@@ -180,6 +180,6 @@ public:
 
 private:
 	MIDIFollowChannelType channelType;
-	LearnedMIDI midiInput;
+	LearnedMIDI& midiInput;
 };
 } // namespace deluge::gui::menu_item::midi
