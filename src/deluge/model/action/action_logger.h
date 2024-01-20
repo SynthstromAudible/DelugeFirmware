@@ -27,9 +27,9 @@ class Sound;
 class ModelStack;
 
 enum class ActionAddition {
-NOT_ALLOWED,
-ALLOWED,
-ALLOWED_ONLY_IF_NO_TIME_PASSED,
+	NOT_ALLOWED,
+	ALLOWED,
+	ALLOWED_ONLY_IF_NO_TIME_PASSED,
 };
 
 class ActionLogger {
@@ -37,7 +37,8 @@ public:
 	ActionLogger();
 
 	//warning - super not thread safe
-	Action* getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
+	Action* getNewAction(ActionType newActionType,
+	                     ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);

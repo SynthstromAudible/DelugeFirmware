@@ -2958,7 +2958,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 	// If editing, continue edit
 	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
-		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
+		Action* action =
+		    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
 		if (!action) {
 			return;
 		}

@@ -529,8 +529,8 @@ setTheEndPos:
 								valueToChange = &clip->sampleHolder.endPos;
 							}
 
-							ActionType actionType =
-							    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
+							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
+							                                                : ActionType::CLIP_LENGTH_INCREASE;
 
 							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
 							uint64_t oldValue = *valueToChange;

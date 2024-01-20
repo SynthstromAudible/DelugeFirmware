@@ -48,8 +48,9 @@ public:
 	                                      bool forceLateStart = false, bool allowLateStart = true,
 	                                      int32_t numRepeatsTilLaunch = 1, bool allowSubdividedQuantization = true,
 	                                      ArmState armState = ArmState::ON_NORMAL);
-	LaunchStatus investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization, uint32_t* quantization,
-	                                uint32_t longestStartingClipLength, bool allowSubdividedQuantization);
+	LaunchStatus investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
+	                                     uint32_t* quantization, uint32_t longestStartingClipLength,
+	                                     bool allowSubdividedQuantization);
 	bool armForSongSwap();
 	bool armForSwitchToArrangement();
 	void armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,

@@ -1347,7 +1347,8 @@ getItFromSection:
 						}
 					}
 
-					Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 					if (action) {
 						action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 					}
@@ -1412,7 +1413,8 @@ getItFromSection:
 
 					// Shorten
 					if (clipInstance->length > lengthTilNewSquareStart) {
-						Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
+						Action* action =
+						    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 						if (clipInstance->clip) {
 							arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 							                      clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
@@ -1444,7 +1446,8 @@ getItFromSection:
 						// If we are in fact able to lengthen it...
 						if (newLength > oldLength) {
 
-							Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
+							Action* action =
+							    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 							clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
 							arrangement.rowEdited(output, clipInstance->pos + oldLength,
@@ -1492,7 +1495,8 @@ justGetOut:
 							arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
 							                      clipInstance->clip, NULL);
 
-							Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+							Action* action =
+							    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 							deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
 							goto justGetOut;
 						}
@@ -1566,7 +1570,8 @@ justGetOut:
 
 								currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
-								Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+								Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT,
+								                                           ActionAddition::NOT_ALLOWED);
 								if (action) {
 									action->recordClipExistenceChange(currentSong, &currentSong->arrangementOnlyClips,
 									                                  newClip, ExistenceChangeType::CREATE);
@@ -2579,7 +2584,8 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					return ActionResult::DEALT_WITH;
 				}
 
-				ActionType actionType = (offset >= 0) ? ActionType::ARRANGEMENT_TIME_EXPAND : ActionType::ARRANGEMENT_TIME_CONTRACT;
+				ActionType actionType =
+				    (offset >= 0) ? ActionType::ARRANGEMENT_TIME_EXPAND : ActionType::ARRANGEMENT_TIME_CONTRACT;
 
 				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 

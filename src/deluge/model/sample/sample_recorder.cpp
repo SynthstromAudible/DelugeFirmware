@@ -627,7 +627,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 		for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
 	}
-	uint32_t dataLengthAfterAction = action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
+	uint32_t dataLengthAfterAction =
+	    action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
 
 	// TODO: in a perfect world, where we're not deleting a channel, we'd go backwards from the last Cluster, because that's the most likely to still be in memory
 

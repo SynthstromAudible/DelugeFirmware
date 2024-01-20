@@ -242,7 +242,8 @@ void PlaybackHandler::recordButtonPressed() {
 
 		if (recording == RecordingMode::OFF) {
 			recording = RecordingMode::NORMAL;
-		} else {
+		}
+		else {
 			recording = RecordingMode::OFF;
 		}
 

@@ -94,8 +94,8 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (getCurrentClip()->loopLength != newLength) {
-		ActionType actionType =
-		    (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
+		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
+		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 		if (action && action->currentClip != getCurrentClip()) {

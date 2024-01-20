@@ -1008,7 +1008,4 @@ enum class OverdubType {
 	CONTINUOUS_LAYERING,
 };
 
-enum class LaunchStyle {
-	DEFAULT,
-	FILL
-};
+enum class LaunchStyle { DEFAULT, FILL };

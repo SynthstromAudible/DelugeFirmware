@@ -1155,7 +1155,8 @@ goingToRecordNoteOnEarly:
 			    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT && instrumentClip->isArrangementOnlyClip())
 			        || currentSong->isClipActive(instrumentClip))) {
 
-				if (playbackHandler.recording == RecordingMode::ARRANGEMENT && !instrumentClip->isArrangementOnlyClip()) {}
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT
+				    && !instrumentClip->isArrangementOnlyClip()) {}
 				else {
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 					if (getRootUI()) {

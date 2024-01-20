@@ -115,7 +115,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			if (Buttons::isShiftButtonPressed()) {
 
 				if (isAutomated()) {
-					Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));

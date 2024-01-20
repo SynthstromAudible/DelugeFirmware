@@ -203,7 +203,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				// Make sure we weren't already playing...
 				if (!playbackHandler.playbackState) {
 
-					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD, ActionAddition::NOT_ALLOWED);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD, ActionAddition::NOT_ALLOWED);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {

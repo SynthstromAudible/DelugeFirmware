@@ -1317,7 +1317,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
 	LaunchStatus launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
-	                                               longestStartingClipLength, allowSubdividedQuantization);
+	                                                    longestStartingClipLength, allowSubdividedQuantization);
 
 	// If nothing to sync to, which means no other Clips playing...
 	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
@@ -1343,8 +1343,8 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 }
 
 LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
-                                         uint32_t* quantization, uint32_t longestStartingClipLength,
-                                         bool allowSubdividedQuantization) {
+                                              uint32_t* quantization, uint32_t longestStartingClipLength,
+                                              bool allowSubdividedQuantization) {
 
 	// If no Clips are playing...
 	if (!waitForClip) {

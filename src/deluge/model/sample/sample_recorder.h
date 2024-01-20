@@ -125,7 +125,7 @@ private:
 	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
 	int32_t alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
 
-	              uint64_t dataLengthAfterAction);
+	                  uint64_t dataLengthAfterAction);
 	int32_t finalizeRecordedFile();
 	int32_t createNextCluster();
 	int32_t writeAnyCompletedClusters();
