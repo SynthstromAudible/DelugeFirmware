@@ -9,44 +9,13 @@ set_source_files_properties(${deluge_THUMB_SOURCES}
 
 # Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
-  deluge.cpp
-  drivers/*.S
-  dsp/*.S
-  hid/*.S
-  io/*.S
-  memory/*.S
-  model/*.S
-  modulation/*.S
-  playback/*.S
-  processing/*.S
-  storage/*.S
-  testing/*.S
-  util/*.S
-  drivers/*.c
-  dsp/*.c
-  hid/*.c
-  io/*.c
-  memory*.c/
-  model/*.c
-  modulatio*.cn/
-  playback/*.c
-  processing/*.c
-  storage/*.c
-  testing/*.c
-  util/*.c
-  drivers/*.cpp
-  dsp/*.cpp
-  hid/*.cpp
-  io/*.cpp
-  memory/*.cpp
-  model/*.cpp
-  modulation/*.cpp
-  playback/*.cpp
-  processing/*.cpp
-  storage/*.cpp
-  testing/*.cpp
-  util/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/*.S
+  ${CMAKE_CURRENT_LIST_DIR}/*.c
+  ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
+
+# Filter out GUI sources as those are built as part of the deluge_gui library
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/gui/.*)
 
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 
