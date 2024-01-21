@@ -129,7 +129,6 @@ endif(DOXYGEN_FOUND)
 
 # Global compilation options
 add_compile_options(
-
     # Feature flags
     -fdiagnostics-parseable-fixits
     -fsigned-char
@@ -140,7 +139,7 @@ add_compile_options(
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
-    
+
     #does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
@@ -171,18 +170,12 @@ add_subdirectory(lib)
 # Add the main executable target
 add_executable(deluge)
 
-# Add our sources
-add_subdirectory(src)
-
-# Link external libraries
-# target_link_libraries(deluge PUBLIC
-
-# )
-
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)
-target_compile_options(deluge PUBLIC
+set(DELUGE_C_STANDARD 17)
+set(DELUGE_CXX_STANDARD 20)
+list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
     # Warnings
@@ -206,11 +199,13 @@ target_compile_options(deluge PUBLIC
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-Wstack-usage=2000>
 )
 
+target_compile_options(deluge PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
+
 set_target_properties(deluge
     PROPERTIES
-        C_STANDARD 17
+        C_STANDARD ${DELUGE_C_STANDARD}
         C_STANDARD_REQUIRED ON
-        CXX_STANDARD 20
+        CXX_STANDARD ${DELUGE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
         SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
@@ -302,6 +297,9 @@ set_target_properties(deluge
     PROPERTIES
         ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE}
 )
+
+# Deluge sources
+add_subdirectory(src)
 
 # find_program(PRETTYSIZE_CMD prettysize prettysize.py)
 
