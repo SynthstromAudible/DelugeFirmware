@@ -195,7 +195,8 @@ void Range::drawPixelsForOled() {
 		hilightStartX = stringStartX;
 		hilightWidth = digitWidth * leftLength;
 doHilightJustOneEdge:
-		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY - 1, baseY + digitHeight + 1,
+		baseY += 4;
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + digitHeight + 1,
 		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
