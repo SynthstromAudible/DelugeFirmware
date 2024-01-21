@@ -1,11 +1,4 @@
-configure_file(version.h.in version.h @ONLY)
-
-# Ask GCC to generate thumb-mode code for all the GUI code.
-file(GLOB_RECURSE deluge_THUMB_SOURCES
-  CONFIGURE_DEPENDS
-  ${CMAKE_CURRENT_LIST_DIR}/gui/*.c
-  ${CMAKE_CURRENT_LIST_DIR}/gui/*.cpp
-)
+add_subdirectory(gui)
 
 set_source_files_properties(${deluge_THUMB_SOURCES}
   TARGET_DIRECTORY deluge
@@ -13,7 +6,15 @@ set_source_files_properties(${deluge_THUMB_SOURCES}
 )
 
 # Add the sources to the target
-file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS *.S *.c *.h *.cpp *.hpp)
+file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_LIST_DIR}/*.S
+  ${CMAKE_CURRENT_LIST_DIR}/*.c
+  ${CMAKE_CURRENT_LIST_DIR}/*.cpp
+)
+
+# Filter out GUI sources as those are built as part of the deluge_gui library
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/gui/.*)
+
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 
 target_include_directories(deluge PUBLIC
@@ -27,6 +28,7 @@ target_link_libraries(deluge PUBLIC
     NE10
     RZA1
     eyalroz_printf
+    deluge_gui
 )
 
 target_compile_definitions(deluge PUBLIC
