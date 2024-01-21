@@ -33,14 +33,14 @@ jobs:
           ref: 'release/1.0'
       - name: Fetch container image
         run: |
-          docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
+          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
       - name: Run build
         run: |
           docker run --rm \
             --user=$(id --user):$(id --group) \
             -e DBT_NO_PYTHON_UPGRADE=1 \
             -v $(pwd):/src \
-            ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
             build \
             --verbose \
             --tag-metadata \

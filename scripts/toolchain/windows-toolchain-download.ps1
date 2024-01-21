@@ -13,11 +13,6 @@ $toolchain_zip = "$toolchain_dist_folder-$toolchain_version.zip"
 $toolchain_zip_temp_path = "$download_dir\$toolchain_zip"
 $toolchain_dist_temp_path = "$download_dir\$toolchain_dist_folder"
 
-if (Test-Path -LiteralPath "$toolchain_target_path") {
-	Write-Host -NoNewline "Removing old Windows toolchain.."
-	Remove-Item -LiteralPath "$toolchain_target_path" -Force -Recurse
-	Write-Host "done!"
-}
 if (!(Test-Path -Path "$toolchain_zip_temp_path" -PathType Leaf)) {
     Write-Host -NoNewline "Downloading Windows toolchain.."
     $wc = New-Object net.webclient
