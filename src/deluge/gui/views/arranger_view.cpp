@@ -2215,16 +2215,17 @@ squareStartPosSet:
 					}
 
 					uint32_t averageBrightnessSection = (uint32_t)colour.r + colour.g + colour.b;
-					RGB sectionColour = colour.transform([averageBrightnessSection](uint8_t channel) {
-						return (int32_t)channel * 140 + averageBrightnessSection * 280;
-					});
+					uint32_t sectionColour[3];
+					for (int i = 0; i < 3; ++i) {
+						sectionColour[i] = uint32_t{colour[i]} * 140 + averageBrightnessSection * 280;
+					}
 
 					// Mix the colours for all the squares
 					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						image[reworkSquare] =
-						    RGB::transform2(image[reworkSquare], sectionColour, [](uint8_t channelA, uint8_t channelB) {
-							    return ((int32_t)channelA * 525 + channelB) >> 13;
-						    });
+						RGB& imageColor = image[reworkSquare];
+						for (int i = 0; i < 3; ++i) {
+							imageColor[i] = (uint32_t{imageColor[i]} * 525 + sectionColour[i]) >> 13;
+						}
 					}
 
 					xDisplay = squareEnd - 1;
