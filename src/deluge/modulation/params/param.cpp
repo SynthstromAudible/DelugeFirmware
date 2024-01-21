@@ -267,7 +267,7 @@ bool paramNeedsLPF(ParamType p, bool fromAutomation) {
 
 char const* paramNameForFile(Kind const kind, ParamType const param) {
 	using enum Kind;
-	if (kind == UNPATCHED_SOUND && param > UNPATCHED_START + UNPATCHED_NUM_SHARED) {
+	if (kind == UNPATCHED_SOUND && param >= UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Unpatched params just for Sounds
 		switch (static_cast<UnpatchedSound>(param - UNPATCHED_START)) {
 		case UNPATCHED_ARP_GATE:
@@ -281,7 +281,7 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		    ;
 		}
 	}
-	else if (kind == UNPATCHED_GLOBAL && param > UNPATCHED_START + UNPATCHED_NUM_SHARED) {
+	else if (kind == UNPATCHED_GLOBAL && param >= UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Params for GlobalEffectable
 		switch (static_cast<UnpatchedGlobal>(param - UNPATCHED_START)) {
 		case UNPATCHED_MOD_FX_RATE:
