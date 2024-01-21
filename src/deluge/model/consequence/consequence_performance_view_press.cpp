@@ -22,14 +22,14 @@ ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress f
                                                                  FXColumnPress fxPressAfter[kDisplayWidth],
                                                                  int32_t xDisplay) {
 
-	memcpy(&fxPress[BEFORE], &fxPressBefore[xDisplay], sizeFXPress);
-	memcpy(&fxPress[AFTER], &fxPressAfter[xDisplay], sizeFXPress);
+	memcpy(&fxPress[BEFORE], &fxPressBefore[xDisplay], sizeof(FXColumnPress));
+	memcpy(&fxPress[AFTER], &fxPressAfter[xDisplay], sizeof(FXColumnPress));
 
 	xDisplayChanged = xDisplay;
 }
 
 int32_t ConsequencePerformanceViewPress::revert(TimeType time, ModelStack* modelStack) {
-	memcpy(&performanceSessionView.fxPress[xDisplayChanged], &fxPress[time], sizeFXPress);
+	memcpy(&performanceSessionView.fxPress[xDisplayChanged], &fxPress[time], sizeof(FXColumnPress));
 
 	return NO_ERROR;
 }

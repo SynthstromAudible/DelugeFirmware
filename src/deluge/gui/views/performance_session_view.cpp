@@ -1074,7 +1074,7 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 void PerformanceSessionView::backupPerformanceLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (successfullyReadDefaultsFromFile) {
-			memcpy(&backupFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
+			memcpy(&backupFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
 		}
 	}
 	performanceLayoutBackedUp = true;
@@ -1563,7 +1563,8 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	//<param>
 	storageManager.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
 
-	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
+	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
+	       sizeof(ParamsForPerformance));
 }
 
 /// creates "8 - 1 row # tags within a "row" tag"
@@ -1599,7 +1600,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
 		                        fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
-		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
+		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
 	}
 	else {
 		//<status>
@@ -1637,9 +1638,9 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 void PerformanceSessionView::readDefaultsFromBackedUpFile() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &backupXMLDefaultLayoutForPerformance[xDisplay],
-		       sizeParamsForPerformance);
+		       sizeof(ParamsForPerformance));
 
-		memcpy(&fxPress[xDisplay], &backupXMLDefaultFXPress[xDisplay], sizeFXPress);
+		memcpy(&fxPress[xDisplay], &backupXMLDefaultFXPress[xDisplay], sizeof(FXColumnPress));
 
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			defaultFXValues[xDisplay][yDisplay] = backupXMLDefaultFXValues[xDisplay][yDisplay];
@@ -1688,9 +1689,9 @@ void PerformanceSessionView::readDefaultsFromFile() {
 /// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
 void PerformanceSessionView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
+		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
-		       sizeParamsForPerformance);
+		       sizeof(ParamsForPerformance));
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
 			                                    layoutForPerformance[xDisplay].paramID)) {
@@ -1754,10 +1755,10 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
 		                                     params::UNPATCHED_START + songParamsForPerformance[i].paramID);
 		if (!strcmp(tagName, paramName)) {
-			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
+			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeof(ParamsForPerformance));
 
 			memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
-			       sizeParamsForPerformance);
+			       sizeof(ParamsForPerformance));
 			break;
 		}
 	}

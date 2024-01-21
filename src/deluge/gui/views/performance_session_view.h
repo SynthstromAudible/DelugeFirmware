@@ -56,53 +56,49 @@ struct ParamsForPerformance {
 	RGB rowTailColour = deluge::gui::colours::black;
 };
 
-const int32_t sizePadPress = sizeof(PadPress);
-const int32_t sizeFXPress = sizeof(FXColumnPress);
-const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
-
 class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 
-	void graphicsRoutine();
-	ActionResult timerCallback();
+	void graphicsRoutine() override;
+	ActionResult timerCallback() override;
 
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderViewDisplay();
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 	// 7SEG only
 	void redrawNumericDisplay();
 	void setLedStates();
 
 	// button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
 	// pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	// horizontal encoder action
-	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 
 	// vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
 	// mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
 
 	// select encoder action
-	void selectEncoderAction(int8_t offset);
+	void selectEncoderAction(int8_t offset) override;
 
 	// not sure why we need these...
-	uint32_t getMaxZoom();
-	uint32_t getMaxLength();
+	uint32_t getMaxZoom() override;
+	uint32_t getMaxLength() override;
 
 	// public so soundEditor can access it
 	void savePerformanceViewLayout();

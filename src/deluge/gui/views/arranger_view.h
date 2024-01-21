@@ -39,50 +39,50 @@ class ModelStackWithNoteRow;
 class ArrangerView final : public TimelineView {
 public:
 	ArrangerView();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	void selectEncoderAction(int8_t offset);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void selectEncoderAction(int8_t offset) override;
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 
 	void repopulateOutputsOnScreen(bool doRender = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void drawMuteSquare(int32_t yDisplay, RGB thisImage[]);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, RGB* thisImage,
 	               uint8_t thisOccupancyMask[], int32_t renderWidth);
 	void editPadAction(int32_t x, int32_t y, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	uint32_t getMaxLength();
-	uint32_t getMaxZoom();
-	void graphicsRoutine();
-	int32_t getNavSysId() { return NAVIGATION_ARRANGEMENT; }
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
+	void graphicsRoutine() override;
+	int32_t getNavSysId() override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
 	void notifyActiveClipChangedOnOutput(Output* output);
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();
 	bool initiateXScroll(int32_t newScrollPos);
-	bool supportsTriplets() { return false; }
+	bool supportsTriplets() override { return false; }
 	bool putDraggedClipInstanceInNewPosition(Output* output);
-	void tellMatrixDriverWhichRowsContainSomethingZoomable();
-	void scrollFinished();
-	void notifyPlaybackBegun();
-	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	void playbackEnded();
-	void clipNeedsReRendering(Clip* clip);
+	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
+	void scrollFinished() override;
+	void notifyPlaybackBegun() override;
+	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
+	void playbackEnded() override;
+	void clipNeedsReRendering(Clip* clip) override;
 	void exitSubModeWithoutAction();
 	bool transitionToArrangementEditor();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
 	void setLedStates();
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 
 	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;

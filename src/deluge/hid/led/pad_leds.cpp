@@ -630,9 +630,7 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 }
 
 void reassessGreyout(bool doInstantly) {
-	uint32_t newCols, newRows;
-
-	getUIGreyoutRowsAndCols(&newCols, &newRows);
+	auto [newCols, newRows] = getUIGreyoutRowsAndCols();
 
 	// If same as before, get out
 	if (newCols == greyoutCols && newRows == greyoutRows) {
