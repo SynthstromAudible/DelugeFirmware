@@ -2014,7 +2014,7 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 			}
 		}
 
-		image += imageWidth * 3;
+		image += imageWidth;
 	}
 
 	return whichRowsCouldntBeRendered;
