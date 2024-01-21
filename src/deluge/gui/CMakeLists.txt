@@ -1,4 +1,4 @@
-configure_file(../version.h.in version.h @ONLY)
+configure_file(version.h.in version.h @ONLY)
 
 file (GLOB_RECURSE deluge_gui_SOURCES
   CONFIGURE_DEPENDS
@@ -9,9 +9,12 @@ file (GLOB_RECURSE deluge_gui_SOURCES
 add_library(deluge_gui STATIC ${deluge_gui_SOURCES})
 
 target_include_directories(deluge_gui PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/..
   ${SHARED_INCLUDE}
+)
+
+target_include_directories(deluge_gui PUBLIC
+  ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 set_target_properties(deluge_gui

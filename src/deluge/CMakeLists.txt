@@ -1,5 +1,3 @@
-configure_file(version.h.in version.h @ONLY)
-
 add_subdirectory(gui)
 
 set_source_files_properties(${deluge_THUMB_SOURCES}
