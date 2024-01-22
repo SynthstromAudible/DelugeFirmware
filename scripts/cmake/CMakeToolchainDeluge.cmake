@@ -57,7 +57,7 @@ set(ARCH_FLAGS
   -mcpu=cortex-a9
   -mfpu=neon
   -mfloat-abi=hard
-  -marm
+  -mthumb
   -mthumb-interwork
   -mlittle-endian
 )
