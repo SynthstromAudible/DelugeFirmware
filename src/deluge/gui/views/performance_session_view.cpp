@@ -1555,7 +1555,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	if (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND) {
 		// XXX(sapphire): this will break old presets if they had ARP_GATE or PORTAMENTO on a UNPATCHED_SOUND (this may
 		// not be a problem in practice)
-		paramName = params::paramNameForFile(kind, layoutForPerformance[xDisplay].paramID);
+		paramName = params::paramNameForFile(kind, params::UNPATCHED_START + layoutForPerformance[xDisplay].paramID);
 	}
 	else {
 		paramName = PERFORM_DEFAULTS_NO_PARAM;
@@ -1750,8 +1750,8 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* tagName = storageManager.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-		paramName =
-		    params::paramNameForFile(songParamsForPerformance[i].paramKind, songParamsForPerformance[i].paramID);
+		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
+		                                     params::UNPATCHED_START + songParamsForPerformance[i].paramID);
 		if (!strcmp(tagName, paramName)) {
 			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
 
