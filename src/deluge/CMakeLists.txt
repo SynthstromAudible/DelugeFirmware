@@ -27,7 +27,6 @@ target_compile_definitions(deluge PUBLIC
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
 )
 
-
 if(ENABLE_RTT)
     message(STATUS "RTT enabled for deluge")
     target_compile_definitions(deluge PUBLIC
