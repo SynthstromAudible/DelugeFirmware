@@ -23,16 +23,17 @@ set_target_properties(deluge_dsp
         CXX_STANDARD ${DELUGE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
+        UNITY_BUILD true
 )
 
-target_link_libraries(deluge_dsp PUBLIC
+target_link_libraries(deluge_dsp PRIVATE
     NE10
     eyalroz_printf
 )
-
 target_compile_options(deluge_dsp PRIVATE
     ${DELUGE_COMMON_COMPILE_OPTIONS}
-
+    # use a unity build instead (combine all cpp to one before compiling), which has similar gains without the arm/thumb issues
+    "-fno-lto"
     # Build dsp code with thumb mode
     "-marm"
 )
