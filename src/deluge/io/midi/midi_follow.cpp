@@ -769,40 +769,37 @@ void MidiFollow::readDefaultMappingsFromFile() {
 	char const* tagName;
 	bool foundParam;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//don't even process this tag if the param name is "none" as you can't find a matching param
-		if (strcmp(tagName, "none")) {
-			foundParam = false;
-			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-					//let's see if this x, y corresponds to a valid param shortcut
-					if ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-					    || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-					    || (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
-						//if we have a valid param shortcut, let's confirm the tag name corresponds to that shortcut
-						if ((!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
-						                                               patchedParamShortcuts[xDisplay][yDisplay])))
-						    || (!strcmp(tagName, params::paramNameForFile(
-						                             params::Kind::UNPATCHED_SOUND,
-						                             params::UNPATCHED_START
-						                                 + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])))
-						    || (!strcmp(tagName, params::paramNameForFile(
-						                             params::Kind::UNPATCHED_GLOBAL,
-						                             params::UNPATCHED_START
-						                                 + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
-							//tag name matches the param shortcut, so we can load the cc mapping for that param
-							//into the paramToCC grid shortcut array which holds the cc value for each param
-							paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
-							//now that we've handled this tag, we need to break out of these for loops
-							//as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
-							foundParam = true;
-							break;
-						}
+		foundParam = false;
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				//let's see if this x, y corresponds to a valid param shortcut
+				if ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+				    || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+				    || (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+					//if we have a valid param shortcut, let's confirm the tag name corresponds to that shortcut
+					if ((!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
+					                                               patchedParamShortcuts[xDisplay][yDisplay])))
+					    || (!strcmp(tagName, params::paramNameForFile(
+					                             params::Kind::UNPATCHED_SOUND,
+					                             params::UNPATCHED_START
+					                                 + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])))
+					    || (!strcmp(tagName, params::paramNameForFile(
+					                             params::Kind::UNPATCHED_GLOBAL,
+					                             params::UNPATCHED_START
+					                                 + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
+						//tag name matches the param shortcut, so we can load the cc mapping for that param
+						//into the paramToCC grid shortcut array which holds the cc value for each param
+						paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+						//now that we've handled this tag, we need to break out of these for loops
+						//as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
+						foundParam = true;
+						break;
 					}
 				}
-				//break out of the first for loop if a param was found in the second for loop above
-				if (foundParam) {
-					break;
-				}
+			}
+			//break out of the first for loop if a param was found in the second for loop above
+			if (foundParam) {
+				break;
 			}
 		}
 		//exit out of this tag so you can check the next tag
