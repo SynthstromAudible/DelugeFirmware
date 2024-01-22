@@ -34,6 +34,8 @@ target_compile_options(deluge_dsp PRIVATE
     ${DELUGE_COMMON_COMPILE_OPTIONS}
     # use a unity build instead (combine all cpp to one before compiling), which has similar gains without the arm/thumb issues
     "-fno-lto"
+    # we're not using lto so go ahead and inline
+    "-finline-functions"
     # Build dsp code with thumb mode
     "-marm"
 )
