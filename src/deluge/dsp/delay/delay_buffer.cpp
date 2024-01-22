@@ -17,9 +17,8 @@
 
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
-#include "memory/general_memory_allocator.h"
+#include "memory/memory_allocator_interface.h"
 #include "processing/engines/audio_engine.h"
-#include "util/functions.h"
 #include <string.h>
 
 DelayBuffer::DelayBuffer() {
@@ -63,7 +62,7 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
+	bufferStart = (StereoSample*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) {
 		return ERROR_INSUFFICIENT_RAM;
