@@ -23,7 +23,6 @@
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
-#include "processing/timestretch/time_stretcher.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstdlib>
