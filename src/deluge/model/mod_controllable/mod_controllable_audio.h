@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay.h"
-#include "dsp/sidechain/sidechain.h"
+#include "modulation/sidechain/sidechain.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
