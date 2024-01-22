@@ -130,6 +130,7 @@ extern const int16_t oldResonanceCompensation[];
 extern const int16_t windowedSincKernel[][17][16];
 extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 
+#define OFFICIAL_FIRMWARE_NONE_SCALE_INDEX 8
 #define NUM_PRESET_SCALES 16
 #define FIRST_7_NOTE_SCALE_INDEX 0
 #define FIRST_6_NOTE_SCALE_INDEX 12

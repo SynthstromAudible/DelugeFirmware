@@ -80,7 +80,7 @@ namespace FlashStorage {
 56: default swing max
 57: default key min
 58: default key max
-59: default scale (deprecated)
+59: default scale (deprecated, see slot 148)
 60: shortcuts version
 61: audioClipRecordMargins
 62: count-in for recording
@@ -368,7 +368,16 @@ void readSettings() {
 		defaultKeyMenu.lower = buffer[57];
 		defaultKeyMenu.upper = buffer[58];
 
-		defaultScale = buffer[148];
+		if (buffer[59] != OFFICIAL_FIRMWARE_NONE_SCALE_INDEX) {
+			// If the original Default Scale slot contains a scale other than "NONE"
+			// We should import it into the new Default Scale slot
+			defaultScale = buffer[59];
+		}
+		else {
+			// If the original Default Scale slot is "NONE"
+			// we have already imported the old value, so we can directly load the new one
+			defaultScale = buffer[148];
+		}
 	}
 
 	soundEditor.setShortcutsVersion((previouslySavedByFirmwareVersion < FIRMWARE_2P1P3_BETA) ? SHORTCUTS_VERSION_1
@@ -626,6 +635,7 @@ void writeSettings() {
 	buffer[57] = defaultKeyMenu.lower;
 	buffer[58] = defaultKeyMenu.upper;
 
+	buffer[59] = OFFICIAL_FIRMWARE_NONE_SCALE_INDEX; // tombstone value for official firmware Default Scale slot
 	buffer[148] = defaultScale;
 	buffer[60] = soundEditor.shortcutsVersion;
 
