@@ -18,7 +18,7 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
-#include "version.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>

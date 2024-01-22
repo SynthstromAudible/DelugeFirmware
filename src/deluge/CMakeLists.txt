@@ -1,9 +1,4 @@
-add_subdirectory(gui)
-
-set_source_files_properties(${deluge_THUMB_SOURCES}
-  TARGET_DIRECTORY deluge
-  PROPERTIES COMPILE_OPTIONS "-mthumb"
-)
+configure_file(version.h.in version.h @ONLY)
 
 # Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
@@ -11,9 +6,6 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
-
-# Filter out GUI sources as those are built as part of the deluge_gui library
-list(FILTER deluge_SOURCES EXCLUDE REGEX .*/gui/.*)
 
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 
@@ -28,7 +20,6 @@ target_link_libraries(deluge PUBLIC
     NE10
     RZA1
     eyalroz_printf
-    deluge_gui
 )
 
 target_compile_definitions(deluge PUBLIC
