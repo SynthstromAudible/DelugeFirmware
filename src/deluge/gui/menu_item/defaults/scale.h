@@ -52,6 +52,7 @@ public:
 			}
 		}
 	}
+
 	void writeCurrentValue() override {
 		int32_t v = this->getValue();
 		if (v == NUM_PRESET_SCALES) {
@@ -72,6 +73,7 @@ public:
 			FlashStorage::defaultScale = v;
 		}
 	}
+
 	std::vector<std::string_view> getOptions() override {
 		int32_t numPresetScales = NUM_PRESET_SCALES;
 		std::vector<std::string_view> scales = {presetScaleNames.begin(), presetScaleNames.begin() + numPresetScales};
