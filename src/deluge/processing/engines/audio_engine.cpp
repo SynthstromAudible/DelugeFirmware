@@ -46,7 +46,6 @@
 #include "processing/metronome/metronome.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/timestretch/time_stretcher.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
