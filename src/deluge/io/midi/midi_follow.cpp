@@ -766,29 +766,42 @@ void MidiFollow::readDefaultsFromFile() {
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
 void MidiFollow::readDefaultMappingsFromFile() {
-	char const* paramName;
 	char const* tagName;
+	bool foundParam;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		foundParam = false;
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (!strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
-				                                              patchedParamShortcuts[xDisplay][yDisplay]))) {
+				//let's see if this x, y corresponds to a valid param shortcut
+				//if we have a valid param shortcut, let's confirm the tag name corresponds to that shortcut
+				if (((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+				     && !strcmp(tagName, params::paramNameForFile(params::Kind::PATCHED,
+				                                                  patchedParamShortcuts[xDisplay][yDisplay])))
+				    || ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+				        && !strcmp(tagName,
+				                   params::paramNameForFile(
+				                       params::Kind::UNPATCHED_SOUND,
+				                       params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay])))
+				    || ((unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+				        && !strcmp(tagName,
+				                   params::paramNameForFile(
+				                       params::Kind::UNPATCHED_GLOBAL,
+				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
+					//tag name matches the param shortcut, so we can load the cc mapping for that param
+					//into the paramToCC grid shortcut array which holds the cc value for each param
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
-				}
-				else if (!strcmp(tagName,
-				                 params::paramNameForFile(
-				                     params::Kind::UNPATCHED_SOUND,
-				                     params::UNPATCHED_START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
-				}
-				else if (!strcmp(tagName,
-				                 params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
-				                                          params::UNPATCHED_START
-				                                              + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+					//now that we've handled this tag, we need to break out of these for loops
+					//as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
+					foundParam = true;
+					break;
 				}
 			}
+			//break out of the first for loop if a param was found in the second for loop above
+			if (foundParam) {
+				break;
+			}
 		}
+		//exit out of this tag so you can check the next tag
 		storageManager.exitTag();
 	}
 }
