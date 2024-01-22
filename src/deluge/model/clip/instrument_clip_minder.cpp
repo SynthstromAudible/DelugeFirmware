@@ -165,7 +165,7 @@ void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 
 	OutputType oldOutputType = getCurrentOutputType();
 
-	bool shouldReplaceWholeInstrument = currentSong->canOldOutputBeReplaced(getCurrentInstrumentClip());
+	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(getCurrentInstrumentClip());
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
