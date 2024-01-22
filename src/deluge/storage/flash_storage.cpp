@@ -368,15 +368,21 @@ void readSettings() {
 		defaultKeyMenu.lower = buffer[57];
 		defaultKeyMenu.upper = buffer[58];
 
-		if (buffer[59] != OFFICIAL_FIRMWARE_NONE_SCALE_INDEX) {
-			// If the original Default Scale slot contains a scale other than "NONE"
-			// We should import it into the new Default Scale slot
-			defaultScale = buffer[59];
+		if (buffer[59] == OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX) {
+			// If the old value was set to RANDOM,
+			// import it adapting to the new RANDOM index
+			defaultScale = NUM_PRESET_SCALES;
+		}
+		else if (buffer[59] == OFFICIAL_FIRMWARE_NONE_SCALE_INDEX) {
+			// If the old value is "NONE"
+			// we have already imported the old value,
+			// so we can directly load the new one
+			defaultScale = buffer[148];
 		}
 		else {
-			// If the original Default Scale slot is "NONE"
-			// we have already imported the old value, so we can directly load the new one
-			defaultScale = buffer[148];
+			// If the old value is between 0 and 6 (Major to Locrian),
+			// import the old scale
+			defaultScale = buffer[59];
 		}
 	}
 
