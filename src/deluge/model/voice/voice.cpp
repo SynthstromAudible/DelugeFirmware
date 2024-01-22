@@ -38,6 +38,7 @@
 #include "processing/live/live_pitch_shifter.h"
 #include "processing/render_wave.h"
 #include "processing/sound/sound.h"
+#include "processing/timestretch/time_stretcher.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
@@ -913,7 +914,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 			envelopes[0].unconditionalRelease();
 		}
 	}
-skipAutoRelease : {}
+skipAutoRelease: {}
 
 	if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
@@ -1484,7 +1485,7 @@ noModulatorsActive:
 					}
 				}
 
-carriersDone : {}
+carriersDone: {}
 				if (stereoUnison) {
 					// double up the temp buffer
 					for (int32_t i = 0; i < numSamples; i++) {
@@ -1495,7 +1496,7 @@ carriersDone : {}
 			}
 		}
 
-skipUnisonPart : {}
+skipUnisonPart: {}
 	}
 
 	if (!renderingDirectlyIntoSoundBuffer) {
@@ -2223,7 +2224,7 @@ pitchTooHigh:
 						}
 					}
 
-dontUseCache : {}
+dontUseCache: {}
 				}
 			}
 
@@ -2634,7 +2635,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
