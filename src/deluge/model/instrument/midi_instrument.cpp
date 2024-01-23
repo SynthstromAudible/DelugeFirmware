@@ -153,14 +153,16 @@ int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, M
 
 ModelStackWithAutoParam*
 MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
-
-	if (!modelStack
-	         ->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we have no Clips
+	// Could be NULL - if the user is holding down an audition pad in Arranger, and we have no Clips
+	if (!modelStack->paramManager) {
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		ModelStackWithParamId* modelStackWithParamId = modelStack->addParamCollectionAndId(NULL, NULL, 0);
+		if (modelStackWithParamId) {
+			return modelStackWithParamId->addAutoParam(NULL); // "No param"
+		}
 	}
 
-	ParamCollectionSummary* summary;
+	ParamCollectionSummary* summary = nullptr;
 	int32_t paramId = cc;
 
 	switch (cc) {
@@ -190,12 +192,16 @@ expressionParam:
 		break;
 	}
 
-	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramId);
+	if (summary) {
+		ModelStackWithParamId* modelStackWithParamId =
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramId);
+		if (modelStackWithParamId) {
+			// Yes we do want to force creating it even if we're not recording - so the level indicator can update for the user
+			return summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		}
+	}
 
-	return summary->paramCollection->getAutoParamFromId(
-	    modelStackWithParamId,
-	    true); // Yes we do want to force creating it even if we're not recording - so the level indicator can update for the user
+	return nullptr;
 }
 
 void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
