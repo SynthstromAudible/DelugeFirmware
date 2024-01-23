@@ -301,9 +301,9 @@ justDoArp:
 	// If nothing further in the arrangement, we usually just stop playing
 	if (playbackHandler.swungTicksTilNextEvent == 2147483647
 	    && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
-	    && (!playbackHandler.recording
-	        || audioRecorder.recordingSource
-	               >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) { // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
+	    // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
+	    && (playbackHandler.recording == RecordingMode::OFF
+	        || audioRecorder.recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {
 
 		if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
 			audioRecorder.endRecordingSoon();
@@ -353,7 +353,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 		// Or if no ClipInstance, shall we maybe make one and do a spot of linear recording?
 		else {
-			if (doingComplete && playbackHandler.recording && output->wantsToBeginArrangementRecording()) {
+			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
+			    && output->wantsToBeginArrangementRecording()) {
 
 				int32_t error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error) {
@@ -504,7 +505,7 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	if (shouldCloneRepeats && newLength != -1) {
-		if (newClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (newClip->type == ClipType::INSTRUMENT) {
 			((InstrumentClip*)newClip)->repeatOrChopToExactLength(modelStack, newLength);
 		}
 	}

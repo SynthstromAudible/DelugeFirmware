@@ -168,8 +168,8 @@ AudioInputChannel stringToInputChannel(char const* string);
 
 char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
 SequenceDirection stringToSequenceDirectionMode(char const* string);
-char const* launchStyleToString(int launchStyle);
-int stringToLaunchStyle(char const* string);
+char const* launchStyleToString(LaunchStyle launchStyle);
+LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);

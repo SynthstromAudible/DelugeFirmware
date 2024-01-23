@@ -244,7 +244,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 
 			else {
-				Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 				bool scaleAltered = false;
 

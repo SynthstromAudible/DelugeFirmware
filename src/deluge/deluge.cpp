@@ -429,7 +429,7 @@ void setUIForLoadedSong(Song* song) {
 		if (getCurrentClip()->onAutomationClipView) {
 			newUI = &automationClipView;
 		}
-		else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}

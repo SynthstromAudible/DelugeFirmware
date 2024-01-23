@@ -223,7 +223,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 
 	// If shift held down, delete automation
 	if (Buttons::isShiftButtonPressed()) {
-		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);

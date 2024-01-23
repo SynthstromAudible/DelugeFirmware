@@ -289,7 +289,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Save button
 	else if (b == SAVE) {
 		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
-		    && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+		    && getCurrentClip()->type != ClipType::AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -386,7 +386,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				keyboardScreen.openedInBackground();
 			}
 			else if (getRootUI() == &automationClipView) {
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					swapOutRootUILowLevel(&keyboardScreen);
 					keyboardScreen.openedInBackground();
 				}
@@ -554,7 +554,7 @@ doSetupBlinkingForKitGlobalFX:
 		}
 
 		// For AudioClips...
-		else if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		else if (getCurrentClip()->type == ClipType::AUDIO) {
 
 			int32_t x, y;
 
@@ -836,7 +836,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		// AudioClips - there are just a few shortcuts
-		else if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		else if (getCurrentClip()->type == ClipType::AUDIO) {
 
 			// NAME shortcut
 			if (x == 11 && y == 5) {
@@ -1171,7 +1171,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	else if (clip) {
 
 		// InstrumentClips
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			// Kit
 			if (clip->output->type == OutputType::KIT) {
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
@@ -1249,7 +1249,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 			actionLogger.deleteAllLogs();
 
-			if (clip->type == CLIP_TYPE_INSTRUMENT) {
+			if (clip->type == ClipType::INSTRUMENT) {
 				if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
@@ -1338,7 +1338,7 @@ doMIDIOrCV:
 			}
 		}
 	}
-	else if (clip->type == CLIP_TYPE_AUDIO) {
+	else if (clip->type == ClipType::AUDIO) {
 		AudioClip* audioClip = (AudioClip*)clip;
 		currentSampleControls = &audioClip->sampleControls;
 		currentPriority = &audioClip->voicePriority;
@@ -1401,7 +1401,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 }
 
 void SoundEditor::cutSound() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		getCurrentAudioClip()->unassignVoiceSample();
 	}
 	else {
@@ -1411,7 +1411,7 @@ void SoundEditor::cutSound() {
 
 AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleHolder;
 	}
 
