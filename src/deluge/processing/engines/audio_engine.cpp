@@ -339,11 +339,14 @@ int32_t numAudioLogItems = 0;
 
 extern uint16_t g_usb_usbmode;
 
+#if JFTRACE
 Debug::AverageDT aeCtr("audio", Debug::mS);
 Debug::AverageDT rvb("reverb", Debug::uS);
+#endif
+
 uint8_t numRoutines = 0;
 void routine() {
-#if DO_AUDIO_LOG
+#if JFTRACE
 	aeCtr.note();
 #endif
 	logAction("AudioDriver::routine");
@@ -679,9 +682,14 @@ startAgain:
 		if (sideChainHitPending != 0) {
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
+#if JFTRACE
 		rvb.begin();
+#endif
+
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+#if JFTRACE
 		rvb.note();
+#endif
 	}
 
 	int32_t reverbAmplitudeL;
