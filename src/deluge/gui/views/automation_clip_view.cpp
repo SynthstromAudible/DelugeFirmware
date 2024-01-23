@@ -344,7 +344,7 @@ void AutomationClipView::focusRegained() {
 	ClipView::focusRegained();
 
 	Clip* clip = getCurrentClip();
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
 		indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
 		view.focusRegained();
@@ -364,7 +364,7 @@ void AutomationClipView::openedInBackground() {
 	//(so it knows to come back to automation view)
 	clip->onAutomationClipView = true;
 
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	if (clip->type == ClipType::INSTRUMENT) {
 		((InstrumentClip*)clip)->onKeyboardScreen = false;
 
 		instrumentClipView.recalculateColours();
@@ -388,7 +388,7 @@ void AutomationClipView::openedInBackground() {
 
 //used for the play cursor
 void AutomationClipView::graphicsRoutine() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		audioClipView.graphicsRoutine();
 	}
 	else {
@@ -420,7 +420,7 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	PadLEDs::renderingLock = true;
 
 	Clip* clip = getCurrentClip();
-	if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	if (clip->type == ClipType::INSTRUMENT) {
 		instrumentClipView.recalculateColours();
 	}
 
@@ -974,7 +974,7 @@ ActionResult AutomationClipView::buttonAction(hid::Button b, bool on, bool inCar
 	using namespace hid::button;
 
 	Clip* clip = getCurrentClip();
-	bool isAudioClip = clip->type == CLIP_TYPE_AUDIO;
+	bool isAudioClip = clip->type == ClipType::AUDIO;
 
 	//these button actions are not used in the audio clip automation view
 	if (isAudioClip) {
@@ -1198,7 +1198,7 @@ doOther:
 			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
@@ -1315,7 +1315,7 @@ ActionResult AutomationClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 	Clip* clip = getCurrentClip();
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		if (x >= kDisplayWidth) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -1789,7 +1789,7 @@ doSilentAudition:
 			}
 			display->cancelPopup();
 			instrumentClipView.someAuditioningHasEnded(true);
-			actionLogger.closeAction(ACTION_NOTEROW_ROTATE);
+			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 			if (display->have7SEG()) {
 				renderDisplay();
 			}
@@ -1920,7 +1920,7 @@ ActionResult AutomationClipView::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -2392,7 +2392,7 @@ void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 		ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
@@ -2507,7 +2507,7 @@ void AutomationClipView::pasteAutomation(Clip* clip) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
 
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithParam, false);
@@ -2714,7 +2714,7 @@ void AutomationClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) 
 
 //called by playback_handler.cpp
 void AutomationClipView::notifyPlaybackBegun() {
-	if (getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type != ClipType::AUDIO) {
 		instrumentClipView.reassessAllAuditionStatus();
 	}
 }

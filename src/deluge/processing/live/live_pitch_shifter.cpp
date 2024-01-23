@@ -55,7 +55,7 @@ LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
 #endif
 	considerRepitchedBuffer(phaseIncrement);
 
-	playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
+	playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 	playHeads[PLAY_HEAD_NEWER].oscPos = 0;
 
 	playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = 0;
@@ -192,7 +192,7 @@ startRenderAgain:
 	// If the percussiveness is higher at "now" time than at the newer play head, end the hop.
 	// This was designed with pitching-down in mind, but sounds good on pitching-up too
 	if (!justDidHop && !olderPlayHeadIsCurrentlySounding() && samplesTilHopEnd
-	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
+	    && playHeads[PLAY_HEAD_NEWER].mode != PlayHeadMode::RAW_DIRECT) {
 
 		int32_t howFarBack =
 		    playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
@@ -597,7 +597,7 @@ stopPercSearch:
 	int32_t additionalOscPos = 0;
 
 	// If we're all good to do the moving averages...
-	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
+	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PlayHeadMode::RAW_DIRECT) {
 
 		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're currently proposing we put it -
 		// but we're then going to experiment with shifting that, below
@@ -759,7 +759,7 @@ stopSearch:
 	if (stillWritingToRepitchedBuffer && repitchedBufferNumSamplesWritten && phaseIncrement > 16777216) {
 		int32_t howFarBackRepitched = ((uint64_t)howFarBack << 24) / (uint32_t)phaseIncrement + 1;
 		if (repitchedBufferNumSamplesWritten >= howFarBackRepitched) {
-			playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_REPITCHED_BUFFER;
+			playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::REPITCHED_BUFFER;
 			playHeads[PLAY_HEAD_NEWER].repitchedBufferReadPos =
 			    (uint32_t)(repitchedBufferWritePos - howFarBackRepitched) & (INPUT_REPITCHED_BUFFER_SIZE - 1);
 			goto thatsDone;
@@ -769,13 +769,13 @@ stopSearch:
 	// If still here, use raw direct buffer - usually because we're pitching down
 
 	if (phaseIncrement == 16777216) {
-		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
+		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
 		D_PRINTLN("raw hop");
 	}
 
 	else {
-		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_REPITCHING;
+		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_REPITCHING;
 
 		//memset(playHeads[PLAY_HEAD_NEWER].interpolationBuffer, 0, sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
@@ -815,8 +815,8 @@ thatsDone:
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (repitchedBuffer && !stillWritingToRepitchedBuffer
-	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER
-	    && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER) {
+	    && playHeads[PLAY_HEAD_NEWER].mode != PlayHeadMode::REPITCHED_BUFFER
+	    && playHeads[PLAY_HEAD_OLDER].mode != PlayHeadMode::REPITCHED_BUFFER) {
 		delugeDealloc(repitchedBuffer);
 		repitchedBuffer = NULL;
 	}
@@ -861,7 +861,7 @@ bool LivePitchShifter::olderPlayHeadIsCurrentlySounding() {
 }
 
 bool LivePitchShifter::mayBeRemovedWithoutClick() {
-	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PLAY_HEAD_MODE_RAW_DIRECT);
+	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PlayHeadMode::RAW_DIRECT);
 }
 
 #if INPUT_ENABLE_REPITCHED_BUFFER

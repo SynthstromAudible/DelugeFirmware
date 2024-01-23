@@ -1681,7 +1681,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 		// Deal with recording from session to arrangement.
 		if (loopLengthIfIndependent // Only if independent *length* - which isn't always the case when we have independent play pos.
-		    && playbackHandler.recording == RECORDING_ARRANGEMENT
+		    && playbackHandler.recording == RecordingMode::ARRANGEMENT
 		    && lastProcessedPosIfIndependent
 		           == (playingReversedNow ? 0 : effectiveLength) // If reached end (or start) of row length.
 		    && clip->isArrangementOnlyClip()) {

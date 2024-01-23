@@ -1046,7 +1046,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE, ActionAddition::NOT_ALLOWED);
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam, false);
@@ -1091,7 +1091,7 @@ ramError:
 
 	float scaleFactor = (float)pastedScreenWidth / (uint32_t)copiedScreenWidth;
 
-	Action* action = actionLogger.getNewAction(ACTION_NOTES_PASTE, false);
+	Action* action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1171,7 +1171,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_CLIP_MULTIPLY, false);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_MULTIPLY, ActionAddition::NOT_ALLOWED);
 
 	// Add the ConsequenceClipMultiply to the Action. This must happen before calling doubleClipLength(), which may add note changes and deletions,
 	// because when redoing, those have to happen after (and they'll have no effect at all, but who cares)
@@ -1667,7 +1667,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					newLength = squareWidth; // Protection - otherwise we could end up with a 0-length note!
 				}
 
-				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 				int32_t areaStart, areaWidth;
 				bool actuallyExtendNoteAtStartOfArea = (newLength > oldLength);
@@ -1720,7 +1720,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				uint32_t whichRowsToReRender = (1 << yDisplay);
 
-				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 				uint32_t desiredNoteLength = squareWidth;
 				if (sound) {
@@ -1922,7 +1922,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
 
-				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+				Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
@@ -1942,7 +1942,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			}
 
 			// Close last note nudge action, if there was one - so each such action is for one consistent set of notes
-			actionLogger.closeAction(ACTION_NOTE_NUDGE);
+			actionLogger.closeAction(ActionType::NOTE_NUDGE);
 
 			// If *all* presses are now ended
 			checkIfAllEditPadPressesEnded();
@@ -1987,7 +1987,7 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	if (numEditPadPresses == 0) {
 		view.setModRegion();
 		exitUIMode(UI_MODE_NOTES_PRESSED);
-		actionLogger.closeAction(ACTION_NOTE_EDIT);
+		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
 	}
 }
@@ -1998,7 +1998,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 	Action* action;
 	if (display->haveOLED() || display->hasPopup()) {
-		action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
 		}
@@ -2137,7 +2137,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 				// If editing, continue edit
 				if (display->hasPopup()) {
-					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
 						return;
 					}
@@ -2250,7 +2250,7 @@ multiplePresses:
 
 		// If editing, continue edit
 		if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
-			Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
 			}
@@ -2584,7 +2584,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	// If any presses happening, grab those Notes...
 	if (numEditPadPresses) {
 
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
@@ -2727,7 +2727,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	// If presses happening, place the Notes on the newly-aligned NoteRows
 	if (numEditPadPresses > 0) {
 
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		//if (!action) return; // Couldn't happen?
 
 		action->updateYScrollClipViewAfter(getCurrentInstrumentClip());
@@ -2958,7 +2958,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 	// If editing, continue edit
 	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		Action* action =
+		    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
 		if (!action) {
 			return;
 		}
@@ -3296,7 +3297,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
 	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		//in case we were editing quantize/humanize
-		actionLogger.closeAction(ACTION_NOTE_NUDGE);
+		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -3553,8 +3554,8 @@ doSilentAudition:
 			}
 			display->cancelPopup();        // In case euclidean stuff was being edited etc
 			someAuditioningHasEnded(true); //lastAuditionedYDisplay == yDisplay);
-			actionLogger.closeAction(ACTION_EUCLIDEAN_NUM_EVENTS_EDIT);
-			actionLogger.closeAction(ACTION_NOTEROW_ROTATE);
+			actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
+			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 		}
 
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
@@ -4561,12 +4562,12 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 		//reset
 		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
+		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
 			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
 
 		Action* action = NULL;
 		if (offset) {
-			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 			if (action)
 				action->offset = quantizeAmount;
 		}
@@ -4618,12 +4619,12 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 		//reset
 		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
+		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
 			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
 
 		Action* action = NULL;
 		if (offset) {
-			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 			if (action)
 				action->offset = offset;
 		}
@@ -4734,7 +4735,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 
 		// See if we can do a "secret UNDO".
 		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (offset && lastAction && lastAction->type == ACTION_NOTE_REPEAT_EDIT && lastAction->openForAdditions
+		if (offset && lastAction && lastAction->type == ActionType::NOTE_REPEAT_EDIT && lastAction->openForAdditions
 		    && lastAction->offset == -offset) {
 			actionLogger.undoJustOneConsequencePerNoteRow(
 			    modelStack
@@ -4742,7 +4743,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		}
 
 		else {
-			Action* action = actionLogger.getNewAction(ACTION_NOTE_REPEAT_EDIT, ACTION_ADDITION_ALLOWED);
+			Action* action = actionLogger.getNewAction(ActionType::NOTE_REPEAT_EDIT, ActionAddition::ALLOWED);
 			if (action) {
 				action->offset = offset;
 			}
@@ -4802,7 +4803,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 	// If the user is nudging back in the direction they just nudged, we can do a (possibly partial) undo, getting back the proper length of any notes that got trimmed etc.
 
 	Action* lastAction = actionLogger.firstAction[BEFORE];
-	if (offset && lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions
+	if (offset && lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions
 	    && lastAction->offset == -offset) {
 
 		didAnySuccessfulNudging = true;
@@ -4857,7 +4858,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 		Action* action = NULL;
 
 		if (offset) {
-			action = actionLogger.getNewAction(ACTION_NOTE_NUDGE, ACTION_ADDITION_ALLOWED);
+			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 			if (action) {
 				action->offset = offset;
 			}
@@ -5455,7 +5456,7 @@ justDisplayOldNumNotes:
 			// Do a "partial undo" if we can
 			Action* lastAction = actionLogger.firstAction[BEFORE];
 			// No need to check that lastAction was for the same Clip or anything - the Action gets "closed" manually when we stop auditioning.
-			if (lastAction && lastAction->type == ACTION_EUCLIDEAN_NUM_EVENTS_EDIT && lastAction->openForAdditions
+			if (lastAction && lastAction->type == ActionType::EUCLIDEAN_NUM_EVENTS_EDIT && lastAction->openForAdditions
 			    && lastAction->offset == -offset) {
 
 				char modelStackMemory2[MODEL_STACK_MAX_SIZE];
@@ -5481,7 +5482,7 @@ justDisplayOldNumNotes:
 
 					// Record Action
 					Action* action =
-					    actionLogger.getNewAction(ACTION_EUCLIDEAN_NUM_EVENTS_EDIT, ACTION_ADDITION_ALLOWED);
+					    actionLogger.getNewAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT, ActionAddition::ALLOWED);
 					if (action) {
 						action->offset = offset;
 					}
@@ -5588,7 +5589,7 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
 		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ACTION_NOTEROW_HORIZONTAL_SHIFT && action->openForAdditions
+		if (action && action->type == ActionType::NOTEROW_HORIZONTAL_SHIFT && action->openForAdditions
 		    && action->currentClip == clip) {
 
 			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
@@ -5609,7 +5610,7 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 		// Or if no previous Action, go create a new one now.
 		else {
 getNewAction:
-			action = actionLogger.getNewAction(ACTION_NOTEROW_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
+			action = actionLogger.getNewAction(ActionType::NOTEROW_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
 				void* consMemory =
@@ -5674,7 +5675,7 @@ void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, in
 
 	// See if we can do a secret undo
 	Action* prevAction = actionLogger.firstAction[BEFORE];
-	if (prevAction && prevAction->openForAdditions && prevAction->type == ACTION_NOTEROW_LENGTH_EDIT
+	if (prevAction && prevAction->openForAdditions && prevAction->type == ActionType::NOTEROW_LENGTH_EDIT
 	    && prevAction->currentClip == clip) {
 
 		ConsequenceNoteRowLength* prevCons = (ConsequenceNoteRowLength*)prevAction->firstConsequence;
@@ -5716,7 +5717,7 @@ possiblyDoResumePlaybackOnNoteRow:
 
 	else {
 editLengthWithNewAction:
-		Action* action = actionLogger.getNewAction(ACTION_NOTEROW_LENGTH_EDIT, false);
+		Action* action = actionLogger.getNewAction(ActionType::NOTEROW_LENGTH_EDIT, ActionAddition::NOT_ALLOWED);
 		if (!action) {
 ramError:
 			display->displayError(ERROR_INSUFFICIENT_RAM);

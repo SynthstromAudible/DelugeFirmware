@@ -46,6 +46,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -169,7 +170,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -202,7 +203,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				// Make sure we weren't already playing...
 				if (!playbackHandler.playbackState) {
 
-					Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_RECORD, false);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD, ActionAddition::NOT_ALLOWED);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
@@ -219,7 +221,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
-					playbackHandler.recording = RECORDING_ARRANGEMENT;
+					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
 
 					arrangement.playbackStartedAtPos =
@@ -232,7 +234,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return ActionResult::DEALT_WITH;
 				}
@@ -319,11 +321,11 @@ moveAfterClipInstance:
 		// Release without special mode
 		else if (!on && currentUIMode == UI_MODE_NONE) {
 			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridFirstPadActive()) {
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
 					currentSong->resumeClipsClonedForArrangementRecording();
-					playbackHandler.recording = RECORDING_OFF;
+					playbackHandler.recording = RecordingMode::OFF;
 					view.setModLedStates();
 					playbackHandler.setLedStates();
 				}
@@ -395,7 +397,7 @@ moveAfterClipInstance:
 	else if (b == SAVE && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || gridFirstPadActive())) {
 		if (on) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				performActionOnPadRelease = false;
 				return ActionResult::DEALT_WITH;
@@ -482,7 +484,7 @@ changeOutputType:
 
 			performActionOnPadRelease = false;
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
@@ -495,7 +497,7 @@ changeOutputType:
 
 			if (clip != nullptr) {
 				// If AudioClip, we have to convert back to an InstrumentClip
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					actionLogger.deleteAllLogs();
 					replaceAudioClipWithInstrumentClip(clip, newOutputType);
 				}
@@ -650,7 +652,7 @@ holdingRecord:
 							return ActionResult::DEALT_WITH;
 						}
 
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+						if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 							display->displayPopup(
 							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 							return ActionResult::DEALT_WITH;
@@ -676,8 +678,8 @@ holdingRecord:
 
 							session.scheduleOverdubToStartRecording(overdub, sourceClip);
 
-							if (!playbackHandler.recording) {
-								playbackHandler.recording = RECORDING_NORMAL;
+							if (playbackHandler.recording == RecordingMode::OFF) {
+								playbackHandler.recording = RecordingMode::NORMAL;
 								playbackHandler.setLedStates();
 							}
 
@@ -750,7 +752,7 @@ startHoldingDown:
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
-					//if (possiblyCreatePendingNextOverdub(clipIndex, OVERDUB_EXTENDING)) return ActionResult::DEALT_WITH;
+					//if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return ActionResult::DEALT_WITH;
 
 					clip = createNewInstrumentClip(yDisplay);
 					if (!clip) {
@@ -777,7 +779,7 @@ startHoldingDown:
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						return ActionResult::DEALT_WITH;
@@ -797,7 +799,7 @@ startHoldingDown:
 				if (clip) {
 
 					// AudioClip
-					if (clip->type == CLIP_TYPE_AUDIO) {
+					if (clip->type == ClipType::AUDIO) {
 						if (sdRoutineLock) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
@@ -838,7 +840,7 @@ midiLearnMelodicInstrumentAction:
 				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
 					// Not allowed if recording arrangement
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
@@ -868,7 +870,7 @@ justEndClipPress:
 			}
 
 			else if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
-				if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
+				if (clip && clip->type == ClipType::INSTRUMENT) {
 					requestRendering(this, 1 << yDisplay, 0);
 					goto midiLearnMelodicInstrumentAction;
 				}
@@ -1005,7 +1007,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			if (Buttons::isShiftButtonPressed()) {
 
 				// Not allowed if recording arrangement
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return;
 				}
@@ -1167,7 +1169,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		performActionOnPadRelease = false;
 
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return;
 		}
@@ -1178,7 +1180,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -1316,7 +1318,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		performActionOnPadRelease = false;
 
 		// Not allowed if recording arrangement
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return ActionResult::DEALT_WITH;
 		}
@@ -1580,7 +1582,7 @@ doGetInstrument:
 void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	if (!clip || clip->type != CLIP_TYPE_AUDIO) {
+	if (!clip || clip->type != ClipType::AUDIO) {
 		return;
 	}
 
@@ -1672,7 +1674,7 @@ gotErrorDontDisplay:
 void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	if (!clip || clip->type != CLIP_TYPE_INSTRUMENT) {
+	if (!clip || clip->type != ClipType::INSTRUMENT) {
 		return;
 	}
 
@@ -2027,7 +2029,7 @@ void SessionView::graphicsRoutine() {
 			newTickSquare = kDisplayWidth - 1;
 
 			if (clip->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->renderData.xScroll = -1; // Make sure values are recalculated
 
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
@@ -2060,7 +2062,7 @@ void SessionView::graphicsRoutine() {
 
 			// Linearly recording
 			if (clip->getCurrentlyRecordingLinearly()) {
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					if (currentUIMode != UI_MODE_HORIZONTAL_SCROLL && currentUIMode != UI_MODE_HORIZONTAL_ZOOM) {
 						rowNeedsRenderingDependingOnSubMode(yDisplay);
 					}
@@ -2454,14 +2456,14 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		PadLEDs::renderClipExpandOrCollapse();
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			// Hook point for specificMidiDevice
 			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 		}
 	}
 
 	// InstrumentClips
-	else if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	else if (clip->type == ClipType::INSTRUMENT) {
 
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
@@ -2535,7 +2537,7 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		AudioClip* clip = getCurrentAudioClip();
 		// !clip probably couldn't happen, but just in case...
 		if (!clip || !clip->sampleHolder.audioFile) {
@@ -2634,7 +2636,7 @@ void SessionView::playbackEnded() {
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
-		if (clip && clip->type == CLIP_TYPE_AUDIO) {
+		if (clip && clip->type == ClipType::AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
 
 			if (!audioClip->sampleHolder.audioFile) {
@@ -2684,7 +2686,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
-		if (thisClip->type == CLIP_TYPE_AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
+		if (thisClip->type == ClipType::AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
 		}
@@ -2884,7 +2886,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 	// Handle record button pressed
 	if (viewingRecordArmingActive && clip->armedForRecording) {
 		if (view.blinkOn) {
-			bool shouldGoPurple = (clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
+			bool shouldGoPurple = (clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
 
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
@@ -2998,7 +3000,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-	Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR);
 	newClip->clear(action, modelStack);
 	actionLogger.deleteAllLogs();
 
@@ -3132,7 +3134,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
 
 	newClip->section = targetSection;
-	if (newClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (newClip->type == ClipType::INSTRUMENT) {
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
@@ -3146,7 +3148,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
 	// Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
-		if (sourceClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (sourceClip->type == ClipType::INSTRUMENT) {
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
@@ -3174,7 +3176,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			}
 		}
 
-		else if (sourceClip->type == CLIP_TYPE_AUDIO) {
+		else if (sourceClip->type == ClipType::AUDIO) {
 			AudioClip* newAudioClip = (AudioClip*)newClip;
 
 			if (targetOutput == nullptr) {
@@ -3356,7 +3358,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 		if (clip != nullptr) {
-			if (clip->type != CLIP_TYPE_AUDIO) {
+			if (clip->type != ClipType::AUDIO) {
 				// Learn + Holding pad = Learn MIDI channel
 				Output* output = gridTrackFromX(x, gridTrackCount());
 				if (output
@@ -3429,7 +3431,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
 				// Not allowed if recording arrangement
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				}
 				else {
@@ -3486,7 +3488,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 	if (clip == nullptr) {
 		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
-		if (on && playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL
+		if (on && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
 		    && FlashStorage::gridEmptyPadsCreateRec) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);
@@ -3657,7 +3659,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -3679,7 +3681,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -3706,7 +3708,7 @@ void SessionView::gridTransitionToSessionView() {
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
 		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
@@ -3721,7 +3723,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		int64_t xScrollSamples;
@@ -3766,7 +3768,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {

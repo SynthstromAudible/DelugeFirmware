@@ -170,7 +170,7 @@ void Slicer::graphicsRoutine() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
 		if (drum->hasAnyVoices()) {
 
@@ -524,7 +524,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 				if (drum->hasAnyVoices()) {
 					Voice* assignedVoice = NULL;
 

@@ -26,8 +26,11 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-#define ACTION_REMOVE_RIGHT_CHANNEL 1
-#define ACTION_SUBTRACT_RIGHT_CHANNEL 2
+enum class MonitoringAction {
+	NONE = 0,
+	REMOVE_RIGHT_CHANNEL = 1,
+	SUBTRACT_RIGHT_CHANNEL = 2,
+};
 
 #define RECORDER_STATUS_CAPTURING_DATA 0
 #define RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP 1
@@ -84,8 +87,8 @@ public:
 	uint8_t status;
 	AudioInputChannel mode;
 
-	bool
-	    haveAddedSampleToArray; // Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's there... but this is nice.
+	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's there... but this is nice.
+	bool haveAddedSampleToArray;
 
 	bool allowFileAlterationAfter;
 	bool autoDeleteWhenDone;
@@ -120,7 +123,8 @@ public:
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
 	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
-	int32_t alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+	int32_t alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+
 	                  uint64_t dataLengthAfterAction);
 	int32_t finalizeRecordedFile();
 	int32_t createNextCluster();

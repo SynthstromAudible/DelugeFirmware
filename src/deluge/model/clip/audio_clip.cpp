@@ -53,7 +53,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
+AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
 	overdubsShouldCloneOutput = true;
 	voiceSample = NULL;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
@@ -183,7 +183,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Have to do this before setting currentlyRecordingLinearly to false, for vertical scroll reasons
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 	if (!isUnfinishedAutoOverdub) {
 
@@ -787,7 +787,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	Clip::posReachedEnd(modelStack);
 
 	// If recording from session to arranger...
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 		D_PRINTLN("");
 		D_PRINTLN("AudioClip::posReachedEnd, at pos:  %d", playbackHandler.getActualArrangementRecordPos());

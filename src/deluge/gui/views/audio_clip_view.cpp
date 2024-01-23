@@ -353,7 +353,7 @@ dontDeactivateMarker:
 			}
 
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
@@ -529,14 +529,14 @@ setTheEndPos:
 								valueToChange = &clip->sampleHolder.endPos;
 							}
 
-							int32_t actionType =
-							    (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
+							                                                : ActionType::CLIP_LENGTH_INCREASE;
 
 							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
 							uint64_t oldValue = *valueToChange;
 							*valueToChange = newEndPosSamples;
 
-							Action* action = actionLogger.getNewAction(actionType, false);
+							Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 							currentSong->setClipLength(clip, newLength, action);
 
 							if (action) {
