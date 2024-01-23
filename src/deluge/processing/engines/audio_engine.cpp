@@ -779,7 +779,19 @@ startAgain:
 		}
 	}
 	logAction("mastercomp start");
-	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
+	int32_t songVolume;
+	if (currentSong) {
+		songVolume =
+		    getFinalParameterValueVolume(
+		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		                       deluge::modulation::params::UNPATCHED_VOLUME)))
+		    >> 1;
+	}
+	else {
+		songVolume = 1 << 26;
+	}
+
+	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR, songVolume);
 	masterVolumeAdjustmentL = ONE_Q31;
 	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");

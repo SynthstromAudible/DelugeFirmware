@@ -15,9 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "dsp/filter/svf.h"
-#include "definitions_cxx.hpp"
-#include "util/functions.h"
-#include <cstdint>
+
 namespace deluge::dsp::filter {
 void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt) {
 	q31_t* currentSample = startSample;

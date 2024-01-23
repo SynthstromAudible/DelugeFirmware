@@ -32,6 +32,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -849,7 +850,8 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delayWorkingState->userDelayRate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
-	delay.setupWorkingState(delayWorkingState, soundComingIn);
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
+	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,

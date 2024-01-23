@@ -17,10 +17,9 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
-#include "util/functions.h"
-#include <cstdint>
+#include "util/fixedpoint.h"
+
 namespace deluge::dsp::filter {
 
 class SVFilter : public Filter<SVFilter> {

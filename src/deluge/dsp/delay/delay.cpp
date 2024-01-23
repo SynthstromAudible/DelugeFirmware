@@ -21,9 +21,6 @@
 #include <stdlib.h>
 //#include <algorithm>
 #include "io/debug/print.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "storage/flash_storage.h"
 #include "util/functions.h"
 
 Delay::Delay() {
@@ -32,17 +29,8 @@ Delay::Delay() {
 	repeatsUntilAbandon = 0;
 	prevFeedback = 0;
 
-	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
+	syncLevel = (SyncLevel)5;
+
 	syncType = SYNC_TYPE_EVEN;
 }
 
@@ -124,7 +112,8 @@ bool Delay::isActive() {
 }
 
 // Set the rate and feedback in the workingState before calling this
-void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn) {
+void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+                              bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
 	bool mightDoDelay =
@@ -136,8 +125,8 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 
 		if (syncLevel != 0) {
 
-			workingState->userDelayRate = multiply_32x32_rshift32_rounded(
-			    workingState->userDelayRate, playbackHandler.getTimePerInternalTickInverse(true));
+			workingState->userDelayRate =
+			    multiply_32x32_rshift32_rounded(workingState->userDelayRate, timePerInternalTickInverse);
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (syncLevel + 5);
