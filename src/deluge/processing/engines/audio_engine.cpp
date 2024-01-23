@@ -683,12 +683,12 @@ startAgain:
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
 #if JFTRACE
-	rvb.begin();
+		rvb.begin();
 #endif
 
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
 #if JFTRACE
-	rvb.note();
+		rvb.note();
 #endif
 	}
 
