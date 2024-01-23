@@ -15,12 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "dsp/filter/hpladder.h"
-#include "definitions_cxx.hpp"
-#include "dsp/filter/svf.h"
-#include "io/debug/print.h"
-#include "processing/engines/audio_engine.h"
-#include "util/functions.h"
-#include <cstdint>
+
 namespace deluge::dsp::filter {
 
 q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph,
