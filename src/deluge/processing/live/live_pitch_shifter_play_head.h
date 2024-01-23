@@ -21,11 +21,14 @@
 
 typedef __simd64_int16_t int16x4_t;
 
-#define PLAY_HEAD_MODE_REPITCHED_BUFFER 0
-#define PLAY_HEAD_MODE_RAW_REPITCHING 1
-#define PLAY_HEAD_MODE_RAW_DIRECT 2
 class LivePitchShifter;
 class LiveInputBuffer;
+
+enum class PlayHeadMode {
+	REPITCHED_BUFFER,
+	RAW_REPITCHING,
+	RAW_DIRECT,
+};
 
 class LivePitchShifterPlayHead {
 public:
@@ -42,7 +45,7 @@ public:
 
 	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
 
-	uint8_t mode;
+	PlayHeadMode mode;
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	int32_t repitchedBufferReadPos;
 #endif

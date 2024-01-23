@@ -46,7 +46,7 @@ namespace params = deluge::modulation::params;
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
-Clip::Clip(int32_t newType) : type(newType) {
+Clip::Clip(ClipType newType) : type(newType) {
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
@@ -61,7 +61,7 @@ Clip::Clip(int32_t newType) : type(newType) {
 	overdubNature = OverDubType::Normal;
 	originalLength = 0;
 	armedForRecording = true;
-	launchStyle = LAUNCH_STYLE_DEFAULT;
+	launchStyle = LaunchStyle::DEFAULT;
 	fillEventAtTickCount = 0;
 
 	//initialize automation clip view variables
@@ -386,35 +386,34 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 	*newOutputCreated = false;
 
-	if (playbackHandler.recording && wantsToBeginLinearRecording(modelStack->song)) {
+	if (playbackHandler.recording != RecordingMode::OFF && wantsToBeginLinearRecording(modelStack->song)) {
 
-		Action* action = actionLogger.getNewAction(
-		    ACTION_RECORD, true); // Allow addition to existing Action - one might have already been created because
+		// Allow addition to existing Action - one might have already been created because
 		// note recorded slightly early just before end of count-in
+		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 		if (isPendingOverdub) {
 			*newOutputCreated = cloneOutput(modelStack);
 
-			if (action) {
+			if (action != nullptr) {
 				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this,
 				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
 					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceOutputExistence));
-					if (consMemory) {
-						ConsequenceOutputExistence* cons =
-						    new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
+					if (consMemory != nullptr) {
+						auto* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
 					}
 				}
 			}
 		}
 		else {
-			if (action) {
+			if (action != nullptr) {
 				void* consMemory =
 				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipBeginLinearRecord));
-				if (consMemory) {
-					ConsequenceClipBeginLinearRecord* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
+				if (consMemory != nullptr) {
+					auto* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
 					action->addConsequence(cons);
 				}
 			}
@@ -424,12 +423,12 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		isPendingOverdub = false;
 
 		int32_t error = beginLinearRecording(modelStack, buttonPressLatency);
-		if (error) {
+		if (error != 0) {
 			display->displayError(error);
 			return false;
 		}
 
-		if (action) {
+		if (action != nullptr) {
 			actionLogger.updateAction(action); // Needed for vertical scroll reasons
 		}
 
@@ -674,7 +673,7 @@ void Clip::writeDataToFile(Song* song) {
 	if (song->getSyncScalingClip() == this) {
 		storageManager.writeAttribute("isSyncScaleClip", "1");
 	}
-	if (launchStyle != LAUNCH_STYLE_DEFAULT) {
+	if (launchStyle != LaunchStyle::DEFAULT) {
 		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
 	storageManager.writeOpeningTagEnd();
@@ -798,7 +797,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 	if (getCurrentlyRecordingLinearly()) {
 
 		// If they exited recording mode (as in the illuminated RECORD button), don't auto extend
-		if (!playbackHandler.recording) {
+		if (playbackHandler.recording == RecordingMode::OFF) {
 			finishLinearRecording(modelStack);
 		}
 
@@ -814,9 +813,9 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			// in one go at the end of the recording - because for those, if recording is aborted part-way, the whole Clip is deleted.
 			// But, don't do this if this Clips still would get deleted as an "abandoned overdub" (meaning it has no notes), cos if that happened,
 			// we definitely don't want to have a consequence - pointer pointing to it!
-			if (true || type != CLIP_TYPE_AUDIO) {
+			if (true || type != ClipType::AUDIO) {
 				D_PRINTLN("getting new action");
-				Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 				if (action) {
 					action->recordClipLengthChange(this, oldLength);
 				}
@@ -1038,7 +1037,7 @@ int32_t Clip::getMaxLength() {
 
 bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && playbackHandler.isEitherClockActive()
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
 
 		if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
@@ -1062,7 +1061,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 
-			if (type == CLIP_TYPE_AUDIO) {
+			if (type == ClipType::AUDIO) {
 
 				// So, we want to create a bunch of repeats. Often there'll be many at the start which just repeat with untouched params,
 				// so that can all be one ClipInstance
@@ -1098,7 +1097,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			int32_t newLength = loopLength;
 
-			if (type == CLIP_TYPE_INSTRUMENT) {
+			if (type == ClipType::INSTRUMENT) {
 				newLength *= (repeatCount + 1);
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
@@ -1124,13 +1123,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					newPlayPos += loopLength;
 				}
 			}
-			if (type == CLIP_TYPE_INSTRUMENT) {
+			if (type == ClipType::INSTRUMENT) {
 				newPlayPos += repeatCount * loopLength;
 			}
 			newClip->setPos(modelStack, newPlayPos, true);
 			newClip->resumePlayback(modelStack, false); // Don't sound
 
-			if (type == CLIP_TYPE_AUDIO) {
+			if (type == ClipType::AUDIO) {
 				((AudioClip*)newClip)->voiceSample = ((AudioClip*)this)->voiceSample;
 				((AudioClip*)this)->voiceSample = NULL;
 			}

@@ -653,7 +653,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	// Clip-view button
 	if (b == CLIP_VIEW) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
-		    && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -687,7 +687,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				// Make sure we weren't already playing...
 				if (!playbackHandler.playbackState) {
 
-					Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_RECORD, false);
+					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD);
 
 					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
@@ -704,7 +704,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
-					playbackHandler.recording = RECORDING_ARRANGEMENT;
+					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
 
 					arrangement.playbackStartedAtPos =
@@ -721,11 +721,11 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed
 			    && !sessionView.gridFirstPadActive()) {
 
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
 					currentSong->resumeClipsClonedForArrangementRecording();
-					playbackHandler.recording = RECORDING_OFF;
+					playbackHandler.recording = RecordingMode::OFF;
 					view.setModLedStates();
 					playbackHandler.setLedStates();
 				}
@@ -763,7 +763,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
@@ -1086,7 +1086,7 @@ void PerformanceSessionView::logPerformanceViewPress(int32_t xDisplay, bool clos
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
 		if (closeAction) {
-			actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+			actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 		}
 	}
 }

@@ -331,7 +331,7 @@ doEndMidiLearnPressSession:
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 cant:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
@@ -426,7 +426,7 @@ possiblyRevert:
 	else if (b == SELECT_ENC && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
@@ -1049,7 +1049,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			        whichModEncoder, &activeModControllableModelStack);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}
@@ -1196,7 +1196,7 @@ void View::setModLedStates() {
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
 		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen)
-		    || (getRootUI() == &automationClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
+		    || (getRootUI() == &automationClipView && getCurrentClip()->type == ClipType::AUDIO)) {
 			affectEntire = true;
 		}
 		else {
@@ -1248,7 +1248,7 @@ setBlinkLED:
 setNextLED:
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 		}
 		else if (getRootUI() == &arrangerView) {
@@ -1487,7 +1487,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		}
 
 		InstrumentClip* clip = NULL;
-		if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip && clip->type == ClipType::INSTRUMENT) {
 			clip = (InstrumentClip*)clip;
 		}
 
@@ -2029,7 +2029,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
-			bool shouldGoPurple = clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
+			bool shouldGoPurple = clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
 
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
@@ -2063,7 +2063,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	// Or if not soloing...
 	else {
-		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+		if (clip->launchStyle == LaunchStyle::DEFAULT) {
 			// If it's stopped, red.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {
@@ -2125,13 +2125,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		if (on) {
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
 					defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
-				if (clip->type == CLIP_TYPE_AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
+				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
 					defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout

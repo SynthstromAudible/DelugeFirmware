@@ -589,36 +589,36 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 	uint32_t dataLengthBeforeAction = sample->audioDataLengthBytes;
 
 	// Figure out what processing needs to happen on the recorded audio
-	int32_t action = 0;
+	MonitoringAction action = MonitoringAction::NONE;
 	int32_t lshiftAmount = 0;
 
 	if (allowFileAlterationAfter
 	    && idealFileSizeBeforeAction <= 67108864) { // Arbitrarily, don't alter files bigger than 64MB
 		if (recordingNumChannels == 1) {
-			action = 0;
+			action = MonitoringAction::NONE;
 		}
 		else {
 			// If R is really quiet or is nearly identical to L, delete R
 			if (inputHasNoRightChannel() || recordSumLMinusR < (recordSumL >> 6)) {
 				D_PRINTLN("removing right channel");
-				action = ACTION_REMOVE_RIGHT_CHANNEL;
+				action = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 
 			// Or, if R is the differential signal of L, do that
 			else if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && AudioEngine::lineInPluggedIn
 			         && inputLooksDifferential()) {
 				D_PRINTLN("subtracting right channel");
-				action = ACTION_SUBTRACT_RIGHT_CHANNEL;
+				action = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
 
 			else {
 				D_PRINTLN("keeping right channel");
-				action = 0;
+				action = MonitoringAction::NONE;
 			}
 		}
 
 		uint32_t maxPeak;
-		if (action == ACTION_SUBTRACT_RIGHT_CHANNEL) {
+		if (action == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
 			maxPeak = -1 - recordPeakLMinusR;
 		}
 		else {
@@ -627,12 +627,13 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 		for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
 	}
-	uint32_t dataLengthAfterAction = action ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
+	uint32_t dataLengthAfterAction =
+	    action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
 
 	// TODO: in a perfect world, where we're not deleting a channel, we'd go backwards from the last Cluster, because that's the most likely to still be in memory
 
 	// If some processing of the recorded audio data needs to happen...
-	if (lshiftAmount || action) {
+	if (lshiftAmount || action != MonitoringAction::NONE) {
 
 		FRESULT result = f_close(&file);
 		if (result) {
@@ -704,7 +705,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 		}
 	}
 
-	sample->numChannels = (action != 0 || recordingNumChannels == 1) ? 1 : 2;
+	sample->numChannels = (action != MonitoringAction::NONE || recordingNumChannels == 1) ? 1 : 2;
 	sample->lengthInSamples = dataLengthAfterAction / (sample->byteDepth * sample->numChannels);
 	sample->audioDataLengthBytes =
 	    sample->lengthInSamples
@@ -1118,7 +1119,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 	}
 }
 
-int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+int32_t SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
                                   uint64_t dataLengthAfterAction) {
 
 	D_PRINTLN("altering file");
@@ -1175,7 +1176,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 	loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
 	updateDataLengthInFirstCluster(currentWriteCluster);
 
-	if (action) {
+	if (action != MonitoringAction::NONE) {
 		// Write num channels
 		data16 = 1;
 		memcpy(&currentWriteCluster->data[22], &data16, 2);
@@ -1217,13 +1218,13 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 		readPos += 3;
 		int32_t value = *input & 0xFFFFFF00;
 
-		if (action == ACTION_SUBTRACT_RIGHT_CHANNEL) {
+		if (action == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
 			input = (int32_t*)(readPos - 1);
 			readPos += 3;
 			value = (value >> 1) - ((int32_t)(*input & 0xFFFFFF00) >> 1);
 		}
 
-		else if (action == ACTION_REMOVE_RIGHT_CHANNEL) {
+		else if (action == MonitoringAction::REMOVE_RIGHT_CHANNEL) {
 			readPos += 3;
 		}
 		int32_t processed = value << lshiftAmount;
@@ -1444,7 +1445,7 @@ writeFailed:
 			return ERROR_SD_CARD;
 		}
 
-		if (action || capturedTooMuch) {
+		if (action != MonitoringAction::NONE || capturedTooMuch) {
 
 			FRESULT fres = f_open(&file, sample->filePath.get(), FA_WRITE);
 			if (fres) {

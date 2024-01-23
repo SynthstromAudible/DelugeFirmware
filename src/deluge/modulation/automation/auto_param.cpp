@@ -109,13 +109,14 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	if (isPlaying) {
 
 		// If recording...
-		if (playbackHandler.recording && modelStack->timelineCounterIsSet()) {
+		if (playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()) {
 
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
 
 				if (isAutomated()) {
-					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
@@ -123,7 +124,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				return;
 			}
 
-			Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 			if (livePos == -1) {
 				livePos = modelStack->getLivePos();
@@ -533,7 +534,7 @@ yesCancelOverriding:
 recordOverNodeJustReached:
 
 				// Back up state if necessary. It normally would have already been, but not if the user only just activated recording while already overriding!
-				Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 				if (action) {
 					action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 				}
@@ -561,7 +562,7 @@ recordOverNodeJustReached:
 				if (insertingNodeAtEndOfClearing) {
 
 					// Special case for song params for recording session->arrangement. TODO: think about reversing for this
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 					    && modelStack->getTimelineCounter() == modelStack->song) {
 
 						// If there's already a node at 0, we don't need to do anything
@@ -834,7 +835,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
-	Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
 	if (length >= effectiveLength) {
 		deleteAutomation(action, modelStack);
@@ -914,7 +915,7 @@ setupNode:
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
-                                  ModelStackWithAutoParam const* modelStack, int32_t actionType) {
+                                  ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
@@ -930,7 +931,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(actionType, true);
+	Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack);

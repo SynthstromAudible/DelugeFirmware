@@ -1119,12 +1119,12 @@ SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	}
 }
 
-char const* launchStyleToString(int launchStyle) {
+char const* launchStyleToString(LaunchStyle launchStyle) {
 	switch (launchStyle) {
-	case LAUNCH_STYLE_DEFAULT:
+	case LaunchStyle::DEFAULT:
 		return "default";
 
-	case LAUNCH_STYLE_FILL:
+	case LaunchStyle::FILL:
 		return "fill";
 
 	default:
@@ -1133,12 +1133,12 @@ char const* launchStyleToString(int launchStyle) {
 	}
 }
 
-int stringToLaunchStyle(char const* string) {
+LaunchStyle stringToLaunchStyle(char const* string) {
 	if (!strcmp(string, "fill")) {
-		return LAUNCH_STYLE_FILL;
+		return LaunchStyle::FILL;
 	}
 	else {
-		return LAUNCH_STYLE_DEFAULT;
+		return LaunchStyle::DEFAULT;
 	}
 }
 

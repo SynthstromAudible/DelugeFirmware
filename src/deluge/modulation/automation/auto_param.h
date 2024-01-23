@@ -50,7 +50,7 @@ public:
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
-	                       int32_t actionType = ACTION_NOTE_EDIT);
+	                       ActionType actionType = ActionType::NOTE_EDIT);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);

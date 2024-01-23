@@ -776,7 +776,7 @@ void timerRoutine() {
 		if (progress >= 65536) { // If finished transitioning...
 
 			// If going to keyboard screen, no sidebar or anything to fade in
-			if (explodeAnimationDirection == 1 && getCurrentClip()->type == CLIP_TYPE_INSTRUMENT
+			if (explodeAnimationDirection == 1 && getCurrentClip()->type == ClipType::INSTRUMENT
 			    && getCurrentInstrumentClip()->onKeyboardScreen) {
 				currentUIMode = UI_MODE_NONE;
 				changeRootUI(&keyboardScreen);
@@ -785,7 +785,7 @@ void timerRoutine() {
 			// Otherwise, there's stuff we want to fade in / to
 			else {
 				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if ((getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
+				if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 					renderExplodeAnimation(explodedness, false);
 				}
 				else {
@@ -803,7 +803,7 @@ void timerRoutine() {
 							uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 						}
 					}
-					else if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+					else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
 						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 						if (anyZoomingDone) {
@@ -840,7 +840,7 @@ void timerRoutine() {
 			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
 			explodedness += progress * explodeAnimationDirection;
 
-			if ((getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
+			if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {

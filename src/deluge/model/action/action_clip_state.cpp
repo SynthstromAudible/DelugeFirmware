@@ -29,7 +29,7 @@ ActionClipState::~ActionClipState() {
 void ActionClipState::grabFromClip(Clip* thisClip) {
 	//modKnobMode = thisClip->modKnobMode;
 
-	if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (thisClip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)thisClip;
 		yScrollSessionView[BEFORE] = instrumentClip->yScroll;
 		affectEntire = instrumentClip->affectEntire;

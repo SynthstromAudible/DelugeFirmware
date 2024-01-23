@@ -37,10 +37,10 @@ bool LaunchStyle::setupAndCheckAvailability() {
 	Value valueOption = Value::DEFAULT;
 
 	switch (clip->launchStyle) {
-	case LAUNCH_STYLE_DEFAULT:
+	case ::LaunchStyle::DEFAULT:
 		valueOption = Value::DEFAULT;
 		break;
-	case LAUNCH_STYLE_FILL:
+	case ::LaunchStyle::FILL:
 		valueOption = Value::FILL;
 		break;
 	default:
@@ -66,14 +66,14 @@ void LaunchStyle::selectEncoderAction(int8_t offset) {
 
 	switch (valueOption) {
 	case Value::DEFAULT:
-		clip->launchStyle = LAUNCH_STYLE_DEFAULT;
+		clip->launchStyle = ::LaunchStyle::DEFAULT;
 		break;
 	case Value::FILL:
-		clip->launchStyle = LAUNCH_STYLE_FILL;
+		clip->launchStyle = ::LaunchStyle::FILL;
 		break;
 
 	default:
-		clip->launchStyle = LAUNCH_STYLE_DEFAULT;
+		clip->launchStyle = ::LaunchStyle::DEFAULT;
 	}
 }
 

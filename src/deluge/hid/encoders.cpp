@@ -201,7 +201,7 @@ checkResult:
 					bool otherTurnedRecently =
 					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
 					if (!otherTurnedRecently) {
-						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}
 
 					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;

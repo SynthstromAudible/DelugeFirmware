@@ -44,7 +44,7 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO) {
+		if (clip->type == ClipType::AUDIO) {
 			if (((AudioClip*)clip)->recorder) {
 				FREEZE_WITH_ERROR("i002"); // Trying to diversify Qui's E278
 			}
@@ -74,7 +74,7 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 		}
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
+		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E419"); // Trying to diversify Leo's E410
 		}
 #endif
@@ -141,7 +141,7 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 		}
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO) {
+		if (clip->type == ClipType::AUDIO) {
 			if (((AudioClip*)clip)->recorder) {
 				FREEZE_WITH_ERROR("i003"); // Trying to diversify Qui's E278
 			}
@@ -149,7 +149,7 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-		if (clip->type == CLIP_TYPE_AUDIO && !clip->paramManager.summaries[0].paramCollection) {
+		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
 			FREEZE_WITH_ERROR("E420"); // Trying to diversify Leo's E410
 		}
 #endif
