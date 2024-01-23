@@ -36,6 +36,6 @@ target_compile_options(deluge_dsp PRIVATE
     "-fno-lto"
     # we're not using lto so go ahead and inline
     "-finline-functions"
-    # Build dsp code with thumb mode
+    # Build dsp code with arm mode
     "-marm"
 )

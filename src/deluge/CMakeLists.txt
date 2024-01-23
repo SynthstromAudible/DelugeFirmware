@@ -8,7 +8,7 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
 
-# Filter out GUI sources as those are built as part of the deluge_gui library
+# Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 
 target_sources(deluge PUBLIC ${deluge_SOURCES})
