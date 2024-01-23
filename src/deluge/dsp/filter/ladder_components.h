@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
 class BasicFilterComponent {

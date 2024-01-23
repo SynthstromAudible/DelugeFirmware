@@ -2127,7 +2127,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
-	delay.setupWorkingState(&delayWorkingState, numVoicesAssigned != 0);
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
+	delay.setupWorkingState(&delayWorkingState, timePerTickInverse, numVoicesAssigned != 0);
 
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);

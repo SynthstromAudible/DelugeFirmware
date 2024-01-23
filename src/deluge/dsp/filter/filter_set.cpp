@@ -20,10 +20,8 @@
 #include "dsp/filter/filter.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
-#include "dsp/timestretch/time_stretcher.h"
-#include "processing/sound/sound.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
+
 namespace deluge::dsp::filter {
 FilterSet::FilterSet() {
 

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp/stereo_sample.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
 
 extern const int32_t ir[];

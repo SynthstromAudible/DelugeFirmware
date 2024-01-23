@@ -1,4 +1,5 @@
 configure_file(version.h.in version.h @ONLY)
+add_subdirectory(dsp)
 
 # Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
@@ -6,6 +7,9 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
+
+# Filter out DSP sources as those are built as part of the deluge_dsp library
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 
@@ -20,6 +24,7 @@ target_link_libraries(deluge PUBLIC
     NE10
     RZA1
     eyalroz_printf
+    deluge_dsp
 )
 
 target_compile_definitions(deluge PUBLIC

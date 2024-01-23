@@ -19,19 +19,14 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
-#include "dsp/sidechain/sidechain.h"
-#include "util/functions.h"
-
-#include <algorithm> // for min(), max()
-#include <cassert>   // for assert()
-#include <cmath>
+#include "dsp/stereo_sample.h"
 
 class RMSFeedbackCompressor {
 public:
 	RMSFeedbackCompressor();
 	void setup(q31_t attack, q31_t release, q31_t threshold, q31_t ratio, q31_t sidechain_fc);
 
-	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
+	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
 	float runEnvelope(float current, float desired, float numSamples);
 	//attack/release in range 0 to 2^31
 	inline q31_t getAttack() { return attackKnobPos; }
@@ -76,7 +71,7 @@ public:
 		return fc_hz;
 	}
 
-	void updateER(float numSamples);
+	void updateER(float numSamples, q31_t finalVolume);
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
 

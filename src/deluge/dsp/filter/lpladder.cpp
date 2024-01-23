@@ -15,12 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "dsp/filter/lpladder.h"
-#include "definitions_cxx.hpp"
-#include "dsp/filter/svf.h"
-#include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"
-#include "util/functions.h"
-#include <cstdint>
+
 namespace deluge::dsp::filter {
 const int16_t resonanceThresholdsForOversampling[] = {
     16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384,

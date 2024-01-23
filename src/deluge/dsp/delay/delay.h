@@ -37,7 +37,8 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn = true);
+	void setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+	                       bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(DelayWorkingState* workingState);
 	void hasWrapped();

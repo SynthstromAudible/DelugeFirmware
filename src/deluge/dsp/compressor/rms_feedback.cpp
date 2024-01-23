@@ -16,12 +16,7 @@
 */
 
 #include "dsp/compressor/rms_feedback.h"
-#include "dsp/stereo_sample.h"
-#include "io/debug/print.h"
-#include "model/song/song.h"
-#include "modulation/params/param_set.h"
-#include "processing/engines/audio_engine.h"
-#include "util/fast_fixed_math.h"
+
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 
 	//an appropriate range is 0-50*one q 15
@@ -38,22 +33,11 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 }
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
-void RMSFeedbackCompressor::updateER(float numSamples) {
+void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolume;
-	if (currentSong) {
-		int32_t volumePostFX =
-		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       deluge::modulation::params::UNPATCHED_VOLUME)))
-		    >> 1;
-		songVolume = std::log(volumePostFX) - 2;
-	}
-	else {
-		//16 is about the level of a single synth voice at max volume
-		songVolume = 16;
-	}
+	float songVolume = std::log(finalVolume) - 2;
+
 	threshdb = songVolume * threshold;
 	//this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to reduce clicking
 	float lastER = er;
@@ -62,9 +46,10 @@ void RMSFeedbackCompressor::updateER(float numSamples) {
 	er = runEnvelope(lastER, er, numSamples);
 }
 
-void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
+void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
+                                   q31_t finalVolume) {
 	//we update this every time since we won't know if the song volume changed
-	updateER(numSamples);
+	updateER(numSamples, finalVolume);
 
 	float over = std::max<float>(0, (rms - threshdb));
 

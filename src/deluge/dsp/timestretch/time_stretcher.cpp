@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
+#include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder.h"
@@ -1038,8 +1038,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
-	buffer =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
+	buffer = (int32_t*)allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels);
 	return (buffer != NULL);
 }
 

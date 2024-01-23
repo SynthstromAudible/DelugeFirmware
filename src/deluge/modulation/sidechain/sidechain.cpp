@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "dsp/sidechain/sidechain.h"
+#include "modulation/sidechain/sidechain.h"
 #include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"

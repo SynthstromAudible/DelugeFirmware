@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay.h"
-#include "dsp/sidechain/sidechain.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -27,6 +26,7 @@
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
+#include "modulation/sidechain/sidechain.h"
 
 #define STUTTERER_STATUS_OFF 0
 #define STUTTERER_STATUS_RECORDING 1

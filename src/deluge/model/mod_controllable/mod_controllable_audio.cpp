@@ -91,6 +91,19 @@ ModControllableAudio::ModControllableAudio() {
 
 	// Saturation
 	clippingAmount = 0;
+
+	SyncLevel syncLevel;
+	Song* song = preLoadedSong;
+	if (!song) {
+		song = currentSong;
+	}
+	if (song) {
+		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+	}
+	else {
+		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
+	}
+	delay.syncLevel = syncLevel;
 }
 
 ModControllableAudio::~ModControllableAudio() {
