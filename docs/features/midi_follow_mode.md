@@ -135,6 +135,8 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
 
 For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
 
+- It is setup to send and receive on Channel 1 when the Deluge is setup in the Touch OSC Connections menu
+
 <img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/touch_osc/touch_osc.png">
 
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
