@@ -33,7 +33,7 @@
 @ It also enables branch prediction
 @ This code must be run from a privileged mode
 @==================================================================
-    .section    L1_CACHE_OPERATION, #execinstr
+    .section    L1_CACHE_OPERATION, "x"
     .arm
 
     .global  L1_I_CacheFlushAllAsm

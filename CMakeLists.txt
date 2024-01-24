@@ -144,9 +144,6 @@ add_compile_options(
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
 
-    # limit std lib usage
-    -ffreestanding
-
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
@@ -222,8 +219,6 @@ target_link_options(deluge PUBLIC
 
     # use newlib nano
     --specs=nano.specs 
-
-
 
     -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
     LINKER:-Map=${MAP_FILE}

@@ -7,15 +7,20 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "files.associations": {
+        "*.scons": "python",
         "compare": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "cmath": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "cSpell.words": [
         "SDRAM",
         "Synthstrom"
     ],
-    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin",
+    "cmake.configureEnvironment": {
+        "DELUGE_FW_ROOT": "${workspaceRoot}"
+    },
+    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/v12/win32-x86_64/arm-none-eabi-gcc/bin",
     "advancedLocalFormatters.formatters": [
         {
             "command": {
