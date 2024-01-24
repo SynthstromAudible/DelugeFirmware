@@ -24,7 +24,7 @@ def absolute_path_str(path: str):
 def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port: int):
     if not cmd:
         cmd = find_cmd_with_fallback(
-            "JLinkGDBServerCL", "C:\Program Files\SEGGER\JLink\JLinkGDBServerCL"
+            "JLinkGDBServerCL", "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL"
         )
 
     return [
