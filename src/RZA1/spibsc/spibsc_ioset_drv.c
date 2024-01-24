@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : spibsc_ioset_drv.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   :
-*******************************************************************************/
+ * File Name     : spibsc_ioset_drv.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   :
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -69,14 +69,14 @@ Private global variables and functions
 static int32_t io_spibsc_port_setting(uint32_t ch_no, int data_bus_width, uint32_t bsz);
 
 /******************************************************************************
-* Function Name: spibsc_bsz_set
-* Description  : Set a data bus width of a SPI multi-I/O bus controller.
-* Arguments    : uint32_t ch_no : use channel No
-*              : uint32_t bsz : BSZ bit
-*              : uint8_t data_witdh
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: spibsc_bsz_set
+ * Description  : Set a data bus width of a SPI multi-I/O bus controller.
+ * Arguments    : uint32_t ch_no : use channel No
+ *              : uint32_t bsz : BSZ bit
+ *              : uint8_t data_witdh
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t spibsc_bsz_set(uint32_t ch_no, uint32_t bsz, uint8_t data_width)
 {
     if (ch_no > 1)
@@ -109,17 +109,17 @@ int32_t spibsc_bsz_set(uint32_t ch_no, uint32_t bsz, uint8_t data_width)
 } /* End of function  spibsc_bsz_set() */
 
 /******************************************************************************
-* Function Name: spibsc_common_init
-* Description  : Initialize the operation mode independent part of a SPI
-*                multi-I/O bus controller.
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t bsz : BSZ bit
-*                uint8_t spbr
-*                uint8_t brdv
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: spibsc_common_init
+ * Description  : Initialize the operation mode independent part of a SPI
+ *                multi-I/O bus controller.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t bsz : BSZ bit
+ *                uint8_t spbr
+ *                uint8_t brdv
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t spibsc_common_init(uint32_t ch_no, uint32_t bsz, uint8_t spbr, uint8_t brdv, uint8_t data_width)
 {
     if (ch_no > 1)
@@ -189,11 +189,11 @@ int32_t spibsc_common_init(uint32_t ch_no, uint32_t bsz, uint8_t spbr, uint8_t b
 } /* End of function spibsc_common_init() */
 
 /******************************************************************************
-* Function Name: spibsc_wait_tend
-* Description  : Wait TEND
-* Arguments    : uint32_t ch_no : use channel No
-* Return Value : none
-******************************************************************************/
+ * Function Name: spibsc_wait_tend
+ * Description  : Wait TEND
+ * Arguments    : uint32_t ch_no : use channel No
+ * Return Value : none
+ ******************************************************************************/
 void spibsc_wait_tend(uint32_t ch_no)
 {
     while (RZA_IO_RegRead_32(&SPIBSC[ch_no]->CMNSR, SPIBSC_CMNSR_TEND_SHIFT, SPIBSC_CMNSR_TEND) != SPIBSC_TRANS_END)
@@ -204,14 +204,14 @@ void spibsc_wait_tend(uint32_t ch_no)
 } /* End of function spibsc_wait_tend() */
 
 /******************************************************************************
-* Function Name: spibsc_dr_init
-* Description  : The setting which makes a SPI multi-I/O bus controller activate
-*                an outside address space read mode.
-* Arguments    : uint32_t ch_no : use channel No
-*              : st_spibsc_cfg_t *spibsccfg
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: spibsc_dr_init
+ * Description  : The setting which makes a SPI multi-I/O bus controller activate
+ *                an outside address space read mode.
+ * Arguments    : uint32_t ch_no : use channel No
+ *              : st_spibsc_cfg_t *spibsccfg
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t spibsc_dr_init(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
     if (ch_no > 1)
@@ -290,12 +290,12 @@ int32_t spibsc_dr_init(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 } /* End of function spibsc_dr_init() */
 
 /*******************************************************************************
-* Function Name: int32_t spibsc_exmode(void);
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 :
-*              : -1 : error
-*******************************************************************************/
+ * Function Name: int32_t spibsc_exmode(void);
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 :
+ *              : -1 : error
+ *******************************************************************************/
 int32_t spibsc_exmode(uint32_t ch_no)
 {
     if (RZA_IO_RegRead_32(&SPIBSC[ch_no]->CMNCR, SPIBSC_CMNCR_MD_SHIFT, SPIBSC_CMNCR_MD) != SPIBSC_CMNCR_MD_EXTRD)
@@ -313,12 +313,12 @@ int32_t spibsc_exmode(uint32_t ch_no)
 } /* End of function spibsc_exmode() */
 
 /*******************************************************************************
-* Function Name: int32_t spibsc_spimode(void);
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 :
-*              : -1 : error
-*******************************************************************************/
+ * Function Name: int32_t spibsc_spimode(void);
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 :
+ *              : -1 : error
+ *******************************************************************************/
 int32_t spibsc_spimode(uint32_t ch_no)
 {
     if (RZA_IO_RegRead_32(&SPIBSC[ch_no]->CMNCR, SPIBSC_CMNCR_MD_SHIFT, SPIBSC_CMNCR_MD) != SPIBSC_CMNCR_MD_SPI)
@@ -337,12 +337,12 @@ int32_t spibsc_spimode(uint32_t ch_no)
 } /* End of function spibsc_spimode() */
 
 /*******************************************************************************
-* Function Name: int32_t spibsc_stop(void);
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 :
-*              : -1 : error
-*******************************************************************************/
+ * Function Name: int32_t spibsc_stop(void);
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 :
+ *              : -1 : error
+ *******************************************************************************/
 int32_t spibsc_stop(uint32_t ch_no)
 {
     if (ch_no > 1)
@@ -362,14 +362,14 @@ int32_t spibsc_stop(uint32_t ch_no)
 } /* End of function spibsc_stop() */
 
 /******************************************************************************
-* Function Name: spibsc_transfer
-* Description  : Transmission setting of a SPI multi-I/O bus controller.
-* Arguments    : uint32_t ch_no : use channel No
-*                 st_spibsc_spimd_reg_t *regset :
-*                    The pointer to a structure for the transfer
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: spibsc_transfer
+ * Description  : Transmission setting of a SPI multi-I/O bus controller.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                 st_spibsc_spimd_reg_t *regset :
+ *                    The pointer to a structure for the transfer
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t spibsc_transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 {
     if (ch_no > 1)
@@ -500,14 +500,14 @@ int32_t spibsc_transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 } /* End of function spibsc_transfer() */
 
 /******************************************************************************
-* Function Name: io_spibsc_port_setting
-* Description  : Port Setting of SPIBSC
-* Arguments    : uint32_t ch_no : use channel No
-*                int data_bus_width
-*                uint32_t bsz : BSZ bit
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: io_spibsc_port_setting
+ * Description  : Port Setting of SPIBSC
+ * Arguments    : uint32_t ch_no : use channel No
+ *                int data_bus_width
+ *                uint32_t bsz : BSZ bit
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t io_spibsc_port_setting(uint32_t ch_no, int data_bus_width, uint32_t bsz)
 {
     if (ch_no > 1)

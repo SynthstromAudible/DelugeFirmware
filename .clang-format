@@ -6,7 +6,7 @@ BreakBeforeBraces: Custom
 BraceWrapping:
   BeforeElse: True
 ColumnLimit: 120
-ReflowComments: False
+ReflowComments: True
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
@@ -17,7 +17,7 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeTernaryOperators: True
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: Yes
-#IndentRequiresClause: False
-#RequiresClausePosition: OwnLine
+IndentRequiresClause: False
+RequiresClausePosition: OwnLine
 
 SortIncludes: CaseSensitive

@@ -36,8 +36,8 @@ using namespace deluge::gui;
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
-//entered text edit position is the first difference from
-//the previously seen name while browsing/editing
+// entered text edit position is the first difference from
+// the previously seen name while browsing/editing
 int16_t QwertyUI::enteredTextEditPos;
 int32_t QwertyUI::scrollPosHorizontal;
 
@@ -126,8 +126,8 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	                                       xPixel + maxNumChars * kTextSpacingX);
 
 	int32_t hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
-	//int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
-	//if (hilightEndX > OLED_MAIN_WIDTH_PIXELS || !enteredTextEditPos) hilightEndX = OLED_MAIN_WIDTH_PIXELS;
+	// int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
+	// if (hilightEndX > OLED_MAIN_WIDTH_PIXELS || !enteredTextEditPos) hilightEndX = OLED_MAIN_WIDTH_PIXELS;
 	int32_t hilightWidth = xPixelMax - hilightStartX;
 
 	if (atVeryEnd) {
@@ -171,8 +171,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 			FREEZE_WITH_ERROR("E292");
 		}
 		encodedAddition[editPosOnscreen] = 0x08;
-		encodedEditPosAndAHalf =
-		    false; // Hard to put into words why this is needed, but without it, the blinking _ after a . just won't blink
+		encodedEditPosAndAHalf = false; // Hard to put into words why this is needed, but without it, the blinking _
+		                                // after a . just won't blink
 	}
 
 	uint8_t blinkMask[kNumericDisplayLength];
@@ -190,7 +190,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 
 	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 
-	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
+	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading
+	// animation layer
 	display->setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 
@@ -253,7 +254,8 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			// If currently loading preset, definitely don't abort that - make the user wait and press button again when finished
+			// If currently loading preset, definitely don't abort that - make the user wait and press button again when
+			// finished
 			else if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -382,7 +384,8 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 					}
 				}
 
-				displayText(); // We could actually skip this if the user had intervened during our own predictExtendedText() call above... kinda...
+				displayText(); // We could actually skip this if the user had intervened during our own
+				               // predictExtendedText() call above... kinda...
 			}
 		}
 	}

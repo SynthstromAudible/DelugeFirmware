@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
@@ -49,7 +49,7 @@ void ramTestUart() {
 
 	while (1) {
 
-		//while (1) {
+		// while (1) {
 		D_PRINTLN("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
@@ -58,7 +58,7 @@ void ramTestUart() {
 		}
 		//}
 
-		//while (1) {
+		// while (1) {
 		D_PRINTLN("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
@@ -70,7 +70,7 @@ void ramTestUart() {
 						;
 					}
 					D_PRINTLN("error at  %d . got  %d", (uint32_t)address, *address);
-					//while(1);
+					// while(1);
 					lastErrorAt = errorAtBlockNow;
 				}
 			}
@@ -185,7 +185,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 			}
 		}
 		else if (value == oledWaitingForMessage && display->haveOLED()) {
-			//delayUS(2500); // TODO: fix
+			// delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
 			}
@@ -322,7 +322,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		}
 
 		// Send MIDI
-		//midiEngine.sendNote(ledState, 50, 64, 0, true);
+		// midiEngine.sendNote(ledState, 50, 64, 0, true);
 
 		ledState = !ledState;
 
@@ -331,7 +331,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 			if (((uint32_t)address & 4095) == 0) {
 				readInputsForHardwareTest(testButtonStates);
-				//AudioEngine::routine(false);
+				// AudioEngine::routine(false);
 			}
 			*address = (uint32_t)address;
 			address++;
@@ -343,7 +343,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		while (address != (uint32_t*)0x10000000) {
 			if (((uint32_t)address & 4095) == 0) {
 				readInputsForHardwareTest(testButtonStates);
-				//AudioEngine::routine(false);
+				// AudioEngine::routine(false);
 			}
 
 			if (*address != (uint32_t)address) {
@@ -409,7 +409,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
+		if (true) { // getCurrentUI() == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 
@@ -446,13 +446,13 @@ void autoPilotStuff() {
 				// Or save song
 				/*
 				else {
-					autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
-					Buttons::buttonAction(SAVE, true, false);
-					Buttons::buttonAction(SAVE, false, false);
+				    autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
+				    Buttons::buttonAction(SAVE, true, false);
+				    Buttons::buttonAction(SAVE, false, false);
 
-					QwertyUI::enteredText.set("T001");
+				    QwertyUI::enteredText.set("T001");
 
-					//saveSongUI.performSave(true);
+				    //saveSongUI.performSave(true);
 				}
 				*/
 
@@ -556,8 +556,8 @@ void autoPilotStuff() {
 
 		// Maybe press load button
 		else {
-			//matrixDriver.buttonAction(LOAD, true, false);
-			//matrixDriver.buttonAction(LOAD, false, false);
+			// matrixDriver.buttonAction(LOAD, true, false);
+			// matrixDriver.buttonAction(LOAD, false, false);
 
 			loadSongUI.performLoad();
 		}

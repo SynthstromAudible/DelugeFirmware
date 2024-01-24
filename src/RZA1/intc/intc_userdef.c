@@ -1,31 +1,31 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-* Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ * Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name   : intc_userdef.c
-* $Rev: 819 $
-* $Date:: 2014-04-18 17:03:54 +0900#$
-* Description : INTC driver (User define function)
-*******************************************************************************/
+ * File Name   : intc_userdef.c
+ * $Rev: 819 $
+ * $Date:: 2014-04-18 17:03:54 +0900#$
+ * Description : INTC driver (User define function)
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -658,29 +658,29 @@ static void (*intc_func_table[INTC_ID_TOTAL])(uint32_t int_sense) = {
 };
 
 /******************************************************************************
-* Function Name: Userdef_INTC_RegistIntFunc
-* Description  : This function is the user-defined function called by the
-*              : R_INTC_RegistIntFunc. Write the processing to register the
-*              : specified function to the element specified by the int_id in
-*              : INTC interrupt handler function table intc_func_table[].
-* Arguments    : uint16_t int_id         : Interrupt ID
-*              : void (* func)(uint32_t) : Function to be registered to INTC
-*              :                         : interrupt handler table
-* Return Value : none
-******************************************************************************/
+ * Function Name: Userdef_INTC_RegistIntFunc
+ * Description  : This function is the user-defined function called by the
+ *              : R_INTC_RegistIntFunc. Write the processing to register the
+ *              : specified function to the element specified by the int_id in
+ *              : INTC interrupt handler function table intc_func_table[].
+ * Arguments    : uint16_t int_id         : Interrupt ID
+ *              : void (* func)(uint32_t) : Function to be registered to INTC
+ *              :                         : interrupt handler table
+ * Return Value : none
+ ******************************************************************************/
 void Userdef_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
 {
     intc_func_table[int_id] = func;
 }
 
 /******************************************************************************
-* Function Name: Userdef_INTC_UndefId
-* Description  : This function is the user-defined function called by the
-*              : INTC_Handler_Interrupt. Write the processing to be executed
-*              : when an unsupported interrupt ID is received.
-* Arguments    : uint16_t int_id    : Interrupt ID
-* Return Value : none
-******************************************************************************/
+ * Function Name: Userdef_INTC_UndefId
+ * Description  : This function is the user-defined function called by the
+ *              : INTC_Handler_Interrupt. Write the processing to be executed
+ *              : when an unsupported interrupt ID is received.
+ * Arguments    : uint16_t int_id    : Interrupt ID
+ * Return Value : none
+ ******************************************************************************/
 void Userdef_INTC_UndefId(uint16_t int_id)
 {
     /* Execute processing when receiving interrupt ID which is not supported */
@@ -691,16 +691,16 @@ void Userdef_INTC_UndefId(uint16_t int_id)
 }
 
 /******************************************************************************
-* Function Name: Userdef_INTC_Dummy_Interrupt
-* Description  : This function is the dummy processing for interrupt handler.
-*              : In this sample code, this function is registered by default in
-*              : all interrupts in the INTC interrupt handler talbe
-*              : intc_func_table[].
-* Arguments    : uint32_t int_sense : Interrupt detection
-*              :                    :   INTC_LEVEL_SENSITIVE : Level sense
-*              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
-* Return Value : none
-******************************************************************************/
+ * Function Name: Userdef_INTC_Dummy_Interrupt
+ * Description  : This function is the dummy processing for interrupt handler.
+ *              : In this sample code, this function is registered by default in
+ *              : all interrupts in the INTC interrupt handler talbe
+ *              : intc_func_table[].
+ * Arguments    : uint32_t int_sense : Interrupt detection
+ *              :                    :   INTC_LEVEL_SENSITIVE : Level sense
+ *              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
+ * Return Value : none
+ ******************************************************************************/
 static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 {
     /* Execute processing when receiving interrupt ID whicn is not registered */
@@ -713,19 +713,19 @@ static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 }
 
 /******************************************************************************
-* Function Name: Userdef_INTC_HandlerExe
-* Description  : This function is the user-defined function called by the
-*              : INTC_Handler_Interrupt. Write the handler processing which
-*              : corresponds to the INTC interrupt source ID specified by the
-*              : argument int_id to be executed. In this sample code, the function
-*              : registered as an element of the int_id in the INTC interrupt handler
-*              : function table intc_func_table[] is executed.
-* Arguments    : uint16_t int_id    : Interrupt ID
-*              : uint32_t int_sense : Interrupt detection
-*              :                    :   INTC_LEVEL_SENSITIVE : Level sense
-*              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
-* Return Value : none
-******************************************************************************/
+ * Function Name: Userdef_INTC_HandlerExe
+ * Description  : This function is the user-defined function called by the
+ *              : INTC_Handler_Interrupt. Write the handler processing which
+ *              : corresponds to the INTC interrupt source ID specified by the
+ *              : argument int_id to be executed. In this sample code, the function
+ *              : registered as an element of the int_id in the INTC interrupt handler
+ *              : function table intc_func_table[] is executed.
+ * Arguments    : uint16_t int_id    : Interrupt ID
+ *              : uint32_t int_sense : Interrupt detection
+ *              :                    :   INTC_LEVEL_SENSITIVE : Level sense
+ *              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
+ * Return Value : none
+ ******************************************************************************/
 void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense)
 {
 
@@ -735,12 +735,12 @@ void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense)
 }
 
 /******************************************************************************
-* Function Name: Userdef_FIQ_HandlerExe
-* Description  : This function is the user-defined function called by
-*              : the FiqHandler_Interrupt.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: Userdef_FIQ_HandlerExe
+ * Description  : This function is the user-defined function called by
+ *              : the FiqHandler_Interrupt.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void Userdef_FIQ_HandlerExe(void)
 {
     /* Add processing when executing the processing at the time FIQ interrupt was generated */

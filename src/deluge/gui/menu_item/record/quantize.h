@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/sync_level/relative_to_song.h"
 #include "storage/flash_storage.h"

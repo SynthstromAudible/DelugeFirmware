@@ -36,7 +36,8 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 	skipSamplesAtStart = newSkipSamplesAtStart;
 	/*
 	for (int32_t i = 0; i < numClusters; i++) {
-		clusters[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are "valid"
+	    clusters[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are
+	"valid"
 	}
 	*/
 }
@@ -82,8 +83,8 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 	if (numExistentClusters != clusterIndex) {
 		FREEZE_WITH_ERROR("E295");
 	}
-	clusters[clusterIndex] =
-	    NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
+	clusters[clusterIndex] = NULL; // No need to remove this first Cluster from a queue or anything - that's already all
+	                               // done by the thing that's stealing it
 #endif
 }
 
@@ -133,10 +134,10 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 	}
 }
 
-// Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
-// which will call prioritizeNotStealingCluster(), and that'll do it
+// Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just
+// about to call getCluster(), to get it, which will call prioritizeNotStealingCluster(), and that'll do it
 bool SampleCache::setupNewCluster(int32_t clusterIndex) {
-	//D_PRINTLN("writing cache to new Cluster");
+	// D_PRINTLN("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
@@ -163,18 +164,20 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 
 	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex]) != MEMORY_REGION_STEALABLE) {
-		//clusters not in external
+		// clusters not in external
 		FREEZE_WITH_ERROR("C002");
 		return; // Sorta just have to do this
 	}
 
-	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't be stolen for a while),
-	// but in reverse order so that the later-in-sample of those cache Clusters will be stolen first
+	// This ensures, one Cluster at a time, that this Cache's Clusters are right at the far end of their queue (so won't
+	// be stolen for a while), but in reverse order so that the later-in-sample of those cache Clusters will be stolen
+	// first
 
-	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the stealableClusterQueues, ready to be "stolen".
+	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the
+	// stealableClusterQueues, ready to be "stolen".
 #if ALPHA_OR_BETA_VERSION
 	if (clusters[clusterIndex]->numReasonsToBeLoaded != 0) {
-		FREEZE_WITH_ERROR("C003"); //let's just check to make sure
+		FREEZE_WITH_ERROR("C003"); // let's just check to make sure
 	}
 #endif
 	// First Cluster
@@ -192,13 +195,14 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	else {
 
 		if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_STEALABLE) {
-			//clusters not in external
+			// clusters not in external
 			FREEZE_WITH_ERROR("C001");
 			return; // Sorta just have to do this
 		}
 
-		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
-		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
+		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question
+		// hasn't actually been added to a queue at all yet, because this functions serves the additional purpose of
+		// being what puts Clusters in their queue in the first place.
 		if (clusters[clusterIndex]->list
 		        != &GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager().queue(
 		            STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)

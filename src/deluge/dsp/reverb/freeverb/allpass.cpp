@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/reverb/freeverb/allpass.hpp"
 
@@ -46,4 +46,4 @@ float allpass::getfeedback() {
 	return (float)feedback / 2147483648u;
 }
 
-//ends
+// ends

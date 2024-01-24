@@ -51,7 +51,8 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	return toReturn;
 }
 
-// This could set a NULL NoteRow if it's not found. This would hopefully get picked up on call to getNoteRow(), which checks.
+// This could set a NULL NoteRow if it's not found. This would hopefully get picked up on call to getNoteRow(), which
+// checks.
 ModelStackWithNoteRow* ModelStackWithNoteRowId::automaticallyAddNoteRowFromId() const {
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
@@ -90,8 +91,9 @@ int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 
 	if (noteRow && noteRow->hasIndependentPlayPos()) {
 		return noteRow->lastProcessedPosIfIndependent;
-		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's usually zero when this gets called,
-		// and perhaps the other times I want to ignore it? Should probably investigate further.
+		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
+		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
+		// investigate further.
 	}
 	else {
 		return getTimelineCounter()->getLastProcessedPos();
@@ -139,10 +141,10 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
-						cutPos =
-						    noteRow->lastProcessedPosIfIndependent
-						        ? 0
-						        : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when we pingpong at the right-hand end of the Clip/etc.
+						cutPos = noteRow->lastProcessedPosIfIndependent
+						             ? 0
+						             : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when
+						                                 // we pingpong at the right-hand end of the Clip/etc.
 					}
 				}
 				else {

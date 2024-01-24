@@ -18,7 +18,7 @@
 #include "util/container/array/resizeable_array.h"
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
-//#include <algorithm>
+// #include <algorithm>
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -28,7 +28,7 @@
 #if RESIZEABLE_ARRAY_DO_LOCKS
 #define LOCK_ENTRY freezeOnLock();
 // Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst.
-//It still "shouldn't" be able to happen though.
+// It still "shouldn't" be able to happen though.
 #define LOCK_EXIT exitLock();
 void ResizeableArray::freezeOnLock() {
 	if (lock) {
@@ -255,7 +255,8 @@ void ResizeableArray::deleteAtIndex(int32_t i, int32_t numToDelete, bool mayShor
 mostBasicDelete:
 		// If deleting in first half...
 		if ((i + (numToDelete >> 1)) < (numElements >> 1)) {
-			//if (i) moveElementsRightNoWrap(0, i, numToDelete); // No - not sure why, but this gave insane occasional crashes.
+			// if (i) moveElementsRightNoWrap(0, i, numToDelete); // No - not sure why, but this gave insane occasional
+			// crashes.
 			moveElementsRight(0, i, numToDelete);
 			memoryStart += numToDelete;
 			if (memoryStart >= memorySize) {
@@ -268,8 +269,8 @@ mostBasicDelete:
 			/* No - not sure why, but this gave insane occasional crashes.
 			int32_t oldStartIndex = i + numToDelete;
 			if (oldStartIndex != numElements)
-				moveElementsLeftNoWrap(oldStartIndex, numElements, numToDelete);
-				*/
+			    moveElementsLeftNoWrap(oldStartIndex, numElements, numToDelete);
+			    */
 			moveElementsLeft(i + numToDelete, numElements, numToDelete);
 		}
 	}
@@ -306,19 +307,22 @@ mostBasicDelete:
 				distanceFromWrapPoint = 0;
 			}
 
-			// If closer to either start or end than wrap-point AND there isn't too much wasted empty space between these...
+			// If closer to either start or end than wrap-point AND there isn't too much wasted empty space between
+			// these...
 			if (distanceFromEndPoint <= distanceFromWrapPoint) {
 
-				// If we have a fixed memory allocation, then we don't need to worry about wasted empty space, and we can just do the most basic delete.
-				// Careful with this - it seemed to cause a crash when first introduced in commit "Tidied up some stuff in ResizeableArray",
-				// though that seems to have been because of the bugs fixed in commit "Fixed horrendous problem with ResizeableArray[...]".
+				// If we have a fixed memory allocation, then we don't need to worry about wasted empty space, and we
+				// can just do the most basic delete. Careful with this - it seemed to cause a crash when first
+				// introduced in commit "Tidied up some stuff in ResizeableArray", though that seems to have been
+				// because of the bugs fixed in commit "Fixed horrendous problem with ResizeableArray[...]".
 				if (staticMemoryAllocationSize || !mayShortenMemoryAfter) {
 					goto mostBasicDelete;
 				}
 
 				int32_t freeMemory = memorySize - newNum; // After deletion
 
-				// If we're not going to end up with more free memory than we're allowed, then the best option is to do the most basic delete
+				// If we're not going to end up with more free memory than we're allowed, then the best option is to do
+				// the most basic delete
 				if (freeMemory < maxNumEmptySpacesToKeep) {
 					goto mostBasicDelete;
 				}
@@ -687,7 +691,8 @@ startAgain:
 #endif
 */
 		// Try extending memory.
-		// TODO: in a perfect world, we'd be able to specify a minimum amount as well as a step-size for left and right, or something like that
+		// TODO: in a perfect world, we'd be able to specify a minimum amount as well as a step-size for left and right,
+		// or something like that
 		uint32_t amountExtendedLeft, amountExtendedRight;
 		GeneralMemoryAllocator::get().extend(memoryAllocationStart, minNumToExtend * elementSize,
 		                                     idealNumToExtendIfExtendingAllocation * elementSize, &amountExtendedLeft,
@@ -972,10 +977,11 @@ workNormally:
 			// If closer to either start or end than wrap-point...
 			if (distanceFromEndPoint <= distanceFromWrapPoint) {
 
-				// If we have enough memory, then great - doing the "normal" thing is the most efficient thing we can do.
-				// Sadly, if we've been inserting lots, there won't be any extra memory within memorySize here - if there's any, it'll be out to the sides (at the wrap point).
-				// It'd be better if we had some in both places, like happens after a get-brand-new-memory.
-				// Maybe I should make it so doing an extend puts some of the empty space in the middle there...
+				// If we have enough memory, then great - doing the "normal" thing is the most efficient thing we can
+				// do. Sadly, if we've been inserting lots, there won't be any extra memory within memorySize here - if
+				// there's any, it'll be out to the sides (at the wrap point). It'd be better if we had some in both
+				// places, like happens after a get-brand-new-memory. Maybe I should make it so doing an extend puts
+				// some of the empty space in the middle there...
 				if (newNum <= memorySize) {
 					goto workNormally;
 
@@ -1000,7 +1006,8 @@ workNormally:
 				if (!attemptMemoryExpansion(numToInsert, numToInsert + numExtraSpacesToAllocate,
 				                            !staticMemoryAllocationSize, thingNotToStealFrom)) {
 
-					// If we do actually have enough memory, working "normally" is still an option, and it's now the best option
+					// If we do actually have enough memory, working "normally" is still an option, and it's now the
+					// best option
 					if (newNum <= memorySize) {
 						goto workNormally;
 
@@ -1021,9 +1028,8 @@ workNormally:
 			if (i < elementsBeforeWrap) {
 
 				int32_t elementsBetweenInsertionAndWrap = elementsBeforeWrap - i;
-				int32_t otherOption =
-				    i
-				    + elementsAfterWrap; // The other option is to separately move the elements before the insertion, and the ones after the wrap
+				int32_t otherOption = i + elementsAfterWrap; // The other option is to separately move the elements
+				                                             // before the insertion, and the ones after the wrap
 				if (elementsBetweenInsertionAndWrap <= otherOption) {
 
 					// Move elements between insertion point and wrap point right
@@ -1036,7 +1042,8 @@ workNormally:
 					// Move elements after wrap point left
 					moveElementsLeft(elementsBeforeWrap + numToInsert, numElements + numToInsert, numToInsert);
 
-					// Move elements before insertion point left. We call moveElementsLeft() because that deals with if it passes over the wrap point, which can definitely happen.
+					// Move elements before insertion point left. We call moveElementsLeft() because that deals with if
+					// it passes over the wrap point, which can definitely happen.
 					memoryStart -= numToInsert;
 					if (memoryStart < 0) {
 						memoryStart += memorySize; // Could this actually happen? Don't think so?
@@ -1080,7 +1087,7 @@ getBrandNewMemory:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			//D_PRINTLN("getting new memory");
+			// D_PRINTLN("getting new memory");
 
 			// Otherwise, manually get some brand new memory and do a more complex copying process
 			uint32_t desiredSize = (newNum + numExtraSpacesToAllocate) * elementSize;
@@ -1093,7 +1100,8 @@ getBrandNewMemoryAgain:
 			// If that didn't work...
 			if (!newMemory) {
 
-				// If our expectations weren't already as low as they can go, then lower our expectations and try again...
+				// If our expectations weren't already as low as they can go, then lower our expectations and try
+				// again...
 				if (desiredSize > newNum * elementSize) {
 					desiredSize = newNum * elementSize;
 					goto getBrandNewMemoryAgain;
@@ -1109,7 +1117,8 @@ getBrandNewMemoryAgain:
 			uint32_t newAllocatedSize = allocatedSize / elementSize;
 			uint32_t surplusElements = newAllocatedSize - newNum;
 
-			// Set up the new memory so the wrap point is right in the middle. This makes everything run faster, particularly if this brand-new-memory routine is called often
+			// Set up the new memory so the wrap point is right in the middle. This makes everything run faster,
+			// particularly if this brand-new-memory routine is called often
 			uint32_t newMemorySize = newNum + (surplusElements >> 1);
 			uint32_t newMemoryStartIndex = newMemorySize - (newNum >> 1);
 
@@ -1119,7 +1128,8 @@ getBrandNewMemoryAgain:
 				copyToNewMemory(newMemory, 0, getElementAddress(0), firstElements, newMemorySize, newMemoryStartIndex);
 			}
 
-			// If we didn't reach the wrap point because we reached the insertion point, do some more, up until the wrap point
+			// If we didn't reach the wrap point because we reached the insertion point, do some more, up until the wrap
+			// point
 			if (firstElements < elementsBeforeWrap) {
 				int32_t secondElementsTotal = std::min(elementsBeforeWrap, numElements);
 				if (secondElementsTotal > 0) {
@@ -1144,7 +1154,8 @@ getBrandNewMemoryAgain:
 				                newMemoryStartIndex);
 			}
 
-			// That copy may have taken ages, particularly in the case where they're recording / resampling a sample and the array of clusters has grown.
+			// That copy may have taken ages, particularly in the case where they're recording / resampling a sample and
+			// the array of clusters has grown.
 			AudioEngine::bypassCulling = true;
 
 			delugeDealloc(memoryAllocationStart);

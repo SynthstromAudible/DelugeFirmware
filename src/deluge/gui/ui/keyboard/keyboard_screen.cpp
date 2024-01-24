@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
@@ -94,7 +94,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Pad pressed down, add to list if not full
 	if (velocity) {
-		//TODO: Logic should be inverted as part of a bigger rewrite
+		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
 			return ActionResult::DEALT_WITH;
@@ -339,9 +339,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					exitScaleModeOnButtonRelease = true;
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
-					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
-					// 	flashDefaultRootNoteOn = false;
-					// 	flashDefaultRootNote();
+					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
+					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
 					// }
 				}
 			}
@@ -402,7 +401,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		sessionView.transitionToSessionView();
 	}
 
-	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
+	// toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular
+	// instrument clip view
 	else if (b == CLIP_VIEW) {
 		if (on) {
 			if (getCurrentClip()->onAutomationClipView) {

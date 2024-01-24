@@ -68,7 +68,7 @@ void usb_hstd_vbus_control(usb_utr_t* ptr, uint16_t port, uint16_t command)
 /***********************************************************************************************************************
  Function Name   : usb_hstd_suspend_process
  Description     : Set USB registers as required when USB Device status is moved
-                 : to "Suspend".  
+                 : to "Suspend".
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
  Return value    : none
@@ -105,7 +105,7 @@ void usb_hstd_suspend_process(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_attach
- Description     : Set USB registers as required when USB device is attached, 
+ Description     : Set USB registers as required when USB device is attached,
                  : and notify MGR (manager) task that attach event occurred.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     result       : Result.
@@ -132,7 +132,7 @@ void usb_hstd_attach(usb_utr_t* ptr, uint16_t result, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_detach
- Description     : Set USB register as required when USB device is detached, and 
+ Description     : Set USB register as required when USB device is detached, and
                  : notify MGR (manager) task that detach occurred.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.

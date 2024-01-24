@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "dsp/filter/lpladder.h"
 #include "processing/engines/audio_engine.h"
 
@@ -42,11 +42,11 @@ const int16_t resonanceLimitTable[] = {
     32767, // 49
     32767, // 50
     32767,
-    28415, //30000, // 52
-    20000, //23900,
-    17000, //19000, // 54
-    17000, //19000,
-    17000, //19000, // 56
+    28415, // 30000, // 52
+    20000, // 23900,
+    17000, // 19000, // 54
+    17000, // 19000,
+    17000, // 19000, // 56
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
@@ -62,7 +62,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 		int32_t logFreq = quickLog(lpfFrequency);
 
-		doOversampling = false; //storageManager.devVarA;
+		doOversampling = false; // storageManager.devVarA;
 
 		logFreq = std::min(logFreq, (int32_t)63 << 24);
 
@@ -81,8 +81,9 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 			lpfFrequency -= (multiply_32x32_rshift32_rounded(logFreq, lpfFrequency) >> 8)
 			                * 34; // + (lpfFrequency >> 8) * storageManager.devVarB;
 
-			// Enforce a max frequency. Otherwise we'll generate stuff which will cause problems for down-sampling again.
-			// But only if resonance is high. If it's low, we need to be able to get the freq high, to let all the HF through that we want to hear
+			// Enforce a max frequency. Otherwise we'll generate stuff which will cause problems for down-sampling
+			// again. But only if resonance is high. If it's low, we need to be able to get the freq high, to let all
+			// the HF through that we want to hear
 			lpfFrequency = std::min((int32_t)39056384, lpfFrequency);
 
 			int32_t resonanceLimit = interpolateTableSigned(logFreq, 30, resonanceLimitTable, 6);
@@ -93,7 +94,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 	// Cold transistor ladder
 	if ((lpfMode == FilterMode::TRANSISTOR_24DB) || (lpfMode == FilterMode::TRANSISTOR_12DB)) {
-		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit, but isn't perfect
+		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit,
+		// but isn't perfect
 
 		int32_t howMuchToKeep = ONE_Q31 - 1 * 33;
 
@@ -102,15 +104,15 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		int32_t resonance = ONE_Q31 - (std::min(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 		processedResonance =
-		    ONE_Q31 - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+		    ONE_Q31 - resonance; // ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 		processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
 	}
 
 	curveFrequency(lpfFrequency);
-	//for backwards compatibility, equivalent to prior lower limit on tan
+	// for backwards compatibility, equivalent to prior lower limit on tan
 	moveability = std::max(fc, (q31_t)4317840);
-	//min moveability is 4317840
-	// Half ladder
+	// min moveability is 4317840
+	//  Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
 		int32_t moveabilityNegative = moveability - 1073741824; // Between -2 and 0. 1 represented as 1073741824
 		lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
@@ -159,7 +161,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 	// Drive filter - increase output amplitude
 	else {
-		//overallOscAmplitude <<= 2;
+		// overallOscAmplitude <<= 2;
 		filterGain *= 0.8;
 	}
 	return filterGain;
@@ -194,20 +196,25 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		if (doOversampling) {
 			q31_t* currentSample = startSample;
 			do {
-				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big problem is that it kills the highest frequencies,
-				// which is especially noticeable when resonance is low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in amplitude.
-				// Now, if we immediately downsampled that again with no filtering, no problem, because those new really high harmonics that make it triangular are still there.
-				// But after running it through the ladder filter, those get doubly filtered out, leaving just the reduced-amplitude (fundamental) sine waves where our old ones were.
-				// So instead, we need to do just a little bit more and take one extra, previous sample into account in our interpolation. This is enough to make the HF loss inaudible
+				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
+				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
+				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
+				// amplitude. Now, if we immediately downsampled that again with no filtering, no problem, because those
+				// new really high harmonics that make it triangular are still there. But after running it through the
+				// ladder filter, those get doubly filtered out, leaving just the reduced-amplitude (fundamental) sine
+				// waves where our old ones were. So instead, we need to do just a little bit more and take one extra,
+				// previous sample into account in our interpolation. This is enough to make the HF loss inaudible
 				// - although we can still see it on the spectrum analysis.
 
-				// Insanely just doubling up our input values to oversample works better than fancy 3-sample interpolation.
-				// And even, making our "interpolated" sample just a 0 and doubling the amplitude of the actual sample works very nearly as well as this,
-				// but gives a little bit more aliasing on high notes fed in.
+				// Insanely just doubling up our input values to oversample works better than fancy 3-sample
+				// interpolation. And even, making our "interpolated" sample just a 0 and doubling the amplitude of the
+				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
+				// fed in.
 
 				doDriveLPFOnSample(*currentSample, l);
 
-				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
+				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
+				// ladder LPF filter takes care of lots of those high harmonics!
 				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
@@ -260,20 +267,25 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 		if (doOversampling) {
 			q31_t* currentSample = startSample;
 			do {
-				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big problem is that it kills the highest frequencies,
-				// which is especially noticeable when resonance is low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in amplitude.
-				// Now, if we immediately downsampled that again with no filtering, no problem, because those new really high harmonics that make it triangular are still there.
-				// But after running it through the ladder filter, those get doubly filtered out, leaving just the reduced-amplitude (fundamental) sine waves where our old ones were.
-				// So instead, we need to do just a little bit more and take one extra, previous sample into account in our interpolation. This is enough to make the HF loss inaudible
+				// Linear interpolation works surprisingly well here - it doesn't lead to audible aliasing. But its big
+				// problem is that it kills the highest frequencies, which is especially noticeable when resonance is
+				// low. This is because it'll turn all your high sine waves into triangles whose fundamental is lower in
+				// amplitude. Now, if we immediately downsampled that again with no filtering, no problem, because those
+				// new really high harmonics that make it triangular are still there. But after running it through the
+				// ladder filter, those get doubly filtered out, leaving just the reduced-amplitude (fundamental) sine
+				// waves where our old ones were. So instead, we need to do just a little bit more and take one extra,
+				// previous sample into account in our interpolation. This is enough to make the HF loss inaudible
 				// - although we can still see it on the spectrum analysis.
 
-				// Insanely just doubling up our input values to oversample works better than fancy 3-sample interpolation.
-				// And even, making our "interpolated" sample just a 0 and doubling the amplitude of the actual sample works very nearly as well as this,
-				// but gives a little bit more aliasing on high notes fed in.
+				// Insanely just doubling up our input values to oversample works better than fancy 3-sample
+				// interpolation. And even, making our "interpolated" sample just a 0 and doubling the amplitude of the
+				// actual sample works very nearly as well as this, but gives a little bit more aliasing on high notes
+				// fed in.
 
 				doDriveLPFOnSample(*currentSample, l);
 
-				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
+				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
+				// ladder LPF filter takes care of lots of those high harmonics!
 				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
@@ -282,7 +294,8 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 				currentSample += 1;
 				doDriveLPFOnSample(*currentSample, r);
 
-				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
+				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the
+				// ladder LPF filter takes care of lots of those high harmonics!
 				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
@@ -309,18 +322,18 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 }
 [[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
 	                     + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
 	q31_t x = scaleInput(input, feedbacksSum);
 
-	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
-	// if (processedResonance > 510000000) { // Re-check this?
-	// 	x = getTanHUnknown(x, 1);         // Saturation
+	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near
+	// the point of feedback if (processedResonance > 510000000) { // Re-check this? 	x = getTanHUnknown(x, 1); //
+	// Saturation
 	// }
 
 	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
@@ -328,9 +341,9 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 [[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
@@ -339,13 +352,14 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
 	                     << 2;
 
-	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
-	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
-	// Lucky I discovered this by mistake
+	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
+	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
+	// resonance increase, the sound just doesn't quite compare. Lucky I discovered this by mistake
 
 	q31_t x = scaleInput(input, feedbacksSum);
 
-	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
+	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near
+	// the point of feedback
 
 	// if (processedResonance > 900000000) {
 	// 	x = getTanHUnknown(x, 1);
@@ -360,9 +374,9 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 [[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
@@ -371,9 +385,9 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
 	                     << 2;
 
-	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
-	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
-	// Lucky I discovered this by mistake
+	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range.
+	// But it doesn't sound as good. Primarily it stops us getting to full resonance. But even if we allow further
+	// resonance increase, the sound just doesn't quite compare. Lucky I discovered this by mistake
 
 	// Saturate feedback
 	feedbacksSum = getTanHUnknown(feedbacksSum, 7);

@@ -1,31 +1,31 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-* Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ * Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /******************************************************************************
-* File Name    : drv_ssif_user.h
-* $Rev: 676 $
-* $Date:: 2014-04-24 10:11:59 +0900#$
-* Description  : Sample Data
-******************************************************************************/
+ * File Name    : drv_ssif_user.h
+ * $Rev: 676 $
+ * $Date:: 2014-04-24 10:11:59 +0900#$
+ * Description  : Sample Data
+ ******************************************************************************/
 #ifndef DRV_SSIF_USER_H
 #define DRV_SSIF_USER_H
 
@@ -49,9 +49,11 @@ Macro definitions
 #define SSI_SSICR0_CHNL_VALUE (0x00000000uL) // Was 0. I experimented with 0x00400000uL
 #define SSI_SSICR0_DWL_VALUE                                                                                           \
     (0x00280000uL) // Was 0x00080000uL for 16-bit data word. Changed to 0x00280000uL for 24-bit. 0x00300000uL for 32-bit
-// I don't understand why, but setting SWL to 16-bit is the only way to get things working, even for 24-bit data, and it appears that 24 correct bits are still being sent out
+// I don't understand why, but setting SWL to 16-bit is the only way to get things working, even for 24-bit data, and it
+// appears that 24 correct bits are still being sent out
 #define SSI_SSICR0_SWL_VALUE                                                                                           \
-    (0x00030000uL) // Was 0x00030000uL for 32-bit system word. Changed to 0x00010000uL for 16-bit. 0x00020000uL for 24-bit
+    (0x00030000uL) // Was 0x00030000uL for 32-bit system word. Changed to 0x00010000uL for 16-bit. 0x00020000uL for
+                   // 24-bit
 #define SSI_SSICR0_SCKD_VALUE (0x00008000uL)
 #define SSI_SSICR0_SWSD_VALUE (0x00004000uL)
 #define SSI_SSICR0_SCKP_VALUE (0x00000000uL)

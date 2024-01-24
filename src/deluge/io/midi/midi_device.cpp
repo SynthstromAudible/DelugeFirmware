@@ -67,7 +67,8 @@ setMPEBendRange:
 				mpeZoneBendRanges[zone][whichBendRange] = msb;
 			}
 
-			// Or, member channel (in which case it should be applied for all member channels, according to the MPE spec.
+			// Or, member channel (in which case it should be applied for all member channels, according to the MPE
+			// spec.
 			else {
 				whichBendRange = BEND_RANGE_FINGER_LEVEL;
 				goto setMPEBendRange;
@@ -93,10 +94,11 @@ setMPEBendRange:
 				zone = MPE_ZONE_LOWER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = msb;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
-				    .moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
+				    .moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says
+				                                         // to do this).
 
-resetBendRanges
-    : // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
+resetBendRanges: // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE
+                 // zone...
 				if (msb) {
 					mpeZoneBendRanges[zone][BEND_RANGE_MAIN] = 2;
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
@@ -122,7 +124,8 @@ resetBendRanges
 				zone = MPE_ZONE_UPPER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
-				    .moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
+				    .moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says
+				                                         // to do this).
 
 				goto resetBendRanges;
 			}
@@ -184,7 +187,8 @@ void MIDIDevice::writePorts() {
 	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile("output");
 }
 
-// Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and ids.
+// Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and
+// ids.
 void MIDIDevice::readFromFile() {
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -296,11 +300,14 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "numMemberChannels")) {
 
-					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
+					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an
+						                                  // MCM might have changed it since the file was last read.
 						int32_t newMPELowerZoneLastMemberChannel = storageManager.readTagOrAttributeValueInt();
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
 							mpeLowerZoneLastMemberChannel = newMPELowerZoneLastMemberChannel;
-							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
+							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or
+							                                    // MCM has set other and that's the important one they
+							                                    // want now.
 							if (deviceToSendMCMsOn) {
 								deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
 								sentMPEConfig = true;
@@ -319,11 +326,14 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 				if (!strcmp(tagName, "numMemberChannels")) {
 
 					if (mpeUpperZoneLastMemberChannel
-					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
+					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it
+						         // since the file was last read.
 						int32_t numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
-							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
+							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or
+							                                    // MCM has set other and that's the important one they
+							                                    // want now.
 							if (deviceToSendMCMsOn) {
 								deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
 								sentMPEConfig = true;

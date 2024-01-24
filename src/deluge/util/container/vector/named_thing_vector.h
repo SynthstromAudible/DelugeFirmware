@@ -29,7 +29,8 @@ public:
 	String name; // Store this here so we don't have to go follow the Sample's pointer first to find this out
 };
 
-// Note: these are currently non-destructible. If you do destruct, well currently it doesn't destruct all the Strings in the Elements!
+// Note: these are currently non-destructible. If you do destruct, well currently it doesn't destruct all the Strings in
+// the Elements!
 class NamedThingVector : public ResizeableArray {
 public:
 	NamedThingVector(int32_t newStringOffset);

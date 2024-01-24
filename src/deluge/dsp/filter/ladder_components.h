@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -23,7 +23,7 @@
 namespace deluge::dsp::filter {
 class BasicFilterComponent {
 public:
-	//moveability is tan(f)/(1+tan(f))
+	// moveability is tan(f)/(1+tan(f))
 	[[gnu::always_inline]] inline q31_t doFilter(q31_t input, q31_t moveability) {
 		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
 		q31_t b = a + memory;

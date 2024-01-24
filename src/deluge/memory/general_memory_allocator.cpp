@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "memory/general_memory_allocator.h"
 #include "definitions_cxx.hpp"
@@ -24,7 +24,7 @@
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
 
-//TODO: Check if these have the right size
+// TODO: Check if these have the right size
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
@@ -89,14 +89,15 @@ extern "C" void delugeDealloc(void* address) {
 void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	if (lock) {
-		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		             // could extend the stack an unspecified amount
 	}
 
 	lock = true;
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
 	if (!address) {
-		//FREEZE_WITH_ERROR("M998");
+		// FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
 	return address;
@@ -105,13 +106,15 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 	return regions[MEMORY_REGION_EXTERNAL].dealloc(address);
 }
 
-// Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
-// requiredSize 0 means get biggest allocation available.
+// Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
+// from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
+// available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
                                     void* thingNotToStealFrom) {
 
 	if (lock) {
-		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		             // could extend the stack an unspecified amount
 	}
 
 	void* address = nullptr;
@@ -236,7 +239,7 @@ uint32_t vtableAddress;
 class StealableTest : public Stealable {
 public:
 	void steal(char const* errorCode) {
-		//Stealable::steal();
+		// Stealable::steal();
 		testAllocations[testIndex] = 0;
 		GeneralMemoryAllocator::get().regions[GeneralMemoryAllocator::get().getRegion(this)].numAllocations--;
 
@@ -291,8 +294,8 @@ void testWritingMemory(int32_t i) {
 	}
 }
 
-bool skipConsistencyCheck =
-    false; // Sometimes we want to make sure this check isn't happen, while things temporarily are not in an inspectable state
+bool skipConsistencyCheck = false; // Sometimes we want to make sure this check isn't happen, while things temporarily
+                                   // are not in an inspectable state
 
 void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 	if (skipConsistencyCheck)
@@ -395,7 +398,7 @@ void GeneralMemoryAllocator::test() {
 	bool goingUp = true;
 
 	while (1) {
-		//if (!(count & 15)) D_PRINTLN("...");
+		// if (!(count & 15)) D_PRINTLN("...");
 		count++;
 
 		for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
@@ -407,7 +410,8 @@ void GeneralMemoryAllocator::test() {
 					testReadingMemory(i);
 
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE
-				    //|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is the only option
+				    //|| (uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN // If on-chip memory, this is
+				    // the only option
 				    || getRandom255() < 128) {
 
 					if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
@@ -446,8 +450,8 @@ void GeneralMemoryAllocator::test() {
 						checkEverythingOk("before extending");
 
 						void* allocationAddress = testAllocations[i];
-						testAllocations[i] =
-						    NULL; // Set this to NULL temporarily so we don't do deallocate or shorten it during a steal()
+						testAllocations[i] = NULL; // Set this to NULL temporarily so we don't do deallocate or shorten
+						                           // it during a steal()
 
 						extend(allocationAddress, minAmountToExtend, idealAmountToExtend, &amountExtendedLeft,
 						       &amountExtendedRight);
@@ -510,7 +514,8 @@ void GeneralMemoryAllocator::test() {
 				testAllocations[i] = alloc(desiredSize, &actualSize, false, true, makeStealable);
 				if (testAllocations[i]) {
 
-					//if ((uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN) actualSize = desiredSize; // If on-chip memory
+					// if ((uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN) actualSize = desiredSize; //
+					// If on-chip memory
 
 					if (actualSize < desiredSize) {
 						D_PRINTLN("got too little!!");
@@ -525,7 +530,7 @@ void GeneralMemoryAllocator::test() {
 						StealableTest* stealable = new (testAllocations[i]) StealableTest();
 						stealable->testIndex = i;
 
-						//regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
+						// regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
 						putStealableInQueue(stealable, 0);
 						vtableAddress = *(uint32_t*)testAllocations[i];
 					}

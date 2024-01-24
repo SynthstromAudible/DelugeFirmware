@@ -282,7 +282,8 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
 
                             if (1 != flg)
                             {
-                                // By Rohan. Means couldn't find an available "driver" for this device. It could be a 2nd hub.
+                                // By Rohan. Means couldn't find an available "driver" for this device. It could be a
+                                // 2nd hub.
                                 consoleTextIfAllBootedUp(l10n_get(l10n_STRING_FOR_USB_DEVICE_NOT_RECOGNIZED));
                                 ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */
                                 ctrl.module  = ptr->ip;                         /* Module number setting */
@@ -1812,7 +1813,8 @@ void usb_hstd_mgr_task(usb_vp_int_t stacd)
 
 #if USB_CFG_BC == USB_CFG_ENABLE
                             /* Call Back */
-                            /*USB_BC_ATTACH(ptr, g_usb_hstd_device_addr[ptr->ip], (uint16_t)g_usb_hstd_bc[ptr->ip].state); */
+                            /*USB_BC_ATTACH(ptr, g_usb_hstd_device_addr[ptr->ip],
+                             * (uint16_t)g_usb_hstd_bc[ptr->ip].state); */
                             if (USB_BC_STATE_CDP == g_usb_hstd_bc[ptr->ip].state)
                             {
                                 ctrl.address = g_usb_hstd_device_addr[ptr->ip]; /* USB Device address */

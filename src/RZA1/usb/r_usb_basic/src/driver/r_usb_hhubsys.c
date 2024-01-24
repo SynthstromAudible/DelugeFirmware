@@ -63,7 +63,8 @@
 
 /* HUB down port */
 #define USB_HUBDOWNPORT                                                                                                \
-    (127u) /* HUB downport (MAX15) */ // Set by Rohan. Having a high number here doesn't use any extra memory (possibly it might have before I did my other code edits).
+    (127u) /* HUB downport (MAX15) */ // Set by Rohan. Having a high number here doesn't use any extra memory (possibly
+                                      // it might have before I did my other code edits).
 
 /***********************************************************************************************************************
 Typedef definitions
@@ -719,7 +720,8 @@ static void usb_hhub_enumeration(usb_clsinfo_t* ptr)
 
             /* Get HUB descriptor Check */
 
-            // By Rohan: It seems some hubs don't send that descriptor back. If it stalled, just make a guess about how many ports it had - it'll still work.
+            // By Rohan: It seems some hubs don't send that descriptor back. If it stalled, just make a guess about how
+            // many ports it had - it'll still work.
             if (checkerr == USB_DATA_STALL)
             {
                 g_usb_hhub_descriptor[ptr->ip][1] = USB_DT_HUBDESCRIPTOR;
@@ -750,9 +752,10 @@ static void usb_hhub_enumeration(usb_clsinfo_t* ptr)
                 {
                     USB_PRINTF0("### HUB Port number over\n");
 
-                    // Edited by Rohan: If more hub ports than we support, just use the first few - don't render the whole hub useless
+                    // Edited by Rohan: If more hub ports than we support, just use the first few - don't render the
+                    // whole hub useless
                     g_usb_hhub_descriptor[ptr->ip][2] = USB_HUBDOWNPORT;
-                    //checkerr = USB_ERROR;
+                    // checkerr = USB_ERROR;
                 }
                 else
                 {
@@ -957,8 +960,8 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
 
             case USB_SEQ_2: /* Request Result Check */
 
-                // By Rohan: If stall, then that port number doesn't exist. The need to do this is a side-effect of my other fix that just assumes the max number of ports
-                // if the hub won't tell us
+                // By Rohan: If stall, then that port number doesn't exist. The need to do this is a side-effect of my
+                // other fix that just assumes the max number of ports if the hub won't tell us
                 if (mess->result == USB_DATA_STALL)
                 {
                     g_usb_shhub_info_data[ptr->ip][hubaddr].port_num = g_usb_shhub_init_port[ptr->ip] - 2;
@@ -1199,8 +1202,9 @@ static uint16_t usb_hhub_port_attach(uint16_t hubaddr, uint16_t portnum, usb_cls
                 {
                     g_usb_shhub_attach_seq[ptr->ip] = USB_SEQ_2;
                     usb_hhub_specified_path_wait(mess,
-                        30u); // Modified by Rohan from 3u - when too low, we get a freeze on attaching a device to a hub. I did some more accurate testing,
-                              // and it seems that a delay is needed, and the minimum delay is between 100 and 330uS.
+                        30u); // Modified by Rohan from 3u - when too low, we get a freeze on attaching a device to a
+                              // hub. I did some more accurate testing, and it seems that a delay is needed, and the
+                              // minimum delay is between 100 and 330uS.
                 }
 
                 break;
@@ -1454,7 +1458,8 @@ static void usb_hhub_event(usb_clsinfo_t* mess)
                                 g_usb_shhub_event_seq[ptr->ip] = USB_SEQ_4; /* Next Attach sequence */
                                 usb_hhub_new_connect(mess, (uint16_t)0, (uint16_t)0, mess);
                                 if (g_usb_shhub_process[ptr->ip] != USB_MSG_HUB_ATTACH)
-                                    goto noPortConnection; // Error checking added by Rohan - otherwise USB stops function when too many devices connected
+                                    goto noPortConnection; // Error checking added by Rohan - otherwise USB stops
+                                                           // function when too many devices connected
                             }
                             else
                             {
@@ -1467,7 +1472,8 @@ noPortConnection:
                             g_usb_shhub_event_seq[ptr->ip] = USB_SEQ_4; /* Next Attach sequence */
                             usb_hhub_new_connect(mess, (uint16_t)0, (uint16_t)0, mess);
                             if (g_usb_shhub_process[ptr->ip] != USB_MSG_HUB_ATTACH)
-                                goto noPortConnection; // Error checking added by Rohan - otherwise USB stops function when too many devices connected
+                                goto noPortConnection; // Error checking added by Rohan - otherwise USB stops function
+                                                       // when too many devices connected
                         }
                     }
                     else
@@ -2862,7 +2868,8 @@ static void usb_hhub_port_detach(usb_utr_t* ptr, uint16_t hubaddr, uint16_t port
 
     /* Selective detach */
     usb_hhub_selective_detach(ptr,
-        devaddr); // Moved by Rohan. Was previously below the below for loop, but this function needs some of the data which gets nullified below.
+        devaddr); // Moved by Rohan. Was previously below the below for loop, but this function needs some of the data
+                  // which gets nullified below.
 
     for (md = 0; md < g_usb_hstd_device_num[ptr->ip]; md++)
     {

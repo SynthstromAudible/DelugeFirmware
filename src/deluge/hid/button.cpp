@@ -16,21 +16,21 @@ Cartesian toXY(Button b) {
 
 /*
 Button::Button(uint8_t value) {
-	y = (uint32_t)value / 9;
-	x = value - y * 9;
-	y -= kDisplayHeight * 2;
+    y = (uint32_t)value / 9;
+    x = value - y * 9;
+    y -= kDisplayHeight * 2;
 }
 
 bool Button::isButton() {
-	return y >= kDisplayHeight;
+    return y >= kDisplayHeight;
 }
 
 bool Button::isButton(uint8_t value) {
-	return value >= kDisplayHeight * 2 * 9;
+    return value >= kDisplayHeight * 2 * 9;
 }
 
 bool Button::operator==(Button const& other) {
-	return x == other.x and y == other.y;
+    return x == other.x and y == other.y;
 }
 */
 
