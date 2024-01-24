@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/views/timeline_view.h"
 #include "hid/button.h"
 
@@ -47,12 +48,12 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 
 	void repopulateOutputsOnScreen(bool doRender = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void drawMuteSquare(int32_t yDisplay, uint8_t thisImage[][3]);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	void drawMuteSquare(int32_t yDisplay, RGB thisImage[]);
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
+	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, RGB* thisImage,
 	               uint8_t thisOccupancyMask[], int32_t renderWidth);
 	void editPadAction(int32_t x, int32_t y, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
@@ -122,7 +123,7 @@ private:
 	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
-	void drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);
 	void setNoSubMode();
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
@@ -135,11 +136,11 @@ private:
 	void auditionEnded();
 	void goToSongView();
 	void changeOutputToAudio();
-	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
+	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
 	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
 	void changeOutputToInstrument(OutputType newOutputType);
-	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
+	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
 };

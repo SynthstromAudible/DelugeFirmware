@@ -40,6 +40,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -81,14 +82,14 @@ Clip* getCurrentClip() {
 }
 
 InstrumentClip* getCurrentInstrumentClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 		return (InstrumentClip*)getCurrentClip();
 	}
 	return nullptr;
 }
 
 AudioClip* getCurrentAudioClip() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return (AudioClip*)getCurrentClip();
 	}
 	return nullptr;
@@ -436,7 +437,7 @@ void Song::transposeAllScaleModeClips(int32_t offset) {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -461,7 +462,7 @@ bool Song::anyScaleModeClips() {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -494,7 +495,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -592,7 +593,7 @@ traverseClips:
 traverseClips2:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -680,7 +681,7 @@ void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -800,7 +801,7 @@ void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -1971,11 +1972,11 @@ int32_t Song::readClipsFromFile(ClipArray* clipArray) {
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
 		int32_t allocationSize;
-		int32_t clipType;
+		ClipType clipType;
 
 		if (!strcmp(tagName, "track") || !strcmp(tagName, "instrumentClip")) {
 			allocationSize = sizeof(InstrumentClip);
-			clipType = CLIP_TYPE_INSTRUMENT;
+			clipType = ClipType::INSTRUMENT;
 
 readClip:
 			if (!clipArray->ensureEnoughSpaceAllocated(1)) {
@@ -1988,7 +1989,7 @@ readClip:
 			}
 
 			Clip* newClip;
-			if (clipType == CLIP_TYPE_INSTRUMENT) {
+			if (clipType == ClipType::INSTRUMENT) {
 				newClip = new (memory) InstrumentClip();
 			}
 			else {
@@ -2008,7 +2009,7 @@ readClip:
 		}
 		else if (!strcmp(tagName, "audioClip")) {
 			allocationSize = sizeof(AudioClip);
-			clipType = CLIP_TYPE_AUDIO;
+			clipType = ClipType::AUDIO;
 
 			goto readClip;
 		}
@@ -2040,7 +2041,7 @@ traverseClips:
 		}
 
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type == CLIP_TYPE_AUDIO) {
+		if (clip->type == ClipType::AUDIO) {
 			((AudioClip*)clip)->loadSample(mayActuallyReadFiles);
 		}
 	}
@@ -2063,7 +2064,7 @@ void Song::loadCrucialSamplesOnly() {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->isActiveOnOutput() && clip->type == CLIP_TYPE_AUDIO) {
+		if (clip->isActiveOnOutput() && clip->type == ClipType::AUDIO) {
 			((AudioClip*)clip)->loadSample(true);
 		}
 	}
@@ -2659,7 +2660,7 @@ int32_t Song::cycleThroughScales() {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -2690,7 +2691,7 @@ traverseClips:
 traverseClips2:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -2751,7 +2752,7 @@ void Song::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound) 
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 
@@ -2818,7 +2819,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if (clip->type == ClipType::AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
 			FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
 		}
@@ -2897,7 +2898,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				if (loopable->launchStyle != LAUNCH_STYLE_FILL && loopable->launchStyle != LAUNCH_STYLE_ONCE) {
+				if (loopable->launchStyle != LaunchStyle::FILL && loopable->launchStyle != LaunchStyle::ONCE) {
 					loopable->armState = ArmState::OFF;
 				}
 			}
@@ -2914,7 +2915,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			if (clip->launchStyle != LAUNCH_STYLE_FILL && clip->launchStyle != LAUNCH_STYLE_ONCE) {
+			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE) {
 				clip->armState = ArmState::OFF;
 			}
 		}
@@ -3390,7 +3391,7 @@ void Song::setupPatchingForAllParamManagers() {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 
@@ -3694,7 +3695,7 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 
-		if (isClipActive(clip) && clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (isClipActive(clip) && clip->type == ClipType::INSTRUMENT) {
 
 			Instrument* instrument = (Instrument*)clip->output;
 
@@ -3800,7 +3801,7 @@ traverseClips:
 
 			if (playbackHandler.isEitherClockActive() && currentSong == this) {
 				clip->expectNoFurtherTicks(this, true);
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT && endInstanceAtTime != -1) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT && endInstanceAtTime != -1) {
 					clip->getClipToRecordTo()->endInstance(endInstanceAtTime);
 				}
 			}
@@ -4033,7 +4034,7 @@ traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 
-		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LAUNCH_STYLE_FILL) {
+		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LaunchStyle::FILL) {
 			int32_t clipLength = clip->loopLength;
 			if (clipLength == targetLength
 			    || (clipLength > targetLength && ((uint32_t)clipLength % (uint32_t)targetLength) == 0)
@@ -4102,7 +4103,7 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) {
+		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -4372,10 +4373,13 @@ void Song::setParamsInAutomationMode(bool newState) {
 	view.notifyParamAutomationOccurred(&paramManager, true);
 }
 
-bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
+// returns true if the whole instrument should be replaced, and not just the instrument for the given clip
+// returns false iff in clip view for a clip that does not have an instance in arranger. Or if called with no clip which could happen from the arranger audition pad
+// availability will be unused in session or arranger view, available in session for active clips in clip view, and any for inactive clips
+bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
-	// Same if grid layout is active in session mode since the clips would jump around otherwise
-	if (clip->output->clipHasInstance(clip) || currentSong->sessionLayout == SessionLayoutTypeGrid) {
+	// If in session view, change the whole instrument
+	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
@@ -5243,7 +5247,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 		for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 			Clip* clip = sessionClips.getClipAtIndex(c);
 
-			if (clip->type == CLIP_TYPE_AUDIO && clip->armedForRecording) {
+			if (clip->type == ClipType::AUDIO && clip->armedForRecording) {
 				defaultAudioClipOverdubOutputCloning = ((AudioClip*)clip)->overdubsShouldCloneOutput;
 				break;
 			}
@@ -5317,7 +5321,7 @@ uint32_t Song::getBarLength() {
 // ----- PlayPositionCounter implementation -------
 
 bool Song::isPlayingAutomationNow() {
-	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RECORDING_ARRANGEMENT);
+	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RecordingMode::ARRANGEMENT);
 }
 
 bool Song::backtrackingCouldLoopBackToEnd() {
@@ -5345,7 +5349,7 @@ void Song::expectEvent() {
 
 uint32_t Song::getLivePos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getActualArrangementRecordPos();
 	}
 	else {
@@ -5356,7 +5360,7 @@ uint32_t Song::getLivePos() {
 // I think I created this function to be called during the actioning of a swung tick, when we know that no further swung ticks have passed since the last actioned one
 int32_t Song::getLastProcessedPos() {
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getArrangementRecordPosAtLastActionedSwungTick();
 	}
 	else {
@@ -5500,7 +5504,7 @@ traverseClips:
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != CLIP_TYPE_INSTRUMENT) continue;
+		if (clip->type != ClipType::INSTRUMENT) continue;
 		Clip* instrumentClip = (Clip*)clip;
 
 	}

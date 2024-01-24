@@ -18,17 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include <cstdint>
-
-#define CLIP_TYPE_INSTRUMENT 0
-#define CLIP_TYPE_AUDIO 1
-
-#define LAUNCH_STYLE_DEFAULT 0
-#define LAUNCH_STYLE_FILL 1
-#define LAUNCH_STYLE_ONCE 2
 
 class Song;
 class ParamManagerForTimeline;
@@ -42,7 +36,7 @@ class ModelStackWithTimelineCounter;
 
 class Clip : public TimelineCounter {
 public:
-	Clip(int32_t newType);
+	Clip(ClipType newType);
 	virtual ~Clip();
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
@@ -84,26 +78,25 @@ public:
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
 
-	virtual void
-	detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
-	                 bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
-	                 bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
-	                 bool shouldBackUpExpressionParamsToo =
-	                     true) = 0; // You're likely to want to call pickAnActiveClipIfPossible() after this
+	// You're likely to want to call pickAnActiveClipIfPossible() after this
+	virtual void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
+	                              bool shouldDeleteEmptyNoteRowsAtEndOfList = false,
+	                              bool shouldRetainLinksToSounds = false, bool keepNoteRowsWithMIDIInput = true,
+	                              bool shouldGrabMidiCommands = false, bool shouldBackUpExpressionParamsToo = true) = 0;
 
 	virtual int32_t undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+	                               int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
 	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                               int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
-	virtual int32_t
-	claimOutput(ModelStackWithTimelineCounter*
-	                modelStack) = 0; // To be called after Song loaded, to link to the relevant Output object
+
+	// To be called after Song loaded, to link to the relevant Output object
+	virtual int32_t claimOutput(ModelStackWithTimelineCounter* modelStack) = 0;
 	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
 	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
 	virtual int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
-	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, uint8_t* image, uint8_t[],
+	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
 	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);
@@ -148,7 +141,7 @@ public:
 
 	int16_t colourOffset;
 
-	const uint8_t type;
+	const ClipType type;
 	uint8_t section;
 	bool soloingInSessionMode;
 	ArmState armState;
@@ -170,8 +163,9 @@ public:
 #endif
 
 	int32_t loopLength;
-	int32_t
-	    originalLength; // Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
+
+	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
+	int32_t originalLength;
 
 	int32_t lastProcessedPos;
 
@@ -181,7 +175,7 @@ public:
 
 	uint32_t indexForSaving; // For use only while saving song
 
-	uint8_t launchStyle;
+	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
 
@@ -198,8 +192,8 @@ public:
 	OutputType lastSelectedOutputType;
 	//END ~ new Automation Clip View Variables
 
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
-	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) = 0;
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 
 protected:
 	virtual void

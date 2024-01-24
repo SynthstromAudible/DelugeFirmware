@@ -26,7 +26,6 @@
 #include "processing/engines/audio_engine.h"
 #include <string.h>
 //#include <algorithm>
-#include "dsp/sidechain/sidechain.h"
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -34,6 +33,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
 
 extern "C" {

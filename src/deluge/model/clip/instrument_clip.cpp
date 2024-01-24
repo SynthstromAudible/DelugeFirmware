@@ -71,7 +71,7 @@
 namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
+InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
 	arpeggiatorGate = 0;
 
@@ -463,7 +463,7 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 				if (noteRow) {
 
 					if (!action) {
-						action = actionLogger.getNewAction(ACTION_RECORD, true);
+						action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 					}
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
@@ -482,7 +482,7 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
 		if (melodicInstrument->earlyNotes.getNumElements()) {
 
-			Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 			bool scaleAltered = false;
 
 			for (int32_t i = 0; i < melodicInstrument->earlyNotes.getNumElements(); i++) {
@@ -654,7 +654,7 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 void InstrumentClip::posReachedEnd(ModelStackWithTimelineCounter* thisModelStack) {
 	Clip::posReachedEnd(thisModelStack);
 
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 		char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* otherModelStack =
@@ -934,7 +934,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 
 	// Record action
-	Action* action = actionLogger.getNewAction(ACTION_MISC);
+	Action* action = actionLogger.getNewAction(ActionType::MISC);
 	if (action) {
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowMute));
 
@@ -1230,8 +1230,8 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	return newNoteRow;
 }
 
-void InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset, uint8_t rgb[]) {
-	hueToRGB((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb);
+RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset) {
+	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t change,
@@ -1303,7 +1303,7 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 
 // Lock rendering before calling this!
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-                                       int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+                                       int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
                                        bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                        int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
@@ -1313,7 +1313,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	if (onKeyboardScreen && !containsAnyNotes()) {
 		int32_t increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
 		for (int32_t x = xStart; x < xEnd; x++) {
-			getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0, &image[x * 3]);
+			image[x] = getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0);
 		}
 		return true;
 	}
@@ -1344,19 +1344,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			yNote = thisNoteRow->y;
 		}
 
-		uint8_t mainColour[3];
-		uint8_t tailColour[3];
-		uint8_t blurColour[3];
-
-		getMainColourFromY(yNote, thisNoteRow->getColourOffset(this), mainColour);
-		getTailColour(tailColour, mainColour);
-		if (allowBlur) {
-			getBlurColour(blurColour, mainColour);
-		}
-		else {
-			memcpy(blurColour, mainColour, 3);
-		}
-
+		RGB mainColour = getMainColourFromY(yNote, thisNoteRow->getColourOffset(this));
+		RGB tailColour = mainColour.forTail();
+		RGB blurColour = allowBlur ? mainColour.forBlur() : mainColour;
 		if (i == noteRowIndexStart || output->type == OutputType::KIT) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
@@ -3551,7 +3541,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	Availability availabilityRequirement;
-	bool canReplaceWholeInstrument = modelStack->song->canOldOutputBeReplaced(this, &availabilityRequirement);
+	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
 
 	bool shouldReplaceWholeInstrument;
 
@@ -4002,7 +3992,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 				    && ((Instrument*)output)->isNoteRowStillAuditioningAsLinearRecordingEnded(thisNoteRow)) {
 
 					if (!action) {
-						action = actionLogger.getNewAction(ACTION_RECORD, true);
+						action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 					}
 					int32_t noteRowId = getNoteRowId(thisNoteRow, i);
 
@@ -4227,7 +4217,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 				if (quantizedPos >= effectiveLength) {
 
 					// If recording to arrangement, go and extend the Clip/NoteRow early, to create the place where we'll put the Note.
-					if (playbackHandler.recording == RECORDING_ARRANGEMENT && isArrangementOnlyClip()) {
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
 						int32_t error;
 
@@ -4308,7 +4298,7 @@ doNormal: // Wrap it back to the start.
 	}
 
 	// Since recording usually involves creating lots of notes overall, we'll just snapshot all the notes in bulk
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 	if (action) {
 		action->recordNoteArrayChangeIfNotAlreadySnapshotted(this, modelStack->noteRowId, &noteRow->notes, false, true);
 	}
@@ -4362,7 +4352,7 @@ doNormal: // Wrap it back to the start.
 		AutoParam* param = &mpeParams->params[m];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
-		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam);
 		}
@@ -4421,7 +4411,7 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 	modelStack->getNoteRow()->recordNoteOff(getLivePos(), modelStack, action, velocity);
 }

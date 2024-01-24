@@ -22,10 +22,22 @@ namespace deluge::gui::menu_item {
 
 class Colour final : public Selection {
 public:
+	enum Option : uint8_t {
+		RED,
+		GREEN,
+		BLUE,
+		YELLOW,
+		CYAN,
+		MAGENTA,
+		AMBER,
+		WHITE,
+		PINK,
+	};
+
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->getValue();
+		value = static_cast<Option>(this->getValue());
 		renderingNeededRegardlessOfUI();
 	};
 	std::vector<std::string_view> getOptions() override {
@@ -37,8 +49,8 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_PINK),
 		};
 	}
-	void getRGB(uint8_t rgb[3]);
-	uint8_t value;
+	[[nodiscard]] RGB getRGB() const;
+	Option value;
 };
 
 extern Colour activeColourMenu;

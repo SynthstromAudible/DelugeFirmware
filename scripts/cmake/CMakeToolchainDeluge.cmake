@@ -7,6 +7,15 @@ else()
   set(TOOLCHAIN_ROOT ".")
 endif()
 
+IF(DEFINED ENV{DELUGE_FW_ROOT})
+  set(FIRMWARE_ROOT $ENV{DELUGE_FW_ROOT})
+else()
+  set(FIRMWARE_ROOT ${CMAKE_SOURCE_DIR})
+endif()
+
+file(READ ${FIRMWARE_ROOT}/toolchain/REQUIRED_VERSION TOOLCHAIN_VERSION)
+string(STRIP ${TOOLCHAIN_VERSION} TOOLCHAIN_VERSION)
+
 if(WIN32)
   set(TOOLCHAIN_EXT ".exe" )
   set(TOOLCHAIN_TRIPLE "win32-x86_64")
@@ -17,7 +26,7 @@ else()
   set(TOOLCHAIN_TRIPLE "${TOOLCHAIN_TRIPLE}-${CMAKE_HOST_SYSTEM_PROCESSOR}")
 endif(WIN32)
 
-cmake_path(SET ARM_TOOLCHAIN_ROOT ${TOOLCHAIN_ROOT}/toolchain/${TOOLCHAIN_TRIPLE}/arm-none-eabi-gcc/)
+cmake_path(SET ARM_TOOLCHAIN_ROOT ${TOOLCHAIN_ROOT}/toolchain/v${TOOLCHAIN_VERSION}/${TOOLCHAIN_TRIPLE}/arm-none-eabi-gcc/)
 cmake_path(ABSOLUTE_PATH ARM_TOOLCHAIN_ROOT)
 
 cmake_path(SET CMAKE_SYSROOT ${ARM_TOOLCHAIN_ROOT}/arm-none-eabi)
@@ -48,7 +57,7 @@ set(ARCH_FLAGS
   -mcpu=cortex-a9
   -mfpu=neon
   -mfloat-abi=hard
-  -marm
+  -mthumb
   -mthumb-interwork
   -mlittle-endian
 )

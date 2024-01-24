@@ -39,7 +39,7 @@
 #include <cstdint>
 #include <new>
 
-Action::Action(int32_t newActionType) {
+Action::Action(ActionType newActionType) {
 	firstConsequence = NULL;
 	nextAction = NULL;
 	type = newActionType;
@@ -90,7 +90,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 	// If we're a record-arrangement-from-session Action, there's a trick - we know that whether we're being undone or redone, this will involve
 	// clearing the arrangement to the right of a certain pos. So we'll do that, and we'll record the Consequences involved in doing so, so that
 	// this Action can then be reverted in the opposite direction next time
-	if (type == ACTION_ARRANGEMENT_RECORD) {
+	if (type == ActionType::ARRANGEMENT_RECORD) {
 		firstConsequence = NULL;
 		currentSong->clearArrangementBeyondPos(posToClearArrangementFrom, this);
 		time = BEFORE;
@@ -104,7 +104,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 		if (!error) {
 
 			// Can't quite remember why, but we don't wanna revert param changes for arrangement-record actions
-			if (type == ACTION_ARRANGEMENT_RECORD && thisConsequence->type == Consequence::PARAM_CHANGE) {}
+			if (type == ActionType::ARRANGEMENT_RECORD && thisConsequence->type == Consequence::PARAM_CHANGE) {}
 
 			else {
 				error = thisConsequence->revert(time, modelStack);
@@ -115,7 +115,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 		Consequence* nextConsequence = thisConsequence->next;
 
 		// Special case for arrangement-record. See big comment above
-		if (type == ACTION_ARRANGEMENT_RECORD) {
+		if (type == ActionType::ARRANGEMENT_RECORD) {
 			// Delete the old one
 			thisConsequence->prepareForDestruction(
 			    AFTER,
@@ -135,7 +135,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 		thisConsequence = nextConsequence;
 	}
 
-	if (type != ACTION_ARRANGEMENT_RECORD) {
+	if (type != ActionType::ARRANGEMENT_RECORD) {
 		firstConsequence = newFirstConsequence;
 	}
 
@@ -327,7 +327,7 @@ traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* thisClip = clipArray->getClipAtIndex(c);
 
-		if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (thisClip->type == ClipType::INSTRUMENT) {
 
 			if (!clip || thisClip == clip) {
 				clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)thisClip)->yScroll;

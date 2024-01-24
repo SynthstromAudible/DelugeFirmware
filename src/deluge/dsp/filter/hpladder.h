@@ -17,11 +17,10 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
 #include "dsp/filter/ladder_components.h"
-#include "util/functions.h"
-#include <cstdint>
+#include "util/fixedpoint.h"
+
 namespace deluge::dsp::filter {
 
 class HpLadderFilter : public Filter<HpLadderFilter> {

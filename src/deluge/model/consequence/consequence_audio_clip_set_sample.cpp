@@ -46,7 +46,7 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 		clip->sampleHolder.setAudioFile(NULL);
 
 		// Deactivate Clip if it'd otherwise suddenly start recording again
-		if (playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL) {
+		if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
 			clip->activeIfNoSolo = false;
 		}
 	}

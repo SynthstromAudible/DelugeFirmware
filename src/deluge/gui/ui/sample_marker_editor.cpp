@@ -18,6 +18,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -30,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -49,6 +51,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge::gui;
+
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 SampleMarkerEditor sampleMarkerEditor{};
@@ -57,7 +61,7 @@ SampleMarkerEditor::SampleMarkerEditor() {
 }
 
 SampleHolder* getCurrentSampleHolder() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleHolder;
 	}
 	else {
@@ -70,7 +74,7 @@ MultisampleRange* getCurrentMultisampleRange() {
 }
 
 SampleControls* getCurrentSampleControls() {
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleControls;
 	}
 	else {
@@ -128,10 +132,10 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		markerTypeNow = markerType;
 	}
 
-	int32_t clipType = getCurrentClip()->type;
+	ClipType clipType = getCurrentClip()->type;
 
 	bool audioClipActive;
-	if (clipType == CLIP_TYPE_AUDIO) {
+	if (clipType == ClipType::AUDIO) {
 		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(getCurrentClip())
 		                   && getCurrentAudioClip()->voiceSample);
 
@@ -173,7 +177,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed,
 	                                              CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
-	if (clipType == CLIP_TYPE_AUDIO) {
+	if (clipType == ClipType::AUDIO) {
 		if (audioClipActive) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -211,7 +215,7 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 	cols[util::to_underlying(MarkerType::START)].colOnScreen =
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
-	if (getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type != ClipType::AUDIO) {
 		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
@@ -328,7 +332,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
-		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			instrumentClipView.padAction(x, y, on);
 		}
 		return ActionResult::DEALT_WITH;
@@ -375,7 +379,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			// If already holding a marker down...
 			if (currentUIMode == UI_MODE_HOLDING_SAMPLE_MARKER) {
 
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					// See which one we were holding down
 					MarkerType markerHeld = MarkerType::NONE;
 					for (int32_t m = 0; m < kNumMarkerTypes; m++) {
@@ -755,8 +759,8 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	blinkInvisible = !blinkInvisible;
 
 	// Clear col
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(PadLEDs::image[y][x], 0, 3);
+	for (auto& y : PadLEDs::image) {
+		y[x] = colours::black;
 	}
 
 	renderForOneCol(x, PadLEDs::image, cols);
@@ -771,7 +775,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	    || getCurrentClip()->type == ClipType::AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -789,7 +793,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	return result;
 }
 
-bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
@@ -898,7 +902,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	SamplePlaybackGuide* guide = NULL;
 
 	// InstrumentClips / Samples
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
 		if (soundEditor.currentSound->hasAnyVoices()) {
 
@@ -958,7 +962,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 		return false;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}
 	else {
@@ -966,8 +970,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
-                                         uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+void SampleMarkerEditor::renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                          MarkerColumn* cols) {
 
 	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
@@ -977,7 +980,7 @@ void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
 }
 
 void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
-                                                uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+                                                RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                                 MarkerColumn* cols) {
 
 	if (markerType != MarkerType::NONE) {
@@ -1211,7 +1214,7 @@ void SampleMarkerEditor::displayText() {
 	display->setText(buffer, true, drawDot);
 }
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 	if (!image) {

@@ -165,7 +165,7 @@ void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 
 	OutputType oldOutputType = getCurrentOutputType();
 
-	bool shouldReplaceWholeInstrument = currentSong->canOldOutputBeReplaced(getCurrentInstrumentClip());
+	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(getCurrentInstrumentClip());
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
@@ -394,7 +394,7 @@ yesLoadInstrument:
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =

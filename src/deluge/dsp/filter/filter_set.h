@@ -23,7 +23,7 @@
 #include "dsp/filter/ladder_components.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
 
 class Sound;

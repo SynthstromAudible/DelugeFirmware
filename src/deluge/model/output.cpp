@@ -400,7 +400,7 @@ int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	// Oh and also, this sets the ClipInstance's Clip to the new Clip we created, above
 	clipInstance->length = 1;
 
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 	if (action) {
 		action->recordClipExistenceChange(song, &song->arrangementOnlyClips, newClip, ExistenceChangeType::CREATE);
 		action->recordClipInstanceExistenceChange(this, clipInstance, ExistenceChangeType::CREATE);
@@ -499,7 +499,7 @@ skipThat : {}
 		                                                  quantizedEndPos - clipInstance->pos, alternativeLongerLength);
 
 		// Set the ClipInstance's length to match the Clip's new length
-		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength, activeClip);
 
 		recordingInArrangement = false;

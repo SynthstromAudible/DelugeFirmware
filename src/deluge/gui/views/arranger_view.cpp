@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -388,7 +388,7 @@ void ArrangerView::clearArrangement() {
 		playbackHandler.endPlayback();
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_CLEAR, false);
+	Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -488,7 +488,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	}
 }
 
-bool ArrangerView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -503,36 +503,31 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWid
 	return true;
 }
 
-void ArrangerView::drawMuteSquare(int32_t yDisplay, uint8_t thisImage[][3]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth];
+void ArrangerView::drawMuteSquare(int32_t yDisplay, RGB thisImage[]) {
+	RGB& thisColour = thisImage[kDisplayWidth];
 
 	// If no Instrument, black
 	if (!outputsOnScreen[yDisplay]) {
-doBlack:
-		memset(thisColour, 0, 3);
+		thisColour = colours::black;
 	}
 
 	else if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && outputsOnScreen[yDisplay]->armedForRecording) {
 		if (blinkOn) {
 			if (outputsOnScreen[yDisplay]->wantsToBeginArrangementRecording()) {
-				thisColour[0] = 255;
-				thisColour[1] = 1;
-				thisColour[2] = 0;
+				thisColour = {255, 1, 0};
 			}
 			else {
-				thisColour[0] = 60;
-				thisColour[1] = 25;
-				thisColour[2] = 15;
+				thisColour = {60, 25, 15};
 			}
 		}
 		else {
-			goto doBlack;
+			thisColour = colours::black;
 		}
 	}
 
 	// Soloing - blue
 	else if (outputsOnScreen[yDisplay]->soloingInArrangementMode) {
-		menu_item::soloColourMenu.getRGB(thisColour);
+		thisColour = menu_item::soloColourMenu.getRGB();
 	}
 
 	// Or if not soloing...
@@ -540,22 +535,22 @@ doBlack:
 
 		// Muted - yellow
 		if (outputsOnScreen[yDisplay]->mutedInArrangementMode) {
-			menu_item::mutedColourMenu.getRGB(thisColour);
+			thisColour = menu_item::mutedColourMenu.getRGB();
 		}
 
 		// Otherwise, green
 		else {
-			menu_item::activeColourMenu.getRGB(thisColour);
+			thisColour = menu_item::activeColourMenu.getRGB();
 		}
 
 		if (currentSong->getAnyOutputsSoloingInArrangement()) {
-			dimColour(thisColour);
+			thisColour = thisColour.dull();
 		}
 	}
 }
 
-void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth + 1];
+void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
+	RGB& thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
@@ -568,17 +563,13 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) 
 
 		// If MIDI command already assigned...
 		if (melodicInstrument->midiInput.containsSomething()) {
-			thisColour[0] = midiCommandColour.r;
-			thisColour[1] = midiCommandColour.g;
-			thisColour[2] = midiCommandColour.b;
+			thisColour = colours::midi_command;
 		}
 
 		// Or if not assigned but we're holding it down...
 		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
-			thisColour[0] = 128;
-			thisColour[1] = 0;
-			thisColour[2] = 0;
+			thisColour = colours::red.dim();
 		}
 		else {
 			goto drawNormally;
@@ -588,12 +579,10 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]) 
 	else {
 drawNormally:
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective) {
-			thisColour[0] = 255;
-			thisColour[1] = 0;
-			thisColour[2] = 0;
+			thisColour = colours::red;
 		}
 		else {
-			memset(thisColour, 0, 3);
+			thisColour = colours::black;
 		}
 	}
 }
@@ -1358,7 +1347,8 @@ getItFromSection:
 						}
 					}
 
-					Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+					Action* action =
+					    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 					if (action) {
 						action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 					}
@@ -1423,7 +1413,8 @@ getItFromSection:
 
 					// Shorten
 					if (clipInstance->length > lengthTilNewSquareStart) {
-						Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+						Action* action =
+						    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 						if (clipInstance->clip) {
 							arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 							                      clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
@@ -1455,7 +1446,8 @@ getItFromSection:
 						// If we are in fact able to lengthen it...
 						if (newLength > oldLength) {
 
-							Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+							Action* action =
+							    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 							clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
 							arrangement.rowEdited(output, clipInstance->pos + oldLength,
@@ -1503,7 +1495,8 @@ justGetOut:
 							arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
 							                      clipInstance->clip, NULL);
 
-							Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+							Action* action =
+							    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 							deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
 							goto justGetOut;
 						}
@@ -1577,7 +1570,8 @@ justGetOut:
 
 								currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
-								Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+								Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT,
+								                                           ActionAddition::NOT_ALLOWED);
 								if (action) {
 									action->recordClipExistenceChange(currentSong, &currentSong->arrangementOnlyClips,
 									                                  newClip, ExistenceChangeType::CREATE);
@@ -1632,7 +1626,7 @@ void ArrangerView::exitSubModeWithoutAction() {
 		}
 		uiNeedsRendering(this, whichRowsNeedReRendering, 0);
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-		actionLogger.closeAction(ACTION_CLIP_INSTANCE_EDIT);
+		actionLogger.closeAction(ActionType::CLIP_INSTANCE_EDIT);
 	}
 
 	if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
@@ -1678,13 +1672,13 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	if (clip->onAutomationClipView) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
 		}
 
 		automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 	}
-	else if (clip->type == CLIP_TYPE_AUDIO) {
+	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
 		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
@@ -1748,7 +1742,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
-	if ((clip->type == CLIP_TYPE_AUDIO) && !clip->onAutomationClipView) {
+	if ((clip->type == ClipType::AUDIO) && !clip->onAutomationClipView) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {
@@ -1765,7 +1759,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1787,7 +1781,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 	memcpy(PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
@@ -1804,7 +1798,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -1951,7 +1945,7 @@ itsInvalid:
 		arrangement.rowEdited(pressedClipInstanceOutput, clipInstance->pos, clipInstance->pos + length, clip, NULL);
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 	// If order of elements hasn't changed and Output hasn't either...
 	if (newOutputToDragInto == pressedClipInstanceOutput
@@ -2004,7 +1998,7 @@ itsInvalid:
 
 // Returns which rows couldn't be rendered
 // occupancyMask can be NULL
-uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
+uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
                                       int32_t imageWidth) {
 	uint32_t whichRowsCouldntBeRendered = 0;
@@ -2025,13 +2019,13 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
 			}
 		}
 
-		image += imageWidth * 3;
+		image += imageWidth;
 	}
 
 	return whichRowsCouldntBeRendered;
 }
 
-bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -2041,7 +2035,7 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWi
 
 	uint32_t whichRowsCouldntBeRendered =
 	    doActualRender(currentSong->xScroll[NAVIGATION_ARRANGEMENT], currentSong->xZoom[NAVIGATION_ARRANGEMENT],
-	                   whichRows, &image[0][0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
+	                   whichRows, &image[0][0], occupancyMask, kDisplayWidth, kDisplayWidth + kSideBarWidth);
 
 	PadLEDs::renderingLock = false;
 
@@ -2055,16 +2049,16 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWi
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom,
-                             uint8_t* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
+                             RGB* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
 
 	Output* output = outputsOnScreen[yDisplay];
 
 	if (!output) {
 
-		uint8_t* imageEnd = imageThisRow + renderWidth * 3;
+		const RGB* imageEnd = imageThisRow + renderWidth;
 
-		while (imageThisRow < imageEnd) {
-			*(imageThisRow++) = 0;
+		for (; imageThisRow < imageEnd; imageThisRow++) {
+			*(imageThisRow) = colours::black;
 		}
 
 		// Occupancy mask doesn't need to be cleared in this case
@@ -2104,23 +2098,24 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 		newEndSquare = std::min(newEndSquare, renderWidth);
 
 		if (blinkOn) {
-			clipInstance->getColour(&imageThisRow[newStartSquare * 3]);
+			imageThisRow[newStartSquare] = clipInstance->getColour();
 			int32_t lengthInSquares = newEndSquare - newStartSquare;
 			if (lengthInSquares >= 2) {
-				getTailColour(&imageThisRow[newStartSquare * 3 + 3], &imageThisRow[newStartSquare * 3]);
+				imageThisRow[newStartSquare + 3] = imageThisRow[newStartSquare].forTail();
 			}
 			for (int32_t x = newStartSquare + 2; x < newEndSquare; x++) {
-				memcpy(&imageThisRow[x * 3], &imageThisRow[newStartSquare * 3 + 3], 3);
+				imageThisRow[x] = imageThisRow[newStartSquare + 3];
 			}
 
 			if (!rightOnSquare) {
-				uint8_t blurColour[3];
-				getBlurColour(blurColour, &imageThisRow[newStartSquare * 3]);
-				memcpy(&imageThisRow[newStartSquare * 3], blurColour, 3);
+				imageThisRow[newStartSquare] = imageThisRow[newStartSquare].forBlur();
 			}
 		}
 		else {
-			memset(&imageThisRow[newStartSquare * 3], 0, 3 * (newEndSquare - newStartSquare));
+			for (auto* it = &imageThisRow[newStartSquare];
+			     it != &imageThisRow[newStartSquare] + (newEndSquare - newStartSquare); it++) {
+				*it = colours::black;
+			}
 		}
 	}
 
@@ -2131,16 +2126,16 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom,
-                                      uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI) {
+                                      RGB* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI) {
 
-	uint8_t* imageNow = image;
-	uint8_t* const imageEnd = image + renderWidth * 3;
+	RGB* imageNow = image;
+	RGB* const imageEnd = image + renderWidth;
 
 	int32_t firstXDisplayNotLeftOf0 = 0;
 
 	if (!output->clipInstances.getNumElements()) {
 		while (imageNow < imageEnd) {
-			*(imageNow++) = 0;
+			*(imageNow++) = colours::black;
 		}
 		return true;
 	}
@@ -2175,13 +2170,12 @@ squareStartPosSet:
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
 		if (clipInstance) {
-			uint8_t colour[3];
-			clipInstance->getColour(colour);
+			RGB colour = clipInstance->getColour();
 
 			// If Instance starts exactly on square or somewhere within square, draw "head".
 			// We don't do the "blur" colour in arranger - it looks too white and would be confused with white/unique instances
 			if (clipInstance->pos >= squareStartPos) {
-				memcpy(&image[xDisplay * 3], colour, 3);
+				image[xDisplay] = colour;
 			}
 
 			// Otherwise...
@@ -2207,7 +2201,9 @@ squareStartPosSet:
 
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
 					if (!clipInstance->clip) {
-						memset(&image[xDisplay * 3], 0, 3 * (squareEnd - xDisplay));
+						for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+							*it = colours::black;
+						}
 					}
 
 					// Or the real Clip - for all squares in the Instance
@@ -2223,31 +2219,30 @@ squareStartPosSet:
 						}
 					}
 
-					uint32_t averageBrightnessSection = (uint32_t)colour[0] + colour[1] + colour[2];
+					uint32_t averageBrightnessSection = (uint32_t)colour.r + colour.g + colour.b;
 					uint32_t sectionColour[3];
-					for (int32_t c = 0; c < 3; c++) {
-						sectionColour[c] = (int32_t)colour[c] * 140 + averageBrightnessSection * 280;
+					for (int i = 0; i < 3; ++i) {
+						sectionColour[i] = uint32_t{colour[i]} * 140 + averageBrightnessSection * 280;
 					}
 
 					// Mix the colours for all the squares
 					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						for (int32_t c = 0; c < 3; c++) {
-							image[reworkSquare * 3 + c] =
-							    ((int32_t)image[reworkSquare * 3 + c] * 525 + sectionColour[c]) >> 13;
+						RGB& imageColor = image[reworkSquare];
+						for (int i = 0; i < 3; ++i) {
+							imageColor[i] = (uint32_t{imageColor[i]} * 525 + sectionColour[i]) >> 13;
 						}
 					}
 
 					xDisplay = squareEnd - 1;
 				}
 				else {
-					goto nothing;
+					image[xDisplay] = colours::black;
 				}
 			}
 		}
 
 		else {
-nothing:
-			memset(&image[xDisplay * 3], 0, 3);
+			image[xDisplay] = colours::black;
 		}
 
 		xDisplay++;
@@ -2338,7 +2333,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			newLength = kMaxSequenceLength - clipInstance->pos;
 		}
 
-		Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
 
 		view.setActiveModControllableTimelineCounter(newClip);
@@ -2590,14 +2585,15 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					return ActionResult::DEALT_WITH;
 				}
 
-				int32_t actionType = (offset >= 0) ? ACTION_ARRANGEMENT_TIME_EXPAND : ACTION_ARRANGEMENT_TIME_CONTRACT;
+				ActionType actionType =
+				    (offset >= 0) ? ActionType::ARRANGEMENT_TIME_EXPAND : ActionType::ARRANGEMENT_TIME_CONTRACT;
 
-				Action* action = actionLogger.getNewAction(actionType, true);
+				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
 				if (action
 				    && (action->xScrollArranger[BEFORE] != currentSong->xScroll[NAVIGATION_ARRANGEMENT]
 				        || action->xZoomArranger[BEFORE] != currentSong->xZoom[NAVIGATION_ARRANGEMENT])) {
-					action = actionLogger.getNewAction(actionType, false);
+					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 				}
 
 				ParamCollectionSummary* unpatchedParamsSummary =

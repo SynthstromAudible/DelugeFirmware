@@ -1042,7 +1042,7 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDev
 	if (on && instrumentClip && shouldRecordNotes) {
 
 		// Firstly, if recording session to arranger...
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 
 			instrumentClip->possiblyCloneForArrangementRecording(modelStack);
 
@@ -1152,10 +1152,11 @@ goingToRecordNoteOnEarly:
 	else {
 		if (thisNoteRow) {
 			if (shouldRecordNotes && thisDrum->auditioned
-			    && ((playbackHandler.recording == RECORDING_ARRANGEMENT && instrumentClip->isArrangementOnlyClip())
+			    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT && instrumentClip->isArrangementOnlyClip())
 			        || currentSong->isClipActive(instrumentClip))) {
 
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT && !instrumentClip->isArrangementOnlyClip()) {}
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT
+				    && !instrumentClip->isArrangementOnlyClip()) {}
 				else {
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 					if (getRootUI()) {

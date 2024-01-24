@@ -17,9 +17,6 @@
 
 #include "dsp/convolution/impulse_response_processor.h"
 
-#include "util/functions.h"
-#include <string.h>
-
 const int32_t ir[IR_SIZE] = {
     -3203916,   8857848,   24813136,  41537808, 35217472,  15195632,  -27538592, -61984128, 1944654848,
     1813580928, 438462784, 101125088, 6042048,  -22429488, -46218864, -56638560, -64785312, -52108528,

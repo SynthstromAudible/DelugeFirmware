@@ -18,7 +18,7 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
-#include "version.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -874,8 +874,6 @@ enum StealableQueue {
 	NUM_STEALABLE_QUEUES,
 };
 
-constexpr int32_t kUndefinedGreyShade = 7;
-
 enum class SequenceDirection {
 	FORWARD,
 	REVERSE,
@@ -999,3 +997,10 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeBlue,
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
+
+enum class ClipType {
+	INSTRUMENT,
+	AUDIO,
+};
+
+enum class LaunchStyle { DEFAULT, FILL, ONCE };

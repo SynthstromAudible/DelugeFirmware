@@ -215,10 +215,10 @@ void resetSettings() {
 
 	defaultVelocity = 64;
 
-	gui::menu_item::activeColourMenu.value = 1;  // Green
-	gui::menu_item::stoppedColourMenu.value = 0; // Red
-	gui::menu_item::mutedColourMenu.value = 3;   // Yellow
-	gui::menu_item::soloColourMenu.value = 2;    // Blue
+	gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
+	gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
+	gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
+	gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
 
 	defaultMagnitude = 2;
 
@@ -402,20 +402,20 @@ void readSettings() {
 	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
-		gui::menu_item::activeColourMenu.value = 1;  // Green
-		gui::menu_item::stoppedColourMenu.value = 0; // Red
-		gui::menu_item::mutedColourMenu.value = 3;   // Yellow
-		gui::menu_item::soloColourMenu.value = 2;    // Blue
+		gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
+		gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
+		gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
+		gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
 
 		defaultMagnitude = 2;
 
 		MIDIDeviceManager::differentiatingInputsByDevice = false;
 	}
 	else {
-		gui::menu_item::activeColourMenu.value = buffer[74];
-		gui::menu_item::stoppedColourMenu.value = buffer[75];
-		gui::menu_item::mutedColourMenu.value = buffer[76];
-		gui::menu_item::soloColourMenu.value = buffer[77];
+		gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
+		gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
+		gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
+		gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
 
 		defaultMagnitude = buffer[78];
 
@@ -423,13 +423,13 @@ void readSettings() {
 
 		if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
 			if (!gui::menu_item::activeColourMenu.value) {
-				gui::menu_item::activeColourMenu.value = 1;
+				gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN;
 			}
 			if (!gui::menu_item::mutedColourMenu.value) {
-				gui::menu_item::mutedColourMenu.value = 3;
+				gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW;
 			}
 			if (!gui::menu_item::soloColourMenu.value) {
-				gui::menu_item::soloColourMenu.value = 2;
+				gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;
 			}
 
 			if (!defaultMagnitude) {

@@ -20,7 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/l10n/l10n.h"
@@ -331,7 +331,7 @@ doEndMidiLearnPressSession:
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 cant:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
@@ -426,7 +426,7 @@ possiblyRevert:
 	else if (b == SELECT_ENC && Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 
-			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
@@ -1049,7 +1049,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			        whichModEncoder, &activeModControllableModelStack);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}
@@ -1196,7 +1196,7 @@ void View::setModLedStates() {
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
 		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationClipView && getRootUI() != &keyboardScreen)
-		    || (getRootUI() == &automationClipView && getCurrentClip()->type == CLIP_TYPE_AUDIO)) {
+		    || (getRootUI() == &automationClipView && getCurrentClip()->type == ClipType::AUDIO)) {
 			affectEntire = true;
 		}
 		else {
@@ -1248,7 +1248,7 @@ setBlinkLED:
 setNextLED:
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
-		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 		}
 		else if (getRootUI() == &arrangerView) {
@@ -1487,7 +1487,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		}
 
 		InstrumentClip* clip = NULL;
-		if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip && clip->type == ClipType::INSTRUMENT) {
 			clip = (InstrumentClip*)clip;
 		}
 
@@ -1657,7 +1657,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 
 	// Work out availabilityRequirement. But we don't in this case need to think about whether the Output can be "replaced" - that's for InstrumentClips
 	Availability availabilityRequirement;
-	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
+	currentSong->shouldOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
@@ -1707,7 +1707,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
-	bool oldInstrumentCanBeReplaced = modelStack->song->canOldOutputBeReplaced(clip, &availabilityRequirement);
+	bool oldInstrumentCanBeReplaced = modelStack->song->shouldOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	bool shouldReplaceWholeInstrument;
 
@@ -2025,118 +2025,87 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
-			bool shouldGoPurple = clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
+			bool shouldGoPurple = clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
 
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
 				if (shouldGoPurple) {
-					thisColour[0] = 128;
-					thisColour[1] = 0;
-					thisColour[2] = 128;
+					return colours::magenta;
 				}
-				else {
-					thisColour[0] = 255;
-					thisColour[1] = 1;
-					thisColour[2] = 0;
-				}
+				return colours::red;
 			}
 			// Dull colour, cos can't actually begin linear recording despite being armed
-			else {
-				if (shouldGoPurple) {
-					thisColour[0] = 60;
-					thisColour[1] = 15;
-					thisColour[2] = 60;
-				}
-				else {
-					thisColour[0] = 60;
-					thisColour[1] = 15;
-					thisColour[2] = 15;
-				}
+			if (shouldGoPurple) {
+				return colours::magenta_dull;
 			}
+			return colours::red_dull;
 		}
-		else {
-			memset(thisColour, 0, 3);
-		}
-		return;
+		return colours::black;
 	}
 
 	// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 	if (allowMIDIFlash && midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
-		thisColour[0] = midiCommandColour.r;
-		thisColour[1] = midiCommandColour.g;
-		thisColour[2] = midiCommandColour.b;
-		return;
+		return colours::midi_command;
 	}
 
 	if (clipArmFlashOn && clip->armState != ArmState::OFF) {
-		thisColour[0] = 0;
-		thisColour[1] = 0;
-		thisColour[2] = 0;
+		thisColour = colours::black;
 	}
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
-		menu_item::soloColourMenu.getRGB(thisColour);
+		thisColour = menu_item::soloColourMenu.getRGB();
 	}
 
 	// Or if not soloing...
 	else {
-		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+		if (clip->launchStyle == LaunchStyle::DEFAULT) {
 			// If it's stopped, red.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {
-					thisColour[0] = 20;
-					thisColour[1] = 20;
-					thisColour[2] = 20;
+					thisColour = RGB::monochrome(20);
 				}
 				else {
-					menu_item::stoppedColourMenu.getRGB(thisColour);
+					thisColour = menu_item::stoppedColourMenu.getRGB();
 				}
 			}
 
 			// Or, green.
 			else {
-				menu_item::activeColourMenu.getRGB(thisColour);
+				thisColour = menu_item::activeColourMenu.getRGB();
 			}
 		}
 		else {
 			// If it's stopped, orange.
 			if (!clip->activeIfNoSolo) {
 				if (dimInactivePads) {
-					thisColour[0] = 10;
-					thisColour[1] = 7;
-					thisColour[2] = 3;
+					thisColour = RGB(10, 7, 3); // dim red-orange
 				}
 				else {
-					thisColour[0] = 255;
-					thisColour[1] = 64;
-					thisColour[2] = 0;
+					thisColour = colours::red_orange;
 				}
 			}
 
 			// Or, cyan.
 			else {
-				thisColour[0] = 0;
-				thisColour[1] = 255;
-				thisColour[2] = 255;
+				thisColour = colours::cyan;
 			}
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
-			dimColour(thisColour);
+			thisColour = thisColour.dull();
 		}
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
-	if (allowMIDIFlash && midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
-		thisColour[0] >>= 1;
-		thisColour[1] >>= 1;
-		thisColour[2] >>= 1;
+	if (midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
+		thisColour = thisColour.dim();
 	}
+	return thisColour;
 }
 
 ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {
@@ -2156,13 +2125,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		if (on) {
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
 					defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
-				if (clip->type == CLIP_TYPE_AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
+				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
 					defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout

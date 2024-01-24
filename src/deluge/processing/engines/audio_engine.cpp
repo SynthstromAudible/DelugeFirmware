@@ -176,7 +176,7 @@ int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
 
 bool doMonitoring;
-int32_t monitoringAction;
+MonitoringAction monitoringAction;
 
 uint32_t saddr;
 
@@ -339,11 +339,14 @@ int32_t numAudioLogItems = 0;
 
 extern uint16_t g_usb_usbmode;
 
+#if JFTRACE
 Debug::AverageDT aeCtr("audio", Debug::mS);
 Debug::AverageDT rvb("reverb", Debug::uS);
+#endif
+
 uint8_t numRoutines = 0;
 void routine() {
-#if DO_AUDIO_LOG
+#if JFTRACE
 	aeCtr.note();
 #endif
 	logAction("AudioDriver::routine");
@@ -679,9 +682,14 @@ startAgain:
 		if (sideChainHitPending != 0) {
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
+#if JFTRACE
 		rvb.begin();
+#endif
+
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+#if JFTRACE
 		rvb.note();
+#endif
 	}
 
 	int32_t reverbAmplitudeL;
@@ -779,7 +787,19 @@ startAgain:
 		}
 	}
 	logAction("mastercomp start");
-	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
+	int32_t songVolume;
+	if (currentSong) {
+		songVolume =
+		    getFinalParameterValueVolume(
+		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		                       deluge::modulation::params::UNPATCHED_VOLUME)))
+		    >> 1;
+	}
+	else {
+		songVolume = 1 << 26;
+	}
+
+	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR, songVolume);
 	masterVolumeAdjustmentL = ONE_Q31;
 	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
@@ -797,25 +817,25 @@ startAgain:
 		}
 	}
 
-	monitoringAction = 0;
+	monitoringAction = MonitoringAction::NONE;
 	if (doMonitoring && audioRecorder.recorder) { // Double-check
 		if (lineInPluggedIn) {                    // Line input
 			if (audioRecorder.recorder->inputLooksDifferential()) {
-				monitoringAction = ACTION_SUBTRACT_RIGHT_CHANNEL;
+				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
 			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
-				monitoringAction = ACTION_REMOVE_RIGHT_CHANNEL;
+				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
 
 		else if (micPluggedIn) { // External mic
 			if (audioRecorder.recorder->inputHasNoRightChannel()) {
-				monitoringAction = ACTION_REMOVE_RIGHT_CHANNEL;
+				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
 
 		else { // Internal mic
-			monitoringAction = ACTION_REMOVE_RIGHT_CHANNEL;
+			monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 		}
 	}
 
@@ -964,7 +984,7 @@ bool doSomeOutputting() {
 
 		if (doMonitoring) {
 
-			if (monitoringAction == ACTION_SUBTRACT_RIGHT_CHANNEL) {
+			if (monitoringAction == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
 				int32_t value = (inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS + 1))
 				                - (inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 				lAdjusted += value;
@@ -974,7 +994,7 @@ bool doSomeOutputting() {
 			else {
 				lAdjusted += inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
 
-				if (monitoringAction == 0) {
+				if (monitoringAction == MonitoringAction::NONE) {
 					rAdjusted += inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
 				}
 				else { // Remove right channel

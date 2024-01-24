@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "hid/button.h"
 
 class RootUI;
@@ -123,12 +124,12 @@ public:
 	// When these return false it means they're transparent, showing what's underneath.
 	// These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
 	// Cos we need to be able to quiz these without actually getting any rendering done.
-	virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	virtual bool renderMainPads(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
 	                            bool drawUndefinedArea = true) {
 		return false;
 	}
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return false;
 	}
