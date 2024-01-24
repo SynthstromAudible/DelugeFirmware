@@ -165,7 +165,7 @@ void resetprg(void) {
 	setPinMux(5, 14, 1);
 	setPinMux(5, 15, 1);
 
-	//setPinMux(7, 8, 1); // CS2
+	// setPinMux(7, 8, 1); // CS2
 	setPinMux(2, 0, 1); // CS3
 	setPinMux(2, 1, 1); // RAS
 	setPinMux(2, 2, 1); // CAS

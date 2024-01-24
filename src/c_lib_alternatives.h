@@ -33,70 +33,70 @@
 #define STACK_ALIGN_ENFORCE 0
 
 /******************************************************************************
-* Implementation of the prologue and epilogue assembler macros and their
-* associated helper functions.
-*
-* These functions add support for the following:
-*
-* - M-profile branch target identification (BTI) landing-pads when compiled
-*   with `-mbranch-protection=bti'.
-* - PAC-signing and verification instructions, depending on hardware support
-*   and whether the PAC-signing of leaf functions has been requested via the
-*   `-mbranch-protection=pac-ret+leaf' compiler argument.
-* - 8-byte stack alignment preservation at function entry, defaulting to the
-*   value of STACK_ALIGN_ENFORCE.
-*
-* Notes:
-* - Prologue stack alignment is implemented by detecting a push with an odd
-*   number of registers and prepending a dummy register to the list.
-* - If alignment is attempted on a list containing r0, compilation will result
-*   in an error.
-* - If alignment is attempted in a list containing r1, r0 will be prepended to
-*   the register list and r0 will be restored prior to function return.  for
-*   functions with non-void return types, this will result in the corruption of
-*   the result register.
-* - Stack alignment is enforced via the following helper macro call-chain:
-*
-*	{prologue|epilogue} ->_align8 -> _preprocess_reglist ->
-*		_preprocess_reglist1 -> {_prologue|_epilogue}
-*
-* - Debug CFI directives are automatically added to prologues and epilogues,
-*   assisted by `cfisavelist' and `cfirestorelist', respectively.
-*
-* Arguments:
-* prologue
-* --------
-* - first	- If `last' specified, this serves as start of general-purpose
-*		  register (GPR) range to push onto stack, otherwise represents
-*		  single GPR to push onto stack.  If omitted, no GPRs pushed
-*		  onto stack at prologue.
-* - last	- If given, specifies inclusive upper-bound of GPR range.
-* - push_ip	- Determines whether IP register is to be pushed to stack at
-*		  prologue.  When pac-signing is requested, this holds the
-*		  the pac-key.  Either 1 or 0 to push or not push, respectively.
-*		  Default behavior: Set to value of PAC_LEAF_PUSH_IP macro.
-* - push_lr	- Determines whether to push lr to the stack on function entry.
-*		  Either 1 or 0  to push or not push, respectively.
-* - align8	- Whether to enforce alignment. Either 1 or 0, with 1 requesting
-*		  alignment.
-*
-* epilogue
-* --------
-*   The epilogue should be called passing the same arguments as those passed to
-*   the prologue to ensure the stack is not corrupted on function return.
-*
-* Usage examples:
-*
-*   prologue push_ip=1 -> push {ip}
-*   epilogue push_ip=1, align8=1 -> pop {r2, ip}
-*   prologue push_ip=1, push_lr=1 -> push {ip, lr}
-*   epilogue 1 -> pop {r1}
-*   prologue 1, align8=1 -> push {r0, r1}
-*   epilogue 1, push_ip=1 -> pop {r1, ip}
-*   prologue 1, 4 -> push {r1-r4}
-*   epilogue 1, 4 push_ip=1 -> pop {r1-r4, ip}
-*
-******************************************************************************/
+ * Implementation of the prologue and epilogue assembler macros and their
+ * associated helper functions.
+ *
+ * These functions add support for the following:
+ *
+ * - M-profile branch target identification (BTI) landing-pads when compiled
+ *   with `-mbranch-protection=bti'.
+ * - PAC-signing and verification instructions, depending on hardware support
+ *   and whether the PAC-signing of leaf functions has been requested via the
+ *   `-mbranch-protection=pac-ret+leaf' compiler argument.
+ * - 8-byte stack alignment preservation at function entry, defaulting to the
+ *   value of STACK_ALIGN_ENFORCE.
+ *
+ * Notes:
+ * - Prologue stack alignment is implemented by detecting a push with an odd
+ *   number of registers and prepending a dummy register to the list.
+ * - If alignment is attempted on a list containing r0, compilation will result
+ *   in an error.
+ * - If alignment is attempted in a list containing r1, r0 will be prepended to
+ *   the register list and r0 will be restored prior to function return.  for
+ *   functions with non-void return types, this will result in the corruption of
+ *   the result register.
+ * - Stack alignment is enforced via the following helper macro call-chain:
+ *
+ *	{prologue|epilogue} ->_align8 -> _preprocess_reglist ->
+ *		_preprocess_reglist1 -> {_prologue|_epilogue}
+ *
+ * - Debug CFI directives are automatically added to prologues and epilogues,
+ *   assisted by `cfisavelist' and `cfirestorelist', respectively.
+ *
+ * Arguments:
+ * prologue
+ * --------
+ * - first	- If `last' specified, this serves as start of general-purpose
+ *		  register (GPR) range to push onto stack, otherwise represents
+ *		  single GPR to push onto stack.  If omitted, no GPRs pushed
+ *		  onto stack at prologue.
+ * - last	- If given, specifies inclusive upper-bound of GPR range.
+ * - push_ip	- Determines whether IP register is to be pushed to stack at
+ *		  prologue.  When pac-signing is requested, this holds the
+ *		  the pac-key.  Either 1 or 0 to push or not push, respectively.
+ *		  Default behavior: Set to value of PAC_LEAF_PUSH_IP macro.
+ * - push_lr	- Determines whether to push lr to the stack on function entry.
+ *		  Either 1 or 0  to push or not push, respectively.
+ * - align8	- Whether to enforce alignment. Either 1 or 0, with 1 requesting
+ *		  alignment.
+ *
+ * epilogue
+ * --------
+ *   The epilogue should be called passing the same arguments as those passed to
+ *   the prologue to ensure the stack is not corrupted on function return.
+ *
+ * Usage examples:
+ *
+ *   prologue push_ip=1 -> push {ip}
+ *   epilogue push_ip=1, align8=1 -> pop {r2, ip}
+ *   prologue push_ip=1, push_lr=1 -> push {ip, lr}
+ *   epilogue 1 -> pop {r1}
+ *   prologue 1, align8=1 -> push {r0, r1}
+ *   epilogue 1, push_ip=1 -> pop {r1, ip}
+ *   prologue 1, 4 -> push {r1-r4}
+ *   epilogue 1, 4 push_ip=1 -> pop {r1-r4, ip}
+ *
+ ******************************************************************************/
 
 /* Emit .cfi_restore directives for a consecutive sequence of registers.  */
 .macro cfirestorelist first, last

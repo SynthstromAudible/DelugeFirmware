@@ -289,7 +289,8 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	if (oldCol >= 0 && oldCol < kDisplayWidth) {
 
 		getColsOnScreen(cols);
-		// It might have changed, and despite having a newCol variable above, that's only our desired value - we might have run into the end of the sample
+		// It might have changed, and despite having a newCol variable above, that's only our desired value - we might
+		// have run into the end of the sample
 		newCol = cols[util::to_underlying(markerType)].colOnScreen;
 
 		// But isn't anymore...
@@ -581,7 +582,8 @@ exitAfterRemovingLoopMarker:
 					{
 						uint32_t lengthInSamples = waveformBasicNavigator.sample->lengthInSamples;
 
-						// Only the END marker, and only in some cases, is allowed to be further right than the waveform length
+						// Only the END marker, and only in some cases, is allowed to be further right than the waveform
+						// length
 						if (markerType == MarkerType::END && shouldAllowExtraScrollRight()) {
 							if (x > cols[util::to_underlying(markerType)].colOnScreen
 							    && value < cols[util::to_underlying(markerType)].pos) {
@@ -752,8 +754,8 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 	int32_t x = cols[util::to_underlying(markerType)].colOnScreen;
 	if (x < 0 || x >= kDisplayWidth) {
-		return ActionResult::
-		    DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's offscreen
+		return ActionResult::DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's
+		                                 // offscreen
 	}
 
 	blinkInvisible = !blinkInvisible;
@@ -831,9 +833,10 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 			else {
 
-				//writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MarkerType::END);
+				// writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MarkerType::END);
 
-				//int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate);
+				// int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// -
+				// (((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate);
 				int32_t newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
 				                      - (((uint32_t)getNoise() % (kSampleRate * 12)) + 0 * kSampleRate);
 
@@ -847,7 +850,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 			}
 		}
 
-		else { //if (r < 128) {
+		else { // if (r < 128) {
 			// Change loop point
 
 			if (!soundEditor.currentSource->reversed) {

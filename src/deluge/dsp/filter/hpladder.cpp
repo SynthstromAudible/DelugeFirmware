@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "dsp/filter/hpladder.h"
 
 namespace deluge::dsp::filter {
@@ -29,7 +29,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 	hpfProcessedResonance =
-	    ONE_Q31 - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+	    ONE_Q31 - resonance; // ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 
 	hpfProcessedResonance = std::max(hpfProcessedResonance, (int32_t)134217728); // Set minimum resonance amount
 
@@ -70,7 +70,7 @@ void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
-//filter an interleaved stereo buffer
+// filter an interleaved stereo buffer
 void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	q31_t* currentSample = startSample;
 	do {
@@ -81,8 +81,8 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	} while (currentSample < endSample);
 }
 [[gnu::always_inline]] inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
-	//inputs are only 16 bit so this is pretty small
-	//this limit was found experimentally as about the lowest fc can get without sounding broken
+	// inputs are only 16 bit so this is pretty small
+	// this limit was found experimentally as about the lowest fc can get without sounding broken
 	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
 	q31_t temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc, input << 4, morph_), lower_limit);
 

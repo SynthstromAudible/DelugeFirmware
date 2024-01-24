@@ -42,15 +42,15 @@ struct Stutterer {
 };
 
 struct Grain {
-	int32_t length;     //in samples 0=OFF
-	int32_t startPoint; //starttimepos in samples
-	int32_t counter;    //relative pos in samples
-	uint16_t pitch;     //1024=1.0
+	int32_t length;     // in samples 0=OFF
+	int32_t startPoint; // starttimepos in samples
+	int32_t counter;    // relative pos in samples
+	uint16_t pitch;     // 1024=1.0
 	int32_t volScale;
 	int32_t volScaleMax;
-	bool rev;        //0=normal, 1 =reverse
-	int32_t panVolL; //0 - 1073741823
-	int32_t panVolR; //0 - 1073741823
+	bool rev;        // 0=normal, 1 =reverse
+	int32_t panVolL; // 0 - 1073741823
+	int32_t panVolR; // 0 - 1073741823
 };
 
 class Clip;
@@ -135,7 +135,7 @@ public:
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
 
-	//Grain
+	// Grain
 	int32_t wrapsToShutdown;
 	void setWrapsToShutdown();
 	StereoSample* modFXGrainBuffer;

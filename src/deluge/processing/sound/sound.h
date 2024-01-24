@@ -55,12 +55,13 @@ struct ParamLPF {
 /*
  * Sound can be either an Instrument or a Drum, in the form of SoundInstrument or SoundDrum respectively.
  * These classes are implemented using “multiple inheritance”, which is sacrilegious to many C++ programmers.
- * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase where it’s used.
- * It’s a little while though since I’ve sat and thought about what the alternatives could be and whether anything else would be appropriate.
+ * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase
+ * where it’s used. It’s a little while though since I’ve sat and thought about what the alternatives could be and
+ * whether anything else would be appropriate.
  *
- * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the two.
- * And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s),
- * or as just a Drum - one of the many items in a Kit, normally associated with a row of notes.
+ * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the
+ * two. And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s), or as just a
+ * Drum - one of the many items in a Kit, normally associated with a row of notes.
  */
 
 class Sound : public ModControllableAudio {
@@ -73,7 +74,8 @@ public:
 
 	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
+	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
+	// before accessing this array!
 	int32_t paramFinalValues[deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL];
 	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
@@ -120,8 +122,8 @@ public:
 
 	uint8_t whichExpressionSourcesChangedAtSynthLevel;
 
-	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
-	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
+	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
+	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
 	int32_t monophonicExpressionValues[kNumExpressionDimensions];
 
@@ -134,8 +136,8 @@ public:
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;
 	uint32_t timeStartedSkippingRenderingArp;
-	uint32_t
-	    startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if mod fx are on
+	uint32_t startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if
+	                                       // mod fx are on
 
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
@@ -230,7 +232,7 @@ public:
 	void doneReadingFromFile();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
-	//void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
+	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);

@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : spibsc_ioset_api.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   : 
-*******************************************************************************/
+ * File Name     : spibsc_ioset_api.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   :
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes <System Includes> , "Project Includes"
@@ -40,10 +40,10 @@ Includes <System Includes> , "Project Includes"
 #include "RZA1/spibsc/spibsc.h"
 #include "RZA1/system/r_typedefs.h"
 
-//#pragma arm section code   = "CODE_SPIBSC_INIT2"
-//#pragma arm section rodata = "CONST_SPIBSC_INIT2"
-//#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
-//#pragma arm section zidata = "BSS_SPIBSC_INIT2"
+// #pragma arm section code   = "CODE_SPIBSC_INIT2"
+// #pragma arm section rodata = "CONST_SPIBSC_INIT2"
+// #pragma arm section rwdata = "DATA_SPIBSC_INIT2"
+// #pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
 /******************************************************************************
 Typedef definitions
@@ -69,12 +69,12 @@ Private global variables and functions
 static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg);
 
 /******************************************************************************
-* Function Name: R_SFLASH_Exmode
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Exmode
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Exmode(uint32_t ch_no)
 {
     int32_t ret;
@@ -86,12 +86,12 @@ int32_t R_SFLASH_Exmode(uint32_t ch_no)
 } /* End of function R_SFLASH_Exmode() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_Spimode
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Spimode
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Spimode(uint32_t ch_no)
 {
     int32_t ret;
@@ -102,12 +102,12 @@ int32_t R_SFLASH_Spimode(uint32_t ch_no)
 }
 
 /******************************************************************************
-* Function Name: R_SFLASH_SpibscStop
-* Description  :
-* Arguments    : uint32_t ch_no
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_SpibscStop
+ * Description  :
+ * Arguments    : uint32_t ch_no
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_SpibscStop(uint32_t ch_no)
 {
     int32_t ret;
@@ -118,18 +118,18 @@ int32_t R_SFLASH_SpibscStop(uint32_t ch_no)
 }
 
 /******************************************************************************
-* Function Name: R_SFLASH_Spimode_Init
-* Description  : Initialization in a basic part of a SPI multi-I/O bus controller.
-*              : Serial flash memory is set as a Quad operation mode.
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t  data_width
-*                uint8_t  spbr
-*                uint8_t  brdv
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Spimode_Init
+ * Description  : Initialization in a basic part of a SPI multi-I/O bus controller.
+ *              : Serial flash memory is set as a Quad operation mode.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t  data_width
+ *                uint8_t  spbr
+ *                uint8_t  brdv
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Spimode_Init(
     uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t spbr, uint8_t brdv, uint8_t addr_mode)
 {
@@ -164,15 +164,15 @@ int32_t R_SFLASH_Spimode_Init(
 } /* End of function R_SFLASH_Spimode_Init() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_Exmode_Init
-* Description  : An outside address space read mode set as a SPI multi-I/O bus
-*                controller.
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                st_spibsc_cfg_t *spibsccfg
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Exmode_Init
+ * Description  : An outside address space read mode set as a SPI multi-I/O bus
+ *                controller.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                st_spibsc_cfg_t *spibsccfg
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
@@ -202,15 +202,15 @@ int32_t R_SFLASH_Exmode_Init(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* spi
 } /* End of function R_SFLASH_Exmode_Init() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_Exmode_Setting
-* Description  : Initialization in a basic part of a SPI multi-I/O bus controller.
-*              : Serial flash memory is set as a Quad operation mode.
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                st_spibsc_cfg_t *spibsccfg
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Exmode_Setting
+ * Description  : Initialization in a basic part of a SPI multi-I/O bus controller.
+ *              : Serial flash memory is set as a Quad operation mode.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                st_spibsc_cfg_t *spibsccfg
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Exmode_Setting(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
@@ -258,11 +258,11 @@ int32_t R_SFLASH_Exmode_Setting(uint32_t ch_no, uint32_t dual, st_spibsc_cfg_t* 
 } /* End of function R_SFLASH_EXMODE_Init() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_WaitTend
-* Description  : Wait TEND
-* Arguments    :  uint32_t ch_no : use channel No
-* Return Value :  void
-******************************************************************************/
+ * Function Name: R_SFLASH_WaitTend
+ * Description  : Wait TEND
+ * Arguments    :  uint32_t ch_no : use channel No
+ * Return Value :  void
+ ******************************************************************************/
 void R_SFLASH_WaitTend(uint32_t ch_no)
 {
     spibsc_wait_tend(ch_no);
@@ -270,13 +270,13 @@ void R_SFLASH_WaitTend(uint32_t ch_no)
 } /* End of function R_SFLASH_WaitTend() */
 
 /******************************************************************************
-* Function Name: Userdef_SPIBSC_Set_Config
-* Description  : The setting function of SPIBSC.
-* Arguments    : uint32_t    ch_no
-*                st_spibsc_cfg_t *spibsccfg
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: Userdef_SPIBSC_Set_Config
+ * Description  : The setting function of SPIBSC.
+ * Arguments    : uint32_t    ch_no
+ *                st_spibsc_cfg_t *spibsccfg
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Set_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
     int32_t ret;
@@ -288,13 +288,13 @@ int32_t R_SFLASH_Set_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 } /* End of function Userdef_SPIBSC_Set_Config() */
 
 /******************************************************************************
-* Function Name: SPIBSC_Exread_Mode_Config
-* Description  : Called the configuration function
-* Arguments    :  uint32_t ch_no : use channel No
-*                 st_spibsc_cfg_t *spibsccfg
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: SPIBSC_Exread_Mode_Config
+ * Description  : Called the configuration function
+ * Arguments    :  uint32_t ch_no : use channel No
+ *                 st_spibsc_cfg_t *spibsccfg
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t SPIBSC_Exread_Mode_Config(uint32_t ch_no, st_spibsc_cfg_t* spibsccfg)
 {
     if (ch_no == 0)

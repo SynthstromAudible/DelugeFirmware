@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -97,8 +97,8 @@ public:
 
 	WaveformRenderData renderData;
 
-	SampleRecorder*
-	    recorder; // Will be set to NULL right at the end of the loop's recording, even though the SampleRecorder itself will usually persist slightly longer
+	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
+	                          // SampleRecorder itself will usually persist slightly longer
 
 	int32_t attack;
 

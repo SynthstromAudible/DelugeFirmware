@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "dsp/filter/svf.h"
 
 namespace deluge::dsp::filter {
@@ -40,8 +40,8 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
 	curveFrequency(freq);
-	//multiply by 1.25 to loosely correct for equivalency to ladders
-	//Caused by the actual svf cutoff being sin inverse of this fc
+	// multiply by 1.25 to loosely correct for equivalency to ladders
+	// Caused by the actual svf cutoff being sin inverse of this fc
 	constexpr q31_t POINT_25 = ONE_Q31 * 0.25;
 	fc = fc + multiply_32x32_rshift32(fc, POINT_25);
 
@@ -50,12 +50,12 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	// Multiply by 4 to bring it to the q31 0-1 range
 	q = (ONE_Q31 - 4 * (res));
 	in = (q >> 1) + (ONE_Q31 >> 1);
-	//squared q is a better match for the ladders
-	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
+	// squared q is a better match for the ladders
+	// also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
 
-	//note - the if statements are to avoid overflow issues
-	//do not remove
+	// note - the if statements are to avoid overflow issues
+	// do not remove
 	constexpr q31_t ONE_HALF = ONE_Q31 >> 1;
 	if (band_mode) {
 		if (lpfMorph > (ONE_HALF)) {
@@ -94,21 +94,21 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	high = input - low;
 	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, fc) + band;
-	//notch = high + low;
+	// notch = high + low;
 
-	//saturate band feedback
+	// saturate band feedback
 	band = getTanHUnknown(band, 3);
 
 	lowi = low;
 	highi = high;
 	bandi = band;
-	//double sample to increase the cutoff frequency
+	// double sample to increase the cutoff frequency
 	low = low + 2 * multiply_32x32_rshift32(band, fc);
 	high = input - low;
 	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, fc) + band;
 
-	//notch = high + low;
+	// notch = high + low;
 	lowi = lowi + low;
 	highi = highi + high;
 	bandi = bandi + band;
@@ -119,10 +119,10 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 		result = multiply_accumulate_32x32_rshift32_rounded(result, bandi, c_band);
 	}
 
-	//saturate band feedback
+	// saturate band feedback
 	band = getTanHUnknown(band, 3);
-	//compensate for division by two on each multiply
-	//then multiply by 1.5 to match ladders
+	// compensate for division by two on each multiply
+	// then multiply by 1.5 to match ladders
 	result = 3 * result;
 
 	state.low = low;

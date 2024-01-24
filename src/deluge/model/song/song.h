@@ -158,13 +158,15 @@ public:
 	uint64_t timePerTimerTickBig;
 	int32_t divideByTimePerTimerTick;
 
-	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with inputTickScale, which is usually 1,
-	// but is different if there's an inputTickScaleClip.
-	// So, e.g. if insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so MIDI sync coming in representing
-	// an 8th-note would be interpreted internally as a quarter-note (because two internal 8th-notes would have happened, twice as fast, making a quarter-note)
+	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
+	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
+	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
+	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
+	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
 	int32_t insideWorldTickMagnitude;
 
-	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
+	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
+	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
 	int32_t insideWorldTickMagnitudeOffsetFromBPM;
 
 	int8_t swingAmount;
@@ -192,15 +194,15 @@ public:
 	uint8_t sectionToReturnToAfterSongEnd;
 
 	bool wasLastInArrangementEditor;
-	int32_t
-	    lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the ArrangementEditor, it's 0
+	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
+	                                         // ArrangementEditor, it's 0
 
 	bool arrangerAutoScrollModeActive;
 
 	MIDIInstrument* hibernatingMIDIInstrument;
 
-	bool
-	    outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn other functions not to look at Output::clipInstances
+	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
+	                                               // other functions not to look at Output::clipInstances
 
 	bool paramsInAutomationMode;
 

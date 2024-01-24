@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -52,7 +52,8 @@ char const* getThingName(OutputType outputType);
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 
-	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just always saturating by the same amount!
+	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just
+	// always saturating by the same amount!
 	switch (bits) {
 	case 31:
 		return signed_saturate<31>(val);
@@ -118,7 +119,7 @@ template <uint8_t lshift>
 /**
  * replace asterix with a digit
  * Only works for single digits
-*/
+ */
 [[gnu::always_inline]] constexpr void asterixToInt(char* str, int32_t i) {
 	while (*str != 0) {
 		if (*str == '*') {
@@ -347,8 +348,8 @@ template <unsigned saturationAmount>
 
 /* Should be faster, but isn't...
  * inline int32_t getTriangleSmall(int32_t phase) {
-	int32_t multiplier = (phase >> 31) | 1;
-	phase *= multiplier;
+    int32_t multiplier = (phase >> 31) | 1;
+    phase *= multiplier;
  */
 
 [[gnu::always_inline]] inline int32_t getTriangleSmall(uint32_t phase) {
@@ -359,7 +360,7 @@ template <unsigned saturationAmount>
 
 [[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
 	return ((phase < 2147483648u) ? 2 : -2) * phase + 2147483648u;
-	//return getTriangleSmall(phase) << 1;
+	// return getTriangleSmall(phase) << 1;
 }
 
 int32_t getDecay8(uint32_t input, uint8_t numBitsInInput);
@@ -408,7 +409,8 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 	// Make new colour being drawn into this square marginalise the colour already in the square
 	int32_t colourRemainingAmount = 65536;
 
-	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space" that it may still occupy
+	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space"
+	// that it may still occupy
 	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
 
 	// If the square has more colour in it than it's allowed to retain, then plan to reduce it

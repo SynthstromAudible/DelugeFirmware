@@ -75,7 +75,8 @@ extern bool pendingUIRenderingLock;
 
 #define EXCLUSIVE_UI_MODES_MASK ((uint32_t)255)
 
-// Non-exclusive UI modes, which can (if the code allows) occur at the same time as other ones, including the "exclusive" ones above.
+// Non-exclusive UI modes, which can (if the code allows) occur at the same time as other ones, including the
+// "exclusive" ones above.
 #define UI_MODE_STUTTERING (1 << 28)
 #define UI_MODE_HORIZONTAL_SCROLL (1 << 29)
 #define UI_MODE_AUDITIONING (1 << 30)

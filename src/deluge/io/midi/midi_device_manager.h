@@ -67,7 +67,7 @@ public:
 	bool hasBufferedSendData();
 	int sendBufferSpace();
 #else
-//warning - accessed as a C struct from usb driver
+// warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
 	struct MIDIDeviceUSB* device[4];
 #endif
@@ -79,7 +79,8 @@ struct ConnectedUSBMIDIDevice {
 
 	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
-	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+	// This will show a value after the general flush function is called, throughout other Devices being sent to before
+	// this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
 
 	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.

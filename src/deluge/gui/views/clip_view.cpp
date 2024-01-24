@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/clip_view.h"
 #include "definitions_cxx.hpp"
@@ -52,7 +52,8 @@ void ClipView::focusRegained() {
 ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
+	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
+	// accessible
 	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
@@ -92,7 +93,8 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		allowResyncingDuringClipLengthChange = true;
 	}
 
-	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
+	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback
+	// active
 	if (getCurrentClip()->loopLength != newLength) {
 		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
 		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
@@ -202,7 +204,7 @@ doReRender:
 				if (!scrollLeftIfTooFarRight(newLength)) {
 					// If this zoom level no longer valid...
 					if (zoomToMax(true)) {
-						//editor.displayZoomLevel(true);
+						// editor.displayZoomLevel(true);
 					}
 					else {
 						goto doReRender;
@@ -245,16 +247,17 @@ doReRender:
 		if (action && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
 		    && action->currentClip == clip) {
 
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
-			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
+			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the
+			// code just below. Or possibly because the Action was created but there wasn't enough RAM to create the
+			// Consequence. Anyway, just go add a consequence now.
 			if (!action->firstConsequence)
 				goto addConsequenceToAction;
 
 			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
 			consequence->amount += shiftAmount;
 
-			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because everything would be back the same -
-			// but no! Remember different NoteRows might have different lengths.
+			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because
+			// everything would be back the same - but no! Remember different NoteRows might have different lengths.
 		}
 
 		// Or if no previous Action, go create a new one now.

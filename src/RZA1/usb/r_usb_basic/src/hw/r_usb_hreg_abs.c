@@ -89,7 +89,7 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
         uint16_t bsts;
 
         brdysts = ptr->ipp->BRDYSTS;
-        //brdyenb = ptr->ipp->BRDYENB;
+        // brdyenb = ptr->ipp->BRDYENB;
         bsts = brdysts; //(uint16_t)(brdysts & brdyenb);
 
         // Pipe 0
@@ -103,7 +103,7 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
         // Other pipes
         else
         {
-            //brdyOccurred(0); // Records exact time of message receipt
+            // brdyOccurred(0); // Records exact time of message receipt
             timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
 
             ptr->ipp->BRDYSTS = (uint16_t)(~bsts & BRDYSTS_MASK);
@@ -119,7 +119,7 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
         uint16_t ests;
 
         bempsts = ptr->ipp->BEMPSTS;
-        //bempenb = ptr->ipp->BEMPENB;
+        // bempenb = ptr->ipp->BEMPENB;
         ests = bempsts; //(uint16_t)(bempsts & bempenb);
 
         // Pipe 0
@@ -211,9 +211,9 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
         {
             /* DTCH  interrupt disable */
             usb_hstd_bus_int_disable(ptr, (uint16_t)USB_PORT0);
-            ptr->keyword = USB_INT_ATTCH0;
-            anythingEverAttachedAsUSBHost =
-                1; // By Rohan. This is the first notification that something's been attached - even if it's not working yet
+            ptr->keyword                  = USB_INT_ATTCH0;
+            anythingEverAttachedAsUSBHost = 1; // By Rohan. This is the first notification that something's been
+                                               // attached - even if it's not working yet
         }
         else if (ists1 & USB_EOFERR) /***** EOFERR INT *****/
         {
@@ -250,7 +250,8 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
         }
     }
 
-    return 0; // Everything's *not* taken care of here - need to use the messaging system to take care of it later. Rohan
+    return 0; // Everything's *not* taken care of here - need to use the messaging system to take care of it later.
+              // Rohan
 } /* End of function of usb_hstd_interrupt_handler */
 
 /***********************************************************************************************************************
@@ -756,7 +757,8 @@ void usb_hstd_forced_termination(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
 
     /* Disable Empty Interrupt */
     hw_usb_clear_bempenb(ptr,
-        pipe); // This isn't necessary, and I've removed it from when there's been a successful transaction. However, removing it didn't solve occasional i029 on disconnecting / reconnecting hub and many devices.
+        pipe); // This isn't necessary, and I've removed it from when there's been a successful transaction. However,
+               // removing it didn't solve occasional i029 on disconnecting / reconnecting hub and many devices.
 
     usb_cstd_clr_transaction_counter(ptr, pipe);
 
@@ -801,7 +803,7 @@ void usb_hstd_forced_termination(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
         g_p_usb_pipe[pipe]->tranlen = g_usb_data_cnt[pipe];
         g_p_usb_pipe[pipe]->status  = status;
         g_p_usb_pipe[pipe]->pipectr = hw_usb_read_pipectr(ptr, pipe);
-        //g_p_usb_pipe[pipe]->errcnt  = (uint8_t)g_usb_hstd_ignore_cnt[ptr->ip][pipe];
+        // g_p_usb_pipe[pipe]->errcnt  = (uint8_t)g_usb_hstd_ignore_cnt[ptr->ip][pipe];
         g_p_usb_pipe[pipe]->ipp = ptr->ipp;
         g_p_usb_pipe[pipe]->ip  = ptr->ip;
         if (USB_NULL != (g_p_usb_pipe[pipe]->complete))

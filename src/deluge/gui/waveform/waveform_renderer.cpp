@@ -104,12 +104,12 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 
 		int32_t colourValue = getColBrightnessForSingleRow(xDisplaySource, maxPeakFromZero, data);
 		colourValue = (colourValue * colourValue); // >> 8;
-		//if (colourValue > 255) colourValue = 255; // May sometimes go juuust over
+		// if (colourValue > 255) colourValue = 255; // May sometimes go juuust over
 
 		thisImage[xDisplayOutput] = rgb.transform([colourValue](auto channel) {
 			int32_t valueHere = (colourValue * channel) >> 16;
-			// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour shades cause big problems.
-			// The 6 is quite arbitrary, but I think it looks good
+			// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour
+			// shades cause big problems. The 6 is quite arbitrary, but I think it looks good
 			return std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);
 		});
 	}
@@ -133,8 +133,8 @@ int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
 
 	return std::min<int32_t>(peak16 >> 8, 256); // Max 256 - for now. Looks great and bright.
-	    // Must manually limit this, cos if we've ended up with values higher than our maxPeakFromZero,
-	    // there'd be trouble otherwise
+	                                            // Must manually limit this, cos if we've ended up with values higher
+	                                            // than our maxPeakFromZero, there'd be trouble otherwise
 }
 
 void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform, int32_t xDisplayOutput,
@@ -277,7 +277,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// If this column extends further right than the end of the waveform...
 		if (colEndSample >= numValidSamples) {
 
-			// If we're still recording, we'll just want to come back and render this one when the waveform has grown to cover this whole column
+			// If we're still recording, we'll just want to come back and render this one when the waveform has grown to
+			// cover this whole column
 			if (recorder) {
 				data->colStatus[col] = 0;
 				continue;
@@ -390,7 +391,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
 		}
 
-		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done previously, we can just reuse those findings!
+		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done
+		// previously, we can just reuse those findings!
 		if (investigatingAWholeCluster && sampleCluster->investigatedWholeLength) {
 			data->minPerCol[col] = (int32_t)sampleCluster->minValue << 24;
 			data->maxPerCol[col] = (int32_t)sampleCluster->maxValue << 24;
@@ -408,8 +410,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				}
 			}
 			else {
-				errorCode =
-				    "E341"; // Qui got this, around V3.1.3! And Steven G, 3.1.5. And Brawny, V4.0.1-RC! And then Malte P.
+				errorCode = "E341"; // Qui got this, around V3.1.3! And Steven G, 3.1.5. And Brawny, V4.0.1-RC! And then
+				                    // Malte P.
 			}
 
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
@@ -432,7 +434,8 @@ cantReadData:
 			int32_t overshoot = numBytesToRead % (sample->numChannels * sample->byteDepth);
 			endByteWithinCluster -= overshoot;
 
-			// However, if that's reduced us to 0 bytes to read, we know we're gonna have to load in the next Cluster to get its sample that's on the boundary
+			// However, if that's reduced us to 0 bytes to read, we know we're gonna have to load in the next Cluster to
+			// get its sample that's on the boundary
 			Cluster* nextCluster = NULL;
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
@@ -501,7 +504,8 @@ cantReadData:
 			// If we just looked at the length of one entire cluster...
 			if (investigatingAWholeCluster) {
 
-				// See if we want to include any previously captured maximums and minimums, which might have looked at slightly different values
+				// See if we want to include any previously captured maximums and minimums, which might have looked at
+				// slightly different values
 				int32_t prevMin = (int32_t)sampleCluster->minValue << 24;
 				int32_t prevMax = (int32_t)sampleCluster->maxValue << 24;
 

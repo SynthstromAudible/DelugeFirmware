@@ -36,7 +36,8 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 
 	currentFileHasSuffixFormatNameImplied = false;
 
-	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY keyboard.
+	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
+	// keyboard.
 	int32_t error = storageManager.initSD();
 	if (error) {
 		return error;
@@ -111,7 +112,7 @@ void SlotBrowser::processBackspace() {
 		}
 	}
 	else {
-		//currentFileExists = false;
+		// currentFileExists = false;
 		currentFileHasSuffixFormatNameImplied = false;
 	}
 }
@@ -122,10 +123,11 @@ void SlotBrowser::enterKeyPress() {
 
 /*
 void SlotBrowser::selectEncoderAction(int8_t offset) {
-	convertToPrefixFormatIfPossible();
+    convertToPrefixFormatIfPossible();
 }
 */
-// This gets called if you're gonna load the thing, or have turned the select knob to navigate, so these functions can treat it as a numeric format name
+// This gets called if you're gonna load the thing, or have turned the select knob to navigate, so these functions can
+// treat it as a numeric format name
 void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 	FileItem* currentFileItem = getCurrentFileItem();

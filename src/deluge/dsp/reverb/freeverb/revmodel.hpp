@@ -31,7 +31,7 @@ class revmodel {
 public:
 	revmodel();
 	void mute();
-	//void	process(int32_t input, int32_t *outputL, int32_t *outputR);
+	// void	process(int32_t input, int32_t *outputL, int32_t *outputR);
 	void setroomsize(float value);
 	float getroomsize();
 	void setdamp(float value);
@@ -122,4 +122,4 @@ private:
 	int32_t bufallpassR4[allpasstuningR4];
 };
 
-//ends
+// ends

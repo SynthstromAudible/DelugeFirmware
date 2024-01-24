@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/reverb/freeverb/comb.hpp"
 
@@ -49,7 +49,7 @@ float comb::getdamp() {
 }
 
 void comb::setfeedback(int32_t val) {
-	//feedback = val;
+	// feedback = val;
 	feedback = val;
 }
 

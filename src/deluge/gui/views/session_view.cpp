@@ -141,8 +141,8 @@ void SessionView::focusRegained() {
 	                                  // loadInstrumentPresetUI, need to at least redraw, and also really need to
 	                                  // re-render stuff in case note-tails-being-allowed has changed
 
-	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
-	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
+	// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
 
 	ClipNavigationTimelineView::focusRegained();
@@ -239,7 +239,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					return ActionResult::DEALT_WITH;
 				}
 
-				// Rows are not aligned in grid so we disabled this function, the code below also would need to be aligned
+				// Rows are not aligned in grid so we disabled this function, the code below also would need to be
+				// aligned
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_IMPOSSIBLE_FROM_GRID));
 					return ActionResult::DEALT_WITH;
@@ -434,8 +435,8 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
-				//Clip* clip = getClipOnScreen(selectedClipYDisplay);
-				//contextMenuLaunchStyle.clip = clip;
+				// Clip* clip = getClipOnScreen(selectedClipYDisplay);
+				// contextMenuLaunchStyle.clip = clip;
 				context_menu::launchStyle.setupAndCheckAvailability();
 				openUI(&context_menu::launchStyle);
 			}
@@ -467,7 +468,7 @@ moveAfterClipInstance:
 						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
-				//open Song FX menu
+				// open Song FX menu
 				display->setNextTransitionDirection(1);
 				soundEditor.setup();
 				openUI(&soundEditor);
@@ -752,7 +753,8 @@ startHoldingDown:
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
-					//if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return ActionResult::DEALT_WITH;
+					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
+					// ActionResult::DEALT_WITH;
 
 					clip = createNewInstrumentClip(yDisplay);
 					if (!clip) {
@@ -860,8 +862,9 @@ midiLearnMelodicInstrumentAction:
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
 						if (sdRoutineLock) {
-							return ActionResult::
-							    REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's still loading an Instrument they selected,
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's
+							                                                     // still loading an Instrument they
+							                                                     // selected,
 						}
 						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
@@ -876,9 +879,10 @@ justEndClipPress:
 				}
 			}
 
-			// In all other cases, then if also inside card routine, do get it to remind us after. Especially important because it could be that
-			// the user has actually pressed down on a pad, that's caused a new clip to be created and preset to load, which is still loading right now,
-			// but the uiMode hasn't been set to "holding down" yet and control hasn't been released back to the user, and this is the user releasing their press,
+			// In all other cases, then if also inside card routine, do get it to remind us after. Especially important
+			// because it could be that the user has actually pressed down on a pad, that's caused a new clip to be
+			// created and preset to load, which is still loading right now, but the uiMode hasn't been set to "holding
+			// down" yet and control hasn't been released back to the user, and this is the user releasing their press,
 			// so we definitely want to be reminded of this later after the above has happened.
 			else {
 				if (sdRoutineLock) {
@@ -975,8 +979,8 @@ void SessionView::clipPressEnded() {
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
 		return;
 	}
-	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
-	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
+	// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
 	clipWasSelectedWithShift = false;
 	gridResetPresses();
@@ -1885,7 +1889,7 @@ nothingToDisplay:
 	setCentralLEDStates();
 }
 
-//render session view display on opening
+// render session view display on opening
 void SessionView::renderViewDisplay(char const* viewString) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
@@ -1989,12 +1993,12 @@ void SessionView::graphicsRoutine() {
 				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
 			}
 		}
-		if (modKnobMode == 4 && editingComp) { //upper
+		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
 				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
 
-				indicator_leds::setMeterLevel(1, gr); //Gain Reduction LED
+				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
 		}
 	}
@@ -2196,8 +2200,8 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return false;
 	}
-	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function actually
-	// checks for that. Should be ok-ish though...
+	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function
+	// actually checks for that. Should be ok-ish though...
 	pendingUIRenderingLock = true;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
@@ -2367,8 +2371,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 		    && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks mental, and I think one user was having it
-				// cause his Deluge to freeze due to underpowering.
+				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
+				// mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
 				thisImage[xDisplay] = colours::midi_command.dim();
 			}
 		}
@@ -2735,7 +2739,7 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
-	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
+	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
 }
@@ -3145,8 +3149,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		return nullptr;
 	}
 
-	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
-	// Remember this assumes a non Audio clip
+	// If we copied from source and the clip should go in another track we need to move it after putting it in the
+	// session Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
 		if (sourceClip->type == ClipType::INSTRUMENT) {
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
@@ -3257,7 +3261,8 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
-	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be refactored
+	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be
+	// refactored
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}

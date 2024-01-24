@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_clip_existence.h"
 #include "definitions_cxx.hpp"
@@ -93,14 +93,15 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 
 		if (!clip->output->activeClip) {
 			clip->output->setActiveClip(
-			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no backedUpParamManager, it must have an activeClip
+			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no
+			                                    // backedUpParamManager, it must have an activeClip
 		}
 	}
 
 	else { // (Re-)delete
 
-		// Make sure the currentClip isn't left pointing to this Clip. Most of the time, ActionLogger::revertAction() reverts currentClip so
-		// we don't have to worry about it - but not if action->currentClip is NULL!
+		// Make sure the currentClip isn't left pointing to this Clip. Most of the time, ActionLogger::revertAction()
+		// reverts currentClip so we don't have to worry about it - but not if action->currentClip is NULL!
 		if (modelStackWithTimelineCounter->song->currentClip == clip) {
 			modelStackWithTimelineCounter->song->currentClip = NULL;
 		}
@@ -121,7 +122,8 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 
 		if (clipArray == &modelStackWithTimelineCounter->song->sessionClips) {
 
-			// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and also so overall soloing may be cancelled if no others soloing
+			// Must unsolo the Clip before we delete it, in case its play-pos needs to be grabbed for another Clip - and
+			// also so overall soloing may be cancelled if no others soloing
 			if (clip->soloingInSessionMode) {
 				session.unsoloClip(clip);
 			}
@@ -133,7 +135,8 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 		}
 
 		// This next call will back up all ParamManagers, including for Drums.
-		// But it will (unusually) leave clip->output pointing to the Output, and the same for any NoteRows' Drums. So that we can revert this stuff later.
+		// But it will (unusually) leave clip->output pointing to the Output, and the same for any NoteRows' Drums. So
+		// that we can revert this stuff later.
 		Output* oldOutput = clip->output;
 
 		if (clip->isActiveOnOutput() && playbackHandler.isEitherClockActive()) {
@@ -155,7 +158,8 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 #endif
 
 		clip->detachFromOutput(modelStackWithTimelineCounter, false, false, true);
-		// modelStackWithTimelineCounter may not be used again after this! ------------------------------------------------
+		// modelStackWithTimelineCounter may not be used again after this!
+		// ------------------------------------------------
 		oldOutput->pickAnActiveClipIfPossible(modelStack); // Yup, we're required to call this after detachFromOutput().
 	}
 

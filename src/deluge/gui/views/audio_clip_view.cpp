@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
@@ -465,7 +465,8 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 								newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
 
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
+								// If the end pos is very close to the end pos marked in the audio file, assume some
+								// rounding happened along the way and just go with the original
 								if (sample->fileLoopStartSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
@@ -501,7 +502,8 @@ setTheStartPos:
 							else {
 								newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
 
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
+								// If the end pos is very close to the end pos marked in the audio file, assume some
+								// rounding happened along the way and just go with the original
 								if (sample->fileLoopEndSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
@@ -532,7 +534,8 @@ setTheEndPos:
 							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
 							                                                : ActionType::CLIP_LENGTH_INCREASE;
 
-							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
+							// Change sample end-pos value. Must do this before calling setClipLength(), which will end
+							// up reading this value.
 							uint64_t oldValue = *valueToChange;
 							*valueToChange = newEndPosSamples;
 
@@ -574,8 +577,8 @@ needRendering:
 
 void AudioClipView::playbackEnded() {
 
-	// A few reasons we might want to redraw the waveform. If a Sample had only partially recorded, it will have just been discarded. Or, if tempoless
-	// or arrangement recording, zoom and everything will have just changed
+	// A few reasons we might want to redraw the waveform. If a Sample had only partially recorded, it will have just
+	// been discarded. Or, if tempoless or arrangement recording, zoom and everything will have just changed
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 

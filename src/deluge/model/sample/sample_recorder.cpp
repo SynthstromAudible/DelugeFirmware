@@ -72,8 +72,8 @@ SampleRecorder::~SampleRecorder() {
 	}
 }
 
-// This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file is being deleted
-// IMPORTANT!!!! You have to set sample to NULL after calling this, if not destructing
+// This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file
+// is being deleted IMPORTANT!!!! You have to set sample to NULL after calling this, if not destructing
 void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
@@ -96,7 +96,8 @@ void SampleRecorder::detachSample() {
 
 	int32_t removeForClustersUntilIndex = currentRecordClusterIndex;
 	if (currentRecordCluster) {
-		removeForClustersUntilIndex++; // If there's a currentRecordCluster (usually will be if aborting), need to remove its "reason" too
+		removeForClustersUntilIndex++; // If there's a currentRecordCluster (usually will be if aborting), need to
+		                               // remove its "reason" too
 	}
 
 	while (firstUnwrittenClusterIndex < removeForClustersUntilIndex) {
@@ -180,8 +181,8 @@ gotError:
 	numSamplesToRunBeforeBeginningCapturing = numSamplesExtraToCaptureAtEndSyncingWise =
 	    (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) ? kAudioRecordLagCompensation : 0;
 
-	// Apart from the MIX option, all other audio sources are fed to us during the "outputting" routine. Occasionally, there'll be some more of that
-	// going to happen for the previous render, so we have to compensate for that
+	// Apart from the MIX option, all other audio sources are fed to us during the "outputting" routine. Occasionally,
+	// there'll be some more of that going to happen for the previous render, so we have to compensate for that
 	if (mode != AudioInputChannel::MIX) {
 		numSamplesToRunBeforeBeginningCapturing += AudioEngine::getNumSamplesLeftToOutputFromPreviousRender();
 	}
@@ -197,15 +198,15 @@ gotError:
 		// If doing extra margins...
 		if (recordingExtraMargins) {
 
-			// Everything will be fine, so long as the button press latency we compensated for isn't, like, as big as the RX buffer
+			// Everything will be fine, so long as the button press latency we compensated for isn't, like, as big as
+			// the RX buffer
 			sample->fileLoopStartSamples =
 			    SSI_RX_BUFFER_NUM_SAMPLES - (SSI_TX_BUFFER_NUM_SAMPLES << 1) + numSamplesToRunBeforeBeginningCapturing;
 			numSamplesToRunBeforeBeginningCapturing = 0;
 
-			sourcePos +=
-			    (SSI_TX_BUFFER_NUM_SAMPLES
-			     << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE
-			         + 1)); // I think the +1 was just because it needs to move two tx buffers' length for some reason...
+			sourcePos += (SSI_TX_BUFFER_NUM_SAMPLES
+			              << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 1)); // I think the +1 was just because it needs to
+			                                                           // move two tx buffers' length for some reason...
 			if (sourcePos >= getRxBufferEnd()) {
 				sourcePos -= SSI_RX_BUFFER_NUM_SAMPLES << NUM_MONO_INPUT_CHANNELS_MAGNITUDE;
 			}
@@ -214,7 +215,8 @@ gotError:
 		// Or if not doing extra margins...
 		else {
 
-			// If the button press latency we're compensating for is more than the audio latency, we have to adjust stuff, to grab some audio from just back in time
+			// If the button press latency we're compensating for is more than the audio latency, we have to adjust
+			// stuff, to grab some audio from just back in time
 			if (numSamplesToRunBeforeBeginningCapturing < 0) {
 
 				sourcePos +=
@@ -304,9 +306,9 @@ gotError:
 	return NO_ERROR;
 }
 
-// Beware! This could get called during card routine - e.g. if user stopped playback. So we'll just store a changed status,
-// then do the descrutcion and file deletion when we know we're out of the card routine.
-// Also, this gets called in audio routine! So don't do anything drastic.
+// Beware! This could get called during card routine - e.g. if user stopped playback. So we'll just store a changed
+// status, then do the descrutcion and file deletion when we know we're out of the card routine. Also, this gets called
+// in audio routine! So don't do anything drastic.
 void SampleRecorder::abort() {
 	status = RECORDER_STATUS_ABORTED; // Note: it may already equal this!
 }
@@ -321,14 +323,16 @@ aborted:
 		if (sample) { // This might get called multiple times, so check we haven't already detached it.
 
 			// Note: if this abort() is due to a song-swap (loading a different song),
-			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here before that trips over us. Previously caused an E281.
-			// So, for that to happen, SampleManager::deleteAnyTempRecordedSamplesFromMemory() (indirectly) calls us here first.
+			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
+			// before that trips over us. Previously caused an E281. So, for that to happen,
+			// SampleManager::deleteAnyTempRecordedSamplesFromMemory() (indirectly) calls us here first.
 
 			detachSample(); // Does not set sample to NULL - we do that below
 
 #if ALPHA_OR_BETA_VERSION
-			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be "aborted"
-			// before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip becomes a "reason".
+			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
+			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
+			// becomes a "reason".
 			if (sample->numReasonsToBeLoaded) {
 				FREEZE_WITH_ERROR("E282");
 			}
@@ -347,7 +351,8 @@ aborted:
 			FRESULT result = f_unlink(filePathCreated.get());
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
-			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder and can be overwritten anyway
+			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder
+			// and can be overwritten anyway
 			if (result == FR_OK || folderID == AudioRecordingFolder::CLIPS) {
 				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
 				    == audioFileNumber) {
@@ -358,8 +363,9 @@ aborted:
 			filePathCreated.clear();
 		}
 
-		// Normally we now just await deletion - except if a pointer is still being held elsewhere - which I think can only happen from AudioRecorder.
-		// Or if the abort comes from a failure within this class and the AudioClip hasn't realised yet?
+		// Normally we now just await deletion - except if a pointer is still being held elsewhere - which I think can
+		// only happen from AudioRecorder. Or if the abort comes from a failure within this class and the AudioClip
+		// hasn't realised yet?
 		if (!pointerHeldElsewhere) {
 			status = RECORDER_STATUS_AWAITING_DELETION;
 		}
@@ -391,7 +397,8 @@ aborted:
 			String filePath;
 			String tempFilePathForRecording;
 
-			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed during the card access! (Though probably not anymore right?)
+			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed
+			// during the card access! (Though probably not anymore right?)
 			errorToReturn = audioFileManager.getUnusedAudioRecordingFilePath(
 			    &filePath, &tempFilePathForRecording, folderID,
 			    &audioFileNumber); // Recording could finish or abort during this!
@@ -486,7 +493,8 @@ int32_t SampleRecorder::writeAnyCompletedClusters() {
 
 		int32_t error = writeOneCompletedCluster();
 
-		// If there was an error, we can only return now after removing that reason, because we'd already incremented firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
+		// If there was an error, we can only return now after removing that reason, because we'd already incremented
+		// firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
 		if (error) {
 			return error;
 		}
@@ -506,7 +514,9 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 	}
 #endif
 
-	firstUnwrittenClusterIndex++; // Have to increment this before writing, cos while writing, the audio routine will be called, and we need to be counting this cluster as "written", as in too late for it to be modified (by writing a final length to it)
+	firstUnwrittenClusterIndex++; // Have to increment this before writing, cos while writing, the audio routine will be
+	                              // called, and we need to be counting this cluster as "written", as in too late for it
+	                              // to be modified (by writing a final length to it)
 
 	int32_t error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
 
@@ -516,7 +526,8 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
-			// Leo got!!! And Vinz, and keyman. May be solved now that fixed so detachSample() doesn't get called during card routine.
+			// Leo got!!! And Vinz, and keyman. May be solved now that fixed so detachSample() doesn't get called during
+			// card routine.
 			FREEZE_WITH_ERROR("E347");
 		}
 		cluster->numReasonsHeldBySampleRecorder--;
@@ -524,7 +535,8 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 		audioFileManager.removeReasonFromCluster(cluster, "E015");
 	}
 
-	// If there was an error, we can only return now after removing that reason, because we'd already incremented firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
+	// If there was an error, we can only return now after removing that reason, because we'd already incremented
+	// firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
 	return error;
 }
 
@@ -536,7 +548,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 	D_PRINTLN("finalizing");
 
-	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster, we need to allocate a new one right now
+	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster,
+	// we need to allocate a new one right now
 	int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
 	if (bytesTilClusterEnd < 0) {
 		int32_t error = createNextCluster();
@@ -556,7 +569,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 		}
 	}
 
-	// And we probably need to write some of the final cluster(s) to file. (If it's NULL, it means that it couldn't be created, cos or RAM or file size limit.)
+	// And we probably need to write some of the final cluster(s) to file. (If it's NULL, it means that it couldn't be
+	// created, cos or RAM or file size limit.)
 	if (currentRecordCluster) {
 
 		int32_t bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
@@ -570,7 +584,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 		firstUnwrittenClusterIndex++;
 
 		// Having incremented firstUnwrittenClusterIndex, we need to remove the "reason" for that final cluster.
-		// Normally that happens in writeAnyCompletedClusters(), but well this cluster wasn't "complete" so we're doing the whole thing here instead
+		// Normally that happens in writeAnyCompletedClusters(), but well this cluster wasn't "complete" so we're doing
+		// the whole thing here instead
 		if (!keepingReasonsForFirstClusters || currentRecordClusterIndex >= kNumClustersLoadedAhead) {
 
 			// Some bug-hunting
@@ -630,7 +645,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 	uint32_t dataLengthAfterAction =
 	    action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
 
-	// TODO: in a perfect world, where we're not deleting a channel, we'd go backwards from the last Cluster, because that's the most likely to still be in memory
+	// TODO: in a perfect world, where we're not deleting a channel, we'd go backwards from the last Cluster, because
+	// that's the most likely to still be in memory
 
 	// If some processing of the recorded audio data needs to happen...
 	if (lshiftAmount || action != MonitoringAction::NONE) {
@@ -649,7 +665,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 	// Or if no action or shifting was required...
 	else {
 
-		// If we made the file too long, because we then compensated for button latency and are throwing away the last little bit, then truncate it
+		// If we made the file too long, because we then compensated for button latency and are throwing away the last
+		// little bit, then truncate it
 		if (capturedTooMuch) {
 			D_PRINTLN("truncating");
 			uint32_t correctLength =
@@ -663,7 +680,8 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 			return ERROR_SD_CARD;
 		}
 
-		// If the actual audio data length we ended up with is not the same as was written in the headers in the first cluster (very likely; various reasons)
+		// If the actual audio data length we ended up with is not the same as was written in the headers in the first
+		// cluster (very likely; various reasons)
 		if (sample->audioDataLengthBytes != audioDataLengthBytesAsWrittenToFile
 		    || (recordingExtraMargins && sample->fileLoopEndSamples != loopEndSampleAsWrittenToFile)) {
 
@@ -738,7 +756,7 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
 int32_t SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
-	//D_PRINTLN("writeCluster");
+	// D_PRINTLN("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
 
@@ -750,7 +768,8 @@ int32_t SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
 	}
 
 	sampleCluster = sample->clusters.getElement(
-	    clusterIndex); // MUST re-get this - while writing above, the audio routine is being called, and that could allocate new SampleClusters and move them around!
+	    clusterIndex); // MUST re-get this - while writing above, the audio routine is being called, and that could
+	                   // allocate new SampleClusters and move them around!
 
 	// Grab the SD address, for later
 	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file.clust);
@@ -759,14 +778,14 @@ int32_t SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
 
 int32_t SampleRecorder::createNextCluster() {
 
-	Cluster* oldRecordCluster =
-	    currentRecordCluster; // Cos we're gonna set that to NULL just below here, but still want to be able to access the old one a bit further down
+	Cluster* oldRecordCluster = currentRecordCluster; // Cos we're gonna set that to NULL just below here, but still
+	                                                  // want to be able to access the old one a bit further down
 
 	currentRecordClusterIndex++; // Mark record-cluster we were on as finished
 
-	currentRecordCluster =
-	    NULL; // Note that we haven't yet created our next record-cluster - we'll do that below if no error first; and if there is an error and we
-	          // don't create one, this has to remain NULL to indicate that we never created one
+	currentRecordCluster = NULL; // Note that we haven't yet created our next record-cluster - we'll do that below if no
+	                             // error first; and if there is an error and we don't create one, this has to remain
+	                             // NULL to indicate that we never created one
 
 	// If this new cluster would actually put us past the 4GB limit...
 	if (currentRecordClusterIndex >= (1 << (MAX_FILE_SIZE_MAGNITUDE - audioFileManager.clusterSizeMagnitude))) {
@@ -820,8 +839,8 @@ int32_t SampleRecorder::createNextCluster() {
 	return NO_ERROR;
 }
 
-// Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user action, or after being fed a few more samples
-// to make up for latency.
+// Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user action,
+// or after being fed a few more samples to make up for latency.
 void SampleRecorder::finishCapturing() {
 	status = RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING;
 	if (getRootUI()) {
@@ -1200,7 +1219,8 @@ int32_t SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount,
 
 	uint32_t count = 0;
 
-	// TODO: this is really inefficient - checks a bunch of stuff for every single audio sample. Should check in advance how many samples we can process at a time
+	// TODO: this is really inefficient - checks a bunch of stuff for every single audio sample. Should check in advance
+	// how many samples we can process at a time
 
 	while (true) {
 
@@ -1234,7 +1254,8 @@ int32_t SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount,
 		*(writePos++) = *(processedPos++);
 		*(writePos++) = *(processedPos++);
 
-		// If need to advance write-head past the end of a cluster, then we'll write that current cluster to disk and carry on
+		// If need to advance write-head past the end of a cluster, then we'll write that current cluster to disk and
+		// carry on
 		int32_t writeOvershot = (uint32_t)writePos - (uint32_t)&currentWriteCluster->data[audioFileManager.clusterSize];
 		if (writeOvershot >= 0) {
 
@@ -1309,7 +1330,8 @@ writeFailed:
 			// Ok, move on and start thinking about the next Cluster now
 			currentWriteClusterIndex++;
 
-			// Get the new / next Cluster, but don't insist on actually reading from the card, cos we're gonna overwrite it with new data anyway
+			// Get the new / next Cluster, but don't insist on actually reading from the card, cos we're gonna overwrite
+			// it with new data anyway
 			currentWriteCluster =
 			    sample->clusters.getElement(currentWriteClusterIndex)
 			        ->getCluster(sample, currentWriteClusterIndex, CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
@@ -1322,17 +1344,19 @@ writeFailed:
 			// Bug hunting - newly gotten Cluster
 			currentWriteCluster->numReasonsHeldBySampleRecorder++;
 
-			// Ok, and those extra bytes that we grabbed from the end of the previous Cluster - paste them into the beginning of the new current Cluster
+			// Ok, and those extra bytes that we grabbed from the end of the previous Cluster - paste them into the
+			// beginning of the new current Cluster
 			if (writeOvershot) {
 				memcpy(currentWriteCluster->data, extraBytes, writeOvershot);
 			}
 
-			// And get ready to write to the new current Cluster - from the next sample, which might not be perfectly aligned to the Cluster start
+			// And get ready to write to the new current Cluster - from the next sample, which might not be perfectly
+			// aligned to the Cluster start
 			writePos = &currentWriteCluster->data[writeOvershot];
 		}
 
-		// If we're in the final read-Cluster and reached the end, then all that's left to do is flush out what we have left to write (max 1 cluster),
-		// and get out.
+		// If we're in the final read-Cluster and reached the end, then all that's left to do is flush out what we have
+		// left to write (max 1 cluster), and get out.
 		if (currentReadClusterIndex == numClustersBeforeAction - 1
 		    && readPos >= &currentReadCluster->data[bytesFinalCluster]) {
 			break;

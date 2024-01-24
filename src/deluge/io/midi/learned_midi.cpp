@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "io/midi/learned_midi.h"
 #include "definitions_cxx.hpp"
@@ -63,8 +63,9 @@ char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {
 	}
 }
 
-// If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag for device - that can't be just an attribute.
-// You should be sure that containsSomething() == true before calling this.
+// If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag
+// for device - that can't be just an attribute. You should be sure that containsSomething() == true before calling
+// this.
 void LearnedMIDI::writeAttributesToFile(int32_t midiMessageType) {
 
 	if (isForMPEZone()) {
@@ -171,5 +172,5 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 			return (newChannel == getMasterChannel());
 		}
 	}
-	return false; //should never happen
+	return false; // should never happen
 }

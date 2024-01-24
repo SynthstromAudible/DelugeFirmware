@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
 #include "processing/live/live_input_buffer.h"
@@ -69,12 +69,14 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 			if (numSamplesToJumpForward) {
 				oscPos &= 16777215;
 
-				// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+				// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before
+				// we're jumping forward to, to grab its value
 				if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
 					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - kInterpolationMaxNumSamples))
 					                   & (kInputRawBufferSize - 1);
 					numSamplesToJumpForward =
-					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do some optimization and speed things up. Re-test?
+					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do
+					                                 // some optimization and speed things up. Re-test?
 				}
 
 				for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
@@ -134,8 +136,8 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 	}
 }
 
-// Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself moving forward) and runs out of audio
-// Only valid if phaseIncrement > 16777216
+// Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself
+// moving forward) and runs out of audio Only valid if phaseIncrement > 16777216
 int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos,
                                                                 LiveInputBuffer* liveInputBuffer,
                                                                 int32_t phaseIncrement) {

@@ -49,9 +49,9 @@ extern uint8_t* g_p_usb_data[USB_MAX_PIPE_NO + 1u];   /* PIPEn Buffer pointer(8b
 #endif                                                /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-//extern usb_utr_t        *g_p_usb_hstd_pipe[][USB_MAX_PIPE_NO + 1u];     /* Message pipe */
-//extern uint8_t          *g_p_usb_hstd_data[][USB_MAX_PIPE_NO + 1u];     /* PIPEn Buffer pointer(8bit) */
-//extern uint32_t         g_usb_hstd_data_cnt[][USB_MAX_PIPE_NO + 1u];    /* PIPEn Buffer counter */
+// extern usb_utr_t        *g_p_usb_hstd_pipe[][USB_MAX_PIPE_NO + 1u];     /* Message pipe */
+// extern uint8_t          *g_p_usb_hstd_data[][USB_MAX_PIPE_NO + 1u];     /* PIPEn Buffer pointer(8bit) */
+// extern uint32_t         g_usb_hstd_data_cnt[][USB_MAX_PIPE_NO + 1u];    /* PIPEn Buffer counter */
 extern uint16_t g_usb_hstd_hs_enable[]; /* Hi-speed enable */
 #endif                                  /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 
@@ -250,7 +250,7 @@ uint16_t usb_cstd_get_buf_size(usb_utr_t* ptr, uint16_t pipe);
 
 extern uint16_t fifoSels[];
 
-//usb_cstd_chg_curpipe(USB_NULL, pipe, USB_CUSE, USB_FALSE);
+// usb_cstd_chg_curpipe(USB_NULL, pipe, USB_CUSE, USB_FALSE);
 inline static void usb_cstd_chg_curpipe_rohan_fast(uint16_t pipe)
 {
     if ((fifoSels[USB_CUSE] & (USB_ISEL | USB_CURPIPE)) != pipe)
@@ -266,7 +266,7 @@ inline static void usb_cstd_chg_curpipe_rohan_fast(uint16_t pipe)
         /* ISEL=1, CURPIPE=0 */
         uint16_t data   = (USB_RCNT | pipe);
         uint16_t bitptn = (USB_RCNT | USB_ISEL | USB_CURPIPE);
-        //hw_usb_rmw_fifosel(USB_NULL, USB_CUSE, data, bitptn);
+        // hw_usb_rmw_fifosel(USB_NULL, USB_CUSE, data, bitptn);
         //{
         uint16_t buf = *p_reg;
         buf &= (~bitptn);
@@ -448,7 +448,7 @@ usb_err_t usb_cstd_pget_blk(uint8_t id, usb_utr_t** blk);
 usb_err_t usb_cstd_rel_blk(uint8_t id, usb_utr_t* blk);
 void usb_cstd_sche_init(void);
 usb_err_t usb_cstd_check(usb_er_t err);
-//uint8_t             usb_cstd_check_schedule(void);
+// uint8_t             usb_cstd_check_schedule(void);
 void usb_cstd_scheduler(void);
 void usb_cstd_set_task_pri(uint8_t tasknum, uint8_t pri);
 
@@ -487,7 +487,7 @@ uint16_t usb_pstd_chk_remote(void);
 uint8_t usb_pstd_get_current_power(void);
 void usb_pstd_set_pipe_register(uint16_t pipeno, uint16_t* tbl);
 uint16_t usb_pstd_chk_pipe_info(uint16_t speed, uint16_t* ep_tbl, uint8_t* descriptor);
-//void                usb_registration(usb_ctrl_t *ctrl, usb_cfg_t *cfg); // Commented out by Rohan
+// void                usb_registration(usb_ctrl_t *ctrl, usb_cfg_t *cfg); // Commented out by Rohan
 
 /* r_usb_pcontrolrw.c */
 uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t* table);

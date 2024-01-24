@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "fixed.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/source_selection/range.h"

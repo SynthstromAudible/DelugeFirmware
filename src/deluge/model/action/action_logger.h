@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -36,7 +36,7 @@ class ActionLogger {
 public:
 	ActionLogger();
 
-	//warning - super not thread safe
+	// warning - super not thread safe
 	Action* getNewAction(ActionType newActionType,
 	                     ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,

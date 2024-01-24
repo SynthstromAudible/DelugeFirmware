@@ -32,9 +32,9 @@
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
-	uiNeedsRendering(
-	    this, 0xFFFFFFFF,
-	    0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to properly render again afterwards
+	uiNeedsRendering(this, 0xFFFFFFFF,
+	                 0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to
+	                     // properly render again afterwards
 }
 
 // Virtual function
@@ -131,15 +131,15 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still necessary? If either was true, wouldn't
-	// sdRoutineLock be true also for us to have gotten here?
+	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still
+	// necessary? If either was true, wouldn't sdRoutineLock be true also for us to have gotten here?
 	if (pendingUIRenderingLock) {
-		return ActionResult::
-		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to
+		                                                     // still come back later and do it, but oh well
 	}
 	if (horizontalEncoderActionLock) {
-		return ActionResult::
-		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times,
+		                                                     // while pre-rendering the waveforms for the new navigation
 	}
 	horizontalEncoderActionLock = true;
 
@@ -359,7 +359,7 @@ bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 		uint32_t displayLength = currentSong->xZoom[getNavSysId()] * kDisplayWidth;
 
 		initiateXScroll((maxLength - 1) / displayLength * displayLength);
-		//displayScrollPos();
+		// displayScrollPos();
 		return true;
 	}
 	return false;
@@ -369,7 +369,7 @@ bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
 	if (getPosFromSquare(0) >= maxLength) {
 		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * kDisplayWidth);
-		//displayScrollPos();
+		// displayScrollPos();
 		return true;
 	}
 	return false;
@@ -473,7 +473,8 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 		                  && (posRelativeToScroll % xZoom) == 0); // Will the % be ok if it's negative? No! :O
 	}
 
-	// Have to divide the two things separately before subtracting, otherwise negative results get rounded the wrong way!
+	// Have to divide the two things separately before subtracting, otherwise negative results get rounded the wrong
+	// way!
 	return divide_round_negative(pos - xScroll, xZoom);
 }
 

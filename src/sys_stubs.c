@@ -1,4 +1,4 @@
-//doing the minimal amount possible to not break
+// doing the minimal amount possible to not break
 
 // this stub fails to allocate - uses to be required, but currently isn't.
 // Take advantage of that to ensure anything which allocates will fail to link
@@ -7,25 +7,25 @@
 // }
 
 void _exit(int status) {
-	//halt execution
+	// halt execution
 	__asm("BKPT #0");
 	__builtin_unreachable();
 }
 
-//no return so just do nothing
+// no return so just do nothing
 void _kill(int pid, int sig) {
 	return;
 }
 
-//fail to get current pid
+// fail to get current pid
 int _getpid(void) {
 	return -1;
 }
 
-//fail to close file
-// int _close(int file) {
-// 	return -1;
-// }
+// fail to close file
+//  int _close(int file) {
+//  	return -1;
+//  }
 
 // return character oriented (not block)
 // int _fstat(int file, struct stat* st) {

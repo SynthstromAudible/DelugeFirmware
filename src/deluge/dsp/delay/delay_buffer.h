@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -85,17 +85,19 @@ public:
 		// If delay buffer spinning above sample rate...
 		if (setup->actualSpinRate >= 16777216) {
 
-			// An improvement on that could be to only do the triangle-widening when we're down near the native rate - i.e. set a minimum width of double the native rate rather than
-			// always doubling the width. The difficulty would be ensuring that we compensate perfectly the strength of each write so that the volume remains the same. It could totally be done.
-			// The only real advantage would be that the number of memory writes would be halved at high speeds.
+			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
+			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
+			// would be ensuring that we compensate perfectly the strength of each write so that the volume remains the
+			// same. It could totally be done. The only real advantage would be that the number of memory writes would
+			// be halved at high speeds.
 
 			// For efficiency, we start far-right, then traverse to far-left.
 			int32_t howFarRightToStart =
 			    (strength2 + (setup->spinRateForSpedUpWriting >> 8))
 			    >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t distanceFromMainWrite =
-			    (int32_t)howFarRightToStart
-			    << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
+			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart
+			                                << 16; // This variable represents one "step" of the delay buffer as 65536.
+			                                       // Always positive - absolute distance
 
 			StereoSample* writePos =
 			    bufferCurrentPos - delaySpaceBetweenReadAndWrite
@@ -116,7 +118,7 @@ public:
 
 				if (--writePos == bufferStart - 1)
 					writePos = bufferEnd - 1;
-				//writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
+				// writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
 
@@ -138,22 +140,24 @@ public:
 
 		// Or if delay buffer spinning below sample rate...
 		else {
-			// The most basic version of this would be to write to the "main" pos with strength1 and the "main + 1" pos with strength 2.
-			// But this isn't immune to aliasing, so we instead "squirt" things a little bit wider - wide enough that our "triangle" is always
-			// at least as wide as 1 step / sample in the delay buffer.
-			// This means we potentially need a further 1 write in each direction.
+			// The most basic version of this would be to write to the "main" pos with strength1 and the "main + 1" pos
+			// with strength 2. But this isn't immune to aliasing, so we instead "squirt" things a little bit wider -
+			// wide enough that our "triangle" is always at least as wide as 1 step / sample in the delay buffer. This
+			// means we potentially need a further 1 write in each direction.
 
-			// And because we're "arbitrarily" increasing the width and height (height is more a side-effect of the simple algorithm) of our squirt,
-			// and also how spaced out the squirts are, the value written at each step needs to be resized.
-			// See delayWriteSizeAdjustment, which is calculated above.
+			// And because we're "arbitrarily" increasing the width and height (height is more a side-effect of the
+			// simple algorithm) of our squirt, and also how spaced out the squirts are, the value written at each step
+			// needs to be resized. See delayWriteSizeAdjustment, which is calculated above.
 
-			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even a tiny slow-down causes half the bandwidth to be lost
+			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even
+			// a tiny slow-down causes half the bandwidth to be lost
 
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite
 			                         + 2; // The furthest right we need to write is 2 steps right from the "main" write
 			while (writePos < bufferStart)
 				writePos += sizeIncludingExtra;
-			//while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this here as a reminder
+			// while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this
+			// here as a reminder
 
 			int32_t strength[4];
 
@@ -180,7 +184,8 @@ public:
 		}
 	}
 
-	// For some reason, getting rid of this function and replacing it with the other ones causes actual delays to process like 5% slower...
+	// For some reason, getting rid of this function and replacing it with the other ones causes actual delays to
+	// process like 5% slower...
 
 	inline void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
 	                  DelayBufferSetup* setup) {
@@ -196,17 +201,19 @@ public:
 		// If delay buffer spinning above sample rate...
 		else if (setup->actualSpinRate >= 16777216) {
 
-			// An improvement on that could be to only do the triangle-widening when we're down near the native rate - i.e. set a minimum width of double the native rate rather than
-			// always doubling the width. The difficulty would be ensuring that we compensate perfectly the strength of each write so that the volume remains the same. It could totally be done.
-			// The only real advantage would be that the number of memory writes would be halved at high speeds.
+			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
+			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
+			// would be ensuring that we compensate perfectly the strength of each write so that the volume remains the
+			// same. It could totally be done. The only real advantage would be that the number of memory writes would
+			// be halved at high speeds.
 
 			// For efficiency, we start far-right, then traverse to far-left.
 			int32_t howFarRightToStart =
 			    (strength2 + (setup->spinRateForSpedUpWriting >> 8))
 			    >> 16; // I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t distanceFromMainWrite =
-			    (int32_t)howFarRightToStart
-			    << 16; // This variable represents one "step" of the delay buffer as 65536. Always positive - absolute distance
+			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart
+			                                << 16; // This variable represents one "step" of the delay buffer as 65536.
+			                                       // Always positive - absolute distance
 
 			StereoSample* writePos =
 			    bufferCurrentPos - delaySpaceBetweenReadAndWrite
@@ -227,7 +234,7 @@ public:
 
 				if (--writePos == bufferStart - 1)
 					writePos = bufferEnd - 1;
-				//writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
+				// writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
 
@@ -249,22 +256,24 @@ public:
 
 		// Or if delay buffer spinning below sample rate...
 		else {
-			// The most basic version of this would be to write to the "main" pos with strength1 and the "main + 1" pos with strength 2.
-			// But this isn't immune to aliasing, so we instead "squirt" things a little bit wider - wide enough that our "triangle" is always
-			// at least as wide as 1 step / sample in the delay buffer.
-			// This means we potentially need a further 1 write in each direction.
+			// The most basic version of this would be to write to the "main" pos with strength1 and the "main + 1" pos
+			// with strength 2. But this isn't immune to aliasing, so we instead "squirt" things a little bit wider -
+			// wide enough that our "triangle" is always at least as wide as 1 step / sample in the delay buffer. This
+			// means we potentially need a further 1 write in each direction.
 
-			// And because we're "arbitrarily" increasing the width and height (height is more a side-effect of the simple algorithm) of our squirt,
-			// and also how spaced out the squirts are, the value written at each step needs to be resized.
-			// See delayWriteSizeAdjustment, which is calculated above.
+			// And because we're "arbitrarily" increasing the width and height (height is more a side-effect of the
+			// simple algorithm) of our squirt, and also how spaced out the squirts are, the value written at each step
+			// needs to be resized. See delayWriteSizeAdjustment, which is calculated above.
 
-			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even a tiny slow-down causes half the bandwidth to be lost
+			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even
+			// a tiny slow-down causes half the bandwidth to be lost
 
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite
 			                         + 2; // The furthest right we need to write is 2 steps right from the "main" write
 			while (writePos < bufferStart)
 				writePos += sizeIncludingExtra;
-			//while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this here as a reminder
+			// while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this
+			// here as a reminder
 
 			int32_t strength[4];
 

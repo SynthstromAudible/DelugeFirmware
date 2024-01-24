@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include "gui/ui/ui.h"
@@ -179,7 +179,8 @@ void MIDIDeviceLumiKeys::sendLumiCommand(uint8_t* command, uint8_t length) {
 	sendSysex(sysexMsg, 16);
 }
 
-/// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed index
+/// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed
+/// index
 /// @param destination A pointer with space for 6 bytes
 /// @param index The index of the value we want to generate
 /// @param value_offset The offset for the resultant values (eg: 0x00 + value_offset, 0x20 + value_offset, etc.)

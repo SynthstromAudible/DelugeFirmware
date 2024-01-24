@@ -175,9 +175,9 @@ public:
 	static void setDimmerInterval(uint8_t interval) { send(Message::SET_DIMMER_INTERVAL, interval); }
 
 	/**
-	 * @brief This is used to make smooth scrolling on the horizontal axis, by filling up an 8-pixel framebuffer on the PIC
-	 *        that it can then provide an animation to smear across the axis to give a sensation of motion
-	 *        See (scrolling between clip pages)
+	 * @brief This is used to make smooth scrolling on the horizontal axis, by filling up an 8-pixel framebuffer on the
+	 * PIC that it can then provide an animation to smear across the axis to give a sensation of motion See (scrolling
+	 * between clip pages)
 	 *
 	 * @param idx the row to set
 	 */
@@ -238,7 +238,8 @@ public:
 	/**
 	 * @brief Fetch a response from the PIC, using a callback handler
 	 *
-	 * @param handler The response handler function. If the return value is nonzero, the read attempt will immediately halt;
+	 * @param handler The response handler function. If the return value is nonzero, the read attempt will immediately
+	 * halt;
 	 * @param timeout The timeout to run for. Can be cancelled by the callback returning a nonzero value.
 	 */
 	static int32_t read(uint32_t timeout, std::function<int32_t(Response)> handler) {

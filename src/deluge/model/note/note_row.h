@@ -111,7 +111,7 @@ public:
 	Drum* drum;
 	DrumName* firstOldDrumName;
 	NoteVector notes;
-	//value for whole row
+	// value for whole row
 	uint8_t probabilityValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
@@ -119,11 +119,12 @@ public:
 
 	int8_t colourOffset;
 
-	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead - which calls Clip::expectEvent(), which is needed
+	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
+	// which calls Clip::expectEvent(), which is needed
 	uint8_t soundingStatus;
 
-	bool
-	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
+	bool skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to
+	                   // play it
 	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
 	                       ModelStackWithNoteRow* modelStack, Action* action);

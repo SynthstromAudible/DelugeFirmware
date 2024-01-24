@@ -273,9 +273,10 @@ void usb_pstd_buf2fifo(uint16_t pipe, uint16_t useport) // pipe is never 0. Roha
             hw_usb_set_brdyenb(USB_NULL, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(USB_NULL, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(USB_NULL, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -287,9 +288,10 @@ void usb_pstd_buf2fifo(uint16_t pipe, uint16_t useport) // pipe is never 0. Roha
             hw_usb_set_bempenb(USB_NULL, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(USB_NULL, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(USB_NULL, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -527,9 +529,10 @@ void usb_pstd_receive_start(uint16_t pipe)
             hw_usb_set_brdyenb(USB_NULL, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(USB_NULL, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(USB_NULL, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -579,7 +582,7 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
 {
 
     /* Changes FIFO port by the pipe. */
-    //buffer = usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
+    // buffer = usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
     uint16_t buffer = usb_cstd_is_set_frdy_rohan(pipe);
 
     if (USB_FIFOERROR == buffer)
@@ -591,7 +594,7 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
     {
         /* 0 length packet */
         /* Clear BVAL */
-        //hw_usb_set_bclr(USB_NULL,USB_CUSE);
+        // hw_usb_set_bclr(USB_NULL,USB_CUSE);
         volatile uint16_t* p_reg;
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         p_reg = (void*)&(USB200.CFIFOCTR);
@@ -603,9 +606,9 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
     else
     {
 
-        // If received more data than we asked for - that's an error basically. This should really never happen with MIDI.
-        // The original code still went through with reading the data in this case, but it's easier for us not to, and what use would it do.
-        // It really should never happen, it'd be a weird thing to see.
+        // If received more data than we asked for - that's an error basically. This should really never happen with
+        // MIDI. The original code still went through with reading the data in this case, but it's easier for us not to,
+        // and what use would it do. It really should never happen, it'd be a weird thing to see.
         if (g_usb_data_cnt[pipe] < numBytesReceived)
             return USB_READOVER;
 
@@ -616,7 +619,7 @@ uint16_t usb_read_data_fast_rohan(uint16_t pipe)
         do
         { // We know there's at least one byte to read - we checked for !numBytesReceived above
             /* 32bit FIFO access */
-            *(uint32_t*)readPos = //hw_usb_read_fifo32(USB_NULL, USB_CUSE);
+            *(uint32_t*)readPos = // hw_usb_read_fifo32(USB_NULL, USB_CUSE);
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
                 USB200.CFIFO.UINT32;
 #else
@@ -872,28 +875,28 @@ void usbReceiveComplete(int ip, int deviceNum, int tranlen);
 void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 {
 
-    //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     uint16_t pipe = USB_CFG_PMIDI_BULK_IN;
 
     if (true || (bitsts & USB_BITSET(pipe)) != 0u) // Not really necessary
     {
         /* Interrupt check */
-        //hw_usb_clear_status_bemp(USB_NULL, pipe);
+        // hw_usb_clear_status_bemp(USB_NULL, pipe);
 
         if (true || USB_NULL != g_p_usb_pipe[pipe])
         {
             /* Pipe number to FIFO port select */
-            //useport = USB_CUSE;//usb_pstd_pipe2fport(pipe);
+            // useport = USB_CUSE;//usb_pstd_pipe2fport(pipe);
 
             /* FIFO to Buffer data read */
-            //usb_pstd_fifo_to_buf(pipe, USB_CUSE);
+            // usb_pstd_fifo_to_buf(pipe, USB_CUSE);
             {
                 uint16_t end_flag = usb_read_data_fast_rohan(pipe);
 
                 if (end_flag == USB_READEND)
                 { // I condensed USB_READSHRT into this too
-                    //usb_pstd_data_end(pipe, newStatus);
+                    // usb_pstd_data_end(pipe, newStatus);
                     {
 
                         // Turns out not needed!
@@ -928,21 +931,21 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
                             {
                                 /* Transfer information set */
                                 /* I don't actually read any of these...
-								g_p_usb_pstd_pipe[pipe]->tranlen    = g_usb_pstd_data_cnt[pipe];
-								g_p_usb_pstd_pipe[pipe]->status     = newStatus;
-								g_p_usb_pstd_pipe[pipe]->pipectr    = hw_usb_read_pipectr(USB_NULL,pipe);
-								g_p_usb_pstd_pipe[pipe]->keyword    = pipe;
-								*/
-                                //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL, USB_NULL);
-                                //usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
+                                g_p_usb_pstd_pipe[pipe]->tranlen    = g_usb_pstd_data_cnt[pipe];
+                                g_p_usb_pstd_pipe[pipe]->status     = newStatus;
+                                g_p_usb_pstd_pipe[pipe]->pipectr    = hw_usb_read_pipectr(USB_NULL,pipe);
+                                g_p_usb_pstd_pipe[pipe]->keyword    = pipe;
+                                */
+                                //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL,
+                                // USB_NULL); usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
                                 // Only sets received bytes for first device
                                 // I've just pasted the relevant contents of usbReceiveComplete() in here
                                 connectedUSBMIDIDevices[0][0].numBytesReceived =
-                                    64
-                                    - g_usb_data_cnt
-                                        [pipe]; // Seems wack, but yet, tranlen is now how many bytes didn't get received out of the original transfer size
-                                // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with that case.
+                                    64 - g_usb_data_cnt[pipe]; // Seems wack, but yet, tranlen is now how many bytes
+                                                               // didn't get received out of the original transfer size
+                                // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why
+                                // - but we need to cope with that case.
 
                                 connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive =
                                     0; // Take note that we need to set up another receive
@@ -959,12 +962,12 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
     }
 
     /*
-	uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-	uint16_t duration = endTime - startTime;
-	uint32_t timePassedNS = superfastTimerCountToNS(duration);
-	uartPrint("brdy process duration, nSec: ");
-	uartPrintNumber(timePassedNS);
-	*/
+    uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    uint16_t duration = endTime - startTime;
+    uint32_t timePassedNS = superfastTimerCountToNS(duration);
+    uartPrint("brdy process duration, nSec: ");
+    uartPrintNumber(timePassedNS);
+    */
 }
 
 /***********************************************************************************************************************
@@ -1132,7 +1135,8 @@ struct USBPortStats
 
 extern uint8_t anyUSBSendingStillHappening[];
 
-// Heavily chopped down function by Rohan, from the one below it. We already know the only pipe it could be is USB_CFG_PMIDI_BULK_OUT
+// Heavily chopped down function by Rohan, from the one below it. We already know the only pipe it could be is
+// USB_CFG_PMIDI_BULK_OUT
 void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
 {
     uint16_t pipe = USB_CFG_PMIDI_BULK_OUT;
@@ -1140,15 +1144,13 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
     if (true || (bitsts & USB_BITSET(pipe)) != 0) // Surely we can skip this. Rohan
     {
         /* Interrupt check */
-        if (true
-            || USB_NULL
-                   != g_p_usb_pipe
-                       [pipe]) // Don't bother with this check now we don't actually need to dereference this pointer. Rohan
+        if (true || USB_NULL != g_p_usb_pipe[pipe]) // Don't bother with this check now we don't actually need to
+                                                    // dereference this pointer. Rohan
         {
             uint16_t pid;
             uint16_t pipeCtrRead;
 
-            //buffer = usb_cstd_get_pid(USB_NULL, i);
+            // buffer = usb_cstd_get_pid(USB_NULL, i);
             {
                 volatile uint16_t* p_reg;
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -1167,27 +1169,27 @@ void usb_pstd_bemp_pipe_process_rohan_midi(uint16_t bitsts)
             }
             else
             {
-                if (true
-                    || !(
-                        pipeCtrRead
-                        & USB_INBUFM)) // Ensure "there is no transmissible data in the buffer memory". Well we shouldn't be here if there still was.
+                if (true || !(pipeCtrRead & USB_INBUFM)) // Ensure "there is no transmissible data in the buffer
+                                                         // memory". Well we shouldn't be here if there still was.
                 {
-                    //usb_pstd_data_end(pipe, (uint16_t)USB_DATA_NONE);
+                    // usb_pstd_data_end(pipe, (uint16_t)USB_DATA_NONE);
                     {
                         /* Set NAK */
-                        //usb_cstd_select_nak(USB_NULL, pipe);
-                        //usb_cstd_set_nak_fast_rohan(pipe);
+                        // usb_cstd_select_nak(USB_NULL, pipe);
+                        // usb_cstd_set_nak_fast_rohan(pipe);
 
                         /*
-                		uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-                		while (true) {
-                			uint16_t stopTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-                			uint16_t duration = stopTime - startTime;
-                			if (duration >= 60) break; // 10 seems fine with Og and no LTO. 40 one time was not fine with LTO - 60 seems fine
-                		}
+                        uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+                        while (true) {
+                            uint16_t stopTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+                            uint16_t duration = stopTime - startTime;
+                            if (duration >= 60) break; // 10 seems fine with Og and no LTO. 40 one time was not fine
+                        with LTO - 60 seems fine
+                        }
 */
 
-                        // Turns out we just didn't need any of this stuff! And getting rid of it stopped the i029 errors!!
+                        // Turns out we just didn't need any of this stuff! And getting rid of it stopped the i029
+                        // errors!!
 #if 0
                 	    /* Disable Interrupt */
                 	    /* Disable Ready Interrupt */

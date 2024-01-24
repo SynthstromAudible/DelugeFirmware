@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "definitions.h"
@@ -122,8 +122,8 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 
-			//TODO: In a future revision it would be nice to add this to the API
-			// Dim note pad if a browser is open with the note highlighted
+			// TODO: In a future revision it would be nice to add this to the API
+			//  Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {

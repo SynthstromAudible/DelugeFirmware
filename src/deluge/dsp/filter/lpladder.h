@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -26,7 +26,7 @@ namespace deluge::dsp::filter {
 class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
 	LpLadderFilter() = default;
-	//returns a compensatory gain value
+	// returns a compensatory gain value
 	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
 	void doFilter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt);
 	void doFilterStereo(q31_t* startSample, q31_t* endSample);
@@ -71,19 +71,19 @@ private:
 	[[gnu::always_inline]] inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);
-	//all ladders are in this class to share the basic components
-	//this differentiates between them
+	// all ladders are in this class to share the basic components
+	// this differentiates between them
 	FilterMode lpfMode;
 
-	//state
+	// state
 	LpLadderState l;
 	LpLadderState r;
 
-	//configuration
+	// configuration
 	q31_t processedResonance;
 	q31_t divideByTotalMoveabilityAndProcessedResonance;
 
-	//moveability is tan(f)/(1+tan(f))
+	// moveability is tan(f)/(1+tan(f))
 	q31_t moveability;
 
 	q31_t morph;

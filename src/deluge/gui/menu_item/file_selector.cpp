@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "file_selector.h"
 #include "definitions_cxx.hpp"
@@ -38,7 +38,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 	bool success = openUI(&sampleBrowser);
 	if (!success) {
-		//if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
+		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }

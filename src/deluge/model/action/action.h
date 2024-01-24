@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -98,7 +98,8 @@ public:
 	ActionType type;
 	bool openForAdditions;
 
-	// A bunch of snapshot-things here store their state both before or after the action - because the action could have changed these
+	// A bunch of snapshot-things here store their state both before or after the action - because the action could have
+	// changed these
 	int32_t xScrollClip[2];
 	int32_t yScrollSongView[2];
 	int32_t xZoomClip[2];
@@ -110,14 +111,15 @@ public:
 	uint8_t modeNotes[2][12];
 	uint8_t numModeNotes[2];
 
-	// And a few more snapshot-things here only store one state - at the time of the action, because the action could not change these things
+	// And a few more snapshot-things here only store one state - at the time of the action, because the action could
+	// not change these things
 	uint8_t modKnobModeSongView;
 	bool affectEntireSongView;
 
 	bool tripletsOn;
 	uint32_t tripletsLevel;
 
-	//bool inKeyboardView;
+	// bool inKeyboardView;
 
 	UI* view;
 
@@ -128,8 +130,9 @@ public:
 	Action* nextAction;
 	Consequence* firstConsequence;
 
-	// We store these kinds of consequences separately because we need to be able to search through them fast, when there may be a large number of other kinds of consequences.
-	// Also, these don't need re-ordering each time we revert
+	// We store these kinds of consequences separately because we need to be able to search through them fast, when
+	// there may be a large number of other kinds of consequences. Also, these don't need re-ordering each time we
+	// revert
 	ConsequenceParamChange* firstParamConsequence;
 
 	ActionClipState* clipStates;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "model/action/action.h"
@@ -116,8 +116,8 @@ public:
 	int32_t valueIncrementPerHalfTick;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
 
-	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So it only works in empty
-	// stretches of time.
+	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So
+	// it only works in empty stretches of time.
 
 private:
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
