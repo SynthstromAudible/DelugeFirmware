@@ -169,4 +169,4 @@ float revmodel::getmode() {
 	}
 }
 
-//ends
+// ends

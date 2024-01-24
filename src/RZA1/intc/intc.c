@@ -1,31 +1,31 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-* Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ * Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name   : intc.c
-* $Rev: 809 $
-* $Date:: 2014-04-09 15:06:36 +0900#$
-* Description : INTC driver
-*******************************************************************************/
+ * File Name   : intc.c
+ * $Rev: 809 $
+ * $Date:: 2014-04-09 15:06:36 +0900#$
+ * Description : INTC driver
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -105,18 +105,18 @@ static uint32_t intc_icdicfrn_table[] = /* Initial value table of Interrupt Conf
 };
 
 /******************************************************************************
-* Function Name: R_INTC_RegistIntFunc
-* Description  : Registers the function specified by the func to the element
-*              : specified by the int_id in the INTC interrupt handler function
-*              : table.
-* Arguments    : uint16_t int_id         : Interrupt ID
-*              : void (* func)(uint32_t) : Function to be registered to INTC
-*              :                         : interrupt hander table
-* Return Value : DEVDRV_SUCCESS          : Success of registration of INTC
-*              :                         : interrupt handler function
-*              : DEVDRV_ERROR            : Failure of registration of INTC
-*              :                         : interrupt handler function
-******************************************************************************/
+ * Function Name: R_INTC_RegistIntFunc
+ * Description  : Registers the function specified by the func to the element
+ *              : specified by the int_id in the INTC interrupt handler function
+ *              : table.
+ * Arguments    : uint16_t int_id         : Interrupt ID
+ *              : void (* func)(uint32_t) : Function to be registered to INTC
+ *              :                         : interrupt hander table
+ * Return Value : DEVDRV_SUCCESS          : Success of registration of INTC
+ *              :                         : interrupt handler function
+ *              : DEVDRV_ERROR            : Failure of registration of INTC
+ *              :                         : interrupt handler function
+ ******************************************************************************/
 int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
 {
     /* ==== Argument check ==== */
@@ -131,13 +131,13 @@ int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
 }
 
 /******************************************************************************
-* Function Name: R_INTC_Init
-* Description  : Executes initial setting for the INTC.
-*              : The interrupt mask level is set to 31 to receive interrupts
-*              : with the interrupt priority level 0 to 30.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: R_INTC_Init
+ * Description  : Executes initial setting for the INTC.
+ *              : The interrupt mask level is set to 31 to receive interrupts
+ *              : with the interrupt priority level 0 to 30.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void R_INTC_Init(void)
 {
     uint16_t offset;
@@ -200,12 +200,12 @@ void R_INTC_Init(void)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_Enable
-* Description  : Enables interrupt of the ID specified by the int_id.
-* Arguments    : uint16_t int_id : Interrupt ID
-* Return Value : DEVDRV_SUCCESS  : Success to enable INTC interrupt
-*              : DEVDRV_ERROR    : Failure to enable INTC interrupt
-******************************************************************************/
+ * Function Name: R_INTC_Enable
+ * Description  : Enables interrupt of the ID specified by the int_id.
+ * Arguments    : uint16_t int_id : Interrupt ID
+ * Return Value : DEVDRV_SUCCESS  : Success to enable INTC interrupt
+ *              : DEVDRV_ERROR    : Failure to enable INTC interrupt
+ ******************************************************************************/
 int32_t R_INTC_Enable(uint16_t int_id)
 {
     uint32_t mask;
@@ -214,7 +214,7 @@ int32_t R_INTC_Enable(uint16_t int_id)
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
     {
-        //return DEVDRV_ERROR;        /* Argument error */
+        // return DEVDRV_ERROR;        /* Argument error */
     }
 
     /* ICDISERn has 32 sources in the 32 bits               */
@@ -232,12 +232,12 @@ int32_t R_INTC_Enable(uint16_t int_id)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_Disable
-* Description  : Disables interrupt of the ID specified by the int_id.
-* Arguments    : uint16_t int_id : Interrupt ID
-* Return Value : DEVDRV_SUCCESS  : Success to disable INTC interrupt
-*              : DEVDRV_ERROR    : Failure to disable INTC interrupt
-******************************************************************************/
+ * Function Name: R_INTC_Disable
+ * Description  : Disables interrupt of the ID specified by the int_id.
+ * Arguments    : uint16_t int_id : Interrupt ID
+ * Return Value : DEVDRV_SUCCESS  : Success to disable INTC interrupt
+ *              : DEVDRV_ERROR    : Failure to disable INTC interrupt
+ ******************************************************************************/
 int32_t R_INTC_Disable(uint16_t int_id)
 {
     uint32_t mask;
@@ -246,7 +246,7 @@ int32_t R_INTC_Disable(uint16_t int_id)
     /* ==== Argument check ==== */
     if (int_id >= INTC_ID_TOTAL)
     {
-        //return DEVDRV_ERROR;        /* Argument error */
+        // return DEVDRV_ERROR;        /* Argument error */
     }
 
     /* ICDICERn has 32 sources in the 32 bits               */
@@ -277,14 +277,14 @@ uint8_t R_INTC_Enabled(uint16_t int_id)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_SetPriority
-* Description  : Sets the priority level of the ID specified by the int_id to
-*              : the priority level specified by the priority.
-* Arguments    : uint16_t int_id   : Interrupt ID
-*              : uint8_t  priority : Interrupt priority level (0 to 31)
-* Return Value : DEVDRV_SUCCESS    : Success of INTC interrupt priority level setting
-*              : DEVDRV_ERROR      : Failure of INTC interrupt priority level setting
-******************************************************************************/
+ * Function Name: R_INTC_SetPriority
+ * Description  : Sets the priority level of the ID specified by the int_id to
+ *              : the priority level specified by the priority.
+ * Arguments    : uint16_t int_id   : Interrupt ID
+ *              : uint8_t  priority : Interrupt priority level (0 to 31)
+ * Return Value : DEVDRV_SUCCESS    : Success of INTC interrupt priority level setting
+ *              : DEVDRV_ERROR      : Failure of INTC interrupt priority level setting
+ ******************************************************************************/
 int32_t R_INTC_SetPriority(uint16_t int_id, uint8_t priority)
 {
     uint32_t icdipr;
@@ -320,12 +320,12 @@ int32_t R_INTC_SetPriority(uint16_t int_id, uint8_t priority)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_SetMaskLevel
-* Description  : Sets the interrupt mask level specified by the mask_level.
-* Arguments    : uint8_t mask_level : Interrupt mask level (0 to 31)
-* Return Value : DEVDRV_SUCCESS     : Success of INTC interrupt mask level setting
-*              : DEVDRV_ERROR       : Failure of INTC interrupt mask level setting
-******************************************************************************/
+ * Function Name: R_INTC_SetMaskLevel
+ * Description  : Sets the interrupt mask level specified by the mask_level.
+ * Arguments    : uint8_t mask_level : Interrupt mask level (0 to 31)
+ * Return Value : DEVDRV_SUCCESS     : Success of INTC interrupt mask level setting
+ *              : DEVDRV_ERROR       : Failure of INTC interrupt mask level setting
+ ******************************************************************************/
 int32_t R_INTC_SetMaskLevel(uint8_t mask_level)
 {
     volatile uint8_t dummy_buf_8b;
@@ -344,12 +344,12 @@ int32_t R_INTC_SetMaskLevel(uint8_t mask_level)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_GetMaskLevel
-* Description  : Obtains the setting value of the interrupt mask level, and
-*              : returns the obtained value to the mask_level.
-* Arguments    : uint8_t * mask_level : Interrupt mask level (0 to 31)
-* Return Value : none
-******************************************************************************/
+ * Function Name: R_INTC_GetMaskLevel
+ * Description  : Obtains the setting value of the interrupt mask level, and
+ *              : returns the obtained value to the mask_level.
+ * Arguments    : uint8_t * mask_level : Interrupt mask level (0 to 31)
+ * Return Value : none
+ ******************************************************************************/
 void R_INTC_GetMaskLevel(uint8_t* mask_level)
 {
     *mask_level = INTC.ICCPMR;      /* Read ICCPMR              */
@@ -357,17 +357,17 @@ void R_INTC_GetMaskLevel(uint8_t* mask_level)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_GetPendingStatus
-* Description  : Obtains the interrupt state of the interrupt specified by
-*              : int_id, and returns the obtained value to the *icdicpr.
-* Arguments    : uint16_t int_id    : Interrupt ID
-*              : uint32_t * icdicpr : Interrupt state of the interrupt
-*              :                    : specified by int_id
-*              :                    :   1 : Pending or active and pending
-*              :                    :   0 : Not pending
-* Return Value : DEVDRV_SUCCESS : Success to obtaine interrupt pending status
-*              : DEVDRV_ERROR   : Failure to obtaine interrupt pending status
-******************************************************************************/
+ * Function Name: R_INTC_GetPendingStatus
+ * Description  : Obtains the interrupt state of the interrupt specified by
+ *              : int_id, and returns the obtained value to the *icdicpr.
+ * Arguments    : uint16_t int_id    : Interrupt ID
+ *              : uint32_t * icdicpr : Interrupt state of the interrupt
+ *              :                    : specified by int_id
+ *              :                    :   1 : Pending or active and pending
+ *              :                    :   0 : Not pending
+ * Return Value : DEVDRV_SUCCESS : Success to obtaine interrupt pending status
+ *              : DEVDRV_ERROR   : Failure to obtaine interrupt pending status
+ ******************************************************************************/
 int32_t R_INTC_GetPendingStatus(uint16_t int_id, uint32_t* icdicpr)
 {
     volatile uint32_t* addr;
@@ -390,16 +390,16 @@ int32_t R_INTC_GetPendingStatus(uint16_t int_id, uint32_t* icdicpr)
 }
 
 /******************************************************************************
-* Function Name: R_INTC_SetConfiguration
-* Description  : Sets the interrupt detection mode of the ID specified by the
-*              : int_id to the detection mode specified by the int_sense.
-* Arguments    : uint16_t int_id    : Interrupt ID (INTC_ID_TINT0 to INTC_ID_TINT170)
-*              : uint32_t int_sense : Interrupt detection
-*              :                    :   INTC_LEVEL_SENSITIVE : Level sense
-*              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
-* Return Value : DEVDRV_SUCCESS : Success of INTC interrupt configuration setting
-*              : DEVDRV_ERROR   : Failure of INTC interrupt configuration setting
-******************************************************************************/
+ * Function Name: R_INTC_SetConfiguration
+ * Description  : Sets the interrupt detection mode of the ID specified by the
+ *              : int_id to the detection mode specified by the int_sense.
+ * Arguments    : uint16_t int_id    : Interrupt ID (INTC_ID_TINT0 to INTC_ID_TINT170)
+ *              : uint32_t int_sense : Interrupt detection
+ *              :                    :   INTC_LEVEL_SENSITIVE : Level sense
+ *              :                    :   INTC_EDGE_TRIGGER    : Edge trigger
+ * Return Value : DEVDRV_SUCCESS : Success of INTC interrupt configuration setting
+ *              : DEVDRV_ERROR   : Failure of INTC interrupt configuration setting
+ ******************************************************************************/
 int32_t R_INTC_SetConfiguration(uint16_t int_id, uint32_t int_sense)
 {
     uint32_t icdicfr;

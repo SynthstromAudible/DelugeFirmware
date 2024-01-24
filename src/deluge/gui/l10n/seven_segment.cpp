@@ -7,7 +7,7 @@ using enum String;
 PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
-        //Errors
+        // Errors
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "RAM"},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE, "RAM"},
         {STRING_FOR_ERROR_SD_CARD, "CARD"},
@@ -385,8 +385,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MIDILOOPBACK, "M LP"},
 
         /* Strings Specifically for Automation Instrument Clip View
-        * automation_instrument_clip_view.cpp
-        */
+         * automation_instrument_clip_view.cpp
+         */
         {STRING_FOR_AUTOMATION, "AUTO"},
         {STRING_FOR_COMING_SOON, "SOON"},
         {STRING_FOR_CANT_AUTOMATE_CV, "CANT"},
@@ -398,8 +398,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
         /* Strings for Midi Learning View
-        * midi_follow.cpp
-        */
+         * midi_follow.cpp
+         */
 
         {STRING_FOR_FOLLOW_TITLE, "FOLO"},
         {STRING_FOR_FOLLOW, "FOLO"},
@@ -410,7 +410,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "AUTO"},
         {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "FLTR"},
 
-        //String for Select Kit Row menu
+        // String for Select Kit Row menu
         {STRING_FOR_SELECT_KIT_ROW, "KROW"},
     },
     &built_in::english,

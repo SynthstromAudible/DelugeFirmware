@@ -175,7 +175,8 @@ typedef VP_INT usb_vp_int_t;
 
 typedef volatile struct st_usb20* usb_regadr_t;
 
-//usb transfer structure - https://www.renesas.com/us/en/document/apn/rza1h-group-usb-peripheral-communications-device-class-driver-pcdc
+// usb transfer structure -
+// https://www.renesas.com/us/en/document/apn/rza1h-group-usb-peripheral-communications-device-class-driver-pcdc
 typedef struct usb_utr usb_utr_t;
 typedef void (*usb_cb_t)(struct usb_utr*, uint16_t, uint16_t);
 

@@ -241,7 +241,8 @@ extern uint32_t program_code_end;
 	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
 }
 
-//@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
+//@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to
+// fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
 extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
                                                 uint32_t addrUSRSP) {
 	__disable_irq();

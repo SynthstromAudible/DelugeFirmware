@@ -152,7 +152,7 @@ void (*g_usb_callback[])(usb_utr_t*, uint16_t, uint16_t) = {
 
 /***********************************************************************************************************************
  Function Name   : usb_cstd_select_nak
- Description     : Set the specified pipe PID to send a NAK if the transfer type is BULK/INT. 
+ Description     : Set the specified pipe PID to send a NAK if the transfer type is BULK/INT.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe         : Pipe number.
  Return value    : none
@@ -335,7 +335,7 @@ usb_er_t usb_ctrl_stop(usb_ctrl_t* p_ctrl)
 
 /***********************************************************************************************************************
  Function Name   : usb_data_read
- Description     : 
+ Description     :
  Arguments       : usb_ctrl_t   *p_ctrl      : Control structure for USB API.
                  : uint8_t      *buf         : Transfer data address
                  : uint32_t     size         : Transfer length
@@ -378,7 +378,7 @@ usb_er_t usb_data_read(usb_ctrl_t* p_ctrl, uint8_t* buf, uint32_t size)
 
 /***********************************************************************************************************************
  Function Name   : usb_data_write
- Description     : 
+ Description     :
  Arguments       : usb_ctrl_t   *p_ctrl      : Control structure for USB API.
                  : uint8_t      *buf         : Transfer data address
                  : uint32_t     size         : Transfer length
@@ -435,7 +435,7 @@ usb_er_t usb_data_write(usb_ctrl_t* p_ctrl, uint8_t* buf, uint32_t size)
 
 /***********************************************************************************************************************
  Function Name   : usb_data_stop
- Description     : 
+ Description     :
  Arguments       : usb_ctrl_t   *p_ctrl      : Control structure for USB API.
                  : uint16_t     type         : Read(0)/Write(1)
  Return value    : usb_er_t                  : USB_OK / USB_ERROR.

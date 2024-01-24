@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
@@ -32,12 +32,12 @@ DelayBuffer::~DelayBuffer() {
 // Returns error status
 uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
 
-	//Uart::println("init buffer");
+	// Uart::println("init buffer");
 	nativeRate = newRate;
 	size = getIdealBufferSizeFromRate(nativeRate);
 
-	//Uart::print("buffer size: ");
-	//Uart::println(size);
+	// Uart::print("buffer size: ");
+	// Uart::println(size);
 
 	bool mustMakeRatePrecise = false;
 
@@ -108,9 +108,11 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			longPos = 0;
 			lastShortPos = 0;
 
-			// Because we're switching from direct writing to writing in "triangles", we need to adjust the data we last wrote directly so that it meshes
-			// with the upcoming triangles. Assuming that the delay rate has only changed slightly at this stage, this is as simple as removing a quarter of the last written value,
-			// and putting that removed quarter where the "next" write-pos is. That's because the triangles are 4 samples wide total (2 samples either side)
+			// Because we're switching from direct writing to writing in "triangles", we need to adjust the data we last
+			// wrote directly so that it meshes with the upcoming triangles. Assuming that the delay rate has only
+			// changed slightly at this stage, this is as simple as removing a quarter of the last written value, and
+			// putting that removed quarter where the "next" write-pos is. That's because the triangles are 4 samples
+			// wide total (2 samples either side)
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
 			while (writePos < bufferStart) {
 				writePos += sizeIncludingExtra;
@@ -141,13 +143,16 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 
 			uint32_t timesSlowerRead = setup->divideByRate >> 16;
 
-			// This seems to be the best option. speedMultiple is set to the smallest multiple of delay.speed which is greater than 65536.
-			// Means the "triangles" link up, and are at least as wide as a frame of the write buffer. Does that make sense?
+			// This seems to be the best option. speedMultiple is set to the smallest multiple of delay.speed which is
+			// greater than 65536. Means the "triangles" link up, and are at least as wide as a frame of the write
+			// buffer. Does that make sense?
 			setup->rateMultiple = (setup->actualSpinRate >> 8) * (timesSlowerRead + 1);
 
-			// This was tricky to work out. Needs to go up with delay.speed because this means less "density". And squarely down with writeRateMultiple
-			// because more of that means more "triangle area", or more stuff written each time.
-			//uint32_t delayWriteSizeAdjustment2 = (((uint32_t)delay.speed << 16) / (((uint32_t)(speedMultiple >> 2) * (uint32_t)(speedMultiple >> 2)) >> 11));
+			// This was tricky to work out. Needs to go up with delay.speed because this means less "density". And
+			// squarely down with writeRateMultiple because more of that means more "triangle area", or more stuff
+			// written each time.
+			// uint32_t delayWriteSizeAdjustment2 = (((uint32_t)delay.speed << 16) / (((uint32_t)(speedMultiple >> 2) *
+			// (uint32_t)(speedMultiple >> 2)) >> 11));
 			setup->writeSizeAdjustment =
 			    (uint32_t)((double)0xFFFFFFFF
 			               / (double)(setup->rateMultiple
@@ -158,15 +163,16 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 		// If buffer spinning fast
 		else {
 
-			// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster takes longer).
-			// No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
+			// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster
+			// takes longer). No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
 			setup->spinRateForSpedUpWriting = std::min(setup->actualSpinRate, (int32_t)16777216 * 8);
 
 			// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
-			// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing at the native sample rate.
-			// However I've stretched the triangle twice as wide so that at the native sample rate it's the same width as the slowed-down algorithm below, so there's
-			// no click when switching between the two. This does mean we lose half the bandwidth. That's done with the following 2 lines of code, and the fact that
-			// the actual writes below are <<3 instead of <<4.
+			// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing
+			// at the native sample rate. However I've stretched the triangle twice as wide so that at the native sample
+			// rate it's the same width as the slowed-down algorithm below, so there's no click when switching between
+			// the two. This does mean we lose half the bandwidth. That's done with the following 2 lines of code, and
+			// the fact that the actual writes below are <<3 instead of <<4.
 			setup->spinRateForSpedUpWriting = setup->spinRateForSpedUpWriting <<=
 			    1;                     // Woah, did I mean to write "<<=" ?
 			setup->divideByRate >>= 1; // We may change this because sped up writing is the only thing it'll be used for

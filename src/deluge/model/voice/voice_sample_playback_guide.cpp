@@ -70,7 +70,8 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	}
 }
 
-// This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause looping too)
+// This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause
+// looping too)
 bool VoiceSamplePlaybackGuide::shouldObeyLoopEndPointNow() {
 	return (loopEndPlaybackAtByte && !noteOffReceived);
 }

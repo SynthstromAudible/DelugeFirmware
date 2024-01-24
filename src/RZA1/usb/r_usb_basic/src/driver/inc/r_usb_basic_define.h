@@ -29,7 +29,7 @@
 #ifndef R_USB_BASIC_DEFINE_H
 #define R_USB_BASIC_DEFINE_H
 
-//#define USB_DEBUG_ON
+// #define USB_DEBUG_ON
 
 #if defined(USB_DEBUG_ON)
 #include <stdio.h>  /* @@@MISRA del */

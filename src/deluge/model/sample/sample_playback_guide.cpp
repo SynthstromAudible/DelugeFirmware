@@ -126,7 +126,8 @@ int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSa
 
 int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement) {
 
-	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start), there's no need
+	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start),
+	// there's no need
 	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0]) {
 		return phaseIncrement;
 	}

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -33,9 +33,9 @@ class MIDIDevice;
 class ParamManager;
 
 /*
- * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or worse.
- * In most instructional material for users, Synthstrom has referred to them often as
- * “items within kits”, or sometimes “rows” or “sounds” where applicable.
+ * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or
+ * worse. In most instructional material for users, Synthstrom has referred to them often as “items within kits”, or
+ * sometimes “rows” or “sounds” where applicable.
  *
  * Types of Drum are MIDIDrum, GateDrum, and SoundDrum (most often a sample).
  */

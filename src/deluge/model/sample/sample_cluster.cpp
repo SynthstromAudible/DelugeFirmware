@@ -45,7 +45,8 @@ SampleCluster::~SampleCluster() {
 		if (numReasonsToBeLoaded) {
 			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
-			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
+			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to
+			// happen though.
 			FREEZE_WITH_ERROR("E036");
 		}
 #endif
@@ -90,7 +91,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			return NULL;
 		}
 
-		//D_PRINTLN("loading");
+		// D_PRINTLN("loading");
 		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
 		if (!cluster) {
@@ -113,7 +114,8 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		cluster->sample = sample;
 		cluster->clusterIndex = clusterIndex;
 
-		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a whole Cluster
+		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a
+		// whole Cluster
 		if (loadInstruction == CLUSTER_DONT_LOAD) {
 			return cluster;
 		}
@@ -148,18 +150,21 @@ justEnqueue:
 			// If that didn't work...
 			if (!result) {
 
-				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the pointer
+				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the
+				// pointer
 				if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
 					goto justEnqueue;
 				}
 
 				// Or if it was a must-load-now...
-				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd still exist but never get enqueued for loading
+				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
+				// still exist but never get enqueued for loading
 				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
 				if (error) {
 					*error =
-					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now cos card's being accessed, and that's fine, thanks for checking."
+					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now
+					                       // cos card's being accessed, and that's fine, thanks for checking."
 				}
 				cluster = NULL;
 			}

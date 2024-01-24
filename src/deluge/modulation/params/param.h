@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -32,7 +32,8 @@
 ///   - Linear params have different sources multiplied together, then multiplied by the neutral value.
 ///   - Volume params act like linear params in how they are combined, but the sum is squared at the end.
 ///   - Hybrid params have different sources added together, then added to the neutral value
-///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
+///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then
+///   multiplied by the neutral value
 
 namespace deluge::modulation::params {
 enum class Kind : int32_t {
@@ -152,7 +153,8 @@ enum Placeholder : ParamType {
 static_assert(util::to_underlying(PLACEHOLDER_RANGE) > util::to_underlying(GLOBAL_NONE),
               "RANGE placeholder collides with global params");
 
-/// Offset to use for the start of unpatched params when patched and unpatched params need to be compressed in to a single array.
+/// Offset to use for the start of unpatched params when patched and unpatched params need to be compressed in to a
+/// single array.
 constexpr ParamType UNPATCHED_START = 90;
 static_assert(UNPATCHED_START > PLACEHOLDER_RANGE, "UNPATCHED params collide with placeholders");
 

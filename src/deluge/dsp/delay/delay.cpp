@@ -13,13 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include <stdlib.h>
-//#include <algorithm>
+// #include <algorithm>
 #include "io/debug/print.h"
 #include "util/functions.h"
 
@@ -66,7 +66,8 @@ setupSecondaryBuffer:
 		// If it already was active...
 		if (previouslyActive) {
 			// If no writing has happened yet to this Delay, check that the buffer is the right size.
-			// The delay time might have changed since it was set up, and we could be better off making a new buffer, which is easily done now, before anything's been written
+			// The delay time might have changed since it was set up, and we could be better off making a new buffer,
+			// which is easily done now, before anything's been written
 			if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
 			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
@@ -119,7 +120,8 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerI
 	bool mightDoDelay =
 	    (workingState->delayFeedbackAmount >= 256
 	     && (anySoundComingIn
-	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the patching engine spits out 112 even when this should be 0...
+	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the
+	                                   // patching engine spits out 112 even when this should be 0...
 
 	if (mightDoDelay) {
 
@@ -203,7 +205,7 @@ void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 		repeatsUntilAbandon = 255;
 	}
 
-	//if (!getRandom255()) D_PRINTLN(workingState->delayFeedbackAmount);
+	// if (!getRandom255()) D_PRINTLN(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
@@ -213,7 +215,7 @@ void Delay::hasWrapped() {
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {
-		//D_PRINTLN("discarding");
+		// D_PRINTLN("discarding");
 		discardBuffers();
 	}
 }

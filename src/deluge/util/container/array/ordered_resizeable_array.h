@@ -58,7 +58,8 @@ private:
 	const int32_t keyShiftAmount;
 };
 
-// The purpose of this is not so much that special functionality is required for 32-bit keys, but that some further child classes inherit from this, which require that the key be 32-bit.
+// The purpose of this is not so much that special functionality is required for 32-bit keys, but that some further
+// child classes inherit from this, which require that the key be 32-bit.
 class OrderedResizeableArrayWith32bitKey : public OrderedResizeableArray {
 public:
 	OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,

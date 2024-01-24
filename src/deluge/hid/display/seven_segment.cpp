@@ -49,21 +49,21 @@ uint8_t letterSegments[] = {
     0x4E,
     0x3D,
     0x4F,
-    0x47, //F
+    0x47, // F
     0x5E,
-    0x37, //H
+    0x37, // H
     0x04,
-    0x38, //J
-    0x57, //0x2F,
-    0x0E, //L
+    0x38, // J
+    0x57, // 0x2F,
+    0x0E, // L
     0x55,
-    0x15, //N
+    0x15, // N
     0x1D,
     0x67,
-    0x73, //Q
+    0x73, // Q
     0x05,
     0x5B,
-    0x0F, //T
+    0x0F, // T
     0x3E,
     0x27,
     0x5C,
@@ -82,21 +82,21 @@ uint8_t letterSegments[] = {
     0x0D,
     0x3D,
     0x4F,
-    0x47, //F
+    0x47, // F
     0x5E,
-    0x37, //H
+    0x37, // H
     0x04,
-    0x38, //J
-    0x57, //0x2F,
-    0x0E, //L
+    0x38, // J
+    0x57, // 0x2F,
+    0x0E, // L
     0x55,
-    0x15, //N
+    0x15, // N
     0x1D,
     0x67,
-    0x73, //Q
+    0x73, // Q
     0x05,
     0x5B,
-    0x0F, //T
+    0x0F, // T
     0x3E,
     0x27,
     0x5C,
@@ -354,7 +354,8 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 			}
 
 			else {
-				// If we're not the first character, and the previous character didn't already have its dot illuminated, we'll just illuminate it
+				// If we're not the first character, and the previous character didn't already have its dot illuminated,
+				// we'll just illuminate it
 				if (writePos != -scrollPos && !(prevSegment & 0b10000000)) {
 					writePos--;
 					if (writePos >= 0) {
@@ -501,7 +502,7 @@ void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, boo
                                  int32_t blinkPos, bool blinkImmediately) {
 	char text[12];
 
-	//int32_t minNumDigits = std::max(1, blinkPos + 1);
+	// int32_t minNumDigits = std::max(1, blinkPos + 1);
 	int32_t minNumDigits = (blinkPos == -1) ? -1 : 3;
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);

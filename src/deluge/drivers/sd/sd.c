@@ -27,12 +27,12 @@
 uint16_t stopTime;
 
 /******************************************************************************
-* Function Name: int32_t sddev_power_on(int32_t sd_port);
-* Description  : Power-on H/W to use SDHI
-* Arguments    : none
-* Return Value : success : SD_OK
-*              : fail    : SD_ERR
-******************************************************************************/
+ * Function Name: int32_t sddev_power_on(int32_t sd_port);
+ * Description  : Power-on H/W to use SDHI
+ * Arguments    : none
+ * Return Value : success : SD_OK
+ *              : fail    : SD_ERR
+ ******************************************************************************/
 int32_t sddev_power_on(int32_t sd_port) {
 	/* ---Power On SD ---- */
 
@@ -48,12 +48,12 @@ int32_t sddev_power_on(int32_t sd_port) {
 }
 
 /******************************************************************************
-* Function Name: int32_t sddev_int_wait(int32_t sd_port, int32_t time);
-* Description  : Waitting for SDHI Interrupt
-* Arguments    : int32_t time : time out value to wait interrupt
-* Return Value : get interrupt : SD_OK
-*              : time out      : SD_ERR
-******************************************************************************/
+ * Function Name: int32_t sddev_int_wait(int32_t sd_port, int32_t time);
+ * Description  : Waitting for SDHI Interrupt
+ * Arguments    : int32_t time : time out value to wait interrupt
+ * Return Value : get interrupt : SD_OK
+ *              : time out      : SD_ERR
+ ******************************************************************************/
 int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 
 	logAudioAction("sddev_int_wait");
@@ -102,30 +102,30 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 }
 
 /******************************************************************************
-* Function Name: static void sddev_start_timer(int32_t msec);
-* Description  : start timer
-* Arguments    :
-* Return Value : none
-******************************************************************************/
+ * Function Name: static void sddev_start_timer(int32_t msec);
+ * Description  : start timer
+ * Arguments    :
+ * Return Value : none
+ ******************************************************************************/
 void sddev_start_timer(int msec) {
 	stopTime = *TCNT[TIMER_SYSTEM_SLOW] + msToSlowTimerCount(msec);
 }
 
 /******************************************************************************
-* Function Name: static void sddev_end_timer(void);
-* Description  : end timer
-* Arguments    :
-* Return Value : none
-******************************************************************************/
+ * Function Name: static void sddev_end_timer(void);
+ * Description  : end timer
+ * Arguments    :
+ * Return Value : none
+ ******************************************************************************/
 void sddev_end_timer(void) {
 }
 
 /******************************************************************************
-* Function Name: static int32_t sddev_check_timer(void);
-* Description  : check
-* Arguments    :
-* Return Value : t
-******************************************************************************/
+ * Function Name: static int32_t sddev_check_timer(void);
+ * Description  : check
+ * Arguments    :
+ * Return Value : t
+ ******************************************************************************/
 int sddev_check_timer(void) {
 
 	uint16_t howFarAbove = *TCNT[TIMER_SYSTEM_SLOW] - stopTime;

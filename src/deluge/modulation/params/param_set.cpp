@@ -435,7 +435,8 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		}
 	}
 
-	// Because some patch cables are marked as "unusable" under certain circumstances, see if those circumstances have changed
+	// Because some patch cables are marked as "unusable" under certain circumstances, see if those circumstances have
+	// changed
 	switch (modelStack->paramId) {
 	case params::LOCAL_OSC_A_VOLUME:
 	case params::LOCAL_OSC_B_VOLUME:
@@ -460,7 +461,8 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 			((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 			    ->setupPatching(
-			        modelStackWithParamCollection); // Only need to setupPatching on this one ParamManager because this is the only one for which the param preset value has just changed
+			        modelStackWithParamCollection); // Only need to setupPatching on this one ParamManager because this
+			                                        // is the only one for which the param preset value has just changed
 		}
 	}
 }
@@ -553,7 +555,8 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 	}
 }
 
-// Displays text number. This will only actually end up getting used/seen on MIDI Clips, at channel/Clip level - not MPE/polyphonic.
+// Displays text number. This will only actually end up getting used/seen on MIDI Clips, at channel/Clip level - not
+// MPE/polyphonic.
 int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
 	// Everything but aftertouch gets handled by parent from here
 	if (modelStack->paramId != 2) {
@@ -619,9 +622,9 @@ doReadParam:
 			}
 		}
 
-		if (!strcmp(
-		        tagName,
-		        "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if anyone even did.
+		if (!strcmp(tagName,
+		            "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this - not sure if
+			                              // anyone even did.
 			p = 2;
 			goto doReadParam;
 		}
@@ -634,7 +637,8 @@ finishedTag:
 void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length,
                                                 int32_t offset, int32_t lengthBeforeLoop, Action* action) {
 
-	// Because this is just for ExpressionParamSet, which only has 3 params, let's just do it for all of them rather than our other optimization.
+	// Because this is just for ExpressionParamSet, which only has 3 params, let's just do it for all of them rather
+	// than our other optimization.
 	for (int32_t p = 0; p < kNumExpressionDimensions; p++) {
 		AutoParam* param = &params[p];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
@@ -667,41 +671,41 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
  *
  *
  * For interpolating params
- 	if (whichParamHasInterpolationActive == 127) return;
+    if (whichParamHasInterpolationActive == 127) return;
 
-	// If many params interpolating
-	else if (whichParamHasInterpolationActive >= 128) {
-		int32_t endInterpolatingParams = (whichParamHasInterpolationActive & 127);
-		for (int32_t p = 0; p <= endInterpolatingParams; p++) {
-		}
-	}
+    // If many params interpolating
+    else if (whichParamHasInterpolationActive >= 128) {
+        int32_t endInterpolatingParams = (whichParamHasInterpolationActive & 127);
+        for (int32_t p = 0; p <= endInterpolatingParams; p++) {
+        }
+    }
 
-	// If just one param interpolating
-	else {
-	}
+    // If just one param interpolating
+    else {
+    }
  */
 
 /*
  *
  * For all automated params
  *
-		if (whichParamHasAutomation != 127) {
-			// Many params automated
-			if (whichParamHasAutomation >= 128) {
-				int32_t endAutomatedParams = (whichParamHasAutomation & 127);
-				for (int32_t p = 0; p <= endAutomatedParams; p++) {
-					if (params[p].isAutomated()) {
+        if (whichParamHasAutomation != 127) {
+            // Many params automated
+            if (whichParamHasAutomation >= 128) {
+                int32_t endAutomatedParams = (whichParamHasAutomation & 127);
+                for (int32_t p = 0; p <= endAutomatedParams; p++) {
+                    if (params[p].isAutomated()) {
 
-						params[p].
+                        params[p].
 
-					}
-				}
-			}
+                    }
+                }
+            }
 
-			// One param automated
-			else {
-				params[whichParamHasAutomation].
-			}
-		}
+            // One param automated
+            else {
+                params[whichParamHasAutomation].
+            }
+        }
 
  */

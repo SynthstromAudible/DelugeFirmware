@@ -41,12 +41,11 @@ public:
 	int32_t adjustPitchToCorrectDriftFromSync(VoiceSample* voiceSample, int32_t phaseIncrement);
 
 	int8_t playDirection;
-	AudioFileHolder*
-	    audioFileHolder; // If this is NULL, it means Voice that contains "me" (this Guide) is not currently playing this Source/Sample, e.g. becacuse
-	                     // its volume was set to 0.
+	AudioFileHolder* audioFileHolder; // If this is NULL, it means Voice that contains "me" (this Guide) is not
+	                                  // currently playing this Source/Sample, e.g. becacuse its volume was set to 0.
 
-	// And, this might look a bit hackish, but we'll use this to point to the WaveTable if that's what we're using - even though that's not a Sample, and doesn't otherwise
-	// need any of this "playback guide" stuff.
+	// And, this might look a bit hackish, but we'll use this to point to the WaveTable if that's what we're using -
+	// even though that's not a Sample, and doesn't otherwise need any of this "playback guide" stuff.
 
 	// These byte numbers are all relative to the audio file start, which includes all the headers at the top.
 	// If playing reversed, then end will be left of start.

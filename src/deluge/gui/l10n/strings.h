@@ -237,7 +237,7 @@ enum class String : size_t {
 	STRING_FOR_SHORTCUTS_VERSION_3,
 	STRING_FOR_CANT_RECORD_AUDIO_FM_MODE,
 
-	//Autogen
+	// Autogen
 	STRING_FOR_FACTORY_RESET,
 	STRING_FOR_CLIPPING_OCCURRED,
 	STRING_FOR_NO_SAMPLE,
@@ -708,8 +708,8 @@ enum class String : size_t {
 	STRING_FOR_FILL,
 
 	/* Strings Specifically for Automation Instrument Clip View
-    * automation_instrument_clip_view.cpp
-    */
+	 * automation_instrument_clip_view.cpp
+	 */
 
 	STRING_FOR_AUTOMATION,
 	STRING_FOR_AUTOMATION_OVERVIEW,
@@ -725,8 +725,8 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_ON,
 
 	/* Strings Specifically for Performance View
-	* performance_session_view.cpp
-	*/
+	 * performance_session_view.cpp
+	 */
 
 	STRING_FOR_PERFORM_VIEW,
 	STRING_FOR_PERFORM_FX,
@@ -737,14 +737,14 @@ enum class String : size_t {
 	STRING_FOR_PERFORM_DEFAULTS_SAVED,
 
 	/* Strings Specifically for Song View
-	* session_view.cpp
-	*/
+	 * session_view.cpp
+	 */
 
 	STRING_FOR_SONG_VIEW,
 
 	/* Strings Specifically for Arranger View
-    * arranger_view.cpp
-    */
+	 * arranger_view.cpp
+	 */
 
 	STRING_FOR_ARRANGER_VIEW,
 
@@ -754,9 +754,9 @@ enum class String : size_t {
 	STRING_FOR_PITCH,
 
 	/* Strings Specifically for Midi Learning View
-	* midi_follow.cpp
-	*/
-	//strings for midi follow menu
+	 * midi_follow.cpp
+	 */
+	// strings for midi follow menu
 	STRING_FOR_FOLLOW_TITLE,
 	STRING_FOR_FOLLOW,
 	STRING_FOR_FOLLOW_CHANNEL_A,
@@ -772,7 +772,7 @@ enum class String : size_t {
 	STRING_FOR_INPUT_DIFFERENTIATION_ON,
 	STRING_FOR_INPUT_DIFFERENTIATION_OFF,
 
-	//string for midi select kit row menu
+	// string for midi select kit row menu
 	STRING_FOR_SELECT_KIT_ROW,
 
 	STRING_LAST

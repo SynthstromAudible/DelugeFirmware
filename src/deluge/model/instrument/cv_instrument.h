@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -36,7 +36,8 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
 
-	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing of the arp, or MPE params, which we otherwise would have to do regularly.
+	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing
+	// of the arp, or MPE params, which we otherwise would have to do regularly.
 	int32_t monophonicPitchBendValue;
 	int32_t polyPitchBendValue;
 

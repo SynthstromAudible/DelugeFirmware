@@ -167,8 +167,8 @@ void usb_hstd_test_bus_reset(usb_utr_t* ptr, uint16_t port)
     usb_cpu_delay_xms((uint16_t)50);
 
     /* USBRST=0 */
-    hw_usb_clear_dvstctr(ptr, USB_PORT0, USB_USBRST); //for UTMI
-    usb_cpu_delay_1us(300);                           //for UTMI
+    hw_usb_clear_dvstctr(ptr, USB_PORT0, USB_USBRST); // for UTMI
+    usb_cpu_delay_1us(300);                           // for UTMI
 
     /* USBRST=0, RESUME=0, UACT=1 */
     usb_hstd_set_uact(ptr, port);
