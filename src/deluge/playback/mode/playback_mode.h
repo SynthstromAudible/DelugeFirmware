@@ -44,15 +44,18 @@ public:
 		return false;
 	} // Returns whether Song was swapped
 	virtual void stopOutputRecordingAtLoopEnd() = 0;
-	virtual int32_t getPosAtWhichClipWillCut(
-	    ModelStackWithTimelineCounter const*
-	        modelStack) = 0; // That's *cut* - as in, cut out abruptly. If it's looping, and the user isn't stopping it, that's not a cut.
-	virtual bool willClipContinuePlayingAtEnd(
-	    ModelStackWithTimelineCounter const*
-	        modelStack) = 0; // We say "continue playing" now, because we want to include a pingpong, which arguably doesn't fall under "loop".
+	virtual int32_t
+	getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const*
+	                             modelStack) = 0; // That's *cut* - as in, cut out abruptly. If it's looping, and the
+	                                              // user isn't stopping it, that's not a cut.
+	virtual bool
+	willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const*
+	                                 modelStack) = 0; // We say "continue playing" now, because we want to include a
+	                                                  // pingpong, which arguably doesn't fall under "loop".
 	virtual bool willClipLoopAtSomePoint(
 	    ModelStackWithTimelineCounter const*
-	        modelStack) = 0; // This includes it "looping" in arranger before the Clip's full length due to that ClipInstance ending, and there being another instance of the same Clip right after.
+	        modelStack) = 0; // This includes it "looping" in arranger before the Clip's full length due to that
+	                         // ClipInstance ending, and there being another instance of the same Clip right after.
 	virtual bool wantsToDoTempolessRecord(int32_t newPos) { return false; }
 	virtual void
 	reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething = false,

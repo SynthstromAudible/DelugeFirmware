@@ -33,19 +33,19 @@ void oledMainInit() {
 
 	MainOLED_WCom(0xFD); // SET COMMAND LOCK
 	MainOLED_WCom(0x12);
-	MainOLED_WCom(0xAE); //DOT MARTIX DISPLAY OFF
+	MainOLED_WCom(0xAE); // DOT MARTIX DISPLAY OFF
 
-	MainOLED_WCom(0x81); //CONTARST CONTROL(00H-0FFH)
+	MainOLED_WCom(0x81); // CONTARST CONTROL(00H-0FFH)
 	MainOLED_WCom(0xFF);
 
-	MainOLED_WCom(0xA4); //ENTIRE DISPLAY OFF(0A4H-0A5H)
+	MainOLED_WCom(0xA4); // ENTIRE DISPLAY OFF(0A4H-0A5H)
 
-	MainOLED_WCom(0xA6); //SET NORMAL DISPLAY(0A6H-0A7H)
+	MainOLED_WCom(0xA6); // SET NORMAL DISPLAY(0A6H-0A7H)
 
 	MainOLED_WCom(0x00); // SET LOW COLUMN START ADDRESS
-	MainOLED_WCom(0x10); //SET HIGH COLUMN START ADDRESS
+	MainOLED_WCom(0x10); // SET HIGH COLUMN START ADDRESS
 
-	MainOLED_WCom(0x20); //SET MEMORRY ADDRESSING MODE
+	MainOLED_WCom(0x20); // SET MEMORRY ADDRESSING MODE
 	MainOLED_WCom(0x00); // Horizontal
 
 	/*
@@ -58,31 +58,31 @@ void oledMainInit() {
 	MainOLED_WCom(7);
 #endif
 
-	MainOLED_WCom(0x40); //SET DISPLAY START LINE (040H-07FH) // Moves entire graphics vertically
+	MainOLED_WCom(0x40); // SET DISPLAY START LINE (040H-07FH) // Moves entire graphics vertically
 
-	MainOLED_WCom(0xA0); //SET SEGMENT RE-MAP(0A0H-0A1H) // Flips stuff 180deg!
+	MainOLED_WCom(0xA0); // SET SEGMENT RE-MAP(0A0H-0A1H) // Flips stuff 180deg!
 
-	MainOLED_WCom(0xA8); //SET MULTIPLEX RATIO 64
+	MainOLED_WCom(0xA8); // SET MULTIPLEX RATIO 64
 	MainOLED_WCom(0x3F);
 
-	MainOLED_WCom(0xC0); //COM SCAN COM1-COM64(0C8H,0C0H)
+	MainOLED_WCom(0xC0); // COM SCAN COM1-COM64(0C8H,0C0H)
 
-	MainOLED_WCom(0xD3); //SET DISPLAY OFFSET(OOH-3FH)
+	MainOLED_WCom(0xD3); // SET DISPLAY OFFSET(OOH-3FH)
 	MainOLED_WCom(0x0);
 
-	MainOLED_WCom(0xDA); //COM PIN CONFIGURATION
+	MainOLED_WCom(0xDA); // COM PIN CONFIGURATION
 	MainOLED_WCom(0x12);
 
-	MainOLED_WCom(0xD5); //SET FRAME FREQUENCY
+	MainOLED_WCom(0xD5); // SET FRAME FREQUENCY
 	MainOLED_WCom(0xF0);
 
-	MainOLED_WCom(0xD9); //SET PRE_CHARGE PERIOD
+	MainOLED_WCom(0xD9); // SET PRE_CHARGE PERIOD
 	MainOLED_WCom(0xA2);
 
-	MainOLED_WCom(0xDB); //SET VCOM DESELECT LEVEL
+	MainOLED_WCom(0xDB); // SET VCOM DESELECT LEVEL
 	MainOLED_WCom(0x34);
 
-	MainOLED_WCom(0xAF); //DSPLAY ON
+	MainOLED_WCom(0xAF); // DSPLAY ON
 
 	R_RSPI_WaitEnd(SPI_CHANNEL_OLED_MAIN);
 
@@ -111,8 +111,8 @@ void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 	int32_t readPosNow = spiTransferQueueReadPos;
 	/*
 	while (readPosNow != spiTransferQueueWritePos) {
-		if (spiTransferQueue[readPosNow].destinationId == destinationId && spiTransferQueue[readPosNow].dataAddress == image) return;
-		readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	    if (spiTransferQueue[readPosNow].destinationId == destinationId && spiTransferQueue[readPosNow].dataAddress ==
+	image) return; readPosNow = (readPosNow + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 	}
 	*/
 
@@ -120,8 +120,8 @@ void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 	spiTransferQueue[spiTransferQueueWritePos].dataAddress = image;
 	spiTransferQueueWritePos = (spiTransferQueueWritePos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 
-	// If DMA not currently sending, and our new entry is still in the queue (it didn't get sent inside an interrupt just now),
-	// then send it now.
+	// If DMA not currently sending, and our new entry is still in the queue (it didn't get sent inside an interrupt
+	// just now), then send it now.
 	if (!spiTransferQueueCurrentlySending && spiTransferQueueWritePos != spiTransferQueueReadPos) {
 		sendSPITransferFromQueue();
 	}

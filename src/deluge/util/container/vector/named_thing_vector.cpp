@@ -84,9 +84,9 @@ int32_t NamedThingVector::insertElement(void* namedThing) {
 }
 
 int32_t NamedThingVector::insertElement(void* namedThing, int32_t i) {
-	int32_t error = insertAtIndex(
-	    i, 1,
-	    this); // While inserting, the stealing of any AudioFiles would cause a simultaneous delete. They all know not to allow theft when passed this AudioFileVector.
+	int32_t error = insertAtIndex(i, 1,
+	                              this); // While inserting, the stealing of any AudioFiles would cause a simultaneous
+	                                     // delete. They all know not to allow theft when passed this AudioFileVector.
 	if (error) {
 		return error;
 	}

@@ -49,10 +49,10 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			}
 		}
 		else {
-			//if we're restarting a voice we need to clear it's reasons,
-			//otherwise we'll increase now but only reduce by one at note off
-			//not quite thread safe - if the sample is shorter than 64k
-			//an allocation before setupClustersForInitialPlay could steal it
+			// if we're restarting a voice we need to clear it's reasons,
+			// otherwise we'll increase now but only reduce by one at note off
+			// not quite thread safe - if the sample is shorter than 64k
+			// an allocation before setupClustersForInitialPlay could steal it
 			voiceSample->beenUnassigned();
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
@@ -65,7 +65,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	if (synthMode != SynthMode::FM
 	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
 	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
-		//oscPos = 0;
+		// oscPos = 0;
 	}
 	else {
 		if (oscRetriggerPhase != 0xFFFFFFFF) {
@@ -120,7 +120,8 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 		if (source->sampleControls.pitchAndSpeedAreIndependent) {
 			*timeStretchRatio = (uint64_t)16777216 * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
 
-			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch amount more
+			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch
+			// amount more
 			if (*phaseIncrement != pitchAdjustNeutralValue) {
 				*timeStretchRatio = ((uint64_t)*timeStretchRatio * pitchAdjustNeutralValue) / (uint32_t)*phaseIncrement;
 			}
@@ -147,7 +148,8 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 		// Or if pitch-stretch, achieve syncing that way
 		else {
 
-			// But first, if pitch was manually adjusted as well, counteract that by adjusting the time-stretch amount more
+			// But first, if pitch was manually adjusted as well, counteract that by adjusting the time-stretch amount
+			// more
 			bool furtherPitchShifting = (*phaseIncrement != pitchAdjustNeutralValue);
 			if (furtherPitchShifting) {
 				*timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)*phaseIncrement;
@@ -170,8 +172,9 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 	return true;
 }
 
-// This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it from Voice::renderBasicSource() when doing a
-// "late start" on a Sample and we need to disregard any pitch modulation, so send this the non-modulated phaseIncrement.
+// This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
+// from Voice::renderBasicSource() when doing a "late start" on a Sample and we need to disregard any pitch modulation,
+// so send this the non-modulated phaseIncrement.
 uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement,
                                                           int32_t pitchAdjustNeutralValue) {
 

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -46,7 +46,7 @@ public:
 	bool equalsChannelAllowMPE(MIDIDevice* newDevice, int32_t newChannel);
 	bool equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel);
 
-	//Check that note or CC and channel match, does not check if channel in MPE zone
+	// Check that note or CC and channel match, does not check if channel in MPE zone
 	inline bool equalsNoteOrCCAllowMPE(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPE(newDevice, newChannel));
 	}

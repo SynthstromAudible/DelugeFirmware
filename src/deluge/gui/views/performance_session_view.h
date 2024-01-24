@@ -69,7 +69,7 @@ public:
 	void graphicsRoutine();
 	ActionResult timerCallback();
 
-	//rendering
+	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -80,63 +80,63 @@ public:
 	void redrawNumericDisplay();
 	void setLedStates();
 
-	//button action
+	// button action
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
-	//pad action
+	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
-	//horizontal encoder action
+	// horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
 
-	//vertical encoder action
+	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 
-	//mod encoder action
+	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);
 
-	//select encoder action
+	// select encoder action
 	void selectEncoderAction(int8_t offset);
 
-	//not sure why we need these...
+	// not sure why we need these...
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
 
-	//public so soundEditor can access it
+	// public so soundEditor can access it
 	void savePerformanceViewLayout();
 	void loadPerformanceViewLayout();
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
-	bool editingParam; //if you're not editing a param, you're editing a value
+	bool editingParam; // if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
 
-	//public so Action Logger can access it
+	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
 
-	//public so midi follow can access it
+	// public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
-	//public so view.modEncoderAction and midi follow can access it
+	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
 private:
-	//initialize
+	// initialize
 	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
 	void initLayout(ParamsForPerformance& layout);
 	void initDefaultFXValues(int32_t xDisplay);
 
-	//rendering
+	// rendering
 	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
 
-	//pad action
+	// pad action
 	void normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay, int32_t on);
 	void paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
 	                          int32_t on);
@@ -184,10 +184,10 @@ private:
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
-	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
+	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
-	//backup current layout
+	// backup current layout
 	void backupPerformanceLayout();
 	bool performanceLayoutBackedUp;
 	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);

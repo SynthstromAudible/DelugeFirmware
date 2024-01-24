@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/arranger_view.h"
 #include "definitions_cxx.hpp"
@@ -189,7 +189,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentSong->affectEntire = !currentSong->affectEntire;
-			//setLedStates();
+			// setLedStates();
 			view.setActiveModControllableTimelineCounter(currentSong);
 		}
 	}
@@ -245,7 +245,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 			changeOutputToAudio();
 		}
-		//open Song FX menu
+		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
 			display->setNextTransitionDirection(1);
 			soundEditor.setup();
@@ -394,9 +394,10 @@ void ArrangerView::clearArrangement() {
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	currentSong->paramManager.deleteAllAutomation(action, modelStack);
 
-	// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated to improve on because the deletion of the Clips themselves,
-	// where there are arrangement-only ones, causes the calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at any instant in time,
-	// or else it'll look at those to pick the new activeClip, which might not exist anymore.
+	// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated to
+	// improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes the
+	// calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at any
+	// instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
 		for (int32_t i = output->clipInstances.getNumElements() - 1; i >= 0; i--) {
 			deleteClipInstance(output, i, output->clipInstances.getElement(i), action, false);
@@ -956,13 +957,15 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 					if (arrangement.hasPlaybackActive()) {
 
-						// If other Instruments were already soloing, or if they weren't but this instrument was muted, we'll need to tell it to start playing
+						// If other Instruments were already soloing, or if they weren't but this instrument was muted,
+						// we'll need to tell it to start playing
 						if (currentSong->getAnyOutputsSoloingInArrangement() || output->mutedInArrangementMode) {
 							outputActivated(output);
 						}
 					}
 
-					// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly deactivated
+					// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
+					// deactivated
 					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
 						for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
@@ -1012,14 +1015,16 @@ doUnsolo:
 				break;
 
 			case UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION:
-				// If it's the mute pad for the same row we're auditioning, don't do anything. User might be subconsciously repeating the "drag row" action for Kits in InstrumentClipView.
+				// If it's the mute pad for the same row we're auditioning, don't do anything. User might be
+				// subconsciously repeating the "drag row" action for Kits in InstrumentClipView.
 				if (y == yPressedEffective) {
 					break;
 				}
 				goto regularMutePadPress; // Otherwise, do normal.
 
 			case UI_MODE_NONE:
-				// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
+				// If the user was just quick and is actually holding the record button but the submode just hasn't
+				// changed yet...
 				if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 					output->armedForRecording = !output->armedForRecording;
 					timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
@@ -1215,7 +1220,8 @@ doNewPress:
 						}
 					}
 
-					// Or, normal case where not recording to Clip. If it actually finishes to our left, we can still go ahead and make a new Instance here
+					// Or, normal case where not recording to Clip. If it actually finishes to our left, we can still go
+					// ahead and make a new Instance here
 					int32_t instanceEnd = clipInstance->pos + clipInstance->length;
 					if (instanceEnd <= squareStart) {
 						goto makeNewInstance;
@@ -1292,7 +1298,8 @@ getItFromSection:
 						}
 					}
 
-					// Make the actual new ClipInstance. Do it now, after potentially looking at existing ones above, so that we don't look at this new one above
+					// Make the actual new ClipInstance. Do it now, after potentially looking at existing ones above, so
+					// that we don't look at this new one above
 					pressedClipInstanceIndex = output->clipInstances.insertAtKey(squareStart);
 
 					// Test thing
@@ -1488,7 +1495,8 @@ justGetOut:
 
 						// If pressed head, delete
 						if (pressedHead) {
-							//set lastInteractedClipInstance to null so you don't send midi follow feedback for a deleted clip
+							// set lastInteractedClipInstance to null so you don't send midi follow feedback for a
+							// deleted clip
 							lastInteractedClipInstance = nullptr;
 							view.setActiveModControllableTimelineCounter(currentSong);
 
@@ -1506,7 +1514,8 @@ justGetOut:
 
 							// In this case, we leave the activeModControllableClip the same
 
-							// If Clip wasn't created yet, create it first. This does both AudioClips and InstrumentClips
+							// If Clip wasn't created yet, create it first. This does both AudioClips and
+							// InstrumentClips
 							if (!clipInstance->clip) {
 
 								if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
@@ -1561,9 +1570,9 @@ justGetOut:
 								}
 
 								// Possibly want to set this as the activeClip, if Instrument didn't have one yet.
-								// Crucial that we do this not long after calling setInstrument, in case this is the first Clip with the Instrument
-								// and we just grabbed the backedUpParamManager for it, which it might go and look for again if the audio routine
-								// was called in the interim
+								// Crucial that we do this not long after calling setInstrument, in case this is the
+								// first Clip with the Instrument and we just grabbed the backedUpParamManager for it,
+								// which it might go and look for again if the audio routine was called in the interim
 								if (!output->activeClip) {
 									output->setActiveClip(modelStack);
 								}
@@ -1613,8 +1622,8 @@ void ArrangerView::exitSubModeWithoutAction() {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
-		//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
-		//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
+		// needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+		// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
 		view.setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
@@ -2173,7 +2182,8 @@ squareStartPosSet:
 			RGB colour = clipInstance->getColour();
 
 			// If Instance starts exactly on square or somewhere within square, draw "head".
-			// We don't do the "blur" colour in arranger - it looks too white and would be confused with white/unique instances
+			// We don't do the "blur" colour in arranger - it looks too white and would be confused with white/unique
+			// instances
 			if (clipInstance->pos >= squareStartPos) {
 				image[xDisplay] = colour;
 			}
@@ -2646,9 +2656,11 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 							int32_t newPos = instance->pos + scrollAmount;
 
-							// If contracting time, shorten the previous ClipInstance only if the ClipInstances we're moving will eat into its tail. Otherwise, leave the tail there.
-							// Perhaps it'd make more sense to cut the tail off regardless, but possibly just due to me not thinking about it, this was not done in pre-V4 firmware,
-							// and actually having it this way probably helps users.
+							// If contracting time, shorten the previous ClipInstance only if the ClipInstances we're
+							// moving will eat into its tail. Otherwise, leave the tail there. Perhaps it'd make more
+							// sense to cut the tail off regardless, but possibly just due to me not thinking about it,
+							// this was not done in pre-V4 firmware, and actually having it this way probably helps
+							// users.
 							if (!movedOneYet && offset < 0 && i > 0) {
 								movedOneYet = true;
 								ClipInstance* prevInstance = (ClipInstance*)thisOutput->clipInstances.getElement(i - 1);
@@ -2894,13 +2906,13 @@ void ArrangerView::graphicsRoutine() {
 				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
 			}
 		}
-		if (modKnobMode == 4 && editingComp) { //upper
+		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
 				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
-				//uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
-				indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
-				//indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
+				// uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
+				indicator_leds::setKnobIndicatorLevel(1, gr); // Gain Reduction LED
+				// indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
 			}
 		}
 	}
@@ -3008,10 +3020,11 @@ void ArrangerView::autoScrollOnPlaybackEnd() {
 			newScrollPos = 0;
 		}
 
-		// If that actually puts us back to near where we were scrolled to when playback began (which it usually will), just go back there exactly.
-		// Added in response to Michael noting that if you do an UNDO and then also stop playback while recording e.g. MIDI to arranger,
-		// it scrolls backwards twice (if you have "follow" on).
-		// Actually it seems that in that situation, undoing (probably due to other mechanics that get enacted) won't let it take you further than 1 screen back from the play-cursor
+		// If that actually puts us back to near where we were scrolled to when playback began (which it usually will),
+		// just go back there exactly. Added in response to Michael noting that if you do an UNDO and then also stop
+		// playback while recording e.g. MIDI to arranger, it scrolls backwards twice (if you have "follow" on).
+		// Actually it seems that in that situation, undoing (probably due to other mechanics that get enacted) won't
+		// let it take you further than 1 screen back from the play-cursor
 		// - which just means that this is "extra" effective I guess.
 		if (newScrollPos > xScrollWhenPlaybackStarted - (xZoom >> kDisplayWidthMagnitude)
 		    || newScrollPos < xScrollWhenPlaybackStarted + (xZoom >> kDisplayWidthMagnitude)) {

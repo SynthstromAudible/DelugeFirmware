@@ -58,7 +58,7 @@ extern "C" {
 namespace params = deluge::modulation::params;
 
 #pragma GCC diagnostic push
-//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[4][SSI_TX_BUFFER_NUM_SAMPLES]
@@ -89,8 +89,8 @@ int32_t Voice::combineExpressionValues(Sound* sound, int32_t whichExpressionDime
 Voice::Voice() : patcher(&patchableInfoForVoice) {
 }
 
-// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
-// You'll normally want to call audioDriver.voiceUnassigned() after this.
+// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
+// it. You'll normally want to call audioDriver.voiceUnassigned() after this.
 void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) {
 
 	unassignStuff();
@@ -137,8 +137,9 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
 
-	// Setup "half-baked" envelope output values. These need to exist before we do the initial patching below - and it's only after that that we can render
-	// the "actual" envelope output values, taking their own input patching into account.
+	// Setup "half-baked" envelope output values. These need to exist before we do the initial patching below - and it's
+	// only after that that we can render the "actual" envelope output values, taking their own input patching into
+	// account.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 
 		// If no attack-stage...
@@ -191,16 +192,18 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		portaEnvelopePos = 0xFFFFFFFF; // No porta
 	}
 
-	// Patch all sources to exclusive params, to give them an initial value. Exclusive params (params with just 1 source) aren't continuously recalculated, so they need that initial value.
-	// Remember, calculating that initial value also takes into account the "preset value".
-	// This probably isn't strictly necessary for sources which we know will be constantly changing, because that would make patching constantly calculate too. But that's only
+	// Patch all sources to exclusive params, to give them an initial value. Exclusive params (params with just 1
+	// source) aren't continuously recalculated, so they need that initial value. Remember, calculating that initial
+	// value also takes into account the "preset value". This probably isn't strictly necessary for sources which we
+	// know will be constantly changing, because that would make patching constantly calculate too. But that's only
 	// really the envelopes, plus the LFOs (just the local one?) if they're not square
 	for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 		sourceValues[s] = sound->globalSourceValues[s];
 	}
 	patcher.performInitialPatching(sound, paramManager);
 
-	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render them *after* initial patching is performed.
+	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
+	// them *after* initial patching is performed.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 		sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].noteOn(e, sound, this);
 	}
@@ -214,7 +217,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	// Make all VoiceUnisonPartSources "active" by default
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in other cases.
+		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
+		// other cases.
 		guides[s].audioFileHolder = NULL;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
@@ -227,12 +231,14 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 				// Set up MultiRange
 				MultiRange* range = sound->sources[s].getRange(noteCodeAfterArpeggiation + sound->transpose);
-				if (!range) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file loaded, like how OSC2 very often would be sitting
+				if (!range) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file
+					          // loaded, like how OSC2 very often would be sitting
 					goto gotInactive;
 				}
 
 				AudioFileHolder* holder = range->getAudioFileHolder();
-				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any VoiceSource's range definitely has a sample
+				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
+				// VoiceSource's range definitely has a sample
 				if (!holder->audioFile) {
 					goto gotInactive;
 				}
@@ -287,18 +293,19 @@ activenessDetermined:
 			oscType = source->oscType;
 		}
 
-		//int32_t samplesLateHere = samplesLate; // Make our own copy of this - we're going to deactivate it if we're in STRETCH mode, cos that works differently
+		// int32_t samplesLateHere = samplesLate; // Make our own copy of this - we're going to deactivate it if we're
+		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
 			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
 
-			//if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
+			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
 
 		for (int32_t u = 0; u < sound->numUnison; u++) {
 
-			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if the osc is set to SAMPLE, there actually is
-			// a sample loaded.
+			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
+			// the osc is set to SAMPLE, there actually is a sample loaded.
 			if (unisonParts[u].sources[s].active) {
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound->oscRetriggerPhase[s],
@@ -352,7 +359,8 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeB
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = newInputMIDIChannel;
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
 
-	// We definitely want to go to these values smoothly. Probably wish it was even smoother... Actually nah this sounds / feels great!
+	// We definitely want to go to these values smoothly. Probably wish it was even smoother... Actually nah this sounds
+	// / feels great!
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		localExpressionSourceValuesBeforeSmoothing[m] = newMPEValues[m] << 16;
 		// TODO: what if there's just channel aftertouch, and it's still held down...
@@ -616,7 +624,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 	AudioFileHolder* holder = guides[s].audioFileHolder;
 	if (!holder) {
-		return true; // If no holder, that means this Source/Sample is not currently playing, e.g. because its volume was set to 0.
+		return true; // If no holder, that means this Source/Sample is not currently playing, e.g. because its volume
+		             // was set to 0.
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
@@ -630,7 +639,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	LoopType loopingType = guides[s].getLoopingType(&sound->sources[s]);
 
 	// Check we're still within bounds - for each unison part.
-	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into the still-remaining part soon enough.
+	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into
+	// the still-remaining part soon enough.
 
 	bool anyStillActive = false;
 
@@ -686,7 +696,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 
 	bool didStereoTempBuffer = false;
 
-	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're now waiting for a note-off again
+	// If we've previously ignored a note-off, we need to check that the user hasn't changed the preset so that we're
+	// now waiting for a note-off again
 	if (previouslyIgnoredNoteOff && sound->allowNoteTails(modelStack, true)) {
 		noteOff(modelStack);
 	}
@@ -712,8 +723,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 
 	bool unassignVoiceAfter =
 	    (envelopes[0].state
-	     == EnvelopeStage::
-	         OFF); //(envelopes[0].state >= EnvelopeStage::DECAY && localSourceValues[PatchSource::ENVELOPE_0 - Local::FIRST_SOURCE] == -2147483648);
+	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY &&
+	                             // localSourceValues[PatchSource::ENVELOPE_0 - Local::FIRST_SOURCE] == -2147483648);
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
@@ -805,8 +816,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 		portaEnvelopePos += envelopeSpeed * numSamples;
 	}
 
-	// Decide whether to do an auto-release for sample. Despite this being envelope-related, meaning we'd ideally prefer to do it before patching,
-	// we can only do it after because we need to know pitch
+	// Decide whether to do an auto-release for sample. Despite this being envelope-related, meaning we'd ideally prefer
+	// to do it before patching, we can only do it after because we need to know pitch
 
 	// If not already releasing and some release is set, and no noise-source...
 	if (sound->getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
@@ -824,7 +835,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 				continue;
 			}
 
-			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the note-off, then we don't want the auto-release feature for it
+			// If it's not a sample, or it's not a play-once, or it has a loop-end point but we haven't received the
+			// note-off, then we don't want the auto-release feature for it
 			if (source->oscType != OscType::SAMPLE
 			    || source->repeatMode
 			           != SampleRepeatMode::ONCE // Don't do it for anything else. STRETCH is too hard to calculate
@@ -850,7 +862,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 				// If it needed attention...
 				if (whichSourcesNeedAttention & (1 << s)) {
 
-					// This Source needs an auto release applied. Calculate for the last unison, because that'll have the higher pitch, so will be ending soonest
+					// This Source needs an auto release applied. Calculate for the last unison, because that'll have
+					// the higher pitch, so will be ending soonest
 					VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[sound->numUnison - 1].sources[s];
 					if (!voiceUnisonPartSource->active) {
 						continue;
@@ -870,8 +883,9 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 
 					int32_t releaseStageLengthBytes = releaseStageLengthSamples * bytesPerSample;
 
-					// Work out the actual sample read rate, from the "native" read rate for the last unison, combined with the "pitch adjust" amount, and the pitch adjust for this source alone.
-					// If the pitch goes crazy-high, this will fall through and prevent auto-release from happening
+					// Work out the actual sample read rate, from the "native" read rate for the last unison, combined
+					// with the "pitch adjust" amount, and the pitch adjust for this source alone. If the pitch goes
+					// crazy-high, this will fall through and prevent auto-release from happening
 					uint32_t actualSampleReadRate = voiceUnisonPartSource->phaseIncrementStoredValue;
 					if (!adjustPitch(&actualSampleReadRate, overallPitchAdjust)) {
 						continue;
@@ -879,20 +893,22 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 						continue;
 					}
-					// TODO: actualSampleReadRate should probably be affected by time stretching, too. BUT that'd stuff up some existing users' songs -
-					// e.g. Michael B's one I tried during V3.0 beta phase, July 2019
+					// TODO: actualSampleReadRate should probably be affected by time stretching, too. BUT that'd stuff
+					// up some existing users' songs - e.g. Michael B's one I tried during V3.0 beta phase, July 2019
 
 					// Scale that according to our resampling rate
 					if (actualSampleReadRate != 16777216) {
 						releaseStageLengthBytes = ((int64_t)releaseStageLengthBytes * actualSampleReadRate) >> 24;
 					}
 
-					// If this sample says it's not time to do auto-release yet, then we don't want to do it yet, so get out
+					// If this sample says it's not time to do auto-release yet, then we don't want to do it yet, so get
+					// out
 					if (bytesLeft >= releaseStageLengthBytes) {
 						goto skipAutoRelease;
 					}
 
-					// And also see how many audio samples were left for this source. Only do this in here because it involves time-consuming division
+					// And also see how many audio samples were left for this source. Only do this in here because it
+					// involves time-consuming division
 					int32_t samplesLeft = bytesLeft / (bytesPerSample);
 
 					// Scale that according to our resampling rate
@@ -913,7 +929,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 			envelopes[0].unconditionalRelease();
 		}
 	}
-skipAutoRelease : {}
+skipAutoRelease: {}
 
 	if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
@@ -921,8 +937,9 @@ skipAutoRelease : {}
 		}
 	}
 
-	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is unaffected.
-	// Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high velocity patching with big LFO
+	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is
+	// unaffected. Important that we use lshiftAndSaturate here - otherwise, number can overflow if combining high
+	// velocity patching with big LFO
 	int32_t overallOscAmplitude = lshiftAndSaturate<2>(
 	    multiply_32x32_rshift32(paramFinalValues[params::LOCAL_VOLUME],
 	                            (sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] >> 1) + 1073741824));
@@ -952,14 +969,15 @@ skipAutoRelease : {}
 	// If not ringmod, then sources need their volume calculated
 	if (synthMode != SynthMode::RINGMOD) {
 
-		// params::LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to full-range
-		// overallOscAmplitude (same range as) params::LOCAL_VOLUME, is the same.
+		// params::LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to
+		// full-range overallOscAmplitude (same range as) params::LOCAL_VOLUME, is the same.
 
 		// Let's impose a new limit, that only a total of 4x amplification via patching is possible (not 16x).
-		// Chances are, the user won't even need that much, let alone would have the osc volume *and* the synth master volume on full
-		// We then have space to make each osc's amplitude 4x what it could have been otherwise
+		// Chances are, the user won't even need that much, let alone would have the osc volume *and* the synth master
+		// volume on full We then have space to make each osc's amplitude 4x what it could have been otherwise
 
-		// If FM, we work the overall amplitude into each oscillator's, to avoid having to do an extra multiplication for every audio sample at the end
+		// If FM, we work the overall amplitude into each oscillator's, to avoid having to do an extra multiplication
+		// for every audio sample at the end
 		if (synthMode == SynthMode::FM) {
 
 			// Apply compensation for unison
@@ -969,7 +987,8 @@ skipAutoRelease : {}
 			int32_t a = multiply_32x32_rshift32(paramFinalValues[params::LOCAL_OSC_A_VOLUME], overallOscAmplitude);
 			int32_t b = multiply_32x32_rshift32(paramFinalValues[params::LOCAL_OSC_B_VOLUME], overallOscAmplitude);
 
-			// Clip off those amplitudes before they get too high. I think these were originally intended to stop the amplitude rising to more than "4", whatever that meant?
+			// Clip off those amplitudes before they get too high. I think these were originally intended to stop the
+			// amplitude rising to more than "4", whatever that meant?
 			sourceAmplitudes[0] = std::min(a, (int32_t)134217727);
 			sourceAmplitudes[1] = std::min(b, (int32_t)134217727);
 		}
@@ -1053,9 +1072,8 @@ skipAutoRelease : {}
 
 	// Lots of conditions rule out renderingDirectlyIntoSoundBuffer right away
 	if (sound->clippingAmount
-	    || sound->synthMode
-	           == SynthMode::
-	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
+	    || sound->synthMode == SynthMode::RINGMOD // We could make this one work - but currently the ringmod rendering
+	                                              // code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
 	    || filterSet.isHPFOn() || filterSet.isLPFOn()
@@ -1105,12 +1123,13 @@ decidedWhichBufferRenderingInto:
 	bool doPanning;
 
 	// If rendering directly into the Sound's buffer, set up for that.
-	// Have to modify amplitudes to get the volume right - factoring the "overall" amplitude, which will now not get used in its normal way, into
-	// the oscillator/source amplitudes instead
+	// Have to modify amplitudes to get the volume right - factoring the "overall" amplitude, which will now not get
+	// used in its normal way, into the oscillator/source amplitudes instead
 	if (renderingDirectlyIntoSoundBuffer) {
 		oscBuffer = soundBuffer;
 
-		// Don't modify amplitudes if we're FM, because for that, overallOscAmplitude has already been factored into the oscillator (carrier) amplitudes
+		// Don't modify amplitudes if we're FM, because for that, overallOscAmplitude has already been factored into the
+		// oscillator (carrier) amplitudes
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				sourceAmplitudeIncrements[s] =
@@ -1131,12 +1150,14 @@ decidedWhichBufferRenderingInto:
 
 		int32_t const* const oscBufferEnd = oscBuffer + numSamples;
 
-		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each unison. Increasing number of unison cuts the volume of the oscillators
+		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
+		// unison. Increasing number of unison cuts the volume of the oscillators
 		if (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) {
 
 			// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
 			// I'm now making this louder to compensate and remain consistent by going just >>1.
-			// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I ever do this? Who knows...)
+			// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I
+			// ever do this? Who knows...)
 			int32_t n = paramFinalValues[params::LOCAL_NOISE_VOLUME] >> 1;
 			if (sound->hasFilters()) {
 				n = multiply_32x32_rshift32(n, filterGain) << 4;
@@ -1250,7 +1271,8 @@ decidedWhichBufferRenderingInto:
 			}
 		}
 
-		// If any unison part became inactive (for either source), and no noise-source, then it might be time to unassign the voice...
+		// If any unison part became inactive (for either source), and no noise-source, then it might be time to
+		// unassign the voice...
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
@@ -1280,8 +1302,9 @@ decidedWhichBufferRenderingInto:
 			int32_t unisonAmplitudeL, unisonAmplitudeR;
 			shouldDoPanning((stereoUnison ? sound->unisonPan[u] : 0), &unisonAmplitudeL, &unisonAmplitudeR);
 
-			// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0. Yes this will affect all unison parts, which seems like it's
-			// not what we want, but since we're traversing the unison parts in ascending frequency, it's fine!
+			// Work out the phase increments of the two sources. If these are too high, sourceAmplitudes[s] is set to 0.
+			// Yes this will affect all unison parts, which seems like it's not what we want, but since we're traversing
+			// the unison parts in ascending frequency, it's fine!
 
 			uint32_t phaseIncrements[kNumSources];
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -1331,7 +1354,8 @@ decidedWhichBufferRenderingInto:
 					doingOscSyncThisOscillator = doingOscSync;
 
 cantBeDoingOscSyncForFirstOsc:
-					// Work out pulse width, from parameter. This has no effect if we're not actually using square waves, but just do it anyway, it's a simple calculation
+					// Work out pulse width, from parameter. This has no effect if we're not actually using square
+					// waves, but just do it anyway, it's a simple calculation
 					int32_t pulseWidth =
 					    (uint32_t)lshiftAndSaturate<1>(paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s]);
 
@@ -1342,7 +1366,8 @@ cantBeDoingOscSyncForFirstOsc:
 					          doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0],
 					          sound->oscRetriggerPhase[s], sourceWaveIndexIncrements[s]);
 
-					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we need to compensate
+					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
+					// we need to compensate
 					if (oscType == OscType::SAW || oscType == OscType::ANALOG_SAW_2) {
 						amplitudeForRingMod <<= 1;
 					}
@@ -1484,7 +1509,7 @@ noModulatorsActive:
 					}
 				}
 
-carriersDone : {}
+carriersDone: {}
 				if (stereoUnison) {
 					// double up the temp buffer
 					for (int32_t i = 0; i < numSamples; i++) {
@@ -1495,13 +1520,13 @@ carriersDone : {}
 			}
 		}
 
-skipUnisonPart : {}
+skipUnisonPart: {}
 	}
 
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
-			//fold
+			// fold
 			if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 			}
@@ -1572,9 +1597,9 @@ skipUnisonPart : {}
 		else {
 			/*
 			do {
-				int32_t distanceToGoL = *oscBufferPos - hpfMem;
-				hpfMem += distanceToGoL >> 11;
-				*oscBufferPos -= hpfMem;
+			    int32_t distanceToGoL = *oscBufferPos - hpfMem;
+			    hpfMem += distanceToGoL >> 11;
+			    *oscBufferPos -= hpfMem;
 
 			} while (++oscBufferPos != oscBufferEnd);
 
@@ -1582,7 +1607,7 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			//wavefolding pre filter
+			// wavefolding pre filter
 			if (paramFinalValues[params::LOCAL_FOLD] > 0) {
 				q31_t foldAmount = paramFinalValues[params::LOCAL_FOLD];
 
@@ -1706,7 +1731,7 @@ bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
 }
 
 int32_t doFMNew(uint32_t carrierPhase, uint32_t phaseShift) {
-	//return getSineNew((((*carrierPhase += carrierPhaseIncrement) >> 8) + phaseShift) & 16777215, 24);
+	// return getSineNew((((*carrierPhase += carrierPhaseIncrement) >> 8) + phaseShift) & 16777215, 24);
 
 	uint32_t phaseSmall = (carrierPhase >> 8) + phaseShift;
 	int32_t strength2 = phaseSmall & 65535;
@@ -1782,7 +1807,8 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 			amplitudeNow += amplitudeIncrement;
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
-			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
+			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased
+			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
 			feedbackValue = doFMNew(phaseNow += phaseIncrement, feedback);
@@ -1865,7 +1891,8 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
-			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
+			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased
+			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
 			uint32_t sum = (uint32_t)*thisSample + (uint32_t)feedback;
@@ -1907,7 +1934,8 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 
 			int32_t feedback = multiply_32x32_rshift32(feedbackValue, feedbackAmount);
 
-			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased version. The hard clipping one sounds really solid.
+			// We do hard clipping of the feedback amount. Doing tanH causes aliasing - even if we used the anti-aliased
+			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
 			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
@@ -1983,17 +2011,22 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 	}
 }
 
-// This function renders all unison for a source/oscillator. Amplitude and the incrementing thereof is done independently for each unison, despite being the same for all
-// of them, and you might be wondering why this is. Yes in the case of an 8-unison sound it'd work out slightly better to apply amplitude to all unison together,
-// but here's why this just generally isn't all that advantageous:
-//	-	Doing it separately for each unison, as we are, means each unison of *both* sources can just sum itself directly onto the buffer for the whole Voice, or in special cases the Sound,
-//		which only had to be wiped clean once. But applying amplitude to the combined unisons of one source would mean we'd need to clear a buffer for that source, then render our
-//		potentially just one unison into that (summing to the buffer's existing contents), then as amplitude is applied to the buffer, we'd write the output of that into the
-//		Voice buffer (summing to its contents too). So basically an extra level of summing and clearing would have to happen, in addition to the extra copying which is obvious.
-//	-	And you might be thinking that for oscillator sync this would work well, because it already applies amplitude in a separate step after rendering the wave.
-//		But no - a key part of why this works well as it is is that the summing between unisons only happens along with that amplitude-application, after the initial wave render
-//		has finished chopping around the contents of its buffer. Having that summed into an all-unison buffer would still require an additional copying(summing) step,
-//		and we might as well just apply amplitude while that's happening, which is exactly how it is currently.
+// This function renders all unison for a source/oscillator. Amplitude and the incrementing thereof is done
+// independently for each unison, despite being the same for all of them, and you might be wondering why this is. Yes in
+// the case of an 8-unison sound it'd work out slightly better to apply amplitude to all unison together, but here's why
+// this just generally isn't all that advantageous:
+//	-	Doing it separately for each unison, as we are, means each unison of *both* sources can just sum itself directly
+// onto the buffer for the whole Voice, or in special cases the Sound, 		which only had to be wiped clean once. But
+// applying amplitude to the combined unisons of one source would mean we'd need to clear a buffer for that source, then
+// render our 		potentially just one unison into that (summing to the buffer's existing contents), then as amplitude
+// is applied to the buffer, we'd write the output of that into the 		Voice buffer (summing to its contents too).
+// So basically an extra level of summing and clearing would have to happen, in addition to the extra copying which is
+// obvious. 	-	And you might be thinking that for oscillator sync this would work well, because it already applies
+// amplitude in a separate step after rendering the wave. 		But no - a key part of why this works well as it is is
+// that the summing between unisons only happens along with that amplitude-application, after the initial wave render
+// has finished chopping around the contents of its buffer. Having that summed into an all-unison buffer would still
+// require an additional copying(summing) step, 		and we might as well just apply amplitude while that's
+// happening, which is exactly how it is currently.
 
 void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int32_t s,
                               int32_t* __restrict__ oscBuffer, int32_t numSamples, bool stereoBuffer,
@@ -2068,7 +2101,7 @@ pitchTooHigh:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
 			if (!(getNoise() >> 19)) {
-				//D_PRINTLN("random change");
+				// D_PRINTLN("random change");
 
 				int32_t r = getRandom255();
 
@@ -2091,7 +2124,7 @@ pitchTooHigh:
 					sound->recalculateAllVoicePhaseIncrements(paramManager);
 				}
 
-				//D_PRINTLN("end random change");
+				// D_PRINTLN("end random change");
 			}
 #endif
 
@@ -2120,15 +2153,20 @@ pitchTooHigh:
 
 				// Or, normal - it needs a bit more explanation.
 				else {
-					// We have to ignore any pitch modulation, aka the "patched" value for phaseIncrement: we have to use phaseIncrementStoredValue instead, which is the pre-modulation/patching value.
-					// But we also have to forget about the timeStretchRatio we calculated above with the call to getPitchAndSpeedParams(), and instead calculate a special version of this with this call to
-					// getSpeedParamForNoSyncing(), which is what getPitchAndSpeedParams() itself calls when not in STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
-					// voiceUnisonPartSource->phaseIncrementStoredValue. This fix was done in September 2020 after bug report from Clyde.
+					// We have to ignore any pitch modulation, aka the "patched" value for phaseIncrement: we have to
+					// use phaseIncrementStoredValue instead, which is the pre-modulation/patching value. But we also
+					// have to forget about the timeStretchRatio we calculated above with the call to
+					// getPitchAndSpeedParams(), and instead calculate a special version of this with this call to
+					// getSpeedParamForNoSyncing(), which is what getPitchAndSpeedParams() itself calls when not in
+					// STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
+					// voiceUnisonPartSource->phaseIncrementStoredValue. This fix was done in September 2020 after bug
+					// report from Clyde.
 					uint32_t timeStretchRatioWithoutModulation = voiceUnisonPartSource->getSpeedParamForNoSyncing(
 					    &sound->sources[s], voiceUnisonPartSource->phaseIncrementStoredValue,
 					    ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement);
 
-					// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate our correct play position into the sample regardless of pitch modulation (almost always vibrato).
+					// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
+					// our correct play position into the sample regardless of pitch modulation (almost always vibrato).
 					rawSamplesLate =
 					    ((((uint64_t)voiceSample->pendingSamplesLate * voiceUnisonPartSource->phaseIncrementStoredValue)
 					      >> 24)
@@ -2158,13 +2196,16 @@ pitchTooHigh:
 				interpolationBufferSize = sound->sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
 
 				// And if first render, and other conditions met, see if we can use cache.
-				// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the rendering routine, but I tried that and the fact is that
-				// it means a bunch of extra computation has to happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway), including
-				// checking the result of patching / modulation (and we *do* allow caching where, say, velocity or note is affecting pitch), and stretch-syncing.
+				// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
+				// rendering routine, but I tried that and the fact is that it means a bunch of extra computation has to
+				// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
+				// including checking the result of patching / modulation (and we *do* allow caching where, say,
+				// velocity or note is affecting pitch), and stretch-syncing.
 				if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote
 				    && portaEnvelopePos == 0xFFFFFFFF) { // No porta
 
-					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good / accurate
+					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
+					// accurate
 					if (loopingType != LoopType::NONE) {
 						SampleHolderForVoice* holder = (SampleHolderForVoice*)guides[s].audioFileHolder;
 						int32_t loopStart = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
@@ -2223,7 +2264,7 @@ pitchTooHigh:
 						}
 					}
 
-dontUseCache : {}
+dontUseCache: {}
 				}
 			}
 
@@ -2239,11 +2280,13 @@ dontUseCache : {}
 				memset(renderBuffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
 			}
 
-			// We no longer do caching when there's just time stretching with no pitch adjustment, because the time stretching algorithm is so efficient,
-			// playing back the cache is hardly any faster than just doing the time stretching (once perc info has been cached) - and, crucially, creating / writing to the cache in the first place
-			// is quite inefficient when time stretching, because when we're not writing to the cache, that allows us to do a special optimization not otherwise available
-			// (that is, combining the amplitude increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write directly
-			// to the osc buffer).
+			// We no longer do caching when there's just time stretching with no pitch adjustment, because the time
+			// stretching algorithm is so efficient, playing back the cache is hardly any faster than just doing the
+			// time stretching (once perc info has been cached) - and, crucially, creating / writing to the cache in the
+			// first place is quite inefficient when time stretching, because when we're not writing to the cache, that
+			// allows us to do a special optimization not otherwise available (that is, combining the amplitude
+			// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
+			// directly to the osc buffer).
 
 			bool stillActive = voiceSample->render(
 			    &guides[s], renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
@@ -2452,31 +2495,32 @@ CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderPulseWave, waveRenderingFunctionPulse
 
 // Experiment. It goes basically exactly the same speed as the non-vector one.
 /*
-void renderCrudeSawWaveWithAmplitude(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, uint32_t phaseNowNow, uint32_t phaseIncrementNow, int32_t amplitude, int32_t amplitudeIncrement, int32_t numSamples) {
+void renderCrudeSawWaveWithAmplitude(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, uint32_t phaseNowNow,
+uint32_t phaseIncrementNow, int32_t amplitude, int32_t amplitudeIncrement, int32_t numSamples) {
 
-	int32x4_t existingDataInBuffer = vld1q_s32(thisSample);
+    int32x4_t existingDataInBuffer = vld1q_s32(thisSample);
 
-	uint32x4_t phaseVector;
-	for (int32_t i = 0; i < 4; i++) {
-		phaseNowNow += phaseIncrementNow;
-		phaseVector = vsetq_lane_u32(phaseNowNow, phaseVector, i);
-	}
-	uint32x4_t phaseIncrementVector = vdupq_n_u32(phaseIncrementNow << 2);
+    uint32x4_t phaseVector;
+    for (int32_t i = 0; i < 4; i++) {
+        phaseNowNow += phaseIncrementNow;
+        phaseVector = vsetq_lane_u32(phaseNowNow, phaseVector, i);
+    }
+    uint32x4_t phaseIncrementVector = vdupq_n_u32(phaseIncrementNow << 2);
 
-	SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();
+    SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();
 
-	bufferEnd -= 4;
+    bufferEnd -= 4;
 
-	while (true) {
-		int32x4_t valueVector = vqdmulhq_s32(amplitudeVector, vreinterpretq_s32_u32(phaseVector));
-		valueVector = vaddq_s32(valueVector, existingDataInBuffer);
-		vst1q_s32(thisSample, valueVector);
-		if (thisSample >= bufferEnd) break;
-		thisSample += 4;
-		existingDataInBuffer = vld1q_s32(thisSample);
-		phaseVector = vaddq_u32(phaseVector, phaseIncrementVector);
-		amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
-	}
+    while (true) {
+        int32x4_t valueVector = vqdmulhq_s32(amplitudeVector, vreinterpretq_s32_u32(phaseVector));
+        valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+        vst1q_s32(thisSample, valueVector);
+        if (thisSample >= bufferEnd) break;
+        thisSample += 4;
+        existingDataInBuffer = vld1q_s32(thisSample);
+        phaseVector = vaddq_u32(phaseVector, phaseIncrementVector);
+        amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
+    }
 }
 */
 
@@ -2634,7 +2678,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
@@ -2735,7 +2781,8 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
                  uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement) {
 	GeneralMemoryAllocator::get().checkStack("renderOsc");
 
-	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just incrementing the startPhase once
+	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just
+	// incrementing the startPhase once
 	uint32_t phase = *startPhase;
 	*startPhase += phaseIncrement * numSamples;
 
@@ -2744,7 +2791,8 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 	int32_t resetterDivideByPhaseIncrement;
 	const int16_t* table;
 
-	// For cases other than sines and triangles, we use these standard table lookup size thingies. We need to work this out now so we can decide whether to switch the analog saw to the digital one
+	// For cases other than sines and triangles, we use these standard table lookup size thingies. We need to work this
+	// out now so we can decide whether to switch the analog saw to the digital one
 	int32_t tableNumber; // These only apply for waves other than sine and triangle
 	int32_t tableSizeMagnitude;
 
@@ -2761,17 +2809,18 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 			pulseWidth += 2147483648u;
 			if (doPulseWave) {
 				phaseIncrementForCalculations =
-				    phaseIncrement
-				    * 0.6; // Mildly band limit the square waves before they get ringmodded to create the pulse wave. *0.5 would be no band limiting
+				    phaseIncrement * 0.6; // Mildly band limit the square waves before they get ringmodded to create the
+				                          // pulse wave. *0.5 would be no band limiting
 			}
 		}
 
 		getTableNumber(phaseIncrementForCalculations, &tableNumber, &tableSizeMagnitude);
-		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for non-square PW below.
+		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for
+		// non-square PW below.
 
 		if (type == OscType::ANALOG_SAW_2) {
-			// Analog saw tables 8 and above are quite saw-shaped and sound relatively similar to the digital saw. So for these, if the CPU load is getting dire,
-			// we can do the crude, aliasing digital saw.
+			// Analog saw tables 8 and above are quite saw-shaped and sound relatively similar to the digital saw. So
+			// for these, if the CPU load is getting dire, we can do the crude, aliasing digital saw.
 			if (tableNumber >= 8 && tableNumber < AudioEngine::cpuDireness + 6) {
 				type = OscType::SAW;
 			}
@@ -2816,9 +2865,8 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
 				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
-					resetterPhaseToMultiply -=
-					    ((uint32_t)1
-					     << 31); // Count the last little bit of the cycle as actually a negative-number bit of the next one.
+					resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
+					                                                // actually a negative-number bit of the next one.
 				}
 
 				phase = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
@@ -2841,7 +2889,8 @@ doOscSyncSetup:
 		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
 		    (uint32_t)2147483648u
 		    / (uint16_t)((resetterPhaseIncrement + 65535)
-		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny
+		                         // bit smaller, so things multiplied by it don't get a bit too big and overflow.
 	}
 
 skipPastOscSyncStuff:

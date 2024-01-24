@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "definitions_cxx.hpp"
@@ -39,7 +39,8 @@ struct KeyboardStateInKey {
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
-/// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
+/// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
+/// share one struct for storage
 struct KeyboardState {
 	KeyboardLayoutType currentLayout = FlashStorage::defaultKeyboardLayout;
 

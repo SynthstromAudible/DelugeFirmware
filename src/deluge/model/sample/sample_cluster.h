@@ -23,7 +23,8 @@
 class Cluster;
 class Sample;
 
-// This is a quick list item within Sample storing minimal info about one Cluster (which often won't be loaded yet) of audio data for that Sample.
+// This is a quick list item within Sample storing minimal info about one Cluster (which often won't be loaded yet) of
+// audio data for that Sample.
 class SampleCluster {
 public:
 	SampleCluster();
@@ -33,8 +34,8 @@ public:
 	void ensureNoReason(Sample* sample);
 
 	uint32_t sdAddress; // In sectors. (Those 512 byte things. Not to be confused with clusters.)
-	Cluster*
-	    cluster; // May automatically be set to NULL if the Cluster needs to be deallocated (can only happen if it has no "reasons" left)
+	Cluster* cluster; // May automatically be set to NULL if the Cluster needs to be deallocated (can only happen if it
+	                  // has no "reasons" left)
 	int8_t minValue;
 	int8_t maxValue;
 	bool investigatedWholeLength;

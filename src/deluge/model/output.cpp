@@ -83,7 +83,8 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 		}
 
 		if (searchSessionClipsIfNeeded) {
-			// If still here, might need to search session Clips (we've already effectively searched arrangement-only Clips)
+			// If still here, might need to search session Clips (we've already effectively searched arrangement-only
+			// Clips)
 			Clip* newClip = modelStack->song->getSessionClipWithOutput(this);
 			if (newClip) {
 				setActiveClip(modelStack->addTimelineCounter(newClip), maySendMIDIPGMs);
@@ -122,7 +123,8 @@ yesSetActiveClip:
 			}
 		}
 
-		// If still here, we didn't find anything, so try the regular pickAnActiveClipIfPossible(), which will search earlier ClipInstances too, then session Clips, and failing that, a backedUpParamManager
+		// If still here, we didn't find anything, so try the regular pickAnActiveClipIfPossible(), which will search
+		// earlier ClipInstances too, then session Clips, and failing that, a backedUpParamManager
 		if (arrangementPos != 0) {
 			pickAnActiveClipIfPossible(modelStack, true, maySendMIDIPGMs);
 		}
@@ -314,7 +316,8 @@ bool Output::readTagFromFile(char const* tagName) {
 				uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
 				if (charsRemaining) {
 
-					// Allocate space for the right number of notes, and remember how long it'll be before we need to do this check again
+					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
+					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 24 + 1;
 					clipInstances.ensureEnoughSpaceAllocated(
 					    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
@@ -340,7 +343,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			// Ok, make the clipInstance
 			int32_t i = clipInstances.insertAtKey(pos, true);
 			if (i == -1) {
-				return true; //ERROR_INSUFFICIENT_RAM;
+				return true; // ERROR_INSUFFICIENT_RAM;
 			}
 			ClipInstance* newInstance = clipInstances.getElement(i);
 			newInstance->length = length;
@@ -381,7 +384,8 @@ int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
+	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends
+	// up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
 	int32_t i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
 	if (i == -1) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -395,9 +399,9 @@ int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	song->arrangementOnlyClips.insertClipAtIndex(newClip, 0); // Will succeed - we checked above
 
-	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before recording has started.
-	// This leaves space directly after it, which the user might choose to suddenly to create another ClipInstance in.
-	// Oh and also, this sets the ClipInstance's Clip to the new Clip we created, above
+	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
+	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create
+	// another ClipInstance in. Oh and also, this sets the ClipInstance's Clip to the new Clip we created, above
 	clipInstance->length = 1;
 
 	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
@@ -478,7 +482,8 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 			}
 		}
 
-		// If we didn't have to do any extra adjusting above, and we rounded backwards, possibly give another later option
+		// If we didn't have to do any extra adjusting above, and we rounded backwards, possibly give another later
+		// option
 		if (!hadToShuffleOver && actualEndPosInternalTicks > quantizedEndPos) {
 			int32_t alternativeLaterEndPos = quantizedEndPos + xZoom;
 
@@ -494,7 +499,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 			alternativeLongerLength = alternativeLaterEndPos - clipInstance->pos;
 		}
-skipThat : {}
+skipThat: {}
 		activeClip->quantizeLengthForArrangementRecording(modelStack, lengthSoFarInternalTicks, timeRemainder,
 		                                                  quantizedEndPos - clipInstance->pos, alternativeLongerLength);
 

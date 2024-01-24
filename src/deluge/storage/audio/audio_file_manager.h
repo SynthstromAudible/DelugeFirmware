@@ -119,8 +119,8 @@ public:
 	bool cardDisabled;
 
 	Cluster* clusterBeingLoaded;
-	int32_t
-	    minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
+	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug
+	                                            // hunting only.
 
 	String alternateAudioFileLoadPath;
 	AlternateLoadDirStatus alternateLoadDirStatus;

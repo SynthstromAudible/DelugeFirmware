@@ -70,4 +70,4 @@ const int32_t allpasstuningR3 = 341 + stereospread;
 const int32_t allpasstuningL4 = 225;
 const int32_t allpasstuningR4 = 225 + stereospread;
 
-//ends
+// ends

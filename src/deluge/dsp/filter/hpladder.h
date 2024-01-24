@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -26,7 +26,7 @@ namespace deluge::dsp::filter {
 class HpLadderFilter : public Filter<HpLadderFilter> {
 public:
 	HpLadderFilter() = default;
-	//returns a compensatory gain value
+	// returns a compensatory gain value
 	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
 	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt);
 	void doFilterStereo(q31_t* startSample, q31_t* endSample);

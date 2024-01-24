@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/context_menu/clear_song.h"
 #include "extern.h"
@@ -108,7 +108,8 @@ bool ClearSong::acceptCurrentOption() {
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
-	// If for some reason the default synth preset included a sample which needs loading, and somehow there wasn't enough RAM to load it before, do it now.
+	// If for some reason the default synth preset included a sample which needs loading, and somehow there wasn't
+	// enough RAM to load it before, do it now.
 	currentSong->loadAllSamples();
 
 	setUIForLoadedSong(currentSong);

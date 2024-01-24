@@ -93,17 +93,17 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
     {
 
         uint16_t bempsts;
-        //uint16_t    bempenb;
+        // uint16_t    bempenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         bempsts = USB200.BEMPSTS;
-        //bempenb = USB200.BEMPENB;
+        // bempenb = USB200.BEMPENB;
 #else
         bempsts = USB201.BEMPSTS;
-        //bempenb = USB201.BEMPENB;
+        // bempenb = USB201.BEMPENB;
 #endif
 
-        //uint16_t ests  = (uint16_t)(bempsts & bempenb);
+        // uint16_t ests  = (uint16_t)(bempsts & bempenb);
         uint16_t ests = bempsts;
 
         // Pipe 0
@@ -136,17 +136,17 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
     {
 
         uint16_t brdysts;
-        //uint16_t    brdyenb;
+        // uint16_t    brdyenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         brdysts = USB200.BRDYSTS;
-        //brdyenb = USB200.BRDYENB;
+        // brdyenb = USB200.BRDYENB;
 #else
         brdysts = USB201.BRDYSTS;
-        //brdyenb = USB201.BRDYENB;
+        // brdyenb = USB201.BRDYENB;
 #endif
 
-        //uint16_t bsts  = (uint16_t)(brdysts & brdyenb);
+        // uint16_t bsts  = (uint16_t)(brdysts & brdyenb);
         uint16_t bsts = brdysts;
 
         // Pipe 0
@@ -165,7 +165,7 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
         else
         {
 
-            //brdyOccurred(0); // Records exact time of message receipt
+            // brdyOccurred(0); // Records exact time of message receipt
             timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -178,25 +178,26 @@ int usb_pstd_interrupt_handler(uint16_t* type, uint16_t* status)
         }
     }
 
-    // NRDY interrupt. I think this gets generated each time the host requests some data, but we just happen not to have any to send. Rohan
+    // NRDY interrupt. I think this gets generated each time the host requests some data, but we just happen not to have
+    // any to send. Rohan
     else if (ists0 & USB_NRDY)
     {
         uint16_t nrdysts;
-        //uint16_t    nrdyenb;
+        // uint16_t    nrdyenb;
 
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         nrdysts = USB200.NRDYSTS;
-        //nrdyenb = USB200.NRDYENB;
+        // nrdyenb = USB200.NRDYENB;
 #else
         nrdysts = USB201.NRDYSTS;
-        //nrdyenb = USB201.NRDYENB;
+        // nrdyenb = USB201.NRDYENB;
 #endif
-        //uint16_t nsts  = (uint16_t)(nrdysts & nrdyenb);
+        // uint16_t nsts  = (uint16_t)(nrdysts & nrdyenb);
         uint16_t nsts = nrdysts;
 
-        // Ok, disregard everything else below - NRDY interrupts never actually need dealing with - unless we have ISO endpoints, which MIDI never does.
-        // We'll just clear the interrupt and get out.
-        // I've actually disabled NRDY interrupts for my own code, but it seems many other parts of the USB library enable them.
+        // Ok, disregard everything else below - NRDY interrupts never actually need dealing with - unless we have ISO
+        // endpoints, which MIDI never does. We'll just clear the interrupt and get out. I've actually disabled NRDY
+        // interrupts for my own code, but it seems many other parts of the USB library enable them.
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         USB200.NRDYSTS = (uint16_t)~nsts;
 #else  /* USB_CFG_USE_USBIP == USB_CFG_IP1 */

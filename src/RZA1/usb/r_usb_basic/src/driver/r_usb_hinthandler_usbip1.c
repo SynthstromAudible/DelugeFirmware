@@ -50,7 +50,7 @@ extern uint16_t g_usb_cstd_int_msg_t_cnt[];             /* Interrupt message cou
 
 /***********************************************************************************************************************
  Function Name   : usb2_hstd_usb_handler
- Description     : USB2 interrupt routine. Analyze which USB interrupt occurred 
+ Description     : USB2 interrupt routine. Analyze which USB interrupt occurred
                  : and send message to PCD/HCD task.
  Arguments       : none
  Return value    : none

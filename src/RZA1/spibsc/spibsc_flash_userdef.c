@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : spibsc_flash_userdef.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   : 
-*******************************************************************************/
+ * File Name     : spibsc_flash_userdef.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   :
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes <System Includes> , "Project Includes"
@@ -43,10 +43,10 @@ Includes <System Includes> , "Project Includes"
 
 #include "deluge/deluge.h"
 
-//#pragma arm section code   = "CODE_SPIBSC_INIT2"
-//#pragma arm section rodata = "CONST_SPIBSC_INIT2"
-//#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
-//#pragma arm section zidata = "BSS_SPIBSC_INIT2"
+// #pragma arm section code   = "CODE_SPIBSC_INIT2"
+// #pragma arm section rodata = "CONST_SPIBSC_INIT2"
+// #pragma arm section rwdata = "DATA_SPIBSC_INIT2"
+// #pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
 /******************************************************************************
 Typedef definitions
@@ -79,18 +79,18 @@ static int32_t read_autoboot(uint8_t* autoboot1, uint8_t* autoboot2, uint32_t ch
 static int32_t clear_status(uint32_t ch_no, uint32_t dual, uint8_t data_width);
 
 /******************************************************************************
-* Function Name: Userdef_SFLASH_Set_Mode
-* Description  : The setting function of serial flash memory dependence
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                en_sf_req_tq req
-*                    SF_REQ_SERIALMODE -> Dual/Serial mode
-*                    SF_REQ_QUADMODE   -> Quad mode
-*                uint8_t data_width
-*                uint8_t addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: Userdef_SFLASH_Set_Mode
+ * Description  : The setting function of serial flash memory dependence
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                en_sf_req_tq req
+ *                    SF_REQ_SERIALMODE -> Dual/Serial mode
+ *                    SF_REQ_QUADMODE   -> Quad mode
+ *                uint8_t data_width
+ *                uint8_t addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t Userdef_SFLASH_Set_Mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t data_width, uint8_t addr_mode)
 {
     int32_t ret;
@@ -102,13 +102,13 @@ int32_t Userdef_SFLASH_Set_Mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, 
 } /* End of function Userdef_SFLASH_Set_Mode() */
 
 /******************************************************************************
-* Function Name: Userdef_SFLASH_Write_Enable
-* Description  : Issuing the write enable command to permit to erase/program
-*              : in the serial flash memory
-* Arguments    : uint32_t ch_no : use channel No
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: Userdef_SFLASH_Write_Enable
+ * Description  : Issuing the write enable command to permit to erase/program
+ *              : in the serial flash memory
+ * Arguments    : uint32_t ch_no : use channel No
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t Userdef_SFLASH_Write_Enable(uint32_t ch_no)
 {
     int32_t ret;
@@ -137,14 +137,14 @@ int32_t Userdef_SFLASH_Write_Enable(uint32_t ch_no)
 } /* End of function Userdef_SFLASH_Write_Enable() */
 
 /******************************************************************************
-* Function Name: Userdef_SFLASH_Busy_Wait
-* Description  : Loops internally when the serial flash memory is busy.
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: Userdef_SFLASH_Busy_Wait
+ * Description  : Loops internally when the serial flash memory is busy.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t Userdef_SFLASH_Busy_Wait(uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     uint8_t st_reg1;
@@ -184,17 +184,17 @@ int32_t Userdef_SFLASH_Busy_Wait(uint32_t ch_no, uint32_t dual, uint8_t data_wid
 } /* End of function Userdef_SFLASH_Busy_Wait() */
 
 /******************************************************************************
-* Function Name: Userdef_SFLASH_Ctrl_Protect
-* Description  : Protection of a cereal flash memory is released or set.
-* Arguments    : en_sf_req_t req : 
-*                    SF_REQ_UNPROTECT -> clear all sector protection
-*                    SF_REQ_PROTECT   -> protect all sectors
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: Userdef_SFLASH_Ctrl_Protect
+ * Description  : Protection of a cereal flash memory is released or set.
+ * Arguments    : en_sf_req_t req :
+ *                    SF_REQ_UNPROTECT -> clear all sector protection
+ *                    SF_REQ_PROTECT   -> protect all sectors
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t Userdef_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     uint8_t st_reg1;
@@ -241,20 +241,20 @@ int32_t Userdef_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t du
 } /* End of function Userdef_SFLASH_Ctrl_Protect() */
 
 /******************************************************************************
-* Function Name: set_mode
-* Description  : Serial flash memory mode setting
-*              : Specify the setting by the argument, req. The initial value of
-*              : mode differ to the specification of the serial
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                en_sf_req_tq req
-*                    SF_REQ_SERIALMODE -> Dual/Serial mode
-*                    SF_REQ_QUADMODE   -> Quad mode
-*                uint8_t data_width
-*                uint8_t addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: set_mode
+ * Description  : Serial flash memory mode setting
+ *              : Specify the setting by the argument, req. The initial value of
+ *              : mode differ to the specification of the serial
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                en_sf_req_tq req
+ *                    SF_REQ_SERIALMODE -> Dual/Serial mode
+ *                    SF_REQ_QUADMODE   -> Quad mode
+ *                uint8_t data_width
+ *                uint8_t addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t set_mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t data_width, uint8_t addr_mode)
 {
     uint8_t st_reg1;
@@ -323,16 +323,16 @@ static int32_t set_mode(uint32_t ch_no, uint32_t dual, en_sf_req_t req, uint8_t 
 } /* End of function set_mode() */
 
 /******************************************************************************
-* Function Name: read_status
-* Description  : Reads the status of serial flash memory.
-* Arguments    : uint8_t * status1 : Serial Flash(0)
-*                uint8_t * status2 : Serial Flash(1)
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_status
+ * Description  : Reads the status of serial flash memory.
+ * Arguments    : uint8_t * status1 : Serial Flash(0)
+ *                uint8_t * status2 : Serial Flash(1)
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_status(uint8_t* status1, uint8_t* status2, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -389,18 +389,18 @@ static int32_t read_status(uint8_t* status1, uint8_t* status2, uint32_t ch_no, u
 } /* End of function read_status() */
 
 /******************************************************************************
-* Function Name: read_config
-* Description  : Reads the serial flash memory configuration.
-* Arguments    : uint8_t * config1 : Serial Flash(0)
-*                uint8_t * config2 : Serial Flash(1)
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_config
+ * Description  : Reads the serial flash memory configuration.
+ * Arguments    : uint8_t * config1 : Serial Flash(0)
+ *                uint8_t * config2 : Serial Flash(1)
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_config(uint8_t* config1, uint8_t* config2, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -457,14 +457,14 @@ static int32_t read_config(uint8_t* config1, uint8_t* config2, uint32_t ch_no, u
 } /* End of function read_config() */
 
 /******************************************************************************
-* Function Name: read_bank
-* Description  : Read the bank register of flash memory.
-* Arguments    : uint8_t * bank1 : Serial Flash(0)
-*                uint8_t * bank2 : Serial Flash(1)
-*                uint32_t ch_no : use channel No
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_bank
+ * Description  : Read the bank register of flash memory.
+ * Arguments    : uint8_t * bank1 : Serial Flash(0)
+ *                uint8_t * bank2 : Serial Flash(1)
+ *                uint32_t ch_no : use channel No
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_bank(uint8_t* bank1, uint8_t* bank2, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -511,15 +511,15 @@ static int32_t read_bank(uint8_t* bank1, uint8_t* bank2, uint32_t ch_no, uint32_
 } /* End of function read_bank() */
 
 /******************************************************************************
-* Function Name: write_only_status
-* Description  : Programs the status and configuration of the serial flash memory.
-* Arguments    : uint8_t status : status register value
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: write_only_status
+ * Description  : Programs the status and configuration of the serial flash memory.
+ * Arguments    : uint8_t status : status register value
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t write_only_status(uint8_t status, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -566,16 +566,16 @@ static int32_t write_only_status(uint8_t status, uint32_t ch_no, uint32_t dual, 
 } /* End of function write_only_status() */
 
 /******************************************************************************
-* Function Name: write_status
-* Description  : Programs the status and configuration of the serial flash memory.
-* Arguments    : uint8_t status : status register value
-*                uint8_t config : configuration register value
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: write_status
+ * Description  : Programs the status and configuration of the serial flash memory.
+ * Arguments    : uint8_t status : status register value
+ *                uint8_t config : configuration register value
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t write_status(uint8_t status, uint8_t config, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -632,15 +632,15 @@ static int32_t write_status(uint8_t status, uint8_t config, uint32_t ch_no, uint
 } /* End of function write_status() */
 
 /******************************************************************************
-* Function Name: write_bank
-* Description  : Set Bank Address Register of the serial flash memory.
-* Arguments    : uint8_t bank : bank write register value
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: write_bank
+ * Description  : Set Bank Address Register of the serial flash memory.
+ * Arguments    : uint8_t bank : bank write register value
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t write_bank(uint8_t bank, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -687,16 +687,16 @@ static int32_t write_bank(uint8_t bank, uint32_t ch_no, uint32_t dual, uint8_t d
 } /* End of function write_bank() */
 
 /******************************************************************************
-* Function Name: read_autoboot
-* Description  : Reads the autoboot register of the serial flash memory.
-* Arguments    : uint8_t * autoboot1 : Serial Flash(0)
-*                uint8_t * autoboot2 : Serial Flash(1)
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_autoboot
+ * Description  : Reads the autoboot register of the serial flash memory.
+ * Arguments    : uint8_t * autoboot1 : Serial Flash(0)
+ *                uint8_t * autoboot2 : Serial Flash(1)
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_autoboot(uint8_t* autoboot1, uint8_t* autoboot2, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;
@@ -752,19 +752,19 @@ static int32_t read_autoboot(uint8_t* autoboot1, uint8_t* autoboot2, uint32_t ch
 } /* End of function read_autoboot() */
 
 /******************************************************************************
-* Function Name: clear_status
-* Description  : After programming or eraseure, the status should be checked
-*                for programme or erase error. If the error is set,
-*                clear_status() MUST be called, otherwise the device will be
-*                locked out.It is good practice to check for the errors evertime
-*                and specially the first time the status is checked.
-*
-* Arguments    : uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: clear_status
+ * Description  : After programming or eraseure, the status should be checked
+ *                for programme or erase error. If the error is set,
+ *                clear_status() MUST be called, otherwise the device will be
+ *                locked out.It is good practice to check for the errors evertime
+ *                and specially the first time the status is checked.
+ *
+ * Arguments    : uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t clear_status(uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     int32_t ret;

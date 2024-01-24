@@ -35,11 +35,11 @@ public:
 	channel_type b = 0;
 
 	/**
-	* @brief Construct a monochrome (white) shade
-	*
-	* @param brightness The brightness level
-	* @return RGB The constructed colour
-	*/
+	 * @brief Construct a monochrome (white) shade
+	 *
+	 * @param brightness The brightness level
+	 * @return RGB The constructed colour
+	 */
 	static constexpr RGB monochrome(uint8_t brightness) { return RGB{brightness, brightness, brightness}; }
 
 	/**
@@ -214,7 +214,8 @@ public:
 	 * @brief Create a new colour by transforming each channel of a colour
 	 *
 	 * @tparam UnaryOp The function type (should be equivalent to std::function<channel_type(channel_type)>)
-	 * @param transformFn The function to apply to each channel, taking a channel_type value and returning a channel_type value
+	 * @param transformFn The function to apply to each channel, taking a channel_type value and returning a
+	 * channel_type value
 	 * @return RGB The new colour
 	 */
 	template <typename UnaryOp> // std::function<channel_type(channel_type)>
@@ -226,7 +227,8 @@ public:
 	/**
 	 * @brief Create a new colour by transforming the channels of two colours
 	 *
-	 * @tparam BinaryOp The function type (should be equivalent to std::function<channel_type(channel_type, channel_type)>)
+	 * @tparam BinaryOp The function type (should be equivalent to std::function<channel_type(channel_type,
+	 * channel_type)>)
 	 * @param colourA The first colour
 	 * @param colourB The second colour
 	 * @param transformFn The transformer function, taking two channel_type values and returning a channel_type value
@@ -280,17 +282,17 @@ private:
 	}
 
 	/**
-	* @brief Blend a channel in equal proportions
-	* @return The blended channel value
-	*/
+	 * @brief Blend a channel in equal proportions
+	 * @return The blended channel value
+	 */
 	static constexpr channel_type blendChannel(uint32_t channelA, uint32_t channelB, uint16_t index) {
 		return blendChannel2(channelA, channelB, index, (std::numeric_limits<uint16_t>::max() - index + 1));
 	}
 
 	/**
-	* @brief Blend two channels in differing proportions
-	* @return The blended channel value
-	*/
+	 * @brief Blend two channels in differing proportions
+	 * @return The blended channel value
+	 */
 	static constexpr channel_type blendChannel2(uint32_t channelA, uint32_t channelB, uint16_t indexA,
 	                                            uint16_t indexB) {
 		uint32_t newRGB = rshift_round(channelA * indexA, 16) + rshift_round(channelB * indexB, 16);

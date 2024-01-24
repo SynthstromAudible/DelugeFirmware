@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/d_string.h"
 #include "definitions_cxx.hpp"
@@ -131,13 +131,13 @@ doCopy:
 void String::set(String* otherString) {
 	char* sm = otherString->stringMemory;
 #if ALPHA_OR_BETA_VERSION
-	//if the other string has memory and it's not in the non audio region
+	// if the other string has memory and it's not in the non audio region
 	if (sm) {
 		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
 			FREEZE_WITH_ERROR("S001");
 			return;
 		}
-		//or if it doesn't have an allocation
+		// or if it doesn't have an allocation
 		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
 			FREEZE_WITH_ERROR("S002");
 			return;

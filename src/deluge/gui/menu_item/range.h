@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -43,7 +43,7 @@ protected:
 	void drawValue(int32_t startPos, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
-	//OLED ONLY
+	// OLED ONLY
 	void drawPixelsForOled();
 };
 } // namespace deluge::gui::menu_item

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
@@ -26,7 +26,7 @@ namespace deluge::gui::menu_item::midi {
 class AftertouchToMono final : public Toggle {
 public:
 	using Toggle::Toggle;
-	//this is safe since it's only shown in midi clips
+	// this is safe since it's only shown in midi clips
 	void readCurrentValue() override { this->setValue(((MIDIInstrument*)getCurrentOutput())->collapseAftertouch); }
 	void writeCurrentValue() override {
 		((MIDIInstrument*)getCurrentOutput())->collapseAftertouch = this->getValue();

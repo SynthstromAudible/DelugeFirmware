@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -65,4 +65,4 @@ inline int32_t comb::process(int32_t input) {
 	return output;
 }
 
-//ends
+// ends

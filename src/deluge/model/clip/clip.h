@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -74,7 +74,8 @@ public:
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                                       bool completelyRenderOutIterationDependence = false, Action* action = NULL) {
-	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen for AudioClips
+	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen
+	  // for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
 
@@ -179,8 +180,8 @@ public:
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
 
-	//START ~ new Automation Clip View Variables
-	bool onAutomationClipView; //new to save the view that you are currently in
+	// START ~ new Automation Clip View Variables
+	bool onAutomationClipView; // new to save the view that you are currently in
 	                           //(e.g. if you leave clip and want to come back where you left off)
 
 	/// last selected Parameter to be edited in Automation Instrument Clip View
@@ -190,19 +191,17 @@ public:
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;
 	OutputType lastSelectedOutputType;
-	//END ~ new Automation Clip View Variables
+	// END ~ new Automation Clip View Variables
 
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 
 protected:
-	virtual void
-	posReachedEnd(ModelStackWithTimelineCounter*
-	                  modelStack); // May change the TimelineCounter in the modelStack if new Clip got created
+	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
+	                                                                       // modelStack if new Clip got created
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
 	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                            Clip* favourClipForCloningParamManager = NULL);
-	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
-	}
+	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

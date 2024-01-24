@@ -251,8 +251,8 @@ void OLED::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t 
 		}
 
 		while (currentPos < endPos) {
-			// Cleverly read 2 bytes in one go. Doesn't really speed things up. I should try addressing display vertically, so I
-			// can do 32 bits in one go on both the graphic and the display...
+			// Cleverly read 2 bytes in one go. Doesn't really speed things up. I should try addressing display
+			// vertically, so I can do 32 bits in one go on both the graphic and the display...
 			uint32_t data = *(uint16_t*)graphicPos;
 			*currentPos |= data >> yOffsetNegative;
 
@@ -631,7 +631,7 @@ int32_t OLED::setupConsole(int32_t height) {
 }
 
 void OLED::removePopup() {
-	//if (!oledPopupWidth) return;
+	// if (!oledPopupWidth) return;
 
 	oledPopupWidth = 0;
 	popupType = DisplayPopupType::NONE;
@@ -1171,33 +1171,33 @@ void OLED::consoleTimerEvent() {
 	// Or if console moving down
 	else if (false) {
 
-		int32_t firstRow = consoleItems[numConsoleItems - 1].minY >> 3;
-		int32_t lastRow = consoleItems[0].maxY >> 3;
+	    int32_t firstRow = consoleItems[numConsoleItems - 1].minY >> 3;
+	    int32_t lastRow = consoleItems[0].maxY >> 3;
 
-		for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
-			uint8_t carry;
+	    for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
+	        uint8_t carry;
 
-			for (int32_t row = firstRow; row <= lastRow; row++) {
-				uint8_t prevBitsHere = oledMainConsoleImage[row][x];
-				oledMainConsoleImage[row][x] = (prevBitsHere << 1) | (carry >> 7);
-				carry = prevBitsHere;
-			}
-		}
+	        for (int32_t row = firstRow; row <= lastRow; row++) {
+	            uint8_t prevBitsHere = oledMainConsoleImage[row][x];
+	            oledMainConsoleImage[row][x] = (prevBitsHere << 1) | (carry >> 7);
+	            carry = prevBitsHere;
+	        }
+	    }
 
-		for (int32_t i = 0; i < numConsoleItems; i++) {
-			consoleItems[i].minY++;
-			consoleItems[i].maxY++;
-		}
+	    for (int32_t i = 0; i < numConsoleItems; i++) {
+	        consoleItems[i].minY++;
+	        consoleItems[i].maxY++;
+	    }
 
-		// If got further to go...
-		if (consoleItems[numConsoleItems - 1].minY < OLED_MAIN_HEIGHT_PIXELS) {
-			uiTimerManager.setTimer(TIMER_DISPLAY, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
-		}
+	    // If got further to go...
+	    if (consoleItems[numConsoleItems - 1].minY < OLED_MAIN_HEIGHT_PIXELS) {
+	        uiTimerManager.setTimer(TIMER_DISPLAY, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
+	    }
 
-		// Or if now fully offscreen...
-		else {
-			numConsoleItems = 0;
-		}
+	    // Or if now fully offscreen...
+	    else {
+	        numConsoleItems = 0;
+	    }
 	}
 */
 	// If top console item timed out
@@ -1226,7 +1226,8 @@ checkTimeTilTimeout:
 		}
 	}
 
-	// Or if it hasn't timed out, then provided we didn't already want a real-soon callback, come back when it does time out
+	// Or if it hasn't timed out, then provided we didn't already want a real-soon callback, come back when it does time
+	// out
 	else if (!timeTilNext) {
 		timeTilNext = timeLeft;
 	}
@@ -1296,14 +1297,14 @@ void OLED::freezeWithError(char const* text) {
 	// Send data via DMA
 	RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR = 0x20u;               // 8-bit
 	RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;    //0b00100000;
-	//DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
+	RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;    // 0b00100000;
+	// DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
 
 	int32_t transferSize = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
 	uint32_t dataAddress = (uint32_t)OLED::oledMainImage;
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;
-	//spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
+	// spiTransferQueueReadPos = (spiTransferQueueReadPos + 1) & (SPI_TRANSFER_QUEUE_SIZE - 1);
 	v7_dma_flush_range(dataAddress, dataAddress + transferSize);
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
