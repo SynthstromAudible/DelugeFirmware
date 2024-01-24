@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
@@ -184,9 +184,10 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
-	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
-	// action where you hold the button down until you want to "launch" the new song.
+	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't
+	// just call mainButtonAction(), because unlike all the others, we need to action the load immediately on down-press
+	// rather than waiting for press-release, because of that special action where you hold the button down until you
+	// want to "launch" the new song.
 	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
@@ -232,10 +233,10 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		display->displayError(
-		    display->haveOLED()
-		        ? ERROR_FILE_NOT_FOUND
-		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
+		display->displayError(display->haveOLED()
+		                          ? ERROR_FILE_NOT_FOUND
+		                          : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for
+		                                                                    // consistency with old times.
 		return;
 	}
 
@@ -262,12 +263,13 @@ void LoadSongUI::performLoad() {
 
 	// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
 	if (!playbackHandler.isEitherClockActive()) {
-		uiTimerManager.unsetTimer(
-		    TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
+		uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access
+		                                                    // Clips that we may have deleted below (really?)
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
-		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep fiddling with it. It won't get deleted.
+		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep
+		// fiddling with it. It won't get deleted.
 		AudioEngine::logAction("a");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("b");
@@ -314,8 +316,8 @@ gotErrorAfterCreatingSong:
 
 	AudioEngine::logAction("c");
 
-	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances are, after failing on one of those, it'd try to
-	// load something else and that would fail.
+	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
+	// are, after failing on one of those, it'd try to load something else and that would fail.
 	error = preLoadedSong->readFromFile();
 	if (error) {
 		goto gotErrorAfterCreatingSong;
@@ -345,7 +347,8 @@ gotErrorAfterCreatingSong:
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
-	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we might actually want
+	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
+	// might actually want
 	preLoadedSong->loadAllSamples(false);
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
@@ -374,7 +377,8 @@ gotErrorAfterCreatingSong:
 		if (!Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 			bool result = session.armForSongSwap();
 
-			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has already occurred
+			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
+			// already occurred
 			if (!result) {
 				goto swapDone;
 			}
@@ -400,8 +404,9 @@ gotErrorAfterCreatingSong:
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
 
-		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the rest of the samples which weren't needed right away.
-		// (though we might run out of RAM cos we haven't discarded all the old samples yet)
+		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the
+		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
+		// all the old samples yet)
 		AudioEngine::logAction("g");
 		preLoadedSong->loadAllSamples(true);
 		AudioEngine::logAction("h");
@@ -422,7 +427,8 @@ swapDone:
 		deluge::hid::display::OLED::displayWorkingAnimation(
 		    "Loading"); // To override our popup if we did one. (Still necessary?)
 	}
-	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
+	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of
+	// samples wanting some data loaded. So do that immediately
 	audioFileManager.loadAnyEnqueuedClusters(99999);
 
 	// Delete the old song
@@ -458,7 +464,8 @@ ActionResult LoadSongUI::timerCallback() {
 		if (PadLEDs::vertical::squaresScrolled >= kDisplayHeight) {
 			// If exiting this UI...
 			if (PadLEDs::vertical::scrollDirection == -1) {
-				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine, which we're in right now...
+				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine,
+				              // which we're in right now...
 			}
 
 			// Or if just coming into this UI...
@@ -479,7 +486,7 @@ ActionResult LoadSongUI::timerCallback() {
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC,
 			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
 		}
-getOut : {}
+getOut: {}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -524,46 +531,47 @@ int32_t LoadSongUI::findNextFile(int32_t offset) {
 
 doSearch:
 
-	int32_t result = storageManager.findNextFile(offset,
-    		&currentSlot, &currentSubSlot, &newName, &currentFileIsFolder,
-			slotToSearchFrom, subSlotToSearchFrom, nameToSearchFrom,
-			"SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
+    int32_t result = storageManager.findNextFile(offset,
+            &currentSlot, &currentSubSlot, &newName, &currentFileIsFolder,
+            slotToSearchFrom, subSlotToSearchFrom, nameToSearchFrom,
+            "SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
 
 
     if (result == ERROR_NO_FURTHER_FILES_THIS_DIRECTION) {
 
-    	if (doingSecondTry) {
-			// Error - no files at all!
-			currentSlot = 0;
-			currentSubSlot = -1;
-			enteredText.clear();
-			enteredTextEditPos = 0;
-			//currentFileExists = false;
-			return NO_ERROR;
-    	}
+        if (doingSecondTry) {
+            // Error - no files at all!
+            currentSlot = 0;
+            currentSubSlot = -1;
+            enteredText.clear();
+            enteredTextEditPos = 0;
+            //currentFileExists = false;
+            return NO_ERROR;
+        }
 
-    	doingSecondTry = true;
+        doingSecondTry = true;
 
         if (offset >= 0) {
-        	slotToSearchFrom = -1;
-        	subSlotToSearchFrom = -1;
-        	nameToSearchFrom = NULL;
+            slotToSearchFrom = -1;
+            subSlotToSearchFrom = -1;
+            nameToSearchFrom = NULL;
         }
         else {
-        	slotToSearchFrom = numInstrumentSlots;
-        	subSlotToSearchFrom = -1;
-        	nameToSearchFrom = "~";
+            slotToSearchFrom = numInstrumentSlots;
+            subSlotToSearchFrom = -1;
+            nameToSearchFrom = "~";
         }
         goto doSearch;
     }
     else if (result) {
-    	return result;
+        return result;
     }
 
 
     enteredTextEditPos = getHowManyCharsAreTheSame(enteredText.get(), newName.get());
     enteredText.set(&newName);
-    currentFilename.set(&newName); // This will only get used in the case of a folder, so it's ok(ish) that we're ignoring the file extension.
+    currentFilename.set(&newName); // This will only get used in the case of a folder, so it's ok(ish) that we're
+ignoring the file extension.
 
     return NO_ERROR;
 }
@@ -610,7 +618,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 			session.numRepeatsTilLaunch = 9999;
 		}
 		if (display->haveOLED()) {
-			//renderUIsForOled();
+			// renderUIsForOled();
 			displayLoopsRemainingPopup();
 		}
 		else {
@@ -636,17 +644,17 @@ goAgain:
 
 			int32_t result = findNextFile(offset);
 			if (result) {
-				exitActionWithError();
-				return;
+			    exitActionWithError();
+			    return;
 			}
 
 			displayText(false);
 
 			// If user turned knob while finding file, get out so the new action can be done
 			if (Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos) {
-				currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // It might have been set to waitingForNextFileToLoad
-				offset = Encoders::encoders[ENCODER_THIS_CPU_SELECT].getLimitedDetentPosAndReset();
-				goto goAgain;
+			    currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // It might have been set to waitingForNextFileToLoad
+			    offset = Encoders::encoders[ENCODER_THIS_CPU_SELECT].getLimitedDetentPosAndReset();
+			    goto goAgain;
 			}
 
 			drawSongPreview(); // Scrolling continues as the file is read by this function

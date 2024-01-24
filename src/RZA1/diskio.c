@@ -127,14 +127,15 @@ int sdIntCallback(int sd_port, int cd)
 #include "RZA1/sdhi/inc/sd_cfg.h"
 #include "RZA1/sdhi/inc/sdif.h"
 
-//#define SD_RW_BUFF_SIZE    (1 * 1024)
-//static uint32_t test_sd_rw_buff[ SD_RW_BUFF_SIZE / sizeof(uint32_t) ]; // Actually this buffer never gets used, so I've removed it! - Rohan
+// #define SD_RW_BUFF_SIZE    (1 * 1024)
+// static uint32_t test_sd_rw_buff[ SD_RW_BUFF_SIZE / sizeof(uint32_t) ]; // Actually this buffer never gets used, so
+// I've removed it! - Rohan
 uint32_t initializationWorkArea[SD_SIZE_OF_INIT / sizeof(uint32_t)];
 
 DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive */
 )
 {
-    //uartPrintln("disk_initialize");
+    // uartPrintln("disk_initialize");
 
     // If no card present, nothing more we can do
     if (diskStatus & STA_NODISK)
@@ -163,18 +164,19 @@ processError:
         goto processError;
 
 #ifdef SDCFG_CD_INT
-    //uartPrintln("set card detect by interrupt\n");
+    // uartPrintln("set card detect by interrupt\n");
     error = sd_cd_int(SD_PORT, SD_CD_INT_ENABLE, sdIntCallback);
 #else
-    //uartPrintln("set card detect by polling\n");
+    // uartPrintln("set card detect by polling\n");
     error = sd_cd_int(1, SD_CD_INT_DISABLE, 0);
 #endif
     if (error)
         goto processError;
 
-    //sd_set_buffer(SD_PORT, &test_sd_rw_buff[0], SD_RW_BUFF_SIZE); // Actually this buffer never gets used, so I've removed it! - Rohan
+    // sd_set_buffer(SD_PORT, &test_sd_rw_buff[0], SD_RW_BUFF_SIZE); // Actually this buffer never gets used, so I've
+    // removed it! - Rohan
 
-    //error = cmd_sd_ioatt(0, 0);
+    // error = cmd_sd_ioatt(0, 0);
     currentlyAccessingCard = 1;
     error                  = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
     currentlyAccessingCard = 0;
@@ -211,7 +213,7 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
         }
     }
 
-    //uint16_t startTime = MTU2.TCNT_0;
+    // uint16_t startTime = MTU2.TCNT_0;
 
     currentlyAccessingCard = 1;
 
@@ -220,10 +222,10 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
     currentlyAccessingCard = 0;
 
     /*
-	uint16_t endTime = MTU2.TCNT_0;
-	uint16_t duration = endTime - startTime;
-	uartPrintln(intToStringUSB(duration));
-	*/
+    uint16_t endTime = MTU2.TCNT_0;
+    uint16_t duration = endTime - startTime;
+    uartPrintln(intToStringUSB(duration));
+    */
 
     // My good 16gb card gave about 150 per read. Bad card gave ~250, and occasionally up to 30,000!
 

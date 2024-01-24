@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "storage/audio/audio_file.h"
 #include "definitions_cxx.hpp"
@@ -77,8 +77,8 @@ int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveT
 
 		uint32_t bytesCurrentChunkNotRoundedUp = thisChunk.length;
 		thisChunk.length =
-		    (thisChunk.length + 1)
-		    & ~(uint32_t)1; // If chunk size is odd, skip the extra byte of padding at the end too. Weird RIFF file requirement.
+		    (thisChunk.length + 1) & ~(uint32_t)1; // If chunk size is odd, skip the extra byte of padding at the end
+		                                           // too. Weird RIFF file requirement.
 
 		uint32_t bytePosOfThisChunkData = reader->getBytePos();
 
@@ -98,14 +98,17 @@ int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveT
 				if (type == AudioFileType::WAVETABLE) {
 doSetupWaveTable:
 					if (byteDepth == 255) {
-						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth or anything. Shouldn't happen.
+						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth
+						                               // or anything. Shouldn't happen.
 					}
 
 					if (numChannels != 1) {
-						return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as WaveTable, ever.
+						return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as
+						                                                            // WaveTable, ever.
 					}
 
-					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and the user isn't insisting, then opt not to do it.
+					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
+					// the user isn't insisting, then opt not to do it.
 					if (!fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
 						int32_t audioDataLengthSamples = audioDataLengthBytes / byteDepth;
 						if (audioDataLengthSamples & 2047) {
@@ -412,10 +415,10 @@ doSetupWaveTable:
 						D_PRINTLN("unshifted note:  %s", ((Sample*)this)->midiNoteFromFile);
 					}
 
-					//for (int32_t l = 0; l < 2; l++) {
+					// for (int32_t l = 0; l < 2; l++) {
 
-					//if (l == 0) D_PRINTLN("sustain loop:");
-					//else D_PRINTLN("release loop:");
+					// if (l == 0) D_PRINTLN("sustain loop:");
+					// else D_PRINTLN("release loop:");
 
 					// Just read the sustain loop, which is first
 
@@ -511,10 +514,12 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 		return false;
 	}
 
-	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
+	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's
+	// being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
 	return (thingNotToStealFrom != &audioFileManager.audioFiles);
 
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
+	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
+	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
 }
 
 void AudioFile::steal(char const* errorCode) {

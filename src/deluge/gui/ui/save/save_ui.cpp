@@ -57,14 +57,14 @@ void SaveUI::focusRegained() {
 // Check the very similar variations in LoadSongUI and LoadInstrumentPresetUI
 void SaveUI::displayText(bool blinkImmediately) {
 
-	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
-		display->setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
-		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
-	}
+    if (enteredText.isEmpty() && !currentFolderIsEmpty) {
+        display->setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
+        indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
+    }
 
-	else {
-		QwertyUI::displayText(blinkImmediately);
-	}
+    else {
+        QwertyUI::displayText(blinkImmediately);
+    }
 }
 */
 
@@ -108,7 +108,8 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return mainButtonAction(on);
 	}
 
-	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't save over something by accident.
+	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't
+	// save over something by accident.
 	else if (b == SELECT_ENC && currentFileItem && !currentFileItem->isFolder) {}
 
 	else {

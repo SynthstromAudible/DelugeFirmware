@@ -92,7 +92,8 @@ int32_t explodeAnimationYOriginBig;
 int32_t explodeAnimationXStartBig;
 int32_t explodeAnimationXWidthBig;
 
-// We stash these here for during UI-transition animation, because if that's happening as part of an undo, the Sample might not be there anymore
+// We stash these here for during UI-transition animation, because if that's happening as part of an undo, the Sample
+// might not be there anymore
 int32_t sampleValueCentrePoint;
 int32_t sampleValueSpan;
 int32_t sampleMaxPeakFromZero;
@@ -554,10 +555,10 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		int32_t xSourceBig = xSource << 16;
 		int32_t xOriginBig = explodeAnimationXStartBig
 		                     + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
-		//xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
+		// xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
 
-		xOriginBig &= ~(
-		    uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded to the left. That'll match what we'll see in the arranger
+		xOriginBig &= ~(uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded
+		                                // to the left. That'll match what we'll see in the arranger
 
 		int32_t xSourceBigRelativeToOrigin = xSourceBig - xOriginBig;
 		int32_t xDestBig = xOriginBig + (((int64_t)xSourceBigRelativeToOrigin * explodedness) >> 16);
@@ -725,8 +726,8 @@ void changeDimmerInterval(int32_t offset) {
 }
 
 void setDimmerInterval(int32_t newInterval) {
-	//Uart::print("dimmerInterval: ");
-	//Uart::println(newInterval);
+	// Uart::print("dimmerInterval: ");
+	// Uart::println(newInterval);
 	dimmerInterval = newInterval;
 
 	int32_t newRefreshTime = 23 - newInterval;
@@ -735,8 +736,8 @@ void setDimmerInterval(int32_t newInterval) {
 		newInterval *= 1.2; // (From Roha, Nov 2023) Hmm, not sure why this was necessary...
 	}
 
-	//Uart::print("newInterval: ");
-	//Uart::println(newInterval);
+	// Uart::print("newInterval: ");
+	// Uart::println(newInterval);
 
 	setRefreshTime(newRefreshTime);
 	PIC::setDimmerInterval(newInterval);
@@ -812,7 +813,8 @@ void timerRoutine() {
 					}
 					else {
 						changeRootUI(&audioClipView);
-						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos we're not set up for it
+						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos
+						               // we're not set up for it
 					}
 				}
 				else {
@@ -854,7 +856,8 @@ void timerRoutine() {
 		if (progress >= 65536) {
 stopFade:
 			currentUIMode = UI_MODE_NONE;
-			renderingNeededRegardlessOfUI(); // Just in case some waveforms couldn't be rendered when the store was written to, we want to re-render everything now
+			renderingNeededRegardlessOfUI(); // Just in case some waveforms couldn't be rendered when the store was
+			                                 // written to, we want to re-render everything now
 		}
 		else {
 			renderFade(progress);
@@ -1065,15 +1068,17 @@ void renderZoom() {
 	uint32_t sineValue = (getSine((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
-	//int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of this variable has got a bit cryptic, it exists after much simplification
+	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
+	// this variable has got a bit cryptic, it exists after much simplification
 	int32_t powersOfTwo = ((int32_t)(transitionProgress >> 7) - 512) << zoomMagnitude;
 	int32_t fine = powersOfTwo & 1023;
 	int32_t coarse = powersOfTwo >> 10;
 
 	// Numbers below here represent 1 as 65536
 
-	// inImageWidthComparedToNormal and outImageWidthComparedToNormal show how much bigger than "normal" those two images are to appear.
-	// E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be "0.5" (32768). And so on.
+	// inImageWidthComparedToNormal and outImageWidthComparedToNormal show how much bigger than "normal" those two
+	// images are to appear. E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be
+	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
 	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
@@ -1096,11 +1101,11 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 	uint32_t outImageTimesBiggerThanNative = inImageTimesBiggerThanNative << zoomMagnitude;
 
 	uint32_t inImageTimesSmallerThanNative =
-	    4294967295u
-	    / inImageTimesBiggerThanNative; // How many squares of the zoomed-in image fit into each square of our output image, at current zoom level
+	    4294967295u / inImageTimesBiggerThanNative; // How many squares of the zoomed-in image fit into each square of
+	                                                // our output image, at current zoom level
 	uint32_t outImageTimesSmallerThanNative =
-	    4294967295u
-	    / outImageTimesBiggerThanNative; // How many squares of the zoomed-out image fit into each square of our output image, at current zoom level
+	    4294967295u / outImageTimesBiggerThanNative; // How many squares of the zoomed-out image fit into each square of
+	                                                 // our output image, at current zoom level
 
 	int32_t lastZoomPinSquareDone = 2147483647;
 
@@ -1117,7 +1122,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (transitionTakingPlaceOnRow[yDisplay]) {
 
-			// If this row doesn't have the same pin-square as the last, we have to calculate some stuff. Otherwise, this can be reused.
+			// If this row doesn't have the same pin-square as the last, we have to calculate some stuff. Otherwise,
+			// this can be reused.
 			if (zoomPinSquare[yDisplay] != lastZoomPinSquareDone) {
 				lastZoomPinSquareDone = zoomPinSquare[yDisplay];
 
@@ -1130,13 +1136,15 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 				int32_t inImageRightEdgeOnscreen =
 				    inImagePos0Onscreen + inImageTimesBiggerThanNative * innerImageRightEdge;
 
-				// Do some pre-figuring-out for each column of the final-rendered image - which we can hopefully refer to for each row
+				// Do some pre-figuring-out for each column of the final-rendered image - which we can hopefully refer
+				// to for each row
 				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 					int32_t outputSquareLeftEdge = xDisplay * 65536;
 					int32_t outputSquareRightEdge = outputSquareLeftEdge + 65536;
 
-					// Work out how much of this square will be covered by the "in" (thinner) image (often it'll be all of it, or none)
+					// Work out how much of this square will be covered by the "in" (thinner) image (often it'll be all
+					// of it, or none)
 					int32_t inImageOverlap = std::min(outputSquareRightEdge, inImageRightEdgeOnscreen)
 					                         - std::max(outputSquareLeftEdge, inImageLeftEdgeOnscreen);
 					if (inImageOverlap < 0) {
@@ -1156,7 +1164,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 					    ((int64_t)outputSquareLeftEdgePositionRelativeToPinSquare * outImageTimesSmallerThanNative)
 					    >> 16;
 
-					// Work out, for this square/col/pixel, the corresponding local coordinate for both the in- and out-images. Do that for both the leftmost and rightmost edge of this square
+					// Work out, for this square/col/pixel, the corresponding local coordinate for both the in- and
+					// out-images. Do that for both the leftmost and rightmost edge of this square
 					outputSquareStartOnOutImage[xDisplay] =
 					    zoomPinSquareOuter[yDisplay] - outputSquareLeftEdgePositionOnOutImageRelativeToPinSquare;
 					outputSquareStartOnInImage[xDisplay] =
@@ -1304,7 +1313,7 @@ void vertical::renderScroll() {
 	int32_t startSquare = (scrollDirection > 0) ? 0 : 1;
 	int32_t endSquare = (scrollDirection > 0) ? kDisplayHeight - 1 : 0;
 
-	//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
+	// matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
 
 	// Move the scrolling region
 	memmove(image[startSquare], image[1 - startSquare],

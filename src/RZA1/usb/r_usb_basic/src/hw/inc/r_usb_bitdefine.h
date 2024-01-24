@@ -281,7 +281,7 @@
 /* USB Request Value Register */
 #define USB_WVALUE         (0xFFFFu) /* b15-0: wValue */
 #define USB_DT_TYPE        (0xFF00u)
-#define USB_GET_DT_TYPE(v) (((v)&USB_DT_TYPE) >> 8)
+#define USB_GET_DT_TYPE(v) (((v) & USB_DT_TYPE) >> 8)
 #define USB_DT_INDEX       (0x00FFu)
 #define USB_CONF_NUM       (0x00FFu)
 #define USB_ALT_SET        (0x00FFu)

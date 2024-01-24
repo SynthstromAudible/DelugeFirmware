@@ -171,7 +171,7 @@ void usb_hstd_attch_disable(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_dtch_enable
- Description     : Enable DTCH (detach) interrupt of the specified USB port. 
+ Description     : Enable DTCH (detach) interrupt of the specified USB port.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Root port
  Return value    : none
@@ -187,7 +187,7 @@ void usb_hstd_dtch_enable(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_dtch_disable
- Description     : Disable DTCH (detach) interrupt of the specified USB port.  
+ Description     : Disable DTCH (detach) interrupt of the specified USB port.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Root port
  Return value    : none
@@ -207,7 +207,7 @@ void usb_hstd_dtch_disable(usb_utr_t* ptr, uint16_t port)
                  : mation table).
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe_no      : Pipe number
-                 : uint16_t     *tbl         : Pipe information table 
+                 : uint16_t     *tbl         : Pipe information table
  Return value    : none
  ***********************************************************************************************************************/
 void usb_hstd_set_pipe_register(usb_utr_t* ptr, uint16_t pipe_no, uint16_t* tbl)
@@ -299,7 +299,7 @@ uint16_t usb_hstd_get_rootport(usb_utr_t* ptr, uint16_t addr)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_chk_dev_addr
- Description     : Get USB speed set in USB register based on the specified USB 
+ Description     : Get USB speed set in USB register based on the specified USB
                  : Device address and USB port no.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     addr         : Device address
@@ -325,7 +325,7 @@ uint16_t usb_hstd_chk_dev_addr(usb_utr_t* ptr, uint16_t addr, uint16_t rootport)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_get_dev_speed
- Description     : Get USB speed set in USB register based on the specified USB 
+ Description     : Get USB speed set in USB register based on the specified USB
                  : Device address.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     addr         : Device address
@@ -447,7 +447,7 @@ void usb_hstd_sw_reset(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_do_sqtgl
- Description     : Toggle setting of the toggle-bit for the specified pipe by 
+ Description     : Toggle setting of the toggle-bit for the specified pipe by
                  : argument.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe         : Pipe number.
@@ -549,7 +549,7 @@ uint16_t usb_hstd_get_device_address(usb_utr_t* ptr, uint16_t pipe)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_buf2fifo
- Description     : Set USB registers as required to write from data buffer to USB 
+ Description     : Set USB registers as required to write from data buffer to USB
                  : FIFO, to have USB FIFO to write data to bus.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe         : Pipe number.
@@ -578,9 +578,10 @@ void usb_hstd_buf2fifo(usb_utr_t* ptr, uint16_t pipe, uint16_t useport)
             hw_usb_set_brdyenb(ptr, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(ptr, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(ptr, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -596,9 +597,10 @@ void usb_hstd_buf2fifo(usb_utr_t* ptr, uint16_t pipe, uint16_t useport)
             hw_usb_set_bempenb(ptr, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(ptr, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(ptr, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -620,7 +622,7 @@ void usb_hstd_buf2fifo(usb_utr_t* ptr, uint16_t pipe, uint16_t useport)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_write_data
- Description     : Switch PIPE, request the USB FIFO to write data, and manage 
+ Description     : Switch PIPE, request the USB FIFO to write data, and manage
                  : the size of written data.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipe         : Pipe number.
@@ -760,8 +762,8 @@ void usb_receive_start_rohan_midi(uint16_t pipe)
 #endif
 
     /* Select NAK */
-    //usb_cstd_select_nak(ptr, pipe);
-    //usb_cstd_set_nak_fast_rohan(pipe);
+    // usb_cstd_select_nak(ptr, pipe);
+    // usb_cstd_set_nak_fast_rohan(pipe);
 
     g_usb_data_cnt[pipe] = length;                  /* Set data count */
     g_p_usb_data[pipe]   = (uint8_t*)pp->p_tranadr; /* Set data pointer */
@@ -771,23 +773,23 @@ void usb_receive_start_rohan_midi(uint16_t pipe)
         (uint16_t)0u; // Was only included in host code originally - not peripheral
 
     /* Pipe number to FIFO port select */
-    //useport = USB_CUSE; // usb_hstd_pipe2fport(ptr, pipe);
+    // useport = USB_CUSE; // usb_hstd_pipe2fport(ptr, pipe);
 
     /* Changes the FIFO port by the pipe. */
-    //usb_cstd_chg_curpipe(ptr, pipe, useport, USB_FALSE);
+    // usb_cstd_chg_curpipe(ptr, pipe, useport, USB_FALSE);
     usb_cstd_chg_curpipe_rohan_fast(pipe);
 
     // Corner cut here vs original code - it'll always be less than 1 packet, just go.
 
-    //usb_cstd_set_transaction_counter(ptr, pipe, 1);
+    // usb_cstd_set_transaction_counter(ptr, pipe, 1);
     { // Seems this wasn't necessary either!
-        //hw_usb_set_trclr(NULL, pipe);
-        //hw_usb_write_pipetrn(NULL, pipe, 1);
-        //hw_usb_set_trenb(NULL, pipe);
+      // hw_usb_set_trclr(NULL, pipe);
+      // hw_usb_write_pipetrn(NULL, pipe, 1);
+      // hw_usb_set_trenb(NULL, pipe);
     }
 
-    //usb_cstd_set_buf(ptr, pipe); /* Set BUF */
-    //hw_usb_set_pid(NULL, pipe, USB_PID_BUF);
+    // usb_cstd_set_buf(ptr, pipe); /* Set BUF */
+    // hw_usb_set_pid(NULL, pipe, USB_PID_BUF);
     hw_usb_set_pid_nonzero_pipe_rohan(
         pipe, USB_PID_BUF); // I guess this is how it says "request me an incoming data transfer"?
 
@@ -795,13 +797,14 @@ void usb_receive_start_rohan_midi(uint16_t pipe)
     hw_usb_set_brdyenb(NULL, pipe);
 
     /* Enable Not Ready Interrupt */
-    //usb_cstd_nrdy_enable(ptr, pipe);
-    //hw_usb_set_nrdyenb(NULL, pipe);
-    // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-    // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+    // usb_cstd_nrdy_enable(ptr, pipe);
+    // hw_usb_set_nrdyenb(NULL, pipe);
+    //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing
+    //  freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
     // Commenting that out seems to work fine now, I've tested and that's good, but previous comment was:
-    //	"Generally not needed and removing this works fine, except one case - after reconnecting a device to a hub (the Targus USB2 one at least), MIDI won't get to us, every 2nd reconnect!"
+    //	"Generally not needed and removing this works fine, except one case - after reconnecting a device to a hub (the
+    // Targus USB2 one at least), MIDI won't get to us, every 2nd reconnect!"
 }
 
 /***********************************************************************************************************************
@@ -830,7 +833,7 @@ void usb_hstd_receive_start(usb_utr_t* ptr, uint16_t pipe)
     if (USB_TRAN_CONT == pp->segment) // Wait, can this actually happen? Rohan
     {
         /* Sequence toggle */
-        //usb_hstd_do_sqtgl(ptr, pipe, pp->pipectr);
+        // usb_hstd_do_sqtgl(ptr, pipe, pp->pipectr);
 
         /* Check toggle */
         if (pp->pipectr & USB_SQMON)
@@ -846,7 +849,7 @@ void usb_hstd_receive_start(usb_utr_t* ptr, uint16_t pipe)
     }
 
     /* Select NAK */
-    //usb_cstd_select_nak(ptr, pipe);
+    // usb_cstd_select_nak(ptr, pipe);
     usb_cstd_set_nak_fast_rohan(pipe);
 
     g_usb_data_cnt[pipe] = length;                  /* Set data count */
@@ -899,9 +902,10 @@ void usb_hstd_receive_start(usb_utr_t* ptr, uint16_t pipe)
             hw_usb_set_brdyenb(ptr, pipe);
 
             /* Enable Not Ready Interrupt */
-            //usb_cstd_nrdy_enable(ptr, pipe);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(ptr, pipe);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             break;
 
@@ -1146,13 +1150,14 @@ void usb_hstd_data_end(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
             g_p_usb_pipe[pipe]->tranlen = g_usb_data_cnt[pipe];
             g_p_usb_pipe[pipe]->status  = status;
             g_p_usb_pipe[pipe]->pipectr = hw_usb_read_pipectr(ptr, pipe);
-            //g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[ip][pipe];
+            // g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[ip][pipe];
             g_p_usb_pipe[pipe]->ipp = usb_hstd_get_usb_ip_adr(ip);
             g_p_usb_pipe[pipe]->ip  = ip;
 
-            usb_utr_t* temp    = g_p_usb_pipe[pipe];
-            g_p_usb_pipe[pipe] = (usb_utr_t*)
-                USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
+            usb_utr_t* temp = g_p_usb_pipe[pipe];
+            g_p_usb_pipe[pipe] =
+                (usb_utr_t*)USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do
+                                      // another transfer, which sets this to something else
             (temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
         }
         else
@@ -1160,7 +1165,7 @@ void usb_hstd_data_end(usb_utr_t* ptr, uint16_t pipe, uint16_t status)
             /* Transfer information set */
             g_p_usb_pipe[pipe]->tranlen = g_usb_data_cnt[pipe];
             g_p_usb_pipe[pipe]->pipectr = hw_usb_read_pipectr(ptr, pipe);
-            //g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[ip][pipe];
+            // g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[ip][pipe];
             g_p_usb_pipe[pipe]->ipp = usb_hstd_get_usb_ip_adr(ip);
             g_p_usb_pipe[pipe]->ip  = ip;
 
@@ -1186,9 +1191,9 @@ extern usb_utr_t g_usb_midi_recv_utr[][MAX_NUM_USB_MIDI_DEVICES];
 // For when data has been received, as host. Hub stuff is on PIPE9
 void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bitsts)
 {
-    //uint16_t    useport;
+    // uint16_t    useport;
     uint16_t pipe;
-    //uint16_t    ip;
+    // uint16_t    ip;
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
     uint16_t buffer;
     uint16_t maxps;
@@ -1198,24 +1203,25 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
     uint16_t status;
 #endif /* ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE)) */
 
-    //ip = ptr->ip;
+    // ip = ptr->ip;
     for (pipe = USB_CFG_HMIDI_BULK_RECV_MIN; pipe <= USB_PIPE9; pipe++)
-    { // We'll just do the receive pipes we actually sometimes use for MIDI, plus PIPE9 for hubs. We could also do it by USB device that we know is connected...
+    { // We'll just do the receive pipes we actually sometimes use for MIDI, plus PIPE9 for hubs. We could also do it by
+      // USB device that we know is connected...
         if (pipe == USB_CFG_HMIDI_BULK_RECV_MAX + 1)
             pipe = USB_CFG_HMIDI_INT_RECV_MIN; // Skip that one pipe
 
         if (bitsts & USB_BITSET(pipe))
         {
             /* Interrupt check */
-            //hw_usb_clear_status_bemp(NULL, pipe);
+            // hw_usb_clear_status_bemp(NULL, pipe);
 
             if (true || USB_NULL != g_p_usb_pipe[pipe])
             { // I think this'll be fine now
                 /* Pipe number to FIFO port select */
-                //useport = USB_CUSE;//usb_hstd_pipe2fport(ptr, i);
+                // useport = USB_CUSE;//usb_hstd_pipe2fport(ptr, i);
 
                 /* FIFO to Buffer data read */
-                //usb_hstd_fifo_to_buf(ptr, pipe, useport);
+                // usb_hstd_fifo_to_buf(ptr, pipe, useport);
                 {
                     uint16_t end_flag;
 
@@ -1229,7 +1235,8 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                     { // I condensed USB_READSHRT into this too
 #if 1
                         if (pipe == USB_PIPE9)
-                        { // For hub - use original function. Without this, reconnecting devices to hub doesn't work, even though they do if initially connected.
+                        { // For hub - use original function. Without this, reconnecting devices to hub doesn't work,
+                          // even though they do if initially connected.
                             usb_hstd_data_end(ptr, pipe, USB_DATA_OK);
                         }
                         else
@@ -1266,24 +1273,29 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
                                 {
                                     /* Transfer information set */
                                     /* // Doesn't get read, anyway
-							            g_p_usb_pipe[pipe]->tranlen    = g_usb_data_cnt[pipe];
-							            g_p_usb_pipe[pipe]->status     = newStatus;
-							            g_p_usb_pipe[pipe]->pipectr    = hw_usb_read_pipectr(NULL, pipe);
-							            g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[USB_CFG_USE_USBIP][pipe];
-							            g_p_usb_pipe[pipe]->ipp        = usb_hstd_get_usb_ip_adr(USB_CFG_USE_USBIP);
-							            g_p_usb_pipe[pipe]->ip         = USB_CFG_USE_USBIP;
-										*/
+                                        g_p_usb_pipe[pipe]->tranlen    = g_usb_data_cnt[pipe];
+                                        g_p_usb_pipe[pipe]->status     = newStatus;
+                                        g_p_usb_pipe[pipe]->pipectr    = hw_usb_read_pipectr(NULL, pipe);
+                                        g_p_usb_pipe[pipe]->errcnt     = (uint8_t)
+                                       g_usb_hstd_ignore_cnt[USB_CFG_USE_USBIP][pipe]; g_p_usb_pipe[pipe]->ipp        =
+                                       usb_hstd_get_usb_ip_adr(USB_CFG_USE_USBIP); g_p_usb_pipe[pipe]->ip         =
+                                       USB_CFG_USE_USBIP;
+                                        */
                                     usb_utr_t* temp = g_p_usb_pipe[pipe];
-                                    //g_p_usb_pipe[pipe] = (usb_utr_t*) USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
-                                    //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
+                                    // g_p_usb_pipe[pipe] = (usb_utr_t*) USB_NULL; // Moved by Rohan - set this to NULL
+                                    // before the callback so the callback can do another transfer, which sets this to
+                                    // something else (temp->complete)(temp, 0, 0); // This does our callback on our
+                                    // outgoing transfers. Rohan
 
                                     unsigned int deviceNum = temp - &g_usb_midi_recv_utr[0][0];
 
                                     if (deviceNum < MAX_NUM_USB_MIDI_DEVICES)
-                                    { // Gotta check this - I can totally see something going wrong, with all the other checks I'm now skipping!
+                                    { // Gotta check this - I can totally see something going wrong, with all the other
+                                      // checks I'm now skipping!
                                         connectedUSBMIDIDevices[0][deviceNum].numBytesReceived =
                                             64 - g_usb_data_cnt[pipe];
-                                        // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with that case.
+                                        // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not
+                                        // sure why - but we need to cope with that case.
 
                                         connectedUSBMIDIDevices[0][deviceNum].currentlyWaitingToReceive =
                                             0; // Take note that we need to set up another receive
@@ -1304,7 +1316,7 @@ void usb_hstd_brdy_pipe_process_rohan_midi_and_hub(usb_utr_t* ptr, uint16_t bits
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_brdy_pipe_process
- Description     : Search for the PIPE No. that BRDY interrupt occurred, and 
+ Description     : Search for the PIPE No. that BRDY interrupt occurred, and
                  : request data transmission/reception from the PIPE
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     bitsts       : BRDYSTS Register & BRDYENB Register
@@ -1408,7 +1420,7 @@ void usb_hstd_brdy_pipe_process(usb_utr_t* ptr, uint16_t bitsts)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_nrdy_pipe_process
- Description     : Search for PIPE No. that occurred NRDY interrupt, and execute 
+ Description     : Search for PIPE No. that occurred NRDY interrupt, and execute
                  : the process for PIPE when NRDY interrupt occurred
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     bitsts       : NRDYSTS Register & NRDYENB Register
@@ -1459,8 +1471,9 @@ void usb_hstd_bemp_pipe_process_rohan_midi(usb_utr_t* ptr, uint16_t bitsts)
     uint16_t pipe;
     uint16_t useport;
 
-    // We only have one SEND pipe for BULK endpoints (standard for MIDI), and one for INTERRUPT endpoints (which our dumb Actition pedal uses).
-    // It's not necessary to check PIPE9 for the hub - I guess we must only receive, not send, on that pipe.
+    // We only have one SEND pipe for BULK endpoints (standard for MIDI), and one for INTERRUPT endpoints (which our
+    // dumb Actition pedal uses). It's not necessary to check PIPE9 for the hub - I guess we must only receive, not
+    // send, on that pipe.
 
     // Bulk send pipe
     pipe = USB_CFG_HMIDI_BULK_SEND;
@@ -1477,7 +1490,7 @@ goAgain:
 #else
             p_reg = (uint16_t*)&(USB201.PIPE1CTR) + (pipe - 1);
 #endif
-            buffer = *p_reg; //usb_cstd_get_pid(ptr, pipe);
+            buffer = *p_reg; // usb_cstd_get_pid(ptr, pipe);
 
             /* MAX packet size error ? */
             if (buffer & USB_PID_STALL) // Probably couldn't happen...
@@ -1488,15 +1501,15 @@ goAgain:
             else
             {
                 if (pipe == USB_CFG_HMIDI_INT_SEND
-                    || !(
-                        buffer
-                        & USB_INBUFM)) // For some reason, the original code only needs this check for BULK, not INTERRUPT
+                    || !(buffer & USB_INBUFM)) // For some reason, the original code only needs this check for BULK, not
+                                               // INTERRUPT
                 {
                     /* End of data transfer */
-                    //usb_hstd_data_end(ptr, pipe, (uint16_t) USB_DATA_NONE);
+                    // usb_hstd_data_end(ptr, pipe, (uint16_t) USB_DATA_NONE);
                     {
 
-                        // This stuff not needed after all. We were getting occasional i029 when disconnecting / reconnecting many devices with hub, even before this change, and still now.
+                        // This stuff not needed after all. We were getting occasional i029 when disconnecting /
+                        // reconnecting many devices with hub, even before this change, and still now.
 #if 0
 					    /* PID = NAK */
 					    /* Set NAK */
@@ -1527,18 +1540,21 @@ goAgain:
                             {
                                 /* Transfer information set */
                                 /* // This doesn't get ready anyway
-					            g_p_usb_pipe[pipe]->tranlen    = g_usb_data_cnt[pipe];
-					            g_p_usb_pipe[pipe]->status     = USB_DATA_NONE;
-					            g_p_usb_pipe[pipe]->pipectr    = hw_usb_read_pipectr(ptr, pipe);
-					            g_p_usb_pipe[pipe]->errcnt     = (uint8_t) g_usb_hstd_ignore_cnt[USB_CFG_USE_USBIP][pipe];
-					            g_p_usb_pipe[pipe]->ipp        = usb_hstd_get_usb_ip_adr(USB_CFG_USE_USBIP);
-					            g_p_usb_pipe[pipe]->ip         = USB_CFG_USE_USBIP;
-								*/
+                                g_p_usb_pipe[pipe]->tranlen    = g_usb_data_cnt[pipe];
+                                g_p_usb_pipe[pipe]->status     = USB_DATA_NONE;
+                                g_p_usb_pipe[pipe]->pipectr    = hw_usb_read_pipectr(ptr, pipe);
+                                g_p_usb_pipe[pipe]->errcnt     = (uint8_t)
+                                g_usb_hstd_ignore_cnt[USB_CFG_USE_USBIP][pipe]; g_p_usb_pipe[pipe]->ipp        =
+                                usb_hstd_get_usb_ip_adr(USB_CFG_USE_USBIP); g_p_usb_pipe[pipe]->ip         =
+                                USB_CFG_USE_USBIP;
+                                */
 
                                 usb_utr_t* temp    = g_p_usb_pipe[pipe];
                                 g_p_usb_pipe[pipe] = (usb_utr_t*)
-                                    USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback can do another transfer, which sets this to something else
-                                //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers. Rohan
+                                    USB_NULL; // Moved by Rohan - set this to NULL before the callback so the callback
+                                              // can do another transfer, which sets this to something else
+                                //(temp->complete)(temp, 0, 0); // This does our callback on our outgoing transfers.
+                                // Rohan
                                 usbSendCompleteAsHost(USB_CFG_USE_USBIP);
                             }
                         }

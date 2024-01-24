@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -30,7 +30,8 @@ MIDIDeviceUSBHosted* recastSpecificMidiDevice(void* sourceDevice) {
 	return recastSpecificMidiDevice((MIDIDeviceUSBHosted*)sourceDevice);
 }
 
-/// @brief Recasts a MIDIDeviceUSBHosted pointer to a specific child device and back, to take advantage of virtual functions
+/// @brief Recasts a MIDIDeviceUSBHosted pointer to a specific child device and back, to take advantage of virtual
+/// functions
 /// @param sourceDevice The known MIDIDeviceUSBHosted
 /// @return A MIDIDeviceUSBHosted pointer, cast from Specific MIDI devices if found.
 MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice) {

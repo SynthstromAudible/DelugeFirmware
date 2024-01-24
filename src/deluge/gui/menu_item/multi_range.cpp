@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "multi_range.h"
 #include "gui/l10n/l10n.h"
@@ -201,7 +201,8 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 				newI++;
 			}
 
-			// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during memory allocation
+			// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
+			// during memory allocation
 			soundEditor.currentSound->unassignAllVoices();
 			AudioEngine::audioRoutineLocked = true;
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);

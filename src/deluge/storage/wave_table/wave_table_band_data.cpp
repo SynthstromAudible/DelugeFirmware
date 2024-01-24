@@ -28,8 +28,8 @@ bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
 	return (
 	    waveTable && !waveTable->numReasonsToBeLoaded
 	    && thingNotToStealFrom
-	           != &audioFileManager
-	                   .audioFiles); // Because stealing us would mean the WaveTable being deleted too, we have to abide by this rule as found in WaveTable::mayBeStolen().
+	           != &audioFileManager.audioFiles); // Because stealing us would mean the WaveTable being deleted too, we
+	                                             // have to abide by this rule as found in WaveTable::mayBeStolen().
 }
 
 void WaveTableBandData::steal(char const* errorCode) {

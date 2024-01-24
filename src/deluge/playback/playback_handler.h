@@ -104,11 +104,11 @@ public:
 	uint32_t timeLastMIDIStartOrContinueMessageSent;
 
 	// Timer ticks
-	int64_t lastTimerTickActioned; // Not valid while playback being set up
-	int64_t
-	    nextTimerTickScheduled; // *Yes* valid while (internal clock) playback being set up. Will be zero during that time
-	uint64_t timeNextTimerTickBig; // Not valid while playback being set up
-	uint64_t timeLastTimerTickBig; // Not valid while playback being set up
+	int64_t lastTimerTickActioned;  // Not valid while playback being set up
+	int64_t nextTimerTickScheduled; // *Yes* valid while (internal clock) playback being set up. Will be zero during
+	                                // that time
+	uint64_t timeNextTimerTickBig;  // Not valid while playback being set up
+	uint64_t timeLastTimerTickBig;  // Not valid while playback being set up
 
 	// Input ticks
 	uint32_t timeLastInputTicks[kNumInputTicksForMovingAverage];
@@ -116,7 +116,7 @@ public:
 	uint8_t numInputTickTimesCounted;
 
 	bool tempoMagnitudeMatchingActiveNow;
-	//unsigned long timeFirstInputTick; // First tick received for current tally
+	// unsigned long timeFirstInputTick; // First tick received for current tally
 	unsigned long
 	    timeVeryFirstInputTick; // Very first tick received in playback. Only used for tempo magnitude matching
 	int64_t lastInputTickReceived;
@@ -236,7 +236,7 @@ private:
 	void getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* midiClockOutTicksPer);
 	void getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer, uint32_t* internalTicksPer);
 	void sendOutPositionViaMIDI(int32_t pos, bool outputClocksWereSwitchedOff = false);
-	//void scheduleNextTimerTick();
+	// void scheduleNextTimerTick();
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
 	bool offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note);

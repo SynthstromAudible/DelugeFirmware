@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_instrument_clip_multiply.h"
 #include "model/clip/instrument_clip.h"

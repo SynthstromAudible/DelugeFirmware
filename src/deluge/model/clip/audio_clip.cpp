@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/clip/audio_clip.h"
 #include "definitions_cxx.hpp"
@@ -74,9 +74,10 @@ AudioClip::~AudioClip() {
 	}
 
 	// Sirhc actually got this in a V3.0.5 RC! No idea how. Also Qui got around V3.1.3.
-	// I suspect that recorder is somehow still set when this Clip gets "deleted" by being put in a ConsequenceClipExistence.
-	// Somehow neither abortRecording() nor finishLinearRecording() would be being called when some other AudioClip becomes the Output's activeClip.
-	// These get called in slightly roundabout ways, so this seems the most likely. I've added some further error code diversification.
+	// I suspect that recorder is somehow still set when this Clip gets "deleted" by being put in a
+	// ConsequenceClipExistence. Somehow neither abortRecording() nor finishLinearRecording() would be being called when
+	// some other AudioClip becomes the Output's activeClip. These get called in slightly roundabout ways, so this seems
+	// the most likely. I've added some further error code diversification.
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -195,20 +196,20 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder->pointerHeldElsewhere = false;
 
-	recorder->endSyncedRecording(
-	    buttonLatencyForTempolessRecord); // Must call before setSample(), cos it sets up important stuff like the sample length
+	recorder->endSyncedRecording(buttonLatencyForTempolessRecord); // Must call before setSample(), cos it sets up
+	                                                               // important stuff like the sample length
 
 	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases, that
-	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't have
-	// been effective. So, we have to call this here too, to cover our bases.
+	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't
+	// have been effective. So, we have to call this here too, to cover our bases.
 	if (getRootUI()) {
 		getRootUI()->clipNeedsReRendering(this);
 	}
 
 	sampleHolder.filePath.set(&recorder->sample->filePath);
-	sampleHolder.setAudioFile(
-	    recorder->sample, sampleControls.reversed, true,
-	    CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after endSyncedRecording(), which puts some final values in the Sample
+	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true,
+	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
+	                                              // endSyncedRecording(), which puts some final values in the Sample
 
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
@@ -257,7 +258,7 @@ ramError:
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
-	//don't clone for loop commands in red mode
+	// don't clone for loop commands in red mode
 	if (!overdubsShouldCloneOutput) {
 		return false;
 	}
@@ -282,7 +283,8 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 		return;
 	}
 
-	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that now. This isn't really the ideal place for this...
+	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that
+	// now. This isn't really the ideal place for this...
 	if (recorder && recorder->status == RECORDER_STATUS_ABORTED) {
 		abortRecording();
 	}
@@ -294,33 +296,35 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 		if (sampleHolder.audioFile && !((Sample*)sampleHolder.audioFile)->unplayable) {
 
 			guide.sequenceSyncStartedAtTick =
-			    playbackHandler
-			        .lastSwungTickActioned; // Must do this even if we're going to return due to time stretching being active
+			    playbackHandler.lastSwungTickActioned; // Must do this even if we're going to return due to time
+			                                           // stretching being active
 
 			// Obviously if no voiceSample yet, need to reset envelope for first usage. Otherwise,
-			// If the envelope's now releasing (e.g. from playback just being stopped and then restarted, e.g. by pressing <> + play),
-			// and if not doing a late start (which would cause more sound to start happening after the envelope finishes releasing),
-			// then we'd absolutely better reset that envelope because there's no other way any sound's going to come out!
-			bool shouldResetEnvelope =
-			    !voiceSample
-			    || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
-			        && !doingLateStart); // Come to think of it, would doingLateStart ever (or normally) be true if we're at play pos 0?
+			// If the envelope's now releasing (e.g. from playback just being stopped and then restarted, e.g. by
+			// pressing <> + play), and if not doing a late start (which would cause more sound to start happening after
+			// the envelope finishes releasing), then we'd absolutely better reset that envelope because there's no
+			// other way any sound's going to come out!
+			bool shouldResetEnvelope = !voiceSample
+			                           || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
+			                               && !doingLateStart); // Come to think of it, would doingLateStart ever (or
+			                                                    // normally) be true if we're at play pos 0?
 
 			// If already had a VoiceSample, everything's probably all fine...
 			if (voiceSample) {
 
-				// But, if it's reading from (or writing to) a cache, we have to manually cut it out right now and tell it to restart, so the new
-				// play-through will remain perfectly synced up to this start-tick we're at now.
+				// But, if it's reading from (or writing to) a cache, we have to manually cut it out right now and tell
+				// it to restart, so the new play-through will remain perfectly synced up to this start-tick we're at
+				// now.
 				if (voiceSample->cache
 
-				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was no pre-margin -
-				    // then yup we'll wanna force restart now too - because AudioClip VoiceSamples don't obey their loop points,
-				    // so it won't have happened otherwise.
+				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was no
+				    // pre-margin - then yup we'll wanna force restart now too - because AudioClip VoiceSamples don't
+				    // obey their loop points, so it won't have happened otherwise.
 				    || !voiceSample->timeStretcher
 
-				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's shot past the end of
-				    // the waveform, and this waveform didn't have an extra "margin" at the end, then we want to just cut everything and start from scratch
-				    // again.
+				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's shot
+				    // past the end of the waveform, and this waveform didn't have an extra "margin" at the end, then we
+				    // want to just cut everything and start from scratch again.
 				    || !voiceSample->timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 
 					// Yup, do that unassignment
@@ -332,14 +336,17 @@ doUnassignment:
 				else {
 					// If here, we know time stretching is on.
 
-					// If no pre-margin, then still do go and do the unassignment and start afresh - cos we'll wanna hear that sharp start-point perfectly rather than just fading into it after a play-head reaches its end
+					// If no pre-margin, then still do go and do the unassignment and start afresh - cos we'll wanna
+					// hear that sharp start-point perfectly rather than just fading into it after a play-head reaches
+					// its end
 					uint32_t waveformStartByte = ((Sample*)sampleHolder.audioFile)->audioDataStartPosBytes;
 					if (sampleControls.reversed) {
 						waveformStartByte +=
 						    ((Sample*)sampleHolder.audioFile)->audioDataLengthBytes
 						    - sampleHolder.audioFile->numChannels
 						          * ((Sample*)sampleHolder.audioFile)
-						                ->byteDepth; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+						                ->byteDepth; // The actual first sample of the waveform in our given direction,
+						                             // regardless of our elected start-point
 					}
 					int32_t numBytesOfPreMarginAvailable =
 					    (int32_t)(guide.getBytePosToStartPlayback(true) - waveformStartByte);
@@ -350,11 +357,15 @@ doUnassignment:
 						goto doUnassignment;
 					}
 
-					// If we were "fudging" a time-stretch just to get a free crossfade, then we can now stop doing all of that. (It should automatically stop eventually anyway, but let's be clean and efficient and just kill it now.)
+					// If we were "fudging" a time-stretch just to get a free crossfade, then we can now stop doing all
+					// of that. (It should automatically stop eventually anyway, but let's be clean and efficient and
+					// just kill it now.)
 					if (voiceSample->fudging) {
 						voiceSample->endTimeStretching();
 					}
-					// Otherwise, if we're just regular time-stretching (not for mere "fudging" reasons), don't do anything and just get out. The regular time-stretching algorithm takes care of causing playback to jump back to the start of the Sample.
+					// Otherwise, if we're just regular time-stretching (not for mere "fudging" reasons), don't do
+					// anything and just get out. The regular time-stretching algorithm takes care of causing playback
+					// to jump back to the start of the Sample.
 
 					goto possiblyResetEnvelopeAndGetOut;
 				}
@@ -399,7 +410,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		return;
 	}
 
-	// If reading or writing cache, that's not gonna be valid now that we've moved our play position, so gotta stop that.
+	// If reading or writing cache, that's not gonna be valid now that we've moved our play position, so gotta stop
+	// that.
 	if (voiceSample && voiceSample->cache) {
 		int32_t priorityRating = 1;
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
@@ -409,12 +421,14 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		}
 	}
 
-	// For synced time-stretching, that syncing is done by noting what the internal tick count "was" at the start of the Clip, so we work that out here.
-	// However, due to the efficient ticking system and the fact that the clip length may have just been reduced, it's possible that this would
-	// then give us a result which would indicate that our current play position is actually beyond the length of the Clip.
-	// So, we do some wrapping here to ensure that guide.sequenceSyncStartedAtTickTrivialValue is not longer ago (from the "actual" current internal ticket time)
-	// than the length of the Clip. Despite the fact that we generally here deal with the positions / counts of the last swung tick, which is why this problem exists in the first place.
-	// To be clear, where wrapping occurs, guide.sequenceSyncStartedAtTickTrivialValue will be after the last actioned swung tick.
+	// For synced time-stretching, that syncing is done by noting what the internal tick count "was" at the start of the
+	// Clip, so we work that out here. However, due to the efficient ticking system and the fact that the clip length
+	// may have just been reduced, it's possible that this would then give us a result which would indicate that our
+	// current play position is actually beyond the length of the Clip. So, we do some wrapping here to ensure that
+	// guide.sequenceSyncStartedAtTickTrivialValue is not longer ago (from the "actual" current internal ticket time)
+	// than the length of the Clip. Despite the fact that we generally here deal with the positions / counts of the last
+	// swung tick, which is why this problem exists in the first place. To be clear, where wrapping occurs,
+	// guide.sequenceSyncStartedAtTickTrivialValue will be after the last actioned swung tick.
 	int32_t sequenceSyncStartedAtTickTrivialValue = playbackHandler.lastSwungTickActioned - lastProcessedPos;
 	int32_t currentInternalTickCount = playbackHandler.getCurrentInternalTickCount();
 	int32_t sequenceSyncStartedNumTicksAgo = currentInternalTickCount - sequenceSyncStartedAtTickTrivialValue;
@@ -436,7 +450,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	}
 
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
-	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can still be if this is our second quick successive <>+play starting playback partway through Clip
+	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
+	// still be if this is our second quick successive <>+play starting playback partway through Clip
 	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
 		return;
 	}
@@ -449,9 +464,9 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	if (voiceSample) {
 
 		// But we're gonna do a nice quick fade-out first.
-		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade, above.
-		// We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're also not going to be after
-		// (though it'd be hard to predict whether we're going to be after)
+		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade,
+		// above. We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're
+		// also not going to be after (though it'd be hard to predict whether we're going to be after)
 		((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 	}
 
@@ -506,7 +521,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	Sample* sample = ((Sample*)sampleHolder.audioFile);
 
-	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data hasn't loaded yet)
+	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
+	// hasn't loaded yet)
 	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
@@ -534,7 +550,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	    (playbackHandler.getTimePerInternalTickBig() * loopLength) >> 32; // We haven't rounded... should we?
 
 	// To stop things getting insane, limit to 32x speed
-	//if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
+	// if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
 
 	uint64_t requiredSpeedAdjustment =
 	    (uint64_t)(((double)((uint64_t)sampleLengthInSamples << 24)) / (double)clipLengthInSamples);
@@ -543,7 +559,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	if (sampleControls.pitchAndSpeedAreIndependent) {
 		timeStretchRatio = requiredSpeedAdjustment;
 
-		// And if pitch was manually adjusted too (or file's sample rate wasn't 44100kHz, that's fine - counteract that by adjusting the time-stretch amount more
+		// And if pitch was manually adjusted too (or file's sample rate wasn't 44100kHz, that's fine - counteract that
+		// by adjusting the time-stretch amount more
 		if (phaseIncrement != 16777216) {
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
@@ -554,7 +571,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 			// If we'd only be time-stretching a tiiiny bit (+/- 1 cent)...
 			if (timeStretchRatio >= 16661327 && timeStretchRatio < 16893911) {
 
-				// And if playback has stopped or the envelope is doing a fast release before we begin another "late start"...
+				// And if playback has stopped or the envelope is doing a fast release before we begin another "late
+				// start"...
 				if (!playbackHandler.isEitherClockActive() || doingLateStart) {
 justDontTimeStretch:
 					// We can just not time-stretch... for now, until we end up more out-of-sync later
@@ -564,7 +582,8 @@ justDontTimeStretch:
 				// Or...
 				else {
 
-					// If we're less than 7.8mS out of sync, then that's another (even more common) reason not to time-stretch
+					// If we're less than 7.8mS out of sync, then that's another (even more common) reason not to
+					// time-stretch
 					int32_t numSamplesLaggingBehindSync = guide.getNumSamplesLaggingBehindSync(voiceSample);
 					int32_t numSamplesDrift = std::abs(numSamplesLaggingBehindSync);
 
@@ -582,7 +601,8 @@ justDontTimeStretch:
 	// Or if we're squishing pitch...
 	else {
 
-		// If no prior pitch adjustment, we play back 100% natively, with no pitch shifting / time stretching. Just with pitch / speed changed like speeding/slowing a record
+		// If no prior pitch adjustment, we play back 100% natively, with no pitch shifting / time stretching. Just with
+		// pitch / speed changed like speeding/slowing a record
 		if (!sampleHolder.transpose && !sampleHolder.cents) {
 			uint64_t phaseIncrementNew = ((uint64_t)(uint32_t)phaseIncrement * requiredSpeedAdjustment) >> 24;
 			phaseIncrement = (phaseIncrementNew >= 2147483648) ? 2147483647 : (uint32_t)phaseIncrementNew;
@@ -602,16 +622,17 @@ justDontTimeStretch:
 	int32_t priorityRating = 1;
 
 	bool clipWillLoopAtEnd = playbackHandler.playbackState && currentPlaybackMode->willClipLoopAtSomePoint(modelStack);
-	// I don't love that this is being called for every AudioClip at every render. This is to determine the "looping" parameter
-	// for the call to VoiceSample::render() below. It'd be better to maybe have that just query the currentPlaybackMode
-	// when it needs to actually use this info, cos it only occasionally needs it
+	// I don't love that this is being called for every AudioClip at every render. This is to determine the "looping"
+	// parameter for the call to VoiceSample::render() below. It'd be better to maybe have that just query the
+	// currentPlaybackMode when it needs to actually use this info, cos it only occasionally needs it
 
 	bool stillActive;
 
 	// If Clip will loop at end...
 	if (clipWillLoopAtEnd) {
 
-		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop point (if it's gonna loop)
+		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop
+		// point (if it's gonna loop)
 		if (timeStretchRatio == 16777216 && !voiceSample->timeStretcher
 		    && (!voiceSample->cache || voiceSample->writingToCache)) {
 
@@ -621,9 +642,9 @@ justDontTimeStretch:
 
 			int32_t startByte = sample->audioDataStartPosBytes;
 			if (guide.playDirection != 1) {
-				startByte +=
-				    sample->audioDataLengthBytes
-				    - bytesPerSample; // The actual first sample of the waveform in our given direction, regardless of our elected start-point
+				startByte += sample->audioDataLengthBytes
+				             - bytesPerSample; // The actual first sample of the waveform in our given direction,
+				                               // regardless of our elected start-point
 			}
 
 			int32_t numBytesOfPreMarginAvailable =
@@ -643,8 +664,8 @@ justDontTimeStretch:
 					}
 
 					if (numSamplesOfPreMarginAvailable > 2) {
-						//D_PRINTLN("");
-						//D_PRINTLN("might attempt fudge");
+						// D_PRINTLN("");
+						// D_PRINTLN("might attempt fudge");
 
 						int32_t crossfadeLength = std::min(numSamplesOfPreMarginAvailable, kAntiClickCrossfadeLength);
 
@@ -667,9 +688,13 @@ justDontTimeStretch:
 	// Or if Clip won't loop at any point...
 	else {
 
-		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform after the end isn't heard.
-		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I forgot?)
-		// It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the margin.
+		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
+		// after the end isn't heard.
+		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
+		// we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I
+		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
+		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
+		// margin.
 		if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
@@ -719,7 +744,8 @@ doUnassign:
 // Returns the "looping" parameter that gets passed into a lot of functions.
 LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelStack) {
 
-	// We won't loop at the low level. We may want to loop at time-stretcher level, in the following case (not if the end-point is set to beyond the waveform's length).
+	// We won't loop at the low level. We may want to loop at time-stretcher level, in the following case (not if the
+	// end-point is set to beyond the waveform's length).
 
 	bool shouldLoop =
 	    (sampleControls.reversed || sampleHolder.endPos <= ((Sample*)sampleHolder.audioFile)->lengthInSamples)
@@ -759,12 +785,14 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 
 			// Fix only added for bug / crash discovered in Feb 2021!
 			if (doingLateStart) {
-				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no sound right now, so just cut out.
+				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
+				// sound right now, so just cut out.
 				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 					unassignVoiceSample();
 				}
 
-				// Or if we were planning to do a late start as soon as the current sound fades out, then just abandon the late start, but keep doing the fade
+				// Or if we were planning to do a late start as soon as the current sound fades out, then just abandon
+				// the late start, but keep doing the fade
 				else {
 					doingLateStart = false;
 				}
@@ -881,10 +909,11 @@ doNormal:
 			}
 
 			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), NULL, &newParamManager);
-			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also this Clip.
-			// Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when we do a song swap and call
-			// Song::deleteSoundsWhichWontSound(), that calls deleteAllBackedUpParamManagersWithClips(), which would then delete this ParamManager here,
-			// because we gave it a Clip. But it's actually still needed by the associated ModControllable / AudioOutput.
+			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
+			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
+			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls
+			// deleteAllBackedUpParamManagersWithClips(), which would then delete this ParamManager here, because we
+			// gave it a Clip. But it's actually still needed by the associated ModControllable / AudioOutput.
 		}
 	}
 
@@ -939,7 +968,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
                                   bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                   int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
-	//D_PRINTLN("AudioClip::renderAsSingleRow");
+	// D_PRINTLN("AudioClip::renderAsSingleRow");
 
 	Sample* sample;
 	if (recorder) {
@@ -1044,7 +1073,7 @@ someError:
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		//D_PRINTLN(tagName); delayMS(30);
+		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
 			storageManager.readTagOrAttributeValueString(&outputNameWhileLoading);
@@ -1252,7 +1281,8 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		return false;
 	}
 
-	//this never gets called from Automation View because in the Automation View we shift specific parameters not all parameters
+	// this never gets called from Automation View because in the Automation View we shift specific parameters not all
+	// parameters
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 			paramManager.shiftHorizontally(

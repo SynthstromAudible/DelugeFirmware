@@ -222,7 +222,7 @@ submenu::Filter hpfMenu{
     },
 };
 
-//Filter Route Menu ----------------------------------------------------------------------------------------------
+// Filter Route Menu ----------------------------------------------------------------------------------------------
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
@@ -502,15 +502,15 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 
-//Global FX Menu
+// Global FX Menu
 
-//Volume
+// Volume
 UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME};
 
-//Pitch
+// Pitch
 UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
 
-//Pan
+// Pan
 unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
 // LPF Menu
@@ -745,7 +745,7 @@ ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.m
 // MIDI Takeover
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
-//MIDI Follow
+// MIDI Follow
 midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
                                            MIDIFollowChannelType::A};
 midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_FOR_FOLLOW_CHANNEL_B,
@@ -845,11 +845,11 @@ ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, pla
 ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_M_MATCH_MENU_TITLE,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};
 
-//Midi devices menu
+// Midi devices menu
 midi::Devices midi::devicesMenu{STRING_FOR_DEVICES, STRING_FOR_MIDI_DEVICES};
 mpe::DirectionSelector mpe::directionSelectorMenu{STRING_FOR_MPE};
 
-//MIDI menu
+// MIDI menu
 Submenu midiClockMenu{
     STRING_FOR_CLOCK,
     STRING_FOR_MIDI_CLOCK,
@@ -1062,10 +1062,10 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
     },
 };
 
-//Menu for Performance View Editing Mode
+// Menu for Performance View Editing Mode
 menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
 
-//Root menu for Performance View
+// Root menu for Performance View
 menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
@@ -1088,7 +1088,7 @@ bool* getSongMidiLoopback() {
 
 ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
 
-//Root menu for Song View
+// Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
@@ -1105,7 +1105,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
     },
 };
 
-//Root menu for Kit Global FX
+// Root menu for Kit Global FX
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {

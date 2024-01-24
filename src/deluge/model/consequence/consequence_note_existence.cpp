@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_note_existence.h"
 #include "definitions_cxx.hpp"
@@ -46,7 +46,8 @@ int32_t ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) 
 		// Delete a note now
 		int32_t i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= noteRow->notes.getNumElements() || noteRow->notes.getElement(i)->pos != pos) {
-			return NO_ERROR; // This can happen, and is fine, when redoing a "Clip multiply" action with notes with iteration dependence
+			return NO_ERROR; // This can happen, and is fine, when redoing a "Clip multiply" action with notes with
+			                 // iteration dependence
 		}
 		noteRow->notes.deleteAtIndex(i);
 	}

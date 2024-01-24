@@ -62,9 +62,9 @@ public:
 class MIDIInputChannel {
 public:
 	MIDIInputChannel() {
-		bendRange =
-		    0; // Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for finger-level because this is a non-MPE single MIDI channel.
-		rpnLSB = 127; // Means no param specified
+		bendRange = 0; // Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for
+		               // finger-level because this is a non-MPE single MIDI channel.
+		rpnLSB = 127;  // Means no param specified
 		rpnMSB = 127;
 	}
 	uint8_t rpnLSB;
@@ -111,10 +111,10 @@ public:
 	// Originally done to ease integration to the midi device setting menu
 	MIDIPort ports[2];
 
-	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
-	 * X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
-	 * These default to 0.
-	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll
+	 * want to scale this up again to 32-bit to use them. X and Y may be both positive and negative, and Z may only be
+	 * positive (so has been scaled up less from incoming bits). These default to 0. These are just for
+	 * MelodicInstruments. For Drums, the values get stored in the Drum itself.
 	 */
 
 	int16_t defaultInputMPEValuesPerMIDIChannel[16][kNumExpressionDimensions];
@@ -128,14 +128,14 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-	bool sendClock; //whether to send clocks to this device
+	bool sendClock; // whether to send clocks to this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void
-	writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(); // These only go into MIDIDEVICES.XML.
+	virtual void writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset
+	                                                   // files where there's a reference to this Device.
+	void writeDefinitionAttributesToFile();            // These only go into MIDIDEVICES.XML.
 };
 
 class MIDIDeviceUSB : public MIDIDevice {

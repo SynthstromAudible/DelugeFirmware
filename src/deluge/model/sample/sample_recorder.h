@@ -70,7 +70,8 @@ public:
 	int32_t firstUnwrittenClusterIndex;
 	int32_t currentRecordClusterIndex;
 
-	// Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos some error or max file size reached)
+	// Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos
+	// some error or max file size reached)
 	Cluster* currentRecordCluster;
 
 	uint32_t audioFileNumber;
@@ -87,7 +88,8 @@ public:
 	uint8_t status;
 	AudioInputChannel mode;
 
-	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's there... but this is nice.
+	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
+	// there... but this is nice.
 	bool haveAddedSampleToArray;
 
 	bool allowFileAlterationAfter;

@@ -53,7 +53,7 @@ public:
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru, ModelStack* modelStack);
 
-	//midi CC mappings
+	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
@@ -62,11 +62,11 @@ public:
 	uint32_t timeAutomationFeedbackLastSent;
 
 private:
-	//initialize
+	// initialize
 	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
-	//get model stack with auto param for midi follow cc-param control
+	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam*
 	getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings, int32_t xDisplay,
 	                                  int32_t yDisplay);
@@ -84,7 +84,7 @@ private:
 	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
-	//handle midi received for midi follow
+	// handle midi received for midi follow
 	void offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
 	                            int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                            bool* doingMidiThru, Clip* clip);
@@ -115,11 +115,11 @@ private:
 	bool isFeedbackEnabled();
 	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
 
-	//saving
+	// saving
 	void writeDefaultsToFile();
 	void writeDefaultMappingsToFile();
 
-	//loading
+	// loading
 	bool successfullyReadDefaultsFromFile;
 	void readDefaultMappingsFromFile();
 };

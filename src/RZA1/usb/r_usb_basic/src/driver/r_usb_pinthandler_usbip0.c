@@ -53,7 +53,7 @@ usb_int_t g_usb_pstd_usb_int;
  ***********************************************************************************************************************/
 void usb_pstd_usb_handler(uint32_t sense)
 {
-    //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     usb_pstd_interrupt_clock();
 
@@ -62,7 +62,7 @@ void usb_pstd_usb_handler(uint32_t sense)
         &g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].type, &g_usb_pstd_usb_int.buf[g_usb_pstd_usb_int.wp].status);
 
     if (!alreadyAllDealtWith)
-    { //return; // By Rohan
+    { // return; // By Rohan
 
         /* Write countup */
         g_usb_pstd_usb_int.wp = ((g_usb_pstd_usb_int.wp + 1) % USB_INT_BUFSIZE);
@@ -70,11 +70,11 @@ void usb_pstd_usb_handler(uint32_t sense)
 
     /*
     uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-	uint16_t duration = endTime - startTime;
-	uint32_t timePassedNS = superfastTimerCountToNS(duration);
-	uartPrint("interrupt duration, nSec: ");
-	uartPrintNumber(timePassedNS);
-	*/
+    uint16_t duration = endTime - startTime;
+    uint32_t timePassedNS = superfastTimerCountToNS(duration);
+    uartPrint("interrupt duration, nSec: ");
+    uartPrintNumber(timePassedNS);
+    */
 } /* End of function usb_pstd_usb_handler() */
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
 

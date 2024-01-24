@@ -47,11 +47,10 @@ bool NonAudioDrum::hasAnyVoices() {
 }
 
 /*
-int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* paramManager, uint32_t pos, TimelineCounter* playPositionCounter) {
-	if (whichModEncoder == 0) {
-		channelEncoderCurrentOffset = 0;
-	}
-	return -64;
+int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* paramManager, uint32_t pos,
+TimelineCounter* playPositionCounter) { if (whichModEncoder == 0) { channelEncoderCurrentOffset = 0;
+    }
+    return -64;
 }
 */
 

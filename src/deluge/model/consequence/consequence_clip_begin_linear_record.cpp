@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 
@@ -45,12 +45,14 @@ int32_t ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* mode
 				return NO_ERROR;
 			}
 
-			// Or if Clip is soloing, deactivating that would be a can of worms, whereas this whole auto-deactivation feature is really just intended as an unessential thing the user will find helpful in most cases
+			// Or if Clip is soloing, deactivating that would be a can of worms, whereas this whole auto-deactivation
+			// feature is really just intended as an unessential thing the user will find helpful in most cases
 			if (clip->soloingInSessionMode) {
 				return NO_ERROR;
 			}
 
-			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to go out and reactivate it
+			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to
+			// go out and reactivate it
 			if (modelStack->song->currentClip == clip && getCurrentUI()->toClipMinder()) {
 				return NO_ERROR;
 			}
@@ -68,8 +70,8 @@ doToggle:
 		if (!modelStack->song->isClipActive(clip)) {
 
 			// But first, an exception:
-			// Check that the reason it's showing as "inactive" isn't just that there's another Clip soloing - in which case we don't
-			// want to toggle its status
+			// Check that the reason it's showing as "inactive" isn't just that there's another Clip soloing - in which
+			// case we don't want to toggle its status
 			if (currentSong->getAnyClipsSoloing()) {
 				return NO_ERROR;
 			}

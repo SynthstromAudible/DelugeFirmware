@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "util/functions.h"
@@ -49,7 +49,7 @@ inline int32_t allpass::process(int32_t input) {
 
 	output = -input + bufout;
 	buffer[bufidx] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
-	//buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
+	// buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
 
 	if (++bufidx >= bufsize)
 		bufidx = 0;
@@ -57,4 +57,4 @@ inline int32_t allpass::process(int32_t input) {
 	return output;
 }
 
-//ends
+// ends

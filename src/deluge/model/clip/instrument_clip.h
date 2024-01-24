@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -121,8 +121,8 @@ public:
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;
 
-	LearnedMIDI
-	    soundMidiCommand; // This is now handled by the Instrument, but for loading old songs, we need to capture and store this
+	LearnedMIDI soundMidiCommand; // This is now handled by the Instrument, but for loading old songs, we need to
+	                              // capture and store this
 
 	NoteRowVector noteRows;
 
