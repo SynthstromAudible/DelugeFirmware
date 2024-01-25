@@ -84,7 +84,7 @@ public:
 		// one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),

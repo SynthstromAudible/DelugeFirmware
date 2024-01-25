@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/menu_item/enumeration.h"
+#include "util/containers.h"
 #include <span>
 #include <string_view>
 
@@ -26,7 +27,7 @@ class Selection : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 
-	virtual std::vector<std::string_view> getOptions() = 0;
+	virtual deluge::vector<std::string_view> getOptions() = 0;
 
 	void drawValue() override;
 

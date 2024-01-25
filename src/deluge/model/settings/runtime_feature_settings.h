@@ -18,7 +18,7 @@
 #pragma once
 
 #include "util/container/array/resizeable_array.h"
-
+#include "util/containers.h"
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -77,7 +77,7 @@ struct RuntimeFeatureSetting {
 	uint32_t value;
 
 	// Limited to safe memory
-	std::vector<RuntimeFeatureSettingOption> options;
+	deluge::vector<RuntimeFeatureSettingOption> options;
 };
 
 /// Encapsulating class

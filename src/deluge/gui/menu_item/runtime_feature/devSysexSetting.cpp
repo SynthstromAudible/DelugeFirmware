@@ -54,7 +54,7 @@ void DevSysexSetting::writeCurrentValue() {
 	}
 }
 
-std::vector<std::string_view> DevSysexSetting::getOptions() {
+deluge::vector<std::string_view> DevSysexSetting::getOptions() {
 	intToHex(onValue, &on_val[5]);
 	return {
 	    l10n::get(l10n::String::STRING_FOR_OFF),

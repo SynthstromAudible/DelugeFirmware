@@ -25,6 +25,7 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {
 public:
 	using Selection::Selection;
+
 	void readCurrentValue() override {
 		int32_t savedScale = FlashStorage::defaultScale;
 		if (savedScale == PRESET_SCALE_RANDOM) {
@@ -74,9 +75,9 @@ public:
 		}
 	}
 
-	std::vector<std::string_view> getOptions() override {
-		int32_t numPresetScales = NUM_PRESET_SCALES;
-		std::vector<std::string_view> scales = {presetScaleNames.begin(), presetScaleNames.begin() + numPresetScales};
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> scales = {presetScaleNames.begin(),
+		                                           presetScaleNames.begin() + NUM_PRESET_SCALES};
 		scales.push_back("RANDOM");
 		scales.push_back("NONE");
 		return scales;
