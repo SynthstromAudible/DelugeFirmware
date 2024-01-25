@@ -27,19 +27,19 @@ add_compile_options(
 )
 
 # include the non test project source
-include_directories(./mocks)
-include_directories(../src/deluge)
-include_directories(../src/NE10/inc)
-include_directories(../src)
+include_directories(mocks)
+include_directories(../../src/deluge)
+include_directories(../../src/NE10/inc)
+include_directories(../../src)
 
 
 file(GLOB_RECURSE deluge_SOURCES
   # Required for memory tests
-  ../src/deluge/memory/*
+  ../../src/deluge/memory/*
   # Used for prints
-  ../src/deluge/gui/l10n/*
+  ../../src/deluge/gui/l10n/*
   # Used by most other modules
-  ../src/deluge/util/*
+  ../../src/deluge/util/*
   # Mock implementations
   mocks/*
 )
