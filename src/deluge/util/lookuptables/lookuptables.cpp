@@ -182,7 +182,7 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-std::array<char const*, 16> presetScaleNames = {
+std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 	"MAJOR",
 	"MINOR",
 	"DORIAN",
