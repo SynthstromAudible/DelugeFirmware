@@ -1,21 +1,14 @@
 
 
 #include "gui/context_menu/launch_style.h"
-#include "extern.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
 #include <cstddef>
 
 namespace deluge::gui::context_menu {
 
-enum class LaunchStyle::Value {
-	DEFAULT,
-	FILL,
-	ONCE,
-};
 constexpr size_t kNumValues = 3;
 
 LaunchStyle launchStyle{};
@@ -36,53 +29,19 @@ Sized<char const**> LaunchStyle::getOptions() {
 }
 
 bool LaunchStyle::setupAndCheckAvailability() {
-	Value valueOption = Value::DEFAULT;
-
-	switch (clip->launchStyle) {
-	case ::LaunchStyle::DEFAULT:
-		valueOption = Value::DEFAULT;
-		break;
-	case ::LaunchStyle::FILL:
-		valueOption = Value::FILL;
-		break;
-	case ::LaunchStyle::ONCE:
-		valueOption = Value::ONCE;
-		break;
-	default:
-		valueOption = Value::DEFAULT;
-	}
 	currentUIMode = UI_MODE_NONE;
-
-	currentOption = static_cast<int32_t>(valueOption);
+	this->currentOption = static_cast<int32_t>(clip->launchStyle);
 
 	if (display->haveOLED()) {
-		scrollPos = currentOption;
+		scrollPos = this->currentOption;
 	}
 
 	return true;
 }
 
 void LaunchStyle::selectEncoderAction(int8_t offset) {
-	/* if (currentUIMode) return; */
-
 	ContextMenu::selectEncoderAction(offset);
-
-	auto valueOption = static_cast<Value>(currentOption);
-
-	switch (valueOption) {
-	case Value::DEFAULT:
-		clip->launchStyle = ::LaunchStyle::DEFAULT;
-		break;
-	case Value::FILL:
-		clip->launchStyle = ::LaunchStyle::FILL;
-		break;
-	case Value::ONCE:
-		clip->launchStyle = ::LaunchStyle::ONCE;
-		break;
-
-	default:
-		clip->launchStyle = ::LaunchStyle::DEFAULT;
-	}
+	clip->launchStyle = static_cast<::LaunchStyle>(this->currentOption);
 }
 
 } // namespace deluge::gui::context_menu

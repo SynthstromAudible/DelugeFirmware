@@ -14,7 +14,6 @@ class Clip;
 namespace deluge::gui::context_menu {
 
 class LaunchStyle final : public ContextMenu {
-	enum class Value;
 
 public:
 	LaunchStyle() = default;
