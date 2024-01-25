@@ -91,11 +91,12 @@ Here is a list of features that have been added to the firmware as a list, group
 
  - ([#163]) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is similar to the shortcut when setting the color while in a clip view.
 
-#### 4.1.3 - Fill Clips
+#### 4.1.3 - Fill Clips and Once Clips
 
- - ([#196]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type selection menu. The options are:
+ - ([#196] and [#1018]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type selection menu. The options are:
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+	- Once (ONCE) - Once clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of clips also work when soloing them, they will solo just for one loop and unsolo after that. **Limitation**: a Once clip is still subject to the one clip per instrument behavior of the Deluge, A Once clip can steal an output from other normal clips, so take that into account when you plan your performance.
 
 #### 4.1.4 - Catch Notes
 
@@ -495,6 +496,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
 [#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
 [#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
+[#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
