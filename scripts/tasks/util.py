@@ -194,3 +194,6 @@ def get_environment_from_batch_command(env_cmd, initial=None):
         result[k] = v
 
     return result
+
+def get_dbt_version():
+    return open(get_git_root() / 'toolchain' / 'REQUIRED_VERSION').readline().rstrip()
