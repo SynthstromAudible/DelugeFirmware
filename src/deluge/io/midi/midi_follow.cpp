@@ -433,7 +433,20 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		Clip* clip = getSelectedClip();
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
-		if (view.activeModControllableModelStack.modControllable
+		bool isMIDIClip = false;
+		bool isCVClip = false;
+		if (clip) {
+			if (clip->output->type == OutputType::MIDI_OUT) {
+				isMIDIClip = true;
+			}
+			if (clip->output->type == OutputType::CV) {
+				isCVClip = true;
+			}
+		}
+		// don't offer to ModControllableAudio::receivedCCFromMidiFollow if it's a MIDI or CV Clip
+		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
+		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
+		if (!isMIDIClip && !isCVClip && view.activeModControllableModelStack.modControllable
 		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			// if midi follow feedback and feedback filter is enabled,
 			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
