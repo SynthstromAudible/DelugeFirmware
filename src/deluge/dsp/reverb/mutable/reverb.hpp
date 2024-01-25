@@ -108,14 +108,6 @@ public:
 		lp_decay_2_ = lp_2;
 	}
 
-	inline void set_input_gain(float input_gain) { input_gain_ = input_gain; }
-
-	inline void set_time(float reverb_time) { reverb_time_ = reverb_time; }
-
-	inline void set_diffusion(float diffusion) { diffusion_ = diffusion; }
-
-	inline void set_lp(float lp) { lp_ = lp; }
-
 	inline void Clear() { engine_.Clear(); }
 
 	// Reverb Base Overrides
