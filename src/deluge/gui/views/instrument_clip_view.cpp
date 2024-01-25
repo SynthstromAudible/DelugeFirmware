@@ -5228,10 +5228,8 @@ void InstrumentClipView::fillOffScreenImageStores() {
 
 	// Clear sidebar pads from offscreen image stores
 	for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
-		for (int32_t colour = 0; colour < 3; colour++) {
-			PadLEDs::imageStore[0][x][colour] = 0;
-			PadLEDs::imageStore[kDisplayHeight][x][colour] = 0;
-		}
+		PadLEDs::imageStore[0][x] = colours::black;
+		PadLEDs::imageStore[kDisplayHeight][x] = colours::black;
 		PadLEDs::occupancyMaskStore[0][x] = 0;
 		PadLEDs::occupancyMaskStore[kDisplayHeight][x] = 0;
 	}
