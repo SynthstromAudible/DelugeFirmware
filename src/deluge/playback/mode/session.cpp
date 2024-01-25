@@ -1707,8 +1707,8 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		// If late start...
 		if (doLateStart) {
 
-			if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LaunchStyle::FILL
-			    && thisClip->launchStyle != LaunchStyle::ONCE) { // In case also already armed
+			if (thisClip->armState != ArmState::OFF
+			    && thisClip->launchStyle == LaunchStyle::DEFAULT) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
