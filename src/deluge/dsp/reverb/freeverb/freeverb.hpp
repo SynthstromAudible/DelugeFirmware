@@ -42,14 +42,14 @@ public:
 		update();
 	}
 
-	[[nodiscard]] constexpr float getRoomSize() const { return (roomsize - offsetroom) / scaleroom; }
+	[[nodiscard]] constexpr float getRoomSize() const override { return (roomsize - offsetroom) / scaleroom; }
 
-	void setDamp(float value) {
+	void setDamping(float value) override {
 		damp = value * scaledamp;
 		update();
 	}
 
-	[[nodiscard]] constexpr float getDamp() const { return damp / scaledamp; }
+	[[nodiscard]] constexpr float getDamping() const override { return damp / scaledamp; }
 
 	void setWet(float value) {
 		wet = value * scalewet;
@@ -67,7 +67,7 @@ public:
 		update();
 	}
 
-	[[nodiscard]] constexpr float getWidth() const { return width; }
+	[[nodiscard]] constexpr float getWidth() const override { return width; }
 
 	[[gnu::always_inline]] void ProcessOne(int32_t input, int32_t* outputL, int32_t* outputR) {
 		int32_t out_l = 0;

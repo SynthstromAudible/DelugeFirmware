@@ -15,7 +15,11 @@ public:
 		MUTABLE,
 	};
 
-	Reverb() : base_(&std::get<0>(reverb_)) {}
+	Reverb()
+	    : base_(&std::get<0>(reverb_)),     //<
+	      room_size_(base_->getRoomSize()), //<
+	      damping_(base_->getDamping()),    //<
+	      width_(base_->getWidth()) {}
 	~Reverb() override = default;
 
 	void setModel(Model m) {
@@ -27,6 +31,9 @@ public:
 			reverb_.emplace<reverb::Mutable>();
 			break;
 		}
+		base_->setRoomSize(room_size_);
+		base_->setDamping(damping_);
+		base_->setWidth(width_);
 		model_ = m;
 	}
 
@@ -48,13 +55,25 @@ public:
 		base_->setPanLevels(amplitude_left, amplitude_right);
 	}
 
-	void setRoomSize(float value) override { base_->setRoomSize(value); }
+	void setRoomSize(float value) override {
+		room_size_ = value;
+		base_->setRoomSize(value);
+	}
+
 	[[nodiscard]] float getRoomSize() const override { return base_->getRoomSize(); };
 
-	void setDamping(float value) override { base_->setDamping(value); }
+	void setDamping(float value) override {
+		damping_ = value;
+		base_->setDamping(value);
+	}
+
 	[[nodiscard]] float getDamping() const override { return base_->getDamping(); }
 
-	void setWidth(float value) override { base_->setWidth(value); }
+	void setWidth(float value) override {
+		width_ = value;
+		base_->setWidth(value);
+	}
+
 	[[nodiscard]] float getWidth() const override { return base_->getWidth(); };
 
 	template <typename T>
@@ -72,5 +91,9 @@ private:
 	Model model_ = Model::FREEVERB;
 
 	reverb::Base* base_ = nullptr;
+
+	float room_size_;
+	float damping_;
+	float width_;
 };
 } // namespace deluge::dsp

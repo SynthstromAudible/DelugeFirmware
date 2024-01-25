@@ -65,7 +65,7 @@ Freeverb::Freeverb() {
 	setWet(initialwet);
 	setRoomSize(initialroom);
 	setDry(initialdry);
-	setDamp(initialdamp);
+	setDamping(initialdamp);
 	setWidth(initialwidth);
 
 	// Buffer will be full of rubbish - so we MUST mute them
