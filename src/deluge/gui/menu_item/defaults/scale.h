@@ -26,7 +26,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
 	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {presetScaleNames.begin(), presetScaleNames.begin() + NUM_PRESET_SCALES + 2};
 	}
 };

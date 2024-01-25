@@ -54,7 +54,7 @@ public:
 		return &gateModeMenu;
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto out1 = l10n::getView(STRING_FOR_GATE_OUTPUT_1);
 		static auto out2 = l10n::getView(STRING_FOR_GATE_OUTPUT_2);

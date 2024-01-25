@@ -33,7 +33,7 @@ public:
 		view.setKnobIndicatorLevels();
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_SUBTRACTIVE),
 		    l10n::getView(l10n::String::STRING_FOR_FM),

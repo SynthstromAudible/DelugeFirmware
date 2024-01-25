@@ -68,8 +68,8 @@ public:
 		}
 	}
 
-	std::vector<std::string_view> getOptions() override {
-		std::vector<std::string_view> sequenceDirectionOptions = {
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> sequenceDirectionOptions = {
 		    l10n::getView(l10n::String::STRING_FOR_FORWARD),
 		    l10n::getView(l10n::String::STRING_FOR_REVERSED),
 		    l10n::getView(l10n::String::STRING_FOR_PING_PONG),

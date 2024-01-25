@@ -45,8 +45,8 @@ void Setting::writeCurrentValue() {
 	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
 }
 
-std::vector<std::string_view> Setting::getOptions() {
-	std::vector<std::string_view> options;
+deluge::vector<std::string_view> Setting::getOptions() {
+	deluge::vector<std::string_view> options;
 	for (const RuntimeFeatureSettingOption& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 		options.push_back(option.displayName);
 	}
