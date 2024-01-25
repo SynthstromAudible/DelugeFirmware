@@ -114,7 +114,7 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
-	void gridRenderActionModes(int32_t y, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 

@@ -2846,7 +2846,7 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		break;
 	}
 	case 0: {
-		modeActive = (gridModeActive == SessionGridModePerformanceView);
+		modeActive = performanceSessionView.gridModeActive;
 		modeColour = colours::magenta; // Pink
 	}
 
