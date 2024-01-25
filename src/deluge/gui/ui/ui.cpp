@@ -63,6 +63,11 @@ int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
 UI* lastUIBeforeNullifying = nullptr;
 
+/**
+ * @brief Get the greyout rows and columns for the current UI
+ *
+ * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
+ */
 std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols() {
 	uint32_t cols = 0;
 	uint32_t rows = 0;
