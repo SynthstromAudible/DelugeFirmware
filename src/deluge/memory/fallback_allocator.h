@@ -34,7 +34,6 @@ public:
 		else {
 			abort();
 		}
-
 	}
 
 	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocExternal(p); }
