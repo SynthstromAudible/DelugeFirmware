@@ -2754,7 +2754,8 @@ int32_t Song::cycleThroughScales() {
 	if (numNotesInCurrentScale > numNotesInNewScale) {
 		// We are trying to pass from 7-note scale to 6-note scale, or 6-note scale to 5-note scale
 		// First we need to check if, among all the clips, there are only 6 or 5 notes being used from the scale
-		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list (Major scale)
+		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list (Major
+		// scale)
 
 		// All InstrumentClips in session and arranger
 		ClipArray* clipArray = &sessionClips;
