@@ -2761,7 +2761,7 @@ int32_t Song::cycleThroughScales() {
 traverseClips3:
 		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
-			if (clip->type != CLIP_TYPE_INSTRUMENT) {
+			if (clip->type != ClipType::INSTRUMENT) {
 				continue;
 			}
 			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
