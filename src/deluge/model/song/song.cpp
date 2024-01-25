@@ -3078,7 +3078,9 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				loopable->armState = ArmState::OFF;
+				if (loopable->launchStyle == LaunchStyle::DEFAULT) {
+					loopable->armState = ArmState::OFF;
+				}
 			}
 		}
 		return;
@@ -3093,7 +3095,9 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			clip->armState = ArmState::OFF;
+			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE) {
+				clip->armState = ArmState::OFF;
+			}
 		}
 	}
 
