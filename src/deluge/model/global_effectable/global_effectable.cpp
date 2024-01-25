@@ -137,7 +137,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
-		//Master Compressor
+		// Master Compressor
 		popupMsg.append("Comp Mode: ");
 		popupMsg.append(getCompressorModeDisplayName());
 
@@ -148,7 +148,7 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 			popupMsg.append(getCompressorParamDisplayName());
 		}
 		else {
-			//Reverb
+			// Reverb
 			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 		}
 

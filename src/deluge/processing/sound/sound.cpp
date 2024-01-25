@@ -3966,7 +3966,7 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 }
 
 void Sound::displaySidechainAndReverbSettings(bool on) {
-	//Sidechain
+	// Sidechain
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
 		insideWorldTickMagnitude =
@@ -3978,12 +3978,12 @@ void Sound::displaySidechainAndReverbSettings(bool on) {
 
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
-		//Sidechain
+		// Sidechain
 		popupMsg.append(getSidechainDisplayName(insideWorldTickMagnitude));
 
 		popupMsg.append("\n");
 
-		//Reverb
+		// Reverb
 		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
 		display->displayPopup(popupMsg.c_str());

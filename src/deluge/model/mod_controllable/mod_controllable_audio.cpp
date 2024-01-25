@@ -2335,20 +2335,20 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 		return "Triplet";
 	case SYNC_TYPE_DOTTED:
 		return "Dotted";
-	default: //SYNC_TYPE_EVEN
+	default: // SYNC_TYPE_EVEN
 		return "Even";
 	}
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
 	display->displayPopup(getDelaySyncLevelDisplayName());
 }
 
 char const* ModControllableAudio::getDelaySyncLevelDisplayName() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); //cycle from 1 to 9 (omit 0)
+	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
 	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 	return buffer.data();
