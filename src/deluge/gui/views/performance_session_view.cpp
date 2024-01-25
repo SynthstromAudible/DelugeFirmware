@@ -900,7 +900,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
-		//if
+		// if you're using grid song view and you pressed / released a pad in the grid mode launcher column
 		else if (gridModeActive && (xDisplay == (kDisplayWidth + 1))) {
 			if (yDisplay == 0) {
 				if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {

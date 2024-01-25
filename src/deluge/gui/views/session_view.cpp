@@ -2829,34 +2829,34 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-		// Action modes column
-		uint32_t actionModeColumnIndex = kDisplayWidth + 1;
-		bool modeExists = true;
-		bool modeActive = false;
-		RGB modeColour = colours::black;
-		switch (y) {
-		case 7: {
-			modeActive = (gridModeActive == SessionGridModeLaunch);
-			modeColour = colours::green; // Green
-			break;
-		}
-		case 6: {
-			modeActive = (gridModeActive == SessionGridModeEdit);
-			modeColour = colours::blue; // Blue
-			break;
-		}
-		case 0: {
-			modeActive = (gridModeActive == SessionGridModePerformanceView);
-			modeColour = colours::magenta; // Pink
-		}
+	// Action modes column
+	uint32_t actionModeColumnIndex = kDisplayWidth + 1;
+	bool modeExists = true;
+	bool modeActive = false;
+	RGB modeColour = colours::black;
+	switch (y) {
+	case 7: {
+		modeActive = (gridModeActive == SessionGridModeLaunch);
+		modeColour = colours::green; // Green
+		break;
+	}
+	case 6: {
+		modeActive = (gridModeActive == SessionGridModeEdit);
+		modeColour = colours::blue; // Blue
+		break;
+	}
+	case 0: {
+		modeActive = (gridModeActive == SessionGridModePerformanceView);
+		modeColour = colours::magenta; // Pink
+	}
 
-		default: {
-			modeExists = false;
-			break;
-		}
-		}
-		occupancyMask[y][actionModeColumnIndex] = (modeExists ? 1 : 0);
-		image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
+	default: {
+		modeExists = false;
+		break;
+	}
+	}
+	occupancyMask[y][actionModeColumnIndex] = (modeExists ? 1 : 0);
+	image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
 }
 
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
