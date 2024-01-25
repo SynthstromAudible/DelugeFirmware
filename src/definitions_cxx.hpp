@@ -1008,4 +1008,4 @@ enum class ClipType {
 	AUDIO,
 };
 
-enum class LaunchStyle { DEFAULT, FILL };
+enum class LaunchStyle { DEFAULT, FILL, ONCE };
