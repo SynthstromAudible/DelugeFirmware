@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
@@ -25,7 +25,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <string.h>
-//#include <algorithm>
+// #include <algorithm>
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -59,15 +59,16 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the maximum multiplication would be 4)
+	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
+	// maximum multiplication would be 4)
 	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
 
 	int32_t volumePostFX = volumeAdjustment;
 
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
-	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy that I need for AudioOutputs,
-	// and I now have to maintain both for backwards compatibility
+	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
+	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
 	if (outputType == OutputType::AUDIO) {
 		volumePostFX += multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397);
 	}
@@ -104,10 +105,10 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(compressorOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
 		    + 536870912;
-		postReverbVolume =
-		    (positivePatchedValue >> 15)
-		    * (positivePatchedValue
-		       >> 16); // This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND) returning 134217728
+		postReverbVolume = (positivePatchedValue >> 15)
+		                   * (positivePatchedValue
+		                      >> 16); // This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND)
+		                              // returning 134217728
 	}
 
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -130,7 +131,8 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 			goto doNormal;
 		}
 
-		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied out to the stereo song-level buffer
+		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied
+		// out to the stereo song-level buffer
 		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 			memset(globalEffectableBuffer, 0, sizeof(int32_t) * numSamples);
 			renderedLastTime = renderGlobalEffectableForClip(
@@ -247,8 +249,8 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 	return GlobalEffectable::modEncoderButtonAction(whichModEncoder, on, modelStack);
 }
 
-// We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does so via Instrument, so
-// we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip
+// We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does
+// so via Instrument, so we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip
 void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
                                                      ParamManager** paramManagerWithMostReverb,
                                                      GlobalEffectableForClip** globalEffectableWithMostReverb,

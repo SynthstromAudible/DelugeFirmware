@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
@@ -28,9 +28,10 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;
 	mode = ArpMode::OFF;
 
-	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
-	// Default sync level is used obviously for the default synth sound if no SD card inserted, but also some synth presets, possibly just older ones,
-	// are saved without this so it can be set to the default at the time of loading.
+	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
+	// current song, or even better the one being preloaded. Default sync level is used obviously for the default synth
+	// sound if no SD card inserted, but also some synth presets, possibly just older ones, are saved without this so it
+	// can be set to the default at the time of loading.
 	Song* song = preLoadedSong;
 	if (!song) {
 		song = currentSong;
@@ -121,7 +122,8 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 	arpNote.velocity = 0; // Means note is off
 }
 
-// May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from that provided here.
+// May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from
+// that provided here.
 void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
                          ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 
@@ -157,7 +159,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 	arpNote->velocity = velocity;
 	arpNote->outputMemberChannel =
-	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included in the survey that will happen of existing output member channels.
+	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
+	                       // doesn't get included in the survey that will happen of existing output member channels.
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote->mpeValues[m] = mpeValues[m];
@@ -165,7 +168,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 noteInserted:
 	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
-	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during editing. Kind of a hacky solution, but it works for now.
+	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during
+	                     // editing. Kind of a hacky solution, but it works for now.
 
 	// If we're an arpeggiator...
 	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
@@ -209,7 +213,8 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 				instruction->outputMIDIChannelOff = arpNote->outputMemberChannel;
 			}
 
-			// Or if yes arpeggiation, we'll only stop right now if that was the last note to switch off. Otherwise, it'll turn off soon with the arpeggiation.
+			// Or if yes arpeggiation, we'll only stop right now if that was the last note to switch off. Otherwise,
+			// it'll turn off soon with the arpeggiation.
 			else {
 				if (notes.getNumElements() == 1) {
 					if (whichNoteCurrentlyOnPostArp == n && gateCurrentlyActive) {
@@ -233,7 +238,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
-		//triggerable->noteOffPostArpeggiator(modelStack, noteCodeCurrentlyOnPostArp);
+		// triggerable->noteOffPostArpeggiator(modelStack, noteCodeCurrentlyOnPostArp);
 		instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
 		gateCurrentlyActive = false;
@@ -496,7 +501,8 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		}
 	}
 
-	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its name says.
+	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its
+	                         // name says.
 }
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
@@ -508,7 +514,8 @@ uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 		int32_t rightShiftAmount = 9 - syncLevel; // Will be max 0
 		phaseIncrement =
 		    playbackHandler
-		        .getTimePerInternalTickInverse(); //multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(), arpRate);
+		        .getTimePerInternalTickInverse(); // multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(),
+		                                          // arpRate);
 		phaseIncrement >>= rightShiftAmount;
 	}
 	return phaseIncrement;

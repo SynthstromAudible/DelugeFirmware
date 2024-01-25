@@ -340,7 +340,8 @@ static size_t _ftoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 		                width, flags);
 
 	// test for very large values
-	// standard printf behavior is to print EVERY whole number digit -- which could be 100s of characters overflowing your buffers == bad
+	// standard printf behavior is to print EVERY whole number digit -- which could be 100s of characters overflowing
+	// your buffers == bad
 	if ((value > PRINTF_MAX_FLOAT) || (value < -PRINTF_MAX_FLOAT)) {
 #if defined(PRINTF_SUPPORT_EXPONENTIAL)
 		return _etoa(out, buffer, idx, maxlen, value, prec, width, flags);
@@ -483,7 +484,8 @@ static size_t _etoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen, d
 	const double z = expval * 2.302585092994046 - exp2 * 0.6931471805599453;
 	const double z2 = z * z;
 	conv.U = (uint64_t)(exp2 + 1023) << 52U;
-	// compute exp(z) using continued fractions, see https://en.wikipedia.org/wiki/Exponential_function#Continued_fractions_for_ex
+	// compute exp(z) using continued fractions, see
+	// https://en.wikipedia.org/wiki/Exponential_function#Continued_fractions_for_ex
 	conv.F *= 1 + 2 * z / (2 - z + (z2 / (6 + (z2 / (10 + z2 / 14)))));
 	// correct for rounding errors
 	if (value < conv.F) {

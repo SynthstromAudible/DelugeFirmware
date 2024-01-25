@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"

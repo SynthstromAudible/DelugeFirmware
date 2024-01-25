@@ -142,9 +142,9 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
-					//midi follow and midi feedback enabled
-					//re-send midi cc's because learned parameter values may have changed
-					//only send updates when playback is active
+					// midi follow and midi feedback enabled
+					// re-send midi cc's because learned parameter values may have changed
+					// only send updates when playback is active
 					if (playbackHandler.isEitherClockActive()
 					    && (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED)) {
 						uint32_t sendRate = 0;
@@ -157,16 +157,16 @@ void UITimerManager::routine() {
 						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::HIGH) {
 							sendRate = kHighFeedbackAutomationRate;
 						}
-						//check time elapsed since previous automation update is greater than or equal to send rate
-						//if so, send another automation feedback message
+						// check time elapsed since previous automation update is greater than or equal to send rate
+						// if so, send another automation feedback message
 						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
 							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
 							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
 						}
 					}
-					//if automation feedback was previously sent and now playback is stopped,
-					//send one more update to sync controller with deluge's current values
-					//for automated params only
+					// if automation feedback was previously sent and now playback is stopped,
+					// send one more update to sync controller with deluge's current values
+					// for automated params only
 					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
 						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
 						midiFollow.timeAutomationFeedbackLastSent = 0;

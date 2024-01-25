@@ -74,23 +74,23 @@ bool NumericLayerScrollTransition::callBack() {
 		// TODO: make this work proper! Fails if scrolling left to a display with only the right-most character occupied
 
 		/*
-        if (allBlank) {
-            transitionProgress = -transitionDirection;
+		if (allBlank) {
+		    transitionProgress = -transitionDirection;
 
 
-            if (transitionDirection == 1) {
-                for (int8_t i = 0; i < kNumericDisplayLength - 1; i++) {
-                    if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
-                }
-            }
+		    if (transitionDirection == 1) {
+		        for (int8_t i = 0; i < kNumericDisplayLength - 1; i++) {
+		            if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
+		        }
+		    }
 
-            else {
-                for (int8_t i = kNumericDisplayLength - 1; i > 0; i--) {
-                    if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
-                }
-            }
-        }
-        */
+		    else {
+		        for (int8_t i = kNumericDisplayLength - 1; i > 0; i--) {
+		            if (segmentsTransitioningTo[i] == 0) transitionProgress += transitionDirection;
+		        }
+		    }
+		}
+		*/
 	}
 
 	// Remember to continue transition, if there's some left

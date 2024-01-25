@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/context_menu/context_menu.h"
 
@@ -45,8 +45,8 @@ bool ContextMenu::setupAndCheckAvailability() {
 // No need for this - parent "UI" does it for us.
 /*
 bool ContextMenu::opened() {
-	focusRegained();
-	return true;
+    focusRegained();
+    return true;
 }
 */
 

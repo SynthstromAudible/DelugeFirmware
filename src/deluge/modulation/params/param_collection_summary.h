@@ -58,5 +58,6 @@ public:
 	uint32_t whichParamsAreAutomated[kMaxNumUnsignedIntegerstoRepAllParams];
 	uint32_t whichParamsAreInterpolating[kMaxNumUnsignedIntegerstoRepAllParams];
 
-	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all* zero. This helps because if we know this, we can check for stuff faster.
+	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all*
+	// zero. This helps because if we know this, we can check for stuff faster.
 };

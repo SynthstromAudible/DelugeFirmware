@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : spibsc_flash_api.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   : SPI Flash Control
-*******************************************************************************/
+ * File Name     : spibsc_flash_api.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   : SPI Flash Control
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes <System Includes> , "Project Includes"
@@ -41,10 +41,10 @@ Includes <System Includes> , "Project Includes"
 #include "RZA1/spibsc/spibsc.h"
 #include "RZA1/system/r_typedefs.h"
 
-//#pragma arm section code   = "CODE_SPIBSC_INIT2"
-//#pragma arm section rodata = "CONST_SPIBSC_INIT2"
-//#pragma arm section rwdata = "DATA_SPIBSC_INIT2"
-//#pragma arm section zidata = "BSS_SPIBSC_INIT2"
+// #pragma arm section code   = "CODE_SPIBSC_INIT2"
+// #pragma arm section rodata = "CONST_SPIBSC_INIT2"
+// #pragma arm section rwdata = "DATA_SPIBSC_INIT2"
+// #pragma arm section zidata = "BSS_SPIBSC_INIT2"
 
 /******************************************************************************
 Typedef definitions
@@ -72,16 +72,16 @@ static int32_t read_data_single(
     uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode);
 
 /******************************************************************************
-* Function Name: R_SFLASH_EraseSector
-* Description  : Serial flash memory is sector erase
-* Arguments    : uint32_t addr  : erase address(address of serial flash memory)
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t  data_width
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_EraseSector
+ * Description  : Serial flash memory is sector erase
+ * Arguments    : uint32_t addr  : erase address(address of serial flash memory)
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t  data_width
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode)
 {
     int32_t ret;
@@ -146,22 +146,22 @@ int32_t R_SFLASH_EraseSector(uint32_t addr, uint32_t ch_no, uint32_t dual, uint8
 } /* End of function R_SFLASH_EraseSector() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_ByteProgram
-* Description  : Data of an argument is written on a serial flash memory.
-*                When 1 was designated by SPI_QUAD macro, the page program command
-*                corresponding to Quad is used.
-*                When 0 was designated by SPI_QUAD macro, The page program command
-*                corresponding to Single is used.
-* Arguments    : uint32_t addr : write address(address of serial flash memory)
-*                uint8_t *buf  : write data(Start address in a buffer)
-*                int32_t size  : The number of data byte
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint32_t data_width
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_ByteProgram
+ * Description  : Data of an argument is written on a serial flash memory.
+ *                When 1 was designated by SPI_QUAD macro, the page program command
+ *                corresponding to Quad is used.
+ *                When 0 was designated by SPI_QUAD macro, The page program command
+ *                corresponding to Single is used.
+ * Arguments    : uint32_t addr : write address(address of serial flash memory)
+ *                uint8_t *buf  : write data(Start address in a buffer)
+ *                int32_t size  : The number of data byte
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint32_t data_width
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_ByteProgram(
     uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode)
 {
@@ -340,21 +340,21 @@ int32_t R_SFLASH_ByteProgram(
 } /* End of function R_SFLASH_ByteProgram() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_ByteRead
-* Description  : The range of the serial flash memory designated by an argument
-*                is read and it's stocked in a buffer.
-*                When 1 was designated by SPI_QUAD macro, read command corresponding to Quad is used.
-*                When 0 was designated by SPI_QUAD macro, read command corresponding to Single is used.
-* Arguments    : uint32_t addr  : read address(address of serial flash memory)
-*                uint8_t *buf   : Start address in a buffer
-*                int32_t  size  : The number of data byte
-*                uint32_t ch_no : use channel No
-*                uint32_t dual  : dual mode
-*                uint32_t data_width
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_ByteRead
+ * Description  : The range of the serial flash memory designated by an argument
+ *                is read and it's stocked in a buffer.
+ *                When 1 was designated by SPI_QUAD macro, read command corresponding to Quad is used.
+ *                When 0 was designated by SPI_QUAD macro, read command corresponding to Single is used.
+ * Arguments    : uint32_t addr  : read address(address of serial flash memory)
+ *                uint8_t *buf   : Start address in a buffer
+ *                int32_t  size  : The number of data byte
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual  : dual mode
+ *                uint32_t data_width
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_ByteRead(
     uint32_t addr, uint8_t* buf, int32_t size, uint32_t ch_no, uint32_t dual, uint8_t data_width, uint8_t addr_mode)
 {
@@ -421,14 +421,14 @@ int32_t R_SFLASH_ByteRead(
 } /* End of function R_SFLASH_ByteRead() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_Spibsc_Transfer
-* Description  : Transmission setting of a SPI multi-I/O bus controller.
-* Arguments    : uint32_t ch_no : use channel No
-*                st_spibsc_spimd_reg_t *regset :
-*                The pointer to a structure for the transfer
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Spibsc_Transfer
+ * Description  : Transmission setting of a SPI multi-I/O bus controller.
+ * Arguments    : uint32_t ch_no : use channel No
+ *                st_spibsc_spimd_reg_t *regset :
+ *                The pointer to a structure for the transfer
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 {
     return spibsc_transfer(ch_no, regset);
@@ -436,17 +436,17 @@ int32_t R_SFLASH_Spibsc_Transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 } /* End of function R_SFLASH_Spibsc_Transfer() */
 
 /******************************************************************************
-* Function Name: R_SFLASH_Ctrl_Protect
-* Description  : Protection of a cereal flash memory is released or set.
-* Arguments    : en_sf_req_t req : 
-*                    SF_REQ_UNPROTECT -> clear all sector protection
-*                    SF_REQ_PROTECT   -> protect all sectors
-*                uint32_t ch_no : use channel No
-*                uint32_t dual
-*                uint8_t data_width
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: R_SFLASH_Ctrl_Protect
+ * Description  : Protection of a cereal flash memory is released or set.
+ * Arguments    : en_sf_req_t req :
+ *                    SF_REQ_UNPROTECT -> clear all sector protection
+ *                    SF_REQ_PROTECT   -> protect all sectors
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual
+ *                uint8_t data_width
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 int32_t R_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, uint8_t data_width)
 {
     return Userdef_SFLASH_Ctrl_Protect(req, ch_no, dual, data_width);
@@ -454,19 +454,19 @@ int32_t R_SFLASH_Ctrl_Protect(en_sf_req_t req, uint32_t ch_no, uint32_t dual, ui
 } /* End of function R_SFLASH_Ctrl_Protect() */
 
 /******************************************************************************
-* Function Name: read_data_quad
-* Description  : The range of the serial flash memory designated by an argument
-*                is read and it's stocked in a buffer.
-*                An operation mode is performed by a Quad mode.
-* Arguments    : uint32_t addr  : read address(address of serial flash memory)
-*                uint8_t *buf   : Start address in a buffer
-*                int32_t  unit  : data size
-*                uint32_t ch_no : use channel No
-*                uint32_t dual  : dual mode
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_data_quad
+ * Description  : The range of the serial flash memory designated by an argument
+ *                is read and it's stocked in a buffer.
+ *                An operation mode is performed by a Quad mode.
+ * Arguments    : uint32_t addr  : read address(address of serial flash memory)
+ *                uint8_t *buf   : Start address in a buffer
+ *                int32_t  unit  : data size
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual  : dual mode
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_data_quad(
     uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
 {
@@ -611,19 +611,19 @@ static int32_t read_data_quad(
 } /* End of function read_data_quad() */
 
 /******************************************************************************
-* Function Name: read_data_single
-* Description  : The range of the serial flash memory designated by an argument
-*                is read and it's stocked in a buffer.
-*                An operation mode is performed by a Single mode.
-* Arguments    : uint32_t addr  : read address(address of serial flash memory)
-*                uint8_t *buf   : Start address in a buffer
-*                int32_t  unit  : data size
-*                uint32_t ch_no : use channel No
-*                uint32_t dual  : dual mode
-*                uint8_t  addr_mode
-* Return Value :  0 : success
-*                -1 : error
-******************************************************************************/
+ * Function Name: read_data_single
+ * Description  : The range of the serial flash memory designated by an argument
+ *                is read and it's stocked in a buffer.
+ *                An operation mode is performed by a Single mode.
+ * Arguments    : uint32_t addr  : read address(address of serial flash memory)
+ *                uint8_t *buf   : Start address in a buffer
+ *                int32_t  unit  : data size
+ *                uint32_t ch_no : use channel No
+ *                uint32_t dual  : dual mode
+ *                uint8_t  addr_mode
+ * Return Value :  0 : success
+ *                -1 : error
+ ******************************************************************************/
 static int32_t read_data_single(
     uint32_t addr, uint8_t* buf, int32_t unit, uint32_t ch_no, uint32_t dual, uint8_t addr_mode)
 {

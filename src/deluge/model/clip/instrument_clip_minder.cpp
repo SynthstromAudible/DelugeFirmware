@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/clip/instrument_clip_minder.h"
 #include "definitions_cxx.hpp"
@@ -224,8 +224,8 @@ gotError:
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {
-		//newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
-		// This is how we feed a ParamManager into the replaceInstrument() function
+		// newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
+		//  This is how we feed a ParamManager into the replaceInstrument() function
 		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), NULL,
 		                                &newParamManager, true);
 		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
@@ -287,7 +287,7 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentOutputType() == OutputType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
 
-	//cross screen editing doesn't currently work in automation view, so don't light it up
+	// cross screen editing doesn't currently work in automation view, so don't light it up
 	if (getCurrentUI() != &automationClipView) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
 	}
@@ -402,11 +402,11 @@ yesLoadInstrument:
 
 			getCurrentInstrumentClip()->clear(action, modelStack);
 
-			//New community feature as part of Automation Clip View Implementation
-			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
-			//will only clear the Notes (automations remain intact).
-			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
-			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+			// New community feature as part of Automation Clip View Implementation
+			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
+			// a clip will only clear the Notes (automations remain intact). If this is enabled, if you want to clear
+			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
+			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 			    == RuntimeFeatureStateToggle::On) {

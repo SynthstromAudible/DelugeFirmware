@@ -137,12 +137,13 @@ int32_t uartFlush(int32_t item) {
 
 		int32_t numLeft = fullNum - num;
 
-		// If there are also some further bytes starting from the left of the circular buffer that we want to send as well, set that up to happen automatically
+		// If there are also some further bytes starting from the left of the circular buffer that we want to send as
+		// well, set that up to happen automatically
 		if (numLeft) {
 			DMACn(txDmaChannels[item]).N1TB_n = numLeft;
 			newConfig |=
-			    DMAC_CHCFG_0S_REN | DMAC_CHCFG_0S_RSW
-			    | DMAC_CHCFG_0S_DEM; // Set to switch to next "register" after first transaction, and also mask interrupt
+			    DMAC_CHCFG_0S_REN | DMAC_CHCFG_0S_RSW | DMAC_CHCFG_0S_DEM; // Set to switch to next "register" after
+			                                                               // first transaction, and also mask interrupt
 		}
 	}
 	DMACn(txDmaChannels[item]).CHCFG_n = newConfig | (txDmaChannels[item] & 7);
@@ -165,7 +166,8 @@ int32_t uartFlush(int32_t item) {
 void uartFlushIfNotSending(int32_t item) {
 
 	if (!uartItems[item].txSending) {
-		// There should be no way the DMA TX-complete interrupt could occur in this bit, cos we could only be here if it'd already completed and set txSending to 0...
+		// There should be no way the DMA TX-complete interrupt could occur in this bit, cos we could only be here if
+		// it'd already completed and set txSending to 0...
 		int32_t sentAny = uartFlush(item);
 
 		if (sentAny) {
@@ -175,11 +177,12 @@ void uartFlushIfNotSending(int32_t item) {
 		}
 	}
 
-	// Applies to MIDI only - if sending was already happening, take note that we want to send additional stuff as soon as that's done.
-	// For PIC, this always happens anyway
+	// Applies to MIDI only - if sending was already happening, take note that we want to send additional stuff as soon
+	// as that's done. For PIC, this always happens anyway
 	else {
 		// WARNING - it'd be a problem if the DMA TX-finished interrupt occurred right here...
-		// And when not using volatiles, we also could end up here if that interrupt occurred shortly before the if statement above at the start
+		// And when not using volatiles, we also could end up here if that interrupt occurred shortly before the if
+		// statement above at the start
 		uartItems[item].shouldDoConsecutiveTransferAfter = 1;
 	}
 }
@@ -281,7 +284,8 @@ void tx_interrupt(int32_t item) {
 	// If nothing sent...
 	uartItems[item].txSending = 0;
 
-	// Clear Transfer End Bit Status - but hey we actually don't need to do this to clear the interrupt - provided we're not going to be reading these flags later
+	// Clear Transfer End Bit Status - but hey we actually don't need to do this to clear the interrupt - provided we're
+	// not going to be reading these flags later
 	//*g_dma_reg_tbl[txDmaChannels[item]].chctrl |= (DMAC0_CHCTRL_n_CLREND | DMAC0_CHCTRL_n_CLRTC);
 }
 
