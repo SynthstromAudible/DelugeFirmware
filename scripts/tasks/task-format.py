@@ -13,6 +13,7 @@ from functools import partial
 
 EXEC_EXT = ".exe" if os.name == "nt" else ""
 
+DBT_VERSION = util.get_dbt_version()
 
 def excludes_from_file(ignore_file):
     excludes = []
@@ -42,8 +43,9 @@ def exclude(files, excludes):
 
 
 def get_clang_format_cmd():
-    git_path = util.get_git_root()
-    for path in git_path.rglob(f"clang-format{EXEC_EXT}"):
+    tool_path = util.get_git_root() / 'toolchain' / f'v{DBT_VERSION}'
+    for path in tool_path.rglob(f"clang-format{EXEC_EXT}"):
+        os.environ["PATH"] += os.pathsep + str(path.parent.absolute())
         return path
     # failed to find it in toolchains, falling back to path, then string
     return util.find_cmd_with_fallback("clang-format")

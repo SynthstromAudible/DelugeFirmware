@@ -29,6 +29,7 @@ Write-Host -NoNewline "Extracting Windows toolchain.."
 Add-Type -Assembly "System.IO.Compression.Filesystem"
 [System.IO.Compression.ZipFile]::ExtractToDirectory("$toolchain_zip_temp_path", "$download_dir")
 # Expand-Archive -LiteralPath "$toolchain_zip_temp_path" -DestinationPath "$download_dir"
+Write-VolumeCache "$toolchain_zip_temp_path"[0]
 
 Write-Host -NoNewline "moving.."
 Move-Item -LiteralPath "$toolchain_dist_temp_path" -Destination "$toolchain_target_path" -Force
