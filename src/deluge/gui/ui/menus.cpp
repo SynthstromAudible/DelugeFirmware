@@ -536,6 +536,7 @@ Submenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
+		&reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,
         &reverbWidthMenu,
