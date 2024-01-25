@@ -25,7 +25,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_SHORTCUTS_VERSION_1),

@@ -32,7 +32,7 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_FAST),
