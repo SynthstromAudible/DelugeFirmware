@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : sio_char.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   : Serial I/O character R/W (SCIF 2-ch process)
-*******************************************************************************/
+ * File Name     : sio_char.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   : Serial I/O character R/W (SCIF 2-ch process)
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -48,13 +48,14 @@ Includes   <System Includes> , "Project Includes"
 
 #include "deluge/drivers/uart/uart.h"
 
-char picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+uint8_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 char picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
-uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((aligned(
-    CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it - whether or not I also set its source data size to 16 bits
+uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((
+    aligned(CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it -
+                                // whether or not I also set its source data size to 16 bits
 
 char* const txBuffers[]        = {picTxBuffer, midiTxBuffer};
 const uint16_t txBufferSizes[] = {PIC_TX_BUFFER_SIZE, MIDI_TX_BUFFER_SIZE};
@@ -90,12 +91,13 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 
     /* Module standby clear */
     /* Supply clock to the SCIF(channel 2) */
-    // I've deactivated this because I think all clocks are switched on in stb.c, and we don't want just channel 2 anymore
+    // I've deactivated this because I think all clocks are switched on in stb.c, and we don't want just channel 2
+    // anymore
     /*
     rza_io_reg_write_8((uint8_t *)&CPG.STBCR4,
-    		          0,
-    		          CPG_STBCR4_MSTP45_SHIFT,
-    		          CPG_STBCR4_MSTP45);
+                      0,
+                      CPG_STBCR4_MSTP45_SHIFT,
+                      CPG_STBCR4_MSTP45);
 */
     /* Dummy read */
     dummy_buf = CPG.STBCR4;
@@ -147,13 +149,13 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
     uartSetBaudRate(channel, baudRate);
 
     /*
-	b10:b8 RSTRG - RTS output active trigger         : Initial value
-	b7:b6  RTRG  - Receive FIFO data trigger         : 1-data
-	b5:b4  TTRG  - Transmit FIFO data trigger        : 0-data
-	b3     MCE   - Modem control enable              : Disabled
-	b2     TFRST - Transmit FIFO data register reset : Disabled
-	b1     RFRST - Receive FIFO data register reset  : Disabled
-	b0     LOOP  - Loop-back test                    : Disabled */
+    b10:b8 RSTRG - RTS output active trigger         : Initial value
+    b7:b6  RTRG  - Receive FIFO data trigger         : 1-data
+    b5:b4  TTRG  - Transmit FIFO data trigger        : 0-data
+    b3     MCE   - Modem control enable              : Disabled
+    b2     TFRST - Transmit FIFO data register reset : Disabled
+    b1     RFRST - Receive FIFO data register reset  : Disabled
+    b0     LOOP  - Loop-back test                    : Disabled */
     SCIFA(channel).SCFCR = 0x0030u; // TX trigger 0; RX trigger 1
     SCIFA(channel).SCFCR = 0;       // TX trigger 8; RX trigger 1
 

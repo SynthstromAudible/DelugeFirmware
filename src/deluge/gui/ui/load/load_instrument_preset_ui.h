@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -32,7 +32,7 @@ class LoadInstrumentPresetUI final : public LoadUI {
 public:
 	LoadInstrumentPresetUI();
 	bool opened();
-	//void selectEncoderAction(int8_t offset);
+	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
@@ -41,12 +41,12 @@ public:
 	int32_t performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
@@ -59,7 +59,7 @@ public:
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
 
-	//these are all necessary to setup a sound drum
+	// these are all necessary to setup a sound drum
 	bool loadingSynthToKitRow;
 	SoundDrum* soundDrumToReplace;
 	Kit* kitToLoadFor;

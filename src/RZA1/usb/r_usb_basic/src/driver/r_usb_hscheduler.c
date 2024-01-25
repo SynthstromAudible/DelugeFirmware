@@ -64,8 +64,8 @@ static usb_utr_t usb_scheduler_block[USB_BLKMAX];
 static uint8_t usb_scheduler_blk_flg[USB_BLKMAX];
 
 usb_msg_t* p_usb_scheduler_add_use; // This seems to be the pointer to the actual message that's been scheduled.
-uint8_t
-    usb_scheduler_id_use; // Ok, this is the ID (e.g. USB_HCD_MBX) of what message the scheduler has decided we should use.
+uint8_t usb_scheduler_id_use; // Ok, this is the ID (e.g. USB_HCD_MBX) of what message the scheduler has decided we
+                              // should use.
 
 /* Wait MSG */
 static usb_msg_t* p_usb_scheduler_wait_add[USB_IDMAX][USB_WAIT_EVENT_MAX];
@@ -343,13 +343,13 @@ void usb_cstd_scheduler(void)
     uint8_t usb_read; /* Priority Table read pointer */
 
     /* wait msg */
-    usb_cstd_wait_scheduler(); // I think this is some horribly inefficient way of delaying messages that are meant to have a delay time. Rohan
+    usb_cstd_wait_scheduler(); // I think this is some horribly inefficient way of delaying messages that are meant to
+                               // have a delay time. Rohan
 
     /* Priority Table reading */
     usb_pri = USB_CNTCLR;
-    while (
-        usb_pri
-        < USB_PRIMAX) // I think this is cycling through all the priorities, from highest priority, til we find a message to action.
+    while (usb_pri < USB_PRIMAX) // I think this is cycling through all the priorities, from highest priority, til we
+                                 // find a message to action.
     {
         // If there are any un-dealt-with messages at this priority level...
         usb_read = usb_scheduler_pri_r[usb_pri];

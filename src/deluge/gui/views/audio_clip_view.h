@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -28,9 +28,9 @@ public:
 
 	bool opened();
 	void focusRegained();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool setupScroll(uint32_t oldScroll);
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();

@@ -72,9 +72,10 @@ uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t* table)
         case USB_WRITESHRT:
 
             /* Enable not ready interrupt */
-            //usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             /* Set PID=BUF */
             usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
@@ -90,9 +91,10 @@ uint16_t usb_pstd_ctrl_read(uint32_t bsize, uint8_t* table)
             hw_usb_set_bempenb(USB_NULL, (uint16_t)USB_PIPE0);
 
             /* Enable not ready interrupt */
-            //usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
-            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+            // usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
+            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+            //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver
+            //  (in 2019).
 
             /* Set PID=BUF */
             usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);
@@ -133,9 +135,9 @@ void usb_pstd_ctrl_write(uint32_t bsize, uint8_t* table)
     hw_usb_set_brdyenb(USB_NULL, (uint16_t)USB_PIPE0);
 
     /* Enable not ready interrupt */
-    //usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
-    // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-    // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+    // usb_cstd_nrdy_enable(USB_NULL, (uint16_t)USB_PIPE0);
+    //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing
+    //  freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
     /* Set PID=BUF */
     usb_cstd_set_buf(USB_NULL, (uint16_t)USB_PIPE0);

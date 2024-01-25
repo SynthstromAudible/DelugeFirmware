@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -23,7 +23,7 @@
 #include "dsp/filter/ladder_components.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
 
 class Sound;
@@ -40,10 +40,10 @@ public:
 
 	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
 
-	//expects to receive an interleaved stereo stream
+	// expects to receive an interleaved stereo stream
 	void renderLongStereo(q31_t* startSample, q31_t* endSample);
 
-	//used to check whether the filter is used at all
+	// used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
 	inline bool isHPFOn() { return HPFOn; }
 	inline bool isOn() { return HPFOn || LPFOn; }

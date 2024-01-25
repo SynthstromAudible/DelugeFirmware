@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
@@ -32,6 +32,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -96,7 +97,7 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
-	//leave stutter running in perfomance session view
+	// leave stutter running in perfomance session view
 	if (getRootUI() != &performanceSessionView) {
 		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 		endStutter(paramManager);
@@ -275,8 +276,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				//if we're in full move/editingComp then we cycle through the comp params
-				//otherwise cycle reverb sizes
+				// if we're in full move/editingComp then we cycle through the comp params
+				// otherwise cycle reverb sizes
 				if (!editingComp) {
 					view.cycleThroughReverbPresets();
 				}
@@ -305,8 +306,8 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 	int current = 0;
 	if (*getModKnobMode() == 4) {
 
-		//this is only reachable in comp editing mode, otherwise it's an existent param
-		if (whichModEncoder == 1) { //sidechain (threshold)
+		// this is only reachable in comp editing mode, otherwise it's an existent param
+		if (whichModEncoder == 1) { // sidechain (threshold)
 			current = (AudioEngine::mastercompressor.getThreshold() >> 24);
 		}
 		else if (whichModEncoder == 0) {
@@ -342,8 +343,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		int current;
 		int displayLevel;
 		int ledLevel;
-		//this is only reachable in comp editing mode, otherwise it's an existent param
-		if (whichModEncoder == 1) { //sidechain (threshold)
+		// this is only reachable in comp editing mode, otherwise it's an existent param
+		if (whichModEncoder == 1) { // sidechain (threshold)
 			current = (AudioEngine::mastercompressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
@@ -358,7 +359,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			case CompParam::RATIO:
 				current = (AudioEngine::mastercompressor.getRatio() >> 24) - 64;
 				current += offset;
-				//this range is ratio of 2 to 20
+				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
@@ -432,7 +433,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 			else {
 				return params::UNPATCHED_HPF_RES;
 			}
-		default: //case FilterType::EQ:
+		default: // case FilterType::EQ:
 			if (whichModEncoder != 0) {
 				return params::UNPATCHED_TREBLE;
 			}
@@ -553,7 +554,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) != -2147483648;
 
-	//no morph for global effectable
+	// no morph for global effectable
 	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
 	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
 }
@@ -758,9 +759,10 @@ int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTi
                                           int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
-	//if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
+	// if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager,
+	// readAutomation)) {}
 
-	//else
+	// else
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
@@ -797,7 +799,8 @@ int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTi
 	return NO_ERROR;
 }
 
-// Before calling this, check that (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && !paramManager->resonanceBackwardsCompatibilityProcessed)
+// Before calling this, check that (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
+// !paramManager->resonanceBackwardsCompatibilityProcessed)
 void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* paramManager) {
 
 	paramManager->resonanceBackwardsCompatibilityProcessed = true;
@@ -849,7 +852,8 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delayWorkingState->userDelayRate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
-	delay.setupWorkingState(delayWorkingState, soundComingIn);
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
+	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
@@ -870,8 +874,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 
 	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 
-	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange, but
-	// it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
+	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange,
+	// but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {

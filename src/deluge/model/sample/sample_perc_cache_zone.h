@@ -25,12 +25,12 @@ public:
 	void resetEndPos(int32_t newEndPos);
 
 	int32_t startPos;
-	int32_t
-	    endPos; // This can and will go to -1 when playing reversed and the "end" is reached, because endPos gets set to the sample-number *after* the last one.
+	int32_t endPos; // This can and will go to -1 when playing reversed and the "end" is reached, because endPos gets
+	                // set to the sample-number *after* the last one.
 
-	int32_t
-	    samplesAtStartWhichShouldBeReplaced; // Number of samples at the start of this zone which can be regarded as "suss", and we'll wanna overwrite
-	                                         // all of those if another zone is gonna connect from behind
+	int32_t samplesAtStartWhichShouldBeReplaced; // Number of samples at the start of this zone which can be regarded as
+	                                             // "suss", and we'll wanna overwrite all of those if another zone is
+	                                             // gonna connect from behind
 
 	int32_t lastAngle;
 	int32_t lastSampleRead;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
 #include "processing/live/live_input_buffer.h"
@@ -41,7 +41,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 	int32_t* outputBufferEnd = outputBuffer + numSamples * numChannels;
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	if (mode == PLAY_HEAD_MODE_REPITCHED_BUFFER) {
+	if (mode == PlayHeadMode::REPITCHED_BUFFER) {
 		do {
 			amplitude += amplitudeIncrement;
 
@@ -61,7 +61,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 	else
 #endif
-	    if (mode == PLAY_HEAD_MODE_RAW_REPITCHING) {
+	    if (mode == PlayHeadMode::RAW_REPITCHING) {
 		do {
 
 			oscPos += phaseIncrement;
@@ -69,12 +69,14 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 			if (numSamplesToJumpForward) {
 				oscPos &= 16777215;
 
-				// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+				// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before
+				// we're jumping forward to, to grab its value
 				if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
 					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - kInterpolationMaxNumSamples))
 					                   & (kInputRawBufferSize - 1);
 					numSamplesToJumpForward =
-					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do some optimization and speed things up. Re-test?
+					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do
+					                                 // some optimization and speed things up. Re-test?
 				}
 
 				for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
@@ -134,19 +136,19 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 	}
 }
 
-// Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself moving forward) and runs out of audio
-// Only valid if phaseIncrement > 16777216
+// Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself
+// moving forward) and runs out of audio Only valid if phaseIncrement > 16777216
 int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos,
                                                                 LiveInputBuffer* liveInputBuffer,
                                                                 int32_t phaseIncrement) {
 	uint32_t howFarBack;
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	if (mode == PLAY_HEAD_MODE_REPITCHED_BUFFER) {
+	if (mode == PlayHeadMode::REPITCHED_BUFFER) {
 		howFarBack = (uint32_t)(repitchedBufferWritePos - repitchedBufferReadPos) & (INPUT_REPITCHED_BUFFER_SIZE - 1);
 	}
 	else
 #endif
-	    if (mode == PLAY_HEAD_MODE_RAW_REPITCHING) {
+	    if (mode == PlayHeadMode::RAW_REPITCHING) {
 		uint32_t howFarBackRaw =
 		    (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (kInputRawBufferSize - 1);
 		howFarBack = ((uint64_t)howFarBackRaw << 24) / (uint32_t)phaseIncrement;
@@ -168,14 +170,14 @@ int32_t LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* l
                                                               LivePitchShifter* livePitchShifter,
                                                               int32_t phaseIncrement) {
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	if (mode == PLAY_HEAD_MODE_REPITCHED_BUFFER) {
+	if (mode == PlayHeadMode::REPITCHED_BUFFER) {
 		uint32_t howFarBackRepitched = (uint32_t)(livePitchShifter->repitchedBufferWritePos - repitchedBufferReadPos)
 		                               & (INPUT_REPITCHED_BUFFER_SIZE - 1);
 		return ((uint64_t)howFarBackRepitched * phaseIncrement) >> 24;
 	}
 	else
 #endif
-	    if (mode == PLAY_HEAD_MODE_RAW_REPITCHING) {
+	    if (mode == PlayHeadMode::RAW_REPITCHING) {
 		return (uint32_t)(liveInputBuffer->numRawSamplesProcessed - rawBufferReadPos) & (kInputRawBufferSize - 1);
 	}
 

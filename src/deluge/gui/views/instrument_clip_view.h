@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -91,14 +91,14 @@ public:
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
-	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
+	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 
-	void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]);
 	void flashDefaultRootNote();
 	void selectEncoderAction(int8_t offset);
 	void doubleClipLengthAction();
@@ -116,12 +116,12 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun();
 	void openedInBackground();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void playbackEnded();
@@ -137,7 +137,7 @@ public:
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 	void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
 
-	//made these public so they can be accessed by the automation clip view
+	// made these public so they can be accessed by the automation clip view
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
@@ -153,7 +153,7 @@ public:
 	void endEditPadPress(uint8_t i);
 	void copyAutomation(int32_t whichModEncoder);
 	void pasteAutomation(int32_t whichModEncoder);
-	//made these public so they can be accessed by the automation clip view
+	// made these public so they can be accessed by the automation clip view
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
@@ -172,7 +172,7 @@ public:
 	int16_t mpeMostRecentPressure;
 	uint32_t mpeRecordLastUpdateTime;
 
-	//made these public so they can be accessed by the automation clip view
+	// made these public so they can be accessed by the automation clip view
 	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
@@ -181,16 +181,18 @@ public:
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
 	uint32_t timeFirstEditPadPress;
-	// Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
+	// Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they
+	// rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
 	uint32_t timeHorizontalKnobLastReleased;
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	//made these public so they can be accessed by the automation clip view
+	// made these public so they can be accessed by the automation clip view
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
-	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
+	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
+	// that shortcut into the SoundEditor!
 	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 
 	uint8_t flashScaleModeLedErrorCount;
@@ -202,9 +204,9 @@ private:
 
 	int32_t quantizeAmount;
 
-	uint8_t rowColour[kDisplayHeight][3];
-	uint8_t rowTailColour[kDisplayHeight][3];
-	uint8_t rowBlurColour[kDisplayHeight][3];
+	std::array<RGB, kDisplayHeight> rowColour;
+	std::array<RGB, kDisplayHeight> rowTailColour;
+	std::array<RGB, kDisplayHeight> rowBlurColour;
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);

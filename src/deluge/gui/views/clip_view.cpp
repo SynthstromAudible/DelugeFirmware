@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/clip_view.h"
 #include "definitions_cxx.hpp"
@@ -52,7 +52,8 @@ void ClipView::focusRegained() {
 ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
+	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
+	// accessible
 	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
 
 #ifdef BUTTON_SEQUENCE_DIRECTION_X
@@ -82,7 +83,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// If the last action was a shorten, undo it
 	bool undoing = (actionLogger.firstAction[BEFORE] && actionLogger.firstAction[BEFORE]->openForAdditions
-	                && actionLogger.firstAction[BEFORE]->type == ACTION_CLIP_LENGTH_DECREASE
+	                && actionLogger.firstAction[BEFORE]->type == ActionType::CLIP_LENGTH_DECREASE
 	                && actionLogger.firstAction[BEFORE]->currentClip == getCurrentClip());
 
 	if (undoing) {
@@ -92,14 +93,15 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		allowResyncingDuringClipLengthChange = true;
 	}
 
-	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
+	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback
+	// active
 	if (getCurrentClip()->loopLength != newLength) {
-		int32_t actionType =
-		    (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
+		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
 
-		action = actionLogger.getNewAction(actionType, true);
+		action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 		if (action && action->currentClip != getCurrentClip()) {
-			action = actionLogger.getNewAction(actionType, false);
+			action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 		}
 
 		currentSong->setClipLength(getCurrentClip(), newLength, action);
@@ -123,9 +125,9 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 	Action* action = NULL;
 
-	action = actionLogger.getNewAction(ACTION_CLIP_LENGTH_DECREASE, true);
+	action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED);
 	if (action && action->currentClip != getCurrentClip()) {
-		action = actionLogger.getNewAction(ACTION_CLIP_LENGTH_DECREASE, false);
+		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::NOT_ALLOWED);
 	}
 
 	currentSong->setClipLength(
@@ -202,7 +204,7 @@ doReRender:
 				if (!scrollLeftIfTooFarRight(newLength)) {
 					// If this zoom level no longer valid...
 					if (zoomToMax(true)) {
-						//editor.displayZoomLevel(true);
+						// editor.displayZoomLevel(true);
 					}
 					else {
 						goto doReRender;
@@ -242,25 +244,26 @@ doReRender:
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
 		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ACTION_CLIP_HORIZONTAL_SHIFT && action->openForAdditions
+		if (action && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
 		    && action->currentClip == clip) {
 
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the code just below.
-			// Or possibly because the Action was created but there wasn't enough RAM to create the Consequence. Anyway, just go add a consequence now.
+			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the
+			// code just below. Or possibly because the Action was created but there wasn't enough RAM to create the
+			// Consequence. Anyway, just go add a consequence now.
 			if (!action->firstConsequence)
 				goto addConsequenceToAction;
 
 			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
 			consequence->amount += shiftAmount;
 
-			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because everything would be back the same -
-			// but no! Remember different NoteRows might have different lengths.
+			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because
+			// everything would be back the same - but no! Remember different NoteRows might have different lengths.
 		}
 
 		// Or if no previous Action, go create a new one now.
 		else {
 
-			action = actionLogger.getNewAction(ACTION_CLIP_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
+			action = actionLogger.getNewAction(ActionType::CLIP_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
 				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipHorizontalShift));

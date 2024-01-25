@@ -132,7 +132,8 @@ sdError:
 
 	char const* searchFilename;
 
-	// If currentPath is blank, or is somewhere outside of the SAMPLES folder, then default to previously manually loaded sample
+	// If currentPath is blank, or is somewhere outside of the SAMPLES folder, then default to previously manually
+	// loaded sample
 	if (currentPath.isEmpty() || memcasecmp(currentPath.get(), "SAMPLES/", 8)) {
 		currentPath.set(&lastFilePathLoaded);
 
@@ -175,7 +176,7 @@ dissectionDone:
 	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
+	// soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -190,7 +191,7 @@ void SampleBrowser::possiblySetUpBlinking() {
 
 	if (!qwertyVisible && !currentlyShowingSamplePreview) {
 		int32_t x = 0;
-		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			x = soundEditor.currentSourceIndex;
 		}
 		soundEditor.setupExclusiveShortcutBlink(x, 5);
@@ -198,7 +199,7 @@ void SampleBrowser::possiblySetUpBlinking() {
 }
 
 void SampleBrowser::focusRegained() {
-	//displayCurrentFilename();
+	// displayCurrentFilename();
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
 }
 
@@ -286,7 +287,7 @@ ActionResult SampleBrowser::timerCallback() {
 			gui::ContextMenu* contextMenu;
 
 			// AudioClip
-			if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+			if (getCurrentClip()->type == ClipType::AUDIO) {
 				display->displayPopup(
 				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
 			}
@@ -375,8 +376,9 @@ void SampleBrowser::enterKeyPress() {
 		// If user wants to slice...
 		if (Buttons::isShiftButtonPressed()) {
 
-			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
+			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which
+			// is assigned to the first NoteRow
+			if (getCurrentClip()->type == ClipType::INSTRUMENT && canImportWholeKit()) {
 				display->displayPopup("SLICER");
 				openUI(&slicer);
 			}
@@ -454,7 +456,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	// Record button
 	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
-	         && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+	         && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -524,9 +526,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	/*
 	// Was this in case they've already turned the knob further?
-	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-		D_PRINTLN("returned 1");
-		return;
+	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
+	numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 1"); return;
 	}
 	*/
 
@@ -567,9 +568,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
 		/*
-		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-			D_PRINTLN("returned 2");
-			return;
+		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
+		numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 2"); return;
 		}
 		*/
 
@@ -601,7 +601,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				// Or if want instant snap render
 				else {
 					if (qwertyVisible) {
-						//drawKeysOverWaveform();
+						// drawKeysOverWaveform();
 						PadLEDs::clearMainPadsWithoutSending();
 						drawKeys();
 					}
@@ -724,7 +724,7 @@ void SampleBrowser::drawKeysOverWaveform() {
 	// Do manual greyout on all main pads
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			greyColourOut(PadLEDs::image[y][x], PadLEDs::image[y][x], 6500000);
+			PadLEDs::image[y][x] = PadLEDs::image[y][x].greyOut(6500000);
 		}
 	}
 
@@ -770,7 +770,7 @@ int32_t SampleBrowser::claimAudioFileForAudioClip() {
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
 bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
 			return false;
@@ -782,7 +782,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 	int32_t error;
 
 	// If for AudioClip...
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 
 		error = claimAudioFileForAudioClip();
 		if (error) {
@@ -835,11 +835,11 @@ doLoadAsWaveTable:
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OscType::SAMPLE) {
+			        && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
+			    if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
 #endif
-				goto doLoadAsSample;
+			    goto doLoadAsSample;
 			}
 			*/
 			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
@@ -850,7 +850,8 @@ doLoadAsWaveTable:
 				if (error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE
 				    || error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
 
-					// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them no.
+					// If that was what the user really specified they wanted, and we couldn't do it, then we have to
+					// tell them no.
 					if (mayDoWaveTable == 2 || numTypesTried > 1
 					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
@@ -897,11 +898,11 @@ doLoadAsSample:
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OscType::WAVETABLE) {
+			        && soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
+			    if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
 #endif
-				goto doLoadAsWaveTable;
+			    goto doLoadAsWaveTable;
 			}
 			*/
 
@@ -914,7 +915,8 @@ doLoadAsSample:
 
 			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
 
-			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that instead.
+			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
+			// instead.
 			if (mayDoWaveTable && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
@@ -931,12 +933,13 @@ doLoadAsSample:
 				    && sample->lengthInSamples >= kWavetableMinCycleSize
 				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
-					makeWaveTableWorkAtAllCosts =
-					    true; // So that the loading functions don't just chicken out when it doesn't look all that wavetabley.
+					makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when it
+					                                    // doesn't look all that wavetabley.
 					goto doLoadAsWaveTable;
 				}
 
-				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty rare.)
+				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
+				// rare.)
 				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 				doingSingleCycleNow = true;
 			}
@@ -951,7 +954,8 @@ doLoadAsSample:
 				// If source file had loop points set...
 				if (sample->fileLoopEndSamples) {
 
-					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE.
+					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
+					// long, we can do a ONCE.
 					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
 						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
@@ -1079,12 +1083,15 @@ void SampleBrowser::audioFileIsNowSet() {
 	ModelStackWithAutoParam* modelStackWithParam =
 	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
-	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current ParamManager... there could be other ones...
+	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
+	// ParamManager... there could be other ones...
 	if (!modelStackWithParam->autoParam->containsSomething(-2147483648)) {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
+		// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
+		// getCurrentClip(), false);
 	}
 }
 
@@ -1258,7 +1265,8 @@ removeReasonsFromSamplesAndGetOut:
 		// This is a usable audio file
 
 		// Keep investigating if there's a common prefix to all files in this folder.
-		// currentFilename will be set to the name of the first file in the folder, or another one we looked at more recently
+		// currentFilename will be set to the name of the first file in the folder, or another one we looked at more
+		// recently
 		if (numSamples > 0) {
 
 			for (int32_t i = 0; i < numCharsInPrefixForFolderLoad; i++) {
@@ -1377,8 +1385,8 @@ removeReasonsFromSamplesAndGetOut:
 			goto allSorted; // If that's all fine, we're done
 		}
 
-		// If the Samples are in precisely the wrong order, something's happened like we've been interpretting a dash (-) in the filenames as a minus sign.
-		// Just reverse the order.
+		// If the Samples are in precisely the wrong order, something's happened like we've been interpretting a dash
+		// (-) in the filenames as a minus sign. Just reverse the order.
 		if (badnessRatingFromC == numSamples - 1) {
 			for (int32_t s = 0; s < (numSamples >> 1); s++) {
 				Sample* temp = sortAreas[readArea][s];
@@ -1397,18 +1405,18 @@ removeReasonsFromSamplesAndGetOut:
 		// If from A was actually worse than C, go back
 		if (badnessRatingFromA >= badnessRatingFromC) {
 
-			// But if C is actually bad enough, we might conclude that the filenames are irrelevant
-			if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
+		    // But if C is actually bad enough, we might conclude that the filenames are irrelevant
+		    if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
 
-			D_PRINTLN("going back to ordering from C");
-			sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
+		    D_PRINTLN("going back to ordering from C");
+		    sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 		}
 
 		// Or if A is better...
 		else {
 
-			// But if A is still actually bad enough, we might conclude that the filenames are irrelevant
-			if ((badnessRatingFromA * 3) > numSamples) goto justSortByPitch;
+		    // But if A is still actually bad enough, we might conclude that the filenames are irrelevant
+		    if ((badnessRatingFromA * 3) > numSamples) goto justSortByPitch;
 		}
 		*/
 
@@ -1500,8 +1508,9 @@ removeReasonsFromSamplesAndGetOut:
 
 		prevNote = MIDI_NOTE_ERROR;
 
-		// Ok, we've now marked a bunch of samples as having the incorrect pitch, which we know because it doesn't match the filename order.
-		// So go through and correct them, now that we've got a better idea of the range they should fit in.
+		// Ok, we've now marked a bunch of samples as having the incorrect pitch, which we know because it doesn't match
+		// the filename order. So go through and correct them, now that we've got a better idea of the range they should
+		// fit in.
 		for (int32_t s = 0; s < numSamples; s++) {
 			Sample* thisSample = sortAreas[readArea][s];
 
@@ -1538,8 +1547,8 @@ removeReasonsFromSamplesAndGetOut:
 				maxFreqHz = powf(2, ((nextNote + NOTE_CHECK_ERROR_MARGIN) - 69) / 12) * 440;
 			}
 
-			// If maxFreqHz is too low, it's likely no use to us, and the whole mission's probably messed up, so just call this one an error.
-			// Hopefully I can improve this one day. See Michael B's Mellotron samples
+			// If maxFreqHz is too low, it's likely no use to us, and the whole mission's probably messed up, so just
+			// call this one an error. Hopefully I can improve this one day. See Michael B's Mellotron samples
 			if (maxFreqHz < minFreqHz) {
 				thisSample->midiNote = MIDI_NOTE_ERROR;
 				continue;
@@ -1549,9 +1558,9 @@ removeReasonsFromSamplesAndGetOut:
 
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
-			// If didn't work, see if we can pretend we're looking for 1 octave higher, where there'd probably be a harmonic too.
-			// This can help if the fundamental isn't visible - it worked on Leo's piano samples before I realised that
-			// those harmonics had just been deleted by my aggressive use of a threshold
+			// If didn't work, see if we can pretend we're looking for 1 octave higher, where there'd probably be a
+			// harmonic too. This can help if the fundamental isn't visible - it worked on Leo's piano samples before I
+			// realised that those harmonics had just been deleted by my aggressive use of a threshold
 			if (thisSample->midiNote == MIDI_NOTE_ERROR) {
 				minFreqHz *= 2;
 				maxFreqHz *= 2;
@@ -1624,7 +1633,8 @@ doReturnFalse:
 		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
 
-	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory it's going to use
+	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
+	// it's going to use
 	if (numSamples > 1) {
 		soundEditor.currentSound->unassignAllVoices();
 		AudioEngine::audioRoutineLocked = true;
@@ -1668,7 +1678,8 @@ doReturnFalse:
 				}
 			}
 			else {
-				// If there are other intervals of more than a semitone, we can't really take it for granted what's going on, so get out
+				// If there are other intervals of more than a semitone, we can't really take it for granted what's
+				// going on, so get out
 				if (noteHere >= prevNote + 1.85) {
 					D_PRINTLN("aaa");
 					uartPrintlnFloat(noteHere - prevNote);
@@ -1699,8 +1710,9 @@ doReturnFalse:
 
 skipOctaveCorrection:
 
-	int32_t rangeIndex =
-	    0; // Keep this different to the sample index, just in case we need to skip a sample because it has the same pitch as a previous one. Skipping a range would leave our rangeArray with unused space allocated, but that's ok
+	int32_t rangeIndex = 0; // Keep this different to the sample index, just in case we need to skip a sample because it
+	                        // has the same pitch as a previous one. Skipping a range would leave our rangeArray with
+	                        // unused space allocated, but that's ok
 
 	int32_t lastTopNote = MIDI_NOTE_ERROR;
 
@@ -1803,7 +1815,8 @@ skipOctaveCorrection:
 	// If source files had loop points set...
 	if (numWithFileLoopPoints * 2 >= numSamples) {
 
-		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE
+		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do
+		// a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
 			soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 		}
@@ -1889,7 +1902,9 @@ getOut:
 				if (!modelStackWithParam->autoParam->isAutomated()) {
 					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
 					                                                                          2147483647);
-					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, getCurrentClip(), false);
+					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME
+					//+ soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong,
+					// getCurrentClip(), false);
 				}
 
 				drum->unassignAllVoices();
@@ -2028,17 +2043,17 @@ doNormal:
 		// TODO: I don't think we want this anymore...
 		/*
 		else {
-			if (scrollingText && display->isLayerCurrentlyOnTop(scrollingText)) {
-				uiTimerManager.unsetTimer(TIMER_DISPLAY);
-				scrollingText->currentPos += offset;
+		    if (scrollingText && display->isLayerCurrentlyOnTop(scrollingText)) {
+		        uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		        scrollingText->currentPos += offset;
 
-				int32_t maxScroll = scrollingText->length - kNumericDisplayLength;
+		        int32_t maxScroll = scrollingText->length - kNumericDisplayLength;
 
-				if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
-				if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
+		        if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
+		        if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
 
-				display->render();
-			}
+		        display->render();
+		    }
 		}
 		*/
 
@@ -2065,7 +2080,7 @@ bool SampleBrowser::canSeeViewUnderneath() {
 	return !currentlyShowingSamplePreview && !qwertyVisible;
 }
 
-bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleBrowser::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	return (qwertyVisible || currentlyShowingSamplePreview);

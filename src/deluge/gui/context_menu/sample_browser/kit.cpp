@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/context_menu/sample_browser/kit.h"
 #include "definitions_cxx.hpp"

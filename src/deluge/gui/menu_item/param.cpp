@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "param.h"
 #include "definitions_cxx.hpp"
@@ -36,7 +36,7 @@ MenuItem* Param::selectButtonPress() {
 	}
 
 	// If shift button pressed, delete automation
-	Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);

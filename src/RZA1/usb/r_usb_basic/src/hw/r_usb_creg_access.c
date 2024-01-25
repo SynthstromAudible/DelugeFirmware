@@ -411,7 +411,7 @@ void hw_usb_rmw_dvstctr(usb_utr_t* ptr, uint16_t port, uint16_t data, uint16_t b
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_dvstctr
- Description     : Clear the bit pattern specified in argument, of the specified 
+ Description     : Clear the bit pattern specified in argument, of the specified
                  : port's DVSTCTR register.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number
@@ -429,7 +429,7 @@ void hw_usb_clear_dvstctr(usb_utr_t* ptr, uint16_t port, uint16_t bitptn)
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_vbout
  Description     : Set specified port's VBOUT-bit in the DVSTCTR register.
-                 : (To output a "High" to pin VBOUT.) 
+                 : (To output a "High" to pin VBOUT.)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number
  Return value    : none
@@ -480,7 +480,7 @@ void hw_usb_set_utst(usb_utr_t* ptr, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_read_fifo32
- Description     : Data is read from the specified pipemode's FIFO register, 32-bits 
+ Description     : Data is read from the specified pipemode's FIFO register, 32-bits
                  : wide, corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA
@@ -569,7 +569,7 @@ uint32_t hw_usb_read_fifo32(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_fifo32
- Description     : Data is written to the specified pipemode's FIFO register, 32-bits 
+ Description     : Data is written to the specified pipemode's FIFO register, 32-bits
                  : wide, corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA
@@ -656,7 +656,7 @@ void hw_usb_write_fifo32(usb_utr_t* ptr, uint16_t pipemode, uint32_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_read_fifo16
- Description     : Data is read from the specified pipemode's FIFO register, 16-bits 
+ Description     : Data is read from the specified pipemode's FIFO register, 16-bits
                  : wide, corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA
@@ -746,7 +746,7 @@ uint16_t hw_usb_read_fifo16(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_fifo16
- Description     : Data is written to the specified pipemode's FIFO register, 16-bits 
+ Description     : Data is written to the specified pipemode's FIFO register, 16-bits
                  : wide, corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA
@@ -833,7 +833,7 @@ void hw_usb_write_fifo16(usb_utr_t* ptr, uint16_t pipemode, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_fifo8
- Description     : Data is written to the specified pipemode's FIFO register, 8-bits 
+ Description     : Data is written to the specified pipemode's FIFO register, 8-bits
                  : wide, corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipdemode    : CUSE/D0DMA/D1DMA
@@ -920,7 +920,7 @@ void hw_usb_write_fifo8(usb_utr_t* ptr, uint16_t pipemode, uint8_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_get_fifosel_adr
- Description     : Returns the *address* of the FIFOSEL register corresponding to 
+ Description     : Returns the *address* of the FIFOSEL register corresponding to
                  : specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA
@@ -1032,7 +1032,7 @@ void hw_usb_set_dclrm(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_dclrm
- Description     : Reset DCLRM-bits (FIFO buffer not auto-cleared) of the FIFOSEL 
+ Description     : Reset DCLRM-bits (FIFO buffer not auto-cleared) of the FIFOSEL
                  : corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1085,7 +1085,7 @@ void hw_usb_clear_dreqe(usb_utr_t* ptr, uint16_t pipemode)
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_mbw
  Description     : Set MBW-bits (CFIFO Port Access Bit Width) of the FIFOSEL cor-
-                 : responding to the specified PIPEMODE, to select 8 or 16-bit 
+                 : responding to the specified PIPEMODE, to select 8 or 16-bit
                  : wide FIFO port access.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1124,7 +1124,7 @@ void hw_usb_set_mbw(usb_utr_t* ptr, uint16_t pipemode, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_curpipe
- Description     : Set pipe to the number given; in the FIFOSEL corresponding 
+ Description     : Set pipe to the number given; in the FIFOSEL corresponding
                  : to specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1148,7 +1148,7 @@ void hw_usb_set_curpipe(usb_utr_t* ptr, uint16_t pipemode, uint16_t pipeno)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_get_fifoctr_adr
- Description     : Returns the *address* of the FIFOCTR register corresponding to 
+ Description     : Returns the *address* of the FIFOCTR register corresponding to
                  : specified PIPEMODE.
                  : (FIFO Port Control Register.)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
@@ -1242,7 +1242,7 @@ static void* hw_usb_get_fifoctr_adr(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_read_fifoctr
- Description     : Returns the value of the FIFOCTR register corresponding to 
+ Description     : Returns the value of the FIFOCTR register corresponding to
                  : specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1259,7 +1259,7 @@ uint16_t hw_usb_read_fifoctr(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_bval
- Description     : Set BVAL (Buffer Memory Valid Flag) to the number given; in 
+ Description     : Set BVAL (Buffer Memory Valid Flag) to the number given; in
                  : the FIFOCTR corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1276,7 +1276,7 @@ void hw_usb_set_bval(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_bclr
- Description     : Set BCLR (CPU Buffer Clear) to the number given; in the 
+ Description     : Set BCLR (CPU Buffer Clear) to the number given; in the
                  : FIFOCTR corresponding to the specified PIPEMODE.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipemode     : CUSE/D0DMA/D1DMA.
@@ -1293,7 +1293,7 @@ void hw_usb_set_bclr(usb_utr_t* ptr, uint16_t pipemode)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_intenb
- Description     : Data is written to INTENB register, 
+ Description     : Data is written to INTENB register,
                  : enabling/disabling the various USB interrupts.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -1321,10 +1321,10 @@ void hw_usb_write_intenb(usb_utr_t* ptr, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_intenb
- Description     : Bit(s) to be set in INTENB register, 
+ Description     : Bit(s) to be set in INTENB register,
                  : enabling the respective USB interrupt(s).
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
-                 : uint16_t     data         : Bit pattern: Respective interrupts with '1' 
+                 : uint16_t     data         : Bit pattern: Respective interrupts with '1'
                  : will be enabled.
  Return value    : none
  ***********************************************************************************************************************/
@@ -1375,8 +1375,8 @@ void hw_usb_clear_enb_sofe(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_brdyenb
- Description     : Data is written to BRDYENB register, 
-                 : enabling/disabling each respective pipe's BRDY interrupt. 
+ Description     : Data is written to BRDYENB register,
+                 : enabling/disabling each respective pipe's BRDY interrupt.
                  : (The BRDY interrupt indicates that a FIFO port is accessible.)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -1391,7 +1391,7 @@ void hw_usb_write_brdyenb(usb_utr_t* ptr, uint16_t data)
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_nrdyenb
- Description     : Data is written to NRDYENB register, 
+ Description     : Data is written to NRDYENB register,
                  : enabling/disabling each respective pipe's NRDY interrupt
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -1406,9 +1406,9 @@ void hw_usb_write_nrdyenb(usb_utr_t* ptr, uint16_t data)
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_bempenb
- Description     : Data is written to BEMPENB register, 
-                 : enabling/disabling each respective pipe's BEMP interrupt. 
-                 : (The BEMP interrupt indicates that the USB buffer is empty, 
+ Description     : Data is written to BEMPENB register,
+                 : enabling/disabling each respective pipe's BEMP interrupt.
+                 : (The BEMP interrupt indicates that the USB buffer is empty,
                  : and so the FIFO can now be written to.)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -1492,7 +1492,7 @@ void hw_usb_write_intsts(usb_utr_t* ptr, uint16_t data)
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_sts_sofr
- Description     : Clear the SOFR-bit (Frame Number Refresh Interrupt Status) of 
+ Description     : Clear the SOFR-bit (Frame Number Refresh Interrupt Status) of
                  : the clear SOF interrupt status.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
@@ -1543,7 +1543,7 @@ void hw_usb_write_nrdy_sts(usb_utr_t* ptr, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_status_nrdy
- Description     : Clear the PIPExNRDY status bit of the specified pipe to clear 
+ Description     : Clear the PIPExNRDY status bit of the specified pipe to clear
                  : its NRDY interrupt status.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipeno       : Pipe number.
@@ -1836,8 +1836,8 @@ uint16_t pipeMaxPs[USB_MAX_PIPE_NO + 1];
  Return value    : none
  ***********************************************************************************************************************/
 void hw_usb_write_pipecfg(usb_utr_t* ptr, uint16_t data,
-    uint16_t
-        pipe) // pipe number added by Rohan so the set pipe type can be stored in an array and accessed without changing the selected pipe
+    uint16_t pipe) // pipe number added by Rohan so the set pipe type can be stored in an array and accessed without
+                   // changing the selected pipe
 {
     pipeCfgs[pipe] = data;
 
@@ -1867,8 +1867,8 @@ void hw_usb_write_pipecfg(usb_utr_t* ptr, uint16_t data,
  Return value    : none
  ***********************************************************************************************************************/
 void hw_usb_write_pipebuf(usb_utr_t* ptr, uint16_t data,
-    uint16_t
-        pipe) // pipe number added by Rohan so the set pipe type can be stored in an array and accessed without changing the selected pipe
+    uint16_t pipe) // pipe number added by Rohan so the set pipe type can be stored in an array and accessed without
+                   // changing the selected pipe
 {
     pipeBufs[pipe] = data;
     if (USB_NULL == ptr)
@@ -2112,7 +2112,7 @@ void hw_usb_set_csclr(usb_utr_t* ptr, uint16_t pipeno)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_aclrm
- Description     : The ACLRM-bit (Auto Buffer Clear Mode) is set in the specified 
+ Description     : The ACLRM-bit (Auto Buffer Clear Mode) is set in the specified
                  : pipe's control register.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipeno       : Pipe number.
@@ -2177,8 +2177,8 @@ void hw_usb_clear_aclrm(usb_utr_t* ptr, uint16_t pipeno)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_sqclr
- Description     : The SQCLR-bit (Toggle Bit Clear) is set in the specified pipe's 
-                 : control register. Setting SQSET to 1 makes DATA0 the expected 
+ Description     : The SQCLR-bit (Toggle Bit Clear) is set in the specified pipe's
+                 : control register. Setting SQSET to 1 makes DATA0 the expected
                  : data in the pipe's next transfer.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipeno       : Pipe number.
@@ -2241,8 +2241,8 @@ void hw_usb_set_sqclr(usb_utr_t* ptr, uint16_t pipeno)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_sqset
- Description     : The SQSET-bit (Toggle Bit Set) is set in the specified pipe's 
-                 : control register. Setting SQSET to 1 makes DATA1 the expected 
+ Description     : The SQSET-bit (Toggle Bit Set) is set in the specified pipe's
+                 : control register. Setting SQSET to 1 makes DATA1 the expected
                  : data in the next transfer.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipeno       : Pipe number.
@@ -2297,7 +2297,7 @@ void hw_usb_set_sqset(usb_utr_t* ptr, uint16_t pipeno)
 // See cut-down version of this by Rohan in header file
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_pid
- Description     : Set the specified PID of the specified pipe's DCPCTR/PIPECTR 
+ Description     : Set the specified PID of the specified pipe's DCPCTR/PIPECTR
                  : register.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     pipeno       : Pipe number.
@@ -2506,7 +2506,7 @@ void hw_usb_clear_suspm(void)
 
 /***********************************************************************************************************************
  Function Name   : usb_std_clr_uclksel_flg
- Description     : 
+ Description     :
  Arguments       : none
  Return value    : none
  ***********************************************************************************************************************/

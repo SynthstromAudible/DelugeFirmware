@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp"
@@ -27,7 +27,7 @@
 #include "util/functions.h"
 #include <cstdlib>
 
-//#define MEASURE_HOP_END_PERFORMANCE 1
+// #define MEASURE_HOP_END_PERFORMANCE 1
 
 LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement) {
 	inputType = newInputType;
@@ -55,7 +55,7 @@ LivePitchShifter::LivePitchShifter(OscType newInputType, int32_t phaseIncrement)
 #endif
 	considerRepitchedBuffer(phaseIncrement);
 
-	playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
+	playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 	playHeads[PLAY_HEAD_NEWER].oscPos = 0;
 
 	playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = 0;
@@ -143,24 +143,24 @@ startRenderAgain:
 			nextCrossfadeLength = std::min(nextCrossfadeLength, maxTotalPlayable >> 1);
 
 			samplesTilHopEnd = maxPlayableSamplesNewer - nextCrossfadeLength;
-			//D_PRINTLN("shortening hop");
+			// D_PRINTLN("shortening hop");
 
 			if (samplesTilHopEnd < 0) {
 				samplesTilHopEnd = 0;
 				nextCrossfadeLength = std::max(maxPlayableSamplesNewer, 0_i32);
-				//D_PRINTLN("nex");
+				// D_PRINTLN("nex");
 				crossfadeProgress = 16777216;
 			}
 
 			else if (samplesTilHopEnd == 0) {
-				//D_PRINTLN("to zero");
+				// D_PRINTLN("to zero");
 			}
 
 			else if (samplesTilHopEnd > 0 && olderPlayHeadIsCurrentlySounding()) {
 				uint32_t minCrossfadeIncrement = (uint32_t)(16777216 - crossfadeProgress) / samplesTilHopEnd + 1;
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//D_PRINTLN("d");
+					// D_PRINTLN("d");
 				}
 			}
 		}
@@ -173,16 +173,16 @@ startRenderAgain:
 			    0,
 #endif
 			    liveInputBuffer, phaseIncrement);
-			//D_PRINTLN(maxPlayableSamplesOlder);
+			// D_PRINTLN(maxPlayableSamplesOlder);
 			if (!maxPlayableSamplesOlder) {
 				crossfadeIncrement = 16777216;
 			}
 			else {
 				uint32_t minCrossfadeIncrement = (uint32_t)(16777216 - crossfadeProgress) / maxPlayableSamplesOlder + 1;
-				//crossfadeIncrement = std::max(crossfadeIncrement, minCrossfadeIncrement);
+				// crossfadeIncrement = std::max(crossfadeIncrement, minCrossfadeIncrement);
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
-					//D_PRINTLN("c");
+					// D_PRINTLN("c");
 				}
 			}
 		}
@@ -192,7 +192,7 @@ startRenderAgain:
 	// If the percussiveness is higher at "now" time than at the newer play head, end the hop.
 	// This was designed with pitching-down in mind, but sounds good on pitching-up too
 	if (!justDidHop && !olderPlayHeadIsCurrentlySounding() && samplesTilHopEnd
-	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
+	    && playHeads[PLAY_HEAD_NEWER].mode != PlayHeadMode::RAW_DIRECT) {
 
 		int32_t howFarBack =
 		    playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
@@ -241,7 +241,8 @@ startRenderAgain:
 	// If the older play-head is still fading out, which means we need to work out the crossfade envelope too...
 	if (olderPlayHeadAudibleHere) {
 
-		// Use linear crossfades. These sound less jarring when doing short hops. Square root ones sound better for longer hops, with more difference in material between hops (i.e. time more stretched)
+		// Use linear crossfades. These sound less jarring when doing short hops. Square root ones sound better for
+		// longer hops, with more difference in material between hops (i.e. time more stretched)
 		int32_t newerHopAmplitudeNow = crossfadeProgress << 7;
 		int32_t olderHopAmplitudeNow = 2147483647 - newerHopAmplitudeNow;
 
@@ -363,17 +364,18 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	AudioEngine::numHopsEndedThisRoutineCall++;
 
-	//int32_t numChannelsNow = numChannels;
+	// int32_t numChannelsNow = numChannels;
 
-	//D_PRINTLN("");
+	// D_PRINTLN("");
 	D_PRINTLN("hop at  %d", numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
 		D_PRINTLN("last crossfade not finished");
-		//if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
+		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
 	}
-	//D_PRINTLN(phaseIncrement);
+	// D_PRINTLN(phaseIncrement);
 
-	//D_PRINTLN((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) & (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
+	// D_PRINTLN((uint32_t)(liveInputBuffer->numRawSamplesProcessed - playHeads[PLAY_HEAD_NEWER].rawBufferReadPos) &
+	// (kInputRawBufferSize - 1)); // How far behind raw buffer is being read
 
 	// What was new is now old
 	playHeads[PLAY_HEAD_OLDER] = playHeads[PLAY_HEAD_NEWER];
@@ -440,7 +442,8 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// Ok, and this crossfade we're about to do, how long will it be in samples of (unpitched) source material?
 	int32_t crossfadeLengthSamplesSource = ((uint64_t)thisCrossfadeLength * phaseIncrement) >> 24;
 
-	// What's the maximum amount further forward than that older play-head that data actually exists yet for us to examine?
+	// What's the maximum amount further forward than that older play-head that data actually exists yet for us to
+	// examine?
 	int32_t maxOffsetFromHead = (uint32_t)(numRawSamplesProcessedLatest - playHeads[PLAY_HEAD_OLDER].rawBufferReadPos)
 	                            & (kInputRawBufferSize - 1);
 
@@ -451,8 +454,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	    std::min(averagesEndOffsetFromHead,
 	             maxOffsetFromHead); // And make sure it's not beyond the end of the existent data
 
-	// We now know the length of the *total* moving-averages region, so divide down to get the length of *each* moving-average region
-	// If commenting out this next line, must make sure we still don't search back before we started writing to buffer
+	// We now know the length of the *total* moving-averages region, so divide down to get the length of *each*
+	// moving-average region If commenting out this next line, must make sure we still don't search back before we
+	// started writing to buffer
 	lengthPerMovingAverage = std::min(lengthPerMovingAverage,
 	                                  averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
 
@@ -461,8 +465,8 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	int32_t oldHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 
-	// Occasionally (if we've only just switched pitch shifting on), that'll be zero, so we can'd do the moving averages.
-	// But if it's ok, then...
+	// Occasionally (if we've only just switched pitch shifting on), that'll be zero, so we can'd do the moving
+	// averages. But if it's ok, then...
 	if (lengthPerMovingAverage) {
 		int32_t averagesStartPosOldHead =
 		    (playHeads[PLAY_HEAD_OLDER].rawBufferReadPos + averagesStartOffsetFromHead) & (kInputRawBufferSize - 1);
@@ -477,8 +481,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	int32_t howFarBack;
 
-	// Now we're going to pick a position for the new play-head based on searching the percussiveness data. This is totally different for pitching up vs down.
-	// And while we're at it, also decide our search parameters for our fine-tuning of the new play head pos - if we're going to do that (we might not - if lengthPerMovingAverage == 0)
+	// Now we're going to pick a position for the new play-head based on searching the percussiveness data. This is
+	// totally different for pitching up vs down. And while we're at it, also decide our search parameters for our
+	// fine-tuning of the new play head pos - if we're going to do that (we might not - if lengthPerMovingAverage == 0)
 
 	// If pitch shifting up...
 	if (phaseIncrement > 16777216) {
@@ -486,8 +491,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 		if (liveInputBuffer) {
 
 			// Search backwards, looking for the area (ending at now-time) with the highest average percussiveness.
-			// This particularly helps to keep the hops from all happening at the same length, which leads to a clearly audible sort of "tone".
-			// But, some sort of random element could actually work just as well - I haven't tried yet.
+			// This particularly helps to keep the hops from all happening at the same length, which leads to a clearly
+			// audible sort of "tone". But, some sort of random element could actually work just as well - I haven't
+			// tried yet.
 
 #if !MEASURE_HOP_END_PERFORMANCE
 			minSearch +=
@@ -522,7 +528,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 					bestHowFarBack = howFarBackSearched;
 				}
 
-				//else if (averagePerc < bestAverage * 0.5) break; // Didn't help
+				// else if (averagePerc < bestAverage * 0.5) break; // Didn't help
 
 				backEdge++;
 			}
@@ -538,8 +544,8 @@ stopPercSearch:
 
 		samplesTilHopEnd = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216) - nextCrossfadeLength;
 		if (samplesTilHopEnd < 100) {
-			samplesTilHopEnd =
-			    100; // Must be 100, not 200. Otherwise, shifting up 2 octaves gets messed up. (Though maybe not anymore?)
+			samplesTilHopEnd = 100; // Must be 100, not 200. Otherwise, shifting up 2 octaves gets messed up. (Though
+			                        // maybe not anymore?)
 		}
 		else if (samplesTilHopEnd > maxHopLength) {
 			samplesTilHopEnd = maxHopLength;
@@ -597,10 +603,10 @@ stopPercSearch:
 	int32_t additionalOscPos = 0;
 
 	// If we're all good to do the moving averages...
-	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
+	if (lengthPerMovingAverage && playHeads[PLAY_HEAD_OLDER].mode != PlayHeadMode::RAW_DIRECT) {
 
-		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're currently proposing we put it -
-		// but we're then going to experiment with shifting that, below
+		// Ok, and now we're going to get that moving-average info for the new play-head in the position where we're
+		// currently proposing we put it - but we're then going to experiment with shifting that, below
 
 		if (((uint32_t)(averagesStartPosNewHead - averagesStartOffsetFromHead) & (kInputRawBufferSize - 1))
 		    >= numRawSamplesProcessedLatest) {
@@ -706,7 +712,8 @@ startSearch:
 			if ((thisTotalChange >= 0) != (lastTotalChange >= 0)) {
 
 				// Try going in between the samples for the most accurate positioning, lining-up-wise.
-				// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave right down, while also time stretching it
+				// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave
+				// right down, while also time stretching it
 				if (phaseIncrement != 16777216
 				    && (thisOffsetIsBestMatch || offsetNow == bestOffset)) { // If best was this one or last one
 					uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
@@ -721,7 +728,8 @@ startSearch:
 					}
 				}
 
-				// After sign has flipped twice (in total, including both search directions), we can be fairly sure we've found a good fit
+				// After sign has flipped twice (in total, including both search directions), we can be fairly sure
+				// we've found a good fit
 				timesSignFlipped++;
 #if !MEASURE_HOP_END_PERFORMANCE
 				if (timesSignFlipped >= 2) {
@@ -759,7 +767,7 @@ stopSearch:
 	if (stillWritingToRepitchedBuffer && repitchedBufferNumSamplesWritten && phaseIncrement > 16777216) {
 		int32_t howFarBackRepitched = ((uint64_t)howFarBack << 24) / (uint32_t)phaseIncrement + 1;
 		if (repitchedBufferNumSamplesWritten >= howFarBackRepitched) {
-			playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_REPITCHED_BUFFER;
+			playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::REPITCHED_BUFFER;
 			playHeads[PLAY_HEAD_NEWER].repitchedBufferReadPos =
 			    (uint32_t)(repitchedBufferWritePos - howFarBackRepitched) & (INPUT_REPITCHED_BUFFER_SIZE - 1);
 			goto thatsDone;
@@ -769,15 +777,16 @@ stopSearch:
 	// If still here, use raw direct buffer - usually because we're pitching down
 
 	if (phaseIncrement == 16777216) {
-		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_DIRECT;
+		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_DIRECT;
 		playHeads[PLAY_HEAD_NEWER].rawBufferReadPos = numRawSamplesProcessedAtNowTime & (kInputRawBufferSize - 1);
 		D_PRINTLN("raw hop");
 	}
 
 	else {
-		playHeads[PLAY_HEAD_NEWER].mode = PLAY_HEAD_MODE_RAW_REPITCHING;
+		playHeads[PLAY_HEAD_NEWER].mode = PlayHeadMode::RAW_REPITCHING;
 
-		//memset(playHeads[PLAY_HEAD_NEWER].interpolationBuffer, 0, sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
+		// memset(playHeads[PLAY_HEAD_NEWER].interpolationBuffer, 0,
+		// sizeof(playHeads[PLAY_HEAD_NEWER].interpolationBuffer));
 		playHeads[PLAY_HEAD_NEWER].fillInterpolationBuffer(liveInputBuffer, numChannels);
 		playHeads[PLAY_HEAD_NEWER].oscPos = additionalOscPos;
 
@@ -800,14 +809,14 @@ thatsDone:
 
 	/*
 	if (phaseIncrement > 16777216) {
-		uint64_t totalPlayableSamples = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216);
-		totalPlayableSamples = std::max(totalPlayableSamples, (uint64_t)2);
+	    uint64_t totalPlayableSamples = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216);
+	    totalPlayableSamples = std::max(totalPlayableSamples, (uint64_t)2);
 
-		totalPlayableSamples = std::min(totalPlayableSamples, (uint64_t)16384);
+	    totalPlayableSamples = std::min(totalPlayableSamples, (uint64_t)16384);
 
-		if (nextCrossfadeLength > totalPlayableSamples - 1) nextCrossfadeLength = totalPlayableSamples - 1;
+	    if (nextCrossfadeLength > totalPlayableSamples - 1) nextCrossfadeLength = totalPlayableSamples - 1;
 
-		samplesTilHopEnd = totalPlayableSamples - nextCrossfadeLength;
+	    samplesTilHopEnd = totalPlayableSamples - nextCrossfadeLength;
 	}
 	*/
 
@@ -815,8 +824,8 @@ thatsDone:
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (repitchedBuffer && !stillWritingToRepitchedBuffer
-	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER
-	    && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER) {
+	    && playHeads[PLAY_HEAD_NEWER].mode != PlayHeadMode::REPITCHED_BUFFER
+	    && playHeads[PLAY_HEAD_OLDER].mode != PlayHeadMode::REPITCHED_BUFFER) {
 		delugeDealloc(repitchedBuffer);
 		repitchedBuffer = NULL;
 	}
@@ -861,7 +870,7 @@ bool LivePitchShifter::olderPlayHeadIsCurrentlySounding() {
 }
 
 bool LivePitchShifter::mayBeRemovedWithoutClick() {
-	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PLAY_HEAD_MODE_RAW_DIRECT);
+	return (!olderPlayHeadIsCurrentlySounding() && playHeads[PLAY_HEAD_NEWER].mode == PlayHeadMode::RAW_DIRECT);
 }
 
 #if INPUT_ENABLE_REPITCHED_BUFFER

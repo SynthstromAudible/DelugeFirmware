@@ -148,7 +148,7 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 		FREEZE_WITH_ERROR("E368");
 	}
 
-	//unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
+	// unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
 
 	int32_t playDirection = reversed ? -1 : 1;
 	int32_t bytesPerSample = audioFile->numChannels * ((Sample*)audioFile)->byteDepth;
@@ -193,12 +193,12 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
 		if (l == NUM_SAMPLE_CLUSTERS_LOADED_AHEAD - 1) {
-			if (playDirection == 1) {
-				if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
-			}
-			else {
-				if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
-			}
+		    if (playDirection == 1) {
+		        if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
+		    }
+		    else {
+		        if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
+		    }
 		}
 		*/
 

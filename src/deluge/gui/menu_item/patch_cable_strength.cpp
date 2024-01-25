@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "patch_cable_strength.h"
 #include "gui/l10n/l10n.h"
@@ -72,7 +72,8 @@ void PatchCableStrength::renderOLED() {
 	yPixel += ySpacing;
 
 	if (!destinationDescriptor.isJustAParam()) {
-		//deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon, 0, yPixel, 8, deluge::hid::display::OLED::oledMainImage[0]);
+		// deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon, 0, yPixel, 8,
+		// deluge::hid::display::OLED::oledMainImage[0]);
 		int32_t horizontalLineY = yPixel + (ySpacing << 1);
 		deluge::hid::display::OLED::drawVerticalLine(4, yPixel + 1, horizontalLineY,
 		                                             deluge::hid::display::OLED::oledMainImage);
@@ -175,7 +176,7 @@ void PatchCableStrength::writeCurrentValue() {
 		return;
 	}
 
-	//rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
+	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
@@ -223,7 +224,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 
 	// If shift held down, delete automation
 	if (Buttons::isShiftButtonPressed()) {
-		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);

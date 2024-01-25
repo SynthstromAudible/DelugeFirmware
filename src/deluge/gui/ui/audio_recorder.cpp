@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/audio_recorder.h"
 #include "definitions_cxx.hpp"
@@ -64,8 +64,8 @@ extern "C" {
 void oledRoutine();
 }
 
-// We keep a separate FIL object here so we can be recording to a file at the same time as another file is open for reading.
-// It no longer needs to be in this struct
+// We keep a separate FIL object here so we can be recording to a file at the same time as another file is open for
+// reading. It no longer needs to be in this struct
 struct RecorderFileSystemStuff recorderFileSystemStuff;
 
 AudioRecorder::AudioRecorder() {
@@ -190,7 +190,7 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 void AudioRecorder::slowRoutine() {
 	if (recordingSource == AudioInputChannel::OUTPUT) {
 		if (recorder->status >= RECORDER_STATUS_COMPLETE) {
-			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RECORDING_NORMAL));
+			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();
 		}
 	}
@@ -263,7 +263,8 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as they wait - that'd be a tangle.
+	// We don't actually wrap up recording here, because this could be in fact called from the SD writing routines as
+	// they wait - that'd be a tangle.
 	if ((b == BACK) || (b == SELECT_ENC) || (b == RECORD)) {
 
 		if (inCardRoutine) {

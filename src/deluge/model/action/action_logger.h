@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -26,24 +26,27 @@ class ParamCollection;
 class Sound;
 class ModelStack;
 
-#define ACTION_ADDITION_NOT_ALLOWED 0
-#define ACTION_ADDITION_ALLOWED 1
-#define ACTION_ADDITION_ALLOWED_ONLY_IF_NO_TIME_PASSED 2
+enum class ActionAddition {
+	NOT_ALLOWED,
+	ALLOWED,
+	ALLOWED_ONLY_IF_NO_TIME_PASSED,
+};
 
 class ActionLogger {
 public:
 	ActionLogger();
 
-	//warning - super not thread safe
-	Action* getNewAction(int32_t newActionType, int32_t addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
+	// warning - super not thread safe
+	Action* getNewAction(ActionType newActionType,
+	                     ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
-	                                  int32_t actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
 	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
 	void recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
 	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
-	void closeAction(int32_t actionType);
-	void closeActionUnlessCreatedJustNow(int32_t actionType);
+	void closeAction(ActionType actionType);
+	void closeActionUnlessCreatedJustNow(ActionType actionType);
 	void deleteAllLogs();
 	void deleteLog(int32_t time);
 	bool revert(TimeType time, bool updateVisually = true, bool doNavigation = true);

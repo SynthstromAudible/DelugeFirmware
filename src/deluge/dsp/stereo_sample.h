@@ -13,9 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
-// Ok, creating a class for this is absolutely stupid, but I was a noob at the time! It doesn't add any performance overhead though.
+// Ok, creating a class for this is absolutely stupid, but I was a noob at the time! It doesn't add any performance
+// overhead though.
 
 #pragma once
 
@@ -29,7 +30,7 @@ public:
 		r += sampleValue;
 	}
 
-	//Amplitude is probably Q2.29?
+	// Amplitude is probably Q2.29?
 	inline void addPannedMono(q31_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
 		l += (multiply_32x32_rshift32(sampleValue, amplitudeL) << 2);
 		r += (multiply_32x32_rshift32(sampleValue, amplitudeR) << 2);
@@ -40,7 +41,7 @@ public:
 		r += sampleValueR;
 	}
 
-	//Amplitude is probably Q2.29?
+	// Amplitude is probably Q2.29?
 	inline void addPannedStereo(q31_t sampleValueL, q31_t sampleValueR, int32_t amplitudeL, int32_t amplitudeR) {
 		l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);
 		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);

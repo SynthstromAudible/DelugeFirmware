@@ -39,8 +39,8 @@ SampleHolderForVoice::SampleHolderForVoice() {
 }
 
 SampleHolderForVoice::~SampleHolderForVoice() {
-	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our overriding of that virtual function
-	// won't happen as we've already been destructed!
+	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our
+	// overriding of that virtual function won't happen as we've already been destructed!
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
@@ -148,7 +148,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 			if (semitonesInt == 60 - thatOneNote) {
 				if (cents >= -4 && cents <= 4) {
 					cents = 0;
-					//Uart::println("discarded cents");
+					// Uart::println("discarded cents");
 				}
 			}
 		}
@@ -187,8 +187,8 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 			    && (!((Sample*)audioFile)->fileLoopEndSamples
 			        || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
 				loopStartPos =
-				    ((Sample*)audioFile)
-				        ->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start pos, which is exactly what we want in that case
+				    ((Sample*)audioFile)->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start
+				                                                // pos, which is exactly what we want in that case
 			}
 		}
 	}
@@ -196,13 +196,15 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 	// Or if not manually selected
 	else {
 
-		// Prior to V2.1.x, sample markers were stored as milliseconds. Try loading those now. Note - V2.1.x did still write these values in addition
-		// to the new, sample-based ones, for backward compatibility. But we have to 100% ignore these, cos it seems they were sometimes written incorrectly!
+		// Prior to V2.1.x, sample markers were stored as milliseconds. Try loading those now. Note - V2.1.x did still
+		// write these values in addition to the new, sample-based ones, for backward compatibility. But we have to 100%
+		// ignore these, cos it seems they were sometimes written incorrectly!
 		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
 
 			bool convertedMSecValues = false;
 
-			// Convert old MSec values, loaded from old song files, to samples. Can only do this now that we know the sample rate
+			// Convert old MSec values, loaded from old song files, to samples. Can only do this now that we know the
+			// sample rate
 			if (startMSec) {
 				if (!startPos) {
 					startPos = (uint64_t)startMSec * ((Sample*)audioFile)->sampleRate / 1000;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -54,7 +54,8 @@ public:
 		}
 		soundEditor.currentArpSettings->mode = current_value;
 
-		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
+		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's
+		// clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
 			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
 		}

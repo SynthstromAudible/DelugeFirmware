@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -55,16 +55,17 @@ public:
 	/// Will be called with offset 0 to recalculate bounds on clip changes
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) = 0;
 
-	/// This function is called on visibility change and if color offset changes
+	/// This function is called on visibility change and if colour offset changes
 	virtual void precalculate() = 0;
 
 	/// Handle output
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
+	virtual void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {}
 
-	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 		// Clean sidebar if function is not overwritten
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
+			image[y][kDisplayWidth] = colours::black;
+			image[y][kDisplayWidth + 1] = colours::black;
 		}
 	};
 
@@ -98,8 +99,8 @@ protected:
 		return kHighestKeyboardNote;
 	}
 
-	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
-		int32_t colourOffset = 0;
+	inline RGB getNoteColour(uint8_t note) {
+		int8_t colourOffset = 0;
 
 		// Get colour offset for kit rows
 		if (getCurrentOutputType() == OutputType::KIT) {
@@ -111,7 +112,7 @@ protected:
 			}
 		}
 
-		getCurrentInstrumentClip()->getMainColourFromY(note, colourOffset, rgb);
+		return getCurrentInstrumentClip()->getMainColourFromY(note, colourOffset);
 	}
 
 	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }

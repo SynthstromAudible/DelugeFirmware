@@ -13,12 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/convolution/impulse_response_processor.h"
-
-#include "util/functions.h"
-#include <string.h>
 
 const int32_t ir[IR_SIZE] = {
     -3203916,   8857848,   24813136,  41537808, 35217472,  15195632,  -27538592, -61984128, 1944654848,

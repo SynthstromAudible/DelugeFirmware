@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
+#include "gui/colour/colour.h"
 #include "io/midi/midi_device.h"
 
 #define MIDI_DEVICE_LUMI_KEYS_VP_COUNT 1
@@ -159,5 +160,5 @@ private:
 	void setRootNote(int16_t rootNote);
 	std::pair<Scale, int16_t> determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
-	void setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b);
+	void setColour(ColourZone zone, RGB rgb);
 };
