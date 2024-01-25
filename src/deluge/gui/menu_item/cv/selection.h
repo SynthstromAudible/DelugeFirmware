@@ -48,7 +48,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto cv1 = l10n::getView(STRING_FOR_CV_OUTPUT_1);
 		static auto cv2 = l10n::getView(STRING_FOR_CV_OUTPUT_2);

@@ -40,7 +40,7 @@ public:
 		value = static_cast<Option>(this->getValue());
 		renderingNeededRegardlessOfUI();
 	};
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
 		    l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),

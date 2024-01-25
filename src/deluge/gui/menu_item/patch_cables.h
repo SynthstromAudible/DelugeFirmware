@@ -1,5 +1,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
+#include "util/containers.h"
 
 namespace deluge::gui::menu_item {
 class PatchCables : public MenuItem {
@@ -23,7 +24,7 @@ public:
 	int32_t savedVal = 0;
 	int32_t currentValue = 0;
 
-	std::vector<std::string_view> options;
+	deluge::vector<std::string_view> options;
 
 	PatchSource blinkSrc = PatchSource::NOT_AVAILABLE;
 	PatchSource blinkSrc2 = PatchSource::NOT_AVAILABLE;

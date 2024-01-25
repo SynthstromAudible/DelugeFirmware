@@ -27,7 +27,7 @@ class DirectionSelector final : public Selection {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_IN),
