@@ -20,15 +20,15 @@ jobs:
     steps:
       - name: normal check out repo
         if: inputs.build-type != 'nightly' && inputs.build-type != 'release'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: nightly check out repo
         if: inputs.build-type == 'nightly'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: 'community'
       - name: release check out repo
         if: inputs.build-type == 'release'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: 'release/1.0'
       - name: Fetch container image
