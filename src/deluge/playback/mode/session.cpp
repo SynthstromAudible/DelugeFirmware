@@ -560,6 +560,13 @@ doNormalLaunch:
 			}
 		}
 
+		// Arm it again if a ONCE clip, so it stops at the launchEvent
+		if (!isFillLaunch && (clip->activeIfNoSolo || clip->soloingInSessionMode)
+		    && clip->launchStyle == LaunchStyle::ONCE && clip->armState == ArmState::OFF) {
+			clip->armState = ArmState::ON_NORMAL;
+			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+		}
+
 		bool clipActiveAfter = clip->soloingInSessionMode || (clip->activeIfNoSolo && !anySoloingAfter);
 
 		if (clipActiveAfter) {
@@ -1515,7 +1522,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle == LaunchStyle::DEFAULT) {
+		if (clip->launchStyle == LaunchStyle::DEFAULT || !doLateStart) {
 			if (!doLateStart && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's
 				                                  // not that useful, and tricky to implement
 
@@ -1539,7 +1546,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
-			if (thisClip->launchStyle != LaunchStyle::DEFAULT) {
+			if (thisClip->launchStyle == LaunchStyle::FILL) {
 				continue;
 			}
 
@@ -1582,7 +1589,7 @@ wantActive:
 					// If it's already active (less common)...
 					if (thisClip->activeIfNoSolo) {
 						// If it's armed to stop, cancel that
-						if (thisClip->armState != ArmState::OFF) {
+						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LaunchStyle::ONCE) {
 							thisClip->armState = ArmState::OFF;
 						}
 						output->nextClipFoundShouldGetArmed = true;
@@ -1700,7 +1707,8 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		// If late start...
 		if (doLateStart) {
 
-			if (thisClip->armState != ArmState::OFF) { // In case also already armed
+			if (thisClip->armState != ArmState::OFF
+			    && thisClip->launchStyle == LaunchStyle::DEFAULT) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
@@ -1738,7 +1746,7 @@ setPosAndStuff:
  *                    then than the clip is long, start right now mid way
  *                    through. Otherwise schedule for the correct time.
  *
- * @param section - the section number to launch fill clips for.
+ * @param clip - the clip to launch.
  *
  */
 void Session::scheduleFillClip(Clip* clip) {
