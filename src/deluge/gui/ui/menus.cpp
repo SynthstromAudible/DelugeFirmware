@@ -432,8 +432,8 @@ reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 Submenu reverbMenu{
     STRING_FOR_REVERB,
     {
-        &reverbModelMenu,
         &reverbAmountMenu,
+        &reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,
         &reverbWidthMenu,
@@ -536,7 +536,7 @@ Submenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
-		&reverbModelMenu,
+        &reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,
         &reverbWidthMenu,
