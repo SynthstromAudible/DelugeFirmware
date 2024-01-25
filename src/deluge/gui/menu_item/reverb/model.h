@@ -14,7 +14,7 @@ public:
 		AudioEngine::reverb.setModel(static_cast<dsp::Reverb::Model>(this->getValue()));
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_FREEVERB),
