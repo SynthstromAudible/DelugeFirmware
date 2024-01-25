@@ -60,9 +60,9 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		std::vector<std::string_view> options = {
+		deluge::vector<std::string_view> options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
 		    l10n::getView(STRING_FOR_TRIANGLE),      //<
 		    l10n::getView(STRING_FOR_SQUARE),        //<
