@@ -24,6 +24,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include <utility>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -55,23 +56,28 @@ void UI::close() {
 	closeUI(this);
 }
 
-#define UI_NAVIGATION_HISTORY_LENGTH 16
-UI* uiNavigationHierarchy[UI_NAVIGATION_HISTORY_LENGTH];
+constexpr size_t kUiNavigationHistoryLength = 16;
+static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
 
-int8_t numUIsOpen = 0; // Will be 0 again during song load / swap
+int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
-UI* lastUIBeforeNullifying = NULL;
+UI* lastUIBeforeNullifying = nullptr;
 
-void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	*cols = 0;
-	*rows = 0;
-
+/**
+ * @brief Get the greyout rows and columns for the current UI
+ *
+ * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
+ */
+std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols() {
+	uint32_t cols = 0;
+	uint32_t rows = 0;
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(cols, rows);
+		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(&cols, &rows);
 		if (useThis) {
-			return;
+			return std::make_pair(rows, cols);
 		}
 	}
+	return std::make_pair(0, 0);
 }
 
 bool changeUIAtLevel(UI* newUI, int32_t level) {

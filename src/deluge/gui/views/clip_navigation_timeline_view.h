@@ -23,8 +23,8 @@
 class ClipNavigationTimelineView : public TimelineView {
 public:
 	ClipNavigationTimelineView() = default;
-	void focusRegained();
-	ActionResult horizontalEncoderAction(int32_t offset);
+	void focusRegained() override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);
