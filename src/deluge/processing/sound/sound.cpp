@@ -3942,19 +3942,19 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 		ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
 
 		if (getSynthMode() != SynthMode::FM) {
-			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::LPF_FREQ)) {
+			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
 				displayLPFMode(on);
 			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_FREQ)) {
+			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
 				displayHPFMode(on);
 			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START
-			                                                              + Param::Unpatched::TREBLE)) {
+			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+			                                                              + params::UNPATCHED_TREBLE)) {
 				display->displayPopup("EQ");
 			}
 		}
 
-		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_RATE)) {
+		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
 			displayDelaySettings(on);
 		}
 
