@@ -57,7 +57,8 @@ public:
 	void graphicsRoutine();
 
 	// ui
-	UIType getUIType();
+	UIType getUIType() { return UIType::AUTOMATION_VIEW; }
+	UISubType getUISubType();
 
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

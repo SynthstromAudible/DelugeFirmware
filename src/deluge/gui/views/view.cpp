@@ -1199,6 +1199,10 @@ void View::setModLedStates() {
 	if (rootUI) {
 		uiType = rootUI->getUIType();
 	}
+	UISubType uiSubType = UISubType::NONE;
+	if (uiType == UIType::AUTOMATION_VIEW) {
+		uiSubType = automationView.getUISubType();
+	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
 	bool itsTheSong = (activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong);
@@ -1218,8 +1222,10 @@ void View::setModLedStates() {
 			itsTheSong = true;
 			break;
 
-		case UIType::AUTOMATION_ARRANGER_VIEW:
-			itsTheSong = true;
+		case UIType::AUTOMATION_VIEW:
+			if (uiSubType == UISubType::ARRANGER) {
+				itsTheSong = true;
+			}
 			break;
 		}
 	}
@@ -1247,13 +1253,16 @@ void View::setModLedStates() {
 		case UIType::KEYBOARD_SCREEN:
 			affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			break;
-		case UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW:
-			affectEntire = ((InstrumentClip*)clip)->affectEntire;
+		case UIType::AUTOMATION_VIEW:
+			if (uiSubType == UISubType::INSTRUMENT) {
+				affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			}
+			//if it's not an instrument clip, then it's an audio clip
+			else {
+				affectEntire = true;
+			}
 			break;
 		case UIType::AUDIO_CLIP_VIEW:
-			affectEntire = true;
-			break;
-		case UIType::AUTOMATION_AUDIO_CLIP_VIEW:
 			affectEntire = true;
 			break;
 		}
@@ -1296,10 +1305,7 @@ void View::setModLedStates() {
 				onAutomationClipView = true;
 			}
 			break;
-		case UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW:
-			onAutomationClipView = true;
-			break;
-		case UIType::AUTOMATION_AUDIO_CLIP_VIEW:
+		case UIType::AUTOMATION_VIEW:
 			onAutomationClipView = true;
 			break;
 		}
@@ -1322,8 +1328,10 @@ void View::setModLedStates() {
 			case UIType::ARRANGER_VIEW:
 				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				break;
-			case UIType::AUTOMATION_ARRANGER_VIEW:
-				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+			case UIType::AUTOMATION_VIEW:
+				if (uiSubType == UISubType::ARRANGER) {
+					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+				}
 				break;
 			case UIType::PERFORMANCE_SESSION_VIEW:
 				// if performanceSessionView was entered from arranger

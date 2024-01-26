@@ -427,16 +427,16 @@ void AutomationView::graphicsRoutine() {
 
 // used to return whether Automation View is in the AUTOMATION_ARRANGER_VIEW UI Type, AUTOMATION_INSTRUMENT_CLIP_VIEW or
 // AUTOMATION_AUDIO_CLIP_VIEW UI Type
-UIType AutomationView::getUIType() {
+UISubType AutomationView::getUISubType() {
 	if (onArrangerView) {
-		return UIType::AUTOMATION_ARRANGER_VIEW;
+		return UISubType::ARRANGER;
 	}
 	else {
 		if (getCurrentClip()->type == ClipType::AUDIO) {
-			return UIType::AUTOMATION_AUDIO_CLIP_VIEW;
+			return UISubType::AUDIO;
 		}
 		else {
-			return UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW;
+			return UISubType::INSTRUMENT;
 		}
 	}
 }

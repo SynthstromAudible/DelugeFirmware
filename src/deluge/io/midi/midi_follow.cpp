@@ -110,14 +110,20 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 /// 3) entering a clip
 Clip* getSelectedClip(bool useActiveClip) {
 	Clip* clip = nullptr;
-	RootUI* rootUI = getRootUI();
 
-	// if you're in session view, check if you're pressing a clip to control that clip
-	if (rootUI == &sessionView) {
-		clip = sessionView.getClipForLayout();
+	RootUI* rootUI = getRootUI();
+	UIType uiType = UIType::NONE;
+	if (rootUI) {
+		uiType = rootUI->getUIType();
 	}
-	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
-	else if (rootUI == &arrangerView) {
+
+	switch (uiType) {
+	case UIType::SESSION_VIEW:
+		// if you're in session view, check if you're pressing a clip to control that clip
+		clip = sessionView.getClipForLayout();
+		break;
+	case UIType::ARRANGER_VIEW:
+		// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
 		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
 			clip = arrangerView.lastInteractedClipInstance->clip;
 		}
@@ -125,12 +131,20 @@ Clip* getSelectedClip(bool useActiveClip) {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 			clip = currentSong->getClipWithOutput(output);
 		}
-	}
-	// if you're in performance view, no clip will be selected for param control
-	// if you're in arranger automation view, no clip will be selected for param control
-	// if you're not in sessionView, arrangerView, or performanceView, then you're in a clip
-	else if ((rootUI != &performanceSessionView) && !(rootUI == &automationView && automationView.onArrangerView)) {
+		break;
+	case UIType::PERFORMANCE_SESSION_VIEW:
+		// if you're in performance view, no clip will be selected for param control
+		break;
+	case UIType::AUTOMATION_VIEW:
+		if (automationView.getUISubType() == UISubType::ARRANGER) {
+			// if you're in arranger automation view, no clip will be selected for param control
+			break;
+		}
+		[[fallthrough]];
+	default:
+		// if you're not in sessionView, arrangerView, or performanceView, then you're in a clip
 		clip = getCurrentClip();
+		break;
 	}
 	// special case for instruments where you want to let notes and MPE through to the active clip
 	if (!clip && useActiveClip) {
@@ -147,19 +161,17 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
                                    int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	bool isUISessionView = (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)
-	                       || (getRootUI() == &arrangerView)
-	                       || (getRootUI() == &automationView && automationView.onArrangerView);
-
-	if (!clip && isUISessionView) {
-		if (modelStackWithThreeMainThings) {
-			modelStackWithParam = getModelStackWithParamWithoutClip(modelStackWithThreeMainThings, xDisplay, yDisplay);
-		}
-	}
-	else {
+	// non-null clip means you're dealing with the clip context
+	if (clip) {
 		if (modelStackWithTimelineCounter) {
 			modelStackWithParam =
 			    getModelStackWithParamWithClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
+		}
+	}
+	// null clip means you're dealing with the song context
+	else {
+		if (modelStackWithThreeMainThings) {
+			modelStackWithParam = getModelStackWithParamWithoutClip(modelStackWithThreeMainThings, xDisplay, yDisplay);
 		}
 	}
 
