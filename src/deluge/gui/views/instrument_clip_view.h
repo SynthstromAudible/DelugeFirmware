@@ -188,6 +188,9 @@ public:
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	// made these public so they can be accessed by the automation clip view
 
+	// ui
+	UIType getUIType() { return UIType::INSTRUMENT_CLIP_VIEW; }
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;

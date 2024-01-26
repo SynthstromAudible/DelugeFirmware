@@ -56,6 +56,9 @@ public:
 	// called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
 	void graphicsRoutine();
 
+	// ui
+	UIType getUIType();
+
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);

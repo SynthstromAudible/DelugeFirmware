@@ -118,6 +118,9 @@ public:
 
 	int32_t xScrollWhenPlaybackStarted;
 
+	// ui
+	UIType getUIType() { return UIType::ARRANGER_VIEW; }
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();

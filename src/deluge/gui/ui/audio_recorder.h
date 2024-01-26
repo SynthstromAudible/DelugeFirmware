@@ -54,6 +54,9 @@ public:
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
+	// ui
+	UIType getUIType() { return UIType::AUDIO_RECORDER; }
+
 private:
 	void finishRecording();
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID);

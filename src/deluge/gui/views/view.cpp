@@ -1194,82 +1194,153 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 void View::setModLedStates() {
 
-	bool itsTheSong =
-	    activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong
-	    || (!activeModControllableModelStack.timelineCounterIsSet()
-	        && (getRootUI() == &sessionView || getRootUI() == &arrangerView || getRootUI() == &performanceSessionView
-	            || (getRootUI() == &automationView && automationView.onArrangerView)));
+	RootUI* rootUI = getRootUI();
+	UIType uiType = UIType::NONE;
+	if (rootUI) {
+		uiType = rootUI->getUIType();
+	}
 
+	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
+	bool itsTheSong = (activeModControllableModelStack.getTimelineCounterAllowNull() == currentSong);
+
+	// let's check if we're in any of the song UI's
+	if (!itsTheSong && !activeModControllableModelStack.timelineCounterIsSet()) {
+		switch (uiType) {
+		case UIType::SESSION_VIEW:
+			itsTheSong = true;
+			break;
+
+		case UIType::ARRANGER_VIEW:
+			itsTheSong = true;
+			break;
+
+		case UIType::PERFORMANCE_SESSION_VIEW:
+			itsTheSong = true;
+			break;
+
+		case UIType::AUTOMATION_ARRANGER_VIEW:
+			itsTheSong = true;
+			break;
+		}
+	}
+
+	// here we will set a boolean flag to let the function know whether we are dealing with the Clip context
 	bool itsAClip = activeModControllableModelStack.timelineCounterIsSet()
 	                && activeModControllableModelStack.getTimelineCounter() != currentSong;
 
-	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
+	// here we will set a boolean flag to let the function know if affect entire is enabled
+	// so that it can correctly illuminate the affect entire LED indicator
+	bool affectEntire = rootUI && rootUI->getAffectEntire();
+
+	// if you are not in a song
+	// affect entire is always true if you are in an audio clip, or automation view for an audio clip
+	// otherwise the affect entire status is derived from the instrument clip
 	if (!itsTheSong) {
-		if ((getRootUI() != &instrumentClipView && getRootUI() != &automationView && getRootUI() != &keyboardScreen)
-		    || (getRootUI() == &automationView && getCurrentClip()->type == ClipType::AUDIO)) {
+		Clip* clip = getCurrentClip();
+		// if you're in an instrument clip, get affectEntire status from clip class
+		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
+		// enabled
+		switch (uiType) {
+		case UIType::INSTRUMENT_CLIP_VIEW:
+			affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			break;
+		case UIType::KEYBOARD_SCREEN:
+			affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			break;
+		case UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW:
+			affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			break;
+		case UIType::AUDIO_CLIP_VIEW:
 			affectEntire = true;
-		}
-		else {
-			affectEntire = getCurrentInstrumentClip()->affectEntire;
+			break;
+		case UIType::AUTOMATION_AUDIO_CLIP_VIEW:
+			affectEntire = true;
+			break;
 		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
+	bool onAutomationClipView = false;
+
+	// turn off Clip LED indicator if we're in a song UI
 	if (itsTheSong) {
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
+	// we're in a clip or we've selected a clip
+	// here we're going to see if we should blink the CLIP LED if we're in automation view
+	// or simply illuminate the CLIP LED if we're not in automation view
 	else {
-		if (getRootUI() == &sessionView) {
+		switch (uiType) {
+		case UIType::SESSION_VIEW: {
 			Clip* clip = sessionView.getClipForLayout();
 
 			if (clip) {
 				if (clip->onAutomationClipView) {
-					goto setBlinkLED;
+					onAutomationClipView = true;
 				}
 			}
+			break;
 		}
-		else if (getRootUI() == &arrangerView) {
+		case UIType::ARRANGER_VIEW: {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 
 			if (output) {
 				if (currentSong->getClipWithOutput(output)->onAutomationClipView) {
-					goto setBlinkLED;
+					onAutomationClipView = true;
 				}
 			}
+			break;
 		}
-		else if (getRootUI() == &keyboardScreen) {
+		case UIType::KEYBOARD_SCREEN:
 			if (getCurrentClip()->onAutomationClipView) {
-				goto setBlinkLED;
+				onAutomationClipView = true;
 			}
+			break;
+		case UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW:
+			onAutomationClipView = true;
+			break;
+		case UIType::AUTOMATION_AUDIO_CLIP_VIEW:
+			onAutomationClipView = true;
+			break;
 		}
-		else if (getRootUI() == &automationView) {
-			goto setBlinkLED;
-		}
 
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-		goto setNextLED;
-
-setBlinkLED:
-
-		if (!automationView.onArrangerView) {
+		if (onAutomationClipView) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
-		goto setNextLED;
+		else {
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+		}
 	}
 
-setNextLED:
-	// Sort out the session/arranger view LEDs
+	// Sort out the session/arranger view/automation arranger view LEDs
 	if (itsTheSong) {
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
 		}
-		else if ((getRootUI() == &arrangerView) || (getRootUI() == &automationView && automationView.onArrangerView)) {
-			indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-		}
 		else {
-			indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+			switch (uiType) {
+			case UIType::ARRANGER_VIEW:
+				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+				break;
+			case UIType::AUTOMATION_ARRANGER_VIEW:
+				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+				break;
+			case UIType::PERFORMANCE_SESSION_VIEW:
+				// if performanceSessionView was entered from arranger
+				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+				}
+				else {
+					indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				}
+				break;
+			case UIType::SESSION_VIEW:
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				break;
+			}
 		}
 	}
+	// if you're not in the song, you're in a clip, so turn off song LED
 	else {
 		indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
 	}
@@ -1286,7 +1357,7 @@ setNextLED:
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {

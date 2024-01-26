@@ -140,6 +140,9 @@ public:
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
+	// ui
+	UIType getUIType() { return UIType::SOUND_EDITOR; }
+
 private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);
 	uint8_t getActualParamFromScreen(uint8_t screen);

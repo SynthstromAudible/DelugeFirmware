@@ -425,6 +425,22 @@ void AutomationView::graphicsRoutine() {
 	}
 }
 
+// used to return whether Automation View is in the AUTOMATION_ARRANGER_VIEW UI Type, AUTOMATION_INSTRUMENT_CLIP_VIEW or
+// AUTOMATION_AUDIO_CLIP_VIEW UI Type
+UIType AutomationView::getUIType() {
+	if (onArrangerView) {
+		return UIType::AUTOMATION_ARRANGER_VIEW;
+	}
+	else {
+		if (getCurrentClip()->type == ClipType::AUDIO) {
+			return UIType::AUTOMATION_AUDIO_CLIP_VIEW;
+		}
+		else {
+			return UIType::AUTOMATION_INSTRUMENT_CLIP_VIEW;
+		}
+	}
+}
+
 // rendering
 
 // called whenever you call uiNeedsRendering(this) somewhere else

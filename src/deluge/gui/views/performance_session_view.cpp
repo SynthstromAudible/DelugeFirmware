@@ -627,10 +627,6 @@ void PerformanceSessionView::setLedStates() {
 
 	// performanceView specific LED settings
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-
-	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-		indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-	}
 }
 
 void PerformanceSessionView::setCentralLEDStates() {

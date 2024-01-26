@@ -115,6 +115,9 @@ public:
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
+	// ui
+	UIType getUIType() { return UIType::SESSION_VIEW; }
+
 private:
 	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
