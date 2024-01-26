@@ -247,13 +247,36 @@ void Song::setupDefault() {
 
 	// Do scale
 	int32_t whichScale = FlashStorage::defaultScale;
-	if (whichScale == PRESET_SCALE_NONE) {
-		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
-	}
-	else if (whichScale == PRESET_SCALE_RANDOM) {
+	if (whichScale == PRESET_SCALE_RANDOM) {
 		whichScale = random(NUM_PRESET_SCALES - 1);
 	}
-	memcpy(modeNotes, presetScaleNotes[whichScale], sizeof(presetScaleNotes[whichScale]));
+	else if (whichScale == PRESET_SCALE_NONE) {
+		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
+	}
+	else {
+		if (whichScale >= OFFSET_5_NOTE_SCALE) {
+			// remove offset for 5 note scales
+			whichScale = FIRST_5_NOTE_SCALE_INDEX + whichScale - OFFSET_5_NOTE_SCALE;
+		}
+		else if (whichScale >= OFFSET_6_NOTE_SCALE) {
+			// remove offset for 6 note scales
+			whichScale = FIRST_6_NOTE_SCALE_INDEX + whichScale - OFFSET_6_NOTE_SCALE;
+		}
+		if (whichScale >= NUM_PRESET_SCALES) {
+			// Index is out of bounds, so reset to 0
+			whichScale = 0;
+		}
+	}
+	int32_t newNumModeNotes = 1;
+	for (int32_t n = 1; n < 7; n++) {
+		int32_t newNote = presetScaleNotes[whichScale][n];
+		if (newNote == 0) {
+			continue;
+		}
+		newNumModeNotes = newNumModeNotes + 1;
+		modeNotes[n] = newNote;
+	}
+	numModeNotes = newNumModeNotes;
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -513,76 +536,103 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	// Determine the majorness or minorness of the scale
-	int32_t majorness = 0;
-
-	// The 3rd is the main indicator of majorness, to my ear
-	if (notesWithinOctavePresent[4]) {
-		majorness++;
+	bool previousScaleFits = true;
+	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
+		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
+		previousScaleFits = false;
 	}
-	if (notesWithinOctavePresent[3]) {
-		majorness--;
+	// Check if the previously set scale could fit the notes present in the clips
+	// If so, we need no check at all, we can directly go back to previous scale safely
+	else {
+		for (int32_t i = 1; i < 12; i++) {
+			if (notesWithinOctavePresent[i]) {
+				bool checkPassed = false;
+				for (int32_t n = 1; n < numModeNotes; n++) {
+					if (modeNotes[n] == i) {
+						checkPassed = true;
+						break;
+					}
+				}
+				if (!checkPassed) {
+					previousScaleFits = false;
+					break;
+				}
+			}
+		}
 	}
 
-	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
-	if (majorness == 0) {
-		if (notesWithinOctavePresent[1]) {
-			majorness--;
-		}
-		if (notesWithinOctavePresent[8]) {
-			majorness--;
-		}
-		if (notesWithinOctavePresent[9]) {
+	if (!previousScaleFits) {
+		// Determine the majorness or minorness of the scale
+		int32_t majorness = 0;
+
+		// The 3rd is the main indicator of majorness, to my ear
+		if (notesWithinOctavePresent[4]) {
 			majorness++;
 		}
-	}
+		if (notesWithinOctavePresent[3]) {
+			majorness--;
+		}
 
-	bool moreMajor = (majorness >= 0);
+		// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
+		if (majorness == 0) {
+			if (notesWithinOctavePresent[1]) {
+				majorness--;
+			}
+			if (notesWithinOctavePresent[8]) {
+				majorness--;
+			}
+			if (notesWithinOctavePresent[9]) {
+				majorness++;
+			}
+		}
 
-	modeNotes[0] = 0;
-	numModeNotes = 1;
+		bool moreMajor = (majorness >= 0);
 
-	// 2nd
-	addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
+		modeNotes[0] = 0;
+		numModeNotes = 1;
 
-	// 3rd
-	addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
+		// 2nd
+		addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
 
-	// 4th, 5th
-	if (notesWithinOctavePresent[5]) {
-		addModeNote(5);
-		if (notesWithinOctavePresent[6]) {
-			addModeNote(6);
-			if (notesWithinOctavePresent[7]) {
+		// 3rd
+		addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
+
+		// 4th, 5th
+		if (notesWithinOctavePresent[5]) {
+			addModeNote(5);
+			if (notesWithinOctavePresent[6]) {
+				addModeNote(6);
+				if (notesWithinOctavePresent[7]) {
+					addModeNote(7);
+				}
+			}
+			else {
 				addModeNote(7);
 			}
 		}
 		else {
-			addModeNote(7);
-		}
-	}
-	else {
-		if (notesWithinOctavePresent[6]) {
-			if (notesWithinOctavePresent[7] || moreMajor) {
-				addModeNote(6);
-				addModeNote(7);
+			if (notesWithinOctavePresent[6]) {
+				if (notesWithinOctavePresent[7] || moreMajor) {
+					addModeNote(6);
+					addModeNote(7);
+				}
+				else {
+					addModeNote(5);
+					addModeNote(6);
+				}
 			}
 			else {
 				addModeNote(5);
-				addModeNote(6);
+				addModeNote(7);
 			}
 		}
-		else {
-			addModeNote(5);
-			addModeNote(7);
-		}
+
+		// 6th
+		addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
+
+		// 7th
+		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 	}
-
-	// 6th
-	addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
-
-	// 7th
-	addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in
 	// enterScaleMode();
@@ -2666,20 +2716,96 @@ traverseClips:
 }
 
 int32_t Song::cycleThroughScales() {
-	// Can only do it if there are 7 notes in current scale
-	if (numModeNotes != 7) {
+	// Can only do it if there are between 5 and 7 notes in current scale
+	if (numModeNotes < 5 || numModeNotes > 7) {
 		return 255;
 	}
 
+	int32_t numNotesInCurrentScale = 7;
+	int32_t numNotesInNewScale = 7;
+
+	// Get num of notes of new scale
 	int32_t currentScale = getCurrentPresetScale();
+	if (currentScale >= FIRST_5_NOTE_SCALE_INDEX) {
+		numNotesInCurrentScale = 5;
+	}
+	else if (currentScale >= FIRST_6_NOTE_SCALE_INDEX) {
+		numNotesInCurrentScale = 6;
+	}
 
 	int32_t newScale = currentScale + 1;
 	if (newScale >= NUM_PRESET_SCALES) {
 		newScale = 0;
 	}
 
+	// Get num of notes of new scale
+	if (newScale >= FIRST_5_NOTE_SCALE_INDEX) {
+		numNotesInNewScale = 5;
+	}
+	else if (newScale >= FIRST_6_NOTE_SCALE_INDEX) {
+		numNotesInNewScale = 6;
+	}
+
+	bool notesWithinOctavePresent[12];
+	for (int32_t i = 0; i < 12; i++) {
+		notesWithinOctavePresent[i] = false;
+	}
+
+	if (numNotesInCurrentScale > numNotesInNewScale) {
+		// We are trying to pass from 7-note scale to 6-note scale, or 6-note scale to 5-note scale
+		// First we need to check if, among all the clips, there are only 6 or 5 notes being used from the scale
+		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list (Major
+		// scale)
+
+		// All InstrumentClips in session and arranger
+		ClipArray* clipArray = &sessionClips;
+traverseClips3:
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* clip = clipArray->getClipAtIndex(c);
+			if (clip->type != ClipType::INSTRUMENT) {
+				continue;
+			}
+			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+			if (instrumentClip->isScaleModeClip()) {
+				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
+			}
+		}
+		if (clipArray != &arrangementOnlyClips) {
+			clipArray = &arrangementOnlyClips;
+			goto traverseClips3;
+		}
+	}
+
+	int32_t notesWithinOctavePresentCount = 0;
+	for (int32_t i = 0; i < 12; i++) {
+		if (notesWithinOctavePresent[i]) {
+			notesWithinOctavePresentCount++;
+		}
+	}
+
+	// If the new scale cannot fit the notes from the old one, we need to cycle back to the beginning of the scales list
+	if ((newScale == FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
+	    || (newScale == FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
+		newScale = 0;
+		numNotesInNewScale = 7;
+	}
+
+	// The new scale can perfectly fit all notes from the old one, so mark all notes to be transposed
+	if (numNotesInCurrentScale <= numNotesInNewScale) {
+		for (int32_t i = 0; i < 12; i++) {
+			notesWithinOctavePresent[i] = true;
+		}
+		notesWithinOctavePresentCount = 12;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+
+	bool modeNoteNeedsTransposition[7];
+	for (int32_t i = 0; i < 7; i++) {
+		modeNoteNeedsTransposition[i] = false;
+	}
 
 	// Firstly, make all current mode notes as high as they can possibly go, so there'll be no crossing over when we go
 	// to actually do it, below For each InstrumentClip in session and arranger
@@ -2694,23 +2820,33 @@ traverseClips:
 
 		if (instrumentClip->isScaleModeClip()) {
 			for (int32_t n = 6; n >= 1; n--) {
-				int32_t newNote = 5 + n;
-				int32_t oldNote = modeNotes[n];
-				if (oldNote != newNote) {
-					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-					instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
+				if (notesWithinOctavePresent[modeNotes[n]] && modeNotes[n] != 0) {
+					// If the note is present in the sequencer, we set it to be transposed
+					modeNoteNeedsTransposition[n] = true;
+					int32_t newNote = 5 + n;
+					int32_t oldNote = modeNotes[n];
+					if (oldNote != newNote) {
+						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						    modelStack->addTimelineCounter(clip);
+						instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
+					}
 				}
 			}
 		}
 	}
+
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
 	}
 
 	for (int32_t n = 1; n < 7; n++) {
-		modeNotes[n] = 5 + n;
+		if (modeNoteNeedsTransposition[n]) {
+			modeNotes[n] = 5 + n;
+		}
 	}
+
+	int32_t noteNumDiff = numNotesInCurrentScale - numNotesInNewScale;
 
 	// And now, set the mode notes to what they're actually supposed to be
 	// For each InstrumentClip in session and arranger
@@ -2724,10 +2860,15 @@ traverseClips2:
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
+			int32_t offset = 0;
 			for (int32_t n = 1; n < 7; n++) {
-				int32_t newNote = presetScaleNotes[newScale][n];
+				if (!modeNoteNeedsTransposition[n] && offset < noteNumDiff) {
+					offset++;
+					continue;
+				}
+				int32_t newNote = presetScaleNotes[newScale][n - offset];
 				int32_t oldNote = modeNotes[n];
-				if (oldNote != newNote) {
+				if (modeNoteNeedsTransposition[n] && oldNote != newNote) {
 					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 					instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
 				}
@@ -2739,22 +2880,34 @@ traverseClips2:
 		goto traverseClips2;
 	}
 
+	int32_t newNumModeNotes = 1;
 	for (int32_t n = 1; n < 7; n++) {
-		modeNotes[n] = presetScaleNotes[newScale][n];
+		int32_t newNote = presetScaleNotes[newScale][n];
+		modeNotes[n] = newNote;
+		if (newNote == 0) {
+			continue;
+		}
+		newNumModeNotes++;
 	}
+	numModeNotes = newNumModeNotes;
 
 	return newScale;
 }
 
 // Returns 255 if none
 int32_t Song::getCurrentPresetScale() {
-	if (numModeNotes != 7) {
+	if (numModeNotes < 5 || numModeNotes > 7) {
 		return 255;
 	}
 
-	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
+	int32_t numPresetScales = NUM_PRESET_SCALES;
+	for (int32_t p = 0; p < numPresetScales; p++) {
 		for (int32_t n = 1; n < 7; n++) {
-			if (modeNotes[n] != presetScaleNotes[p][n]) {
+			int32_t newNote = presetScaleNotes[p][n];
+			if (newNote == 0) {
+				continue;
+			}
+			if (modeNotes[n] != newNote) {
 				goto notThisOne;
 			}
 		}
@@ -2925,7 +3078,9 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < sessionClips.getNumElements(); l++) {
 				Clip* loopable = sessionClips.getClipAtIndex(l);
-				loopable->armState = ArmState::OFF;
+				if (loopable->launchStyle == LaunchStyle::DEFAULT) {
+					loopable->armState = ArmState::OFF;
+				}
 			}
 		}
 		return;
@@ -2940,7 +3095,9 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			clip->armState = ArmState::OFF;
+			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE) {
+				clip->armState = ArmState::OFF;
+			}
 		}
 	}
 

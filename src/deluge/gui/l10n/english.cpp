@@ -231,6 +231,7 @@ PLACE_SDRAM_DATA Language english{
         // gui/context_menu/launch_style.cpp
         {STRING_FOR_DEFAULT_LAUNCH, "Default Clip"},
         {STRING_FOR_FILL_LAUNCH, "Fill Clip"},
+        {STRING_FOR_ONCE_LAUNCH, "Once Clip"},
 
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "Load all"},

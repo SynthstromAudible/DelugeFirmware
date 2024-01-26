@@ -83,8 +83,6 @@ public:
 
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
-	enum class RootNote { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
-
 	enum class MIDIMode { MULTI = 0, MPE, SINGLE };
 
 	enum class MPEZone { LOWER = 0, UPPER };
@@ -159,8 +157,8 @@ private:
 	void setMIDIMode(MIDIMode midiMode);
 	void setMPEZone(MPEZone mpeZone);
 	void setMPENumChannels(uint8_t numChannels);
-	void setRootNote(RootNote rootNote);
-	Scale determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount);
+	void setRootNote(int16_t rootNote);
+	std::pair<Scale, int16_t> determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
 	void setColour(ColourZone zone, RGB rgb);
 };

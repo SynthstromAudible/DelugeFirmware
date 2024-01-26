@@ -159,7 +159,7 @@ void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
 bool rootUIIsTimelineView();
 bool rootUIIsClipMinderScreen();
-void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols();
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);

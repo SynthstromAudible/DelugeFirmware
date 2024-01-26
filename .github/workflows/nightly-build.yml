@@ -11,7 +11,7 @@ jobs:
     outputs:
       new-commits: ${{ steps.count-commits.outputs.count }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: 'community'
           fetch-depth: 0 # Required to count the commits
