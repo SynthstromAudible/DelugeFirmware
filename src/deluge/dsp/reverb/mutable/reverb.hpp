@@ -114,8 +114,13 @@ public:
 	void setRoomSize(float value) override { reverb_time_ = 0.35f + 0.63f * value; }
 	[[nodiscard]] float getRoomSize() const override { return (reverb_time_ - 0.35) / 0.63f; };
 
-	void setDamping(float value) override { lp_ = 0.3f + value * 0.6f; }
-	[[nodiscard]] float getDamping() const override { return (lp_ - 0.3f) / 0.6f; }
+	void setDamping(float value) override {
+		value = 50.f - value;
+		lp_ = 0.3f + value * 0.6f;
+	}
+	[[nodiscard]] float getDamping() const override { return
+		50.f - ((lp_ - 0.3f) / 0.6f);
+	}
 
 	void setWidth(float value) override { diffusion_ = 0.35 + 0.63f * value; }
 	[[nodiscard]] float getWidth() const override { return (diffusion_ - 0.35) / 0.63f; };
