@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "colour.h"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
+#include "gui/colour/palette.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 
@@ -27,61 +28,37 @@ Colour stoppedColourMenu{l10n::String::STRING_FOR_STOPPED};
 Colour mutedColourMenu{l10n::String::STRING_FOR_MUTED};
 Colour soloColourMenu{l10n::String::STRING_FOR_SOLOED};
 
-void Colour::getRGB(uint8_t rgb[3]) {
+RGB Colour::getRGB() const {
 	switch (value) {
-	case 0: // Red
-		rgb[0] = disabledColour.r;
-		rgb[1] = disabledColour.g;
-		rgb[2] = disabledColour.b;
-		break;
+	case RED: // Red
+		return colours::red;
 
-	case 1: // Green
-		rgb[0] = enabledColour.r;
-		rgb[1] = enabledColour.g;
-		rgb[2] = enabledColour.b;
-		break;
+	case GREEN: // Green
+		return colours::enabled;
 
-	case 2: // Blue
-		rgb[0] = 0;
-		rgb[1] = 0;
-		rgb[2] = 255;
-		break;
+	case BLUE: // Blue
+		return colours::blue;
 
-	case 3: // Yellow
-		rgb[0] = mutedColour.r;
-		rgb[1] = mutedColour.g;
-		rgb[2] = mutedColour.b;
-		break;
+	case YELLOW: // Yellow
+		return colours::yellow_orange;
 
-	case 4: // Cyan
-		rgb[0] = 0;
-		rgb[1] = 128;
-		rgb[2] = 128;
-		break;
+	case CYAN: // Cyan
+		return colours::cyan;
 
-	case 5: // Purple
-		rgb[0] = 128;
-		rgb[1] = 0;
-		rgb[2] = 128;
-		break;
+	case MAGENTA: // Purple
+		return colours::magenta;
 
-	case 6: // Amber
-		rgb[0] = 255;
-		rgb[1] = 48;
-		rgb[2] = 0;
-		break;
+	case AMBER: // Amber
+		return colours::amber;
 
-	case 7: // White
-		rgb[0] = 128;
-		rgb[1] = 128;
-		rgb[2] = 128;
-		break;
+	case WHITE: // White
+		return colours::white;
 
-	case 8: // Pink
-		rgb[0] = 255;
-		rgb[1] = 44;
-		rgb[2] = 50;
-		break;
+	case PINK: // Pink
+		return colours::pink;
+
+	default:
+		__builtin_unreachable(); // TODO: should be std::unreachable() with C++23
 	}
 }
 } // namespace deluge::gui::menu_item

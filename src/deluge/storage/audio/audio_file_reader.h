@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -21,7 +21,8 @@
 
 class AudioFile;
 
-// The reason we have this class and don't do it all in the AudioFile is that this class contains variables that are only needed during the reading process.
+// The reason we have this class and don't do it all in the AudioFile is that this class contains variables that are
+// only needed during the reading process.
 
 class AudioFileReader {
 public:

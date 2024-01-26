@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -27,7 +27,7 @@ class DirectionSelector final : public Selection {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_IN),

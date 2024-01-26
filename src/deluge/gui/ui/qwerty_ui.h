@@ -27,7 +27,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) {
 		return true;
 	}
@@ -42,8 +42,8 @@ protected:
 	virtual void processBackspace(); // May be called in card routine
 	virtual void enterKeyPress() = 0;
 
-	// This may be called in card routine so long as either !currentFileExists (which is always the case in a processBackspace()),
-	// or we are not LoadSongUI
+	// This may be called in card routine so long as either !currentFileExists (which is always the case in a
+	// processBackspace()), or we are not LoadSongUI
 
 	char const* title;
 	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,

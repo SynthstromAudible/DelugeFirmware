@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -28,7 +28,7 @@ public:
 	void grabFromClip(Clip* thisClip);
 
 	int32_t yScrollSessionView[2];
-	//uint8_t modKnobMode;
+	// uint8_t modKnobMode;
 	bool affectEntire;
 	bool wrapEditing;
 	uint32_t wrapEditLevel;

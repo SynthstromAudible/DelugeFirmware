@@ -13,11 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
@@ -68,7 +69,8 @@ int32_t getParamRange(int32_t p) {
 	case params::LOCAL_LPF_FREQ:
 		return 536870912 * 1.4;
 
-		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
+		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that
+		// with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
 		// - which would take us to the max user "preset value", which is what we want for phase width
 	default:
 		return 1073741824;
@@ -98,7 +100,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::GLOBAL_LFO_FREQ:
 	case params::LOCAL_LFO_LOCAL_FREQ:
 	case params::GLOBAL_MOD_FX_RATE:
-		return 121739; //lfoRateTable[userValue];
+		return 121739; // lfoRateTable[userValue];
 
 	case params::LOCAL_LPF_RESONANCE:
 	case params::LOCAL_HPF_RESONANCE:
@@ -114,20 +116,20 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
-		return 4096; //attackRateTable[userValue];
+		return 4096; // attackRateTable[userValue];
 
 	case params::LOCAL_ENV_0_RELEASE:
 	case params::LOCAL_ENV_1_RELEASE:
-		return 140 << 9; //releaseRateTable[userValue];
+		return 140 << 9; // releaseRateTable[userValue];
 
 	case params::LOCAL_ENV_0_DECAY:
 	case params::LOCAL_ENV_1_DECAY:
-		return 70 << 9; //releaseRateTable[userValue] >> 1;
+		return 70 << 9; // releaseRateTable[userValue] >> 1;
 
 	case params::LOCAL_ENV_0_SUSTAIN:
 	case params::LOCAL_ENV_1_SUSTAIN:
 	case params::GLOBAL_DELAY_FEEDBACK:
-		return 1073741824; //536870912;
+		return 1073741824; // 536870912;
 
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
@@ -142,7 +144,8 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it 16x smaller)
+		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
+		                 // 16x smaller)
 
 	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
@@ -164,41 +167,44 @@ void functionsInit() {
 }
 
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue) {
-	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to right
+	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to
+	// right
 	int32_t preLimits = (paramNeutralValue >> 2) + (patchedValue >> 1);
 	return signed_saturate<32 - 3>(preLimits) << 2;
 }
 
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having been multiplied
+	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
+	// been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
 	int32_t positivePatchedValue = patchedValue + 536870912;
 
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
+	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
+	// 536870912 represents "1".
 
 	// If this parameter is a volume one, then apply a parabola curve to the patched value, at this late stage
 	/*
 	if (isVolumeParam) {
-		// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at 1073741824 ("2")
-		if (positivePatchedValue >= 1073741824) positivePatchedValue = 2147483647;
-		else {
-			//int32_t madeSmaller = positivePatchedValue >> 15;
-			//positivePatchedValue = (madeSmaller * madeSmaller) << 1;
-			positivePatchedValue = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
-		}
+	    // But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
+	1073741824 ("2") if (positivePatchedValue >= 1073741824) positivePatchedValue = 2147483647; else {
+	        //int32_t madeSmaller = positivePatchedValue >> 15;
+	        //positivePatchedValue = (madeSmaller * madeSmaller) << 1;
+	        positivePatchedValue = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
+	    }
 	}
 	*/
 
-	// This is a temporary (?) fix I've done to allow FM modulator amounts to get past where I clipped off volume params.
-	// So now volumes can get higher too. Problem? Not sure.
+	// This is a temporary (?) fix I've done to allow FM modulator amounts to get past where I clipped off volume
+	// params. So now volumes can get higher too. Problem? Not sure.
 
-	// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at 1073741824 ("2")
+	// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
+	// 1073741824 ("2")
 	positivePatchedValue = (positivePatchedValue >> 16) * (positivePatchedValue >> 15);
 
-	//return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
+	// return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
 
 	// Must saturate, otherwise mod fx depth can easily overflow
 	return lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
@@ -206,13 +212,15 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having been multiplied
+	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
+	// been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
 	int32_t positivePatchedValue = patchedValue + 536870912;
 
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
+	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
+	// 536870912 represents "1".
 
 	// Must saturate, otherwise sustain level can easily overflow
 	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
@@ -808,7 +816,7 @@ char const* polyphonyModeToString(PolyphonyMode synthMode) {
 	case PolyphonyMode::CHOKE:
 		return "choke";
 
-	default: //case PolyphonyMode::POLY:
+	default: // case PolyphonyMode::POLY:
 		return "poly";
 	}
 }
@@ -990,7 +998,7 @@ ArpMode stringToArpMode(char const* string) {
 		return ArpMode::OFF;
 	}
 }
-//converts lpf/hpf mode to string for saving
+// converts lpf/hpf mode to string for saving
 char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -1020,7 +1028,7 @@ FilterMode stringToLPFType(char const* string) {
 		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "SVF")) {
-		//for compatibility with community pre release
+		// for compatibility with community pre release
 		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
@@ -1118,13 +1126,16 @@ SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	}
 }
 
-char const* launchStyleToString(int launchStyle) {
+char const* launchStyleToString(LaunchStyle launchStyle) {
 	switch (launchStyle) {
-	case LAUNCH_STYLE_DEFAULT:
+	case LaunchStyle::DEFAULT:
 		return "default";
 
-	case LAUNCH_STYLE_FILL:
+	case LaunchStyle::FILL:
 		return "fill";
+
+	case LaunchStyle::ONCE:
+		return "once";
 
 	default:
 		__builtin_unreachable();
@@ -1132,12 +1143,15 @@ char const* launchStyleToString(int launchStyle) {
 	}
 }
 
-int stringToLaunchStyle(char const* string) {
+LaunchStyle stringToLaunchStyle(char const* string) {
 	if (!strcmp(string, "fill")) {
-		return LAUNCH_STYLE_FILL;
+		return LaunchStyle::FILL;
+	}
+	else if (!strcmp(string, "once")) {
+		return LaunchStyle::ONCE;
 	}
 	else {
-		return LAUNCH_STYLE_DEFAULT;
+		return LaunchStyle::DEFAULT;
 	}
 }
 
@@ -1244,14 +1258,6 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 	return closestIndex;
 }
 
-uint32_t rshift_round(uint32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
-int32_t rshift_round_signed(int32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
 int32_t instantTan(int32_t input) {
 	int32_t whichValue = input >> 25;                   // 25
 	int32_t howMuchFurther = (input << 6) & 2147483647; // 6
@@ -1263,7 +1269,8 @@ int32_t instantTan(int32_t input) {
 }
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
-	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest one and the sum
+	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest
+	// one and the sum
 	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
 	sum = std::min(sum, (uint32_t)2147483647);
 	int32_t maxOne = std::max(strength1, strength2);
@@ -1287,64 +1294,6 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
-}
-
-void hueToRGB(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
-		}
-		else {
-			rgb[c] = 0;
-		}
-	}
-}
-
-#define PASTEL_RANGE 230
-
-void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10)
-			                      + 2147483648u; // Goes all the way up to 4294967295
-			uint32_t flipped = 4294967295 - basicValue;
-			uint32_t flippedScaled = (flipped >> 8) * PASTEL_RANGE;
-			rgb[c] = (4294967295 - flippedScaled) >> 24;
-		}
-		else {
-			rgb[c] = 256 - PASTEL_RANGE;
-		}
-	}
 }
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
@@ -1482,7 +1431,8 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t mem
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[pos + 1 + i]);
 	}
 
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and actually we'd probably get some overflows if we did...
+	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
+	// actually we'd probably get some overflows if we did...
 
 	return value;
 }
@@ -1506,7 +1456,8 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[(pos + 1 + i) & (memoryNumElements - 1)]);
 	}
 
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and actually we'd probably get some overflows if we did...
+	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
+	// actually we'd probably get some overflows if we did...
 
 	return value;
 }
@@ -1550,9 +1501,8 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 		string++;
 	}
 
-	if (*string < '1'
-	    || *string
-	           > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
+	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note
+		                                  // name. And it can't start with 0.
 		toReturn.noteNumber = 100000;
 		toReturn.stringLength = 0;
 		return toReturn;
@@ -1625,8 +1575,9 @@ int32_t strcmpspecial(char const* first, char const* second) {
 						continue;
 					}
 
-					//else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not zeros, we're done.
-					// Actually, the same end result is achieved without that line.
+					// else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not
+					// zeros, we're done.
+					//  Actually, the same end result is achieved without that line.
 
 					// If we're still here, one is a leading zero and the other isn't.
 					resultIfGetToEndOfBothStrings =
@@ -2163,36 +2114,6 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 		b++;
 	}
 	return count;
-}
-
-void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion) {
-	int32_t totalColour;
-	totalColour = (int32_t)input[0] + input[1] + input[2]; // max 765
-
-	for (int32_t colour = 0; colour < 3; colour++) {
-
-		int32_t colourValue = input[colour];
-
-		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
-		                               + ((int32_t)totalColour * (greyProportion >> 5)),
-		                           23);
-		if (colourValue >= 256) {
-			colourValue = 255;
-		}
-
-		output[colour] = colourValue;
-	}
-}
-
-void dimColour(uint8_t colour[3]) {
-	for (int32_t c = 0; c < 3; c++) {
-		if (colour[c] >= 64) {
-			colour[c] = 50;
-		}
-		else {
-			colour[c] = 5;
-		}
-	}
 }
 
 bool shouldAbortLoading() {

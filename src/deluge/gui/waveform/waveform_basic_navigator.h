@@ -25,8 +25,9 @@ class Sample;
 struct MarkerColumn;
 class SampleHolder;
 
-// This class supports basic navigation for samples not tied to a timeline - i.e. not AudioClips. Navigation is done and thought about
-// at the individual-sample level. This is used (but not inherited) by SampleMarkerEditor and SampleBrowser
+// This class supports basic navigation for samples not tied to a timeline - i.e. not AudioClips. Navigation is done and
+// thought about at the individual-sample level. This is used (but not inherited) by SampleMarkerEditor and
+// SampleBrowser
 
 class WaveformBasicNavigator {
 public:

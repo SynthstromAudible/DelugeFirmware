@@ -52,7 +52,7 @@ void UnpatchedParam::writeCurrentValue() {
 	int32_t value = getFinalValue();
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
 
-	//send midi follow feedback
+	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 }

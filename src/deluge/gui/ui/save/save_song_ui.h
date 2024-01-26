@@ -26,13 +26,13 @@ public:
 	SaveSongUI();
 	bool opened();
 	void focusRegained();
-	//void selectEncoderAction(int8_t offset);
+	// void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false);
 
 	bool collectingSamples;
 
 protected:
-	//int32_t arrivedInNewFolder(int32_t direction);
+	// int32_t arrivedInNewFolder(int32_t direction);
 };
 
 extern SaveSongUI saveSongUI;

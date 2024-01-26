@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_param_change.h"
 #include "definitions_cxx.hpp"
@@ -42,8 +42,9 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 int32_t ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
 
-	// We only actually store one state at a time - either the before, or the after. As we revert in either direction, we swap our stored state with that of the param
-	// in question - like, actually swap the pointer to the ParamNodeVector, so it's real efficient!
+	// We only actually store one state at a time - either the before, or the after. As we revert in either direction,
+	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
+	// ParamNodeVector, so it's real efficient!
 
 	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
 

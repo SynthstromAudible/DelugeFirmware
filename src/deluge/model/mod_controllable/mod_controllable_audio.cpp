@@ -56,7 +56,7 @@ ModControllableAudio::ModControllableAudio() {
 	modFXBuffer = NULL;
 	modFXBufferWriteIndex = 0;
 
-	//Grain
+	// Grain
 	modFXGrainBuffer = NULL;
 	wrapsToShutdown = 0;
 	modFXGrainBufferWriteIndex = 0;
@@ -91,6 +91,19 @@ ModControllableAudio::ModControllableAudio() {
 
 	// Saturation
 	clippingAmount = 0;
+
+	SyncLevel syncLevel;
+	Song* song = preLoadedSong;
+	if (!song) {
+		song = currentSong;
+	}
+	if (song) {
+		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+	}
+	else {
+		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
+	}
+	delay.syncLevel = syncLevel;
 }
 
 ModControllableAudio::~ModControllableAudio() {
@@ -159,7 +172,7 @@ void ModControllableAudio::setWrapsToShutdown() {
 	else if (grainFeedbackVol <= 218103808) {
 		wrapsToShutdown = 3;
 	}
-	//max possible, feedback doesn't go very high
+	// max possible, feedback doesn't go very high
 	else {
 		wrapsToShutdown = 4;
 	}
@@ -229,45 +242,45 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			grainShift = 44 * 300; //(kSampleRate / 1000) * 300;
 			// Size
 			grainSize = 44 * ((((unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
-			grainSize = std::clamp<int32_t>(grainSize, 440, 35280); //10ms - 800ms
+			grainSize = std::clamp<int32_t>(grainSize, 440, 35280); // 10ms - 800ms
 			// Rate
 			int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
-			grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); //0 - 180hz
+			grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
 			grainRate = std::max<int32_t>(1, grainRate);
 			grainRate = (kSampleRate << 1) / grainRate;
 			// Preset 0=default
 			grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
-			    unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), 5)); //Select 5 presets -2 to 2
+			    unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), 5)); // Select 5 presets -2 to 2
 			grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
 			// Temposync
 			if (grainPitchType == 2) {
 				int tempoBPM = (int32_t)(playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5);
-				grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; //4096msec
+				grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
 				grainRate = 44 * grainRate;                                       //(kSampleRate*grainRate)/1000;
-				int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          //4th
+				int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          // 4th
 				if (grainRate < baseNoteSamples) {
-					baseNoteSamples = baseNoteSamples >> 2; //16th
+					baseNoteSamples = baseNoteSamples >> 2; // 16th
 				}
 				grainRate = std::clamp<int32_t>((grainRate / baseNoteSamples) * baseNoteSamples, baseNoteSamples,
-				                                baseNoteSamples << 2);            //Quantize
-				if (grainRate < 2205) {                                           //50ms = 20hz
-					grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; //16 layers=<<4, 8layers = <<3
+				                                baseNoteSamples << 2);            // Quantize
+				if (grainRate < 2205) {                                           // 50ms = 20hz
+					grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
 				}
 				bool currentTickCountIsZero = (playbackHandler.getCurrentInternalTickCount() == 0);
-				if (grainLastTickCountIsZero && currentTickCountIsZero == false) { //Start Playback
-					modFXGrainBufferWriteIndex = 0;                                //Reset WriteIndex
+				if (grainLastTickCountIsZero && currentTickCountIsZero == false) { // Start Playback
+					modFXGrainBufferWriteIndex = 0;                                // Reset WriteIndex
 				}
 				grainLastTickCountIsZero = currentTickCountIsZero;
 			}
 			// Rate Adjustment
-			if (grainRate < 882) {                                            //50hz or more
-				grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; //16 layers=<<4, 8layers = <<3
+			if (grainRate < 882) {                                            // 50hz or more
+				grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
 			}
 			// Volume
 			grainVol = modFXDepth - 2147483648;
 			grainVol =
 			    (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(grainVol, grainVol), grainVol) << 2)
-			    + 2147483648; //Cubic
+			    + 2147483648; // Cubic
 			grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, grainVol));
 			grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - grainVol) << 3), 0, 2147483647);
 			grainFeedbackVol = grainVol >> 3;
@@ -322,17 +335,17 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 							int32_t pitchRand = getRandom255();
 							switch (grainPitchType) {
 							case -2:
-								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; //unison + octave + reverse
+								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave + reverse
 								grains[i].rev = 1;
 								break;
 							case -1:
-								grains[i].pitch = (pitchRand < 76) ? 512 : 1024; //unison + octave lower
+								grains[i].pitch = (pitchRand < 76) ? 512 : 1024; // unison + octave lower
 								break;
 							case 0:
-								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; //unison + octave (default)
+								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave (default)
 								break;
 							case 1:
-								grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; //5th + octave
+								grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; // 5th + octave
 								break;
 							case 2:
 								grains[i].pitch = (pitchRand < 25)    ? 512
@@ -372,7 +385,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 								}
 							}
 							if (!grainInitialized) {
-								if (!grains[i].rev) { //forward
+								if (!grains[i].rev) { // forward
 									grains[i].pitch = 1024;
 									if (modFXGrainBufferWriteIndex > 13231) {
 										int32_t newStartPoint =
@@ -401,7 +414,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 								grains[i].volScale = (2147483647 / (grains[i].length >> 1));
 								grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
 								shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
-								                &grains[i].panVolR); //Pan Law 0
+								                &grains[i].panVolR); // Pan Law 0
 							}
 							break;
 						}
@@ -412,7 +425,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				int32_t grains_r = 0;
 				for (int32_t i = 0; i < 8; i++) {
 					if (grains[i].length > 0) {
-						//triangle window
+						// triangle window
 						int32_t vol = grains[i].counter <= (grains[i].length >> 1)
 						                  ? grains[i].counter * grains[i].volScale
 						                  : grains[i].volScaleMax
@@ -438,12 +451,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				grains_l <<= 3;
 				grains_r <<= 3;
-				//Feedback (Below grainFeedbackVol means "grainVol >> 4")
+				// Feedback (Below grainFeedbackVol means "grainVol >> 4")
 				modFXGrainBuffer[writeIndex].l =
 				    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, grainFeedbackVol);
 				modFXGrainBuffer[writeIndex].r =
 				    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, grainFeedbackVol);
-				//WET and DRY Vol
+				// WET and DRY Vol
 				currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, grainDryVol) << 1,
 				                                  multiply_32x32_rshift32(grains_l, grainVol) << 1);
 				currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, grainDryVol) << 1,
@@ -552,16 +565,18 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					//D_PRINTLN("settling");
+					// D_PRINTLN("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
 
-				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new (smaller) buffer at our new rate
+				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
+				// (smaller) buffer at our new rate
 				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate << 1)) {
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, false);
 				}
 
-				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native rate is half our current rate (double the quality)
+				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
+				// rate is half our current rate (double the quality)
 				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate) {
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate >> 1, false);
 				}
@@ -671,7 +686,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t fromDelayL = workingBufferPos[0];
 					int32_t fromDelayR = workingBufferPos[1];
 
-					//delay.impulseResponseProcessor.process(fromDelayL, fromDelayR, &fromDelayL, &fromDelayR);
+					// delay.impulseResponseProcessor.process(fromDelayL, fromDelayR, &fromDelayL, &fromDelayR);
 
 					// Reduce headroom, since this sounds ok with analog sim
 					workingBufferPos[0] =
@@ -703,7 +718,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			} while (workingBufferPos != workingBufferEnd);
 		}
 
-		// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many repetitions
+		// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
+		// repetitions
 		{
 			int32_t* workingBufferPos = delayWorkingBuffer;
 			do {
@@ -722,7 +738,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		{
 			StereoSample* currentSample = buffer;
 			int32_t* workingBufferPos = delayWorkingBuffer;
-			// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back into the delay
+			// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
+			// into the delay
 			do {
 
 				int32_t fromDelayL = workingBufferPos[0];
@@ -730,21 +747,24 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				/*
 				if (delay.analog) {
-					// Reduce headroom, since this sounds ok with analog sim
-					fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 8) << 2;
-					fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount), 8) << 2;
+				    // Reduce headroom, since this sounds ok with analog sim
+				    fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 8)
+				<< 2; fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
+				8) << 2;
 				}
 
 				else {
-					fromDelayL = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) << 2;
-					fromDelayR = signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) << 2;
+				    fromDelayL =
+				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) <<
+				2; fromDelayR =
+				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) <<
+				2;
 				}
 				*/
 
 				/*
-				// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many repetitions
-				int32_t distanceToGoL = fromDelayL - delay.postLPFL;
-				delay.postLPFL += distanceToGoL >> 11;
+				// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
+				repetitions int32_t distanceToGoL = fromDelayL - delay.postLPFL; delay.postLPFL += distanceToGoL >> 11;
 				fromDelayL -= delay.postLPFL;
 
 				int32_t distanceToGoR = fromDelayR - delay.postLPFR;
@@ -895,7 +915,8 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
 	postFXAndReverbVolumeL = postFXAndReverbVolumeR = (multiply_32x32_rshift32(postReverbVolume, postFXVolume) << 5);
 
-	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to sidechain volume ducking, which is done through post-FX volume.
+	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
+	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
 		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, amplitudeIncrement) << 5);
 	}
@@ -993,13 +1014,14 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 			lowSampleRatePos = 0;
 		}
 
-		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff started clipping off where I needed it if sample rate too low
+		// This function, slightly unusually, uses 22 bits to represent "1". That's 4194304. I tried using 24, but stuff
+		// started clipping off where I needed it if sample rate too low
 
 		uint32_t positivePreset =
 		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
 		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
-		//int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
+		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
 		StereoSample* currentSample = buffer;
 		do {
@@ -1022,7 +1044,8 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 				lowSampleRatePos += lowSampleRateIncrement;
 
 				// "Re-sync" the up-conversion spinner.
-				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works better. Ah, writing the massive explanation would take ages.
+				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
+				// better. Ah, writing the massive explanation would take ages.
 				highSampleRatePos =
 				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
 			}
@@ -1078,7 +1101,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				stutterer.buffer.clearAndMoveOn();
 				stutterer.sizeLeftUntilRecordFinished--;
 
-				//stutterer.buffer.writeNative(thisSample->l, thisSample->r);
+				// stutterer.buffer.writeNative(thisSample->l, thisSample->r);
 			}
 
 			// Or, resampling tick-along
@@ -1099,7 +1122,8 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
 				strength1 = 65536 - strength2;
 
-				//stutterer.buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2, &delayBufferSetup);
+				// stutterer.buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2,
+				// &delayBufferSetup);
 			}
 
 			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, &delayBufferSetup);
@@ -1169,7 +1193,8 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
 	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
-	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be a no-op)
+	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
+	// a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
 	// Convert back to value range
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
@@ -1197,9 +1222,10 @@ void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
 	if (result == NO_ERROR) {
 		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
 
-		// 2 different options here for different scenarios. I can't very clearly remember how to describe the difference
+		// 2 different options here for different scenarios. I can't very clearly remember how to describe the
+		// difference
 		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			//D_PRINTLN("making precise");
+			// D_PRINTLN("making precise");
 			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
 		}
 		else {
@@ -1292,7 +1318,8 @@ void ModControllableAudio::writeTagsToFile() {
 				}
 			}
 
-			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its own tag, cos that can't be written as just an attribute.
+			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
+			// own tag, cos that can't be written as just an attribute.
 			if (knob->midiInput.device) {
 				storageManager.writeOpeningTagEnd();
 				knob->midiInput.device->writeReferenceToFile();
@@ -1616,7 +1643,8 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		else {
 			paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
 			    this,
-			    NULL); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they even have them).
+			    NULL); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they even
+			           // have them).
 		}
 	}
 
@@ -1643,7 +1671,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			if (value >= 16 && value < 112) {
 				knob->relative = false;
 			}
-			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+			// region.
 			int32_t modPos = 0;
 			int32_t modLength = 0;
 
@@ -1658,7 +1687,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 			}
 
-			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
+			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
+			// scratch now from that.
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
@@ -1686,15 +1716,15 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					//add 64 to internal knobPos to compare to midi cc value received
-					//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					//because midi can only send a max midi value of 127
+					// add 64 to internal knobPos to compare to midi cc value received
+					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+					// because midi can only send a max midi value of 127
 					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
 					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
 						knobPosForMidiValueComparison = kMaxMIDIValue;
 					}
 
-					//is the cc being received for the same value as the current knob pos? If so, do nothing
+					// is the cc being received for the same value as the current knob pos? If so, do nothing
 					if (value != knobPosForMidiValueComparison) {
 						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos, value, knob);
 					}
@@ -1703,32 +1733,32 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 
-				//Convert the New Knob Position to a Parameter Value
+				// Convert the New Knob Position to a Parameter Value
 				int32_t newValue =
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
-				//Set the new Parameter Value for the MIDI Learned Parameter
+				// Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
 
-				//if you're in automation view and editing the same parameter that was just updated
-				//by a learned midi knob, then re-render the pads on the automation editor grid
+				// if you're in automation view and editing the same parameter that was just updated
+				// by a learned midi knob, then re-render the pads on the automation editor grid
 				if (getRootUI() == &automationClipView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
-					//check that the clip that the param is being edited for is the same as the
-					//current clip as the current clip is what's actively displayed in automation view
+					// check that the clip that the param is being edited for is the same as the
+					// current clip as the current clip is what's actively displayed in automation view
 					if (clip == getCurrentClip()) {
-						//pass the current clip because you want to check that you're editing the param
-						//for the same clip active in automation view
+						// pass the current clip because you want to check that you're editing the param
+						// for the same clip active in automation view
 						int32_t id = modelStackWithParam->paramId;
 						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 						possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
-				//placeholder: if support is added for midi learning to song params, then you will need
-				//to possibly refresh the performance view display (see midi follow code below for doing this)
-				//you will need to check that you're dealing with a song param and not a clip param otherwise
-				//you may incorrectly refresh the performance view display
+				// placeholder: if support is added for midi learning to song params, then you will need
+				// to possibly refresh the performance view display (see midi follow code below for doing this)
+				// you will need to check that you're dealing with a song param and not a clip param otherwise
+				// you may incorrectly refresh the performance view display
 			}
 		}
 	}
@@ -1747,8 +1777,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
-	//setup model stack for the active context
-	//if clip is null, it means you want to control the song level parameters
+	// setup model stack for the active context
+	// if clip is null, it means you want to control the song level parameters
 	if (!clip) {
 		if (currentSong->affectEntire) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1758,57 +1788,58 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	}
 
-	//check that model stack is valid
+	// check that model stack is valid
 	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
-		//loop through the grid to see if any parameters have been learned to the ccNumber received
+		// loop through the grid to see if any parameters have been learned to the ccNumber received
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (midiFollow.paramToCC[xDisplay][yDisplay] == ccNumber) {
-					//obtain the model stack for the parameter the ccNumber received is learned to
-					//don't display "can't control param" error message if you're in a MIDI or CV clip
+					// obtain the model stack for the parameter the ccNumber received is learned to
+					// don't display "can't control param" error message if you're in a MIDI or CV clip
 					bool displayError = midiEngine.midiFollowDisplayParam
 					                    && (clip->output->type != OutputType::MIDI_OUT)
 					                    && (clip->output->type != OutputType::CV);
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, ccNumber, displayError);
-					//check if model stack is valid
+					// check if model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-							//get current value
+							// get current value
 							int32_t oldValue =
 							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
 
-							//convert current value to knobPos to compare to cc value being received
+							// convert current value to knobPos to compare to cc value being received
 							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
 							    oldValue, modelStackWithParam);
 
-							//add 64 to internal knobPos to compare to midi cc value received
-							//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-							//because midi can only send a max midi value of 127
+							// add 64 to internal knobPos to compare to midi cc value received
+							// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+							// because midi can only send a max midi value of 127
 							int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
 							if (knobPosForMidiValueComparison > kMaxMIDIValue) {
 								knobPosForMidiValueComparison = kMaxMIDIValue;
 							}
 
-							//is the cc being received for the same value as the current knob pos? If so, do nothing
+							// is the cc being received for the same value as the current knob pos? If so, do nothing
 							if (value != knobPosForMidiValueComparison) {
-								//calculate new knob position based on value received and deluge current value
+								// calculate new knob position based on value received and deluge current value
 								int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos,
 								                                                     value, nullptr, true, ccNumber);
 
-								//Convert the New Knob Position to a Parameter Value
+								// Convert the New Knob Position to a Parameter Value
 								int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
 								    newKnobPos, modelStackWithParam);
 
-								//Set the new Parameter Value for the MIDI Learned Parameter
+								// Set the new Parameter Value for the MIDI Learned Parameter
 								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
 								                                                          view.modPos, view.modLength);
 
-								//check if you're currently editing the same learned param in automation view or performance view
-								//if so, you will need to refresh the automation editor grid or the performance view
+								// check if you're currently editing the same learned param in automation view or
+								// performance view if so, you will need to refresh the automation editor grid or the
+								// performance view
 								bool editingParamInAutomationOrPerformanceView = false;
 								RootUI* rootUI = getRootUI();
 								if (rootUI == &automationClipView || rootUI == &performanceSessionView) {
@@ -1816,8 +1847,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 									if (rootUI == &automationClipView) {
-										//pass the current clip because you want to check that you're editing the param
-										//for the same clip active in automation view
+										// pass the current clip because you want to check that you're editing the param
+										// for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
 										    possiblyRefreshAutomationEditorGrid(clip, kind, id);
 									}
@@ -1827,9 +1858,9 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 									}
 								}
 
-								//check if you should display name of the parameter that was changed and the value that has been set
-								//if you're in the automation view editor or performance view non-editing mode
-								//don't display popup if you're currently editing the same param
+								// check if you should display name of the parameter that was changed and the value that
+								// has been set if you're in the automation view editor or performance view non-editing
+								// mode don't display popup if you're currently editing the same param
 								if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
 									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
@@ -1856,10 +1887,10 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
-	//obtain clip for active context
+	// obtain clip for active context
 	Clip* clip = getSelectedClip();
 
-	//setup model stack for the active context
+	// setup model stack for the active context
 	if (!clip) {
 		if (currentSong->affectEntire) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1872,30 +1903,31 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 		}
 	}
 
-	//check that model stack is valid
+	// check that model stack is valid
 	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
-		//loop through the grid to see if any parameters have been learned
+		// loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (midiFollow.paramToCC[xDisplay][yDisplay] != MIDI_CC_NONE) {
-					//obtain the model stack for the parameter that has been learned
+					// obtain the model stack for the parameter that has been learned
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
 					                                      clip, xDisplay, yDisplay, MIDI_CC_NONE, false);
-					//check that model stack is valid
+					// check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 							if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
-								//obtain current value of the learned parameter
+								// obtain current value of the learned parameter
 								int32_t currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(
 								    view.modPos, modelStackWithParam);
 
-								//convert current value to a knob position
+								// convert current value to a knob position
 								int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
 								    currentValue, modelStackWithParam);
 
-								//send midi feedback to the ccNumber learned to the param with the current knob position
+								// send midi feedback to the ccNumber learned to the param with the current knob
+								// position
 								sendCCForMidiFollowFeedback(channel, midiFollow.paramToCC[xDisplay][yDisplay], knobPos);
 							}
 						}
@@ -1949,7 +1981,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 
 	int32_t newKnobPos = 0;
 
-	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
+	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { // Midi Takeover Mode = Jump
 		newKnobPos = midiKnobPos;
 		if (knob != nullptr) {
 			knob->previousPosition = midiKnobPos;
@@ -1958,10 +1990,11 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
 		}
 	}
-	else { //Midi Takeover Mode = Pickup or Value Scaling
-		//Save previous knob position for first time
-		//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
-		//This code is also executed when takeover mode is changed to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
+	else { // Midi Takeover Mode = Pickup or Value Scaling
+		// Save previous knob position for first time
+		// The first time a midi knob is turned in a session, no previous midi knob position information exists, so to
+		// start, it will be equal to the current midiKnobPos This code is also executed when takeover mode is changed
+		// to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
 
 		if (knob != nullptr) {
 			if (!knob->previousPositionSaved) {
@@ -1976,12 +2009,12 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			}
 		}
 
-		//adjust previous knob position saved
+		// adjust previous knob position saved
 
-		//Here we check to see if the midi knob position previously saved is greater or less than the current midi knob position +/- 1
-		//If it's by more than 1, the previous position is adjusted.
-		//This could happen for example if you changed banks and the previous position is no longer valid.
-		//By resetting the previous position we ensure that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
+		// Here we check to see if the midi knob position previously saved is greater or less than the current midi knob
+		// position +/- 1 If it's by more than 1, the previous position is adjusted. This could happen for example if
+		// you changed banks and the previous position is no longer valid. By resetting the previous position we ensure
+		// that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
 		if (knob != nullptr) {
 			if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
 
@@ -1996,10 +2029,11 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			}
 		}
 
-		//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
+		// Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
-		//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold
-		//If the difference is greater than kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
+		// First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge
+		// Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold If the difference is greater than
+		// kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
 		int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
 		int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
 
@@ -2007,26 +2041,30 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			newKnobPos = knobPos + (midiKnobPos - knobPos);
 		}
 		else {
-			//if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
-			if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { //Midi Pickup Mode On
+			// if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the
+			// Parameter Value with it) remains unchanged
+			if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { // Midi Pickup Mode On
 				newKnobPos = knobPos;
 			}
-			//if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is scaled upwards or downwards based on relative
-			//positions of Midi Controller Knob and Deluge Knob to min/max of knob range.
-			else { //Midi Value Scaling Mode On
-				//Set the max and min of the deluge midi knob position range
+			// if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is
+			// scaled upwards or downwards based on relative positions of Midi Controller Knob and Deluge Knob to
+			// min/max of knob range.
+			else { // Midi Value Scaling Mode On
+				// Set the max and min of the deluge midi knob position range
 				int32_t knobMaxPos = 64;
 				int32_t knobMinPos = -64;
 
-				//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
-				int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
-				int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
+				// calculate amount of deluge "knob runway" is remaining from current knob position to max and min of
+				// knob position range
+				int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; // Positive Runway
+				int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; // Negative Runway
 
-				//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
-				int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
-				int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
+				// calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob
+				// position range
+				int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; // Positive Runway
+				int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; // Negative Runway
 
-				//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
+				// calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
 				int32_t midiKnobPosChange = 0;
 				if (knob != nullptr) {
 					midiKnobPosChange = midiKnobPos - knob->previousPosition;
@@ -2035,33 +2073,37 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 					midiKnobPosChange = midiKnobPos - midiFollow.previousKnobPos[ccNumber];
 				}
 
-				//Set fixed point variable which will be used calculate the percentage in midi knob position
+				// Set fixed point variable which will be used calculate the percentage in midi knob position
 				int32_t midiKnobPosChangePercentage;
 
-				//if midi knob position change is greater than 0, then the midi knob position has increased (e.g. turned knob right)
+				// if midi knob position change is greater than 0, then the midi knob position has increased (e.g.
+				// turned knob right)
 				if (midiKnobPosChange > 0) {
-					//fixed point math calculation of new deluge knob position when midi knob position has increased
+					// fixed point math calculation of new deluge knob position when midi knob position has increased
 
 					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
 
 					newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
 				}
-				//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
+				// if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned
+				// knob left)
 				else if (midiKnobPosChange < 0) {
-					//fixed point math calculation of new deluge knob position when midi knob position has decreased
+					// fixed point math calculation of new deluge knob position when midi knob position has decreased
 
 					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
 
 					newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
 				}
-				//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
+				// if midi knob position change is 0, then the midi knob position has not changed and thus no change in
+				// deluge knob position / parameter value is required
 				else {
 					newKnobPos = knobPos;
 				}
 			}
 		}
 
-		//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
+		// save the current midi knob position as the previous midi knob position so that it can be used next time the
+		// takeover code is executed
 		if (knob != nullptr) {
 			knob->previousPosition = midiKnobPos;
 		}
@@ -2088,8 +2130,8 @@ bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, param
 // this checks that the param displayed on the screen in performance view
 // is the same param currently being edited with mod encoder and updates the display if needed
 bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
-	//check if you're not in editing mode
-	//and a param hold press is currently active
+	// check if you're not in editing mode
+	// and a param hold press is currently active
 	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
 		if ((kind == performanceSessionView.lastPadPress.paramKind)
 		    && (id == performanceSessionView.lastPadPress.paramID)) {
@@ -2098,7 +2140,7 @@ bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(params::Kind ki
 			return true;
 		}
 	}
-	//if a specific param is not active, reset display
+	// if a specific param is not active, reset display
 	else if (performanceSessionView.onFXDisplay) {
 		performanceSessionView.renderViewDisplay();
 	}
@@ -2123,7 +2165,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fro
 
 			messageUsed = true;
 
-			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+			// region.
 			int32_t modPos = 0;
 			int32_t modLength = 0;
 
@@ -2138,7 +2181,8 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fro
 				modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 			}
 
-			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
+			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
+			// scratch now from that.
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
@@ -2190,13 +2234,15 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		stutterer.valueBeforeStuttering = paramValue;
 		stutterer.lastQuantizedKnobDiff = knobPos;
 
-		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
-		// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
+		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
+		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
+		// (real) value
 		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
 		view.notifyParamAutomationOccurred(paramManager);
 	}
 
-	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to sound as good if not better (in terms of ticking / crackling)...
+	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
+	// sound as good if not better (in terms of ticking / crackling)...
 	bool error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
 	if (error == NO_ERROR) {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
@@ -2277,7 +2323,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		delay.syncType = SYNC_TYPE_EVEN;
 		break;
 
-	default: //SYNC_TYPE_EVEN
+	default: // SYNC_TYPE_EVEN
 		delay.syncType = SYNC_TYPE_TRIPLET;
 		break;
 	}
@@ -2291,7 +2337,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		displayText = "Dotted";
 		break;
 
-	default: //SYNC_TYPE_EVEN
+	default: // SYNC_TYPE_EVEN
 		displayText = "Even";
 		break;
 	}
@@ -2300,7 +2346,7 @@ void ModControllableAudio::switchDelaySyncType() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
 
 	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel), "");
@@ -2335,7 +2381,7 @@ void ModControllableAudio::switchLPFMode() {
 	display->displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
-	//this works fine, the offset to the first hpf doesn't matter with the modulus
+	// this works fine, the offset to the first hpf doesn't matter with the modulus
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
 
 	char const* displayText;
@@ -2380,8 +2426,8 @@ void ModControllableAudio::clearModFXMemory() {
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {
-	// For us ModControllableAudios, this is really simple. Memory gets allocated in GlobalEffectable::processFXForGlobalEffectable().
-	// This function is overridden in Sound
+	// For us ModControllableAudios, this is really simple. Memory gets allocated in
+	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
 	modFXType = newType;
 	return true;
 }
@@ -2419,7 +2465,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 			knob = midiKnobArray.getElement(k);
 			if (knob->midiInput.equalsNoteOrCC(fromDevice, midiChannel, whichKnob)
 			    && paramDescriptor == knob->paramDescriptor) {
-				//overwroteExistingKnob = (midiKnobs[k].s != s || midiKnobs[k].p != p);
+				// overwroteExistingKnob = (midiKnobs[k].s != s || midiKnobs[k].p != p);
 				goto midiKnobFound;
 			}
 		}
@@ -2449,7 +2495,8 @@ midiKnobFound:
 bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* song) {
 	bool anythingFound = false;
 
-	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not want to also deactivate a mod knob to the same param at the same time
+	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
+	// want to also deactivate a mod knob to the same param at the same time
 
 	for (int32_t k = 0; k < midiKnobArray.getNumElements();) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -26,7 +26,8 @@ class InstrumentClip;
 class Output;
 class ModelStack;
 
-// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView, AutomationInstrumentClipView and KeyboardView.
+// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView,
+// AutomationInstrumentClipView and KeyboardView.
 
 class InstrumentClipMinder : public ClipMinder {
 public:
@@ -50,8 +51,8 @@ public:
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
-	static int16_t
-	    defaultRootNote; // Stores the calculated "default" root note between the user pressing the scale-mode button and releasing it
+	static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the
+	                                // scale-mode button and releasing it
 	static bool exitScaleModeOnButtonRelease;
 	static bool flashDefaultRootNoteOn;
 

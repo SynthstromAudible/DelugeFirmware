@@ -148,8 +148,8 @@ bestYet:
 		}
 
 		// If marker on-screen...
-		//if (pinMarkerCol >= 0) {
-		//xScroll = pinMarkerPos - newXZoom * pinMarkerCol;
+		// if (pinMarkerCol >= 0) {
+		// xScroll = pinMarkerPos - newXZoom * pinMarkerCol;
 		//}
 	}
 
@@ -185,7 +185,7 @@ bestYet:
 	}
 
 	memcpy(PadLEDs::imageStore[(offset > 0) ? kDisplayHeight : 0], PadLEDs::image,
-	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
 	// Calculate pin squares
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - xScroll) << 16) / (int32_t)(newXZoom - oldZoom);
@@ -196,8 +196,8 @@ bestYet:
 
 	int32_t storeOffset = (offset > 0) ? 0 : kDisplayHeight;
 
-	PadLEDs::clearTickSquares(
-	    false); // We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
+	PadLEDs::clearTickSquares(false); // We were mostly fine without this here, but putting it here fixed weird problem
+	                                  // where tick squares would
 	// appear when zooming into waveform in SampleBrowser
 
 	waveformRenderer.renderFullScreen(sample, xScroll, xZoom, &PadLEDs::imageStore[storeOffset], &renderData);

@@ -64,7 +64,7 @@ extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
 #pragma GCC diagnostic push
-//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 const PatchableInfo patchableInfoForSound = {
@@ -401,7 +401,8 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 	// If we just enabled an oscillator, we need to calculate voices' phase increments
 	if (oldValue == -2147483648 && newValue != -2147483648) {
 
-		// This will make inactive any voiceSources which currently have no volume. Ideally we'd only tell it to do the consideration for the oscillator in question, but oh well
+		// This will make inactive any voiceSources which currently have no volume. Ideally we'd only tell it to do the
+		// consideration for the oscillator in question, but oh well
 
 		switch (p) {
 		case params::LOCAL_OSC_A_VOLUME:
@@ -417,9 +418,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 	Destination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
 	if (destination) {
-		sourcesChanged |=
-		    destination
-		        ->sources; // Pretend those sources have changed, and the param will update - for each Voice too if local.
+		sourcesChanged |= destination->sources; // Pretend those sources have changed, and the param will update - for
+		                                        // each Voice too if local.
 	}
 
 	// Otherwise, if nothing patched there...
@@ -455,8 +455,9 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 	ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();                          \
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
-// paramManager only required for old old song files, or for presets (because you'd be wanting to extract the defaultParams into it).
-// arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and won't store any arp stuff.
+// paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
+// defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
+// separate from Clips and won't store any arp stuff.
 int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
                                int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
@@ -481,8 +482,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
 			synthMode = stringToSynthMode(contents);
 		}
-		//Uart::print("synth mode set to: ");
-		//Uart::println(synthMode);
+		// Uart::print("synth mode set to: ");
+		// Uart::println(synthMode);
 		storageManager.exitTag("mode");
 	}
 
@@ -534,7 +535,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 			else if (!strcmp(tagName, "phaseWidth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
-				//setParamPresetValue(params::LOCAL_OSC_B_PHASE_WIDTH, stringToInt(storageManager.readTagContents()) << 1); // Special case - pw values are stored at half size in file
+				// setParamPresetValue(params::LOCAL_OSC_B_PHASE_WIDTH, stringToInt(storageManager.readTagContents()) <<
+				// 1); // Special case - pw values are stored at half size in file
 				storageManager.exitTag("phaseWidth");
 			}
 			else if (!strcmp(tagName, "transpose")) {
@@ -618,9 +620,9 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
-			if (!strcmp(
-			        tagName,
-			        "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
+			if (!strcmp(tagName,
+			            "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
+				                   // firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				storageManager.exitTag("rate");
@@ -649,10 +651,9 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				}
 				storageManager.exitTag("mode");
 			}
-			else if (
-			    !strcmp(
-			        tagName,
-			        "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
+			else if (!strcmp(tagName,
+			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+				                        // with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
 				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 				storageManager.exitTag("gate");
@@ -676,10 +677,9 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		storageManager.exitTag("noiseVolume");
 	}
 
-	else if (
-	    !strcmp(
-	        tagName,
-	        "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
+	else if (!strcmp(tagName,
+	                 "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
+		                              // with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
@@ -776,7 +776,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 
 	else if (!strcmp(tagName, "cents")) {
 		int8_t newCents = storageManager.readTagOrAttributeValueInt();
-		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
+		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample
+		// rate is known
 		sources[0].cents = (std::max((int8_t)-50, std::min((int8_t)50, newCents)));
 		storageManager.exitTag("cents");
 	}
@@ -801,7 +802,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		range->sampleHolder.startPos = 0;
 		range->sampleHolder.endPos = 0;
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-			// Because this is for old, early-2016 format, there'll only be seconds and milliseconds in here, not samples
+			// Because this is for old, early-2016 format, there'll only be seconds and milliseconds in here, not
+			// samples
 			if (!strcmp(tagName, "startSeconds")) {
 				range->sampleHolder.startMSec += storageManager.readTagOrAttributeValueInt() * 1000;
 				storageManager.exitTag("startSeconds");
@@ -858,9 +860,8 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 
 				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
 					if (p != params::GLOBAL_NONE
-					    && p
-					           != params::
-					               PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0, for complex reasons
+					    && p != params::PLACEHOLDER_RANGE) { // Discard any unlikely "range" ones from before V3.2.0,
+						                                     // for complex reasons
 						ModKnob* newKnob = &modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
@@ -1253,7 +1254,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (getSynthMode() == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		//if (getSynthMode() == SynthMode::FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
+		// if (getSynthMode() == SynthMode::FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType !=
+		// OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
 	case params::LOCAL_OSC_A_VOLUME:
 		if (getSynthMode() == SynthMode::RINGMOD) {
@@ -1276,7 +1278,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (getSynthMode() == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		//if (getSynthMode() == SynthMode::FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
+		// if (getSynthMode() == SynthMode::FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType !=
+		// OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
 	case params::LOCAL_OSC_B_VOLUME:
 		if (getSynthMode() == SynthMode::RINGMOD) {
@@ -1303,8 +1306,9 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
-		//case params::LOCAL_RANGE:
-		//return (rangeAdjustedParam != params::GLOBAL_NONE); // Ideally we'd also check whether the range-adjusted param actually has something patched to it
+		// case params::LOCAL_RANGE:
+		// return (rangeAdjustedParam != params::GLOBAL_NONE); // Ideally we'd also check whether the range-adjusted
+		// param actually has something patched to it
 
 	case params::LOCAL_LPF_FREQ:
 	case params::LOCAL_LPF_RESONANCE:
@@ -1360,7 +1364,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
 		                                               : PatchCableAcceptance::DISALLOWED;
 
-		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb volume, and everything else patches to per-voice, "local" volume
+		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb
+		// volume, and everything else patches to per-voice, "local" volume
 	case params::GLOBAL_VOLUME_POST_FX:
 		return PatchCableAcceptance::DISALLOWED;
 
@@ -1376,7 +1381,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		}
 		break;
 
-		// In a perfect world, we'd only allow patching to LFO rates if the LFO as a source is itself patched somewhere usable
+		// In a perfect world, we'd only allow patching to LFO rates if the LFO as a source is itself patched somewhere
+		// usable
 	}
 
 	return PatchCableAcceptance::ALLOWED;
@@ -1413,9 +1419,10 @@ allFine:
 	ArpReturnInstruction instruction;
 	instruction.sampleSyncLengthOn = sampleSyncLength;
 
-	// We used to not have to worry about the arpeggiator if one-shot samples etc. But now that we support MPE, we do need to keep track of all sounding notes,
-	// even one-shot ones, and the "arpeggiator" is where this is stored. These will get left here even after the note has long gone (for sequenced notes anyway),
-	// but I can't actually find any negative consequence of this, or need to ever remove them en masse.
+	// We used to not have to worry about the arpeggiator if one-shot samples etc. But now that we support MPE, we do
+	// need to keep track of all sounding notes, even one-shot ones, and the "arpeggiator" is where this is stored.
+	// These will get left here even after the note has long gone (for sequenced notes anyway), but I can't actually
+	// find any negative consequence of this, or need to ever remove them en masse.
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -1444,11 +1451,12 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 
 			// If we're proper-MONO, or it's releasing OR has no sustain / note tails
 			if (polyphonic == PolyphonyMode::MONO || thisVoice->envelopes[0].state >= EnvelopeStage::RELEASE
-			    || !allowNoteTails(
-			        modelStack,
-			        true)) { // allowNoteTails() is very nearly exactly what we want to be calling here, though not named after the thing we're looking for here
+			    || !allowNoteTails(modelStack,
+			                       true)) { // allowNoteTails() is very nearly exactly what we want to be calling here,
+				                            // though not named after the thing we're looking for here
 
-				// If non-FM and all active sources are samples, do a fast-release (if not already fast-releasing). Otherwise, just unassign (cut instantly)
+				// If non-FM and all active sources are samples, do a fast-release (if not already fast-releasing).
+				// Otherwise, just unassign (cut instantly)
 				if (synthMode == SynthMode::FM) {
 justUnassign:
 					// Ideally, we want to save this voice to reuse. But we can only do that for the first such one
@@ -1556,7 +1564,8 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 #if ALPHA_OR_BETA_VERSION
 	if (!modelStack->paramManager) {
-		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices().
+		// But I'm pretty sure this doesn't exist anymore?
 		FREEZE_WITH_ERROR("E403");
 	}
 #endif
@@ -1590,8 +1599,8 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
 			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(
-			        modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the Arpeggiator will be full of notes which
+			    && allowNoteTails(modelStackWithVoice)) { // If no note-tails (i.e. yes one-shot samples etc.), the
+				                                          // Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
@@ -1610,10 +1619,11 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 					else { // PolyphonyMode::MONO
 						noteOnPostArpeggiator(
 						    modelStack, newNoteCode, newNoteCode,
-						    arpeggiator
-						        ->lastVelocity, // Interesting - I've made it keep the velocity of presumably the note we just switched off. I must have decided that sounded best? I think I vaguely remember.
-						    arpNote
-						        ->mpeValues, // ... We take the MPE values from the "keypress" associated with the new note we'll sound, though.
+						    arpeggiator->lastVelocity, // Interesting - I've made it keep the velocity of presumably the
+						                               // note we just switched off. I must have decided that sounded
+						                               // best? I think I vaguely remember.
+						    arpNote->mpeValues, // ... We take the MPE values from the "keypress" associated with the
+						                        // new note we'll sound, though.
 						    0, 0, 0, arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]);
 						return;
 					}
@@ -1652,7 +1662,8 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		return true;
 	}
 
-	// If we still don't know, just check there's at least one active oscillator that isn't a one-shot sample without a loop-end point
+	// If we still don't know, just check there's at least one active oscillator that isn't a one-shot sample without a
+	// loop-end point
 	bool anyActiveSources = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		bool sourceEverActive = modelStack->checkSourceEverActiveDisregardingMissingSample(s);
@@ -1723,7 +1734,8 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
 
-			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or shortened the sample
+			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or
+			// shortened the sample
 
 			maxLength = std::max(maxLength, length);
 		}
@@ -1782,7 +1794,8 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
 			if (sources[s].repeatMode == SampleRepeatMode::ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
-				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it tried to do a late start otherwise?
+				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
+				              // tried to do a late start otherwise?
 			}
 			break;
 
@@ -1871,7 +1884,8 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 	}
 }
 
-// Unlike most functions, this one accepts modelStack as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
+// Unlike most functions, this one accepts modelStack as NULL, because when unassigning all voices e.g. on song swap, we
+// won't have it.
 void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX) {
 
 	// TODO: should get the caller to provide this, cos they usually already have it. In fact, should put this on the
@@ -1899,11 +1913,10 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
-					int32_t waitSamples =
-					    (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
-					        ? (20 * 44)
-					        : (90
-					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser
+					int32_t waitSamples = (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
+					                          ? (20 * 44)
+					                          : (90 * 441); // 20 and 900 mS respectively. Lots is required for
+					                                        // feeding-back flanger or phaser
 					if (modFXType == ModFXType::GRAIN)
 						waitSamples = 350 * 441;
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
@@ -1916,7 +1929,8 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
-					// Ok, we wanted to check that before manually cutting the MODFX tail, to save time, but that's still an option...
+					// Ok, we wanted to check that before manually cutting the MODFX tail, to save time, but that's
+					// still an option...
 					if (shouldJustCutModFX) {
 						goto doCutModFXTail;
 					}
@@ -1956,7 +1970,8 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
 	}
 }
 
-// fromAutomation means whether the changes was caused by automation playing back - as opposed to the user turning the knob right now
+// fromAutomation means whether the changes was caused by automation playing back - as opposed to the user turning the
+// knob right now
 void Sound::notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
                                     int32_t oldValue, int32_t newValue, bool fromAutomation) {
 
@@ -2024,18 +2039,19 @@ void Sound::doParamLPF(int32_t numSamples, ModelStackWithSoundFlags* modelStack)
 	else {
 		int32_t amountToAdd = diff * numSamples;
 		paramLPF.currentValue += amountToAdd;
-		//patchedParamPresetValueChanged(paramLPF.p, notifySound, oldValue, paramLPF.currentValue);
+		// patchedParamPresetValueChanged(paramLPF.p, notifySound, oldValue, paramLPF.currentValue);
 		patchedParamPresetValueChanged(paramLPF.p, modelStack, oldValue, paramLPF.currentValue);
 	}
 }
 
-// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
+// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
+// it.
 void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 	bool wasActive = paramLPF.p != PARAM_LPF_OFF;
 	if (wasActive) {
 		int32_t p = paramLPF.p;
-		paramLPF.p =
-		    PARAM_LPF_OFF; // Must do this first, because the below call will involve the Sound calling us back for the current value
+		paramLPF.p = PARAM_LPF_OFF; // Must do this first, because the below call will involve the Sound calling us back
+		                            // for the current value
 		if (modelStack) {
 			patchedParamPresetValueChanged(p, modelStack, paramLPF.currentValue,
 			                               modelStack->paramManager->getPatchedParamSet()->getValue(p));
@@ -2127,7 +2143,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
-	delay.setupWorkingState(&delayWorkingState, numVoicesAssigned != 0);
+	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
+	delay.setupWorkingState(&delayWorkingState, timePerTickInverse, numVoicesAssigned != 0);
 
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);
@@ -2154,7 +2171,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		bool doHPF = (thisHasFilters
 		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		                  || (hpfFreq != -2147483648) || (hpfMorph > -2147483648)));
-		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
+		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each
+		// voice
 		/*
 		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
 		bool doneFirstVoice = false;
@@ -2166,12 +2184,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 			/*
 			if (!doneFirstVoice) {
-				if (numVoicesAssigned > 1) {
-					memcpy(backedUpSourcesChanged, &sourcesChanged[Local::FIRST_SOURCE], FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE);
-					doneFirstVoice = true;
-				}
+			    if (numVoicesAssigned > 1) {
+			        memcpy(backedUpSourcesChanged, &sourcesChanged[Local::FIRST_SOURCE], FIRST_UNCHANGEABLE_SOURCE -
+			Local::FIRST_SOURCE); doneFirstVoice = true;
+			    }
 			}
-			else memcpy(&sourcesChanged[Local::FIRST_SOURCE], backedUpSourcesChanged, FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE);
+			else memcpy(&sourcesChanged[Local::FIRST_SOURCE], backedUpSourcesChanged, FIRST_UNCHANGEABLE_SOURCE -
+			Local::FIRST_SOURCE);
 			*/
 
 			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
@@ -2272,7 +2291,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	sourcesChanged = 0;
 	whichExpressionSourcesChangedAtSynthLevel = 0;
 
-	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may have changed state just now.
+	// Unlike all the other possible reasons we might want to start skipping rendering, delay.repeatsUntilAbandon may
+	// have changed state just now.
 	if (!delay.repeatsUntilAbandon || startSkippingRenderingAtTime) {
 		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
@@ -2285,12 +2305,14 @@ void Sound::setSkippingRendering(bool newSkipping) {
 	skippingRendering = newSkipping;
 }
 
-// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
+// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
+// it.
 void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	timeStartedSkippingRenderingModFX = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingLFO = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingArp = AudioEngine::audioSampleTimer;
-	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely reversible without doing anything
+	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely
+	// reversible without doing anything
 
 	setSkippingRendering(true);
 
@@ -2300,9 +2322,9 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 	if (skippingRendering) {
 
-		int32_t modFXTimeOff =
-		    AudioEngine::audioSampleTimer
-		    - timeStartedSkippingRenderingModFX; // This variable is a good indicator of whether it actually was skipping at all
+		int32_t modFXTimeOff = AudioEngine::audioSampleTimer
+		                       - timeStartedSkippingRenderingModFX; // This variable is a good indicator of whether it
+		                                                            // actually was skipping at all
 
 		// If rendering was actually stopped for any length of time...
 		if (modFXTimeOff) {
@@ -2318,7 +2340,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
 
 			// Do sidechain compressor
-			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
+			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 				                                      AudioEngine::audioSampleTimer
@@ -2328,7 +2350,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// Special state to make it grab the actual value the first time it's rendered
 			postReverbVolumeLastTime = -1;
 
-			//clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
+			// clearModFXMemory(); // No need anymore, now we wait for this to basically empty before starting skipping
 		}
 
 		setSkippingRendering(false);
@@ -2380,7 +2402,8 @@ void Sound::unassignAllVoices() {
 		}
 	}
 
-	// reassessRenderSkippingStatus(); // Nope, this will get called in voiceUnassigned(), which gets called for each voice we unassign above.
+	// reassessRenderSkippingStatus(); // Nope, this will get called in voiceUnassigned(), which gets called for each
+	// voice we unassign above.
 }
 
 void Sound::confirmNumVoices(char const* error) {
@@ -2390,57 +2413,57 @@ void Sound::confirmNumVoices(char const* error) {
 	int32_t reasonCount = 0;
 	Voice* endAssignedVoices = audioDriver.endAssignedVoices;
 	for (Voice* thisVoice = audioDriver.voices; thisVoice != endAssignedVoices; thisVoice++) {
-		if (thisVoice->assignedToSound == this) {
-			voiceCount++;
+	    if (thisVoice->assignedToSound == this) {
+	        voiceCount++;
 
-			for (int32_t u = 0; u < maxNumUnison; u++) {
-				for (int32_t s = 0; s < NUM_SOURCES; s++) {
-					for (int32_t l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
-						if (thisVoice->unisonParts[u].sources[s].clusters[l]) {
-							reasonCount++;
-						}
-					}
-				}
-			}
+	        for (int32_t u = 0; u < maxNumUnison; u++) {
+	            for (int32_t s = 0; s < NUM_SOURCES; s++) {
+	                for (int32_t l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
+	                    if (thisVoice->unisonParts[u].sources[s].clusters[l]) {
+	                        reasonCount++;
+	                    }
+	                }
+	            }
+	        }
 
-		}
+	    }
 	}
 
 	if (numVoicesAssigned != voiceCount) {
-		Uart::print("voice count tallied ");
-		Uart::print(numVoicesAssigned);
-		Uart::print(", but actually ");
-		Uart::println(voiceCount);
-		FREEZE_WITH_ERROR(error);
+	    Uart::print("voice count tallied ");
+	    Uart::print(numVoicesAssigned);
+	    Uart::print(", but actually ");
+	    Uart::println(voiceCount);
+	    FREEZE_WITH_ERROR(error);
 	}
 
 	int32_t reasonCountSources = 0;
 
 	for (int32_t l = 0; l < NUM_SAMPLE_CLUSTERS_LOADED_AHEAD; l++) {
-		if (sources[0].clusters[l]) reasonCountSources++;
+	    if (sources[0].clusters[l]) reasonCountSources++;
 	}
 
 
 
 	if (sources[0].sample) {
-		int32_t totalNumReasons = sources[0].sample->getTotalNumReasons(reasonCount + reasonCountSources);
-		if (totalNumReasons != reasonCount + reasonCountSources) {
+	    int32_t totalNumReasons = sources[0].sample->getTotalNumReasons(reasonCount + reasonCountSources);
+	    if (totalNumReasons != reasonCount + reasonCountSources) {
 
-			Uart::println(sources[0].sample->fileName);
-			Uart::print("voices: ");
-			Uart::println(voiceCount);
-			Uart::print("reasons on clusters: ");
-			Uart::println(totalNumReasons);
-			Uart::print("Num voice unison part pointers to those clusters: ");
-			Uart::println(reasonCount);
-			Uart::print("Num source pointers to those clusters: ");
-			Uart::println(reasonCountSources);
+	        Uart::println(sources[0].sample->fileName);
+	        Uart::print("voices: ");
+	        Uart::println(voiceCount);
+	        Uart::print("reasons on clusters: ");
+	        Uart::println(totalNumReasons);
+	        Uart::print("Num voice unison part pointers to those clusters: ");
+	        Uart::println(reasonCount);
+	        Uart::print("Num source pointers to those clusters: ");
+	        Uart::println(reasonCountSources);
 
-			char buffer[5];
-			strcpy(buffer, error);
-			buffer[0] = 'F';
-			FREEZE_WITH_ERROR(buffer);
-		}
+	        char buffer[5];
+	        strcpy(buffer, error);
+	        buffer[0] = 'F';
+	        FREEZE_WITH_ERROR(buffer);
+	    }
 	}
 	*/
 }
@@ -2464,8 +2487,8 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
 			break;
 		}
 	}
-	//Uart::print("LFO phaseIncrement: ");
-	//Uart::println(phaseIncrement);
+	// Uart::print("LFO phaseIncrement: ");
+	// Uart::println(phaseIncrement);
 	return phaseIncrement;
 }
 
@@ -2494,8 +2517,9 @@ void Sound::setLFOGlobalWave(LFOType newWave) {
 void Sound::resyncGlobalLFO() {
 	if (lfoGlobalSyncLevel != 0) {
 
-		timeStartedSkippingRenderingLFO = AudioEngine::
-		    audioSampleTimer; // Resets the thing where the number of samples skipped is later converted into LFO phase increment
+		timeStartedSkippingRenderingLFO =
+		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
+		                                   // into LFO phase increment
 
 		if (lfoGlobalWaveType == LFOType::SINE || lfoGlobalWaveType == LFOType::TRIANGLE) {
 			globalLFO.phase = getLFOInitialPhaseForZero(lfoGlobalWaveType);
@@ -2705,7 +2729,8 @@ bool Sound::hasAnyVoices() {
 	return (numVoicesAssigned != 0);
 }
 
-// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
+// Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
+// it.
 void Sound::voiceUnassigned(ModelStackWithVoice* modelStack) {
 
 	numVoicesAssigned--;
@@ -2751,7 +2776,7 @@ void Sound::setupUnisonStereoSpread() {
 }
 
 void Sound::calculateEffectiveVolume() {
-	//volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
+	// volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
 	volumeNeutralValueForUnison = (float)134217728 / sqrtf(numUnison);
 }
 
@@ -2879,7 +2904,8 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 
 									newVoiceSample->doneFirstRenderYet = true;
 
-									// Don't do any caching for new part. Old parts will stop using their cache anyway because their pitch will have changed
+									// Don't do any caching for new part. Old parts will stop using their cache anyway
+									// because their pitch will have changed
 									newVoiceSample->stopUsingCache(
 									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
 									    thisVoice->getPriorityRating(),
@@ -2936,8 +2962,9 @@ void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t re
 	}
 }
 
-// paramManager only required for old old song files, or for presets (because you'd be wanting to extract the defaultParams into it)
-// arpSettings optional - no need if you're loading a new V2.0+ song where Instruments are all separate from Clips and won't store any arp stuff
+// paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
+// defaultParams into it) arpSettings optional - no need if you're loading a new V2.0+ song where Instruments are all
+// separate from Clips and won't store any arp stuff
 int32_t Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
                             ArpeggiatorSettings* arpSettings) {
 
@@ -3015,8 +3042,8 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
-			//Uart::print("compensating dB: ");
-			//Uart::println((int32_t)(compensationDB * 100));
+			// Uart::print("compensating dB: ");
+			// Uart::println((int32_t)(compensationDB * 100));
 			patchedParams->shiftParamVolumeByDB(params::GLOBAL_VOLUME_POST_FX, compensationDB);
 		}
 
@@ -3046,7 +3073,7 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 /**
  * Reads the parameters from the storageManager's current file into paramManager
  * stack usage would be unbounded if file contained infinite tags
-*/
+ */
 int32_t Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	Source* source = &sources[s];
@@ -3091,8 +3118,8 @@ int32_t Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManag
 		}
 		/*
 		else if (!strcmp(tagName, "sampleSync")) {
-			source->sampleSync = stringToBool(storageManager.readTagContents());
-			storageManager.exitTag("sampleSync");
+		    source->sampleSync = stringToBool(storageManager.readTagContents());
+		    storageManager.exitTag("sampleSync");
 		}
 		*/
 		else if (!strcmp(tagName, "timeStretchEnable")) {
@@ -3913,7 +3940,8 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,
                                                        ModelStackWithThreeMainThings* modelStack, bool allowCreation) {
 
-	// If setting up a macro by holding its encoder down, the knobs will represent macro control-amounts rather than actual "params", so there's no "param".
+	// If setting up a macro by holding its encoder down, the knobs will represent macro control-amounts rather than
+	// actual "params", so there's no "param".
 	if (isUIModeActive(UI_MODE_MACRO_SETTING_UP)) {
 		return modelStack->addParam(NULL, NULL, 0, NULL); // "none"
 	}
@@ -4144,7 +4172,8 @@ void Sound::prepareForHibernation() {
 void Sound::wontBeRenderedForAWhile() {
 	ModControllableAudio::wontBeRenderedForAWhile();
 
-	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from Instrumentclip::detachFromInstrument()
+	unassignAllVoices(); // Can't remember if this is always necessary, but it is when this is called from
+	                     // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
 	compressor.status = EnvelopeStage::OFF;
@@ -4164,7 +4193,8 @@ void Sound::detachSourcesFromAudioFiles() {
 }
 
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
-	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during memory allocation
+	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during
+	// memory allocation
 	unassignAllVoices();
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.getElement(r)->~MultiRange();
@@ -4229,7 +4259,8 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		}
 	}
 
-	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to investigate each Voice
+	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to investigate
+	// each Voice
 	if (mustExamineSourceInEachVoice) {
 
 		int32_t ends[2];
@@ -4293,7 +4324,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob* knob, ModelStackW
 int32_t startV, endV;
 audioDriver.voices.getRangeForSound(this, &startV, &endV);
 for (int32_t v = startV; v < endV; v++) {
-	Voice* thisVoice = audioDriver.voices.getElement(v)->voice;
+    Voice* thisVoice = audioDriver.voices.getElement(v)->voice;
 }
 
 

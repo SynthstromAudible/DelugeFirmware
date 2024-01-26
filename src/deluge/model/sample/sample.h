@@ -110,8 +110,8 @@ public:
 
 	uint8_t rawDataFormat;
 
-	bool
-	    unloadable; // Only gets set to true if user has re-inserted the card and the sample appears to have been deleted / moved / modified
+	bool unloadable; // Only gets set to true if user has re-inserted the card and the sample appears to have been
+	                 // deleted / moved / modified
 	bool unplayable;
 	bool partOfFolderBeingLoaded;
 	bool fileExplicitlySpecifiesSelfAsWaveTable;
@@ -122,7 +122,7 @@ public:
 
 	float midiNote; // -999 means not worked out yet. -1000 means error working out
 
-	//int32_t valueSpan; // -2147483648 means both these are uninitialized
+	// int32_t valueSpan; // -2147483648 means both these are uninitialized
 	int32_t minValueFound;
 	int32_t maxValueFound;
 

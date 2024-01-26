@@ -31,9 +31,9 @@ class ParamManagerMIDI;
 class TimelineCounter;
 class ModelStackWithParamCollection;
 
-// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't need other info stored besides their index - like MIDI CC,
-// or patch cable details.
-// This differs from other inheriting classes of ParamCollection.
+// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't
+// need other info stored besides their index - like MIDI CC, or patch cable details. This differs from other inheriting
+// classes of ParamCollection.
 
 class ParamSet : public ParamCollection {
 protected:
@@ -143,9 +143,11 @@ public:
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
 	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::EXPRESSION; }
 
-	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
-	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,
-	// in which case they do move to the backedUpParamManager. This is exactly the persistence we want for bendRanges too.
+	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them
+	// in the ParamManager would make more sense, except for one thing
+	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't
+	// "stolen" or "backed up" - unless the last Clip is being deleted, in which case they do move to the
+	// backedUpParamManager. This is exactly the persistence we want for bendRanges too.
 	uint8_t bendRanges[2];
 
 private:

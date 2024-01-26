@@ -164,7 +164,7 @@ void usb_hstd_brdy_pipe(usb_utr_t* ptr)
         }
     }
     /* BRDY interrupt */
-    //usb_hstd_brdy_pipe_process(ptr, bitsts);
+    // usb_hstd_brdy_pipe_process(ptr, bitsts);
 } /* End of function usb_hstd_brdy_pipe() */
 
 /***********************************************************************************************************************
@@ -262,9 +262,10 @@ void usb_hstd_bemp_pipe(usb_utr_t* ptr)
                             g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;      /* Next stage is Control write status stage */
                             hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
-                            //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
-                            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-                            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+                            // usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
+                            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling
+                            //  them at all was causing freezes (or was it UART / SD lockups?), right since we first
+                            //  added this "new" (2016) USB driver (in 2019).
 
                             break;
 
@@ -275,9 +276,10 @@ void usb_hstd_bemp_pipe(usb_utr_t* ptr)
 
                             hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
-                            //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
-                            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-                            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+                            // usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
+                            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling
+                            //  them at all was causing freezes (or was it UART / SD lockups?), right since we first
+                            //  added this "new" (2016) USB driver (in 2019).
 
                             break;
 
@@ -307,9 +309,10 @@ void usb_hstd_bemp_pipe(usb_utr_t* ptr)
                             g_usb_hstd_ctsq[ptr->ip] = USB_STATUSWR;      /* Next stage is Control write status stage */
                             hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
-                            //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
-                            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-                            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+                            // usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
+                            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling
+                            //  them at all was causing freezes (or was it UART / SD lockups?), right since we first
+                            //  added this "new" (2016) USB driver (in 2019).
 
                             break;
 
@@ -325,9 +328,10 @@ void usb_hstd_bemp_pipe(usb_utr_t* ptr)
 
                             hw_usb_set_bempenb(ptr, (uint16_t)USB_PIPE0); /* Enable Empty Interrupt */
 
-                            //usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
-                            // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-                            // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+                            // usb_cstd_nrdy_enable(ptr, (uint16_t)USB_PIPE0); /* Enable Not Ready Interrupt */
+                            //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling
+                            //  them at all was causing freezes (or was it UART / SD lockups?), right since we first
+                            //  added this "new" (2016) USB driver (in 2019).
 
                             break;
 
@@ -364,7 +368,7 @@ void usb_hstd_bemp_pipe(usb_utr_t* ptr)
         }
     }
     /* BEMP interrupt */
-    //usb_hstd_bemp_pipe_process(ptr, bitsts);
+    // usb_hstd_bemp_pipe_process(ptr, bitsts);
 } /* End of function usb_hstd_bemp_pipe() */
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
 

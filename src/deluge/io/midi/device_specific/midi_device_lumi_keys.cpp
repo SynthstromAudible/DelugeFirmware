@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include "gui/ui/ui.h"
@@ -38,8 +38,8 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	RootNote currentRoot = RootNote(currentSong->rootNote % kOctaveSize);
-	Scale currentScale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -62,8 +62,8 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	}
 
 	// Since we're in the neighbourhood, set the root and scale
-	setRootNote(currentRoot);
-	setScale(currentScale);
+	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
+	setScale(scaleAndRootNoteOffset.first);
 
 	// Run colour-setting hook.
 	hookOnRecalculateColour();
@@ -75,12 +75,17 @@ void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
-	setRootNote(RootNote(currentSong->rootNote % kOctaveSize));
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
+	setScale(scaleAndRootNoteOffset.first);
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
-	Scale scale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
-	setScale(scale);
+	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
+	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
+	setScale(scaleAndRootNoteOffset.first);
 }
 
 void MIDIDeviceLumiKeys::hookOnEnterScaleMode() {
@@ -137,23 +142,23 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 				offset = noteRow->getColourOffset(clip);
 			}
 
-			uint8_t rgb_main[3];
+			RGB rgb_main;
 			// uint8_t rgb_tail[3];
-			uint8_t rgb_blur[3];
+			RGB rgb_blur;
 
-			clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset, rgb_main);
+			rgb_main = clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset);
 			// getTailColour(rgb_tail, rgb_main);
-			getBlurColour(rgb_blur, rgb_main);
+			rgb_blur = rgb_main.forBlur();
 
-			setColour(ColourZone::ROOT, rgb_main[0], rgb_main[1], rgb_main[2]);
-			setColour(ColourZone::GLOBAL, rgb_blur[0], rgb_blur[1], rgb_blur[2]);
+			setColour(ColourZone::ROOT, rgb_main);
+			setColour(ColourZone::GLOBAL, rgb_blur);
 
 			return;
 		}
 	}
 
-	setColour(ColourZone::ROOT, 0, 0, 0);
-	setColour(ColourZone::GLOBAL, 0, 0, 0);
+	setColour(ColourZone::ROOT, deluge::gui::colours::black);
+	setColour(ColourZone::GLOBAL, deluge::gui::colours::black);
 }
 
 // Private functions
@@ -179,7 +184,8 @@ void MIDIDeviceLumiKeys::sendLumiCommand(uint8_t* command, uint8_t length) {
 	sendSysex(sysexMsg, 16);
 }
 
-/// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed index
+/// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed
+/// index
 /// @param destination A pointer with space for 6 bytes
 /// @param index The index of the value we want to generate
 /// @param value_offset The offset for the resultant values (eg: 0x00 + value_offset, 0x20 + value_offset, etc.)
@@ -226,7 +232,7 @@ void MIDIDeviceLumiKeys::setMPENumChannels(uint8_t numChannels) {
 	sendLumiCommand(command, 8);
 }
 
-void MIDIDeviceLumiKeys::setRootNote(RootNote rootNote) {
+void MIDIDeviceLumiKeys::setRootNote(int16_t rootNote) {
 	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
 	command[1] = MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_PREFIX;
@@ -236,22 +242,26 @@ void MIDIDeviceLumiKeys::setRootNote(RootNote rootNote) {
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
-MIDIDeviceLumiKeys::Scale MIDIDeviceLumiKeys::determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount) {
+std::pair<MIDIDeviceLumiKeys::Scale, int16_t>
+MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount) {
 	uint16_t noteInt = 0;
 
-	// Turn notes in octave into 12 bit binary
-	for (uint8_t note = 0; note < noteCount; note++) {
-		noteInt |= 1 << modeNotes[note];
-	}
+	// Try with all possible transpositions
+	for (int32_t i = 0; i < kOctaveSize; i++) {
+		// Turn notes in octave into 12 bit binary
+		for (uint8_t note = 0; note < noteCount; note++) {
+			noteInt |= 1 << modeNotes[(note + i) % kOctaveSize];
+		}
 
-	// Compare with pre-built binary list of scales
-	for (uint8_t scale = 0; scale < MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT; scale++) {
-		if (noteInt == scaleNotes[scale]) {
-			return Scale(scale);
+		// Compare with pre-built binary list of scales
+		for (uint8_t scale = 0; scale < MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT; scale++) {
+			if (noteInt == scaleNotes[scale]) {
+				return {Scale(scale), i};
+			}
 		}
 	}
 
-	return Scale::CHROMATIC;
+	return {Scale::CHROMATIC, 0};
 }
 
 void MIDIDeviceLumiKeys::setScale(Scale scale) {
@@ -263,8 +273,8 @@ void MIDIDeviceLumiKeys::setScale(Scale scale) {
 	sendLumiCommand(command, 8);
 }
 
-void MIDIDeviceLumiKeys::setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b) {
-	uint64_t colourBits = 0b00100 | b << 6 | g << 15 | r << 24 | (uint64_t)0b11111100 << 32;
+void MIDIDeviceLumiKeys::setColour(ColourZone zone, RGB rgb) {
+	uint64_t colourBits = 0b00100 | rgb.b << 6 | rgb.g << 15 | rgb.r << 24 | (uint64_t)0b11111100 << 32;
 
 	uint8_t command[7];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;

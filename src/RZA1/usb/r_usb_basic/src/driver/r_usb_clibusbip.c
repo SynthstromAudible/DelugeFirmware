@@ -327,7 +327,7 @@ void usb_cstd_usb_task(void)
 doMoreIfAnyMore:
             {
             }
-            //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+            // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
             usb_cstd_scheduler();                        /* Scheduler */
             if (USB_FLGSET == usb_cstd_check_schedule()) /* Check for any task processing requests flags. */
@@ -353,12 +353,14 @@ doMoreIfAnyMore:
 
                 /*
             uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-			uint16_t duration = endTime - startTime;
-			uint32_t timePassedNS = superfastTimerCountToNS(duration);
-			uartPrint("host task duration, nSec: ");
-			uartPrintNumber(timePassedNS);
-			*/
-                goto doMoreIfAnyMore; // By Rohan. Want to process everything immediately - especially cos of that bug which means all data reads must be done before any data writes. (Wait, does that still exist?)
+            uint16_t duration = endTime - startTime;
+            uint32_t timePassedNS = superfastTimerCountToNS(duration);
+            uartPrint("host task duration, nSec: ");
+            uartPrintNumber(timePassedNS);
+            */
+                goto doMoreIfAnyMore; // By Rohan. Want to process everything immediately - especially cos of that bug
+                                      // which means all data reads must be done before any data writes. (Wait, does
+                                      // that still exist?)
             }
 #if defined(USB_CFG_HMSC_USE)
         } while (USB_FALSE != g_drive_search_lock);

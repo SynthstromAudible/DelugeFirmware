@@ -96,8 +96,8 @@ public:
 
 	Cluster* clustersForPercLookahead[kNumClustersLoadedAhead];
 
-	Cluster* percCacheClustersNearby
-	    [2]; // Remembers and acts as a "reason" for the two most recently needed / accessed Clusters, basically
+	Cluster* percCacheClustersNearby[2]; // Remembers and acts as a "reason" for the two most recently needed / accessed
+	                                     // Clusters, basically
 
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,

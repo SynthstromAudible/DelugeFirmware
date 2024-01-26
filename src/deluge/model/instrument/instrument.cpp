@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
@@ -43,8 +43,8 @@ Instrument::Instrument(OutputType newType) : Output(newType) {
 
 /*
 Instrument::~Instrument() {
-	// Arrangement-only Clips won't get deallocated here - that'll happen from the Song.
-	// ClipInstances will all get deallocated by the vector destructor
+    // Arrangement-only Clips won't get deallocated here - that'll happen from the Song.
+    // ClipInstances will all get deallocated by the vector destructor
 }
 */
 
@@ -149,8 +149,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	ParamManager newParamManager;
 
-	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might not be, and we don't want to clone it.
-	// Instead, the call to setInstrument will create one.
+	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might
+	// not be, and we don't want to clone it. Instead, the call to setInstrument will create one.
 
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
@@ -174,7 +174,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	newInstrumentClip->setInstrument(this, modelStackWithTimelineCounter->song, &newParamManager);
 	newInstrumentClip->setupAsNewKitClipIfNecessary(
-	    modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger. Michael B discovered. Also could cause E314
+	    modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger.
+	                                    // Michael B discovered. Also could cause E314
 
 	return newInstrumentClip;
 }

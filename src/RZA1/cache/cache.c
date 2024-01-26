@@ -1,31 +1,31 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-* Copyright (C) 2012 - 2015 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ * Copyright (C) 2012 - 2015 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name   : cache.c
-* $Rev: 1330 $
-* $Date:: 2015-02-17 16:07:56 +0900#$
-* Description : Cache maintenance operations
-*******************************************************************************/
+ * File Name   : cache.c
+ * $Rev: 1330 $
+ * $Date:: 2015-02-17 16:07:56 +0900#$
+ * Description : Cache maintenance operations
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -78,11 +78,11 @@ Private global variables and functions
 ******************************************************************************/
 
 /******************************************************************************
-* Function Name: L1_I_CacheFlushAll
-* Description  : Flush all I cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_I_CacheFlushAll
+ * Description  : Flush all I cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_I_CacheFlushAll(void)
 {
     /* ==== Invalidate all I cache ==== */
@@ -90,11 +90,11 @@ void L1_I_CacheFlushAll(void)
 }
 
 /******************************************************************************
-* Function Name: L1_D_CacheFlushAll
-* Description  : Flush all D cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_D_CacheFlushAll
+ * Description  : Flush all D cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_D_CacheFlushAll(void)
 {
     /* ==== Invalidate all D cache by set/way ==== */
@@ -102,11 +102,11 @@ void L1_D_CacheFlushAll(void)
 }
 
 /******************************************************************************
-* Function Name: L1_D_CacheWritebackAll
-* Description  : Write back all D cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_D_CacheWritebackAll
+ * Description  : Write back all D cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_D_CacheWritebackAll(void)
 {
     /* ==== Clean all D cache by set/way ==== */
@@ -114,11 +114,11 @@ void L1_D_CacheWritebackAll(void)
 }
 
 /******************************************************************************
-* Function Name: L1_D_CacheWritebackFlushAll
-* Description  : Write back and flush all D cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_D_CacheWritebackFlushAll
+ * Description  : Write back and flush all D cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_D_CacheWritebackFlushAll(void)
 {
     /* ==== Invalidate and clean all D cache by set/way ==== */
@@ -126,99 +126,99 @@ void L1_D_CacheWritebackFlushAll(void)
 }
 
 /******************************************************************************
-* Function Name: L1_I_CacheEnable
-* Description  : Enable I cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_I_CacheEnable
+ * Description  : Enable I cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_I_CacheEnable(void)
 {
     L1_I_CacheEnableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1_D_CacheEnable
-* Description  : Enable D cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_D_CacheEnable
+ * Description  : Enable D cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_D_CacheEnable(void)
 {
     L1_D_CacheEnableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1_I_CacheDisable
-* Description  : Disable I cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_I_CacheDisable
+ * Description  : Disable I cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_I_CacheDisable(void)
 {
     L1_I_CacheDisableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1_D_CacheDisable
-* Description  : Disable D cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1_D_CacheDisable
+ * Description  : Disable D cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1_D_CacheDisable(void)
 {
     L1_D_CacheDisableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1BtacEnable
-* Description  : Enable branch prediction.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1BtacEnable
+ * Description  : Enable branch prediction.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1BtacEnable(void)
 {
     L1BtacEnableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1BtacDisable
-* Description  : Disable branch prediction.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1BtacDisable
+ * Description  : Disable branch prediction.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1BtacDisable(void)
 {
     L1BtacDisableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1PrefetchEnable
-* Description  : Enable Dside prefetch.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1PrefetchEnable
+ * Description  : Enable Dside prefetch.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1PrefetchEnable(void)
 {
     L1PrefetchEnableAsm();
 }
 
 /******************************************************************************
-* Function Name: L1PrefetchDisable
-* Description  : Disable Dside prefetch.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L1PrefetchDisable
+ * Description  : Disable Dside prefetch.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L1PrefetchDisable(void)
 {
     L1PrefetchDisableAsm();
 }
 
 /******************************************************************************
-* Function Name: L2CacheFlushAll
-* Description  : Flush all cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L2CacheFlushAll
+ * Description  : Flush all cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L2CacheFlushAll(void)
 {
     /* ==== Invalidate all cache by Way ==== */
@@ -232,11 +232,11 @@ void L2CacheFlushAll(void)
 }
 
 /******************************************************************************
-* Function Name: L2CacheEnable
-* Description  : Enable L2 cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L2CacheEnable
+ * Description  : Enable L2 cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L2CacheEnable(void)
 {
     L2C.REG2_INT_CLEAR   = 0x000001FFuL; /* Clear the reg2_int_raw_status register */
@@ -246,11 +246,11 @@ void L2CacheEnable(void)
 }
 
 /******************************************************************************
-* Function Name: L2CacheDisable
-* Description  : Disable L2 cache.
-* Arguments    : none
-* Return Value : none
-******************************************************************************/
+ * Function Name: L2CacheDisable
+ * Description  : Disable L2 cache.
+ * Arguments    : none
+ * Return Value : none
+ ******************************************************************************/
 void L2CacheDisable(void)
 {
     L2C.REG1_CONTROL = 0x00000000uL; /* Disable L2 cache */

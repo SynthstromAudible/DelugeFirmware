@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/global_effectable/global_effectable_for_song.h"
 
 GlobalEffectableForSong::GlobalEffectableForSong() {
 	modKnobMode = 1;
-	//UI for kit compressors is TBD so they can only be accessed in song
+	// UI for kit compressors is TBD so they can only be accessed in song
 	maxCompParam = util::to_underlying(CompParam::LAST);
 }

@@ -612,12 +612,13 @@ pickedReceivePipe:
                         (endpointType == USB_EP_BULK) ? USB_CFG_HMIDI_BULK_SEND : USB_CFG_HMIDI_INT_SEND;
                 }
 
-                // We now have to set the buffer number for the pipe. I wasn't doing this for ages, resulting in the insane bug
-                // where data sent out would be seen coming back in.
-                // I haven't double-checked, but I think that even the unmodified USB host driver from Renesas was failing to set this.
+                // We now have to set the buffer number for the pipe. I wasn't doing this for ages, resulting in the
+                // insane bug where data sent out would be seen coming back in. I haven't double-checked, but I think
+                // that even the unmodified USB host driver from Renesas was failing to set this.
 
-                // Some pipe numbers mandate a particular buffer number - see the manual. Others I've picked arbitrarily.
-                // So long as every pipe has a different buffer number than every other pipe, we won't get that crazy bug as before.
+                // Some pipe numbers mandate a particular buffer number - see the manual. Others I've picked
+                // arbitrarily. So long as every pipe has a different buffer number than every other pipe, we won't get
+                // that crazy bug as before.
 
                 uint16_t bufferNumber;
                 switch (pipetbl[pipeTableOffset])
@@ -679,7 +680,8 @@ pickedReceivePipe:
             default:
 moveOnToNextDescriptor:
                 if (!table[ofdsc])
-                    return USB_ERROR; // Prevent infinite loop if there's somehow a zero there. Got this while quickly plugging and unplugging lots of devices / hub, to test.
+                    return USB_ERROR;  // Prevent infinite loop if there's somehow a zero there. Got this while quickly
+                                       // plugging and unplugging lots of devices / hub, to test.
                 ofdsc += table[ofdsc]; /* Next descriptor point set */
 
                 break;
@@ -786,7 +788,8 @@ void hmidi_configured(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 
     uint16_t* pipetbl = R_USB_HmidiGetPipetbl(ptr, devadr);
 
-    // Totally hackish way of getting the device number from our offset from the start of the "endpoint table", but it's the only way the "driver" actually keeps track of this
+    // Totally hackish way of getting the device number from our offset from the start of the "endpoint table", but it's
+    // the only way the "driver" actually keeps track of this
     int midiDeviceNum = (pipetbl - (uint16_t*)g_usb_hmidi_tmp_ep_tbl) / ((USB_EPL * 2) + 1);
 
     uartPrint("configured MIDI device: ");

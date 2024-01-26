@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -44,8 +44,8 @@ public:
 };
 
 struct ArpNote {
-	int16_t inputCharacteristics
-	    [2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel might be MIDI_CHANNEL_NONE.
+	int16_t inputCharacteristics[2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel
+	                                 // might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
 	uint8_t outputMemberChannel;
@@ -61,8 +61,8 @@ public:
 	int16_t noteCodeOnPostArp;  // 32767 means none/no action
 
 	// These are only valid if doing a note-on
-	uint32_t
-	    sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the Arp itself may override that.
+	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the
+	                             // Arp itself may override that.
 	ArpNote* arpNoteOn;
 
 	// And these are only valid if doing a note-off

@@ -1,66 +1,55 @@
-#include "definitions.h"
-#include <stdbool.h>
-#include <stdint.h>
-#include <sys/stat.h>
-//doing the minimal amount possible to not break
+// this is no longer needed - switched to non allocating sprintf, and calling the abort handler on c++ throw
+// remains as a repo of information for implementing these in the future, and to help troubleshoot link failures
+// in the future - e.g. if _sbrk is required, it can be uncommented to finish compilation and find out what's
+// including it
 
-void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
+// this stub fails to allocate - needed for libc malloc
+// Take advantage of that to ensure anything which allocates will fail to link
+// void* _sbrk(int incr) {
+// 	return (void*)-1;
+// }
 
-void* _sbrk(int incr) {
-	FREEZE_WITH_ERROR("ESBRK");
-	static unsigned char* heap = NULL;
-	static unsigned char* end_heap = NULL;
-	unsigned char* prev_heap;
+// // needed for libc abort, raise, return from main
+// void _exit(int status) {
+// 	// halt execution
+// 	__asm("BKPT #0");
+// 	__builtin_unreachable();
+// }
 
-	if (heap == NULL) {
-		heap = delugeAlloc(10000, false);
-		end_heap = heap + 10000;
-	}
-	prev_heap = heap;
+// // needed for libc abort
+// void _kill(int pid, int sig) {
+// 	return;
+// }
 
-	heap += incr;
-	if (heap < end_heap) {
-		return prev_heap;
-	}
-	else {
-		heap = prev_heap;
-		return (void*)-1;
-	}
-}
+// // needed for libc abort
+// int _getpid(void) {
+// 	return -1;
+// }
 
-int _close(int file) {
-	return -1;
-}
+// // needed for stdio, files
+//  int _close(int file) {
+//  	return -1;
+//  }
 
-int _fstat(int file, struct stat* st) {
-	st->st_mode = S_IFCHR;
-	return 0;
-}
+// return character oriented (not block)
+// int _fstat(int file, struct stat* st) {
+// 	st->st_mode = S_IFCHR;
+// 	return 0;
+// }
 
-int _isatty(int file) {
-	return 1;
-}
+// return character oriented
+// int _isatty(int file) {
+// 	return 1;
+// }
 
-int _lseek(int file, int ptr, int dir) {
-	return 0;
-}
-
-void _exit(int status) {
-	__asm("BKPT #0");
-}
-
-void _kill(int pid, int sig) {
-	return;
-}
-
-int _getpid(void) {
-	return -1;
-}
-
-int _write(int file, char* ptr, int len) {
-	return 0;
-}
-
-int _read(int file, char* ptr, int len) {
-	return 0;
-}
+// int _lseek(int file, int ptr, int dir) {
+// 	return 0;
+// }
+// // write nothing - note these will loop infinitely with newlib
+// int _write(int file, char* ptr, int len) {
+// 	return 0;
+// }
+// // read nothing
+// int _read(int file, char* ptr, int len) {
+// 	return 0;
+// }
