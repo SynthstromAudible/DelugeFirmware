@@ -26,6 +26,7 @@
 #include "util/chainload.h"
 #include "util/functions.h"
 #include "util/pack.h"
+#include "hid/led/pad_leds.h"
 
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
@@ -138,6 +139,18 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	}
 
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
+
+	if( (pos/512)%8 == 0 ){
+		uint32_t pad = (18*8*pos)/load_bufsize;
+		uint8_t col = pad%18;
+		uint8_t row = pad/18;
+		PadLEDs::image[row][col][0] = (255/7)*row;
+		PadLEDs::image[row][col][1] = 0;
+		PadLEDs::image[row][col][2] = 255-(255/7)*row;
+		PadLEDs::sendOutMainPadColours();
+		PadLEDs::sendOutSidebarColours();
+		deluge::hid::display::OLED::stopScrollingAnimation();
+	}
 }
 
 void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
@@ -154,6 +167,7 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14);
 
 	if (handshake != fields[0]) {
+		display->displayPopup("Incorrect Handshake Key!");
 		return;
 	}
 
