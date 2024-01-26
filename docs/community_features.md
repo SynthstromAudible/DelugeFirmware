@@ -263,6 +263,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
 	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
 	- ([#966]) Added automation view for audio clips
+	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the default grid shortcut cc mappings for MIDI Follow.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -517,6 +518,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
+[#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
