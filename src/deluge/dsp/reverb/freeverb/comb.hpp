@@ -25,44 +25,51 @@
 
 #include "util/functions.h"
 #include <cstdint>
+#include <span>
 
-class comb {
+namespace freeverb {
+class Comb {
 public:
-	comb();
-	void setbuffer(int32_t* buf, int32_t size);
-	inline int32_t process(int32_t inp);
-	void mute();
-	void setdamp(float val);
-	float getdamp();
-	void setfeedback(int32_t val);
-	int32_t getfeedback();
+	Comb() = default;
+	constexpr void setBuffer(std::span<int32_t> buffer) { buffer_ = buffer; }
+
+	constexpr void mute() { std::fill(buffer_.begin(), buffer_.end(), 0); }
+
+	constexpr void setDamp(float val) {
+		damp1_ = val * std::numeric_limits<int32_t>::max();
+		damp2_ = std::numeric_limits<int32_t>::max() - damp1_;
+	}
+
+	[[nodiscard]] constexpr float getDamp() const { return damp1_ / std::numeric_limits<int32_t>::max(); }
+
+	constexpr void setFeedback(int32_t val) { feedback_ = val; }
+
+	[[nodiscard]] constexpr int32_t getFeedback() const { return feedback_; }
+
+	// Big to inline - but crucial for speed
+	inline int32_t process(int32_t input) {
+		int32_t output = buffer_[bufidx_];
+
+		filterstore_ = (multiply_32x32_rshift32_rounded(output, damp2_) + //<
+		                multiply_32x32_rshift32_rounded(filterstore_, damp1_))
+		               << 1;
+
+		buffer_[bufidx_] = input + (multiply_32x32_rshift32_rounded(filterstore_, feedback_) << 1);
+
+		if (++bufidx_ >= buffer_.size()) {
+			bufidx_ = 0;
+		}
+
+		return output;
+	}
 
 private:
-	int32_t feedback;
-	int32_t filterstore;
-	int32_t damp1;
-	int32_t damp2;
-	int32_t* buffer;
-	int32_t bufsize;
-	int32_t bufidx;
+	int32_t feedback_;
+	int32_t filterstore_{0};
+	int32_t damp1_;
+	int32_t damp2_;
+	std::span<int32_t> buffer_;
+	int32_t bufidx_{0};
 };
-
-// Big to inline - but crucial for speed
-
-inline int32_t comb::process(int32_t input) {
-	int32_t output;
-
-	output = buffer[bufidx];
-
-	filterstore = (multiply_32x32_rshift32_rounded(output, damp2) + multiply_32x32_rshift32_rounded(filterstore, damp1))
-	              << 1;
-
-	buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(filterstore, feedback) << 1);
-
-	if (++bufidx >= bufsize)
-		bufidx = 0;
-
-	return output;
-}
-
+} // namespace freeverb
 // ends

@@ -18,7 +18,7 @@
 #include "gui/views/view.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "dsp/reverb/freeverb/revmodel.hpp"
+#include "dsp/reverb/reverb.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
@@ -1407,8 +1407,8 @@ void View::pretendModKnobsUntouchedForAWhile() {
 
 void View::cycleThroughReverbPresets() {
 
-	int32_t currentRoomSize = AudioEngine::reverb.getroomsize() * 50;
-	int32_t currentDampening = AudioEngine::reverb.getdamp() * 50;
+	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
+	int32_t currentDampening = AudioEngine::reverb.getDamping() * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;
@@ -1427,8 +1427,8 @@ void View::cycleThroughReverbPresets() {
 		newPreset = 0;
 	}
 
-	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setdamp((float)presetReverbDampening[newPreset] / 50);
+	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
+	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
 
 	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }

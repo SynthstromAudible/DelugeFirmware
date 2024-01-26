@@ -1,7 +1,6 @@
 
 #include "gui/ui/sound_editor.h"
 #include "definitions_cxx.hpp"
-#include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item.h"
