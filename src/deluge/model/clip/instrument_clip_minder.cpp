@@ -514,9 +514,11 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
+		// Other scale
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE));
 	}
 	else {
+		// Preset scale
 		display->displayPopup(presetScaleNames[scale]);
 	}
 }
