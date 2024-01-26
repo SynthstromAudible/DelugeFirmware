@@ -302,7 +302,19 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	**5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to select "Norns Layout" (NORN).  
 	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
 	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
-   
+
+#### 4.4.2 - New scales
+
+ - ([#991]) Added new scales for instrument clips.
+  	 - The new set of scales is:
+	  	 - 7-note scales: Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Melodic Minor, Hungarian Minor, Marva (Indian), Arabian
+		 - 6-note scales: Whole Tone, Blues
+		 - 5-note scales: Pentatonic Minor, Hirajoshi (Japanese)
+	 - You rotate through them the same way as before, using Shift + Scale.
+	 - **Improvement:** when you exit Scale mode, and enter Scale mode again, if there was already a selected Scale, and it fits the notes you have entered, the Deluge will prefer that scale, instead of trying to change your scale or root note to other scale.
+	 - **Migrating from previous firmwares:** the new Default Scale setting is saved in a different memory slot. The Deluge will import the selected scale from the old location, resetting the old location value to "None".
+	 - **Limitation:** For being able to change your scale to a scale with less notes (for example, from Arabic to Whole Tone, or from Blues to Pentatonic), in order for the Deluge to be able to transpose them, the notes entered among all clips in the song must fit the new scale. If you have added more notes that what can fit in the new scale, the Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the Major scale).
+
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
 #### 4.5.1 - Mod Matrix
@@ -495,6 +507,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
 [#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
+[#991]: https://github.com/SynthstromAudible/DelugeFirmware/pull/991
 [#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
