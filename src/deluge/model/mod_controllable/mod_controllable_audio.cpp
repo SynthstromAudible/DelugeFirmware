@@ -2343,15 +2343,17 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
-	display->displayPopup(getDelaySyncLevelDisplayName());
+	char displayName[30];
+	getDelaySyncLevelDisplayName(displayName);
+	display->displayPopup(displayName);
 }
 
-char const* ModControllableAudio::getDelaySyncLevelDisplayName() {
+void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
 	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
-	return buffer.data();
+	strncpy(displayName, buffer.data(), 29);
 }
 
 void ModControllableAudio::switchLPFMode() {
@@ -2572,7 +2574,9 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 			popupMsg.append(getDelaySyncTypeDisplayName());
 
 			popupMsg.append("\n Sync Level: ");
-			popupMsg.append(getDelaySyncLevelDisplayName());
+			char displayName[30];
+			getDelaySyncLevelDisplayName(displayName);
+			popupMsg.append(displayName);
 		}
 		else {
 			popupMsg.append(getDelayTypeDisplayName());
@@ -2590,7 +2594,9 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				display->displayPopup(getDelaySyncTypeDisplayName());
 			}
 			else {
-				display->displayPopup(getDelaySyncLevelDisplayName());
+				char displayName[30];
+				getDelaySyncLevelDisplayName(displayName);
+				display->displayPopup(displayName);
 			}
 		}
 		else {

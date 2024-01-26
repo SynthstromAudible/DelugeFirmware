@@ -194,7 +194,7 @@ protected:
 	char const* getDelayTypeDisplayName();
 	char const* getDelayPingPongStatusDisplayName();
 	char const* getDelaySyncTypeDisplayName();
-	char const* getDelaySyncLevelDisplayName();
+	void getDelaySyncLevelDisplayName(char* displayName);
 
 	void displayLPFMode(bool on);
 	void displayHPFMode(bool on);
