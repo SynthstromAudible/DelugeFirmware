@@ -18,6 +18,7 @@
 #include "io/debug/sysex.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -26,7 +27,6 @@
 #include "util/chainload.h"
 #include "util/functions.h"
 #include "util/pack.h"
-#include "hid/led/pad_leds.h"
 
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
@@ -140,13 +140,13 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
 
-	if( (pos/512)%8 == 0 ){
-		uint32_t pad = (18*8*pos)/load_bufsize;
-		uint8_t col = pad%18;
-		uint8_t row = pad/18;
-		PadLEDs::image[row][col][0] = (255/7)*row;
+	if ((pos / 512) % 8 == 0) {
+		uint32_t pad = (18 * 8 * pos) / load_bufsize;
+		uint8_t col = pad % 18;
+		uint8_t row = pad / 18;
+		PadLEDs::image[row][col][0] = (255 / 7) * row;
 		PadLEDs::image[row][col][1] = 0;
-		PadLEDs::image[row][col][2] = 255-(255/7)*row;
+		PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();
 		deluge::hid::display::OLED::stopScrollingAnimation();
