@@ -1257,7 +1257,7 @@ void View::setModLedStates() {
 			if (uiSubType == UISubType::INSTRUMENT) {
 				affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			}
-			//if it's not an instrument clip, then it's an audio clip
+			// if it's not an instrument clip, then it's an audio clip
 			else {
 				affectEntire = true;
 			}

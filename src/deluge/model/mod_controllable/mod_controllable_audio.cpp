@@ -1743,7 +1743,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationView) {
+				if (getRootUI() == &automationView && !automationView.onArrangerView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					// check that the clip that the param is being edited for is the same as the
 					// current clip as the current clip is what's actively displayed in automation view
