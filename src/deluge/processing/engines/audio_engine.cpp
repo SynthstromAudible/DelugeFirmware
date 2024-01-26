@@ -737,7 +737,7 @@ startAgain:
 
 		// Mix reverb into main render
 		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
-		reverb.Process(reverb_buffer_slice, render_buffer_slice);
+		reverb.process(reverb_buffer_slice, render_buffer_slice);
 	}
 
 	// Previewing sample

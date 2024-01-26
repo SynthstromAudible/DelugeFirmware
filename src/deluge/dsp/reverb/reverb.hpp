@@ -39,14 +39,14 @@ public:
 
 	Model getModel() { return model_; }
 
-	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
+	void process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		using namespace reverb;
 		switch (model_) {
 		case Model::FREEVERB:
-			reverb_as<Freeverb>().Process(input, output);
+			reverb_as<Freeverb>().process(input, output);
 			break;
 		case Model::MUTABLE:
-			reverb_as<Mutable>().Process(input, output);
+			reverb_as<Mutable>().process(input, output);
 			break;
 		}
 	}

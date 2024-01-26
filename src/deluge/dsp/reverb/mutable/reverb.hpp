@@ -20,7 +20,7 @@ public:
 
 	~Mutable() override = default;
 
-	void Process(std::span<int32_t> in, std::span<StereoSample> output) override {
+	void process(std::span<int32_t> in, std::span<StereoSample> output) override {
 		// This is the Griesinger topology described in the Dattorro paper
 		// (4 AP diffusers on the input, then a loop of 2x 2AP+1Delay).
 		// Modulation is applied in the loop of the first diffuser AP for additional
@@ -85,7 +85,7 @@ public:
 			del1.Write(c, 2.0f);
 			wet = c.Get();
 
-			int32_t output_right =
+			auto output_right =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			c.Set(apout);
@@ -96,7 +96,7 @@ public:
 			del2.Write(c, 2.0f);
 			wet = c.Get();
 
-			int32_t output_left =
+			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			// Mix

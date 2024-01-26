@@ -90,7 +90,7 @@ public:
 		*outputR = (out_r + multiply_32x32_rshift32_rounded(out_l, wet2)) << 1;
 	}
 
-	[[gnu::always_inline]] void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
+	[[gnu::always_inline]] void process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		int32_t output_left = 0;
 		int32_t output_right = 0;
 

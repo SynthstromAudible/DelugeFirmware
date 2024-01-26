@@ -8,7 +8,7 @@ struct Base {
 	Base() = default;
 	virtual ~Base() = default;
 
-	virtual void Process(std::span<int32_t> input, std::span<StereoSample> output) = 0;
+	virtual void process(std::span<int32_t> input, std::span<StereoSample> output) = 0;
 
 	constexpr void setPanLevels(const int32_t amplitude_left, const int32_t amplitude_right) {
 		amplitude_right_ = amplitude_right;
