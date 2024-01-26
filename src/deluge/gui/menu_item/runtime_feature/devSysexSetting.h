@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -28,7 +28,7 @@ public:
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	std::vector<std::string_view> getOptions() override;
+	deluge::vector<std::string_view> getOptions() override;
 	[[nodiscard]] std::string_view getName() const override;
 	[[nodiscard]] std::string_view getTitle() const override;
 

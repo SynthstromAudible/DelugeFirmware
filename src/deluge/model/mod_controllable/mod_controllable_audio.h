@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay.h"
-#include "dsp/sidechain/sidechain.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -27,6 +26,7 @@
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
+#include "modulation/sidechain/sidechain.h"
 
 #define STUTTERER_STATUS_OFF 0
 #define STUTTERER_STATUS_RECORDING 1
@@ -42,15 +42,15 @@ struct Stutterer {
 };
 
 struct Grain {
-	int32_t length;     //in samples 0=OFF
-	int32_t startPoint; //starttimepos in samples
-	int32_t counter;    //relative pos in samples
-	uint16_t pitch;     //1024=1.0
+	int32_t length;     // in samples 0=OFF
+	int32_t startPoint; // starttimepos in samples
+	int32_t counter;    // relative pos in samples
+	uint16_t pitch;     // 1024=1.0
 	int32_t volScale;
 	int32_t volScaleMax;
-	bool rev;        //0=normal, 1 =reverse
-	int32_t panVolL; //0 - 1073741823
-	int32_t panVolR; //0 - 1073741823
+	bool rev;        // 0=normal, 1 =reverse
+	int32_t panVolL; // 0 - 1073741823
+	int32_t panVolR; // 0 - 1073741823
 };
 
 class Clip;
@@ -135,7 +135,7 @@ public:
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
 
-	//Grain
+	// Grain
 	int32_t wrapsToShutdown;
 	void setWrapsToShutdown();
 	StereoSample* modFXGrainBuffer;

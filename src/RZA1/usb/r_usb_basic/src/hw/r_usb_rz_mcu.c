@@ -225,7 +225,7 @@ void usb_cpu_usbint_init(uint8_t ip_type)
 void usb_cpu_usb_int_hand(uint32_t int_sense) // This function actually gets called as a CPU interrupt, for real! Rohan
 {
 
-    //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     /* Call USB interrupt routine */
     if (USB_HOST == g_usb_usbmode)
@@ -243,11 +243,11 @@ void usb_cpu_usb_int_hand(uint32_t int_sense) // This function actually gets cal
 
     /*
     uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-	uint16_t duration = endTime - startTime;
-	uint32_t timePassedNS = superfastTimerCountToNS(duration);
-	uartPrint("interrupt duration, nSec: ");
-	uartPrintNumber(timePassedNS);
-	*/
+    uint16_t duration = endTime - startTime;
+    uint32_t timePassedNS = superfastTimerCountToNS(duration);
+    uartPrint("interrupt duration, nSec: ");
+    uartPrintNumber(timePassedNS);
+    */
 } /* End of function usb_cpu_usb_int_hand() */
 
 /************************************************************************************************************************
@@ -376,9 +376,9 @@ void usb_cpu_int_disable(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : usb_chattaring
- Description     : 
- Arguments       : 
- Return value    : 
+ Description     :
+ Arguments       :
+ Return value    :
  ***********************************************************************************************************************/
 uint16_t usb_chattaring(volatile uint16_t* syssts)
 {
@@ -402,9 +402,9 @@ uint16_t usb_chattaring(volatile uint16_t* syssts)
 
 /***********************************************************************************************************************
  Function Name   : usb_cpu_dmaint0_hand
- Description     : 
- Arguments       : 
- Return value    : 
+ Description     :
+ Arguments       :
+ Return value    :
  ***********************************************************************************************************************/
 void usb_cpu_dmaint0_hand(uint32_t int_sense)
 {
@@ -415,9 +415,9 @@ void usb_cpu_dmaint0_hand(uint32_t int_sense)
 
 /***********************************************************************************************************************
  Function Name   : usb_cpu_dmaint1_hand
- Description     : 
- Arguments       : 
- Return value    : 
+ Description     :
+ Arguments       :
+ Return value    :
  ***********************************************************************************************************************/
 void usb_cpu_dmaint1_hand(uint32_t int_sense)
 {

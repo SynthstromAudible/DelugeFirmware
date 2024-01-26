@@ -50,13 +50,14 @@ static inline void timerClearCompareMatchTGRA(int timerNo)
 {
 
     // Clear the TGFA flag.
-    // Up to and including V3.1.1-RC the dummy_read was done before calling timerGoneOff() and then tested afterwards, which is obviously not ideal.
-    // At the same time, there was a bizarre crash when sending arpeggiator MIDI to Fraser's Gakken NSX-39. Making this change fixed that crash,
-    // but I am unsure if this has actually addressed the cause of the crash, because making almost any other change to this function or even just adding one instruction
+    // Up to and including V3.1.1-RC the dummy_read was done before calling timerGoneOff() and then tested afterwards,
+    // which is obviously not ideal. At the same time, there was a bizarre crash when sending arpeggiator MIDI to
+    // Fraser's Gakken NSX-39. Making this change fixed that crash, but I am unsure if this has actually addressed the
+    // cause of the crash, because making almost any other change to this function or even just adding one instruction
     // to the end, like switching an LED on or off, also made the crash vanish.
     // So, watch out for future peculiarities.
-    // Another note - it doesn't seem to matter whether this clearing is done before or after calling timerGoneOff(), but in the event of future problems,
-    // it would be worth trying both.
+    // Another note - it doesn't seem to matter whether this clearing is done before or after calling timerGoneOff(),
+    // but in the event of future problems, it would be worth trying both.
     while (true)
     {
         uint16_t dummy_read = *TSR[timerNo];

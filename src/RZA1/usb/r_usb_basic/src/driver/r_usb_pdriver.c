@@ -123,7 +123,7 @@ static void usb_pstd_interrupt(uint16_t type, uint16_t status)
         case USB_INT_NRDY:
             usb_pstd_nrdy_pipe(status);
         break;
-		*/
+        */
 
         /* Resume */
         case USB_INT_RESM:
@@ -1390,7 +1390,7 @@ void usb_peri_configured(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 #endif /* defined(USB_CFG_PCDC_USE) | defined(USB_CFG_PHID_USE) */
 
     g_usb_peri_connected = USB_TRUE;
-    //consoleTextIfAllBootedUp("USB"); // Added by Rohan
+    // consoleTextIfAllBootedUp("USB"); // Added by Rohan
 
     configuredAsPeripheral(USB_CFG_USE_USBIP);
 
@@ -1439,8 +1439,9 @@ void usb_peri_suspended(usb_utr_t* ptr, uint16_t data1, uint16_t data2)
 {
     usb_ctrl_t ctrl;
 
-    //consoleTextIfAllBootedUp("DETACHED");	// Added by Rohan. Putting this in the "detach" func didn't have the desired effect, maybe because Deluge's VBUS stays on as the MCU sees it?
-    // But, deactivated cos this doesn't trigger the first time you disconnect!
+    // consoleTextIfAllBootedUp("DETACHED");	// Added by Rohan. Putting this in the "detach" func didn't have the
+    // desired effect, maybe because Deluge's VBUS stays on as the MCU sees it?
+    //  But, deactivated cos this doesn't trigger the first time you disconnect!
     ctrl.module = USB_CFG_USE_USBIP;
     usb_set_event(USB_STS_SUSPEND, &ctrl);
 } /* End of function usb_suspended() */

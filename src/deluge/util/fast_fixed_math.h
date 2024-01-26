@@ -13,10 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "fixedpoint.h"
 #include "util/functions.h"
-//This is a very very rough approximation
+// This is a very very rough approximation
 static inline q31_t crappy_square_root(q31_t input) {
 	int32_t leading = clz(input);
 	return ONE_Q31 >> (leading / 2);
@@ -24,12 +24,12 @@ static inline q31_t crappy_square_root(q31_t input) {
 static inline q31_t approximate_inverse_square_root(q31_t raw) {
 	q31_t var1, temp, x_squared, in;
 
-	in = raw >> 1; //better range for function
-	//2 rounds of newtons method for isqrt
-	//start at one power of two larger than the input
-	//for an approximate first guess
+	in = raw >> 1; // better range for function
+	// 2 rounds of newtons method for isqrt
+	// start at one power of two larger than the input
+	// for an approximate first guess
 
-	//update is x_nxt = x*(3-input(x^2)/2
+	// update is x_nxt = x*(3-input(x^2)/2
 	var1 = crappy_square_root(in);
 
 	x_squared = multiply_32x32_rshift32_rounded(var1, var1) << 1;
@@ -50,8 +50,8 @@ static inline q31_t approximate_inverse_square_root(q31_t raw) {
 	return (var1 << 2);
 }
 
-//This is off by almost a factor of two for in close to 1 but somewhat accurate for
-//small inputs
+// This is off by almost a factor of two for in close to 1 but somewhat accurate for
+// small inputs
 static inline q31_t approximate_square_root(q31_t in) {
 	q31_t isqrt = approximate_inverse_square_root(in);
 	return multiply_32x32_rshift32_rounded(in, isqrt) << 1;

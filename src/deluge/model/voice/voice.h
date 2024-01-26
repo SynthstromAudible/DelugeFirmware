@@ -38,7 +38,8 @@ public:
 	// Stores all oscillator positions and stuff, for each Source within each Unison too
 	VoiceUnisonPart unisonParts[kMaxNumVoicesUnison];
 
-	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with this Voice right now.
+	// Stores overall info on each Source (basically just sample memory bounds), for the play-through associated with
+	// this Voice right now.
 	VoiceSamplePlaybackGuide guides[kNumSources];
 
 	Sound* assignedToSound;
@@ -48,7 +49,8 @@ public:
 	///
 	int32_t paramFinalValues[deluge::modulation::params::LOCAL_LAST];
 
-	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and choose where the Patcher looks for them
+	// At the start of this list are local copies of the "global" ones. It's cheaper to copy them here than to pick and
+	// choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];
 
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
@@ -105,7 +107,8 @@ public:
 	void expressionEventSmooth(int32_t newValue, int32_t s);
 
 private:
-	//inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t phaseShift);
+	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
+	// phaseShift);
 
 	void renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd,
 	               int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase,

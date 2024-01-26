@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "decimal.h"
@@ -37,7 +37,7 @@ public:
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() override;
 
-	//OLED Only
+	// OLED Only
 	void renderOLED();
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "integer.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
@@ -34,11 +34,12 @@ void Integer::writeCurrentValue() {
 	int32_t value = getFinalValue();
 	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
 
-	//send midi follow feedback
+	// send midi follow feedback
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
 	view.sendMidiFollowFeedback(modelStack, knobPos);
 
-	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), true, true);
+	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0,
+	// soundEditor.currentSound, currentSong, getCurrentClip(), true, true);
 }
 
 int32_t Integer::getFinalValue() {

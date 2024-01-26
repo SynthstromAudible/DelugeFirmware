@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/ui/sound_editor.h"
@@ -28,7 +28,7 @@ class ActualSource final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
 
-	//OLED Only
+	// OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/drum/drum.h"
 
@@ -92,8 +92,10 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
                                            int32_t whichExpressionimension, int32_t level) {
 
-	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger level, *and* at channel/instrument level.
-	// Yes, we combine these here at the input before the data gets recorded or sounded, because unlike for Instruments, we're a Drum, and all we have is the NoteRow level to store this stuff.
+	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger
+	// level, *and* at channel/instrument level. Yes, we combine these here at the input before the data gets recorded
+	// or sounded, because unlike for Instruments, we're a Drum, and all we have is the NoteRow level to store this
+	// stuff.
 	lastExpressionInputsReceived[level][whichExpressionimension] = newValue >> 8; // Store value
 	int32_t combinedValue =
 	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][whichExpressionimension] << 8);

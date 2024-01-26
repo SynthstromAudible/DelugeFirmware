@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -23,7 +23,8 @@
 
 namespace deluge::gui::menu_item {
 
-// This one is "absolute" - if song's insideWorldTickMagnitude changes, such a param's text value will display as a different one, but the music will sound the same
+// This one is "absolute" - if song's insideWorldTickMagnitude changes, such a param's text value will display as a
+// different one, but the music will sound the same
 class SyncLevel : public Enumeration {
 public:
 	using Enumeration::Enumeration;

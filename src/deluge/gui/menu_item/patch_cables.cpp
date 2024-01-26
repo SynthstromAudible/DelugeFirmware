@@ -82,7 +82,7 @@ void PatchCables::renderOptions() {
 		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		floatToString((float)level / 100, buf + off + 5, 2, 2);
-		//fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
+		// fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
 
 		buf[off + 9] = ' ';
 		strncpy(buf + off + 10, dest_name, item_max_len - 10 - off);

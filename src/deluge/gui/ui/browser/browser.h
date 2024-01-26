@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -120,8 +120,8 @@ protected:
 	                                         Availability availabilityRequirement = Availability::ANY,
 	                                         int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
-	static int32_t
-	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
+	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
+	                                  // maybe we're typing a new name.
 	static int32_t scrollPosVertical;
 	static int32_t
 	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
@@ -139,7 +139,7 @@ protected:
 
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
-	//filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
+	// filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };

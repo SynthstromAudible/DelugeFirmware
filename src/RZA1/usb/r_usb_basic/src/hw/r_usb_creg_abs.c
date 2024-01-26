@@ -111,12 +111,13 @@ uint16_t usb_cstd_get_buf_size(usb_utr_t* ptr, uint16_t pipe)
 void usb_cstd_pipe_init(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, uint16_t ofs)
 {
     uint16_t useport = USB_CUSE;
-    int ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+    int ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral
+            // mode
 
     if (USB_NULL == ptr)
     {
-        ip =
-            USB_CFG_USE_USBIP; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        ip = USB_CFG_USE_USBIP; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens
+                                // always in peripheral mode
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
         g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
         useport            = usb_pstd_pipe2fport(pipe);
@@ -125,8 +126,8 @@ void usb_cstd_pipe_init(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, uint16_t o
     }
     else
     {
-        ip =
-            ptr->ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        ip = ptr->ip; // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in
+                      // peripheral mode
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
         g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL;
         useport            = usb_hstd_pipe2fport(ptr, pipe);
@@ -154,15 +155,14 @@ void usb_cstd_pipe_init(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, uint16_t o
     /* Update use pipe no info */
     if (USB_NULL != tbl[ofs + 1])
     {
-        g_usb_hstd_use_pipe[ip] |=
-            ((uint16_t)1
-                << pipe); // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        g_usb_hstd_use_pipe[ip] |= ((uint16_t)1 << pipe); // Bugfix added by Rohan - we need this in case ptr is
+                                                          // supplied as NULL, which happens always in peripheral mode
     }
     else
     {
-        g_usb_hstd_use_pipe[ip] &= (~(
-            (uint16_t)1
-            << pipe)); // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which happens always in peripheral mode
+        g_usb_hstd_use_pipe[ip] &=
+            (~((uint16_t)1 << pipe)); // Bugfix added by Rohan - we need this in case ptr is supplied as NULL, which
+                                      // happens always in peripheral mode
     }
 
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
@@ -199,7 +199,8 @@ void usb_cstd_pipe_init(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, uint16_t o
     /* Empty/SizeErr Int Clear */
     hw_usb_clear_status_bemp(ptr, pipe);
 
-    //hw_usb_set_bempenb(USB_NULL, pipe); // Added by Rohan - we now just enable this here once, rather than at the start of every transfer. Actually no, doesn't work... though I thought it did for a bit...
+    // hw_usb_set_bempenb(USB_NULL, pipe); // Added by Rohan - we now just enable this here once, rather than at the
+    // start of every transfer. Actually no, doesn't work... though I thought it did for a bit...
 } /* End of function usb_cstd_pipe_init() */
 
 // Function by Rohan obviously
@@ -223,11 +224,14 @@ void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tb
 #endif
 
     hw_usb_write_pipecfg(NULL, tbl[1], pipe);
-    // We won't set the PIPEBUF, cos I (Rohan) have made it so each pipe number always has the same buffer number, and we're still on the same pipe.
+    // We won't set the PIPEBUF, cos I (Rohan) have made it so each pipe number always has the same buffer number, and
+    // we're still on the same pipe.
     hw_usb_write_pipemaxp(
         NULL, tbl[3], pipe); // This sets the destination USB peripheral address, so yes we need to change this.
     hw_usb_write_pipeperi(NULL,
-        tbl[4]); // Probably worth doing. This sets stuff relating to "flushing" and "intervals" - possibly more relevant to ISO or interrupt endpoints, but this driver does indeed work out a value to put for this in the table, so we'd better grab it
+        tbl[4]); // Probably worth doing. This sets stuff relating to "flushing" and "intervals" - possibly more
+                 // relevant to ISO or interrupt endpoints, but this driver does indeed work out a value to put for this
+                 // in the table, so we'd better grab it
 
     /* SQCLR */
     volatile uint16_t* p_reg = ((uint16_t*)&(USB200.PIPE1CTR) + (pipe - 1));
@@ -235,7 +239,7 @@ void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tb
 
 } /* End of function usb_cstd_pipe_init() */
 
-//#include "drivers/usb/userdef/r_usb_hmidi_config.h"
+// #include "drivers/usb/userdef/r_usb_hmidi_config.h"
 
 /***********************************************************************************************************************
  Function Name   : usb_cstd_clr_pipe_cnfg
@@ -247,7 +251,8 @@ void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tb
 void usb_cstd_clr_pipe_cnfg(usb_utr_t* ptr, uint16_t pipe_no)
 {
 
-    //if (pipe_no == USB_CFG_HMIDI_BULK_SEND || pipe_no == USB_CFG_HMIDI_INT_SEND) return; // Don't deconfigure the send-pipe cos it's shared - Rohan
+    // if (pipe_no == USB_CFG_HMIDI_BULK_SEND || pipe_no == USB_CFG_HMIDI_INT_SEND) return; // Don't deconfigure the
+    // send-pipe cos it's shared - Rohan
 
     uartPrint("clearing config for pipe ");
     uartPrintNumber(pipe_no);
@@ -283,7 +288,8 @@ void usb_cstd_clr_pipe_cnfg(usb_utr_t* ptr, uint16_t pipe_no)
     hw_usb_write_pipesel(ptr, pipe_no);
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-    /* Clear use pipe no info. Added by Rohan - I can't see why this wouldn't have already been done, and the USB library doesn't even make use of this info anyway, so modification should be fine. */
+    /* Clear use pipe no info. Added by Rohan - I can't see why this wouldn't have already been done, and the USB
+     * library doesn't even make use of this info anyway, so modification should be fine. */
     g_usb_hstd_use_pipe[USB_CFG_USE_USBIP] &=
         (~((uint16_t)1 << pipe_no)); // Uses "hard-coded" USB_CFG_USE_USBIP because ptr is sometimes NULL
 #endif                               /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
@@ -354,9 +360,9 @@ void usb_cstd_set_nak_fast_rohan(uint16_t pipe)
     volatile uint16_t* p_reg = ((uint16_t*)&(USB200.PIPE1CTR) + (pipe - 1));
     (*p_reg) &= (~(uint16_t)USB_PID_BUF);
 
-    // A bit of a weird one... my copying and simplifying all this stuff into one function caused i029 (unknown interrupt) error when sending MIDI.
-    // It seems that we actually need a tiny ~1uS delay here. I couldn't work out just why that would be required. And the kinda cryptic original comment
-    // in Renesas's code didn't really help.
+    // A bit of a weird one... my copying and simplifying all this stuff into one function caused i029 (unknown
+    // interrupt) error when sending MIDI. It seems that we actually need a tiny ~1uS delay here. I couldn't work out
+    // just why that would be required. And the kinda cryptic original comment in Renesas's code didn't really help.
 #if 0
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 	while (true) {
@@ -382,12 +388,12 @@ void usb_cstd_set_nak_fast_rohan(uint16_t pipe)
 }
 
 // I've optimized this copy much better than the original.
-//usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
+// usb_cstd_is_set_frdy(USB_NULL, pipe, USB_CUSE, USB_FALSE);
 uint16_t usb_cstd_is_set_frdy_rohan(uint16_t pipe)
 {
 
     /* Changes the FIFO port by the pipe. */
-    //usb_cstd_chg_curpipe(USB_NULL, pipe, USB_CUSE, USB_FALSE);
+    // usb_cstd_chg_curpipe(USB_NULL, pipe, USB_CUSE, USB_FALSE);
     usb_cstd_chg_curpipe_rohan_fast(pipe);
 
     volatile uint16_t* p_reg;
@@ -397,7 +403,8 @@ uint16_t usb_cstd_is_set_frdy_rohan(uint16_t pipe)
     p_reg = (void*)&(USB201.CFIFOCTR);
 #endif /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
 
-    // I drastically rearranged the code from usb_cstd_is_set_frdy(), here. Basically, it's meant to time out with error if not FRDY within 100ns.
+    // I drastically rearranged the code from usb_cstd_is_set_frdy(), here. Basically, it's meant to time out with error
+    // if not FRDY within 100ns.
     uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     uint16_t buffer;

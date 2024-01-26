@@ -98,7 +98,7 @@ usb_utr_t g_usb_pdata[USB_MAXPIPE_NUM + 1];
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */
 
 uint16_t g_usb_usbmode;
-//uint16_t        g_usb_cstd_driver_open;
+// uint16_t        g_usb_cstd_driver_open;
 uint16_t g_usb_open_class;
 uint16_t g_usb_change_device_state[USB_NUM_USBIP];
 
@@ -121,7 +121,7 @@ Renesas Abstracted Peripheral Driver API functions
 
 /*****************************************************************************
  * Function Name: R_USB_GetVersion
- * Description  : Returns the version of this module. The version number is 
+ * Description  : Returns the version of this module. The version number is
  *              : encoded such that the top two bytes are the major version
  *              : number and the bottom two bytes are the minor version number.
  * Arguments    : none
@@ -244,7 +244,7 @@ usb_err_t R_USB_Open(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
             usb_hdriver_init(&utr, cfg);
 
             /* Setting MCU(USB interrupt init) register */
-            //usb_cpu_usbint_init((uint8_t)utr.ip);
+            // usb_cpu_usbint_init((uint8_t)utr.ip);
             R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_hstd_usb_handler);
             R_INTC_SetPriority(INTC_ID_USBI0, 9);
             R_INTC_Enable(INTC_ID_USBI0);
@@ -282,7 +282,7 @@ usb_err_t R_USB_Open(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
             usb_pdriver_init(ctrl, cfg);
 
             /* Setting MCU(USB interrupt init) register */
-            //usb_cpu_usbint_init(ctrl->module);
+            // usb_cpu_usbint_init(ctrl->module);
             R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_pstd_usb_handler);
             R_INTC_SetPriority(INTC_ID_USBI0, 9);
             R_INTC_Enable(INTC_ID_USBI0);
@@ -1082,7 +1082,7 @@ usb_err_t R_USB_GetInformation(usb_ctrl_t* p_ctrl, usb_info_t* p_info)
             p_info->port = USB_SDP; /* USB_SDP/USB_CDP/USB_DCP */
         }
 #else  /* #if USB_CFG_BC == USB_CFG_ENABLE */
-        p_info->port                                       = USB_SDP; /* USB_SDP/USB_CDP/USB_DCP */
+        p_info->port = USB_SDP; /* USB_SDP/USB_CDP/USB_DCP */
 #endif /* #if USB_CFG_BC == USB_CFG_ENABLE */
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
@@ -1172,7 +1172,7 @@ usb_err_t R_USB_GetInformation(usb_ctrl_t* p_ctrl, usb_info_t* p_info)
 #if USB_CFG_BC == USB_CFG_ENABLE
         p_info->port = g_usb_bc_detect; /* USB_SDP/USB_CDP/USB_DCP */
 #else                                   /* USB_CFG_BC == USB_CFG_ENABLE */
-        p_info->port                                       = USB_SDP; /* USB_SDP */
+        p_info->port = USB_SDP; /* USB_SDP */
 #endif                                  /* USB_CFG_BC == USB_CFG_ENABLE */
         ret_code = USB_SUCCESS;
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI */

@@ -235,7 +235,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 
 			// Remember unknown settings for writing them back
 			if (!found) {
-				//unknownSettings.insertSetting(&currentName, currentValue);
+				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
 				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
 					return;

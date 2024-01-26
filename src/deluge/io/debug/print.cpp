@@ -102,7 +102,7 @@ void init() {
 MIDIDevice* midiDebugDevice = nullptr;
 
 void prependTimeStamp(bool isNewLine) {
-#if ENABLE_TEXT_OUTPUT
+#if JFTRACE
 	if (!prependDeltaT)
 		return;
 	if (lastWasNewline) {

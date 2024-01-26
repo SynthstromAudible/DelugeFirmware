@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
@@ -180,6 +180,6 @@ public:
 
 private:
 	MIDIFollowChannelType channelType;
-	LearnedMIDI midiInput;
+	LearnedMIDI& midiInput;
 };
 } // namespace deluge::gui::menu_item::midi

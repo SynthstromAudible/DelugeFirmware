@@ -13,7 +13,7 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
-	//loop through non-null items until we find a relevant one
+	// loop through non-null items until we find a relevant one
 	while ((*current_item_ != nullptr)
 	       && !(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 		current_item_++;

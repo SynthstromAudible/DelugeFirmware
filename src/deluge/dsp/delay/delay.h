@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -37,7 +37,8 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn = true);
+	void setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+	                       bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(DelayWorkingState* workingState);
 	void hasWrapped();

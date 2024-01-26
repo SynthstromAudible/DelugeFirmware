@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "devSysexSetting.h"
 #include "gui/l10n/strings.h"
@@ -54,7 +54,7 @@ void DevSysexSetting::writeCurrentValue() {
 	}
 }
 
-std::vector<std::string_view> DevSysexSetting::getOptions() {
+deluge::vector<std::string_view> DevSysexSetting::getOptions() {
 	intToHex(onValue, &on_val[5]);
 	return {
 	    l10n::get(l10n::String::STRING_FOR_OFF),

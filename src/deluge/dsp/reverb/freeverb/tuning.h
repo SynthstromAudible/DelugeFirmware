@@ -22,52 +22,51 @@
  */
 
 #pragma once
+#include <cstdint>
 
-const int32_t numcombs = 8;
-const int32_t numallpasses = 4;
-const float muted = 0;
-const float fixedgain = 0.015f;
-const float scalewet = 3;
-const float scaledry = 2;
-const float scaledamp = 0.4f;
-const float scaleroom = 0.28f;
-const float offsetroom = 0.7f;
-const float initialroom = 0.5f;
-const float initialdamp = 0.5f;
-const float initialwet = 1 / scalewet;
-const float initialdry = 0;
-const float initialwidth = 1;
-const float initialmode = 0;
-const float freezemode = 0.5f;
-const int32_t stereospread = 23;
+constexpr int32_t numcombs = 8;
+constexpr int32_t numallpasses = 4;
+constexpr float muted = 0;
+constexpr float fixedgain = 0.015f;
+constexpr float scalewet = 3;
+constexpr float scaledry = 2;
+constexpr float scaledamp = 0.4f;
+constexpr float scaleroom = 0.28f;
+constexpr float offsetroom = 0.7f;
+constexpr float initialroom = 0.5f;
+constexpr float initialdamp = 0.5f;
+constexpr float initialwet = 1 / scalewet;
+constexpr float initialdry = 0;
+constexpr float initialwidth = 1;
+constexpr int32_t stereospread = 23;
 
 // These values assume 44.1KHz sample rate
 // they will probably be OK for 48KHz sample rate
 // but would need scaling for 96KHz (or other) sample rates.
 // The values were obtained by listening tests.
-const int32_t combtuningL1 = 1116;
-const int32_t combtuningR1 = 1116 + stereospread;
-const int32_t combtuningL2 = 1188;
-const int32_t combtuningR2 = 1188 + stereospread;
-const int32_t combtuningL3 = 1277;
-const int32_t combtuningR3 = 1277 + stereospread;
-const int32_t combtuningL4 = 1356;
-const int32_t combtuningR4 = 1356 + stereospread;
-const int32_t combtuningL5 = 1422;
-const int32_t combtuningR5 = 1422 + stereospread;
-const int32_t combtuningL6 = 1491;
-const int32_t combtuningR6 = 1491 + stereospread;
-const int32_t combtuningL7 = 1557;
-const int32_t combtuningR7 = 1557 + stereospread;
-const int32_t combtuningL8 = 1617;
-const int32_t combtuningR8 = 1617 + stereospread;
-const int32_t allpasstuningL1 = 556;
-const int32_t allpasstuningR1 = 556 + stereospread;
-const int32_t allpasstuningL2 = 441;
-const int32_t allpasstuningR2 = 441 + stereospread;
-const int32_t allpasstuningL3 = 341;
-const int32_t allpasstuningR3 = 341 + stereospread;
-const int32_t allpasstuningL4 = 225;
-const int32_t allpasstuningR4 = 225 + stereospread;
+constexpr int32_t combtuningL1 = 1116;
+constexpr int32_t combtuningR1 = 1116 + stereospread;
+constexpr int32_t combtuningL2 = 1188;
+constexpr int32_t combtuningR2 = 1188 + stereospread;
+constexpr int32_t combtuningL3 = 1277;
+constexpr int32_t combtuningR3 = 1277 + stereospread;
+constexpr int32_t combtuningL4 = 1356;
+constexpr int32_t combtuningR4 = 1356 + stereospread;
+constexpr int32_t combtuningL5 = 1422;
+constexpr int32_t combtuningR5 = 1422 + stereospread;
+constexpr int32_t combtuningL6 = 1491;
+constexpr int32_t combtuningR6 = 1491 + stereospread;
+constexpr int32_t combtuningL7 = 1557;
+constexpr int32_t combtuningR7 = 1557 + stereospread;
+constexpr int32_t combtuningL8 = 1617;
+constexpr int32_t combtuningR8 = 1617 + stereospread;
+constexpr int32_t allpasstuningL1 = 556;
+constexpr int32_t allpasstuningR1 = 556 + stereospread;
+constexpr int32_t allpasstuningL2 = 441;
+constexpr int32_t allpasstuningR2 = 441 + stereospread;
+constexpr int32_t allpasstuningL3 = 341;
+constexpr int32_t allpasstuningR3 = 341 + stereospread;
+constexpr int32_t allpasstuningL4 = 225;
+constexpr int32_t allpasstuningR4 = 225 + stereospread;
 
-//ends
+// ends

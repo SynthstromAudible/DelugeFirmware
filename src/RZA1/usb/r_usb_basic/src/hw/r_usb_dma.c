@@ -1259,9 +1259,10 @@ void usb_cstd_DXfifo2BufStartDma(usb_utr_t* ptr, uint16_t pipe, uint16_t useport
         usb_creg_set_brdyenb(ip, pipe);
 
         /* Enable Not Ready Interrupt */
-        //usb_cstd_nrdy_enable(ptr, pipe);
-        // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-        // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+        // usb_cstd_nrdy_enable(ptr, pipe);
+        //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+        //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in
+        //  2019).
 
         /* Read (FIFO -> MEMORY) : USB register set */
         /* DMA buffer clear mode & MBW set */
@@ -1293,9 +1294,10 @@ void usb_cstd_DXfifo2BufStartDma(usb_utr_t* ptr, uint16_t pipe, uint16_t useport
         usb_creg_set_brdyenb(ip, pipe);
 
         /* Enable Not Ready Interrupt */
-        //usb_cstd_nrdy_enable(ptr, pipe);
-        // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-        // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+        // usb_cstd_nrdy_enable(ptr, pipe);
+        //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was
+        //  causing freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in
+        //  2019).
     }
 } /* End of function usb_cstd_DXfifo2BufStartDma() */
 
@@ -2227,9 +2229,9 @@ void usb_cstd_Buf2Fifo_DMA1(
     usb_cstd_chg_curpipe(ptr, pipe, useport, USB_FALSE);
 
     /* Enable Not Ready Interrupt */
-    //usb_cstd_nrdy_enable(ptr, pipe);
-    // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-    // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+    // usb_cstd_nrdy_enable(ptr, pipe);
+    //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing
+    //  freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
     /* D0FIFO interrupt enable */
     usb_enable_dmaIntX(ch_no);
@@ -2308,9 +2310,9 @@ void usb_cstd_Buf2Fifo_DMA2(
     usb_cstd_chg_curpipe(ptr, pipe, useport, USB_FALSE);
 
     /* Enable Not Ready Interrupt */
-    //usb_cstd_nrdy_enable(ptr, pipe);
-    // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-    // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+    // usb_cstd_nrdy_enable(ptr, pipe);
+    //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing
+    //  freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
     /* D0FIFO interrupt enable */
     usb_enable_dmaIntX(ch_no);
@@ -2389,9 +2391,9 @@ void usb_cstd_Buf2Fifo_DMA3(
     usb_cstd_chg_curpipe(ptr, pipe, useport, USB_FALSE);
 
     /* Enable Not Ready Interrupt */
-    //usb_cstd_nrdy_enable(ptr, pipe);
-    // We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing freezes
-    // (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
+    // usb_cstd_nrdy_enable(ptr, pipe);
+    //  We ignore NRDY interrupts anyway, as there are tons of them continuously, and enabling them at all was causing
+    //  freezes (or was it UART / SD lockups?), right since we first added this "new" (2016) USB driver (in 2019).
 
     /* D0FIFO interrupt enable */
     usb_enable_dmaIntX(ch_no);
@@ -2404,9 +2406,9 @@ void usb_cstd_Buf2Fifo_DMA3(
 /***********************************************************************************************************************
  Function Name   : usb_cstd_GetDxfifoYAdr
  Description     : Get 32 bits of used channel's D0FIFO register content.
- Arguments       : uint16_t     ip           : 
-                 : uint16_t     trans_size   : 
-                 : uint16_t     pipemode     : 
+ Arguments       : uint16_t     ip           :
+                 : uint16_t     trans_size   :
+                 : uint16_t     pipemode     :
  Return          : Address of D0FIFO
  ***********************************************************************************************************************/
 uint32_t usb_cstd_GetDXfifoYAdr(uint16_t ip, uint16_t trans_size, uint16_t pipemode)
@@ -2510,8 +2512,8 @@ uint32_t usb_cstd_GetDXfifoYAdr(uint16_t ip, uint16_t trans_size, uint16_t pipem
 /***********************************************************************************************************************
  Function Name   : usb_creg_write_dxfbcfg
  Description     : Write d0fbcfg register.
- Arguments       : uint16_t     ip           : 
-                 : uint16_t     pipemode     : 
+ Arguments       : uint16_t     ip           :
+                 : uint16_t     pipemode     :
                  : uint16_t     data         : writing data
  Return value    : none
  ***********************************************************************************************************************/
