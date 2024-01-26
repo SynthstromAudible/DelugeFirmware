@@ -1320,6 +1320,10 @@ doMIDIOrCV:
 		newItem = &menu_item::multiRangeMenu;
 	}
 
+	if (display->haveOLED()) {
+		display->cancelPopup();
+	}
+
 	currentSound = newSound;
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
