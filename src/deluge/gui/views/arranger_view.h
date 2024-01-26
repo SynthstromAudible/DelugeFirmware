@@ -78,7 +78,7 @@ public:
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	void playbackEnded() override;
 	void clipNeedsReRendering(Clip* clip) override;
-	void exitSubModeWithoutAction();
+	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
 	void setLedStates();
