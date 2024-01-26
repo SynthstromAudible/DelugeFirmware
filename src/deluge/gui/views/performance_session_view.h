@@ -48,122 +48,91 @@ struct FXColumnPress {
 };
 
 struct ParamsForPerformance {
-	deluge::modulation::params::Kind paramKind;
+	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
 	deluge::modulation::params::ParamType paramID;
-	int32_t xDisplay;
-	int32_t yDisplay;
-	uint8_t rowColour[3];
-	uint8_t rowTailColour[3];
-
-	ParamsForPerformance() {
-		paramKind = deluge::modulation::params::Kind::NONE;
-		paramID = kNoSelection;
-		xDisplay = kNoSelection;
-		yDisplay = kNoSelection;
-		rowColour[0] = 0;
-		rowColour[1] = 0;
-		rowColour[2] = 0;
-		rowTailColour[0] = 0;
-		rowTailColour[1] = 0;
-		rowTailColour[2] = 0;
-	}
-
-	ParamsForPerformance(deluge::modulation::params::Kind kind, deluge::modulation::params::ParamType param, int32_t x,
-	                     int32_t y, const uint8_t colour[3], const uint8_t tailColour[3]) {
-		paramKind = kind;
-		paramID = param;
-		xDisplay = x;
-		yDisplay = y;
-		rowColour[0] = colour[0];
-		rowColour[1] = colour[1];
-		rowColour[2] = colour[2];
-		rowTailColour[0] = tailColour[0];
-		rowTailColour[1] = tailColour[1];
-		rowTailColour[2] = tailColour[2];
-	}
+	int32_t xDisplay = kNoSelection;
+	int32_t yDisplay = kNoSelection;
+	RGB rowColour = deluge::gui::colours::black;
+	RGB rowTailColour = deluge::gui::colours::black;
 };
-
-const int32_t sizePadPress = sizeof(PadPress);
-const int32_t sizeFXPress = sizeof(FXColumnPress);
-const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
 
 class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 
-	void graphicsRoutine();
-	ActionResult timerCallback();
+	void graphicsRoutine() override;
+	ActionResult timerCallback() override;
 
-	//rendering
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	// rendering
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderViewDisplay();
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 	// 7SEG only
 	void redrawNumericDisplay();
 	void setLedStates();
 
-	//button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	// button action
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
-	//pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	// pad action
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
-	//horizontal encoder action
-	ActionResult horizontalEncoderAction(int32_t offset);
+	// horizontal encoder action
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 
-	//vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	// vertical encoder action
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
-	//mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
+	// mod encoder action
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
 
-	//select encoder action
-	void selectEncoderAction(int8_t offset);
+	// select encoder action
+	void selectEncoderAction(int8_t offset) override;
 
-	//not sure why we need these...
-	uint32_t getMaxZoom();
-	uint32_t getMaxLength();
+	// not sure why we need these...
+	uint32_t getMaxZoom() override;
+	uint32_t getMaxLength() override;
 
-	//public so soundEditor can access it
+	// public so soundEditor can access it
 	void savePerformanceViewLayout();
 	void loadPerformanceViewLayout();
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
-	bool editingParam; //if you're not editing a param, you're editing a value
+	bool editingParam; // if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
 
-	//public so Action Logger can access it
+	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
 
-	//public so midi follow can access it
+	// public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
-	//public so view.modEncoderAction and midi follow can access it
+	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
 private:
-	//initialize
+	// initialize
 	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
 	void initLayout(ParamsForPerformance& layout);
 	void initDefaultFXValues(int32_t xDisplay);
 
-	//rendering
-	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	// rendering
+	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
 
-	//pad action
+	// pad action
 	void normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay, int32_t on);
 	void paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
 	                          int32_t on);
@@ -211,10 +180,10 @@ private:
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
-	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
+	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
-	//backup current layout
+	// backup current layout
 	void backupPerformanceLayout();
 	bool performanceLayoutBackedUp;
 	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);

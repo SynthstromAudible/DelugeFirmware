@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -29,6 +29,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "util/container/static_vector.hpp"
+#include "util/containers.h"
 #include <array>
 #include <initializer_list>
 #include <span>
@@ -58,7 +59,7 @@ public:
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 
-	std::vector<MenuItem*> items;
+	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 };
 

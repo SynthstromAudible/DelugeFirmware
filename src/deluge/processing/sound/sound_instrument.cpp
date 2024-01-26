@@ -42,7 +42,8 @@ SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 
 bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
-	// MelodicInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below call
+	// MelodicInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
+	// call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
@@ -55,7 +56,8 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 	}
 	else {
 
-		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we should use
+		// If no activeClip, that means no Clip has this Output, so there should be a backedUpParamManager that we
+		// should use
 		if (!activeClip) {
 			paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 		}
@@ -72,7 +74,8 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 	return true;
 }
 
-// arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and won't store any arp stuff
+// arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and
+// won't store any arp stuff
 int32_t SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -309,15 +312,16 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichE
 	monophonicExpressionValues[whichExpressionDimension] = newValue;
 }
 
-// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk directly to the Voices.
-// (Despite my having made it now actually need to talk to the Arp too, as below...)
-// Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
+// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for
+// Sound by avoiding going through the Arp and just talk directly to the Voices. (Despite my having made it now actually
+// need to talk to the Arp too, as below...) Note, this virtual function actually overrides/implements from two base
+// classes - MelodicInstrument and ModControllable.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
 	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
-	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
+	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
 	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -333,7 +337,9 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 		}
 	}
 
-	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
+	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
+	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
+	// values.
 	int32_t n, nEnd;
 	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
@@ -376,7 +382,8 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 
 #if ALPHA_OR_BETA_VERSION
 			if (!modelStack->paramManager) {
-				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an
+				// unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
 				FREEZE_WITH_ERROR("E402");
 			}
 #endif

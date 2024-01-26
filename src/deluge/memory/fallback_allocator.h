@@ -24,10 +24,19 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		return static_cast<T*>(GeneralMemoryAllocator::get().allocExternal(n * sizeof(T)));
+		void* addr = GeneralMemoryAllocator::get().allocExternal(n * sizeof(T));
+		// cpp specifies we should throw. Given that we don't have excpetions
+		// we are obligated to freeze
+		// c++ wil NOT check for nullptr before calling constructors on the return address
+		if (addr) {
+			return static_cast<T*>(addr);
+		}
+		else {
+			abort();
+		}
 	}
 
-	void deallocate(T* p, std::size_t n) { delugeDeallocExternal(p); }
+	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocExternal(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {

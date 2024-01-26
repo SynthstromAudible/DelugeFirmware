@@ -1,6 +1,6 @@
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/colour/colour.h"
 #include "util/misc.h"
 #include <array>
 #include <cstddef>
@@ -101,9 +101,9 @@ public:
 	 * @param idx The column-pair idx (so half the number of squares from the left)
 	 * @param colours The colours to set the pads to
 	 */
-	static void setColourForTwoColumns(size_t idx, const std::array<Colour, kDisplayHeight * 2>& colours) {
+	static void setColourForTwoColumns(size_t idx, const std::array<RGB, kDisplayHeight * 2>& colours) {
 		send(util::to_underlying(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
-		for (const Colour& colour : colours) {
+		for (const RGB& colour : colours) {
 			send(colour);
 		}
 	}
@@ -169,19 +169,19 @@ public:
 
 	static void requestFirmwareVersion() { send(Message::REQUEST_FIRMWARE_VERSION); }
 
-	static void sendColour(const Colour& colour) { send(colour); }
+	static void sendColour(const RGB& colour) { send(colour); }
 
 	static void setRefreshTime(uint8_t time_ms) { send(Message::SET_REFRESH_TIME, time_ms); }
 	static void setDimmerInterval(uint8_t interval) { send(Message::SET_DIMMER_INTERVAL, interval); }
 
 	/**
-	 * @brief This is used to make smooth scrolling on the horizontal axis, by filling up an 8-pixel framebuffer on the PIC
-	 *        that it can then provide an animation to smear across the axis to give a sensation of motion
-	 *        See (scrolling between clip pages)
+	 * @brief This is used to make smooth scrolling on the horizontal axis, by filling up an 8-pixel framebuffer on the
+	 * PIC that it can then provide an animation to smear across the axis to give a sensation of motion See (scrolling
+	 * between clip pages)
 	 *
 	 * @param idx the row to set
 	 */
-	static void sendScrollRow(size_t idx, Colour colour) {
+	static void sendScrollRow(size_t idx, RGB colour) {
 		send(util::to_underlying(Message::SET_SCROLL_ROW) + idx);
 		send(colour);
 	}
@@ -190,7 +190,7 @@ public:
 		send(util::to_underlying(Message::SET_SCROLL_LEFT) + bitflags);
 	}
 
-	static void doVerticalScroll(bool direction, const std::array<Colour, kDisplayWidth + kSideBarWidth>& colours) {
+	static void doVerticalScroll(bool direction, const std::array<RGB, kDisplayWidth + kSideBarWidth>& colours) {
 		Message msg = direction ? Message::SET_SCROLL_UP : Message::SET_SCROLL_DOWN;
 		send(msg, colours);
 	}
@@ -238,7 +238,8 @@ public:
 	/**
 	 * @brief Fetch a response from the PIC, using a callback handler
 	 *
-	 * @param handler The response handler function. If the return value is nonzero, the read attempt will immediately halt;
+	 * @param handler The response handler function. If the return value is nonzero, the read attempt will immediately
+	 * halt;
 	 * @param timeout The timeout to run for. Can be cancelled by the callback returning a nonzero value.
 	 */
 	static int32_t read(uint32_t timeout, std::function<int32_t(Response)> handler) {
@@ -284,7 +285,7 @@ private:
 	/**
 	 * @brief Send a single colour
 	 */
-	inline static void send(const Colour& colour) {
+	inline static void send(const RGB& colour) {
 		send(colour.r);
 		send(colour.g);
 		send(colour.b);

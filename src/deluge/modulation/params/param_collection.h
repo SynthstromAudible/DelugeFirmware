@@ -67,8 +67,8 @@ public:
 	                             bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
 	virtual ModelStackWithAutoParam* getAutoParamFromId(
 	    ModelStackWithParamId* modelStack,
-	    bool allowCreation =
-	        false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
+	    bool allowCreation = false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings
+	                                     // (wait why again?). May return NULL
 
 	virtual bool mayParamInterpolate(int32_t paramId);
 	virtual bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return false; }

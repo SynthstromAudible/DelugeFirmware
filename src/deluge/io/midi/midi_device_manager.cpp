@@ -38,7 +38,7 @@ extern "C" {
 extern uint8_t anyUSBSendingStillHappening[];
 }
 #pragma GCC diagnostic push
-//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
@@ -55,8 +55,8 @@ struct {
 	uint16_t productId;
 } usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP] = {};
 
-//This class represents a thing you can send midi too,
-//the virtual cable is an implementation detail
+// This class represents a thing you can send midi too,
+// the virtual cable is an implementation detail
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
@@ -220,7 +220,7 @@ void recountSmallestMPEZones() {
 	}
 }
 
-//Create the midi device configuration and add to the USB midi array
+// Create the midi device configuration and add to the USB midi array
 extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	MIDIDeviceUSBHosted* device = getOrCreateHostedMIDIDeviceFromDetails(&usbDeviceCurrentlyBeingSetUp[ip].name,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].vendorId,
@@ -285,12 +285,12 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 	recountSmallestMPEZones();
 }
 
-//called by USB setup
+// called by USB setup
 extern "C" void configuredAsPeripheral(int32_t ip) {
-	//Leave this - we'll use this device for all upstream ports
+	// Leave this - we'll use this device for all upstream ports
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-	//add second port here
+	// add second port here
 	connectedDevice->setup();
 	connectedDevice->device[0] = &upstreamUSBMIDIDevice_port1;
 	connectedDevice->device[1] = &upstreamUSBMIDIDevice_port2;
@@ -307,7 +307,7 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 }
 
 extern "C" void detachedAsPeripheral(int32_t ip) {
-	//will need to reset all devices if more are added
+	// will need to reset all devices if more are added
 	int32_t ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].device[i] = NULL;
@@ -315,8 +315,8 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port2.connectionFlags = 0;
 	upstreamUSBMIDIDevice_port3.connectionFlags = 0;
-	anyUSBSendingStillHappening[ip] =
-	    0; // Reset this again. Been meaning to do this, and can no longer quite remember reason or whether technically essential, but adds to safety at least.
+	anyUSBSendingStillHappening[ip] = 0; // Reset this again. Been meaning to do this, and can no longer quite remember
+	                                     // reason or whether technically essential, but adds to safety at least.
 
 	recountSmallestMPEZones();
 }
@@ -704,14 +704,14 @@ void ConnectedUSBMIDIDevice::setup() {
 	currentlyWaitingToReceive = false;
 	numBytesReceived = 0;
 
-	//default to only a single port
+	// default to only a single port
 	maxPortConnected = 0;
 }
 
 /*
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
+    for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+        MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 
-	}
+    }
  */
 #pragma GCC diagnostic pop

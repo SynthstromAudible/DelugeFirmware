@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/layout/norns.h"
 #include "definitions.h"
@@ -47,16 +47,15 @@ void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 void KeyboardLayoutNorns::precalculate() {
 }
 
-void KeyboardLayoutNorns::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void KeyboardLayoutNorns::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			int32_t note = noteFromCoords(x, y);
-			uint8_t white[3] = {0xFF, 0xFF, 0xFF};
 
 			// If highlighting notes is active, do it
 			if (getHighlightedNotes()[note] != 0) {
-				colorCopy(image[y][x], white, getHighlightedNotes()[note], 1);
+				image[y][x] = colours::white_full.adjust(getHighlightedNotes()[note], 1);
 			}
 		}
 	}

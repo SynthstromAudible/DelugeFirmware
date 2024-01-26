@@ -179,7 +179,8 @@ int vsnprintf_(char* s, size_t count, const char* format, va_list arg) ATTR_VPRI
  * @param format A string specifying the format of the output, with %-marked specifiers of how to interpret
  * additional arguments.
  * @param arg Additional arguments to the function, one for each specifier in @p format
- * @return The number of characters for which the output f unction was invoked, not counting the terminating null character
+ * @return The number of characters for which the output f unction was invoked, not counting the terminating null
+ * character
  *
  */
 PRINTF_VISIBILITY

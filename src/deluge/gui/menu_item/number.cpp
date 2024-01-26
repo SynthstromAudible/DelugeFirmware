@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "number.h"
 #include "gui/ui/sound_editor.h"
@@ -36,8 +36,9 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 
 	/*
 	deluge::hid::display::OLED::drawHorizontalLine(y, leftMost, rightMost, deluge::hid::display::OLED::oledMainImage);
-	deluge::hid::display::OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight, deluge::hid::display::OLED::oledMainImage);
-	deluge::hid::display::OLED::drawVerticalLine(rightMost, y, y + endLineHalfHeight, deluge::hid::display::OLED::oledMainImage);
+	deluge::hid::display::OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight,
+	deluge::hid::display::OLED::oledMainImage); deluge::hid::display::OLED::drawVerticalLine(rightMost, y, y +
+	endLineHalfHeight, deluge::hid::display::OLED::oledMainImage);
 */
 	int32_t minValue = getMinValue();
 	int32_t maxValue = getMaxValue();

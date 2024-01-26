@@ -39,9 +39,11 @@
 #define DMARS_FOR_RSPI_TX 0b100100001
 
 // UART ----------------------------------------------------
-#define UART_ITEM_PIC  0
-#define UART_ITEM_MIDI 1
-#define NUM_UART_ITEMS 2
+enum UartItemType {
+    UART_ITEM_PIC,
+    UART_ITEM_MIDI,
+    NUM_UART_ITEMS,
+};
 
 // Aliases, cos multiple things on same PIC for this device
 #define UART_ITEM_PIC_PADS       UART_ITEM_PIC
@@ -49,7 +51,8 @@
 
 // PIC UART buffer sizes - different here on A1 because on A2 we have 3 of them
 #define PIC_TX_BUFFER_SIZE                                                                                             \
-    1024 // Theoretically I should be able to do just 512, and it almost works, but occasionally the cursor pos won't update - at the end of an audio clip record
+    1024 // Theoretically I should be able to do just 512, and it almost works, but occasionally the cursor pos won't
+         // update - at the end of an audio clip record
 #define PIC_RX_BUFFER_SIZE 64
 
 #define TIMING_CAPTURE_ITEM_MIDI 0
@@ -65,7 +68,8 @@
 #define UART_INITIAL_SPEED_PIC_PADS_HZ 31250
 #define UI_MS_PER_REFRESH              50
 #define UI_MS_PER_REFRESH_SCROLLING                                                                                    \
-    7 // Any faster than this is faster than the UART bus can do, so there's a lag, and if we're sending out multiple scrolls fast, the buffer can build up quite a lag
+    7 // Any faster than this is faster than the UART bus can do, so there's a lag, and if we're sending out multiple
+      // scrolls fast, the buffer can build up quite a lag
 
 #define NUM_LED_ROWS 4
 
@@ -142,9 +146,9 @@ DMA channels:
 #define OLED_MAIN_WIDTH_PIXELS 128
 
 // --- 64 pixels high
-//#define OLED_MAIN_HEIGHT_PIXELS 64
-//#define OLED_MAIN_TOPMOST_PIXEL 2
-//#define OLED_HEIGHT_CHARS 6
+// #define OLED_MAIN_HEIGHT_PIXELS 64
+// #define OLED_MAIN_TOPMOST_PIXEL 2
+// #define OLED_HEIGHT_CHARS 6
 
 // --- 48 pixels high
 #define OLED_MAIN_HEIGHT_PIXELS 48

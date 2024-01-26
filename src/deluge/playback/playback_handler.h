@@ -20,15 +20,13 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-#define MIDI_OUT_OFF 0
-#define MIDI_OUT_INCIDENTAL 1
-#define MIDI_OUT_MASTER 2
+enum class RecordingMode {
+	OFF,
+	NORMAL,
+	ARRANGEMENT,
+};
 
-#define RECORDING_OFF 0
-#define RECORDING_NORMAL 1
-#define RECORDING_ARRANGEMENT 2
-
-#define NUM_INPUT_TICKS_FOR_MOVING_AVERAGE 24
+constexpr int32_t kNumInputTicksForMovingAverage = 24;
 
 #define PLAYBACK_CLOCK_INTERNAL_ACTIVE 1
 #define PLAYBACK_CLOCK_EXTERNAL_ACTIVE 2
@@ -44,10 +42,13 @@ class Clip;
 class Action;
 class MIDIDevice;
 
-const uint8_t metronomeValuesBPM[16] = {60, 63, 66, 69, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116};
+constexpr uint16_t metronomeValuesBPM[16] = {
+    60, 63, 66, 69, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116,
+};
 
-const uint16_t metronomeValueBoundaries[16] = {1793, 1709, 1633, 1542, 1490, 1413, 1345, 1282,
-                                               1225, 1173, 1125, 1081, 1040, 1002, 967,  934};
+constexpr uint16_t metronomeValueBoundaries[16] = {
+    1793, 1709, 1633, 1542, 1490, 1413, 1345, 1282, 1225, 1173, 1125, 1081, 1040, 1002, 967, 934,
+};
 
 class PlaybackHandler {
 public:
@@ -96,26 +97,26 @@ public:
 	// Playback
 	uint8_t playbackState;
 	bool usingAnalogClockInput; // Value is only valid if usingInternalClock is false
-	uint8_t recording;
+	RecordingMode recording;
 	bool ignoringMidiClockInput;
 
 	int32_t posToNextContinuePlaybackFrom; // This will then have 1 subtracted from it when actually physically set
 	uint32_t timeLastMIDIStartOrContinueMessageSent;
 
 	// Timer ticks
-	int64_t lastTimerTickActioned; // Not valid while playback being set up
-	int64_t
-	    nextTimerTickScheduled; // *Yes* valid while (internal clock) playback being set up. Will be zero during that time
-	uint64_t timeNextTimerTickBig; // Not valid while playback being set up
-	uint64_t timeLastTimerTickBig; // Not valid while playback being set up
+	int64_t lastTimerTickActioned;  // Not valid while playback being set up
+	int64_t nextTimerTickScheduled; // *Yes* valid while (internal clock) playback being set up. Will be zero during
+	                                // that time
+	uint64_t timeNextTimerTickBig;  // Not valid while playback being set up
+	uint64_t timeLastTimerTickBig;  // Not valid while playback being set up
 
 	// Input ticks
-	uint32_t timeLastInputTicks[NUM_INPUT_TICKS_FOR_MOVING_AVERAGE];
+	uint32_t timeLastInputTicks[kNumInputTicksForMovingAverage];
 	uint32_t timePerInputTickMovingAverage; // 0 means that a default will be set the first time it's used
 	uint8_t numInputTickTimesCounted;
 
 	bool tempoMagnitudeMatchingActiveNow;
-	//unsigned long timeFirstInputTick; // First tick received for current tally
+	// unsigned long timeFirstInputTick; // First tick received for current tally
 	unsigned long
 	    timeVeryFirstInputTick; // Very first tick received in playback. Only used for tempo magnitude matching
 	int64_t lastInputTickReceived;
@@ -235,7 +236,7 @@ private:
 	void getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* midiClockOutTicksPer);
 	void getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer, uint32_t* internalTicksPer);
 	void sendOutPositionViaMIDI(int32_t pos, bool outputClocksWereSwitchedOff = false);
-	//void scheduleNextTimerTick();
+	// void scheduleNextTimerTick();
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
 	bool offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note);

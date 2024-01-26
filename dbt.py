@@ -16,6 +16,10 @@ TASKS_DIR = SCRIPTS_DIR / "tasks"
 DBT_DEBUG_DIR = SCRIPTS_DIR / "debug"
 
 os.environ["DBT_DEBUG_DIR"] = str(DBT_DEBUG_DIR)
+os.environ["DELUGE_FW_ROOT"] = str(Path(".").resolve())
+
+if not "DBT_TOOLCHAIN_PATH" in os.environ:
+    os.environ["DBT_TOOLCHAIN_PATH"] = os.environ["DELUGE_FW_ROOT"]
 
 sys.path.append(str(TASKS_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR))

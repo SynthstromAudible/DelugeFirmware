@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -23,8 +23,8 @@
 class ClipNavigationTimelineView : public TimelineView {
 public:
 	ClipNavigationTimelineView() = default;
-	void focusRegained();
-	ActionResult horizontalEncoderAction(int32_t offset);
+	void focusRegained() override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);

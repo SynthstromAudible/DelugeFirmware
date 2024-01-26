@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_audio_clip_set_sample.h"
 #include "io/debug/print.h"
@@ -46,7 +46,7 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 		clip->sampleHolder.setAudioFile(NULL);
 
 		// Deactivate Clip if it'd otherwise suddenly start recording again
-		if (playbackHandler.playbackState && playbackHandler.recording == RECORDING_NORMAL) {
+		if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {
 			clip->activeIfNoSolo = false;
 		}
 	}

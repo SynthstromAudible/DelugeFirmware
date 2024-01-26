@@ -116,8 +116,8 @@ void hw_usb_write_fifo8(usb_utr_t* ptr, uint16_t pipemode, uint8_t data);
 /************************************/
 /*  CFIFOSEL, D0FIFOSEL, D1FIFOSEL  */
 /************************************/
-//uint16_t    hw_usb_read_fifosel(usb_utr_t *ptr, uint16_t pipemode);
-//void        hw_usb_rmw_fifosel(usb_utr_t *ptr, uint16_t pipemode, uint16_t data, uint16_t width);
+// uint16_t    hw_usb_read_fifosel(usb_utr_t *ptr, uint16_t pipemode);
+// void        hw_usb_rmw_fifosel(usb_utr_t *ptr, uint16_t pipemode, uint16_t data, uint16_t width);
 void hw_usb_set_dclrm(usb_utr_t* ptr, uint16_t pipemode);
 void hw_usb_clear_dclrm(usb_utr_t* ptr, uint16_t pipemode);
 void hw_usb_set_dreqe(usb_utr_t* ptr, uint16_t pipemode);
@@ -192,8 +192,8 @@ void hw_usb_pclear_enb_rsme(void);
 /*  BRDYENB  */
 /*************/
 void hw_usb_write_brdyenb(usb_utr_t* ptr, uint16_t data);
-//void        hw_usb_set_brdyenb(usb_utr_t *ptr, uint16_t pipeno);
-//void        hw_usb_clear_brdyenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_set_brdyenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_brdyenb(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_brdyenb
@@ -255,8 +255,8 @@ inline static void hw_usb_clear_brdyenb(usb_utr_t* ptr, uint16_t pipeno)
 /*  NRDYENB  */
 /*************/
 void hw_usb_write_nrdyenb(usb_utr_t* ptr, uint16_t data);
-//void        hw_usb_set_nrdyenb(usb_utr_t *ptr, uint16_t pipeno);
-//void        hw_usb_clear_nrdyenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_set_nrdyenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_nrdyenb(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_nrdyenb
@@ -318,8 +318,8 @@ inline static void hw_usb_clear_nrdyenb(usb_utr_t* ptr, uint16_t pipeno)
 /*  BEMPENB  */
 /*************/
 void hw_usb_write_bempenb(usb_utr_t* ptr, uint16_t data);
-//void        hw_usb_set_bempenb(usb_utr_t *ptr, uint16_t pipeno);
-//void        hw_usb_clear_bempenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_set_bempenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_bempenb(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_bempenb
@@ -401,7 +401,7 @@ void hw_usb_pclear_sts_valid(void);
 /************/
 uint16_t hw_usb_read_brdysts(usb_utr_t* ptr);
 void hw_usb_write_brdysts(usb_utr_t* pt, uint16_t data);
-//void        hw_usb_clear_sts_brdy(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_sts_brdy(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_sts_brdy
@@ -441,7 +441,7 @@ void hw_usb_clear_status_nrdy(usb_utr_t* ptr, uint16_t pipeno);
 /* BEMPSTS  */
 /************/
 void hw_usb_write_bempsts(usb_utr_t* ptr, uint16_t data);
-//void        hw_usb_clear_status_bemp(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_status_bemp(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_clear_status_bemp
@@ -548,7 +548,7 @@ void hw_usb_pset_ccpl(void);
 /************/
 /* PIPESEL  */
 /************/
-//void        hw_usb_write_pipesel(usb_utr_t *ptr, uint16_t data);
+// void        hw_usb_write_pipesel(usb_utr_t *ptr, uint16_t data);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_pipesel
@@ -630,9 +630,9 @@ inline static void hw_usb_set_pid_nonzero_pipe_rohan(uint16_t pipeno, uint16_t d
 /************/
 /* PIPEnTRE */
 /************/
-//void        hw_usb_set_trenb(usb_utr_t *ptr, uint16_t pipeno);
-//void        hw_usb_clear_trenb(usb_utr_t *ptr, uint16_t pipeno);
-//void        hw_usb_set_trclr(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_set_trenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_clear_trenb(usb_utr_t *ptr, uint16_t pipeno);
+// void        hw_usb_set_trclr(usb_utr_t *ptr, uint16_t pipeno);
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_set_trenb
@@ -652,7 +652,7 @@ inline static void hw_usb_set_trenb(usb_utr_t* ptr, uint16_t pipeno)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         p_reg = (uint16_t*)&(USB200.PIPE1TRE) + ((pipeno - 1) * 2);
 #else
-        p_reg          = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
+        p_reg = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
 #endif
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
@@ -684,7 +684,7 @@ inline static void hw_usb_clear_trenb(usb_utr_t* ptr, uint16_t pipeno)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         p_reg = (uint16_t*)&(USB200.PIPE1TRE) + ((pipeno - 1) * 2);
 #else
-        p_reg          = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
+        p_reg = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
 #endif /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
@@ -717,7 +717,7 @@ inline static void hw_usb_set_trclr(usb_utr_t* ptr, uint16_t pipeno)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         p_reg = (uint16_t*)&(USB200.PIPE1TRE) + ((pipeno - 1) * 2);
 #else
-        p_reg          = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
+        p_reg = (uint16_t*)&(USB201.PIPE1TRE) + ((pipeno - 1) * 2);
 #endif
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
@@ -734,7 +734,7 @@ inline static void hw_usb_set_trclr(usb_utr_t* ptr, uint16_t pipeno)
 /************/
 /* PIPEnTRN */
 /************/
-//void        hw_usb_write_pipetrn(usb_utr_t *ptr, uint16_t pipeno, uint16_t data);
+// void        hw_usb_write_pipetrn(usb_utr_t *ptr, uint16_t pipeno, uint16_t data);
 /***********************************************************************************************************************
  Function Name   : hw_usb_write_pipetrn
  Description     : Specified data is written to the specified pipe's PIPETRN register.
@@ -753,7 +753,7 @@ inline static void hw_usb_write_pipetrn(usb_utr_t* ptr, uint16_t pipeno, uint16_
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
         p_reg = (uint16_t*)&(USB200.PIPE1TRN) + ((pipeno - 1) * 2);
 #else
-        p_reg          = (uint16_t*)&(USB201.PIPE1TRN) + ((pipeno - 1) * 2);
+        p_reg = (uint16_t*)&(USB201.PIPE1TRN) + ((pipeno - 1) * 2);
 #endif /* USB_CFG_USE_USBIP == USB_CFG_IP0 */
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }

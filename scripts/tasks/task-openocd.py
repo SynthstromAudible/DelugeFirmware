@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 import argparse
+from enum import Enum
 from pathlib import Path
 import subprocess
 import shutil
@@ -7,7 +8,19 @@ import sys
 import os
 
 # Based on dbt_tools/openocd.py by litui
-from dbt.exit_codes import ExitCodes
+class ExitCodes(Enum):
+    """Exit Code Enum
+
+    Add to this list in scripts/dbt/exit_codes.py when you want
+    to Exit() with a new errorlevel/exitcode"""
+
+    SUCCESS = 0
+    UNKNOWN_ERROR = 1
+    INVALID_GIT_REPOSITORY = 2
+    FAILED_TO_START_STANDALONE_MODE = 3
+    COMMANDLINE_VALIDATION_FAILURE = 4
+    OPENOCD_UNSUPPORTED_HARDWARE = 5
+    OPENOCD_UNSUPPORTED_PROTOCOL = 6
 
 __OPENOCD_BIN = shutil.which("openocd")
 

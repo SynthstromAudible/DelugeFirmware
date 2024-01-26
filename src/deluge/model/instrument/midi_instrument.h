@@ -73,14 +73,14 @@ public:
 	int32_t lastNoteCode;
 	bool collapseAftertouch;
 	bool collapseMPE;
-	float ratio; //for combining per finger and global bend
+	float ratio; // for combining per finger and global bend
 
 	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
-	//for tracking mono expression output
+	// for tracking mono expression output
 	int32_t lastMonoExpression[3];
 	int32_t lastCombinedPolyExpression[3];
 	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }

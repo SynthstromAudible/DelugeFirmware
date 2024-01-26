@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -43,7 +43,8 @@ extern const char nothing;
 class String {
 public:
 	String();
-	//String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff. Made no sense. Instead, constructing then calling set() works
+	// String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff.
+	// Made no sense. Instead, constructing then calling set() works
 	~String();
 	void clear(bool destructing = false);
 	int32_t set(char const* newChars, int32_t newLength = -1);

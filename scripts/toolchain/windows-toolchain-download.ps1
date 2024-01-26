@@ -13,11 +13,6 @@ $toolchain_zip = "$toolchain_dist_folder-$toolchain_version.zip"
 $toolchain_zip_temp_path = "$download_dir\$toolchain_zip"
 $toolchain_dist_temp_path = "$download_dir\$toolchain_dist_folder"
 
-if (Test-Path -LiteralPath "$toolchain_target_path") {
-	Write-Host -NoNewline "Removing old Windows toolchain.."
-	Remove-Item -LiteralPath "$toolchain_target_path" -Force -Recurse
-	Write-Host "done!"
-}
 if (!(Test-Path -Path "$toolchain_zip_temp_path" -PathType Leaf)) {
     Write-Host -NoNewline "Downloading Windows toolchain.."
     $wc = New-Object net.webclient
@@ -34,6 +29,7 @@ Write-Host -NoNewline "Extracting Windows toolchain.."
 Add-Type -Assembly "System.IO.Compression.Filesystem"
 [System.IO.Compression.ZipFile]::ExtractToDirectory("$toolchain_zip_temp_path", "$download_dir")
 # Expand-Archive -LiteralPath "$toolchain_zip_temp_path" -DestinationPath "$download_dir"
+Write-VolumeCache "$toolchain_zip_temp_path"[0]
 
 Write-Host -NoNewline "moving.."
 Move-Item -LiteralPath "$toolchain_dist_temp_path" -Destination "$toolchain_target_path" -Force

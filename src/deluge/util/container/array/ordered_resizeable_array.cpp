@@ -30,8 +30,9 @@ OrderedResizeableArray::OrderedResizeableArray(int32_t newElementSize, int32_t k
       keyMask(0xFFFFFFFF >> (32 - keyNumBits)), keyOffset(newKeyOffset), keyShiftAmount(32 - keyNumBits) {
 }
 
-// With duplicate keys, this will work correctly, returning the leftmost matching (or greater) one if doing GREATER_OR_EQUAL, or the rightmost less one if doing LESS.
-// This behaviour for duplicates can be tested with TEST_VECTOR_DUPLICATES / testDuplicates().
+// With duplicate keys, this will work correctly, returning the leftmost matching (or greater) one if doing
+// GREATER_OR_EQUAL, or the rightmost less one if doing LESS. This behaviour for duplicates can be tested with
+// TEST_VECTOR_DUPLICATES / testDuplicates().
 int32_t OrderedResizeableArray::search(int32_t searchKey, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd) {
 
 	while (rangeBegin != rangeEnd) {
@@ -114,7 +115,7 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 	searchRecords[0].defaultRangeEnd = rangeEnd;
 	searchRecords[0].lastsUntilSearchTerm = numSearchTerms;
 
-	//int32_t maxSearchRecord = 0;
+	// int32_t maxSearchRecord = 0;
 
 	int32_t currentSearchRecord = 0;
 
@@ -128,8 +129,9 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 		int32_t rangeEnd = searchRecords[currentSearchRecord].defaultRangeEnd;
 		int32_t searchTermsRangeEnd = searchRecords[currentSearchRecord].lastsUntilSearchTerm;
 
-		// Solve for this search term, putting aside valuable data as we narrow down the range of items we're investigating.
-		// And we're also already making use of any data we previously put aside - our rangeBegin and rangeEnd are probably already fairly tight.
+		// Solve for this search term, putting aside valuable data as we narrow down the range of items we're
+		// investigating. And we're also already making use of any data we previously put aside - our rangeBegin and
+		// rangeEnd are probably already fairly tight.
 		while (rangeBegin != rangeEnd) {
 			int32_t rangeSize = rangeEnd - rangeBegin;
 			int32_t proposedIndex = rangeBegin + (rangeSize >> 1);
@@ -141,10 +143,11 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 
 				rangeEnd = proposedIndex;
 
-				// But we also want to make a note for any further search terms for which their "defaultRangeEnd" could also be tightened to the same point.
-				// How many more search terms to the right can we do this for? We'll figure that out quickly by (ironically) searching through the search terms
-				// to find the first one >= the element pos we're currently looking at.
-				// Thankfully, we've already tightened the "searchTermsRangeEnd" for this too!
+				// But we also want to make a note for any further search terms for which their "defaultRangeEnd" could
+				// also be tightened to the same point. How many more search terms to the right can we do this for?
+				// We'll figure that out quickly by (ironically) searching through the search terms to find the first
+				// one >= the element pos we're currently looking at. Thankfully, we've already tightened the
+				// "searchTermsRangeEnd" for this too!
 				int32_t searchTermsRangeBegin = t + 1;
 				while (searchTermsRangeBegin != searchTermsRangeEnd) {
 					int32_t searchTermsRangeSize = searchTermsRangeEnd - searchTermsRangeBegin;
@@ -157,20 +160,23 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 					}
 				}
 
-				// If this tightened defaultRangeEnd is going to apply beyond just this search term here, make a note by putting it on the stack.
+				// If this tightened defaultRangeEnd is going to apply beyond just this search term here, make a note by
+				// putting it on the stack.
 				if (searchTermsRangeEnd > t + 1) {
 
-					// Well, we only need a new stack entry if this new run ends before the previous one did. Otherwise, we'll just overwrite that, so no need to
+					// Well, we only need a new stack entry if this new run ends before the previous one did. Otherwise,
+					// we'll just overwrite that, so no need to
 					if (searchTermsRangeEnd < searchRecords[currentSearchRecord].lastsUntilSearchTerm) {
 
-						// But, if the stack was going to overflow, the beauty is, we can just not put our new item on the stack at all. Everything will still work fine,
-						// though not quite as efficiently as it could have
+						// But, if the stack was going to overflow, the beauty is, we can just not put our new item on
+						// the stack at all. Everything will still work fine, though not quite as efficiently as it
+						// could have
 						if (currentSearchRecord == maxNumSearchRecords - 1) {
 							continue;
 						}
 
 						currentSearchRecord++;
-						//if (currentSearchRecord > maxSearchRecord) maxSearchRecord = currentSearchRecord;
+						// if (currentSearchRecord > maxSearchRecord) maxSearchRecord = currentSearchRecord;
 					}
 
 					// Update that (probably brand new) stack record
@@ -200,9 +206,9 @@ bool OrderedResizeableArrayWith32bitKey::generateRepeats(int32_t wrapPoint, int3
 	int32_t endPosWithinFirstRepeat = endPos - numCompleteRepeats * wrapPoint;
 	int32_t iEndPosWithinFirstRepeat = search(endPosWithinFirstRepeat, GREATER_OR_EQUAL);
 
-	int32_t oldNum = search(
-	    wrapPoint,
-	    GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because it ensures we ignore / chop off any elements >= wrapPoint
+	int32_t oldNum = search(wrapPoint,
+	                        GREATER_OR_EQUAL); // Do this rather than just copying numElements - this is better because
+	                                           // it ensures we ignore / chop off any elements >= wrapPoint
 	int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
 	if (!ensureEnoughSpaceAllocated(newNum - numElements)) {
@@ -305,7 +311,7 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 		for (int32_t t = 0; t < TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS; t++) {
 			while (getKeyAtIndex(i) < searchPos[t]) {
 				if (i >= resultingIndexes[t]) {
-					//FREEZE_WITH_ERROR("FAIL");
+					// FREEZE_WITH_ERROR("FAIL");
 					D_PRINTLN("fail");
 					goto thatsDone;
 				}
@@ -326,7 +332,7 @@ char staticMemory[10000 * 50];
 
 void OrderedResizeableArray::test() {
 
-	//setStaticMemory(staticMemory, sizeof(staticMemory));
+	// setStaticMemory(staticMemory, sizeof(staticMemory));
 
 	while (true) {
 
@@ -375,7 +381,7 @@ startAgain:
 			if (numToInsert > NUM_TEST_INSERTIONS - v)
 				numToInsert = NUM_TEST_INSERTIONS - v;
 
-			//if (numToInsert == 15) D_PRINTLN("inserting 15");
+			// if (numToInsert == 15) D_PRINTLN("inserting 15");
 
 			int32_t error = insertAtIndex(i, numToInsert);
 
@@ -390,14 +396,14 @@ startAgain:
 				v++;
 			}
 
-			//insertAtPos(value);
-			//values[v] = value;
+			// insertAtPos(value);
+			// values[v] = value;
 		}
 
 		if (numElements != NUM_TEST_INSERTIONS) {
 			D_PRINTLN("wrong size");
 			while (1) {}
-			//empty();
+			// empty();
 		}
 
 		D_PRINTLN(moveCount);
@@ -447,7 +453,7 @@ startAgain:
 				numToDelete++;
 			}
 
-			//if (numToDelete == 15) D_PRINTLN("deleting 15");
+			// if (numToDelete == 15) D_PRINTLN("deleting 15");
 
 			deleteAtIndex(i, numToDelete);
 
@@ -457,7 +463,7 @@ startAgain:
 		if (numElements) {
 			D_PRINTLN("some elements left");
 			while (1) {}
-			//empty();
+			// empty();
 		}
 
 		D_PRINTLN(moveCount);
@@ -499,7 +505,7 @@ void OrderedResizeableArray::testDuplicates() {
 				}
 				else if (keyAtSearchResult == searchKey) {
 					// Key matches exactly
-					//continue;
+					// continue;
 				}
 			}
 
@@ -552,9 +558,9 @@ void OrderedResizeableArrayWith32bitKey::shiftHorizontal(int32_t shiftAmount, in
 		shiftAmount += effectiveLength;
 	}
 
-	int32_t cutoffIndex = search(
-	    cutoffPos,
-	    GREATER_OR_EQUAL); // This relates to the key/position cutoff - nothing to do with the memory location wrap point!
+	int32_t cutoffIndex = search(cutoffPos,
+	                             GREATER_OR_EQUAL); // This relates to the key/position cutoff - nothing to do with the
+	                                                // memory location wrap point!
 
 	// Update the elements' keys (positions) - starting with those left of the cutoffIndex.
 	int32_t i = 0;
@@ -603,7 +609,8 @@ updateKeys:
 				}
 			}
 
-			// Or if no wrap, just alter some parameters. (Remember, we will have introduced a wrap, which we'll set up below.)
+			// Or if no wrap, just alter some parameters. (Remember, we will have introduced a wrap, which we'll set up
+			// below.)
 			else {
 				memory = (char*)memory + memoryStart * elementSize;
 				memoryStart = 0;

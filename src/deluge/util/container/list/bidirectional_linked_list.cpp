@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/container/list/bidirectional_linked_list.h"
 #include "hid/display/display.h"
@@ -34,8 +34,9 @@ void BidirectionalLinkedList::addToEnd(BidirectionalLinkedListNode* node) {
 	node->list = this;
 
 #if ALPHA_OR_BETA_VERSION
-	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching through all of these causes voice culls
-	//test();
+	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching
+	// through all of these causes voice culls
+	// test();
 #endif
 }
 
@@ -126,14 +127,16 @@ void BidirectionalLinkedListNode::remove() {
 	list = NULL;
 
 #if ALPHA_OR_BETA_VERSION
-	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching through all of these causes voice culls
-	//oldList->test();
+	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching
+	// through all of these causes voice culls
+	// oldList->test();
 #endif
 }
 
 void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode) {
 	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
-		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to break. This happened!
+		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to
+		// break. This happened!
 		if (!list) {
 			FREEZE_WITH_ERROR("E443");
 		}

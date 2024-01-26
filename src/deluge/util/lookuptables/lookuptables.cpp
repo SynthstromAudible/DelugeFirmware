@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 // clang-format off
 
@@ -182,8 +182,24 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-
-std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
+std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
+	"MAJOR",
+	"MINOR",
+	"DORIAN",
+	"PHRYGIAN",
+	"LYDIAN",
+	"MIXOLYDIAN",
+	"LOCRIAN",
+	"MELODIC MINOR",
+	"HARMONIC MINOR",
+	"HUNGARIAN MINOR",
+	"MARVA",
+	"ARABIAN",
+	"WHOLE TONE",
+	"BLUES",
+	"PENTATONIC MINOR",
+	"HIRAJOSHI",
+};
 
 deluge::l10n::String presetReverbNames[] = {
 	deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB, //<
@@ -268,14 +284,32 @@ const int16_t oldResonanceCompensation[] = {
 };
 
 
+// Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
-		{0, 2, 4, 5, 7, 9, 11}, // Major
-		{0, 2, 3, 5, 7, 8, 10}, // Minor
-		{0, 2, 3, 5, 7, 9, 10}, // Dorian (minor with raised 6th)
-		{0, 1, 3, 5, 7, 8, 10}, // Phrygian (minor with flattened 2nd)
-		{0, 2, 4, 6, 7, 9, 11}, // Lydian (major with raised 4th)
-		{0, 2, 4, 5, 7, 9, 10}, // Mixolydian (major with flattened 7th)
-		{0, 1, 3, 5, 6, 8, 10}, // Locrian (minor with flattened 2nd and 5th)
+		// Major modes (Original Deluge scales)
+		{0, 2, 4, 5, 7, 9, 11}, // MAJO Major (Ionian)
+		{0, 2, 3, 5, 7, 8, 10}, // MINO Natural Minor (Aeolian)
+		{0, 2, 3, 5, 7, 9, 10}, // DORI Dorian (minor with raised 6th)
+		{0, 1, 3, 5, 7, 8, 10}, // PHRY Phrygian (minor with flattened 2nd)
+		{0, 2, 4, 6, 7, 9, 11}, // LYDI Lydian (major with raised 4th)
+		{0, 2, 4, 5, 7, 9, 10}, // MIXO Mixolydian (major with flattened 7th)
+		{0, 1, 3, 5, 6, 8, 10}, // LOCR Locrian (minor with flattened 2nd and 5th)
+		// NEW SCALES
+		// Melodic minor modes
+		{0, 2, 3, 5, 7, 9, 11}, // MELO Melodic Minor (Ascending) (matches Launchpad scale)
+		// Harmonic minor modes
+		{0, 2, 3, 5, 7, 8, 11}, // HARM Harmonic Minor (matches Launchpad and Lumi scale)
+		// Exotic scales
+		{0, 2, 3, 6, 7, 8, 11}, // HUNG Hungarian Minor (matches Launchpad scale)
+		{0, 1, 4, 6, 7, 9, 11}, // MARV Marva (matches Launchpad scale)
+		{0, 2, 4, 5, 6, 8, 10}, // ARAB Arabian (matches Lumi's ARABIC_B scale)
+		// 6-note scales
+		{0, 2, 4, 6, 8, 10, 0}, // WHOL Whole Tone (matches Launchpad and Lumi scale)
+		{0, 3, 5, 6, 7, 10, 0}, // BLUE Blues Minor (matches Launchpad and Lumi BLUES scale)
+		// 5-note scales
+		{0, 3, 5, 7, 10, 0, 0}, // PENT Pentatonic Minor (matches Launchpad and Lumi scale)
+		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale, and, transposed, also matches Lumi JAPANESE scale)
+
 };
 
 

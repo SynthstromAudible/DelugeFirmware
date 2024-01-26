@@ -37,7 +37,8 @@ SampleLowLevelReader::SampleLowLevelReader() {
 }
 
 SampleLowLevelReader::~SampleLowLevelReader() {
-	//unassignAllReasons(true); // We would want to call this, but we call it manually instead, cos these often aren't actually destructed
+	// unassignAllReasons(true); // We would want to call this, but we call it manually instead, cos these often aren't
+	// actually destructed
 }
 
 void SampleLowLevelReader::unassignAllReasons() {
@@ -59,7 +60,8 @@ int32_t SampleLowLevelReader::getPlayByteLowLevel(Sample* sample, SamplePlayback
 
 		if (compensateForInterpolationBuffer && interpolationBufferSizeLastTime) {
 			int32_t extraSamples = -(interpolationBufferSizeLastTime >> 1);
-			//if (oscPos >= 8388608) extraSamples++; // This would be good, but we go one better and just copy this to the new hop, in time stretching
+			// if (oscPos >= 8388608) extraSamples++; // This would be good, but we go one better and just copy this to
+			// the new hop, in time stretching
 			withinCluster += extraSamples * sample->numChannels * sample->byteDepth * guide->playDirection;
 		}
 		return (clusters[0]->clusterIndex << audioFileManager.clusterSizeMagnitude) + withinCluster;
@@ -97,12 +99,13 @@ void SampleLowLevelReader::realignPlaybackParameters(Sample* sample) {
 	currentPlayPos = currentPlayPos + 4 - sample->byteDepth;
 }
 
-// Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading cache before.
-// There is no guarantee that this won't put the reassessmentLocation back before the currentPlayPos, which is not generally allowed
-// (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
+// Returns false if fail, which can happen if we've actually ended up past the finalClusterIndex cos we were reading
+// cache before. There is no guarantee that this won't put the reassessmentLocation back before the currentPlayPos,
+// which is not generally allowed (though it'd be harmless for "natively" playing Samples). Caller must ensure safety
+// here.
 bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample,
                                                         int32_t priorityRating) {
-	//D_PRINTLN("reassessing");
+	// D_PRINTLN("reassessing");
 
 	if (!clusters[0]) {
 		return true; // Is this for if we've gone past the end of the audio data, while re-pitching / interpolating?
@@ -113,7 +116,8 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	int32_t clusterIndex = clusters[0]->clusterIndex;
 
 	// We may have ended up past the finalClusterIndex if we've just switched from using a cache.
-	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is called.
+	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is
+	// called.
 	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
 		D_PRINTLN("saving from being past finalCluster");
@@ -129,7 +133,8 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 		clusterIndex = finalClusterIndex;
 	}
 
-	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this will clear
+	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this
+	                      // will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
 		D_PRINTLN("reassessReassessmentLocation fail");
@@ -139,9 +144,10 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	return true;
 }
 
-// There is no guarantee that this won't put the reassessmentLocation back before the currentPlayPos, which is not generally allowed
-// (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
-// I only discovered this bug / requirement in Sept 2020. Going to assume that only reassessReassessmentLocation() really needs to do this...
+// There is no guarantee that this won't put the reassessmentLocation back before the currentPlayPos, which is not
+// generally allowed (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here. I only
+// discovered this bug / requirement in Sept 2020. Going to assume that only reassessReassessmentLocation() really needs
+// to do this...
 void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample) {
 
 #if ALPHA_OR_BETA_VERSION
@@ -236,7 +242,8 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 		int32_t highestClusterIndex =
 		    audioDataStopPos
 		    >> audioFileManager
-		           .clusterSizeMagnitude; // There may actually be 1 less Cluster than this if the audio data ends right at the Cluster end, but that won't cause problems
+		           .clusterSizeMagnitude; // There may actually be 1 less Cluster than this if the audio data ends right
+		                                  // at the Cluster end, but that won't cause problems
 		if (currentClusterIndex == highestClusterIndex) {
 			clusterStartLocation = &clusters[0]->data[(audioDataStopPos - 1) & (audioFileManager.clusterSize - 1)];
 		}
@@ -275,10 +282,10 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* guide, Sample* sample,
                                                         int32_t startPlaybackAtByte, int32_t priorityRating) {
 
-	// Change in Aug 2019 - we return false if stuff is out of range. Seems right? Previously we were constraining ClusterIndex
-	// to the range, but not changing startPlaybackAtByte - didn't seem to make sense.
-	// Or, should it maybe do the "outputting zeros" thing instead? Possibly not too important, as this only gets called
-	// for an "initial play", and on time-stretch hop, which goes and will try some alternative stuff if this fails
+	// Change in Aug 2019 - we return false if stuff is out of range. Seems right? Previously we were constraining
+	// ClusterIndex to the range, but not changing startPlaybackAtByte - didn't seem to make sense. Or, should it maybe
+	// do the "outputting zeros" thing instead? Possibly not too important, as this only gets called for an "initial
+	// play", and on time-stretch hop, which goes and will try some alternative stuff if this fails
 	if (startPlaybackAtByte < sample->audioDataStartPosBytes
 	    || startPlaybackAtByte >= sample->audioDataStartPosBytes + sample->audioDataLengthBytes) {
 		return false;
@@ -299,7 +306,8 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 
 	// No check has been made that currentPlayPos is not already later than the new reassessmentLocation.
 	// If caller isn't sure about this, call changeClustersIfNecessary().
-	// changeClustersIfNecessary() itself calls this function when it changes current Cluster, so we absolutely couldn't call it from here.
+	// changeClustersIfNecessary() itself calls this function when it changes current Cluster, so we absolutely couldn't
+	// call it from here.
 	return true;
 }
 
@@ -314,8 +322,8 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 		clusters[l] = sample->clusters.getElement(clusterIndex)
 		                  ->getCluster(sample, clusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
-		// The first one is required to not only have returned an object to us (which it might not have if insufficient RAM or maybe other reasons),
-		// but also to be fully loaded.
+		// The first one is required to not only have returned an object to us (which it might not have if insufficient
+		// RAM or maybe other reasons), but also to be fully loaded.
 		if (l == 0) {
 
 			if (!clusters[l] || !clusters[l]->loaded) {
@@ -402,8 +410,9 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	return true;
 }
 
-// Returns false if stopping deliberately or clusters weren't loaded in time. In that case, caller may wish to output some zeros to work through the interpolation buffer.
-// All reasons (e.g. clusters[0]) will be unassigned / set to NULL in this case.
+// Returns false if stopping deliberately or clusters weren't loaded in time. In that case, caller may wish to output
+// some zeros to work through the interpolation buffer. All reasons (e.g. clusters[0]) will be unassigned / set to NULL
+// in this case.
 bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool loopingAtLowLevel,
                                                     int32_t priorityRating) {
 
@@ -445,7 +454,8 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 #if ALPHA_OR_BETA_VERSION
 		count++;
 		if (count >= 1024) {
-			// This happened one time! When stopping AudioClips from playing back, after recording and mucking around with SD card reaching full
+			// This happened one time! When stopping AudioClips from playing back, after recording and mucking around
+			// with SD card reaching full
 			FREEZE_WITH_ERROR("E227");
 		}
 #endif
@@ -546,15 +556,15 @@ void SampleLowLevelReader::jumpBackSamples(Sample* sample, int32_t numToJumpBack
 	}
 }
 
-// This sets up for the reading of some samples. If interpolating, it jumps the play-head forward one output-sample, in place of
-// this happening for the first one in the fast rendering routine (it still happens there for all but the first). This is because
-// the rendering of the first output-sample may require multiple source-samples to be fed into the interpolation buffer, and
-// they might not all be in the same cluster - they might span across a cluster boundary. This function is equipped to deal
-// with this, whereas the fast rendering routine is not. This function will be called again whenever any such cluster-changing
-// situation arises.
+// This sets up for the reading of some samples. If interpolating, it jumps the play-head forward one output-sample, in
+// place of this happening for the first one in the fast rendering routine (it still happens there for all but the
+// first). This is because the rendering of the first output-sample may require multiple source-samples to be fed into
+// the interpolation buffer, and they might not all be in the same cluster - they might span across a cluster boundary.
+// This function is equipped to deal with this, whereas the fast rendering routine is not. This function will be called
+// again whenever any such cluster-changing situation arises.
 //
-// Non-interpolating playback, too, checks in this function (so at the start of the render) whether we need to change to the
-// next cluster.
+// Non-interpolating playback, too, checks in this function (so at the start of the render) whether we need to change to
+// the next cluster.
 bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sample* sample, int32_t* numSamples,
                                                   int32_t phaseIncrement, bool loopingAtLowLevel,
                                                   int32_t interpolationBufferSize, bool allowEndlessSilenceAtEnd,
@@ -686,7 +696,8 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 			oscPos &= 16777215;
 
 			if (clusters[0]) {
-				// If by more than INTERPOLATION_BUFFER_SIZE, we need to do a pre-jump to a buffer's-length before we're jumping forward to, to fill up the buffer
+				// If by more than INTERPOLATION_BUFFER_SIZE, we need to do a pre-jump to a buffer's-length before we're
+				// jumping forward to, to fill up the buffer
 				if (numSamplesToJumpForward > interpolationBufferSize) {
 					currentPlayPos +=
 					    (numSamplesToJumpForward - interpolationBufferSize) * bytesPerSample * guide->playDirection;
@@ -750,7 +761,8 @@ doZeroes:
 		else {
 			if (ALPHA_OR_BETA_VERSION && clusters[0]) {
 
-				// That should mean we've already read this one, so we definitely shouldn't be beyond the reassessmentLocation...
+				// That should mean we've already read this one, so we definitely shouldn't be beyond the
+				// reassessmentLocation...
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (bytesLeftWhichMayBeRead < 0) {
@@ -815,7 +827,8 @@ doZeroes:
 				uint32_t numPhaseIncrementsLeftWhichMayBeDone =
 				    (uint64_t)phaseIncrementingLeftWhichMayBeDone / (uint32_t)phaseIncrement;
 
-				// We add 1 because remember, we were just considering (numSamples - 1) the whole time - because we've already done a jump-forward for the first sample to read
+				// We add 1 because remember, we were just considering (numSamples - 1) the whole time - because we've
+				// already done a jump-forward for the first sample to read
 				*numSamples = numPhaseIncrementsLeftWhichMayBeDone + 1;
 			}
 		}
@@ -870,7 +883,8 @@ doZeroes:
 void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels,
                                                                   int32_t byteDepth, char* __restrict__ playPosNow) {
 
-	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
+	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that
+	// that's actually more efficient though
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
@@ -889,7 +903,8 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 
 void SampleLowLevelReader::bufferZeroForInterpolation(int32_t numChannels) {
 
-	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
+	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that
+	// that's actually more efficient though
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
@@ -929,10 +944,11 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 	if (numSamplesToJumpForward) {
 		oscPos &= 16777215;
 
-		// If jumping forward by more than INTERPOLATION_BUFFER_SIZE, we first need to jump to the one before we're jumping forward to, to grab its value
+		// If jumping forward by more than INTERPOLATION_BUFFER_SIZE, we first need to jump to the one before we're
+		// jumping forward to, to grab its value
 		if (numSamplesToJumpForward > 2) {
 			currentPlayPos += (numSamplesToJumpForward - 2) * jumpAmount;
-			//numSamplesToJumpForward = 2; // Not necessasry
+			// numSamplesToJumpForward = 2; // Not necessasry
 		}
 
 		if (numChannels == 2) {
@@ -1018,7 +1034,8 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 				if (numSamplesToJumpForward) {
 					oscPos &= 16777215;
 
-					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one
+					// before we're jumping forward to, to grab its value
 					if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
 						currentPlayPosNow += (numSamplesToJumpForward - kInterpolationMaxNumSamples) * jumpAmount;
 						numSamplesToJumpForward = kInterpolationMaxNumSamples;
@@ -1216,7 +1233,8 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 	currentPlayPos = currentPlayPosNow;
 }
 
-// Returns false if actual error. Not if it just reached the end. In that case it just sets timeStretcher->playHeadStillActive[whichPlayHead] to false
+// Returns false if actual error. Not if it just reached the end. In that case it just sets
+// timeStretcher->playHeadStillActive[whichPlayHead] to false
 bool SampleLowLevelReader::readSamplesForTimeStretching(
     int32_t* outputBuffer, SamplePlaybackGuide* guide, Sample* sample, int32_t numSamples, int32_t numChannels,
     int32_t numChannelsAfterCondensing, int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
@@ -1230,12 +1248,13 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 		    guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, 0, priorityRating);
 		if (!timeStretcher->playHeadStillActive[whichPlayHead]) {
 
-			// If we got false, that can just mean end of waveform. But if clusters[0] has been set to NULL too, that means (SD card) error
+			// If we got false, that can just mean end of waveform. But if clusters[0] has been set to NULL too, that
+			// means (SD card) error
 			if (clusters[0]) {
 				return false;
 			}
 
-			//D_PRINTLN("one head no longer active for timeStretcher");
+			// D_PRINTLN("one head no longer active for timeStretcher");
 			break;
 		}
 

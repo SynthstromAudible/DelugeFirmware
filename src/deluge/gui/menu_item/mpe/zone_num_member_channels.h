@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -30,7 +30,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override;
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	//char nameChars[16];
+	// char nameChars[16];
 
 	[[nodiscard]] std::string_view getTitle() const override {
 		return l10n::getView(l10n::String::STRING_FOR_NUM_MEMBER_CH_MENU_TITLE);

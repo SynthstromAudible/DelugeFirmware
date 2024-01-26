@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -41,8 +41,8 @@ public:
 	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip);
 
-	// Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for the Instrument / row hasn't started yet.
-	// It'll also become active if the user starts editing one
+	// Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for
+	// the Instrument / row hasn't started yet. It'll also become active if the user starts editing one
 	void resumeClipInstancePlayback(ClipInstance* clipInstance, bool doingComplete = true,
 	                                bool mayActuallyResumeClip = true);
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,

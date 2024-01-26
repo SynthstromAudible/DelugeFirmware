@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -48,7 +48,7 @@ private:
 	void displayArmedPopup();
 
 	bool scrollingIntoSlot;
-	//int32_t findNextFile(int32_t offset);
+	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
 };

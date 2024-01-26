@@ -73,8 +73,8 @@ void SampleHolderForClip::sampleBeenSet(bool reversed, bool manuallySelected) {
 		    && (!((Sample*)audioFile)->fileLoopEndSamples
 		        || ((Sample*)audioFile)->fileLoopStartSamples < ((Sample*)audioFile)->fileLoopEndSamples)) {
 			startPos =
-			    ((Sample*)audioFile)
-			        ->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start pos, which is exactly what we want in that case
+			    ((Sample*)audioFile)->fileLoopStartSamples; // If it's 0, that'll translate to meaning no loop start
+			                                                // pos, which is exactly what we want in that case
 		}
 	}
 }

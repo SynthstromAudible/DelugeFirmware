@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
@@ -26,7 +26,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_LOW),
 		    l10n::getView(l10n::String::STRING_FOR_MEDIUM),

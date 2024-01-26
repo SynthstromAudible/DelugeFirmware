@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
+#include "gui/colour/colour.h"
 #include "gui/positionable.h"
 #include <cstdint>
 
@@ -28,7 +29,7 @@ class Clip;
 class ClipInstance : public Positionable {
 public:
 	ClipInstance();
-	void getColour(uint8_t* colour);
+	RGB getColour();
 	void change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip);
 
 	int32_t length;

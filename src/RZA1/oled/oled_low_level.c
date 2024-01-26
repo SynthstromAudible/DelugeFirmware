@@ -65,7 +65,8 @@ sendMessageToPIC:
         int16_t howLate = *TCNT[TIMER_SYSTEM_SLOW] - oledMessageTimeoutTime;
         if (howLate >= 0)
         {
-            //oledLowLevelTimerCallback(); // No need to actually set the delay timer - we've already waited for ages - any further delay would be pointless.
+            // oledLowLevelTimerCallback(); // No need to actually set the delay timer - we've already waited for ages -
+            // any further delay would be pointless.
             goto sendMessageToPIC;
         }
     }
@@ -76,8 +77,8 @@ void oledSelectingComplete()
     oledWaitingForMessage                   = 256;
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR       = 0x20u;              // 8-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0      = 0b0000011100000010; // 8-bit
-    RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         //0b00100000;
-    //DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
+    RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;         // 0b00100000;
+    // DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
 
     int transferSize                   = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
     DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
@@ -98,7 +99,7 @@ void sendCVTransfer()
     RSPI(SPI_CHANNEL_OLED_MAIN).SPDCR  = 0x60u;              // 32-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCMD0 = 0b0000001100000010; // 32-bit
     RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE =
-        0b00110010; //0b11110010;//0b01100010;//0b00100010; // Now we do *not* reset the RX buffer.
+        0b00110010; // 0b11110010;//0b01100010;//0b00100010; // Now we do *not* reset the RX buffer.
 
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR |= 1 << 7; // Receive interrupt enable
 
@@ -106,8 +107,8 @@ void sendCVTransfer()
 
     spiTransferQueueReadPos =
         (spiTransferQueueReadPos + 1)
-        & (SPI_TRANSFER_QUEUE_SIZE
-            - 1); // Must do this before actually sending SPI, cos the interrupt could come before we do this otherwise. True story.
+        & (SPI_TRANSFER_QUEUE_SIZE - 1); // Must do this before actually sending SPI, cos the interrupt could come
+                                         // before we do this otherwise. True story.
 
     RSPI(SPI_CHANNEL_CV).SPDR.LONG = message;
 }
@@ -162,7 +163,8 @@ void cvSPITransferComplete(uint32_t sense)
     RSPI(SPI_CHANNEL_OLED_MAIN).SPCR &= ~(1 << 7); // Receive interrupt disable
 
     setOutputState(6, 1,
-        true); // Deselect CV DAC. We do it here, nice and early, since we might be re-selecting it very soon in sendCVTransfer(),
+        true); // Deselect CV DAC. We do it here, nice and early, since we might be re-selecting it very soon in
+               // sendCVTransfer(),
     // and a real pulse does need to be sent. This should be safe - I even tried only deselecting it in the instruction
     // preceding the re-selection, and it did work.
 
