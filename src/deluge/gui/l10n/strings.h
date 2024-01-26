@@ -776,6 +776,10 @@ enum class String : size_t {
 	// string for midi select kit row menu
 	STRING_FOR_SELECT_KIT_ROW,
 
+	STRING_FOR_MODEL,
+	STRING_FOR_FREEVERB,
+	STRING_FOR_MUTABLE,
+
 	STRING_LAST
 };
 

@@ -413,6 +413,11 @@ PLACE_SDRAM_DATA Language seven_segment{
 
         // String for Select Kit Row menu
         {STRING_FOR_SELECT_KIT_ROW, "KROW"},
+
+        {STRING_FOR_MODEL, "MODE"},
+        {STRING_FOR_FREEVERB, "FVRB"},
+        {STRING_FOR_MUTABLE, "MTBL"},
+
     },
     &built_in::english,
 };
