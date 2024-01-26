@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "dsp/reverb/freeverb/revmodel.hpp"
+#include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::reverb {
 class Dampening final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getdamp() * kMaxMenuValue)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setdamp((float)this->getValue() / kMaxMenuValue); }
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getDamping() * kMaxMenuValue)); }
+	void writeCurrentValue() override { AudioEngine::reverb.setDamping((float)this->getValue() / kMaxMenuValue); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 } // namespace deluge::gui::menu_item::reverb

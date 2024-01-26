@@ -851,6 +851,10 @@ PLACE_SDRAM_DATA Language english{
         // String for Select Kit Row Menu
 
         {STRING_FOR_SELECT_KIT_ROW, "Select Kit Row"},
+
+        {STRING_FOR_MODEL, "Model"},
+        {STRING_FOR_FREEVERB, "Freeverb"},
+        {STRING_FOR_MUTABLE, "Mutable"},
     },
 };
 } // namespace deluge::l10n::built_in

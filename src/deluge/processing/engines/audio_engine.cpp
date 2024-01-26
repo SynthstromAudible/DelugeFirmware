@@ -18,7 +18,8 @@
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
-#include "dsp/reverb/freeverb/revmodel.hpp"
+#include "dsp/filter/filter.h"
+#include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -51,8 +52,8 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
 extern "C" {
 #include "RZA1/compiler/asm/inc/asm.h"
@@ -110,7 +111,7 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
 
-PLACE_INTERNAL_FRUNK revmodel reverb{};
+dsp::Reverb reverb{};
 PLACE_INTERNAL_FRUNK SideChain reverbCompressor{};
 int32_t reverbCompressorVolume;
 int32_t reverbCompressorShape;
@@ -167,10 +168,10 @@ LiveInputBuffer* liveInputBuffers[3];
 // For debugging
 uint16_t lastRoutineTime;
 
-StereoSample renderingBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
+std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
 
-StereoSample* renderingBufferOutputPos = renderingBuffer;
-StereoSample* renderingBufferOutputEnd = renderingBuffer;
+StereoSample* renderingBufferOutputPos = renderingBuffer.begin();
+StereoSample* renderingBufferOutputEnd = renderingBuffer.begin();
 
 int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
@@ -378,8 +379,8 @@ void routine() {
 
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
-	int32_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-	                     & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
+	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
@@ -511,7 +512,7 @@ void routine() {
 	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	constexpr int32_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
+	constexpr size_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
 
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 
@@ -624,8 +625,8 @@ startAgain:
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
-	static int32_t reverbBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
-	memset(&reverbBuffer, 0, numSamples * sizeof(int32_t));
+	static std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+	reverbBuffer.fill(0);
 
 #ifdef REPORT_CPU_USAGE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -648,7 +649,7 @@ startAgain:
 			}
 		}
 
-		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
+		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
 
 		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
 			if (enabledInterrupts[idx] != 0) {
@@ -708,7 +709,7 @@ startAgain:
 	if (reverbOn) {
 		// Patch that to reverb volume
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(compressorOutput, reverbCompressorVolumeInEffect) + 536870912;
+		    multiply_32x32_rshift32(compressorOutput, reverbCompressorVolumeInEffect) + 0x20000000;
 		int32_t reverbOutputVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
 
 		// Reverb panning
@@ -722,34 +723,21 @@ startAgain:
 			reverbAmplitudeL = reverbAmplitudeR = reverbOutputVolume;
 		}
 
+		auto reverb_buffer_slice = std::span{reverbBuffer.data(), numSamples};
+		auto render_buffer_slice = std::span{renderingBuffer.data(), numSamples};
+
 		// HPF on reverb send, cos if it has DC offset, the reverb magnifies that, and the sound farts out
 		{
-			int32_t* reverbSample = reverbBuffer;
-			int32_t* reverbBufferEnd = &reverbBuffer[numSamples];
-			do {
-				int32_t distanceToGoL = *reverbSample - reverbSendPostLPF;
-				reverbSendPostLPF += distanceToGoL >> 11;
-				*reverbSample -= reverbSendPostLPF;
-
-				reverbSample++;
-			} while (reverbSample != reverbBufferEnd);
+			for (auto& reverb_sample : reverb_buffer_slice) {
+				int32_t distance_to_go_l = reverb_sample - reverbSendPostLPF;
+				reverbSendPostLPF += distance_to_go_l >> 11;
+				reverb_sample -= reverbSendPostLPF;
+			}
 		}
 
 		// Mix reverb into main render
-		int32_t* reverbSample = reverbBuffer;
-		StereoSample* outputSample = renderingBuffer;
-
-		StereoSample* outputBufferEnd = renderingBuffer + numSamples;
-
-		do {
-			int32_t reverbOutL;
-			int32_t reverbOutR;
-			reverb.process(*(reverbSample++) >> 1, &reverbOutL, &reverbOutR);
-
-			outputSample->l += multiply_32x32_rshift32_rounded(reverbOutL, reverbAmplitudeL);
-			outputSample->r += multiply_32x32_rshift32_rounded(reverbOutR, reverbAmplitudeR);
-
-		} while (++outputSample != outputBufferEnd);
+		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
+		reverb.process(reverb_buffer_slice, render_buffer_slice);
 	}
 
 	// Previewing sample
@@ -760,7 +748,8 @@ startAgain:
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
-		sampleForPreview->render(modelStack, renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
+		sampleForPreview->render(modelStack, renderingBuffer.data(), numSamples, reverbBuffer.data(),
+		                         sideChainHitPending);
 	}
 
 	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
@@ -770,13 +759,13 @@ startAgain:
 
 	if (currentSong) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples);
-		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, numSamples, &masterVolumeAdjustmentL,
-		                                                       &currentSong->paramManager);
+		currentSong->globalEffectable.processFilters(renderingBuffer.data(), numSamples);
+		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), numSamples,
+		                                                       &masterVolumeAdjustmentL, &currentSong->paramManager);
 
 		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
 
-		currentSong->globalEffectable.processStutter(renderingBuffer, numSamples, &currentSong->paramManager);
+		currentSong->globalEffectable.processStutter(renderingBuffer.data(), numSamples, &currentSong->paramManager);
 
 		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below anyway
 		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
@@ -806,11 +795,12 @@ startAgain:
 		songVolume = 1 << 26;
 	}
 
-	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR, songVolume);
+	mastercompressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR,
+	                        songVolume);
 	masterVolumeAdjustmentL = ONE_Q31;
 	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
-	metronome.render(renderingBuffer, numSamples);
+	metronome.render(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
@@ -846,8 +836,8 @@ startAgain:
 		}
 	}
 
-	renderingBufferOutputPos = renderingBuffer;
-	renderingBufferOutputEnd = renderingBuffer + numSamples;
+	renderingBufferOutputPos = renderingBuffer.begin();
+	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
 
 	doSomeOutputting();
 
@@ -1240,9 +1230,9 @@ void stopAnyPreviewing() {
 }
 
 void getReverbParamsFromSong(Song* song) {
-	reverb.setroomsize(song->reverbRoomSize);
-	reverb.setdamp(song->reverbDamp);
-	reverb.setwidth(song->reverbWidth);
+	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setDamping(song->reverbDamp);
+	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
 	reverbCompressorVolume = song->reverbCompressorVolume;
 	reverbCompressorShape = song->reverbCompressorShape;
