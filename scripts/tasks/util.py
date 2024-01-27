@@ -182,7 +182,7 @@ def get_environment_from_batch_command(env_cmd, initial=None):
     env_cmd = subprocess.list2cmdline(env_cmd)
 
     # construct a cmd.exe command to do accomplish this
-    cmd = f'cmd.exe /c {env_cmd} && set'
+    cmd = f"cmd.exe /c {env_cmd} && set"
 
     # launch the process
     proc = subprocess.run(cmd, capture_output=True, env=initial, text=True)
@@ -195,5 +195,6 @@ def get_environment_from_batch_command(env_cmd, initial=None):
 
     return result
 
+
 def get_dbt_version():
-    return open(get_git_root() / 'toolchain' / 'REQUIRED_VERSION').readline().rstrip()
+    return open(get_git_root() / "toolchain" / "REQUIRED_VERSION").readline().rstrip()

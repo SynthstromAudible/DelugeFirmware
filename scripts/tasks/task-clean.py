@@ -5,6 +5,7 @@ import sys
 import util
 import os
 
+
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="clean",
@@ -20,14 +21,16 @@ def main() -> int:
     if not os.path.exists("build"):
         print("Already clean!")
         exit()
-        
+
     cmake_args = [
         "--build",
         "build",
-        "--target", 'clean',
+        "--target",
+        "clean",
     ]
-    result = subprocess.run(['cmake'] + cmake_args, env=os.environ)
+    result = subprocess.run(["cmake"] + cmake_args, env=os.environ)
     return result.returncode
+
 
 if __name__ == "__main__":
     main()
