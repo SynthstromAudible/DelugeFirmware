@@ -776,7 +776,7 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_CHECKSUM_FAIL, "Checksum fail"},
         {STRING_FOR_WRONG_SIZE, "Wrong size?"},
-		{STRING_FOR_BAD_KEY, "Incorrect Handshake Key"},
+        {STRING_FOR_BAD_KEY, "Incorrect Handshake Key"},
         {STRING_FOR_NOTES_CLEARED, "Notes cleared"},
         {STRING_FOR_AUTOMATION_CLEARED, "Automation cleared"},
 
