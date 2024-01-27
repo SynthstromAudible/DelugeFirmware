@@ -173,7 +173,7 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14);
 
 	if (handshake != fields[0]) {
-		display->displayPopup("Incorrect Handshake Key!");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BAD_KEY));
 		return;
 	}
 
