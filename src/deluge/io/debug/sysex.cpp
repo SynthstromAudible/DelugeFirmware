@@ -3,16 +3,18 @@
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
- * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation,
- * either version 3 of the License, or (at your option) any later version.
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute
+ * it and/or modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "io/debug/sysex.h"
@@ -69,7 +71,8 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	if (!msg) {
 		return; // Do not do that
 	}
-	// data[4]: reserved, could serve as a message identifier to filter messages per category
+	// data[4]: reserved, could serve as a message identifier to filter messages
+	// per category
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
 	uint8_t* reply = midiEngine.sysex_fmt_buffer;
 	memcpy(reply, reply_hdr, 5);
@@ -151,9 +154,8 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 		uint32_t pad = (18 * 8 * pos) / load_bufsize;
 		uint8_t col = pad % 18;
 		uint8_t row = pad / 18;
-		PadLEDs::image[row][col][0] = (255 / 7) * row;
-		PadLEDs::image[row][col][1] = 0;
-		PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
+		PadLEDs::image[row][col] = {static_cast<RGB::channel_type>(255 / 7 * row), 0,
+		                            static_cast<RGB::channel_type>(255 - (255 / 7) * row)};
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();
 	}
