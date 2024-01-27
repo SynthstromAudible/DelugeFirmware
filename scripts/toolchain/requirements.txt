@@ -1,6 +1,4 @@
 certifi==2023.7.22
 setuptools==68.0.0
-smmap==5.0.0
-gitdb==4.0.10
 pyserial==3.5
 ansi==0.3.6
