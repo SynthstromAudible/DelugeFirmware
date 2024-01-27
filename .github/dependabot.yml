@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "00:30"
+    groups:
+      all-actions:
+        patterns: [ "*" ]
+
+  - package-ecosystem: "pip"
+    directory: scripts/toolchain/
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "01:30"
+
+  - package-ecosystem: "pip"
+    directory: tests/integration/usbmidi
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "01:30"
