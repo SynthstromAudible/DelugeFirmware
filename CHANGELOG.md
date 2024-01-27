@@ -9,7 +9,7 @@
 
 ### User Interface
 
-- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips.
 - Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
 - Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with Affect Entire enabled.
@@ -39,24 +39,27 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for copy/paste of single rows.
 - Added support for "gentle paste" of notes which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
+- The default ModFX type for songs is now DISABLED rather than FLANGER.
 
 ### Audio Clips
-- Changed default ModFX type is now DISABLED rather than FLANGER.
+
+- The default ModFX type is now DISABLED rather than FLANGER for Audio Clips (this means ModFX can be disabled on Audio Clips which was not previously possible).
 
 ### Kits
 
 - Drum randomization is no longer limited to only 10 sounds per folder.
 - Fixed several crashes related to drum randomization.
+- The default ModFX type for kit affect-entire is now DISABLED rather than FLANGER.
 
 ### MIDI
 
-- Added `MIDI FOLLOW MODE` which causes MIDI data to be directed to the currently focused clip.
+- Added `MIDI FOLLOW MODE` which causes MIDI data to be directed based on context.
 - Added MIDI feedback, so external MIDI controllers can be made aware of the state of the Deluge synth engine. Configurable via the new global `MIDI > MIDI-FOLLOW > FEEDBACK` menu.
-- Added Loopy Pro and TouchOsc templates for MIDI feedback.
+- Added Loopy Pro and TouchOsc templates for use with MIDI follow/MIDI feedback.
 - Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to the Deluge input.
 - Added support for learning Program Change methods to most global commands.
 - Added "MPE collapse" on MIDI clips which converts MPE X/Y/Z to Pitch/Modwheel/Aftertouch CCs for use of MPE controllers with non-MPE aware synths. Configurable via the clip menu.
-- Added a new global setting, `MIDI > SELECT KIT ROW`, which causes MIDI notes sent to kits to be sent to the individual row. Useful for CC control of individual kit rows.
+- Added a new global setting, `MIDI > SELECT KIT ROW`, which causes MIDI notes sent to kits to select the corresponding learned row.
 - Fixed reversal of upstream MIDI ports (port 1 was upstream port 2, port 2 was upstream port 1).
 - Fixed a number of MPE channel matching and learning bugs.
 - Fixed crash when using an external controller to control ModFX.
