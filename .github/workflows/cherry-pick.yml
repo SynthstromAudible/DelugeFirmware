@@ -19,11 +19,11 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'release-1.0') && github.event.pull_request.merged == true }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Cherry pick into release/1.0
-        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
+        uses: carloscastrojumo/github-cherry-pick-action@v1.0.9
         with:
           branch: release/1.0
           labels: |
