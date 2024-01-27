@@ -185,6 +185,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorVolume = getParamFromUserValue(params::STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
+	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+
 
 	masterCompressorAttack = 10 << 24;
 	masterCompressorRelease = 20 << 24;
