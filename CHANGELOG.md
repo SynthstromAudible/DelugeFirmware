@@ -1,77 +1,77 @@
 # Deluge Community Firmware Change Log
 
-Last Updated: 2024-01-27
+## c1.1.0 Beethoven
 
-## In Progress (Not Yet In Nightly Build)
+### Sound Engine
 
-Here you will find a listing of current items being worked on that have not yet made it into the Nightly Build.
+- Added a version of Émilie Gillet's Mutable Instruments Clouds reverb model. Can be enabled via a new `REVERB MODE` sub-menu under the existing Reverb menu.
+- Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
-### Performance Improvements
+### User Interface
 
-- `PERFORMANCE VIEW` pink mode has been added to Song Grid View. It replaces the Keyboard button to enter this view in Song Grid View. 
+- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control Song Global FX.
+- Added `AUTOMATION VIEW` for Audio Clips.
+- Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
+- Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with Affect Entire enabled.
+- Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will automatically be set on the keyboard.
+- Short-press of empty clip pads in Grid mode while REC is enabled automatically creates a new clip and queues it for recording at the start of the next bar.
+- Fixed a bug preventing clip selection while Shift was held.
+- Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
+- Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
+- Fixed several bugs with pad grid rendering.
 
-### Sequencing Improvements
+In addition, a number of improvements have been made to how the OLED display is used:
 
-- `AUTOMATION VIEW` has been added for Arranger
+- Added parameter name to Mod (Gold) Encoder popups.
+- "ARRANGER VIEW" and "SONG VIEW" now display the name of the current view on the screen.
+- The 12TET note name is now displayed along with the MIDI note number.
+- Added a new community setting which allows emulating the old 7SEG style on the OLED display.
+- Fixed several cases where popups could get stuck open.
+- Fixed a number of minor rendering bugs.
 
-### Keyboard View Improvements
+### Sequencer
 
-- Add multiple functions (velocity, mod, chord, chord memory, ...) to sidebar pads in keyboard views
+- When changing instrument presets in session or arranger view all presets are now changed. Individual clips can still have their presets changed by first entering the clip.
+- Added support for 5 and 6 note scales.
+- Added 8 new built-in scales: Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic Minor, Hirajoshi.
+- Added "play `ONCE`" clip launch mode, settable by turning the Select Encoder left while holding the audition pad in Song view. Causes the clip to play once when triggered and then mute without changing the section.
+- Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not* pressed.
+- Added support for copy/paste of single rows.
+- Added support for "gentle paste" of notes which pastes notes without removing old ones.
+- Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 
-### User Interface Improvements
+### Audio Clips
+- Changed default ModFX type is now DISABLED rather than FLANGER.
 
-- You can now obtain a snapshot of the current Mod (Gold) Encoder settings by pressing on the Mod Encoder buttons (the row of buttons between the Gold Encoders). By pressing the buttons, you will get a pop-up that tells you what the current setting is. E.g. if you're selved the LPF/HPF/EQ button, it will tell you whether the Gold Encoders are currently set to LPF, HPF, or EQ and it will tell you what the current LPF or HPF type is (e.g. Drive, Ladder).
+### Kits
 
-## Nightly Build
+- Drum randomization is no longer limited to only 10 sounds per folder.
+- Fixed several crashes related to drum randomization.
 
-### Audio Improvements
+### MIDI
 
-##### Effects
+- Added `MIDI FOLLOW MODE` which causes MIDI data to be directed to the currently focused clip.
+- Added MIDI feedback, so external MIDI controllers can be made aware of the state of the Deluge synth engine. Configurable via the new global `MIDI > MIDI-FOLLOW > FEEDBACK` menu.
+- Added Loopy Pro and TouchOsc templates for MIDI feedback.
+- Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to the Deluge input.
+- Added support for learning Program Change methods to most global commands.
+- Added "MPE collapse" on MIDI clips which converts MPE X/Y/Z to Pitch/Modwheel/Aftertouch CCs for use of MPE controllers with non-MPE aware synths. Configurable via the clip menu.
+- Added a new global setting, `MIDI > SELECT KIT ROW`, which causes MIDI notes sent to kits to be sent to the individual row. Useful for CC control of individual kit rows.
+- Fixed reversal of upstream MIDI ports (port 1 was upstream port 2, port 2 was upstream port 1).
+- Fixed a number of MPE channel matching and learning bugs.
+- Fixed crash when using an external controller to control ModFX.
+- Fixed CC74 on the MPE master channel behaving like an expression event.
 
-- New `MUTABLE INSTRUMENTS REVERB` mode has been added and can be enabled via a new `REVERB MODE` sub-menu which has been added under the existing Reverb menu. 
-
-### Performance Improvements
-
-- `PERFORMANCE VIEW` has been added and is accessible in Song View by pressing the Keyboard button. It allows you to quickly control Song Global FX.
-
-### Sequencing Improvements
-
-- `AUTOMATION VIEW` has been added for Audio Clips
-
-##### Probability & Iteration
-
-- Play `ONCE` clip setting. Similar to Fill clips, you can set a clip to play just once, at the beginning of a loop and then it auto mutes itself.
-- `NOT FILL` note probability, similar to Fill notes, but these notes will play only when the Fill button is not pressed, and muted when the Fill button is pressed.
-
-##### Synth Improvements
-
-- New Scales: Added new scales, Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic Minor, Hirajoshi
-
-### Keyboard View Improvements
-
-- Improvements to norns grid
-
-### MIDI Improvements
-
-- `MIDI FOLLOW MODE` has been added to allow you to quickly map a MIDI controller to control and play the deluge's instruments and its parameters.
-- `MIDI LOOPBACK` has been added and is accessible in Song View through the `SONG MENU` by pressing on the Select Encoder.
-- Enable learning global commands from midi PC messages
-- MPE improvements
-- Control non mpe synths with an MPE midi controller (for Midi clips)
-
-### User Interface Improvements
-
-- Added Parameter Name to Mod (Gold) Encoder popups
-- The Song View display now shows "Song View" on the screen
-- The Arranger View display now shows "Arranger View" on the screen
-- A `SONG MENU` was added and is accessible in Song View and Arranger View by pressing on the Select Encoder. This menu gives you quick access to Song Global FX parameters as well as the new `MIDI LOOPBACK` feature.
-- A `KIT AFFECT ENTIRE GLOBAL FX MENU` was added to Kits when affect entire is enabled and is accessible by pressing on the Select Encoder. This menu gives you quick access to Kit Global FX parameters.
-- Copy/paste single rows
-- Unlimited Drum Randomizer
-- Show human note name instead of integer note number
-- Add Lumi Keys sysex message support 
-- Emulated display (community setting). You can emulate the 7SEG display in the OLED display
-- Sysex Firmware Loading over USB
+### Internal Changes
+- The Deluge Build Tool toolchain has been updated from GCC 12 to GCC 13.
+- All code is now built in THUMB mode by default, except DSP code which is still ARM.
+- Support for parallel toolchains has been added so re-downloading is not required while moving between branches.
+- Numerous improvements to the VSCode configuration, including auto-format on save.
+- Various types have been renamed and refactored to improve legibility.
+- A number of on/off UI toggles have been collapsed in to the new `ToggleBool` class
+- `currentSong->currentClip` and similar expressions have been refactored in to functions to improve safety and reduce code size.
+- String formatting is now done with a compact `printf` implementation in many cases.
+- All publicly available fixes to the official firmware are integrated (up to commit 0501b7dc38a363f89112c1b5c36075f4c0368be9)
 
 ## c1.0.1 Amadeus
 
