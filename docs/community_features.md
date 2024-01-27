@@ -263,7 +263,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
 	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
 	- ([#966]) Added automation view for audio clips
-	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the default grid shortcut cc mappings for MIDI Follow.
+	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
 
 #### 4.3.6 - Set Probability By Row
 
