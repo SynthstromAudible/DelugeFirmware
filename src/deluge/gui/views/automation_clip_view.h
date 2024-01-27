@@ -217,6 +217,11 @@ private:
 	int32_t lastPadSelectedKnobPos;
 
 	bool playbackStopped;
+
+	// grid sized array to assign midi cc values to each pad on the grid
+	void initMIDICCShortcutsForAutomation();
+	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
+	bool midiCCShortcutsLoaded;
 };
 
 extern AutomationClipView automationClipView;

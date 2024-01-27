@@ -45,6 +45,7 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -204,26 +205,6 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate
 }};
 
-// grid sized array to assign midi cc values to each pad on the grid
-const uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {21, 12, kNoParamID, 23, kNoParamID, 24, 25, 41},
-    {26, 13, kNoParamID, 28, kNoParamID, 29, 30, kNoParamID},
-    {54, 14, kNoParamID, kNoParamID, kNoParamID, 55, kNoParamID, kNoParamID},
-    {56, 15, kNoParamID, kNoParamID, kNoParamID, 57, kNoParamID, kNoParamID},
-    {7, 3, kNoParamID, 10, kNoParamID, 63, 62, kNoParamID},
-    {5, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, 19},
-    {72, 76, 75, 73, 70, kNoParamID, 71, 74},
-    {80, 79, 78, 77, 83, kNoParamID, 82, 81},
-    {kNoParamID, kNoParamID, 61, kNoParamID, 60, kNoParamID, 86, 84},
-    {51, kNoParamID, 50, kNoParamID, kNoParamID, kNoParamID, 87, 85},
-    {58, kNoParamID, kNoParamID, kNoParamID, 18, 17, 93, 16},
-    {59, kNoParamID, kNoParamID, 91, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {53, kNoParamID, kNoParamID, 52, kNoParamID, kNoParamID, kNoParamID, CC_NUMBER_PITCH_BEND},
-    {CC_NUMBER_AFTERTOUCH, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     CC_NUMBER_MOD_WHEEL}};
-
 // let's render some love <3
 
 const uint32_t love[kDisplayWidth][kDisplayHeight] = {
@@ -295,10 +276,35 @@ AutomationClipView::AutomationClipView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	playbackStopped = false;
+
+	initMIDICCShortcutsForAutomation();
+	midiCCShortcutsLoaded = false;
+}
+
+void AutomationClipView::initMIDICCShortcutsForAutomation() {
+	for (int x = 0; x < kDisplayWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
+			int32_t ccNumber = midiFollow.paramToCC[x][y];
+			if (ccNumber != MIDI_CC_NONE) {
+				midiCCShortcutsForAutomation[x][y] = ccNumber;
+			}
+			else {
+				midiCCShortcutsForAutomation[x][y] = kNoParamID;
+			}
+		}
+	}
+
+	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
+	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_MOD_WHEEL;
 }
 
 // called everytime you open up the automation view
 bool AutomationClipView::opened() {
+	if (!midiCCShortcutsLoaded) {
+		initMIDICCShortcutsForAutomation();
+		midiCCShortcutsLoaded = true;
+	}
 
 	// grab the default setting for interpolation
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
