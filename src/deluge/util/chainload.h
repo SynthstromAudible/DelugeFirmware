@@ -5,4 +5,7 @@
 #define OFF_USER_CODE_EXECUTE 0x28
 #define OFF_USER_SIGNATURE 0x2c
 
+/// Chainload from a buffer.
+///
+/// Currently only implemented for ARM.
 void chainload_from_buf(uint8_t* buffer, int buf_size);
