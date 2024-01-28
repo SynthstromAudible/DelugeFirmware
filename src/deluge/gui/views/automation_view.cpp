@@ -284,7 +284,7 @@ AutomationView::AutomationView() {
 	midiCCShortcutsLoaded = false;
 }
 
-void AutomationClipView::initMIDICCShortcutsForAutomation() {
+void AutomationView::initMIDICCShortcutsForAutomation() {
 	for (int x = 0; x < kDisplayWidth; x++) {
 		for (int y = 0; y < kDisplayHeight; y++) {
 			int32_t ccNumber = midiFollow.paramToCC[x][y];
@@ -303,7 +303,7 @@ void AutomationClipView::initMIDICCShortcutsForAutomation() {
 }
 
 // called everytime you open up the automation view
-bool AutomationClipView::opened() {
+bool AutomationView::opened() {
 	navSysId = getNavSysId();
 
 	if (!midiCCShortcutsLoaded) {
