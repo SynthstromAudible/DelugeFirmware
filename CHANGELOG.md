@@ -4,7 +4,7 @@
 
 ### Sound Engine
 
-- Added a version of Émilie Gillet's Mutable Instruments Clouds reverb model. Can be enabled via a new `REVERB MODE` sub-menu under the existing Reverb menu.
+- Added a version of Émilie Gillet's Mutable Instruments Clouds reverb model. Can be enabled via a new `REVERB MODE` sub-menu under the existing Reverb menu. Note: The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
 ### User Interface
