@@ -47,7 +47,7 @@ Automatable Parameters are broken down into three categories for Automation Clip
 
 3. Automatable CC's for MIDI Clips
 
->You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: MIDI CC 1 has been labeled Mod Wheel.
+>You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: Mod Wheel is MIDI CC 1.
 >In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
 >See Appendix below for an overview of the MIDI CC to Grid Shortcut mappings
 
