@@ -2835,17 +2835,17 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	bool modeActive = false;
 	RGB modeColour = colours::black;
 	switch (y) {
-	case 7: {
+	case GridMode::GREEN: {
 		modeActive = (gridModeActive == SessionGridModeLaunch);
 		modeColour = colours::green; // Green
 		break;
 	}
-	case 6: {
+	case GridMode::BLUE: {
 		modeActive = (gridModeActive == SessionGridModeEdit);
 		modeColour = colours::blue; // Blue
 		break;
 	}
-	case 0: {
+	case GridMode::PINK: {
 		modeActive = performanceSessionView.gridModeActive;
 		modeColour = colours::magenta; // Pink
 	}
@@ -3288,15 +3288,15 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		if (on) {
 			gridActiveModeUsed = false;
 			switch (y) {
-			case 7: {
+			case GridMode::GREEN: {
 				gridModeActive = SessionGridModeLaunch;
 				break;
 			}
-			case 6: {
+			case GridMode::BLUE: {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
-			case 0: {
+			case GridMode::PINK: {
 				performanceSessionView.gridModeActive = true;
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
 				changeRootUI(&performanceSessionView);
