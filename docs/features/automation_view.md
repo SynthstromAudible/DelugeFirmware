@@ -47,7 +47,9 @@ Automatable Parameters are broken down into three categories for Automation Clip
 
 3. Automatable CC's for MIDI Clips
 
->You can automate MIDI CC's 0-121, with 120 being Pitch Bend and 121 being After Touch
+>You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: Mod Wheel is MIDI CC 1.
+>In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+>See Appendix below for an overview of the MIDI CC to Grid Shortcut mappings
 
 It can be thought of as a layer sitting on top of the Clip View for Synths, Kits, MIDI, and Audio clip types.
 
@@ -395,4 +397,10 @@ These are the main button shortcuts/combos that will be used in the Automation C
 ## Automation Editor
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/7c80679a-199e-482f-bfcd-7cb9bc48c623)
+
+## Automation Overview of Grid Shortcuts mappings to MIDI CC's for MIDI Clips
+
+This image shows the default MIDI Follow CC to Grid Parameter Shortcut mappings. You can edit these mappings in MIDIFollow.XML which will update the CC to Grid Parameter Shortcut mappings used in Automation View for MIDI Clips.
+
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/6ecbb774-deb9-466c-9469-e86e5e904ce3)
 

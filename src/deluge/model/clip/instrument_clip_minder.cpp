@@ -136,6 +136,9 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 	}
+	else if (controlNumber == CC_NUMBER_MOD_WHEEL) {
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+	}
 	else {
 		buffer[0] = 'C';
 		buffer[1] = 'C';

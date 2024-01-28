@@ -45,6 +45,7 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -204,26 +205,6 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate
 }};
 
-// grid sized array to assign midi cc values to each pad on the grid
-
-const uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-
-    {0, 16, 32, 48, 64, 80, 96, 112},          {1, 17, 33, 49, 65, 81, 97, 113},
-
-    {2, 18, 34, 50, 66, 82, 98, 114},          {3, 19, 35, 51, 67, 83, 99, 115},
-
-    {4, 20, 36, 52, 68, 84, 100, 116},         {5, 21, 37, 53, 69, 85, 101, 117},
-
-    {6, 22, 38, 54, 70, 86, 102, 118},         {7, 23, 39, 55, 71, 87, 103, 119},
-
-    {8, 24, 40, 56, 72, 88, 104, kNoParamID},  {9, 25, 41, 57, 73, 89, 105, kNoParamID},
-
-    {10, 26, 42, 58, 74, 90, 106, kNoParamID}, {11, 27, 43, 59, 75, 91, 107, kNoParamID},
-
-    {12, 28, 44, 60, 76, 92, 108, kNoParamID}, {13, 29, 45, 61, 77, 93, 109, kNoParamID},
-
-    {14, 30, 46, 62, 78, 94, 110, 120},        {15, 31, 47, 63, 79, 95, 111, 121}};
-
 // let's render some love <3
 
 const uint32_t love[kDisplayWidth][kDisplayHeight] = {
@@ -295,10 +276,35 @@ AutomationClipView::AutomationClipView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	playbackStopped = false;
+
+	initMIDICCShortcutsForAutomation();
+	midiCCShortcutsLoaded = false;
+}
+
+void AutomationClipView::initMIDICCShortcutsForAutomation() {
+	for (int x = 0; x < kDisplayWidth; x++) {
+		for (int y = 0; y < kDisplayHeight; y++) {
+			int32_t ccNumber = midiFollow.paramToCC[x][y];
+			if (ccNumber != MIDI_CC_NONE) {
+				midiCCShortcutsForAutomation[x][y] = ccNumber;
+			}
+			else {
+				midiCCShortcutsForAutomation[x][y] = kNoParamID;
+			}
+		}
+	}
+
+	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
+	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_MOD_WHEEL;
 }
 
 // called everytime you open up the automation view
 bool AutomationClipView::opened() {
+	if (!midiCCShortcutsLoaded) {
+		initMIDICCShortcutsForAutomation();
+		midiCCShortcutsLoaded = true;
+	}
 
 	// grab the default setting for interpolation
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
@@ -581,23 +587,7 @@ void AutomationClipView::renderAutomationOverview(ModelStackWithTimelineCounter*
 			}
 
 			else {
-
-				if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] <= 119) {
-
-					// formula I came up with to render pad colours from green to red across 119 Midi CC pads
-					pixel = {
-					    .r = static_cast<RGB::channel_type>(
-					        (2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119))) >> 20),
-					    .g = static_cast<RGB::channel_type>(
-					        53 - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20)),
-					    .b = 2,
-					};
-				}
-
-				// if we're not in a midi clip, highlight the automatable pads dimly grey
-				else {
-					pixel = colours::grey;
-				}
+				pixel = colours::grey;
 			}
 
 			occupancyMask[xDisplay] = 64;
@@ -907,6 +897,9 @@ void AutomationClipView::getParameterName(Clip* clip, OutputType outputType, cha
 		}
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
 			parameterName[0] = 'C';
@@ -2693,12 +2686,15 @@ int32_t AutomationClipView::getNextSelectedParamArrayPosition(int32_t offset, in
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
 void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
+	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (outputType == OutputType::MIDI_OUT) {
 				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
 				}
 			}
 			else {
@@ -2710,9 +2706,18 @@ void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType out
 				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
 				}
 			}
 		}
+		if (paramShortcutFound) {
+			break;
+		}
+	}
+	if (!paramShortcutFound) {
+		clip->lastSelectedParamShortcutX = kNoSelection;
+		clip->lastSelectedParamShortcutY = kNoSelection;
 	}
 }
 
