@@ -12,6 +12,7 @@
 - Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
+- Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 - Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
 - Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with Affect Entire enabled.
 - Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will automatically be set on the keyboard.
