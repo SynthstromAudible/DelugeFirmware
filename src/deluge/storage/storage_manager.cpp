@@ -879,7 +879,7 @@ uint32_t StorageManager::readCharXML(char* thisChar) {
 }
 
 void StorageManager::exitTag(char const* exitTagName) {
-	//back out the file depth to one less than the caller depth
+	// back out the file depth to one less than the caller depth
 	while (tagDepthFile >= tagDepthCaller) {
 
 		if (xmlReachedEnd) {
@@ -919,12 +919,11 @@ void StorageManager::exitTag(char const* exitTagName) {
 			__builtin_unreachable();
 		}
 	}
-	//It is possible for caller and file tag depths to get out of sync due to faulty error handling
-	//On exit reset the caller depth to match tag depth. File depth represents the parsers view of
-	//where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
-	//as the file will open past empty or unused tags, but should never be deeper.
+	// It is possible for caller and file tag depths to get out of sync due to faulty error handling
+	// On exit reset the caller depth to match tag depth. File depth represents the parsers view of
+	// where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
+	// as the file will open past empty or unused tags, but should never be deeper.
 	tagDepthCaller = tagDepthFile;
-
 }
 
 void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
