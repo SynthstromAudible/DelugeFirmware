@@ -189,6 +189,17 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
+	char const* getLPFModeDisplayName();
+	char const* getHPFModeDisplayName();
+	char const* getDelayTypeDisplayName();
+	char const* getDelayPingPongStatusDisplayName();
+	char const* getDelaySyncTypeDisplayName();
+	void getDelaySyncLevelDisplayName(char* displayName);
+
+	void displayLPFMode(bool on);
+	void displayHPFMode(bool on);
+	void displayDelaySettings(bool on);
+
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);

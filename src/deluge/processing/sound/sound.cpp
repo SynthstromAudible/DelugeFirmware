@@ -3935,6 +3935,77 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	endStutter(paramManager);
+
+	if ((!on && display->haveOLED()) || display->have7SEG()) {
+		int32_t modKnobMode = *getModKnobMode();
+
+		ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+
+		if (getSynthMode() != SynthMode::FM) {
+			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
+				displayLPFMode(on);
+			}
+			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
+				displayHPFMode(on);
+			}
+			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+			                                                              + params::UNPATCHED_TREBLE)) {
+				display->displayPopup("EQ");
+			}
+		}
+
+		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
+			displayDelaySettings(on);
+		}
+
+		if ((ourModKnob->paramDescriptor.hasJustOneSource()
+		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
+			displaySidechainAndReverbSettings(on);
+		}
+	}
+}
+
+void Sound::displaySidechainAndReverbSettings(bool on) {
+	// Sidechain
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		// Sidechain
+		popupMsg.append(getSidechainDisplayName(insideWorldTickMagnitude));
+
+		popupMsg.append("\n");
+
+		// Reverb
+		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(getSidechainDisplayName(insideWorldTickMagnitude));
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
+char const* Sound::getSidechainDisplayName(int32_t insideWorldTickMagnitude) {
+	using enum deluge::l10n::String;
+	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST_SIDECHAIN_COMPRESSOR);
+	}
 }
 
 ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,
