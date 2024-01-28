@@ -70,6 +70,11 @@ constexpr T set_top_n_bits(const T v) {
 	}
 	return output;
 }
+
+template <typename T>
+[[nodiscard]] constexpr T map(T x, T in_min, T in_max, T out_min, T out_max) {
+	return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
+}
 } // namespace util
 
 // unsigned literal operators

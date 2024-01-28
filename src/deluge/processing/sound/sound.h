@@ -296,4 +296,7 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+
+	void displaySidechainAndReverbSettings(bool on);
+	char const* getSidechainDisplayName(int32_t insideWorldTickMagnitude);
 };

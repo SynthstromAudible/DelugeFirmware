@@ -16,7 +16,7 @@ class Mutable : public Base {
 	constexpr static size_t kBufferSize = 32768;
 
 public:
-	Mutable() : reverb_time_(0.35f + 0.63f * 0.5f) {}
+	Mutable() = default;
 
 	~Mutable() override = default;
 
@@ -110,15 +110,26 @@ public:
 
 	inline void Clear() { engine_.Clear(); }
 
+	static constexpr float kReverbTimeMin = 0.01f;
+	static constexpr float kReverbTimeMax = 0.98f;
+	static constexpr float kLpMin = 0.1f;
+	static constexpr float kLpMax = 0.9f;
+	static constexpr float kWidthMin = 0.01f;
+	static constexpr float kWidthMax = 0.98f;
+
 	// Reverb Base Overrides
-	void setRoomSize(float value) override { reverb_time_ = 0.35f + 0.63f * value; }
-	[[nodiscard]] float getRoomSize() const override { return (reverb_time_ - 0.35) / 0.63f; };
+	void setRoomSize(float value) override {
+		reverb_time_ = util::map(value, 0.f, 1.f, kReverbTimeMin, kReverbTimeMax);
+	}
+	[[nodiscard]] float getRoomSize() const override {
+		return util::map(reverb_time_, kReverbTimeMin, kReverbTimeMax, 0.f, 1.f);
+	};
 
-	void setDamping(float value) override { lp_ = 0.3f + (1.f - value) * 0.6f; }
-	[[nodiscard]] float getDamping() const override { return 1.f - ((lp_ - 0.3f) / 0.6f); }
+	void setDamping(float value) override { lp_ = util::map(1.f - value, 0.f, 1.f, kLpMin, kLpMax); }
+	[[nodiscard]] float getDamping() const override { return 1.f - util::map(lp_, kLpMin, kLpMax, 0.f, 1.f); }
 
-	void setWidth(float value) override { diffusion_ = 0.35 + 0.63f * value; }
-	[[nodiscard]] float getWidth() const override { return (diffusion_ - 0.35) / 0.63f; };
+	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
+	[[nodiscard]] float getWidth() const override { return util::map(reverb_time_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
 private:
 	static constexpr float sample_rate = 44100.f;
@@ -129,7 +140,7 @@ private:
 	float input_gain_{0.2};
 
 	// size
-	float reverb_time_;
+	float reverb_time_{0.665f};
 
 	// width
 	float diffusion_{0.625f};
@@ -137,6 +148,7 @@ private:
 	// dampening
 	float lp_{0.7f};
 
+	// These are the state variables for the low-pass filters
 	float lp_decay_1_{0};
 	float lp_decay_2_{0};
 };

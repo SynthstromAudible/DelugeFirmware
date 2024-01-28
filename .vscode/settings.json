@@ -24,7 +24,14 @@
         "initializer_list": "cpp",
         "utility": "cpp"
     },
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.autocomplete": "disabled",
     "C_Cpp.errorSquiggles": "disabled",
+    "clangd.arguments": [
+        "-pretty",
+        "--background-index",
+        "--query-driver=*arm-none-eabi-*",
+    ],
     "cSpell.words": [
         "SDRAM",
         "Synthstrom"

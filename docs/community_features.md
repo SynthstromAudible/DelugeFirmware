@@ -288,6 +288,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 						1) use the select encoder; 
 						2) use the shift + shortcut pad combo; or
 						3) go back to the automation overview;		
+	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -524,6 +525,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1039]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1039
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
+[#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

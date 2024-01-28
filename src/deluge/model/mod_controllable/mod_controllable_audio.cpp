@@ -2307,18 +2307,17 @@ void ModControllableAudio::switchDelayPingPong() {
 
 void ModControllableAudio::switchDelayAnalog() {
 	delay.analog = !delay.analog;
+	display->displayPopup(getDelayTypeDisplayName());
+}
 
-	char const* displayText;
+char const* ModControllableAudio::getDelayTypeDisplayName() {
 	switch (delay.analog) {
+		using enum deluge::l10n::String;
 	case 0:
-		displayText = "Digital delay";
-		break;
-
+		return l10n::get(STRING_FOR_DIGITAL_DELAY);
 	default:
-		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY);
-		break;
+		return l10n::get(STRING_FOR_ANALOG_DELAY);
 	}
-	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncType() {
@@ -2334,77 +2333,79 @@ void ModControllableAudio::switchDelaySyncType() {
 		delay.syncType = SYNC_TYPE_TRIPLET;
 		break;
 	}
+	display->displayPopup(getDelaySyncTypeDisplayName());
+}
 
-	char const* displayText;
+char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 	switch (delay.syncType) {
 	case SYNC_TYPE_TRIPLET:
-		displayText = "Triplet";
-		break;
+		return "Triplet";
 	case SYNC_TYPE_DOTTED:
-		displayText = "Dotted";
-		break;
-
+		return "Dotted";
 	default: // SYNC_TYPE_EVEN
-		displayText = "Even";
-		break;
+		return "Even";
 	}
-	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
+	char displayName[30];
+	getDelaySyncLevelDisplayName(displayName);
+	display->displayPopup(displayName);
+}
 
+void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
+	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
+	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
 	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel), "");
-	display->displayPopup(buffer.data());
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	strncpy(displayName, buffer.data(), 29);
 }
 
 void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-
-	char const* displayText;
-	switch (lpfMode) {
-		using enum deluge::l10n::String;
-	case FilterMode::TRANSISTOR_12DB:
-		displayText = l10n::get(STRING_FOR_12DB_LADDER);
-		break;
-
-	case FilterMode::TRANSISTOR_24DB:
-		displayText = l10n::get(STRING_FOR_24DB_LADDER);
-		break;
-
-	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		displayText = l10n::get(STRING_FOR_DRIVE);
-		break;
-
-	case FilterMode::SVF_BAND:
-		displayText = l10n::get(STRING_FOR_SVF_BAND);
-		break;
-	case FilterMode::SVF_NOTCH:
-		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
-		break;
-	}
-	display->displayPopup(displayText);
+	display->displayPopup(getLPFModeDisplayName());
 }
+
+char const* ModControllableAudio::getLPFModeDisplayName() {
+	lpfMode = static_cast<FilterMode>(util::to_underlying(lpfMode) % kNumLPFModes);
+	using enum deluge::l10n::String;
+	switch (lpfMode) {
+	case FilterMode::TRANSISTOR_12DB:
+		return l10n::get(STRING_FOR_12DB_LADDER);
+	case FilterMode::TRANSISTOR_24DB:
+		return l10n::get(STRING_FOR_24DB_LADDER);
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
+		return l10n::get(STRING_FOR_DRIVE);
+	case FilterMode::SVF_BAND:
+		return l10n::get(STRING_FOR_SVF_BAND);
+	case FilterMode::SVF_NOTCH:
+		return l10n::get(STRING_FOR_SVF_NOTCH);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+	display->displayPopup(getHPFModeDisplayName());
+}
 
-	char const* displayText;
+char const* ModControllableAudio::getHPFModeDisplayName() {
+	hpfMode = static_cast<FilterMode>(util::to_underlying(hpfMode) % kNumHPFModes + kFirstHPFMode);
+	using enum deluge::l10n::String;
 	switch (hpfMode) {
-		using enum deluge::l10n::String;
 	case FilterMode::HPLADDER:
-		displayText = l10n::get(STRING_FOR_HPLADDER);
-		break;
+		return l10n::get(STRING_FOR_HPLADDER);
 	case FilterMode::SVF_BAND:
-		displayText = l10n::get(STRING_FOR_SVF_BAND);
-		break;
+		return l10n::get(STRING_FOR_SVF_BAND);
 	case FilterMode::SVF_NOTCH:
-		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
-		break;
+		return l10n::get(STRING_FOR_SVF_NOTCH);
+	default:
+		return l10n::get(STRING_FOR_NONE);
 	}
-	display->displayPopup(displayText);
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow
@@ -2535,4 +2536,93 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t wh
 
 	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
 	return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
+}
+
+void ModControllableAudio::displayLPFMode(bool on) {
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
+		popupMsg.append("LPF: ");
+		popupMsg.append(getLPFModeDisplayName());
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LPF));
+		}
+		else {
+			display->displayPopup(getLPFModeDisplayName());
+		}
+	}
+}
+
+void ModControllableAudio::displayHPFMode(bool on) {
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
+		popupMsg.append("HPF: ");
+		popupMsg.append(getHPFModeDisplayName());
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
+		}
+		else {
+			display->displayPopup(getHPFModeDisplayName());
+		}
+	}
+}
+
+void ModControllableAudio::displayDelaySettings(bool on) {
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+		    == RuntimeFeatureStateToggle::On) {
+			popupMsg.append("Sync Type: ");
+			popupMsg.append(getDelaySyncTypeDisplayName());
+
+			popupMsg.append("\n Sync Level: ");
+			char displayName[30];
+			getDelaySyncLevelDisplayName(displayName);
+			popupMsg.append(displayName);
+		}
+		else {
+			popupMsg.append(getDelayTypeDisplayName());
+
+			popupMsg.append("\n Ping pong: ");
+			popupMsg.append(getDelayPingPongStatusDisplayName());
+		}
+
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+		    == RuntimeFeatureStateToggle::On) {
+			if (on) {
+				display->displayPopup(getDelaySyncTypeDisplayName());
+			}
+			else {
+				char displayName[30];
+				getDelaySyncLevelDisplayName(displayName);
+				display->displayPopup(displayName);
+			}
+		}
+		else {
+			if (on) {
+				display->displayPopup(getDelayTypeDisplayName());
+			}
+			else {
+				display->displayPopup(getDelayPingPongStatusDisplayName());
+			}
+		}
+	}
+}
+
+char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
+	switch (delay.pingPong) {
+		using enum deluge::l10n::String;
+	case 0:
+		return l10n::get(STRING_FOR_DISABLED);
+	default:
+		return l10n::get(STRING_FOR_ENABLED);
+	}
 }
