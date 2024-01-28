@@ -58,6 +58,9 @@ public:
 
 	int16_t numClips;
 
+	// ui
+	UIType getUIType() { return UIType::SLICER; }
+
 private:
 	// 7SEG Only
 	void redraw();

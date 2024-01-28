@@ -67,4 +67,7 @@ public:
 	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
 	bool inTripletsView();
+
+	// ui
+	UIType getUIType() { return UIType::TIMELINE_VIEW; }
 };

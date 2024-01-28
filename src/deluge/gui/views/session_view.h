@@ -118,6 +118,9 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 
+	// ui
+	UIType getUIType() { return UIType::SESSION_VIEW; }
+
 private:
 	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);

@@ -66,6 +66,9 @@ public:
 	int32_t noteRowIndex;
 	NoteRow* noteRow;
 
+	// ui
+	UIType getUIType() { return UIType::LOAD_INSTRUMENT_PRESET; }
+
 protected:
 	void enterKeyPress();
 	void folderContentsReady(int32_t entryDirection);

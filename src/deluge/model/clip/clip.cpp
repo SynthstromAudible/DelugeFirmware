@@ -17,7 +17,7 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -1003,7 +1003,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI() != &automationClipView) { // don't clear MPE if you're in the Automation View
+				if (getCurrentUI() != &automationView) { // don't clear MPE if you're in the Automation View
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
@@ -1011,9 +1011,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Normal case
 			else {
-				if (getCurrentUI() == &automationClipView
-				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
-				           == RuntimeFeatureStateToggle::Off) {
+				if (getCurrentUI() == &automationView || !FlashStorage::automationClear) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}

@@ -54,6 +54,9 @@ public:
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
+	// ui
+	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
+
 private:
 	bool opened();
 	void focusRegained();

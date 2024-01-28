@@ -38,4 +38,6 @@ public:
 	virtual void clipNeedsReRendering(Clip* clip) {}
 	virtual void sampleNeedsReRendering(Sample* sample) {}
 	virtual void midiLearnFlash() {}
+	// ui
+	virtual UIType getUIType() { return UIType::NONE; }
 };

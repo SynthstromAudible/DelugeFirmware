@@ -100,6 +100,9 @@ public:
 	static OutputType outputTypeToLoad;
 	static char const* filenameToStartSearchAt;
 
+	// ui
+	UIType getUIType() { return UIType::BROWSER; }
+
 protected:
 	int32_t setEnteredTextFromCurrentFilename();
 	int32_t goUpOneDirectoryLevel();
