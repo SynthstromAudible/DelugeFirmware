@@ -191,6 +191,9 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	justExitedSoundEditor = false;
 
+	gridModeActive = false;
+	timeGridModePress = 0;
+
 	initPadPress(firstPadPress);
 	initPadPress(lastPadPress);
 
@@ -423,11 +426,21 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(params::Kind paramKind, i
 	return false;
 }
 
-/// nothing to render in sidebar (yet)
+/// if entered performance view using pink grid mode pad, render the pink pad
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
+	}
+
+	if (!occupancyMask) {
+		return true;
+	}
+
+	if (gridModeActive) {
+		for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
+			sessionView.gridRenderActionModes(y, image, occupancyMask);
+		}
 	}
 
 	return true;
@@ -816,6 +829,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				uiNeedsRendering(this);
 			}
 			else {
+				gridModeActive = false;
 				releaseStutter(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
@@ -885,6 +899,20 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
 			}
 			uiNeedsRendering(this); // re-render pads
+		}
+		// if you're using grid song view and you pressed / released a pad in the grid mode launcher column
+		else if (gridModeActive && (xDisplay == (kDisplayWidth + 1))) {
+			if (yDisplay == 0) {
+				if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+					gridModeActive = false;
+					changeRootUI(&sessionView);
+				}
+			}
+			else if ((yDisplay == 7) || (yDisplay == 6)) {
+				gridModeActive = false;
+				changeRootUI(&sessionView);
+				return sessionView.gridHandlePads(xDisplay, yDisplay, on);
+			}
 		}
 	}
 	else if (!on) {
