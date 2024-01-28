@@ -2886,11 +2886,14 @@ AutomationClipView::getModelStackWithParamForMIDIClip(ModelStackWithTimelineCoun
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &clip->paramManager);
 
 	if (modelStackWithThreeMainThings) {
+		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;
 
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
+		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
 
-		modelStackWithParam =
-		    midiInstrument->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+			modelStackWithParam =
+			    midiInstrument->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+		}
 	}
 
 	return modelStackWithParam;

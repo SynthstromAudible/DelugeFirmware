@@ -224,32 +224,26 @@ void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	ParamCollectionSummary* summary = nullptr;
+	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 
-	summary = paramManager->getUnpatchedParamSetSummary();
-
-	if (summary) {
 		ModelStackWithParamId* modelStackWithParamId =
 		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
-		if (modelStackWithParamId) {
-			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-		}
+
+		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 	}
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	ParamCollectionSummary* summary = nullptr;
+	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager->getPatchedParamSetSummary();
 
-	summary = paramManager->getPatchedParamSetSummary();
-
-	if (summary) {
 		ModelStackWithParamId* modelStackWithParamId =
 		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
-		if (modelStackWithParamId) {
-			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-		}
+
+		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 	}
 	return modelStackWithParam;
 }
