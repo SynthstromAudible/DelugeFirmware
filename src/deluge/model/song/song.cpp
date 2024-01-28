@@ -1348,7 +1348,8 @@ int32_t Song::readFromFile() {
 			}
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "model")) {
-					deluge::dsp::Reverb::Model model = static_cast<deluge::dsp::Reverb::Model>(storageManager.readTagOrAttributeValueInt());
+					deluge::dsp::Reverb::Model model =
+					    static_cast<deluge::dsp::Reverb::Model>(storageManager.readTagOrAttributeValueInt());
 					if (model == deluge::dsp::Reverb::Model::FREEVERB) {
 						AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 					}
