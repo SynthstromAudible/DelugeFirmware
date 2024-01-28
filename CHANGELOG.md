@@ -10,7 +10,8 @@
 ### User Interface
 
 - Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
-- Added `AUTOMATION VIEW` for Audio Clips.
+- Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
+- Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
 - Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
 - Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with Affect Entire enabled.
 - Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will automatically be set on the keyboard.
@@ -23,7 +24,7 @@
 In addition, a number of improvements have been made to how the OLED display is used:
 
 - Added parameter name to Mod (Gold) Encoder popups.
-- "ARRANGER VIEW" and "SONG VIEW" now display the name of the current view on the screen.
+- `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
 - Added a new community setting which allows emulating the old 7SEG style on the OLED display.
 - Fixed several cases where popups could get stuck open.
@@ -54,7 +55,7 @@ In addition, a number of improvements have been made to how the OLED display is 
 ### MIDI
 
 - Added `MIDI FOLLOW MODE` which causes MIDI data to be directed based on context.
-- Added MIDI feedback, so external MIDI controllers can be made aware of the state of the Deluge synth engine. Configurable via the new global `MIDI > MIDI-FOLLOW > FEEDBACK` menu.
+- Added `MIDI FEEDBACK`, so external MIDI controllers can be made aware of the state of the Deluge synth engine. Configurable via the new global `MIDI > MIDI-FOLLOW > FEEDBACK` menu.
 - Added Loopy Pro and TouchOsc templates for use with MIDI follow/MIDI feedback.
 - Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to the Deluge input.
 - Added support for learning Program Change methods to most global commands.
