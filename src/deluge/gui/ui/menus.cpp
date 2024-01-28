@@ -920,6 +920,36 @@ Submenu defaultUI{
     {&defaultUISession, &defaultUIKeyboard},
 };
 
+ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
+                                            STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
+                                            FlashStorage::automationInterpolate};
+
+ToggleBool defaultAutomationClearMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR,
+                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR, FlashStorage::automationClear};
+
+ToggleBool defaultAutomationShiftMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT,
+                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT, FlashStorage::automationShift};
+
+ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
+                                          STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
+                                          FlashStorage::automationNudgeNote};
+
+ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
+    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    FlashStorage::automationDisableAuditionPadShortcuts};
+
+Submenu defaultAutomationMenu{
+    STRING_FOR_AUTOMATION,
+    {
+        &defaultAutomationInterpolateMenu,
+        &defaultAutomationClearMenu,
+        &defaultAutomationShiftMenu,
+        &defaultAutomationNudgeNoteMenu,
+        &defaultAutomationDisableAuditionPadShortcutsMenu,
+    },
+};
+
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
 IntegerRange defaultSwingMenu{STRING_FOR_SWING, STRING_FOR_DEFAULT_SWING, 1, 99};
 KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
@@ -933,6 +963,7 @@ Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
         &defaultUI,
+        &defaultAutomationMenu,
         &defaultTempoMenu,
         &defaultSwingMenu,
         &defaultKeyMenu,

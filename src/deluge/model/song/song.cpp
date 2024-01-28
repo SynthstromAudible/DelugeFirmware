@@ -194,6 +194,14 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorSidechain = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
+	// initialize automation arranger view variables
+	lastSelectedParamID = kNoSelection;
+	lastSelectedParamKind = params::Kind::NONE;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
+	lastSelectedParamArrayPosition = 0;
+	// end initialize of automation arranger view variables
+
 	dirPath.set("SONGS");
 }
 
@@ -1201,6 +1209,14 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("midiLoopback", midiLoopback);
 
+	if (lastSelectedParamID != kNoSelection) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	}
+
 	globalEffectable.writeAttributesToFile(false);
 
 	storageManager
@@ -1616,6 +1632,31 @@ unknownTag:
 			else if (!strcmp(tagName, "midiLoopback")) {
 				midiLoopback = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("midiLoopback");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamID")) {
+				lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamID");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamKind")) {
+				lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
+				storageManager.exitTag("lastSelectedParamKind");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+				lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamShortcutX");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+				lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamShortcutY");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
 
 			else if (!strcmp(tagName, "songCompressor")) {

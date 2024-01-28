@@ -33,7 +33,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -89,19 +89,19 @@ constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsF
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
      colours::pastel::green.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
 }};
 
 constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerformance = {{
@@ -109,19 +109,19 @@ constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerfor
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
      colours::pastel::green.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_SOUND, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
 }};
 
 // mapping shortcuts to paramKind
@@ -131,17 +131,17 @@ constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeigh
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_SOUND,
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL,
      Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
      Kind::UNPATCHED_GLOBAL},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
      Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_SOUND, Kind::UNPATCHED_SOUND,
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL,
      Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
     {Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE,
@@ -160,7 +160,6 @@ constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHei
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING,
      kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    // XXX(sean,sapphire): is it correct to use the UNPATCHED_*PF_* constants here?
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_LPF_RES, UNPATCHED_LPF_FREQ},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_HPF_RES, UNPATCHED_HPF_FREQ},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_BASS, kNoParamID},
@@ -641,10 +640,6 @@ void PerformanceSessionView::setLedStates() {
 
 	// performanceView specific LED settings
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-
-	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-		indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
-	}
 }
 
 void PerformanceSessionView::setCentralLEDStates() {
@@ -1184,7 +1179,7 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 /// check if stutter is active and release it if it is
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		padReleaseAction(modelStack, params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
+		padReleaseAction(modelStack, params::Kind::UNPATCHED_GLOBAL, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
 		                 lastPadPress.xDisplay, false);
 	}
 }
@@ -1206,7 +1201,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 			// if switching to a new pad in the stutter column and stuttering is already active
 			// e.g. it means a pad was held before, end previous stutter before starting stutter again
-			if ((paramKind == params::Kind::UNPATCHED_SOUND)
+			if ((paramKind == params::Kind::UNPATCHED_GLOBAL)
 			    && (paramID == deluge::modulation::params::UNPATCHED_STUTTER_RATE)
 			    && (isUIModeActive(UI_MODE_STUTTERING))) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
@@ -1226,7 +1221,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
 			                                                          view.modPos, view.modLength);
 
-			if (!defaultEditingMode && (paramKind == params::Kind::UNPATCHED_SOUND)
+			if (!defaultEditingMode && (paramKind == params::Kind::UNPATCHED_GLOBAL)
 			    && (paramID == UNPATCHED_STUTTER_RATE) && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
@@ -1580,9 +1575,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
 
 	auto kind = layoutForPerformance[xDisplay].paramKind;
-	if (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND) {
-		// XXX(sapphire): this will break old presets if they had ARP_GATE or PORTAMENTO on a UNPATCHED_SOUND (this may
-		// not be a problem in practice)
+	if (kind == params::Kind::UNPATCHED_GLOBAL) {
 		paramName = params::paramNameForFile(kind, params::UNPATCHED_START + layoutForPerformance[xDisplay].paramID);
 	}
 	else {
