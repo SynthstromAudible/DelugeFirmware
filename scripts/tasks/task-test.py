@@ -5,19 +5,19 @@ import subprocess
 import sys
 import util
 
+
 def argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="test",
-        description="Run deluge tests"
-    )
+    parser = argparse.ArgumentParser(prog="test", description="Run deluge tests")
 
     return parser
+
 
 def cmake_build() -> int:
     cmake_args = ["cmake"]
     cmake_args += ["--build", "build/tests/"]
 
     return subprocess.run(cmake_args, env=os.environ).returncode
+
 
 def cmake_configure() -> int:
     cmake_args = ["cmake"]
@@ -26,6 +26,7 @@ def cmake_configure() -> int:
     cmake_args += ["-G", "Ninja Multi-Config"]  # generator
 
     return subprocess.run(cmake_args, env=os.environ).returncode
+
 
 def main() -> int:
     (args, unknown_args) = argparser().parse_known_args()
@@ -39,6 +40,6 @@ def main() -> int:
 
     return cmake_build()
 
-if __name__ == '__main__':
-    sys.exit(main())
 
+if __name__ == "__main__":
+    sys.exit(main())

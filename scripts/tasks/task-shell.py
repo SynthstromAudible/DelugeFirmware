@@ -31,7 +31,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    result = subprocess.run([get_shell()] + sys.argv[1:] , env=os.environ)
+    result = subprocess.run([get_shell()] + sys.argv[1:], env=os.environ)
     return result.returncode
 
 

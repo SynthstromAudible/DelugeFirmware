@@ -5,6 +5,7 @@ import sys
 import util
 import os
 
+
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scons",
@@ -17,16 +18,17 @@ def argparser() -> argparse.ArgumentParser:
 def main() -> int:
     scons_args = sys.argv[1:]
     if not scons_args:
-        scons_args = ['all']
-    
-    scons_args += ['--warn=target-not-built']
+        scons_args = ["all"]
 
-    if not os.environ.get('DBT_VERBOSE'):
-        scons_args += ['-Q']
+    scons_args += ["--warn=target-not-built"]
+
+    if not os.environ.get("DBT_VERBOSE"):
+        scons_args += ["-Q"]
 
     os.chdir(util.get_git_root())
-    result = subprocess.run(['scons'] + scons_args, env=os.environ)
+    result = subprocess.run(["scons"] + scons_args, env=os.environ)
     return result.returncode
+
 
 if __name__ == "__main__":
     main()

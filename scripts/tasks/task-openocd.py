@@ -7,6 +7,7 @@ import shutil
 import sys
 import os
 
+
 # Based on dbt_tools/openocd.py by litui
 class ExitCodes(Enum):
     """Exit Code Enum
@@ -21,6 +22,7 @@ class ExitCodes(Enum):
     COMMANDLINE_VALIDATION_FAILURE = 4
     OPENOCD_UNSUPPORTED_HARDWARE = 5
     OPENOCD_UNSUPPORTED_PROTOCOL = 6
+
 
 __OPENOCD_BIN = shutil.which("openocd")
 
