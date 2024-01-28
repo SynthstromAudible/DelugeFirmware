@@ -268,7 +268,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 		- Press `SONG` while in Automation Arranger View to exit back to Arranger View
 		- Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
 		- Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during playback
-		- Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > UI > AUTOMATION`
+		- Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > AUTOMATION`
 			* Automation (AUTO)
 				* Interpolation (INTE)
 					* When On, Interpolation is on by default in the Automation View.

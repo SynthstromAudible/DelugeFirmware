@@ -296,7 +296,7 @@ The Automation Editor **will not allow you to:**
 
 Described below are a couple of toggable enhancements that change existing behaviour in the Clip View but are of benefit to the user now that Automation's can be edited separately from the Arranger / Clip View.
 
-These default settings are found in the `Settings` Menu under `Defaults/UI/Automation/`.
+These default settings are found in the `Settings` Menu under `Defaults/Automation/`.
 
 ### Interpolation
 
@@ -314,7 +314,7 @@ With interpolation turned on it will sound like values are smoothly transitionin
 
 With interpolation turned off it will sound like a value is jumping from one value to the next.
 
-The default setting for Interpolation an be changed in the in the `Settings/Defaults/UI/Automation/Interpolate` menu.
+The default setting for Interpolation an be changed in the in the `Settings/Defaults/Automation/Interpolate` menu.
 
 ### Clearing Automation
 
@@ -328,7 +328,7 @@ Thus, this default setting clearly delineates this behaviour by changing the Arr
 
 Similarly, in the Automation View, clearing the arranagement or clearing the clip will only clear Automations, and not the Arranagement clips or Clip Notes.
 
-Through the `Settings/Defaults/UI/Automation/Clear` submenu, you can disable this change in behaviour and re-instate the original automation clearing behaviour by setting 'Clear' to "Disabled."
+Through the `Settings/Defaults/Automation/Clear` submenu, you can disable this change in behaviour and re-instate the original automation clearing behaviour by setting 'Clear' to "Disabled."
 
 > **Note:** for kit clips, clip clearing is delineated between clearing the kit level automations (when affect entire is on) and the kit row level automations (when affect entire is off).
 
@@ -344,7 +344,7 @@ This default setting will disable the shifting of Automations within the existin
 
 In the Automation View, functionality is provided to shift automations at the parameter level.
 
-Through the `Settings/Defaults/UI/Automation/Shift` submenu, you can disable this change in behaviour and re-instate the original automation shifting behaviour by setting 'Shift' to "Disabled."
+Through the `Settings/Defaults/Automation/Shift` submenu, you can disable this change in behaviour and re-instate the original automation shifting behaviour by setting 'Shift' to "Disabled."
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
@@ -356,7 +356,7 @@ This is not ideal as your goal may be to simply nudge the note and not the param
 
 This default setting addresses this by changing the behaviour to only nudge notes.
 
-Through the `Settings/Defaults/UI/Automation/Nudge Notes` submenu, you can disable this change in behaviour and re-instate the original nudge note behaviour by setting 'Nudge Notes' to "Disabled."
+Through the `Settings/Defaults/Automation/Nudge Notes` submenu, you can disable this change in behaviour and re-instate the original nudge note behaviour by setting 'Nudge Notes' to "Disabled."
 
 > **Note:** there is no Automation nudging functionality in the Automation Clip View. But you can shift the entire Automation sequence horizontally left/right or manually edit the automation.
 
@@ -368,7 +368,7 @@ Currently in the Instrument Clip View if you hold down an audition pad and press
 
 By default in the Automation Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
 
-Through the `Settings/Defaults/UI/Automation/Disable Audition Pad Shortcuts` submenu, you can disable this change in behaviour and re-instate the audition pad shortcuts by setting 'Disable Audition Pad Shortcuts' to "Disabled."
+Through the `Settings/Defaults/Automation/Disable Audition Pad Shortcuts` submenu, you can disable this change in behaviour and re-instate the audition pad shortcuts by setting 'Disable Audition Pad Shortcuts' to "Disabled."
 
 > **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
 
