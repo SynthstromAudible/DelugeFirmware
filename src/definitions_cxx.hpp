@@ -698,6 +698,7 @@ enum class ExistenceChangeType {
 };
 
 enum CCNumber {
+	CC_NUMBER_MOD_WHEEL = 1,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_Y_AXIS = 122,
