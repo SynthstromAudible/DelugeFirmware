@@ -207,6 +207,11 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
     
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
+#### 4.2.8 - Alternate Reverb Models
+- ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
+	- Freeverb (the original Deluge reverb)
+	- Mutable (an adapted version of the reverb found in Mutable Instruments' Rings module)
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -511,6 +516,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
+[#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
