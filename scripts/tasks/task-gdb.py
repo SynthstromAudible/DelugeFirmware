@@ -37,7 +37,7 @@ def main() -> int:
 
     elf_path = Path(scons_target) / f"Deluge-debug-{args.target}.elf"
 
-    gdbinit = Path(os.environ['DBT_DEBUG_DIR']) / "gdbinit"
+    gdbinit = Path(os.environ["DBT_DEBUG_DIR"]) / "gdbinit"
 
     result = subprocess.run(
         [

@@ -5,6 +5,7 @@ import shutil
 import util
 import os
 
+
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="nuke",
@@ -15,12 +16,13 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    build_dirs = util.get_git_root().glob('*build*')
+    build_dirs = util.get_git_root().glob("*build*")
     for dir in build_dirs:
-      print(f"Removing {dir}")
-      shutil.rmtree(dir, ignore_errors=True)
+        print(f"Removing {dir}")
+        shutil.rmtree(dir, ignore_errors=True)
 
     return 0
+
 
 if __name__ == "__main__":
     main()

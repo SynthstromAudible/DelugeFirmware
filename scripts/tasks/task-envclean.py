@@ -5,7 +5,8 @@ import argparse
 from pathlib import Path
 import shutil
 
-VERSION = Path('./toolchain/REQUIRED_VERSION').read_text().strip()
+VERSION = Path("./toolchain/REQUIRED_VERSION").read_text().strip()
+
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -21,12 +22,14 @@ def argparser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = argparser().parse_args()
-    toolchains = Path.cwd().glob('toolchain/v*/')
-    toolchains_to_delete = [path for path in toolchains if not str(path).endswith(VERSION)]
+    toolchains = Path.cwd().glob("toolchain/v*/")
+    toolchains_to_delete = [
+        path for path in toolchains if not str(path).endswith(VERSION)
+    ]
     for toolchain in toolchains_to_delete:
         print(f"Removing {toolchain.name}...")
         if not args.dry_run:
-          shutil.rmtree(toolchain)
+            shutil.rmtree(toolchain)
 
 
 if __name__ == "__main__":
