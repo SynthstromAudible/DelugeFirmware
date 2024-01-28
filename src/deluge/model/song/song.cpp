@@ -185,6 +185,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorVolume = getParamFromUserValue(params::STATIC_COMPRESSOR_VOLUME, -1);
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
+	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
 
 	masterCompressorAttack = 10 << 24;
 	masterCompressorRelease = 20 << 24;
@@ -1212,6 +1213,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("modeNotes");
 
 	storageManager.writeOpeningTagBeginning("reverb");
+	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
 	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
 	uint32_t dampening = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
 	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
@@ -1220,6 +1222,7 @@ weAreInArrangementEditorOrInClipInstance:
 	dampening = std::min(dampening, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
+	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeAttribute("roomSize", roomSize);
 	storageManager.writeAttribute("dampening", dampening);
 	storageManager.writeAttribute("width", width);
@@ -1329,6 +1332,11 @@ int32_t Song::readFromFile() {
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
+	// reverb mode
+	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P1P4_ALPHA) {
+		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+	}
+
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
@@ -1339,7 +1347,18 @@ int32_t Song::readFromFile() {
 				goto unknownTag;
 			}
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "roomSize")) {
+				if (!strcmp(tagName, "model")) {
+					deluge::dsp::Reverb::Model model =
+					    static_cast<deluge::dsp::Reverb::Model>(storageManager.readTagOrAttributeValueInt());
+					if (model == deluge::dsp::Reverb::Model::FREEVERB) {
+						AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+					}
+					else if (model == deluge::dsp::Reverb::Model::MUTABLE) {
+						AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+					}
+					storageManager.exitTag("model");
+				}
+				else if (!strcmp(tagName, "roomSize")) {
 					reverbRoomSize = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
 					storageManager.exitTag("roomSize");
 				}
