@@ -1199,9 +1199,9 @@ void View::setModLedStates() {
 	if (rootUI) {
 		uiType = rootUI->getUIType();
 	}
-	UISubType uiSubType = UISubType::NONE;
+	AutomationSubType automationSubType = AutomationSubType::NONE;
 	if (uiType == UIType::AUTOMATION_VIEW) {
-		uiSubType = automationView.getUISubType();
+		automationSubType = automationView.getAutomationSubType();
 	}
 
 	// here we will set a boolean flag to let the function know whether we are dealing with the Song context
@@ -1223,7 +1223,7 @@ void View::setModLedStates() {
 			break;
 
 		case UIType::AUTOMATION_VIEW:
-			if (uiSubType == UISubType::ARRANGER) {
+			if (automationSubType == AutomationSubType::ARRANGER) {
 				itsTheSong = true;
 			}
 			break;
@@ -1254,7 +1254,7 @@ void View::setModLedStates() {
 			affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			break;
 		case UIType::AUTOMATION_VIEW:
-			if (uiSubType == UISubType::INSTRUMENT) {
+			if (automationSubType == AutomationSubType::INSTRUMENT) {
 				affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			}
 			// if it's not an instrument clip, then it's an audio clip
@@ -1329,7 +1329,7 @@ void View::setModLedStates() {
 				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				break;
 			case UIType::AUTOMATION_VIEW:
-				if (uiSubType == UISubType::ARRANGER) {
+				if (automationSubType == AutomationSubType::ARRANGER) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
 				break;

@@ -292,7 +292,7 @@ enum class UIType : uint8_t {
 	NONE = 255,
 };
 
-enum class UISubType : uint8_t {
+enum class AutomationSubType : uint8_t {
 	ARRANGER,
 	INSTRUMENT,
 	AUDIO,

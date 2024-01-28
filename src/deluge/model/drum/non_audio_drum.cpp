@@ -58,7 +58,8 @@ int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack,
                                       uint8_t whichModEncoder) {
 
 	if ((getCurrentUI() == &instrumentClipView
-	     || (getCurrentUI() == &automationView && automationView.getUISubType() == UISubType::INSTRUMENT))
+	     || (getCurrentUI() == &automationView
+	         && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT))
 	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 0) {
 			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel, getNumChannels());

@@ -58,7 +58,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::AUTOMATION_VIEW; }
-	UISubType getUISubType();
+	AutomationSubType getAutomationSubType();
 
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

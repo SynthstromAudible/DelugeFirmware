@@ -114,7 +114,8 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 	NonAudioDrum::modEncoderAction(modelStack, offset, whichModEncoder);
 
 	if ((getCurrentUI() == &instrumentClipView
-	     || (getCurrentUI() == &automationView && automationView.getUISubType() == UISubType::INSTRUMENT))
+	     || (getCurrentUI() == &automationView
+	         && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT))
 	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 1) {
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);

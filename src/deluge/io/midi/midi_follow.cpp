@@ -136,7 +136,7 @@ Clip* getSelectedClip(bool useActiveClip) {
 		// if you're in performance view, no clip will be selected for param control
 		break;
 	case UIType::AUTOMATION_VIEW:
-		if (automationView.getUISubType() == UISubType::ARRANGER) {
+		if (automationView.getAutomationSubType() == AutomationSubType::ARRANGER) {
 			// if you're in arranger automation view, no clip will be selected for param control
 			break;
 		}
