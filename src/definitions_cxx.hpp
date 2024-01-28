@@ -270,6 +270,35 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 constexpr size_t kFilenameBufferSize = 256;
 
+enum class UIType : uint8_t {
+	ARRANGER_VIEW,
+	SESSION_VIEW,
+	INSTRUMENT_CLIP_VIEW,
+	AUDIO_CLIP_VIEW,
+	KEYBOARD_SCREEN,
+	AUTOMATION_VIEW,
+	PERFORMANCE_SESSION_VIEW,
+	TIMELINE_VIEW,
+	BROWSER,
+	CONTEXT_MENU,
+	LOAD_SONG,
+	LOAD_INSTRUMENT_PRESET,
+	RENAME_OUTPUT,
+	RENAME_DRUM,
+	AUDIO_RECORDER,
+	SOUND_EDITOR,
+	SAMPLE_MARKER_EDITOR,
+	SLICER,
+	NONE = 255,
+};
+
+enum class AutomationSubType : uint8_t {
+	ARRANGER,
+	INSTRUMENT,
+	AUDIO,
+	NONE = 255,
+};
+
 enum class OutputType : uint8_t {
 	SYNTH,
 	KIT,

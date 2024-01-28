@@ -28,7 +28,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -174,7 +174,13 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (currentUIMode == UI_MODE_NONE) {
-				goToSongView();
+				if (Buttons::isShiftButtonPressed()) {
+					automationView.onArrangerView = true;
+					changeRootUI(&automationView);
+				}
+				else {
+					goToSongView();
+				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 				moveClipToSession();
@@ -390,9 +396,13 @@ void ArrangerView::clearArrangement() {
 
 	Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	currentSong->paramManager.deleteAllAutomation(action, modelStack);
+	// if this setting is on, clearing of automation is restricted to automation view
+	if (!FlashStorage::automationClear) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		currentSong->paramManager.deleteAllAutomation(action, modelStack);
+	}
 
 	// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated to
 	// improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes the
@@ -795,7 +805,7 @@ displayError:
 	return newInstrument;
 }
 
-void ArrangerView::auditionPadAction(bool on, int32_t y) {
+void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
 
 	int32_t note = (currentSong->rootNote + 120) % 12;
 	note += 60;
@@ -812,7 +822,7 @@ void ArrangerView::auditionPadAction(bool on, int32_t y) {
 
 			currentUIMode = UI_MODE_NONE;
 
-			uiNeedsRendering(this, 0x00000000, 0xFFFFFFFF);
+			uiNeedsRendering(ui, 0x00000000, 0xFFFFFFFF);
 
 			goto doNewPress;
 		}
@@ -867,14 +877,14 @@ doNewPress:
 				                                                    output->getParamManager(currentSong));
 			}
 
-			uiNeedsRendering(this, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
 		}
 	}
 
 	// Release press
 	else {
 		if (y == yPressedActual) {
-			exitSubModeWithoutAction();
+			exitSubModeWithoutAction(ui);
 		}
 	}
 }
@@ -883,11 +893,21 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
+	if (getRootUI() == &automationView) {
+		if (!automationView.isOnAutomationOverview()) {
+			automationView.displayAutomation(true, !display->have7SEG());
+		}
+		else {
+			automationView.renderDisplay();
+		}
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			sessionView.redrawNumericDisplay();
+		}
 	}
 
 	view.setActiveModControllableTimelineCounter(currentSong);
@@ -899,194 +919,208 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	Output* output = outputsOnScreen[y];
-
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
-		switch (currentUIMode) {
-		case UI_MODE_MIDI_LEARN:
-			if (output) {
-				if (output->type == OutputType::AUDIO) {
-					if (velocity) {
-						view.endMIDILearn();
-						context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
-						context_menu::audioInputSelector.setupAndCheckAvailability();
-						openUI(&context_menu::audioInputSelector);
-					}
-				}
-				else if (output->type == OutputType::KIT) {
-					if (velocity) {
-						display->displayPopup(deluge::l10n::get(
-						    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
-					}
-				}
-				else {
-					view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
-				}
-			}
-			break;
-
-		default:
-			auditionPadAction(velocity, y);
-			break;
-		}
+		return handleAuditionPadAction(y, velocity, this);
 	}
 
 	// Status pad
 	else if (x == kDisplayWidth) {
-
-		if (!output) {
-			return ActionResult::DEALT_WITH;
-		}
-
-		if (velocity) {
-			uint32_t rowsToRedraw = 1 << y;
-
-			switch (currentUIMode) {
-			case UI_MODE_VIEWING_RECORD_ARMING:
-				output->armedForRecording = !output->armedForRecording;
-				PadLEDs::reassessGreyout(true);
-				return ActionResult::DEALT_WITH; // No need to draw anything
-
-#ifdef soloButtonX
-			case UI_MODE_SOLO_BUTTON_HELD:
-#else
-			case UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON:
-#endif // Soloing
-				if (!output->soloingInArrangementMode) {
-
-					if (arrangement.hasPlaybackActive()) {
-
-						// If other Instruments were already soloing, or if they weren't but this instrument was muted,
-						// we'll need to tell it to start playing
-						if (currentSong->getAnyOutputsSoloingInArrangement() || output->mutedInArrangementMode) {
-							outputActivated(output);
-						}
-					}
-
-					// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
-					// deactivated
-					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-						for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
-								outputDeactivated(thisOutput);
-							}
-						}
-					}
-
-					// If no other soloing previously...
-					if (!currentSong->anyOutputsSoloingInArrangement) {
-						currentSong->anyOutputsSoloingInArrangement = true;
-						rowsToRedraw = 0xFFFFFFFF; // Redraw other mute pads
-					}
-
-					output->soloingInArrangementMode = true;
-				}
-
-				// Unsoloing
-				else {
-doUnsolo:
-					output->soloingInArrangementMode = false;
-					currentSong->reassessWhetherAnyOutputsSoloingInArrangement();
-
-					// If no more soloing, redraw other mute pads
-					if (!currentSong->anyOutputsSoloingInArrangement) {
-						rowsToRedraw = 0xFFFFFFFF;
-					}
-
-					// If any other Instruments still soloing, or if we're "muted", deactivate us
-					if (currentSong->getAnyOutputsSoloingInArrangement() || output->mutedInArrangementMode) {
-						outputDeactivated(output);
-					}
-
-					if (arrangement.hasPlaybackActive()) {
-
-						// If no other Instruments still soloing, re-activate all the other ones
-						if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-							for (Output* thisOutput = currentSong->firstOutput; thisOutput;
-							     thisOutput = thisOutput->next) {
-								if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
-									outputActivated(thisOutput);
-								}
-							}
-						}
-					}
-				}
-				break;
-
-			case UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION:
-				// If it's the mute pad for the same row we're auditioning, don't do anything. User might be
-				// subconsciously repeating the "drag row" action for Kits in InstrumentClipView.
-				if (y == yPressedEffective) {
-					break;
-				}
-				goto regularMutePadPress; // Otherwise, do normal.
-
-			case UI_MODE_NONE:
-				// If the user was just quick and is actually holding the record button but the submode just hasn't
-				// changed yet...
-				if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-					output->armedForRecording = !output->armedForRecording;
-					timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
-					return ActionResult::DEALT_WITH; // No need to draw anything
-				}
-				// No break
-
-			case UI_MODE_HOLDING_ARRANGEMENT_ROW:
-regularMutePadPress:
-				// If it's soloing, unsolo.
-				if (output->soloingInArrangementMode) {
-					goto doUnsolo;
-				}
-
-				// Unmuting
-				if (output->mutedInArrangementMode) {
-					output->mutedInArrangementMode = false;
-					if (arrangement.hasPlaybackActive() && !currentSong->getAnyOutputsSoloingInArrangement()) {
-						outputActivated(output);
-					}
-				}
-
-				// Muting
-				else {
-					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
-						outputDeactivated(output);
-					}
-					output->mutedInArrangementMode = true;
-				}
-				break;
-			}
-
-			uiNeedsRendering(this, 0, rowsToRedraw);
-			mustRedrawTickSquares = true;
-		}
+		return handleStatusPadAction(y, velocity, this);
 	}
 
 	// Edit pad
 	else {
-		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-			if (velocity) {
+		return handleEditPadAction(x, y, velocity);
+	}
+}
 
-				// NAME shortcut
-				if (x == 11 && y == 5) {
-					Output* output = outputsOnScreen[yPressedEffective];
-					if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
-						endAudition(output);
-						currentUIMode = UI_MODE_NONE;
-						renameOutputUI.output = output;
-						openUI(&renameOutputUI);
-						uiNeedsRendering(this, 0, 0xFFFFFFFF); // Stop audition pad being illuminated
-					}
+ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t velocity) {
+	Output* output = outputsOnScreen[y];
+
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+		if (velocity) {
+			// NAME shortcut
+			if (x == 11 && y == 5) {
+				Output* output = outputsOnScreen[yPressedEffective];
+				if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
+					endAudition(output);
+					currentUIMode = UI_MODE_NONE;
+					renameOutputUI.output = output;
+					openUI(&renameOutputUI);
+					uiNeedsRendering(this, 0, 0xFFFFFFFF); // Stop audition pad being illuminated
 				}
 			}
 		}
-		else {
-			if (output) {
-				editPadAction(x, y, velocity);
-			}
+	}
+	else {
+		if (output) {
+			editPadAction(x, y, velocity);
 		}
 	}
+	return ActionResult::DEALT_WITH;
+}
 
+ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI* ui) {
+	Output* output = outputsOnScreen[y];
+
+	if (!output) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	if (velocity) {
+		uint32_t rowsToRedraw = 1 << y;
+
+		switch (currentUIMode) {
+		case UI_MODE_VIEWING_RECORD_ARMING:
+			output->armedForRecording = !output->armedForRecording;
+			PadLEDs::reassessGreyout(true);
+			return ActionResult::DEALT_WITH; // No need to draw anything
+
+#ifdef soloButtonX
+		case UI_MODE_SOLO_BUTTON_HELD:
+#else
+		case UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON:
+#endif // Soloing
+			if (!output->soloingInArrangementMode) {
+
+				if (arrangement.hasPlaybackActive()) {
+
+					// If other Instruments were already soloing, or if they weren't but this instrument was muted,
+					// we'll need to tell it to start playing
+					if (currentSong->getAnyOutputsSoloingInArrangement() || output->mutedInArrangementMode) {
+						outputActivated(output);
+					}
+				}
+
+				// If we're the first Instrument to be soloing, need to tell others they've been inadvertedly
+				// deactivated
+				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
+					for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+						if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
+							outputDeactivated(thisOutput);
+						}
+					}
+				}
+
+				// If no other soloing previously...
+				if (!currentSong->anyOutputsSoloingInArrangement) {
+					currentSong->anyOutputsSoloingInArrangement = true;
+					rowsToRedraw = 0xFFFFFFFF; // Redraw other mute pads
+				}
+
+				output->soloingInArrangementMode = true;
+			}
+
+			// Unsoloing
+			else {
+doUnsolo:
+				output->soloingInArrangementMode = false;
+				currentSong->reassessWhetherAnyOutputsSoloingInArrangement();
+
+				// If no more soloing, redraw other mute pads
+				if (!currentSong->anyOutputsSoloingInArrangement) {
+					rowsToRedraw = 0xFFFFFFFF;
+				}
+
+				// If any other Instruments still soloing, or if we're "muted", deactivate us
+				if (currentSong->getAnyOutputsSoloingInArrangement() || output->mutedInArrangementMode) {
+					outputDeactivated(output);
+				}
+
+				if (arrangement.hasPlaybackActive()) {
+
+					// If no other Instruments still soloing, re-activate all the other ones
+					if (!currentSong->getAnyOutputsSoloingInArrangement()) {
+						for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+							if (thisOutput != output && !thisOutput->mutedInArrangementMode) {
+								outputActivated(thisOutput);
+							}
+						}
+					}
+				}
+			}
+			break;
+
+		case UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION:
+			// If it's the mute pad for the same row we're auditioning, don't do anything. User might be subconsciously
+			// repeating the "drag row" action for Kits in InstrumentClipView.
+			if (y == yPressedEffective) {
+				break;
+			}
+			goto regularMutePadPress; // Otherwise, do normal.
+
+		case UI_MODE_NONE:
+			// If the user was just quick and is actually holding the record button but the submode just hasn't changed
+			// yet...
+			if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+				output->armedForRecording = !output->armedForRecording;
+				timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
+				return ActionResult::DEALT_WITH; // No need to draw anything
+			}
+			// No break
+
+		case UI_MODE_HOLDING_ARRANGEMENT_ROW:
+regularMutePadPress:
+			// If it's soloing, unsolo.
+			if (output->soloingInArrangementMode) {
+				goto doUnsolo;
+			}
+
+			// Unmuting
+			if (output->mutedInArrangementMode) {
+				output->mutedInArrangementMode = false;
+				if (arrangement.hasPlaybackActive() && !currentSong->getAnyOutputsSoloingInArrangement()) {
+					outputActivated(output);
+				}
+			}
+
+			// Muting
+			else {
+				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
+					outputDeactivated(output);
+				}
+				output->mutedInArrangementMode = true;
+			}
+			break;
+		}
+
+		uiNeedsRendering(ui, 0, rowsToRedraw);
+		mustRedrawTickSquares = true;
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui) {
+	Output* output = outputsOnScreen[y];
+
+	switch (currentUIMode) {
+	case UI_MODE_MIDI_LEARN:
+		if (output) {
+			if (output->type == OutputType::AUDIO) {
+				if (velocity) {
+					view.endMIDILearn();
+					context_menu::audioInputSelector.audioOutput = (AudioOutput*)output;
+					context_menu::audioInputSelector.setupAndCheckAvailability();
+					openUI(&context_menu::audioInputSelector);
+				}
+			}
+			else if (output->type == OutputType::KIT) {
+				if (velocity) {
+					display->displayPopup(deluge::l10n::get(
+					    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
+				}
+			}
+			else {
+				view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+			}
+		}
+		break;
+
+	default:
+		auditionPadAction(velocity, y, ui);
+		break;
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -1602,7 +1636,12 @@ justGetOut:
 }
 
 // Only call if this is the currentUI. May be called during audio / playback routine
-void ArrangerView::exitSubModeWithoutAction() {
+// exception: this will be called when using the audition pad in arranger automation view
+// in this exceptional case, the UI for automation view is passed so that the audition pad can be redrawn
+void ArrangerView::exitSubModeWithoutAction(UI* ui) {
+	if (ui == nullptr) {
+		ui = this;
+	}
 
 	// First, stop any stuttering. This may then put us back in one of the subModes dealt with below
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
@@ -1617,7 +1656,7 @@ void ArrangerView::exitSubModeWithoutAction() {
 		if (output) {
 			endAudition(output);
 			auditionEnded();
-			uiNeedsRendering(this, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
 		}
 	}
 
@@ -1633,7 +1672,7 @@ void ArrangerView::exitSubModeWithoutAction() {
 		else {
 			whichRowsNeedReRendering = 0xFFFFFFFF;
 		}
-		uiNeedsRendering(this, whichRowsNeedReRendering, 0);
+		uiNeedsRendering(ui, whichRowsNeedReRendering, 0);
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 		actionLogger.closeAction(ActionType::CLIP_INSTANCE_EDIT);
 	}
@@ -1685,7 +1724,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			instrumentClipView.recalculateColours();
 		}
 
-		automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+		automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 	}
 	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
@@ -1768,7 +1807,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1807,7 +1846,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -1854,7 +1893,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
 		PadLEDs::clearSideBar();
 	}
 
@@ -2606,33 +2645,36 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 				}
 
-				ParamCollectionSummary* unpatchedParamsSummary =
-				    currentSong->paramManager.getUnpatchedParamSetSummary();
-				UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
+				// if this setting is on, shifting of automation is restricted to automation view
+				if (!FlashStorage::automationShift) {
+					ParamCollectionSummary* unpatchedParamsSummary =
+					    currentSong->paramManager.getUnpatchedParamSetSummary();
+					UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithParamCollection* modelStackWithUnpatchedParams =
-				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory)
-				        ->addParamCollection(unpatchedParams, unpatchedParamsSummary);
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithParamCollection* modelStackWithUnpatchedParams =
+					    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory)
+					        ->addParamCollection(unpatchedParams, unpatchedParamsSummary);
 
-				if (offset >= 0) {
-					void* consMemory =
-					    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
-					if (consMemory) {
-						ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
-						    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-						                                          scrollAmount);
-						action->addConsequence(consequence);
+					if (offset >= 0) {
+						void* consMemory =
+						    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
+						if (consMemory) {
+							ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
+							    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
+							                                          scrollAmount);
+							action->addConsequence(consequence);
+						}
+						unpatchedParams->insertTime(modelStackWithUnpatchedParams,
+						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], scrollAmount);
 					}
-					unpatchedParams->insertTime(modelStackWithUnpatchedParams,
-					                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], scrollAmount);
-				}
-				else {
-					if (action) {
-						unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
+					else {
+						if (action) {
+							unpatchedParams->backUpAllAutomatedParamsToAction(action, modelStackWithUnpatchedParams);
+						}
+						unpatchedParams->deleteTime(modelStackWithUnpatchedParams,
+						                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], -scrollAmount);
 					}
-					unpatchedParams->deleteTime(modelStackWithUnpatchedParams,
-					                            currentSong->xScroll[NAVIGATION_ARRANGEMENT], -scrollAmount);
 				}
 
 				for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2895,6 +2937,8 @@ static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_
                                              UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM, 0};
 
 void ArrangerView::graphicsRoutine() {
+	UI* ui = getCurrentUI();
+
 	static int counter = 0;
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
@@ -2952,7 +2996,7 @@ void ArrangerView::graphicsRoutine() {
 						mustRedrawTickSquares = true; // Make sure this gets sent below here
 					}
 					if (currentUIMode != UI_MODE_HORIZONTAL_ZOOM) {
-						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						uiNeedsRendering(ui, 0xFFFFFFFF, 0);
 					}
 				}
 			}
@@ -2984,7 +3028,7 @@ void ArrangerView::graphicsRoutine() {
 
 					// If linear recording to this Output, re-render it
 					if (output->recordingInArrangement) {
-						uiNeedsRendering(this, (1 << yDisplay), 0);
+						uiNeedsRendering(ui, (1 << yDisplay), 0);
 					}
 				}
 			}

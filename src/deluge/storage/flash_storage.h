@@ -47,10 +47,18 @@ extern GridDefaultActiveMode defaultGridActiveMode;
 
 extern uint8_t defaultMetronomeVolume;
 
+extern bool automationInterpolate;
+extern bool automationClear;
+extern bool automationShift;
+extern bool automationNudgeNote;
+extern bool automationDisableAuditionPadShortcuts;
+
 void readSettings();
 void writeSettings();
 void resetSettings();
 void resetMidiFollowSettings();
+void resetAutomationSettings();
 bool areMidiFollowSettingsValid(uint8_t* buffer);
+bool areAutomationSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage

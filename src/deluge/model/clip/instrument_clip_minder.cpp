@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -291,7 +291,7 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
 
 	// cross screen editing doesn't currently work in automation view, so don't light it up
-	if (getCurrentUI() != &automationClipView) {
+	if (getCurrentUI() != &automationView) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
 	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentInstrumentClip()->isScaleModeClip());
@@ -411,11 +411,10 @@ yesLoadInstrument:
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
-			    == RuntimeFeatureStateToggle::On) {
-				if (getCurrentUI() == &automationClipView) {
+			if (FlashStorage::automationClear) {
+				if (getCurrentUI() == &automationView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &instrumentClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
@@ -427,9 +426,9 @@ yesLoadInstrument:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
-				else if (getCurrentUI() == &automationClipView) {
+				else if (getCurrentUI() == &automationView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
-					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 				}
 			}
 		}

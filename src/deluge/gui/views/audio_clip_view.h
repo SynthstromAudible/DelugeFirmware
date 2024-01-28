@@ -53,6 +53,9 @@ public:
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
+	// ui
+	UIType getUIType() { return UIType::AUDIO_CLIP_VIEW; }
+
 private:
 	void needsRenderingDependingOnSubMode();
 	int32_t lastTickSquare;

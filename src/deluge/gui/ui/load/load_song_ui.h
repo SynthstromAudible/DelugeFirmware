@@ -36,6 +36,9 @@ public:
 
 	bool deletedPartsOfOldSong;
 
+	// ui
+	UIType getUIType() { return UIType::LOAD_SONG; }
+
 protected:
 	void displayText(bool blinkImmediately = false);
 	void enterKeyPress();

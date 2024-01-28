@@ -65,6 +65,9 @@ public:
 	void graphicsRoutine() override;
 	ActionResult timerCallback() override;
 
+	// ui
+	UIType getUIType() { return UIType::PERFORMANCE_SESSION_VIEW; }
+
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;

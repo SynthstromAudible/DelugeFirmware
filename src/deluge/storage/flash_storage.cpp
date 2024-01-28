@@ -134,6 +134,11 @@ namespace FlashStorage {
 146: gridEmptyPadsCreateRec
 147: midi select kit row on learned note message received
 148: default scale (NEW)
+149: automationInterpolate;
+150: automationClear;
+151: automationShift;
+152: automationNudgeNote;
+153: automationDisableAuditionPadShortcuts;
 */
 
 uint8_t defaultScale;
@@ -159,6 +164,12 @@ bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
 uint8_t defaultMetronomeVolume;
+
+bool automationInterpolate = true;
+bool automationClear = true;
+bool automationShift = true;
+bool automationNudgeNote = true;
+bool automationDisableAuditionPadShortcuts = true;
 
 void resetSettings() {
 
@@ -235,6 +246,8 @@ void resetSettings() {
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
+
+	resetAutomationSettings();
 }
 
 void resetMidiFollowSettings() {
@@ -246,6 +259,14 @@ void resetMidiFollowSettings() {
 	midiEngine.midiFollowDisplayParam = false;
 	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiFollowFeedbackFilter = false;
+}
+
+void resetAutomationSettings() {
+	automationInterpolate = true;
+	automationClear = true;
+	automationShift = true;
+	automationNudgeNote = true;
+	automationDisableAuditionPadShortcuts = true;
 }
 
 void readSettings() {
@@ -524,6 +545,22 @@ void readSettings() {
 	gridEmptyPadsCreateRec = buffer[146];
 
 	midiEngine.midiSelectKitRow = buffer[147];
+
+	if (previouslySavedByFirmwareVersion < FIRMWARE_4P1P4_ALPHA) {
+		resetAutomationSettings();
+	}
+	else {
+		if (areAutomationSettingsValid(buffer)) {
+			automationInterpolate = buffer[149];
+			automationClear = buffer[150];
+			automationShift = buffer[151];
+			automationNudgeNote = buffer[152];
+			automationDisableAuditionPadShortcuts = buffer[153];
+		}
+		else {
+			resetAutomationSettings();
+		}
+	}
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -560,6 +597,31 @@ bool areMidiFollowSettingsValid(uint8_t* buffer) {
 		return false;
 	}
 	// place holder for checking if midi follow devices are valid
+	return true;
+}
+
+bool areAutomationSettingsValid(uint8_t* buffer) {
+	// automationInterpolate
+	if (buffer[149] != false && buffer[149] != true) {
+		return false;
+	}
+	// automationClear
+	else if (buffer[150] != false && buffer[150] != true) {
+		return false;
+	}
+	// automationShift
+	else if (buffer[151] != false && buffer[151] != true) {
+		return false;
+	}
+	// automationNudgeNote
+	else if (buffer[152] != false && buffer[152] != true) {
+		return false;
+	}
+	// automationDisableAuditionPadShortcuts
+	else if (buffer[153] != false && buffer[153] != true) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -689,6 +751,12 @@ void writeSettings() {
 	buffer[146] = gridEmptyPadsCreateRec;
 
 	buffer[147] = midiEngine.midiSelectKitRow;
+
+	buffer[149] = automationInterpolate;
+	buffer[150] = automationClear;
+	buffer[151] = automationShift;
+	buffer[152] = automationNudgeNote;
+	buffer[153] = automationDisableAuditionPadShortcuts;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

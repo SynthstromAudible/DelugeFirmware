@@ -304,22 +304,22 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
 /// used in automation view and in midi follow
 // clang-format off
 const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {UNPATCHED_VOLUME    , UNPATCHED_PITCH_ADJUST, kNoParamID                , UNPATCHED_PAN               , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
-    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
-    {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID, kNoParamID, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID, kNoParamID, kNoParamID            , kNoParamID}};
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , UNPATCHED_STUTTER_RATE},
+    {UNPATCHED_VOLUME    , UNPATCHED_PITCH_ADJUST, kNoParamID                , UNPATCHED_PAN               , kNoParamID				   , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
+    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_COMPRESSOR_SHAPE, kNoParamID			   		 	, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
+    {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
+    {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID				   , kNoParamID			  		 	, kNoParamID            , kNoParamID},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID}};
 // clang-format on
 
 } // namespace deluge::modulation::params

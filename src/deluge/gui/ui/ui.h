@@ -139,6 +139,8 @@ public:
 
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
+
+	virtual UIType getUIType() = 0;
 };
 
 // UIs

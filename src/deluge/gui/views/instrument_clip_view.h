@@ -151,8 +151,8 @@ public:
 	bool getAffectEntire();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
-	void copyAutomation(int32_t whichModEncoder);
-	void pasteAutomation(int32_t whichModEncoder);
+	void copyAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
+	void pasteAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	// made these public so they can be accessed by the automation clip view
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
@@ -187,6 +187,9 @@ public:
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	// made these public so they can be accessed by the automation clip view
+
+	// ui
+	UIType getUIType() { return UIType::INSTRUMENT_CLIP_VIEW; }
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;

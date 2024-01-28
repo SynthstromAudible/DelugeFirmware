@@ -18,7 +18,7 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -1221,8 +1221,9 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
 
-				if (getCurrentUI() == &automationClipView) {
-					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+				if (getCurrentUI() == &automationView
+				    && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT) {
+					uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 				}
 				else {
 					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
