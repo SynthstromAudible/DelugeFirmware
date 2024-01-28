@@ -4,6 +4,7 @@
 		"editorconfig.editorconfig",
 		"xaver.clang-format",
 		"marus25.cortex-debug",
-		"webfreak.advanced-local-formatters"
+		"webfreak.advanced-local-formatters",
+		"llvm-vs-code-extensions.vscode-clangd",
 	]
 }
