@@ -64,9 +64,11 @@ def main() -> int:
     if args.tag_metadata:
         configure_args = []
         if args.type:
-            configure_args += ['-t', args.type]
+            configure_args += ["-t", args.type]
         # configure with tagging
-        result = importlib.import_module("task-configure").main(["-m"] + configure_args + unknown_args)
+        result = importlib.import_module("task-configure").main(
+            ["-m"] + configure_args + unknown_args
+        )
         if result != 0:
             return result
 
@@ -79,7 +81,7 @@ def main() -> int:
     build_args += ["--build", "build"]
     build_args += ["--target", "deluge"]
 
-    if args.config and args.config != 'all':
+    if args.config and args.config != "all":
         config = BUILD_CONFIGS[args.config]
         build_args += ["--config", config]
 

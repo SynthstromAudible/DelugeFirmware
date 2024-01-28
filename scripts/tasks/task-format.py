@@ -15,6 +15,7 @@ EXEC_EXT = ".exe" if os.name == "nt" else ""
 
 DBT_VERSION = util.get_dbt_version()
 
+
 def excludes_from_file(ignore_file):
     excludes = []
     try:
@@ -43,7 +44,7 @@ def exclude(files, excludes):
 
 
 def get_clang_format_cmd():
-    tool_path = util.get_git_root() / 'toolchain' / f'v{DBT_VERSION}'
+    tool_path = util.get_git_root() / "toolchain" / f"v{DBT_VERSION}"
     for path in tool_path.rglob(f"clang-format{EXEC_EXT}"):
         os.environ["PATH"] += os.pathsep + str(path.parent.absolute())
         return path
