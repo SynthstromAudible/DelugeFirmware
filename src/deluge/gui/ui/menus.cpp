@@ -915,6 +915,11 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
+Submenu defaultUI{
+    STRING_FOR_DEFAULT_UI,
+    {&defaultUISession, &defaultUIKeyboard},
+};
+
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
                                             STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
                                             FlashStorage::automationInterpolate};
@@ -934,7 +939,7 @@ ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
     STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
     FlashStorage::automationDisableAuditionPadShortcuts};
 
-Submenu defaultUIAutomation{
+Submenu defaultAutomationMenu{
     STRING_FOR_AUTOMATION,
     {
         &defaultAutomationInterpolateMenu,
@@ -943,11 +948,6 @@ Submenu defaultUIAutomation{
         &defaultAutomationNudgeNoteMenu,
         &defaultAutomationDisableAuditionPadShortcutsMenu,
     },
-};
-
-Submenu defaultUI{
-    STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard, &defaultUIAutomation},
 };
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
@@ -963,6 +963,7 @@ Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
         &defaultUI,
+        &defaultAutomationMenu,
         &defaultTempoMenu,
         &defaultSwingMenu,
         &defaultKeyMenu,

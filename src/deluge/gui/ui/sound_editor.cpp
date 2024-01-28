@@ -1277,7 +1277,7 @@ doMIDIOrCV:
 		}
 		else {
 			if (getCurrentUI() == &automationView) {
-				newItem = &defaultUIAutomation;
+				newItem = &defaultAutomationMenu;
 			}
 			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
