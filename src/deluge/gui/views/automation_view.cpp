@@ -3089,7 +3089,7 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 }
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
-void AutomationClipView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
+void AutomationView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
 	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
