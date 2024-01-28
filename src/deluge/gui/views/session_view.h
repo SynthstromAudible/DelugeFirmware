@@ -114,6 +114,9 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 
 private:
 	void renderViewDisplay(char const* viewString);
@@ -145,7 +148,6 @@ private:
 
 	RGB gridRenderClipColor(Clip* clip);
 
-	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);

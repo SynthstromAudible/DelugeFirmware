@@ -1004,6 +1004,18 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
 
+// mapping of grid modes to y axis
+enum GridMode : uint8_t {
+	PINK,
+	Unassigned1,
+	Unassigned2,
+	Unassigned3,
+	Unassigned4,
+	Unassigned5,
+	BLUE,
+	GREEN,
+};
+
 enum class ClipType {
 	INSTRUMENT,
 	AUDIO,
