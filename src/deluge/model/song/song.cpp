@@ -1331,6 +1331,11 @@ int32_t Song::readFromFile() {
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
+	// reverb mode
+	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P1P4_ALPHA) {
+		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+	}
+
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
