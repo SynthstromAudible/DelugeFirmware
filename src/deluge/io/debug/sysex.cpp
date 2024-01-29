@@ -147,13 +147,13 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
 
+	uint32_t pad = (18 * 8 * pos) / load_bufsize;
+	uint8_t col = pad % 18;
+	uint8_t row = pad / 18;
+	PadLEDs::image[row][col][0] = (255 / 7) * row;
+	PadLEDs::image[row][col][1] = 0;
+	PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
 	if ((pos / 512) % 16 == 0) {
-		uint32_t pad = (18 * 8 * pos) / load_bufsize;
-		uint8_t col = pad % 18;
-		uint8_t row = pad / 18;
-		PadLEDs::image[row][col][0] = (255 / 7) * row;
-		PadLEDs::image[row][col][1] = 0;
-		PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();
 	}
