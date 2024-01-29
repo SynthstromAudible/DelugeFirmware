@@ -23,7 +23,11 @@ def argparser():
         exit_on_error=True,
     )
     parser.group = "Development"
-    parser.add_argument("port_number", help="MIDI port number (example: 123) use 'dbt loadfw -h' to list available ports", type=int)
+    parser.add_argument(
+        "port_number",
+        help="MIDI port number (example: 123) use 'dbt loadfw -h' to list available ports",
+        type=int,
+    )
     parser.add_argument("hex_key", help="8-digit Deluge Hex Key (example 1234abcd)")
     parser.add_argument(
         "firmware_file",
