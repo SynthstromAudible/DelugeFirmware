@@ -6,5 +6,6 @@
 		"marus25.cortex-debug",
 		"webfreak.advanced-local-formatters",
 		"llvm-vs-code-extensions.vscode-clangd",
+		"ms-python.black-formatter",
 	]
 }
