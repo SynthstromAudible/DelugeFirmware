@@ -54,7 +54,7 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
 		lastMonoExpression[i] = 0;
 		lastCombinedPolyExpression[i] = 0;
 	}
-	//set to max negative so that it works as 0 when combined to mono mod
+	// set to max negative so that it works as 0 when combined to mono mod
 	lastCombinedPolyExpression[Y_SLIDE_TIMBRE] = NEGATIVE_ONE_Q31;
 	collapseAftertouch = false;
 	collapseMPE = true;
