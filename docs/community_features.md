@@ -364,7 +364,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
  - ([#805]) If you hold down the audition pad(s) while pressing the shortcut to "copy notes", only the auditioned rows will be copied. If you were to normally paste these rows, no behavior is changed from the current implementation. It's exactly the same result as deleting the notes on any rows you didn't have held down before copying.
 
  #### 4.5.5 - Paste gently
- - ([#805]) Shift+Cross+X_ENC will paste any notes on the clipboard _over_ the existing notes i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes. Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting. 
+ - ([#805]) Pressing `SHIFT` + `CROSS SCREEN` + `◀︎▶︎` will paste any notes on the clipboard _over_ the existing notes i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes. Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting. 
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
