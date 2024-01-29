@@ -138,7 +138,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
-		if (getCurrentClip()) {
+		if (getSelectedClip()) {
 			// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
 			popupMsg.append("Sidechain: ");
 			if (compressor.syncLevel == SYNC_LEVEL_32ND) {
@@ -168,7 +168,7 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	}
 	else {
 		if (on) {
-			if (getCurrentClip()) {
+			if (getSelectedClip()) {
 				// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
 				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
 					display->displayPopup("SLOW");
