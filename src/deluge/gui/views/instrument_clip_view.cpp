@@ -4626,6 +4626,8 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		break;
 	}
 
+	uint32_t rowUpdateMask = 0;
+
 	for (auto i = 0; i < nRows; ++i) {
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		NoteRow* thisNoteRow{nullptr};
@@ -4637,6 +4639,11 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			}
 			uint32_t noteRowId = currentClip->getNoteRowId(thisNoteRow, i);
 			modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
+
+			// If the note row being quantized is on screen, mark the row as dirty
+			if (currentClip->yScroll <= thisNoteRow->y && thisNoteRow->y <= currentClip->yScroll + kDisplayHeight) {
+				rowUpdateMask |= 1 << (thisNoteRow->y - currentClip->yScroll);
+			}
 		}
 		else {
 			if (!auditionPadIsPressed[i]) {
@@ -4652,6 +4659,9 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			if (thisNoteRow == nullptr) {
 				continue;
 			}
+
+			// We're going to quanitize this row, so mark it dirty
+			rowUpdateMask |= 1 << i;
 		}
 
 		if (thisNoteRow->hasNoNotes()) {
@@ -4695,15 +4705,14 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		}
 	}
 
-	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	{
-		if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
-			modelStack->song->currentClip->expectEvent();
-			modelStack->song->currentClip->reGetParameterAutomation(modelStack);
-		}
+	uiNeedsRendering(this, rowUpdateMask, 0);
+
+	if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
+		modelStack->song->currentClip->expectEvent();
+		modelStack->song->currentClip->reGetParameterAutomation(modelStack);
 	}
+
 	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-	return;
 }
 
 // Supply offset as 0 to just popup number, not change anything
