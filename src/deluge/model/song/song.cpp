@@ -1535,7 +1535,15 @@ int32_t Song::readFromFile() {
 
 		default:
 unknownTag:
-			if (!strcmp(tagName, "sessionLayout")) {
+			if (!strcmp(tagName, "firmwareVersion") || !strcmp(tagName, "earliestCompatibleFirmware")) {
+				storageManager.tryReadingFirmwareTagFromFile(tagName);
+				storageManager.exitTag(tagName);
+			}
+			else if (!strcmp(tagName, "preview") || !strcmp(tagName, "previewNumPads")) {
+				storageManager.tryReadingFirmwareTagFromFile(tagName);
+				storageManager.exitTag(tagName);
+			}
+			else if (!strcmp(tagName, "sessionLayout")) {
 				sessionLayout = (SessionLayoutType)storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("sessionLayout");
 			}
@@ -1842,7 +1850,7 @@ loadOutput:
 						goto loadOutput;
 					}
 
-					storageManager.exitTag();
+					storageManager.exitTag(tagName);
 				}
 				storageManager.exitTag("instruments");
 			}
@@ -1880,7 +1888,7 @@ loadOutput:
 						return result;
 					}
 					if (ALPHA_OR_BETA_VERSION) {
-						D_PRINTLN("unknown tag:  %d", tagName);
+						D_PRINTLN("unknown tag:  %s", tagName);
 					}
 					storageManager.exitTag(tagName);
 				}
