@@ -24,6 +24,7 @@
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
 - Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
+- Fixed inconsistency with golden knob encoder clicks for those that change the controlled parameter. Now the first click shows the current mode of the encoder, and while there is still a popup in the screen, subsequent clicks do change the value.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
