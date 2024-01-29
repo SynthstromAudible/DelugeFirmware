@@ -30,11 +30,17 @@ Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mapp
 To use MIDI follow mode, you will need to configure the various MIDI Follow Mode settings by entering the settings menu and going to the sub menu for MIDI -> MIDI-Follow
 
 - In the MIDI-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE. There are three channel's (A/B/C) available to accomodate learning multiple devices / channels to MIDI Follow Mode.
+  - You can quickly learn a Channel (and Device) by pressing LEARN and sending a CC/Note while in the Channel submenu
+  - You can quickly unlearn a Channel by pressing SHIFT + LEARN while in the Channel submenu
+      - Note: if no Channel has been set, MIDI Follow Mode will be Disabled
 - In the MIDI-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the MIDI-Follow > Display Param submenu, enable or disable param pop-ups
-- In the MIDI-Follow > Feedback > Channel submenu, enable or disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
-- In the MIDI-Follow > Feedback > Automation Feedback submenu, enabled or disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
-- In the MIDI-Follow > Feedback > Filter Responses submenu, enable or disable filtering of responses received within 1 second of sending a MIDI feedback value update.
+- In the MIDI-Follow > Feedback > Channel submenu, Enable or Disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
+  - You can quickly learn a Channel (and Device) by pressing LEARN and sending a CC/Note while in the Channel submenu
+  - You can quickly unlearn a Channel by pressing SHIFT + LEARN while in the Channel submenu
+      - Note: if no Channel has been set, MIDI Feedback will be Disabled
+- In the MIDI-Follow > Feedback > Automation Feedback submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
+- In the MIDI-Follow > Feedback > Filter Responses submenu, Enable or Disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
 ### **Input Device Differentiation**
 If you wish to use Input Device Differentiation with MIDI Follow Mode, you will need to learn your device to the required MIDI Follow Channel(s).
@@ -52,6 +58,9 @@ You can also use this method for updating the Kit Root Note. In the Kit Root Not
 ### **Unlearning a Channel and Device**
 
 You can unlearn a channel and device by pressing Shift + Learn while in the channel submenu's.
+
+If you unlearn all MIDI Follow channels, MIDI Follow Mode will be disabled.
+If you unlearn the MIDI Feedback channel, MIDI Feedback will be disabled.
 
 ### **Notes:**
 Notes received on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
