@@ -3972,44 +3972,31 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 void Sound::displaySidechainAndReverbSettings(bool on) {
 	// Sidechain
-	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-	}
-	else {
-		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	}
-
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		// Sidechain
-		popupMsg.append(getSidechainDisplayName(insideWorldTickMagnitude));
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			// Sidechain
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
 
-		popupMsg.append("\n");
+			popupMsg.append("\n");
 
-		// Reverb
-		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
-		display->displayPopup(popupMsg.c_str());
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
-			display->displayPopup(getSidechainDisplayName(insideWorldTickMagnitude));
+			display->displayPopup(getSidechainDisplayName());
 		}
 		else {
 			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 		}
-	}
-}
-
-char const* Sound::getSidechainDisplayName(int32_t insideWorldTickMagnitude) {
-	using enum deluge::l10n::String;
-	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-		return l10n::get(STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR);
-	}
-	else {
-		return l10n::get(STRING_FOR_FAST_SIDECHAIN_COMPRESSOR);
 	}
 }
 
@@ -4159,11 +4146,11 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 			}
 			else {
 				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 			}
 			return true;
 		}

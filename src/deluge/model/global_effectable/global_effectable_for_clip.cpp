@@ -17,6 +17,7 @@
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
@@ -223,23 +224,63 @@ int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 	return GlobalEffectable::getParameterFromKnob(whichModEncoder);
 }
 
+void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
+	if (whichModButton == 4) {
+		displaySidechainAndReverbSettings(on);
+		return;
+	}
+
+	return GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
+}
+
+void GlobalEffectableForClip::displaySidechainAndReverbSettings(bool on) {
+	if (display->haveOLED()) {
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
+			popupMsg.append("\n");
+
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		if (on) {
+			getSidechainDisplayName();
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                                      ModelStackWithThreeMainThings* modelStack) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
 		if (*getModKnobMode() == 4) {
 			if (whichModEncoder == 1) { // Sidechain
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					compressor.syncLevel = SYNC_LEVEL_128TH;
+				int32_t insideWorldTickMagnitude;
+				if (currentSong) { // Bit of a hack just referring to currentSong in here...
+					insideWorldTickMagnitude =
+					    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 				}
 				else {
-					compressor.syncLevel = SYNC_LEVEL_32ND;
+					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					display->displayPopup("SLOW");
+				if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+					compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
+					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 				}
 				else {
-					display->displayPopup("FAST");
+					compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
+					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 				}
 				return true;
 			}

@@ -136,23 +136,26 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		// Master Compressor
-		popupMsg.append("Comp Mode: ");
-		popupMsg.append(getCompressorModeDisplayName());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append("Comp Mode: ");
+			popupMsg.append(getCompressorModeDisplayName(editingComp));
+			popupMsg.append("\n");
 
-		popupMsg.append("\n");
+			if (editingComp) {
+				popupMsg.append("Comp Param: ");
+				popupMsg.append(getCompressorParamDisplayName(currentCompParam));
+			}
+			else {
+				// Reverb
+				popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			}
 
-		if (editingComp) {
-			popupMsg.append("Comp Param: ");
-			popupMsg.append(getCompressorParamDisplayName());
+			display->popupText(popupMsg.c_str());
 		}
 		else {
-			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			display->cancelPopup();
 		}
-
-		display->displayPopup(popupMsg.c_str());
 	}
 	else {
 		if (on) {
@@ -181,14 +184,19 @@ char const* GlobalEffectable::getCompressorParamDisplayName() {
 
 void GlobalEffectable::displayModFXSettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		popupMsg.append("Type: ");
-		popupMsg.append(getModFXTypeDisplayName());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append("Type: ");
+			popupMsg.append(getModFXTypeDisplayName());
 
-		popupMsg.append("\n Param: ");
-		popupMsg.append(getModFXParamDisplayName());
+			popupMsg.append("\nParam: ");
+			popupMsg.append(getModFXParamDisplayName());
 
-		display->displayPopup(popupMsg.c_str());
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
