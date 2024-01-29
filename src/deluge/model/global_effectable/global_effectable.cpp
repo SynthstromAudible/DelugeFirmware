@@ -139,12 +139,12 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 		if (on) {
 			DEF_STACK_STRING_BUF(popupMsg, 100);
 			popupMsg.append("Comp Mode: ");
-			popupMsg.append(getCompressorModeDisplayName(editingComp));
+			popupMsg.append(getCompressorModeDisplayName());
 			popupMsg.append("\n");
 
 			if (editingComp) {
 				popupMsg.append("Comp Param: ");
-				popupMsg.append(getCompressorParamDisplayName(currentCompParam));
+				popupMsg.append(getCompressorParamDisplayName());
 			}
 			else {
 				// Reverb
