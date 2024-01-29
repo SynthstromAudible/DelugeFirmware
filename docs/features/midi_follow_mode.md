@@ -10,9 +10,14 @@ Master MIDI follow mode whereby after setting a master MIDI follow channel for S
 
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
-Comes with an XML file with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
+Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
-**Simple summary:** Set your channel(s), set your MIDI Controller(s) to the same channel(s), set a root note for your kits, confirm that your controller cc's are mapped to the parameters you want (via MIDIFollow.XML) and then play and control the deluge instruments and parameters with ease!
+**Simple summary:** 
+- Set your follow and feedback channel(s)
+- Set your MIDI Controller(s) to the same channel(s)
+- Set a root note for your kits
+- Confirm that your controller cc's are mapped to the parameters you want (via MIDIFollow.XML)
+- Play and control the deluge instruments and parameters with ease!
 
 **No more re-learning your MIDI controllers every time you start a new song, add new clips or change instrument presets.**
 
@@ -122,6 +127,35 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by unlearning the MIDI feedback channel.
 6. MIDI feedback for automated parameters can also be sent and can be enabled or disabled in the MIDI feedback sub menu. When enabled, you choose between 3 speeds at which to send feedback for automated parameters: Low (500 ms), Medium (150 ms), High (40 ms). Sending automated parameter feedback can be taxing on the deluge MIDI output system, so depending on the amount of automation you do, you may want to adjust the speed (e.g. slow it down) to not affect the performance of the Deluge.
 7. MIDI feedback can cause an undesirable result with certain applications when the application responds back to the Deluge after the Deluge has sent it an updated value (Loopy Pro and Drambo on iPad are known to do this). This can cause lag in the deluge and potential feedback loops. To handle this, a toggable filter was added which ignores messages received for the same ccNumber within 1 second of sending a MIDI feedback update. If the application receiving the MIDI feedback update does not send responses back to the Deluge, then this setting should be set to Disabled in the MIDI Feedback Filter Responses sub menu.
+    - Note: To control the deluge with midi follow while receiving midi automation feedback, MIDI Feedback Filter Responses needs to be disabled. If your device requires filter responses to be enabled to avoid a feedback loop, you cannot use that same device to control the deluge while automation feedback is being received - you will only be able to display the automation on your device.
+
+## Troubleshooting
+
+### When using MIDI Follow, you experience MIDI stutter (lag)
+
+If you experience MIDI stutter / lag while using MIDI follow mode, you may need to adjust your MIDI Feedback settings.
+
+Things you can try:
+
+1) Disable MIDI Feedback altogether by unlearning the MIDI Feedback Channel. Press SHIFT + LEARN in the following sub-menu to disable MIDI Feedback: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL 
+
+2) Disable MIDI Automation Feedback. Set the following menu to Disabled: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
+
+3) Slow down MIDI Automation Feedback. Choose a slower Automation Feedback speed (e.g. Low vs High) in the following menu: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
+
+### When using MIDI Follow, you are unable to record Automation
+
+If you notice that the Deluge's parameter values don't respond to your MIDI controller while trying to record automation when Deluge playback is running, this may be because the Deluge is sending Automation Feedback to your controller and also filtering out (ignoring) the responses received.
+
+To control the Deluge with MIDI Follow with a controller while also receiving Automation Feedback from the Deluge, Filter Responses needs to be disabled in this menu: MIDI > MIDI-FOLLOW > FEEDBACK > FILTER RESPONSES
+
+If your device requires Filter Responses to be enabled to avoid a MIDI Feedback loop (see below), you cannot use that same device to control the Deluge while Automation Feedback is being received. Your device will only be able to display the Automation Feedback.
+
+### When using MIDI Follow, you experience a MIDI Feedback loop
+
+If you notice that your MIDI controller's values get stuck while sending MIDI CC's to the Deluge or the Deluge's parameter values get stuck while receiving MIDI CC's from your controller, it is possible that you got stuck in a MIDI feedback loop. This is known to happen with Drambo and Loopy Pro for example as these applications always respond to the Deluge's MIDI feedback.
+
+In this case, you will need to ensure that MIDI Feedback Filter Responses is set to Enabled in the following menu: MIDI > MIDI-FOLLOW > FEEDBACK > FILTER RESPONSES
 
 ## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
