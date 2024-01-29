@@ -196,6 +196,7 @@ protected:
 	char const* getDelaySyncTypeDisplayName(SyncType syncType);
 	void getDelaySyncLevelDisplayName(SyncLevel syncLevel, char* displayNam);
 
+	char const* getSidechainDisplayName();
 	void displayLPFMode(bool on);
 	void displayHPFMode(bool on);
 	void displayDelaySettings(bool on);

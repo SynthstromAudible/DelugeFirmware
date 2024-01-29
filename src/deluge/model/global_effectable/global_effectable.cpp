@@ -24,7 +24,6 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
@@ -137,50 +136,30 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		if (getSelectedClip()) {
-			// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
-			popupMsg.append("Sidechain: ");
-			if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-				popupMsg.append("SLOW");
-			}
-			else {
-				popupMsg.append("FAST");
-			}
-		}
-		else {
-			// We are in song or arranger: show Compressor mode
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
 			popupMsg.append("Comp Mode: ");
 			popupMsg.append(getCompressorModeDisplayName(editingComp));
-		}
-		popupMsg.append("\n");
+			popupMsg.append("\n");
 
-		if (editingComp) {
-			popupMsg.append("Comp Param: ");
-			popupMsg.append(getCompressorParamDisplayName(currentCompParam));
+			if (editingComp) {
+				popupMsg.append("Comp Param: ");
+				popupMsg.append(getCompressorParamDisplayName(currentCompParam));
+			}
+			else {
+				// Reverb
+				popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			}
+
+			display->popupText(popupMsg.c_str());
 		}
 		else {
-			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			display->cancelPopup();
 		}
-
-		display->displayPopup(popupMsg.c_str());
 	}
 	else {
 		if (on) {
-			if (getSelectedClip()) {
-				// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					display->displayPopup("SLOW");
-				}
-				else {
-					display->displayPopup("FAST");
-				}
-			}
-			else {
-				// We are in song or arranger: show Compressor mode
-				display->displayPopup(getCompressorModeDisplayName(editingComp));
-			}
+			display->displayPopup(getCompressorModeDisplayName(editingComp));
 		}
 		else {
 			if (editingComp) {
@@ -205,14 +184,19 @@ char const* GlobalEffectable::getCompressorParamDisplayName(CompParam compParam)
 
 void GlobalEffectable::displayModFXSettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		popupMsg.append("Type: ");
-		popupMsg.append(getModFXTypeDisplayName());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append("Type: ");
+			popupMsg.append(getModFXTypeDisplayName());
 
-		popupMsg.append("\n Param: ");
-		popupMsg.append(getModFXParamDisplayName());
+			popupMsg.append("\n Param: ");
+			popupMsg.append(getModFXParamDisplayName());
 
-		display->displayPopup(popupMsg.c_str());
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
