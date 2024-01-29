@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -33,7 +33,7 @@ enum ColumnControlFunction : int8_t {
 	CHORD,
 	CHORD_MEM,
 	SCALE_MODE,
-	//BEAT_REPEAT,
+	// BEAT_REPEAT,
 	COL_CTRL_FUNC_MAX,
 };
 

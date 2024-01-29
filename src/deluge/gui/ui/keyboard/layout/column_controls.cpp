@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "definitions.h"
 #include "gui/ui/audio_recorder.h"
@@ -218,7 +218,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			keyboardScreen.setScale(previousScaleMode);
 		}
 		break;
-		//case BEAT_REPEAT:
+		// case BEAT_REPEAT:
 		//	/* TODO */
 		//	break;
 	}
@@ -354,7 +354,7 @@ void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSide
 	case SCALE_MODE:
 		renderColumnScaleMode(image, LEFT_COL);
 		break;
-		//case BEAT_REPEAT:
+		// case BEAT_REPEAT:
 		//	renderColumnBeatRepeat(image, LEFT_COL);
 		//	break;
 	}
@@ -375,7 +375,7 @@ void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSide
 	case SCALE_MODE:
 		renderColumnScaleMode(image, RIGHT_COL);
 		break;
-		//case BEAT_REPEAT:
+		// case BEAT_REPEAT:
 		//	renderColumnBeatRepeat(image, RIGHT_COL);
 		//	break;
 	}
@@ -453,7 +453,6 @@ void ColumnControlsKeyboard::renderColumnScaleMode(RGB image[][kDisplayWidth + k
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
 		image[y][column] = {base, base, otherChannels};
-
 	}
 }
 
