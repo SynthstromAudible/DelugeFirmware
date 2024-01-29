@@ -4556,8 +4556,8 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	}
 
 	int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-	int32_t halfsquareSize = (int32_t)(squareSize / 2);
-	int32_t quatersquareSize = (int32_t)(squareSize / 4);
+	int32_t halfsquareSize = squareSize / 2;
+	int32_t quatersquareSize = squareSize / 4;
 
 	if (quantizeAmount >= 10 && offset > 0) {
 		return;
@@ -4589,121 +4589,106 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	InstrumentClip* currentClip = getCurrentInstrumentClip();
 
-	if (nudgeMode == NUDGEMODE_QUANTIZE) { // Only the row(s) being pressed
+	// If the previous action was a note nudge, overwrite it with the quantization change
+	Action* lastAction = actionLogger.firstAction[BEFORE];
+	if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions) {
+		actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
+	}
 
-		// reset
-		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
-
-		Action* action = NULL;
-		if (offset) {
-			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-			if (action)
-				action->offset = quantizeAmount;
-		}
-
-		for (int32_t i = 0; i < kDisplayHeight; i++) {
-			if (auditionPadIsPressed[i]) {
-
-				ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, i);
-				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
-				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
-
-				if (offset) { // store
-					action->recordNoteArrayChangeDefinitely(
-					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
-					    &(thisNoteRow->notes), false);
-				}
-
-				NoteVector tmpNotes;
-				tmpNotes.cloneFrom(&thisNoteRow->notes); // backup
-				for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
-
-					Note* note = tmpNotes.getElement(j);
-
-					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
-					if (quantizeAmount < 0) { // Humanize
-						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
-						destination = note->pos + hmAmout;
-					}
-					int32_t distance = destination - note->pos;
-					distance = trunc((distance * abs(quantizeAmount)) / 10);
-
-					if (distance != 0) {
-						for (int32_t k = 0; k < abs(distance); k++) {
-							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
-							                 % noteRowEffectiveLength;
-							int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
-							    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
-							if (error) {
-								display->displayError(error);
-								return;
-							}
-						}
-					}
-				}
-			}
+	// Create the action
+	// XXX(sapphire): should this use lastAction?
+	Action* action = NULL;
+	if (offset) {
+		action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
+		if (action) {
+			// XXX(sapphire): the old QUANTIZE_ALL code used quantizeAmount here instead, but I don't think anything
+			// reads this so it's probably fine?
+			action->offset = offset;
 		}
 	}
-	else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) { // All Row
 
-		// reset
-		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
+	bool quantizeAll{false};
+	uint32_t nRows{0};
 
-		Action* action = NULL;
-		if (offset) {
-			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-			if (action)
-				action->offset = offset;
+	switch (nudgeMode) {
+	case NUDGEMODE_QUANTIZE:
+		nRows = kDisplayHeight;
+		quantizeAll = false;
+		;
+		break;
+	case NUDGEMODE_QUANTIZE_ALL:
+		nRows = currentClip->noteRows.getNumElements();
+		quantizeAll = true;
+		break;
+	default:
+		break;
+	}
+
+	for (auto i = 0; i < nRows; ++i) {
+		ModelStackWithNoteRow* modelStackWithNoteRow;
+		NoteRow* thisNoteRow{nullptr};
+		if (quantizeAll) {
+			thisNoteRow = currentClip->noteRows.getElement(i);
+			if (thisNoteRow == nullptr) {
+				// Note row missing
+				continue;
+			}
+			uint32_t noteRowId = currentClip->getNoteRowId(thisNoteRow, i);
+			modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
+		}
+		else {
+			if (!auditionPadIsPressed[i]) {
+				// Do not quantize rows the user hasn't asked for
+				continue;
+			}
+			modelStackWithNoteRow = currentClip->getNoteRowOnScreen(i, modelStack);
+			if (modelStackWithNoteRow == nullptr) {
+				// No note row here, no need to quantize
+				continue;
+			}
+			thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			if (thisNoteRow == nullptr) {
+				continue;
+			}
 		}
 
-		for (int32_t i = 0; i < getCurrentInstrumentClip()->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
+		if (thisNoteRow->hasNoNotes()) {
+			// Nothing to do, no notes in this row
+			continue;
+		}
 
-			int32_t noteRowId;
-			int32_t noteRowIndex;
-			noteRowId = getCurrentInstrumentClip()->getNoteRowId(thisNoteRow, i);
+		int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
+		if (offset) {
+			action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId,
+			                                        &(thisNoteRow->notes), false);
+		}
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
-			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
+		// Save the previous note state
+		NoteVector tmpNotes;
+		tmpNotes.cloneFrom(&thisNoteRow->notes);
 
-			// If this NoteRow has any notes...
-			if (!thisNoteRow->hasNoNotes()) {
+		for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
+			Note* note = tmpNotes.getElement(j);
 
-				if (offset) { // store
-					action->recordNoteArrayChangeDefinitely(
-					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
-					    &(thisNoteRow->notes), false);
-				}
+			int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
+			if (quantizeAmount < 0) { // Humanize
+				int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
+				destination = note->pos + hmAmout;
+			}
+			int32_t distance = destination - note->pos;
+			distance = trunc((distance * abs(quantizeAmount)) / 10);
 
-				NoteVector tmpNotes;
-				tmpNotes.cloneFrom(&thisNoteRow->notes); // backup
-				for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
-					Note* note = tmpNotes.getElement(j);
-
-					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
-					if (quantizeAmount < 0) { // Humanize
-						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
-						destination = note->pos + hmAmout;
-					}
-					int32_t distance = destination - note->pos;
-					distance = trunc((distance * abs(quantizeAmount)) / 10);
-
-					if (distance != 0) {
-						for (int32_t k = 0; k < abs(distance); k++) {
-							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
-							                 % noteRowEffectiveLength;
-							int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
-							    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
-							if (error) {
-								display->displayError(error);
-								return;
-							}
-						}
+			if (distance != 0) {
+				for (int32_t k = 0; k < abs(distance); k++) {
+					int32_t nowPos =
+					    (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength) % noteRowEffectiveLength;
+					int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
+					    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
+					if (error) {
+						display->displayError(error);
+						return;
 					}
 				}
 			}
