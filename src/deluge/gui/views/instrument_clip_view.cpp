@@ -4556,21 +4556,19 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	}
 
 	int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-	int32_t halfsquareSize = squareSize / 2;
-	int32_t quatersquareSize = squareSize / 4;
 
-	if (quantizeAmount >= 10 && offset > 0) {
+	if (quantizeAmount >= kQuantizationPrecision && offset > 0) {
 		return;
 	}
-	if (quantizeAmount <= -10 && offset < 0) {
+	if (quantizeAmount <= -kQuantizationPrecision && offset < 0) {
 		return;
 	}
 	quantizeAmount += offset;
-	if (quantizeAmount >= 10) {
-		quantizeAmount = 10;
+	if (quantizeAmount >= kQuantizationPrecision) {
+		quantizeAmount = kQuantizationPrecision;
 	}
-	if (quantizeAmount <= -10) {
-		quantizeAmount = -10;
+	if (quantizeAmount <= -kQuantizationPrecision) {
+		quantizeAmount = -kQuantizationPrecision;
 	}
 
 	if (display->haveOLED()) {
@@ -4591,22 +4589,19 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* currentClip = getCurrentInstrumentClip();
 
-	// If the previous action was a note nudge, overwrite it with the quantization change
+	// If the previous action was a note nudge, it was probably a previous quantization iteration. Replace it with this
+	// quantization operation by first reverting it and then re-quantizing.
 	Action* lastAction = actionLogger.firstAction[BEFORE];
 	if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions) {
 		actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
 	}
 
-	// Create the action
-	// XXX(sapphire): should this use lastAction?
-	Action* action = NULL;
-	if (offset) {
-		action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-		if (action) {
-			// XXX(sapphire): the old QUANTIZE_ALL code used quantizeAmount here instead, but I don't think anything
-			// reads this so it's probably fine?
-			action->offset = offset;
-		}
+	// Get the action in to which we should back up the current state
+	Action* action = action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
+	if (action) {
+		// XXX(sapphire): the old QUANTIZE_ALL code used quantizeAmount here instead, but I don't think anything
+		// reads this so it's probably fine?
+		action->offset = offset;
 	}
 
 	bool quantizeAll{false};
@@ -4616,7 +4611,6 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	case NUDGEMODE_QUANTIZE:
 		nRows = kDisplayHeight;
 		quantizeAll = false;
-		;
 		break;
 	case NUDGEMODE_QUANTIZE_ALL:
 		nRows = currentClip->noteRows.getNumElements();
@@ -4669,40 +4663,10 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			continue;
 		}
 
-		int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
-		if (offset) {
-			action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId,
-			                                        &(thisNoteRow->notes), false);
-		}
+		action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId, &thisNoteRow->notes,
+		                                        false);
 
-		// Save the previous note state
-		NoteVector tmpNotes;
-		tmpNotes.cloneFrom(&thisNoteRow->notes);
-
-		for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
-			Note* note = tmpNotes.getElement(j);
-
-			int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
-			if (quantizeAmount < 0) { // Humanize
-				int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
-				destination = note->pos + hmAmout;
-			}
-			int32_t distance = destination - note->pos;
-			distance = trunc((distance * abs(quantizeAmount)) / 10);
-
-			if (distance != 0) {
-				for (int32_t k = 0; k < abs(distance); k++) {
-					int32_t nowPos =
-					    (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength) % noteRowEffectiveLength;
-					int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
-					    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
-					if (error) {
-						display->displayError(error);
-						return;
-					}
-				}
-			}
-		}
+		thisNoteRow->quantize(modelStackWithNoteRow, squareSize, quantizeAmount);
 	}
 
 	uiNeedsRendering(this, rowUpdateMask, 0);
