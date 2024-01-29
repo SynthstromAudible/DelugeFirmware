@@ -95,7 +95,7 @@ public:
 	bool verticalEncoderHandledByColumns(int32_t offset);
 	bool horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled);
 
-	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
+	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
 protected:
 	uint8_t velocity = 64;
@@ -109,12 +109,12 @@ private:
 
 	void setActiveChord(ChordModeChord chord);
 
-	void renderColumnVelocity(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
-	void renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
-	void renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
-	void renderColumnChordMem(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
-	void renderColumnScaleMode(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
-	void renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column);
+	void renderColumnVelocity(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
+	void renderColumnMod(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
+	void renderColumnChord(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
+	void renderColumnChordMem(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
+	void renderColumnScaleMode(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
+	void renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
 
 	ColumnControlFunction leftColPrev = VELOCITY;
 	ColumnControlFunction rightColPrev = MOD;

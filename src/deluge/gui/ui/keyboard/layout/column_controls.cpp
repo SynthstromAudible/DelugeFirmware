@@ -336,7 +336,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 	return false;
 }
 
-void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Iterate over velocity and mod pads in sidebar
 	switch (leftCol) {
 	case VELOCITY:
@@ -381,7 +381,7 @@ void ColumnControlsKeyboard::renderSidebarPads(uint8_t image[][kDisplayWidth + k
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnVelocity(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnVelocity(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t velocityVal = velocityMin;
@@ -390,15 +390,14 @@ void ColumnControlsKeyboard::renderColumnVelocity(uint8_t image[][kDisplayWidth 
 		bool velocity_selected =
 		    velocity32 >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && velocity32 <= velocityVal + kHalfStep;
 		otherChannels = velocity_selected ? 0xf0 : 0;
-		image[y][column][0] = velocity_selected ? 0xff : brightness + 0x04;
-		image[y][column][1] = otherChannels;
-		image[y][column][2] = otherChannels;
+		uint8_t base = velocity_selected ? 0xff : brightness + 0x04;
+		image[y][column] = {base, otherChannels, otherChannels};
 		velocityVal += velocityStep;
 		brightness += 10;
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnMod(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnMod(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t modVal = modMin;
@@ -406,59 +405,55 @@ void ColumnControlsKeyboard::renderColumnMod(uint8_t image[][kDisplayWidth + kSi
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mod_selected = mod32 >= (y > 0 ? (modVal - (modStep - 1)) : 0) && mod32 <= modVal;
 		otherChannels = mod_selected ? 0xf0 : 0;
-		image[y][column][0] = otherChannels;
-		image[y][column][1] = otherChannels;
-		image[y][column][2] = mod_selected ? 0xff : brightness + 0x04;
+		uint8_t base = mod_selected ? 0xff : brightness + 0x04;
+		image[y][column] = {otherChannels, otherChannels, base};
 		modVal += modStep;
 		brightness += 10;
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnChord(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnChord(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool chord_selected = y + 1 == activeChord;
 		otherChannels = chord_selected ? 0xf0 : 0;
-		image[y][column][0] = otherChannels;
-		image[y][column][1] = chord_selected ? 0xff : 0x7F;
-		image[y][column][2] = otherChannels;
+		uint8_t base = chord_selected ? 0xff : 0x7F;
+		image[y][column] = {otherChannels, base, otherChannels};
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnBeatRepeat(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	// TODO
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool beat_selected = false;
 		otherChannels = beat_selected ? 0xf0 : 0;
-		image[y][column][0] = beat_selected ? 0xff : 0x50;
-		image[y][column][1] = otherChannels;
-		image[y][column][2] = beat_selected ? 0xff : 0x50;
+		uint8_t base = beat_selected ? 0xff : 0x50;
+		image[y][column] = {base, otherChannels, base};
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnChordMem(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnChordMem(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool chord_selected = y == activeChordMem;
 		uint8_t chord_slot_filled = chordMemNoteCount[y] > 0 ? 0x7f : 0;
 		otherChannels = chord_selected ? 0xf0 : 0;
-		image[y][column][0] = otherChannels;
-		image[y][column][1] = chord_selected ? 0xff : chord_slot_filled;
-		image[y][column][2] = chord_selected ? 0xff : chord_slot_filled;
+		uint8_t base = chord_selected ? 0xff : chord_slot_filled;
+		image[y][column] = {otherChannels, base, base};
 	}
 }
 
-void ColumnControlsKeyboard::renderColumnScaleMode(uint8_t image[][kDisplayWidth + kSideBarWidth][3], int32_t column) {
+void ColumnControlsKeyboard::renderColumnScaleMode(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t otherChannels = 0;
 	int32_t currentScale = currentSong->getCurrentPresetScale();
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mode_selected = y == currentScale;
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
-		image[y][column][0] = mode_selected ? 0xff : mode_available;
-		image[y][column][1] = mode_selected ? 0xff : mode_available;
-		image[y][column][2] = otherChannels;
+		uint8_t base = mode_selected ? 0xff : mode_available;
+		image[y][column] = {base, base, otherChannels};
+
 	}
 }
 
