@@ -241,7 +241,7 @@ void GlobalEffectableForClip::displaySidechainAndReverbSettings(bool on) {
 			popupMsg.append(getSidechainDisplayName());
 			popupMsg.append("\n");
 
-			// Revern
+			// Reverb
 			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
 			display->popupText(popupMsg.c_str());

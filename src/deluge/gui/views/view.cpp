@@ -1183,8 +1183,6 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
 
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
-
 				setKnobIndicatorLevels();
 				setModLedStates();
 			}
