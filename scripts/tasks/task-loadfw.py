@@ -53,7 +53,7 @@ def pack87(src, dstsize):
     return dst
 
 
-def load_fw(port, handshake, file, delay_ms=1):
+def load_fw(port, handshake, file, delay_ms=2):
     with open(file, "rb") as f:
         binary = f.read()
     checksum = binascii.crc32(binary)
