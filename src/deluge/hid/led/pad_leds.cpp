@@ -16,14 +16,15 @@
  */
 
 #include "hid/led/pad_leds.h"
-#include "gui/colour.h"
+#include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -46,9 +47,9 @@ extern "C" {
 using namespace deluge;
 
 namespace PadLEDs {
-uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
 uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
 uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 bool zoomingIn;
@@ -91,17 +92,18 @@ int32_t explodeAnimationYOriginBig;
 int32_t explodeAnimationXStartBig;
 int32_t explodeAnimationXWidthBig;
 
-// We stash these here for during UI-transition animation, because if that's happening as part of an undo, the Sample might not be there anymore
+// We stash these here for during UI-transition animation, because if that's happening as part of an undo, the Sample
+// might not be there anymore
 int32_t sampleValueCentrePoint;
 int32_t sampleValueSpan;
 int32_t sampleMaxPeakFromZero;
 WaveformRenderData waveformRenderData;
-uint8_t audioClipColour[3];
+RGB audioClipColour;
 bool sampleReversed;
 
 // Same for InstrumentClips
 int32_t clipLength;
-uint8_t clipMuteSquareColour[3];
+RGB clipMuteSquareColour;
 
 bool renderingLock;
 
@@ -181,13 +183,16 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 				int32_t colour = 0;
 				if (colours[y] == 1) { // "Muted" colour
-					uint8_t mutedColour[3];
-					gui::menu_item::mutedColourMenu.getRGB(mutedColour);
-					for (int32_t c = 0; c < 3; c++) {
-						if (mutedColour[c] >= 64) {
-							colour += (1 << c);
+					RGB mutedColour = gui::menu_item::mutedColourMenu.getRGB();
+					auto transform = [](uint8_t& channel, size_t idx) {
+						if (channel >= 64) {
+							channel += (1 << idx);
 						}
-					}
+					};
+
+					transform(mutedColour.r, 0);
+					transform(mutedColour.g, 1);
+					transform(mutedColour.b, 2);
 				}
 				else if (colours[y] == 2) { // Red
 					colour = 0b00000001;
@@ -222,20 +227,21 @@ void clearAllPadsWithoutSending() {
 }
 
 void clearMainPadsWithoutSending() {
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(image[y], 0, kDisplayWidth * 3);
+	for (auto& y : image) {
+		std::fill(&y[0], &y[kDisplayWidth], gui::colours::black);
 	}
 }
 
 void clearSideBar() {
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(&image[y][kDisplayWidth], 0, 6);
+	for (auto& y : image) {
+		y[kDisplayWidth] = gui::colours::black;
+		y[kDisplayWidth + 1] = gui::colours::black;
 	}
 
 	sendOutSidebarColours();
 }
 
-Colour prepareColour(int32_t x, int32_t y, Colour colourSource);
+RGB prepareColour(int32_t x, int32_t y, RGB colourSource);
 
 // You'll want to call uartFlushToPICIfNotSending() after this
 void sortLedsForCol(int32_t x) {
@@ -243,45 +249,38 @@ void sortLedsForCol(int32_t x) {
 
 	x &= 0b11111110;
 
-	std::array<Colour, kDisplayHeight * 2> doubleColumn{};
+	std::array<RGB, kDisplayHeight * 2> doubleColumn{};
 	size_t total = 0;
 	for (size_t y = 0; y < kDisplayHeight; y++) {
-		doubleColumn[total++] = prepareColour(x, y, Colour::fromArray(image[y][x]));
+		doubleColumn[total++] = prepareColour(x, y, image[y][x]);
 	}
 	for (size_t y = 0; y < kDisplayHeight; y++) {
-		doubleColumn[total++] = prepareColour(x + 1, y, Colour::fromArray(image[y][x + 1]));
+		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
 	}
 	PIC::setColourForTwoColumns((x >> 1), doubleColumn);
 }
 
-const uint8_t flashColours[3][3] = {
+const RGB flashColours[3] = {
     {130, 120, 130},
-    {mutedColour.r, mutedColour.g, mutedColour.b}, // Not used anymore
-    {255, 0, 0},
+    gui::colours::muted, // Not used anymore
+    gui::colours::red,
 };
 
-Colour prepareColour(int32_t x, int32_t y, Colour colourSource) {
-	uint8_t temp[3];
+RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	if (flashCursor == FLASH_CURSOR_SLOW && slowFlashSquares[y] == x && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		if (slowFlashColours[y] == 1) { // If it's to be the "muted" colour, get that
-			gui::menu_item::mutedColourMenu.getRGB(temp);
-			colourSource = Colour::fromArray(temp);
+			colourSource = gui::menu_item::mutedColourMenu.getRGB();
 		}
 		else { // Otherwise, pull from a referenced table line
-			colourSource = Colour::fromArray(flashColours[slowFlashColours[y]]);
+			colourSource = flashColours[slowFlashColours[y]];
 		}
 	}
 
 	if ((greyoutRows || greyoutCols)
 	    && ((greyoutRows & (1 << y)) || (greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))))) {
-		uint8_t greyedOutColour[3];
-		greyColourOut(colourSource.toArray().data(), greyedOutColour, greyProportion);
-		return Colour::fromArray(greyedOutColour);
+		return colourSource.greyOut(greyProportion);
 	}
-
-	else {
-		return colourSource;
-	}
+	return colourSource;
 }
 
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
@@ -295,7 +294,7 @@ void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
-		view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
+		clipMuteSquareColour = view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
 	}
 }
 
@@ -307,9 +306,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 	if (!(isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING))) {
 		for (int32_t row = 0; row < kDisplayHeight; row++) {
-			image[row][kDisplayWidth][0] = enabledColour.r;
-			image[row][kDisplayWidth][1] = enabledColour.g;
-			image[row][kDisplayWidth][2] = enabledColour.b;
+			image[row][kDisplayWidth] = gui::colours::enabled;
 			occupancyMask[row][kDisplayWidth] = 64;
 		}
 	}
@@ -356,7 +353,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			memset(PadLEDs::image[yDisplay][xEnd], 7, (kDisplayWidth - xEnd) * 3);
+			auto* begin = &image[yDisplay][xEnd];
+			std::fill(begin, begin + (kDisplayWidth - xEnd), deluge::gui::colours::grey);
 		}
 	}
 
@@ -370,9 +368,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			// Or if it's greyed out cos of triplets...
 			if (!instrumentClipView.isSquareDefined(col, currentSong->xScroll[NAVIGATION_CLIP])) {
 				for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-					PadLEDs::image[yDisplay][col][0] = 7;
-					PadLEDs::image[yDisplay][col][1] = 7;
-					PadLEDs::image[yDisplay][col][2] = 7;
+					PadLEDs::image[yDisplay][col] = gui::colours::grey;
 				}
 				continue;
 			}
@@ -383,9 +379,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 				continue; // Nothing to do if there was nothing in this square
 			}
 
-			uint8_t* squareColours = imageStore[i][col];
-
-			uint8_t thisColour[3]; // Only used in some cases
+			RGB& squareColours = imageStore[i][col];
 
 			int32_t intensity1 = intensity1Array[i];
 			int32_t intensity2 = intensity2Array[i];
@@ -401,26 +395,20 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 				// If the mute-col, we want to alter the colour
 				if (col == kDisplayWidth) {
-
-					for (int32_t colour = 0; colour < 3; colour++) {
-						int32_t newColour =
-						    rshift_round((int32_t)squareColours[colour] * progress, 16)
-						    + rshift_round((int32_t)clipMuteSquareColour[colour] * (65536 - progress), 16);
-						thisColour[colour] = std::clamp<int32_t>(newColour, std::numeric_limits<uint8_t>::min(),
-						                                         std::numeric_limits<uint8_t>::max());
-					}
-					squareColours = thisColour;
+					squareColours = RGB::blend(squareColours, clipMuteSquareColour, progress);
 				}
 			}
 
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
-				drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
-				           &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
+				PadLEDs::image[newRowPosition1Array[i]][col] =
+				    drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
+				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
 			}
 
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
-				drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
-				           &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
+				PadLEDs::image[newRowPosition1Array[i] + 1][col] =
+				    drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
+				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
 			}
 		}
 	}
@@ -431,7 +419,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	clipLength = clip->loopLength;
-	clip->getColour(audioClipColour);
+	audioClipColour = clip->getColour();
 
 	sampleReversed = clip->sampleControls.reversed;
 
@@ -483,7 +471,8 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			memset(PadLEDs::image[yDisplay][xEnd], 7, (kDisplayWidth - xEnd) * 3);
+			auto* begin = &PadLEDs::image[yDisplay][xEnd];
+			std::fill(begin, begin + (kDisplayWidth - xEnd), gui::colours::grey);
 		}
 	}
 
@@ -566,10 +555,10 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 		int32_t xSourceBig = xSource << 16;
 		int32_t xOriginBig = explodeAnimationXStartBig
 		                     + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
-		//xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
+		// xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
 
-		xOriginBig &= ~(
-		    uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded to the left. That'll match what we'll see in the arranger
+		xOriginBig &= ~(uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded
+		                                // to the left. That'll match what we'll see in the arranger
 
 		int32_t xSourceBigRelativeToOrigin = xSourceBig - xOriginBig;
 		int32_t xDestBig = xOriginBig + (((int64_t)xSourceBigRelativeToOrigin * explodedness) >> 16);
@@ -624,8 +613,9 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 						}
 
 						uint32_t intensityNow = (yIntensity[yOffset] * xIntensityArray[xSource][xOffset]) >> 16;
-						drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
-						           &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
+						PadLEDs::image[yNow][xNow] =
+						    drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
+						               &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
 					}
 				}
 			}
@@ -640,9 +630,7 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 }
 
 void reassessGreyout(bool doInstantly) {
-	uint32_t newCols, newRows;
-
-	getUIGreyoutRowsAndCols(&newCols, &newRows);
+	auto [newCols, newRows] = getUIGreyoutRowsAndCols();
 
 	// If same as before, get out
 	if (newCols == greyoutCols && newRows == greyoutRows) {
@@ -736,8 +724,8 @@ void changeDimmerInterval(int32_t offset) {
 }
 
 void setDimmerInterval(int32_t newInterval) {
-	//Uart::print("dimmerInterval: ");
-	//Uart::println(newInterval);
+	// Uart::print("dimmerInterval: ");
+	// Uart::println(newInterval);
 	dimmerInterval = newInterval;
 
 	int32_t newRefreshTime = 23 - newInterval;
@@ -746,8 +734,8 @@ void setDimmerInterval(int32_t newInterval) {
 		newInterval *= 1.2; // (From Roha, Nov 2023) Hmm, not sure why this was necessary...
 	}
 
-	//Uart::print("newInterval: ");
-	//Uart::println(newInterval);
+	// Uart::print("newInterval: ");
+	// Uart::println(newInterval);
 
 	setRefreshTime(newRefreshTime);
 	PIC::setDimmerInterval(newInterval);
@@ -787,7 +775,7 @@ void timerRoutine() {
 		if (progress >= 65536) { // If finished transitioning...
 
 			// If going to keyboard screen, no sidebar or anything to fade in
-			if (explodeAnimationDirection == 1 && getCurrentClip()->type == CLIP_TYPE_INSTRUMENT
+			if (explodeAnimationDirection == 1 && getCurrentClip()->type == ClipType::INSTRUMENT
 			    && getCurrentInstrumentClip()->onKeyboardScreen) {
 				currentUIMode = UI_MODE_NONE;
 				changeRootUI(&keyboardScreen);
@@ -796,31 +784,35 @@ void timerRoutine() {
 			// Otherwise, there's stuff we want to fade in / to
 			else {
 				int32_t explodedness = (explodeAnimationDirection == 1) ? 65536 : 0;
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 					renderExplodeAnimation(explodedness, false);
 				}
 				else {
 					renderAudioClipExplodeAnimation(explodedness, false);
 				}
-				memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+				memcpy(PadLEDs::imageStore, PadLEDs::image,
+				       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
-					if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
-						if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
+					if (getCurrentClip()->onAutomationClipView) {
+						changeRootUI(&automationClipView); // We want to fade the sidebar in
+						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						if (anyZoomingDone) {
+							uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 						}
-						else {
-							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
-							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-							if (anyZoomingDone) {
-								uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-							}
+					}
+					else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						if (anyZoomingDone) {
+							uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
 						}
 					}
 					else {
 						changeRootUI(&audioClipView);
-						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos we're not set up for it
+						goto stopFade; // No need for fade since no sidebar, and also if we tried it'd get glitchy cos
+						               // we're not set up for it
 					}
 				}
 				else {
@@ -848,7 +840,7 @@ void timerRoutine() {
 			int32_t explodedness = (explodeAnimationDirection == 1) ? 0 : 65536;
 			explodedness += progress * explodeAnimationDirection;
 
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if ((getCurrentClip()->type == ClipType::INSTRUMENT) || (getCurrentClip()->onAutomationClipView)) {
 				renderExplodeAnimation(explodedness);
 			}
 			else {
@@ -862,7 +854,8 @@ void timerRoutine() {
 		if (progress >= 65536) {
 stopFade:
 			currentUIMode = UI_MODE_NONE;
-			renderingNeededRegardlessOfUI(); // Just in case some waveforms couldn't be rendered when the store was written to, we want to re-render everything now
+			renderingNeededRegardlessOfUI(); // Just in case some waveforms couldn't be rendered when the store was
+			                                 // written to, we want to re-render everything now
 		}
 		else {
 			renderFade(progress);
@@ -996,23 +989,25 @@ void renderClipExpandOrCollapse() {
 		if (progress >= 65536) {
 			currentUIMode = UI_MODE_NONE;
 
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
-				changeRootUI(&keyboardScreen);
-			}
-			else if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				changeRootUI(&automationInstrumentClipView);
+			if (getCurrentClip()->onAutomationClipView) {
+				changeRootUI(&automationClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
 				}
 			}
 			else {
-				changeRootUI(&instrumentClipView);
-				// If we need to zoom in horizontally because the Clip's too short...
-				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
-				if (anyZoomingDone) {
-					uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+				if (getCurrentInstrumentClip()->onKeyboardScreen) {
+					changeRootUI(&keyboardScreen);
+				}
+				else {
+					changeRootUI(&instrumentClipView);
+					// If we need to zoom in horizontally because the Clip's too short...
+					bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+					if (anyZoomingDone) {
+						uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+					}
 				}
 			}
 			return;
@@ -1039,8 +1034,8 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-			uiNeedsRendering(&automationInstrumentClipView);
+		if (getCurrentClip()->onAutomationClipView) {
+			uiNeedsRendering(&automationClipView);
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView);
@@ -1071,15 +1066,17 @@ void renderZoom() {
 	uint32_t sineValue = (getSine((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
-	//int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of this variable has got a bit cryptic, it exists after much simplification
+	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
+	// this variable has got a bit cryptic, it exists after much simplification
 	int32_t powersOfTwo = ((int32_t)(transitionProgress >> 7) - 512) << zoomMagnitude;
 	int32_t fine = powersOfTwo & 1023;
 	int32_t coarse = powersOfTwo >> 10;
 
 	// Numbers below here represent 1 as 65536
 
-	// inImageWidthComparedToNormal and outImageWidthComparedToNormal show how much bigger than "normal" those two images are to appear.
-	// E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be "0.5" (32768). And so on.
+	// inImageWidthComparedToNormal and outImageWidthComparedToNormal show how much bigger than "normal" those two
+	// images are to appear. E.g. when fully zoomed out, the out-image would be "1" (65536), and the in-image would be
+	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
 	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
@@ -1102,11 +1099,11 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 	uint32_t outImageTimesBiggerThanNative = inImageTimesBiggerThanNative << zoomMagnitude;
 
 	uint32_t inImageTimesSmallerThanNative =
-	    4294967295u
-	    / inImageTimesBiggerThanNative; // How many squares of the zoomed-in image fit into each square of our output image, at current zoom level
+	    4294967295u / inImageTimesBiggerThanNative; // How many squares of the zoomed-in image fit into each square of
+	                                                // our output image, at current zoom level
 	uint32_t outImageTimesSmallerThanNative =
-	    4294967295u
-	    / outImageTimesBiggerThanNative; // How many squares of the zoomed-out image fit into each square of our output image, at current zoom level
+	    4294967295u / outImageTimesBiggerThanNative; // How many squares of the zoomed-out image fit into each square of
+	                                                 // our output image, at current zoom level
 
 	int32_t lastZoomPinSquareDone = 2147483647;
 
@@ -1123,7 +1120,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (transitionTakingPlaceOnRow[yDisplay]) {
 
-			// If this row doesn't have the same pin-square as the last, we have to calculate some stuff. Otherwise, this can be reused.
+			// If this row doesn't have the same pin-square as the last, we have to calculate some stuff. Otherwise,
+			// this can be reused.
 			if (zoomPinSquare[yDisplay] != lastZoomPinSquareDone) {
 				lastZoomPinSquareDone = zoomPinSquare[yDisplay];
 
@@ -1136,13 +1134,15 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 				int32_t inImageRightEdgeOnscreen =
 				    inImagePos0Onscreen + inImageTimesBiggerThanNative * innerImageRightEdge;
 
-				// Do some pre-figuring-out for each column of the final-rendered image - which we can hopefully refer to for each row
+				// Do some pre-figuring-out for each column of the final-rendered image - which we can hopefully refer
+				// to for each row
 				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 					int32_t outputSquareLeftEdge = xDisplay * 65536;
 					int32_t outputSquareRightEdge = outputSquareLeftEdge + 65536;
 
-					// Work out how much of this square will be covered by the "in" (thinner) image (often it'll be all of it, or none)
+					// Work out how much of this square will be covered by the "in" (thinner) image (often it'll be all
+					// of it, or none)
 					int32_t inImageOverlap = std::min(outputSquareRightEdge, inImageRightEdgeOnscreen)
 					                         - std::max(outputSquareLeftEdge, inImageLeftEdgeOnscreen);
 					if (inImageOverlap < 0) {
@@ -1162,7 +1162,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 					    ((int64_t)outputSquareLeftEdgePositionRelativeToPinSquare * outImageTimesSmallerThanNative)
 					    >> 16;
 
-					// Work out, for this square/col/pixel, the corresponding local coordinate for both the in- and out-images. Do that for both the leftmost and rightmost edge of this square
+					// Work out, for this square/col/pixel, the corresponding local coordinate for both the in- and
+					// out-images. Do that for both the leftmost and rightmost edge of this square
 					outputSquareStartOnOutImage[xDisplay] =
 					    zoomPinSquareOuter[yDisplay] - outputSquareLeftEdgePositionOnOutImageRelativeToPinSquare;
 					outputSquareStartOnInImage[xDisplay] =
@@ -1204,7 +1205,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 					}
 				}
 				else {
-					memset(PadLEDs::image[yDisplay][xDisplay], 0, 3);
+					PadLEDs::image[yDisplay][xDisplay] = gui::colours::black;
 				}
 			}
 		}
@@ -1271,7 +1272,7 @@ void horizontal::renderScroll() {
 				}
 			}
 
-			PIC::sendScrollRow(row, prepareColour(endSquare, row, Colour::fromArray(image[row][endSquare])));
+			PIC::sendScrollRow(row, prepareColour(endSquare, row, image[row][endSquare]));
 		}
 	}
 
@@ -1310,23 +1311,23 @@ void vertical::renderScroll() {
 	int32_t startSquare = (scrollDirection > 0) ? 0 : 1;
 	int32_t endSquare = (scrollDirection > 0) ? kDisplayHeight - 1 : 0;
 
-	//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
+	// matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
 
 	// Move the scrolling region
 	memmove(image[startSquare], image[1 - startSquare],
-	        (kDisplayWidth + kSideBarWidth) * (kDisplayHeight - 1) * sizeof(Colour));
+	        (kDisplayWidth + kSideBarWidth) * (kDisplayHeight - 1) * sizeof(RGB));
 
 	// And, bring in a row from the temp image (or from nowhere)
 	if (scrollingToNothing) {
 		memset(image[endSquare], 0, (kDisplayWidth + kSideBarWidth) * 3);
 	}
 	else {
-		memcpy(image[endSquare], imageStore[copyRow], (kDisplayWidth + kSideBarWidth) * sizeof(Colour));
+		memcpy(image[endSquare], imageStore[copyRow], (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
 	}
 
-	std::array<Colour, kDisplayWidth + kSideBarWidth> colours{};
+	std::array<RGB, kDisplayWidth + kSideBarWidth> colours{};
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-		colours[x] = prepareColour(x, endSquare, Colour::fromArray(image[endSquare][x]));
+		colours[x] = prepareColour(x, endSquare, image[endSquare][x]);
 	}
 	PIC::doVerticalScroll(scrollDirection > 0, colours);
 	PIC::flush();
@@ -1341,11 +1342,12 @@ void vertical::setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing) {
 void renderFade(int32_t progress) {
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			for (int32_t c = 0; c < 3; c++) {
-				int32_t difference = (int32_t)imageStore[y + kDisplayHeight][x][c] - (int32_t)imageStore[y][x][c];
-				int32_t progressedDifference = rshift_round(difference * progress, 16);
-				PadLEDs::image[y][x][c] = imageStore[y][x][c] + progressedDifference;
-			}
+			PadLEDs::image[y][x] = RGB::transform2(
+			    imageStore[y][x], imageStore[y + kDisplayHeight][x], [progress](auto channelA, auto channelB) {
+				    int32_t difference = (int32_t)channelB - (int32_t)channelA;
+				    uint32_t progressedDifference = rshift_round(difference * progress, 16);
+				    return channelA + progressedDifference;
+			    });
 		}
 	}
 	sendOutMainPadColours();
@@ -1363,18 +1365,16 @@ int32_t getTransitionProgress() {
 	return ((uint64_t)(AudioEngine::audioSampleTimer - transitionStartTime) * 65536) / transitionLength;
 }
 
-void copyBetweenImageStores(uint8_t* __restrict__ dest, uint8_t* __restrict__ source, int32_t destWidth,
-                            int32_t sourceWidth, int32_t copyWidth) {
+void copyBetweenImageStores(RGB* __restrict__ dest, RGB* __restrict__ source, int32_t destWidth, int32_t sourceWidth,
+                            int32_t copyWidth) {
 	if (destWidth == sourceWidth && copyWidth >= sourceWidth - 2) {
-		memcpy(dest, source, sourceWidth * kDisplayHeight * 3);
+		memcpy(dest, source, sourceWidth * kDisplayHeight * sizeof(RGB));
+		return;
 	}
-	else {
-		uint8_t* destEndOverall = dest + destWidth * kDisplayHeight * 3;
-		do {
-			memcpy(dest, source, copyWidth * 3);
-			dest += destWidth * 3;
-			source += sourceWidth * 3;
-		} while (dest < destEndOverall);
+
+	RGB* destEndOverall = dest + destWidth * kDisplayHeight;
+	for (; dest < destEndOverall; dest += destWidth, source += sourceWidth) {
+		memcpy(dest, source, copyWidth * sizeof(RGB));
 	}
 }
 

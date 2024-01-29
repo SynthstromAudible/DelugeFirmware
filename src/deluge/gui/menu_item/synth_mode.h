@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
@@ -33,7 +33,7 @@ public:
 		view.setKnobIndicatorLevels();
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_SUBTRACTIVE),
 		    l10n::getView(l10n::String::STRING_FOR_FM),

@@ -13,17 +13,15 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
-#include "dsp/timestretch/time_stretcher.h"
-#include "processing/sound/sound.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
+
 namespace deluge::dsp::filter {
 FilterSet::FilterSet() {
 
@@ -93,8 +91,8 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 		break;
 
 	case FilterRoute::PARALLEL:
-		//render one filter in the temp buffer so we can add
-		//them together
+		// render one filter in the temp buffer so we can add
+		// them together
 		int32_t length = endSample - startSample;
 		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
 
@@ -107,7 +105,7 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 		break;
 	}
 }
-//expects to receive an interleaved stereo stream
+// expects to receive an interleaved stereo stream
 void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	// Do HPF, if it's on
 	switch (routing_) {
@@ -171,7 +169,8 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 	else {
 		lastLPFMode_ = FilterMode::OFF;
 	}
-	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
+	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June
+	// 2017
 	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
 
 	// HPF
@@ -182,9 +181,9 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 				hpladder.reset();
 			}
 		}
-		//otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
+		// otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
 		else {
-			//invert the morph for the HPF so it goes high-band/notch-low
+			// invert the morph for the HPF so it goes high-band/notch-low
 			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
 				hpsvf.reset();

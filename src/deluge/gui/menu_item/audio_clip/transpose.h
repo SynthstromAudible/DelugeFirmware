@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
@@ -53,8 +53,8 @@ public:
 
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(::Param::Unpatched::START
-		                                   + ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+		paramDescriptor.setToHaveParamOnly(deluge::modulation::params::UNPATCHED_START
+		                                   + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
 		return paramDescriptor;
 	}
 };

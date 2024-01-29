@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
+#include "modulation/params/param.h"
 
+class AudioClip;
 class InstrumentClip;
 class Clip;
 class Kit;
@@ -31,7 +33,7 @@ enum class MIDIMatchType;
 
 Clip* getSelectedClip(bool useActiveClip = false);
 
-class MidiFollow final : public GlobalEffectable {
+class MidiFollow final {
 public:
 	MidiFollow();
 	void readDefaultsFromFile();
@@ -51,8 +53,8 @@ public:
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru, ModelStack* modelStack);
 
-	//midi CC mappings
-	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
+	// midi CC mappings
+	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kMaxMIDIValue + 1];
@@ -60,11 +62,11 @@ public:
 	uint32_t timeAutomationFeedbackLastSent;
 
 private:
-	//initialize
+	// initialize
 	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
-	//get model stack with auto param for midi follow cc-param control
+	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam*
 	getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings, int32_t xDisplay,
 	                                  int32_t yDisplay);
@@ -79,10 +81,10 @@ private:
 	                                 InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
+	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
-	//handle midi received for midi follow
+	// handle midi received for midi follow
 	void offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
 	                            int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                            bool* doingMidiThru, Clip* clip);
@@ -110,13 +112,14 @@ private:
 	                                                int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip);
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
+	bool isFeedbackEnabled();
 	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
 
-	//saving
+	// saving
 	void writeDefaultsToFile();
 	void writeDefaultMappingsToFile();
 
-	//loading
+	// loading
 	bool successfullyReadDefaultsFromFile;
 	void readDefaultMappingsFromFile();
 };

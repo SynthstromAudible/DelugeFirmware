@@ -69,7 +69,7 @@
 Exported global variables
  ***********************************************************************************************************************/
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-//extern uint16_t     g_usb_cstd_driver_open;
+// extern uint16_t     g_usb_cstd_driver_open;
 extern void (*g_usb_hstd_enumaration_process[8])(usb_utr_t*, uint16_t, uint16_t);
 
 #if defined(USB_CFG_HCDC_USE)
@@ -87,7 +87,7 @@ static uint16_t g_usb_cstd_driver_open = USB_FALSE;
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_bchg0function
- Description     : Execute the process appropriate to the status of the connected 
+ Description     : Execute the process appropriate to the status of the connected
                  : USB device when a BCHG interrupt occurred.
  Arguments       : usb_utr_t *ptr            : USB internal structure. Selects e.g. channel.
  Return value    : none
@@ -268,7 +268,8 @@ void usb_hdriver_init(usb_utr_t* ptr, usb_cfg_t* cfg)
     || defined(USB_CFG_HMIDI_USE)
     usb_hstd_class_driver_start(ptr); /* Init host class driver task. */
     usb_registration(ptr);            /* Class Registration */
-#endif /* defined(USB_CFG_HCDC_USE)||defined(USB_CFG_HHID_USE)||defined(USB_CFG_HMSC_USE)||defined(USB_CFG_HVND_USE) */
+#endif /* defined(USB_CFG_HCDC_USE)||defined(USB_CFG_HHID_USE)||defined(USB_CFG_HMSC_USE)||defined(USB_CFG_HVND_USE)   \
+        */
 } /* End of function usb_hdriver_init() */
 
 /***********************************************************************************************************************

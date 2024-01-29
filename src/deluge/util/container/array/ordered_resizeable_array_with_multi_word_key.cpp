@@ -130,7 +130,7 @@ void OrderedResizeableArrayWithMultiWordKey::testSequentiality(char const* error
 			}
 			if (difference == 0) {
 				if (j == numWordsInKey - 1) {
-					//if we got here it's a duplicate key
+					// if we got here it's a duplicate key
 					FREEZE_WITH_ERROR(errorCode);
 				}
 			}

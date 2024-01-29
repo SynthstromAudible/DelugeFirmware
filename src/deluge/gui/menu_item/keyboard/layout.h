@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
@@ -28,7 +28,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    "QWERTY",
 		    "AZERTY",

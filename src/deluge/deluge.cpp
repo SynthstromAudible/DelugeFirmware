@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "deluge.h"
 #include "NE10.h"
@@ -45,7 +45,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -66,6 +66,7 @@
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
@@ -188,10 +189,11 @@ void inputRoutine() {
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
 
-		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
+		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
+		// resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
-		//D_PRINT("batt mV: ");
-		//D_PRINTLN(batteryMV);
+		// D_PRINT("batt mV: ");
+		// D_PRINTLN(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -264,12 +266,10 @@ bool readButtonsAndPads() {
 	}
 
 	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		D_PRINTLN("closing peripheral");
-		closeUSBPeripheral();
-		D_PRINTLN("switching back to host");
-		openUSBHost();
-		closedPeripheral = true;
+	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
+	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
+	    openUSBHost();
+	    closedPeripheral = true;
 	}
 	*/
 
@@ -352,7 +352,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -424,13 +424,13 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationClipView;
+		}
+		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
@@ -481,12 +481,12 @@ void setupBlankSong() {
 }
 
 void setupOLED() {
-	//delayMS(10);
+	// delayMS(10);
 
 	// Set up 8-bit
 	RSPI0.SPDCR = 0x20u;               // 8-bit
 	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+	RSPI0.SPBFCR.BYTE = 0b01100000;    // 0b00100000;
 
 	PIC::setDCLow();
 	PIC::enableOLED();
@@ -497,7 +497,7 @@ void setupOLED() {
 
 	oledMainInit();
 
-	//delayMS(5);
+	// delayMS(5);
 
 	PIC::deselectOLED();
 	PIC::flush();
@@ -566,12 +566,11 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
-	R_RSPI_Create(
-	    SPI_CHANNEL_CV,
-	    have_oled
-	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-	        : 30000000,
-	    0, 32);
+	R_RSPI_Create(SPI_CHANNEL_CV,
+	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
+	                                   // datasheet's spec of 100ns (10MHz).
+	                        : 30000000,
+	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
@@ -590,6 +589,8 @@ extern "C" int32_t deluge_main(void) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
+	// remember the physical display type
+	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -609,7 +610,8 @@ extern "C" int32_t deluge_main(void) {
 	// Setup for gate output
 	cvEngine.init();
 
-	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't that.) Otherwise didn't seem necessary.
+	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
+	// that.) Otherwise didn't seem necessary.
 	PIC::waitForFlush();
 
 	PIC::setupForPads();
@@ -623,8 +625,8 @@ extern "C" int32_t deluge_main(void) {
 
 	audioFileManager.init();
 
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
-	// has to be running
+	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
+	// and audio routines into the SPIBSC wait routines, so that has to be running
 	setPinMux(4, 2, 2);
 	setPinMux(4, 3, 2);
 	setPinMux(4, 4, 2);
@@ -685,13 +687,18 @@ extern "C" int32_t deluge_main(void) {
 
 	runtimeFeatureSettings.init();
 
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
 	usbLock = 1;
 	openUSBHost();
 
 	// If nothing was plugged in to us as host, we'll go peripheral
 	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
-	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
+	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
+	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
 	if (!anythingInitiallyAttachedAsUSBHost) {
 		D_PRINTLN("switching from host to peripheral");
 		closeUSBHost();
@@ -791,7 +798,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->haveOLED()) {
+		if (deluge::hid::display::have_oled_screen) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -816,7 +823,8 @@ extern "C" int32_t deluge_main(void) {
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
+		// called in card routine
 		audioFileManager.slowRoutine();
 		AudioEngine::slowRoutine();
 
@@ -879,7 +887,8 @@ extern "C" void routineForSD(void) {
 		return;
 	}
 
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() -> USB -> routineForSD()
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
 	if (sdRoutineLock) {
 		return;
 	}
@@ -931,8 +940,8 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::unassignAllVoices(
-	    true); // Need to do this now that we're not bothering getting the old Song's Instruments detached and everything on delete
+	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
+	                                      // Instruments detached and everything on delete
 
 	view.activeModControllableModelStack.modControllable = NULL;
 	view.activeModControllableModelStack.setTimelineCounter(NULL);
@@ -1090,7 +1099,7 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//D_PRINTLN("couldn't create");
+						// D_PRINTLN("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
@@ -1104,13 +1113,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) D_PRINTLN("couldn't write");
+					// if (result) D_PRINTLN("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//D_PRINTLN("finished writing");
+						// D_PRINTLN("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1125,7 +1134,7 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//D_PRINTLN("file not found");
+						// D_PRINTLN("file not found");
 					}
 
 					else {
@@ -1144,7 +1153,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//D_PRINTLN("finished file");
+						// D_PRINTLN("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;

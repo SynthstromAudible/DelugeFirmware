@@ -29,8 +29,10 @@ struct Destination;
 class ParamManager;
 class PatchCable;
 
-#define GLOBALITY_GLOBAL 1
-#define GLOBALITY_LOCAL 0
+enum Globality {
+	GLOBALITY_LOCAL = 0,
+	GLOBALITY_GLOBAL = 1,
+};
 
 struct PatchableInfo {
 	int32_t paramFinalValuesOffset;

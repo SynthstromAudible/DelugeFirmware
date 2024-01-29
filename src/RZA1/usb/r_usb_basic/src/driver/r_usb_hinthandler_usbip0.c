@@ -50,7 +50,7 @@ usb_utr_t g_usb_cstd_int_msg_t_d0fifo;
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_usb_handler
- Description     : USB interrupt routine. Analyze which USB interrupt occurred 
+ Description     : USB interrupt routine. Analyze which USB interrupt occurred
                  : and send message to PCD/HCD task.
  Arguments       : none
  Return value    : none
@@ -69,17 +69,17 @@ void usb_hstd_usb_handler(
     /* Host Function */
     /* Host Interrupt handler */
 
-    //uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
 
     int result = usb_hstd_interrupt_handler(ptr);
 
     /*
     uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-	uint16_t duration = endTime - startTime;
-	uint32_t timePassedNS = superfastTimerCountToNS(duration);
-	uartPrint("host interrupt duration, nSec: ");
-	uartPrintNumber(timePassedNS);
-	*/
+    uint16_t duration = endTime - startTime;
+    uint32_t timePassedNS = superfastTimerCountToNS(duration);
+    uartPrint("host interrupt duration, nSec: ");
+    uartPrintNumber(timePassedNS);
+    */
 
     if (result)
         return; // By Rohan

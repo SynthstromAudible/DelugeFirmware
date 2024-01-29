@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
@@ -80,10 +80,11 @@ public:
 			soundEditor.currentSource->repeatMode = current_value;
 		}
 
-		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
+		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just
+		// one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),

@@ -17,7 +17,7 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
@@ -74,7 +74,8 @@ void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirecti
 void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {
 
 	// Bend param is the only one which is actually gonna maybe want to set up some interpolation -
-	// but for the other ones we still need to initialize them and crucially make sure automation overriding is switched off
+	// but for the other ones we still need to initialize them and crucially make sure automation overriding is switched
+	// off
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
 		AutoParam* param = &midiParam->param;
@@ -230,7 +231,8 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		AutoParam* param = &midiParam->param;
 
-		// With MIDI, we only want to send these out if the param is actually automated and the value is actually different
+		// With MIDI, we only want to send these out if the param is actually automated and the value is actually
+		// different
 		if (param->isAutomated()) {
 
 			int32_t oldValue = param->getCurrentValue();
@@ -320,8 +322,8 @@ void MIDIParamCollection::writeToFile() {
 }
 
 /*
- 	for (int32_t i = 0; i < params.getNumElements(); i++) {
-		MIDIParam* midiParam = params.getElement(i);
+    for (int32_t i = 0; i < params.getNumElements(); i++) {
+        MIDIParam* midiParam = params.getElement(i);
 
-	}
+    }
 */

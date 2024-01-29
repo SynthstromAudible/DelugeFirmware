@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
@@ -235,24 +235,26 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < ::Param::Global::FIRST;
+			return destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL;
 		}
 	}
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
 	// Check that this source is allowed to be patched to the selected param
-	if (p == ::Param::Global::VOLUME_POST_FX) {
-		return (soundEditor.currentSound->maySourcePatchToParam(
-		            source, ::Param::Global::VOLUME_POST_FX, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		            != PatchCableAcceptance::DISALLOWED
-		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, ::Param::Local::VOLUME, (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PatchCableAcceptance::DISALLOWED
-		        || soundEditor.currentSound->maySourcePatchToParam(
-		               source, ::Param::Global::VOLUME_POST_REVERB_SEND,
-		               (ParamManagerForTimeline*)soundEditor.currentParamManager)
-		               != PatchCableAcceptance::DISALLOWED);
+	if (p == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
+		return (
+		    soundEditor.currentSound->maySourcePatchToParam(source, deluge::modulation::params::GLOBAL_VOLUME_POST_FX,
+		                                                    (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		        != PatchCableAcceptance::DISALLOWED
+		    || soundEditor.currentSound->maySourcePatchToParam(
+		           source, deluge::modulation::params::LOCAL_VOLUME,
+		           (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		           != PatchCableAcceptance::DISALLOWED
+		    || soundEditor.currentSound->maySourcePatchToParam(
+		           source, deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
+		           (ParamManagerForTimeline*)soundEditor.currentParamManager)
+		           != PatchCableAcceptance::DISALLOWED);
 	}
 	else {
 		return (soundEditor.currentSound->maySourcePatchToParam(

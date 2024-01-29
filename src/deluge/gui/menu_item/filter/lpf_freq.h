@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/ui/sound_editor.h"
@@ -28,7 +28,7 @@ public:
 	void drawValue() override {
 		if (this->getValue() == kMaxMenuValue
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        ::Param::Local::LPF_FREQ)) {
+		        deluge::modulation::params::LOCAL_LPF_FREQ)) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {

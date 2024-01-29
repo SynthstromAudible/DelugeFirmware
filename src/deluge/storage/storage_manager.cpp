@@ -72,8 +72,8 @@ DIR staticDIR;
 extern void initialiseConditions();
 extern void songLoaded(Song* song);
 
-// Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from any other data
-// so that invalidation and stuff works
+// Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from
+// any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff;
 
 StorageManager::StorageManager() {
@@ -286,7 +286,8 @@ char const* StorageManager::readNextAttributeName() {
 noMoreAttributes:
 	return "";
 
-	// Here, we're in IN_ATTRIBUTE_NAME, and we're not allowed to leave this while loop until our xmlArea changes to something else
+	// Here, we're in IN_ATTRIBUTE_NAME, and we're not allowed to leave this while loop until our xmlArea changes to
+	// something else
 	// - or there's an error or file-end, in which case we'll return error below
 doReadName:
 	xmlArea = IN_ATTRIBUTE_NAME;
@@ -313,7 +314,8 @@ doReadName:
 				xmlArea = PAST_EQUALS_SIGN;
 				goto reachedNameEnd;
 
-			// If we get a close-tag name, it means we saw some sorta attribute name with no value, which isn't allowed, so treat it as invalid
+			// If we get a close-tag name, it means we saw some sorta attribute name with no value, which isn't allowed,
+			// so treat it as invalid
 			case '>':
 				xmlArea = BETWEEN_TAGS;
 				goto noMoreAttributes;
@@ -368,7 +370,8 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	default:
 #if ALPHA_OR_BETA_VERSION
-		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
+		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario.
+		// Fraser got this, Nov 2021.
 		FREEZE_WITH_ERROR("E365");
 #else
 		__builtin_unreachable();
@@ -399,10 +402,10 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	if (*toReturn) {
 		/*
-    	for (int32_t t = 0; t < tagDepthCaller; t++) {
+		for (int32_t t = 0; t < tagDepthCaller; t++) {
 D_PRINTLN("\t");
-    	}
-    	D_PRINTLN(toReturn);
+		}
+		D_PRINTLN(toReturn);
 		*/
 		tagDepthCaller++;
 		AudioEngine::logAction(toReturn);
@@ -607,9 +610,8 @@ char const* StorageManager::readUntilChar(char endChar) {
 	return stringBuffer;
 }
 
-// Unlike readUntilChar(), above, does not put a null character at the end of the returned "string". And, has a preset number of chars.
-// And, returns NULL when nothing more to return.
-// numChars must be <= FILENAME_BUFFER_SIZE
+// Unlike readUntilChar(), above, does not put a null character at the end of the returned "string". And, has a preset
+// number of chars. And, returns NULL when nothing more to return. numChars must be <= FILENAME_BUFFER_SIZE
 char const* StorageManager::readNextCharsOfTagOrAttributeValue(int32_t numChars) {
 
 	int32_t charPos = 0;
@@ -629,7 +631,8 @@ char const* StorageManager::readNextCharsOfTagOrAttributeValue(int32_t numChars)
 
 		int32_t numCharsHere = fileBufferCurrentPos - bufferPosAtStart;
 
-		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the existing buffer
+		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the
+		// existing buffer
 		if (numCharsHere == numChars) {
 			xmlReadDone();
 			return &fileClusterBuffer[bufferPosAtStart];
@@ -740,7 +743,8 @@ char const* StorageManager::readTagOrAttributeValue() {
 	case PAST_EQUALS_SIGN:
 		return readAttributeValue();
 
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
+	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
 		return "";
 
 	default:
@@ -761,7 +765,8 @@ int32_t StorageManager::readTagOrAttributeValueInt() {
 	case PAST_EQUALS_SIGN:
 		return readAttributeValueInt();
 
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
+	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
 		return 0;
 
 	default:
@@ -796,7 +801,8 @@ int32_t StorageManager::readTagOrAttributeValueString(String* string) {
 	case PAST_EQUALS_SIGN:
 		return readAttributeValueString(string);
 
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
+	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
 		return ERROR_FILE_CORRUPTED;
 
 	default:
@@ -822,7 +828,7 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	switch (xmlArea) {
 
 	case BETWEEN_TAGS:
-		//xmlArea = IN_TAG_NAME; // How it'll be after reading all chars
+		// xmlArea = IN_TAG_NAME; // How it'll be after reading all chars
 		charAtEndOfValue = '<';
 		return true;
 
@@ -1026,10 +1032,14 @@ cutFolderPathAndTryCreating:
 	return NO_ERROR;
 }
 
-int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite) {
+int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
 	int32_t error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	if (error) {
+		if (displayErrors) {
+			display->removeWorkingAnimation();
+			display->displayError(error);
+		}
 		return error;
 	}
 
@@ -1127,7 +1137,8 @@ int32_t StorageManager::writeBufferToFile() {
 // Returns false if some error, including error while writing
 int32_t StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	if (fileAccessFailedDuring) {
-		return ERROR_WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
+		return ERROR_WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we don't
+		                         // want it to flush any data to the card or anything
 	}
 	int32_t error = writeBufferToFile();
 	if (error) {
@@ -1286,7 +1297,8 @@ bool StorageManager::readXMLFileCluster() {
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
 	if (fileAccessFailedDuring) {
-		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to flush any data to the card or anything
+		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to
+		              // flush any data to the card or anything
 	}
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	return (result == FR_OK);
@@ -1301,7 +1313,8 @@ void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionS
 }
 
 // Gets ready to access SD card.
-// You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact just no card inserted.
+// You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
+// just no card inserted.
 int32_t StorageManager::initSD() {
 
 	FRESULT result;
@@ -1425,8 +1438,8 @@ deleteInstrumentAndGetOut:
 	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
 	                                                     NULL)) {
 
-		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the paramManager to be created when we read the Kit just now.
-		// So, just make one.
+		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
+		// paramManager to be created when we read the Kit just now. So, just make one.
 		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
@@ -1471,7 +1484,7 @@ paramManagersMissing:
 
 /**
  * Special function to read a synth preset into a sound drum
-*/
+ */
 int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
                                         SoundDrum** getInstrument, FilePointer* filePointer, String* name,
                                         String* dirPath) {
@@ -1507,7 +1520,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 			return error;
 		}
 	}
-	//these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
+	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
 	if (*getInstrument) {
 		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
 		(*getInstrument)->wontBeRenderedForAWhile();
@@ -1626,7 +1639,8 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
 // Now, this will only ever be called in two scenarios:
 // -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
-// -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the param.
+// -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
+// param.
 int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
                                               int8_t* getCC) {
 
@@ -1679,8 +1693,9 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 	return NO_ERROR;
 }
 
-// For a bunch of params like this, e.g. for syncing delay, LFOs, arps, the value stored in the file is relative to the song insideWorldTickMagnitude -
-// so that if someone loads a preset into a song with a different insideWorldTickMagnitude, the results are what you'd expect.
+// For a bunch of params like this, e.g. for syncing delay, LFOs, arps, the value stored in the file is relative to the
+// song insideWorldTickMagnitude - so that if someone loads a preset into a song with a different
+// insideWorldTickMagnitude, the results are what you'd expect.
 SyncType StorageManager::readSyncTypeFromFile(Song* song) {
 	return (SyncType)readTagOrAttributeValueInt();
 }

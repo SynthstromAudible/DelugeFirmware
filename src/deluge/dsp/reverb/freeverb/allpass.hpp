@@ -19,42 +19,44 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "util/functions.h"
 #include <cstdint>
+#include <limits>
+#include <span>
 
-class allpass {
+namespace freeverb {
+class Allpass {
 public:
-	allpass();
-	void setbuffer(int32_t* buf, int32_t size);
-	inline int32_t process(int32_t inp);
-	void mute();
-	void setfeedback(float val);
-	float getfeedback();
-	// private:
-	int32_t feedback;
-	int32_t* buffer;
-	int32_t bufsize;
-	int32_t bufidx;
+	Allpass() = default;
+
+	constexpr void setBuffer(std::span<int32_t> buffer) { buffer_ = buffer; }
+
+	constexpr void mute() { std::fill(buffer_.begin(), buffer_.end(), 0); }
+
+	constexpr void setFeedback(float val) { feedback_ = val * std::numeric_limits<int32_t>::max(); }
+
+	[[nodiscard]] constexpr float getFeedback() const { return (float)feedback_ / std::numeric_limits<int32_t>::max(); }
+
+	[[gnu::always_inline]] constexpr int32_t process(int32_t input) {
+		int32_t bufout = buffer_[bufidx_];
+		int32_t output = -input + bufout;
+
+		buffer_[bufidx_] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
+		// buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
+
+		if (++bufidx_ >= buffer_.size()) {
+			bufidx_ = 0;
+		}
+
+		return output;
+	}
+
+private:
+	int32_t feedback_;
+	std::span<int32_t> buffer_;
+	int32_t bufidx_{0};
 };
-
-// Big to inline - but crucial for speed
-inline int32_t allpass::process(int32_t input) {
-	int32_t output;
-	int32_t bufout;
-
-	bufout = buffer[bufidx];
-
-	output = -input + bufout;
-	buffer[bufidx] = input + (bufout >> 1); // Shortcut - because feedback was always one half by default anyway
-	//buffer[bufidx] = input + (multiply_32x32_rshift32_rounded(bufout, feedback) << 1);
-
-	if (++bufidx >= bufsize)
-		bufidx = 0;
-
-	return output;
-}
-
-//ends
+} // namespace freeverb

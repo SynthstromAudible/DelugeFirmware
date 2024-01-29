@@ -18,7 +18,7 @@
 #include "model/drum/non_audio_drum.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -47,18 +47,17 @@ bool NonAudioDrum::hasAnyVoices() {
 }
 
 /*
-int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* paramManager, uint32_t pos, TimelineCounter* playPositionCounter) {
-	if (whichModEncoder == 0) {
-		channelEncoderCurrentOffset = 0;
-	}
-	return -64;
+int8_t NonAudioDrum::getModKnobLevel(uint8_t whichModEncoder, ParamManagerBase* paramManager, uint32_t pos,
+TimelineCounter* playPositionCounter) { if (whichModEncoder == 0) { channelEncoderCurrentOffset = 0;
+    }
+    return -64;
 }
 */
 
 int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset,
                                       uint8_t whichModEncoder) {
 
-	if ((getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView)
+	if ((getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView)
 	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 0) {
 			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel, getNumChannels());

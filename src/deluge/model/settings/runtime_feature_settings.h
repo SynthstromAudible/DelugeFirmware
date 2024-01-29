@@ -18,7 +18,7 @@
 #pragma once
 
 #include "util/container/array/resizeable_array.h"
-
+#include "util/containers.h"
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -35,6 +35,8 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
 enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
+
+enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, OnBoot = 2 };
 
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
@@ -58,6 +60,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShiftIsSticky,
 	LightShiftLed,
 	EnableGrainFX,
+	EmulatedDisplay,
 	MaxElement // Keep as boundary
 };
 
@@ -74,7 +77,7 @@ struct RuntimeFeatureSetting {
 	uint32_t value;
 
 	// Limited to safe memory
-	std::vector<RuntimeFeatureSettingOption> options;
+	deluge::vector<RuntimeFeatureSettingOption> options;
 };
 
 /// Encapsulating class

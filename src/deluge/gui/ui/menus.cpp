@@ -1,4 +1,3 @@
-#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
@@ -11,7 +10,6 @@
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
-#include "gui/menu_item/bend_range.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -22,7 +20,6 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
-#include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
@@ -49,7 +46,6 @@
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
-#include "gui/menu_item/integer.h"
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
@@ -57,7 +53,6 @@
 #include "gui/menu_item/lfo/global/sync.h"
 #include "gui/menu_item/lfo/global/type.h"
 #include "gui/menu_item/lfo/local/type.h"
-#include "gui/menu_item/lfo/shape.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/after_touch_to_mono.h"
@@ -72,7 +67,6 @@
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
-#include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/mod_fx/depth.h"
@@ -83,10 +77,6 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
-#include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "gui/menu_item/mpe/zone_selector.h"
-#include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/number.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -95,23 +85,17 @@
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/osc/type.h"
-#include "gui/menu_item/param.h"
-#include "gui/menu_item/patch_cable_strength.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
-#include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/menu_item/patch_cables.h"
-#include "gui/menu_item/patched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/patched_param/pan.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
-#include "gui/menu_item/ppqn.h"
-#include "gui/menu_item/range.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/compressor/shape.h"
 #include "gui/menu_item/reverb/compressor/volume.h"
 #include "gui/menu_item/reverb/dampening.h"
+#include "gui/menu_item/reverb/model.h"
 #include "gui/menu_item/reverb/pan.h"
 #include "gui/menu_item/reverb/room_size.h"
 #include "gui/menu_item/reverb/width.h"
@@ -120,11 +104,9 @@
 #include "gui/menu_item/sample/browser_preview/mode.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/interpolation.h"
-#include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/pitch_speed.h"
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
-#include "gui/menu_item/sample/selection.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
@@ -132,12 +114,7 @@
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/send.h"
 #include "gui/menu_item/sidechain/sync.h"
-#include "gui/menu_item/source/patched_param.h"
 #include "gui/menu_item/source/patched_param/fm.h"
-#include "gui/menu_item/source/transpose.h"
-#include "gui/menu_item/source_selection.h"
-#include "gui/menu_item/source_selection/range.h"
-#include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -147,12 +124,8 @@
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/filter.h"
 #include "gui/menu_item/submenu/modulator.h"
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/menu_item/swing/interval.h"
-#include "gui/menu_item/sync_level.h"
-#include "gui/menu_item/sync_level/relative_to_song.h"
 #include "gui/menu_item/synth_mode.h"
-#include "gui/menu_item/transpose.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
@@ -161,7 +134,6 @@
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
-#include "gui/menu_item/value.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/priority.h"
 #include "gui/ui/sound_editor.h"
@@ -169,13 +141,14 @@
 #include "io/midi/midi_engine.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
-#include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 
-using namespace deluge;
-using namespace gui;
-using namespace gui::menu_item;
 using enum l10n::String;
+using namespace deluge::modulation;
+using namespace deluge;
+using namespace gui::menu_item;
+using namespace gui;
+namespace params = deluge::modulation::params;
 
 // Dev vars
 dev_var::AMenu devVarAMenu{STRING_FOR_DEV_MENU_A};
@@ -188,9 +161,9 @@ dev_var::GMenu devVarGMenu{STRING_FOR_DEV_MENU_G};
 
 // LPF menu ----------------------------------------------------------------------------------------------------
 
-filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, ::Param::Local::LPF_FREQ};
-patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, ::Param::Local::LPF_RESONANCE};
-patched_param::IntegerNonFM lpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, ::Param::Local::LPF_MORPH};
+filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ};
+patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
+patched_param::IntegerNonFM lpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::LOCAL_LPF_MORPH};
 filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
 
 submenu::Filter lpfMenu{
@@ -205,9 +178,9 @@ submenu::Filter lpfMenu{
 
 // HPF menu ----------------------------------------------------------------------------------------------------
 
-filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, ::Param::Local::HPF_FREQ};
-patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, ::Param::Local::HPF_RESONANCE};
-patched_param::IntegerNonFM hpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, ::Param::Local::HPF_MORPH};
+filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
+patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
+patched_param::IntegerNonFM hpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH};
 filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
 
 submenu::Filter hpfMenu{
@@ -220,15 +193,15 @@ submenu::Filter hpfMenu{
     },
 };
 
-//Filter Route Menu ----------------------------------------------------------------------------------------------
+// Filter Route Menu ----------------------------------------------------------------------------------------------
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
-envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, ::Param::Local::ENV_0_ATTACK};
-envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, ::Param::Local::ENV_0_DECAY};
-envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, ::Param::Local::ENV_0_SUSTAIN};
-envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, ::Param::Local::ENV_0_RELEASE};
+envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
 
 std::array<MenuItem*, 4> envMenuItems = {
     &envAttackMenu,
@@ -243,23 +216,23 @@ submenu::Envelope env1Menu{STRING_FOR_ENVELOPE_2, envMenuItems, 1};
 
 osc::Type oscTypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE};
 osc::source::WaveIndex sourceWaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE,
-                                           ::Param::Local::OSC_A_WAVE_INDEX};
+                                           params::LOCAL_OSC_A_WAVE_INDEX};
 osc::source::Volume sourceVolumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_OSC_LEVEL_MENU_TITLE,
-                                     ::Param::Local::OSC_A_VOLUME};
+                                     params::LOCAL_OSC_A_VOLUME};
 osc::source::Feedback sourceFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE,
-                                         ::Param::Local::CARRIER_0_FEEDBACK};
+                                         params::LOCAL_CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{STRING_FOR_RECORD_AUDIO};
 sample::Reverse sampleReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE};
 sample::Repeat sampleRepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE};
 sample::Start sampleStartMenu{STRING_FOR_START_POINT};
 sample::End sampleEndMenu{STRING_FOR_END_POINT};
 sample::Transpose sourceTransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE,
-                                      ::Param::Local::OSC_A_PITCH_ADJUST};
+                                      params::LOCAL_OSC_A_PITCH_ADJUST};
 sample::PitchSpeed samplePitchSpeedMenu{STRING_FOR_PITCH_SPEED};
 sample::TimeStretch timeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE};
 sample::Interpolation interpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE};
 osc::PulseWidth pulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE,
-                               ::Param::Local::OSC_A_PHASE_WIDTH};
+                               params::LOCAL_OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
 osc::RetriggerPhase oscPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, false};
 
@@ -292,9 +265,9 @@ Submenu unisonMenu{
 arpeggiator::Mode arpModeMenu{STRING_FOR_MODE, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
-arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, ::Param::Unpatched::Sound::ARP_GATE};
+arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
-arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, ::Param::Global::ARP_RATE};
+arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
 
 submenu::Arpeggiator arpMenu{
@@ -313,7 +286,7 @@ submenu::Arpeggiator arpMenu{
 // Voice menu ----------------------------------------------------------------------------------------------------
 
 voice::Polyphony polyphonyMenu{STRING_FOR_POLYPHONY};
-UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, ::Param::Unpatched::Sound::PORTAMENTO};
+UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
 Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &priorityMenu}};
@@ -321,34 +294,34 @@ Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &a
 // Modulator menu -----------------------------------------------------------------------
 
 modulator::Transpose modulatorTransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_FM_MOD_TRAN_MENU_TITLE,
-                                            ::Param::Local::MODULATOR_0_PITCH_ADJUST};
+                                            params::LOCAL_MODULATOR_0_PITCH_ADJUST};
 source::patched_param::FM modulatorVolume{STRING_FOR_AMOUNT_LEVEL, STRING_FOR_FM_MOD_LEVEL_MENU_TITLE,
-                                          ::Param::Local::MODULATOR_0_VOLUME};
+                                          params::LOCAL_MODULATOR_0_VOLUME};
 source::patched_param::FM modulatorFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_FM_MOD_FBACK_MENU_TITLE,
-                                                ::Param::Local::MODULATOR_0_FEEDBACK};
+                                                params::LOCAL_MODULATOR_0_FEEDBACK};
 modulator::Destination modulatorDestMenu{STRING_FOR_DESTINATION, STRING_FOR_FM_MOD2_DEST_MENU_TITLE};
 osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, true};
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
 lfo::global::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE};
-lfo::global::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, ::Param::Global::LFO_FREQ};
+lfo::global::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ};
 lfo::global::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC};
 
 Submenu lfo0Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
 lfo::local::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE};
-patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, ::Param::Local::LFO_LOCAL_FREQ};
+patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ};
 
 Submenu lfo1Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
-patched_param::Integer modFXRateMenu{STRING_FOR_RATE, STRING_FOR_MODFX_RATE, ::Param::Global::MOD_FX_RATE};
-mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBACK, ::Param::Unpatched::MOD_FX_FEEDBACK};
-mod_fx::Depth modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, ::Param::Global::MOD_FX_DEPTH};
-mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, ::Param::Unpatched::MOD_FX_OFFSET};
+patched_param::Integer modFXRateMenu{STRING_FOR_RATE, STRING_FOR_MODFX_RATE, params::GLOBAL_MOD_FX_RATE};
+mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBACK, params::UNPATCHED_MOD_FX_FEEDBACK};
+mod_fx::Depth modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
+mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, params::UNPATCHED_MOD_FX_OFFSET};
 
 Submenu modFXMenu{
     STRING_FOR_MOD_FX,
@@ -362,10 +335,10 @@ Submenu modFXMenu{
 };
 
 // EQ -------------------------------------------------------------------------------------
-UnpatchedParam bassMenu{STRING_FOR_BASS, ::Param::Unpatched::BASS};
-UnpatchedParam trebleMenu{STRING_FOR_TREBLE, ::Param::Unpatched::TREBLE};
-UnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, ::Param::Unpatched::BASS_FREQ};
-UnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, ::Param::Unpatched::TREBLE_FREQ};
+UnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
+UnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
+UnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, params::UNPATCHED_BASS_FREQ};
+UnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, params::UNPATCHED_TREBLE_FREQ};
 
 Submenu eqMenu{
     STRING_FOR_EQ,
@@ -378,8 +351,8 @@ Submenu eqMenu{
 };
 
 // Delay ---------------------------------------------------------------------------------
-patched_param::Integer delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, ::Param::Global::DELAY_FEEDBACK};
-patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, ::Param::Global::DELAY_RATE};
+patched_param::Integer delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
+patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::GLOBAL_DELAY_RATE};
 delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
 delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
 delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
@@ -412,13 +385,13 @@ submenu::Bend bendMenu{
 
 sidechain::Send sidechainSendMenu{STRING_FOR_SEND_TO_SIDECHAIN, STRING_FOR_SEND_TO_SIDECH_MENU_TITLE};
 compressor::VolumeShortcut compressorVolumeShortcutMenu{
-    STRING_FOR_VOLUME_DUCKING, ::Param::Global::VOLUME_POST_REVERB_SEND, PatchSource::COMPRESSOR};
+    STRING_FOR_VOLUME_DUCKING, params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::COMPRESSOR};
 reverb::compressor::Volume reverbCompressorVolumeMenu{STRING_FOR_VOLUME_DUCKING};
 sidechain::Sync sidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC};
 compressor::Attack compressorAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE};
 compressor::Release compressorReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE};
 unpatched_param::UpdatingReverbParams compressorShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE,
-                                                          ::Param::Unpatched::COMPRESSOR_SHAPE};
+                                                          params::UNPATCHED_COMPRESSOR_SHAPE};
 reverb::compressor::Shape reverbCompressorShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE};
 
 submenu::Compressor compressorMenu{
@@ -449,16 +422,18 @@ submenu::Compressor reverbCompressorMenu{
 };
 
 // Reverb ----------------------------------------------------------------------------------
-patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, ::Param::Global::REVERB_AMOUNT};
+patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
 reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
 reverb::Dampening reverbDampeningMenu{STRING_FOR_DAMPENING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
 reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
+reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 
 Submenu reverbMenu{
     STRING_FOR_REVERB,
     {
         &reverbAmountMenu,
+        &reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,
         &reverbWidthMenu,
@@ -470,9 +445,9 @@ Submenu reverbMenu{
 // FX ----------------------------------------------------------------------------------------
 
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
-UnpatchedParam srrMenu{STRING_FOR_DECIMATION, ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
-UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, ::Param::Unpatched::BITCRUSHING};
-patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, ::Param::Local::FOLD};
+UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION};
+UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING};
+patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD};
 Submenu fxMenu{
     STRING_FOR_FX,
     {
@@ -500,22 +475,20 @@ submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCol
 
 sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 
-//Global FX Menu
+// Global FX Menu
 
-//Volume
-UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, ::Param::Unpatched::GlobalEffectable::VOLUME};
+// Volume
+UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME};
 
-//Pitch
-UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST};
+// Pitch
+UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
 
-//Pan
-unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, ::Param::Unpatched::GlobalEffectable::PAN};
+// Pan
+unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
 // LPF Menu
-UnpatchedParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY,
-                                 ::Param::Unpatched::GlobalEffectable::LPF_FREQ};
-UnpatchedParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE,
-                                ::Param::Unpatched::GlobalEffectable::LPF_RES};
+UnpatchedParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::UNPATCHED_LPF_FREQ};
+UnpatchedParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::UNPATCHED_LPF_RES};
 
 Submenu globalLPFMenu{
     STRING_FOR_LPF,
@@ -527,10 +500,8 @@ Submenu globalLPFMenu{
 };
 
 // HPF Menu
-UnpatchedParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY,
-                                 ::Param::Unpatched::GlobalEffectable::HPF_FREQ};
-UnpatchedParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE,
-                                ::Param::Unpatched::GlobalEffectable::HPF_RES};
+UnpatchedParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::UNPATCHED_HPF_FREQ};
+UnpatchedParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::UNPATCHED_HPF_RES};
 
 Submenu globalHPFMenu{
     STRING_FOR_HPF,
@@ -558,13 +529,14 @@ Submenu globalEQMenu{
 UnpatchedParam globalReverbSendAmountMenu{
     STRING_FOR_AMOUNT,
     STRING_FOR_REVERB_AMOUNT,
-    ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
+    params::UNPATCHED_REVERB_SEND_AMOUNT,
 };
 
 Submenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
+        &reverbModelMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,
         &reverbWidthMenu,
@@ -574,10 +546,8 @@ Submenu globalReverbMenu{
 };
 
 // Delay Menu
-UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
-                                       ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT};
-UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE,
-                                   ::Param::Unpatched::GlobalEffectable::DELAY_RATE};
+UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::UNPATCHED_DELAY_AMOUNT};
+UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
 
 Submenu globalDelayMenu{
     STRING_FOR_DELAY,
@@ -591,8 +561,8 @@ Submenu globalDelayMenu{
 };
 
 // Sidechain menu
-unpatched_param::UpdatingReverbParams globalCompressorVolumeMenu{
-    STRING_FOR_VOLUME_DUCKING, ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME};
+unpatched_param::UpdatingReverbParams globalCompressorVolumeMenu{STRING_FOR_VOLUME_DUCKING,
+                                                                 params::UNPATCHED_SIDECHAIN_VOLUME};
 
 Submenu globalCompressorMenu{
     STRING_FOR_SIDECHAIN_COMPRESSOR,
@@ -607,10 +577,8 @@ Submenu globalCompressorMenu{
 
 // Mod FX Menu
 
-UnpatchedParam globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH,
-                                    ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH};
-UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE,
-                                   ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE};
+UnpatchedParam globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
+UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
 Submenu globalModFXMenu{
     STRING_FOR_MOD_FX,
@@ -636,7 +604,7 @@ Submenu globalDistortionMenu{
 UnpatchedParam globalStutterRateMenu{
     STRING_FOR_STUTTER,
     STRING_FOR_STUTTER_RATE,
-    ::Param::Unpatched::STUTTER_RATE,
+    params::UNPATCHED_STUTTER_RATE,
 };
 
 // AudioClip stuff ---------------------------------------------------------------------------
@@ -751,21 +719,18 @@ ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.m
 // MIDI Takeover
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
-//MIDI Follow
-midi::FollowChannel midiFollowChannelSynthMenu{
-    STRING_FOR_FOLLOW_CHANNEL_SYNTH, STRING_FOR_FOLLOW_CHANNEL_SYNTH,
-    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]};
-midi::FollowChannel midiFollowChannelKitMenu{
-    STRING_FOR_FOLLOW_CHANNEL_KIT, STRING_FOR_FOLLOW_CHANNEL_KIT,
-    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]};
-midi::FollowChannel midiFollowChannelParamMenu{
-    STRING_FOR_FOLLOW_CHANNEL_PARAM, STRING_FOR_FOLLOW_CHANNEL_PARAM,
-    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)]};
+// MIDI Follow
+midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
+                                           MIDIFollowChannelType::A};
+midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_FOR_FOLLOW_CHANNEL_B,
+                                           MIDIFollowChannelType::B};
+midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
+                                           MIDIFollowChannelType::C};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
                                       midiEngine.midiFollowDisplayParam};
-ToggleBool midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK, STRING_FOR_FOLLOW_FEEDBACK,
-                                  midiEngine.midiFollowFeedback};
+midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
+                                                  MIDIFollowChannelType::FEEDBACK};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
@@ -774,9 +739,9 @@ Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
     STRING_FOR_CHANNEL,
     {
-        &midiFollowChannelSynthMenu,
-        &midiFollowChannelKitMenu,
-        &midiFollowChannelParamMenu,
+        &midiFollowChannelAMenu,
+        &midiFollowChannelBMenu,
+        &midiFollowChannelCMenu,
     },
 };
 
@@ -784,7 +749,7 @@ Submenu midiFollowFeedbackSubmenu{
     STRING_FOR_FOLLOW_FEEDBACK,
     STRING_FOR_FOLLOW_FEEDBACK,
     {
-        &midiFollowFeedbackMenu,
+        &midiFollowChannelFeedbackMenu,
         &midiFollowFeedbackAutomationMenu,
         &midiFollowFeedbackFilterMenu,
     },
@@ -854,11 +819,11 @@ ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, pla
 ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_M_MATCH_MENU_TITLE,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};
 
-//Midi devices menu
+// Midi devices menu
 midi::Devices midi::devicesMenu{STRING_FOR_DEVICES, STRING_FOR_MIDI_DEVICES};
 mpe::DirectionSelector mpe::directionSelectorMenu{STRING_FOR_MPE};
 
-//MIDI menu
+// MIDI menu
 Submenu midiClockMenu{
     STRING_FOR_CLOCK,
     STRING_FOR_MIDI_CLOCK,
@@ -990,11 +955,11 @@ submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, modulatorMenuItems,
 submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, modulatorMenuItems, 1};
 
 // Not FM
-patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, ::Param::Local::NOISE_VOLUME};
+patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOISE_VOLUME};
 
 MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MASTER_TRAN_MENU_TITLE};
 
-patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, ::Param::Local::PITCH_ADJUST, PatchSource::LFO_GLOBAL};
+patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL};
 
 // Drum only
 menu_item::DrumName drumNameMenu{STRING_FOR_NAME};
@@ -1003,8 +968,8 @@ menu_item::DrumName drumNameMenu{STRING_FOR_NAME};
 menu_item::SynthMode synthModeMenu{STRING_FOR_SYNTH_MODE};
 
 bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
-patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, ::Param::Global::VOLUME_POST_FX};
-patched_param::Pan panMenu{STRING_FOR_PAN, ::Param::Local::PAN};
+patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX};
+patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
@@ -1071,10 +1036,10 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
     },
 };
 
-//Menu for Performance View Editing Mode
+// Menu for Performance View Editing Mode
 menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
 
-//Root menu for Performance View
+// Root menu for Performance View
 menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
@@ -1097,9 +1062,9 @@ bool* getSongMidiLoopback() {
 
 ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
 
-//Root menu for Song View
+// Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
-    STRING_FOR_SONG_FX,
+    STRING_FOR_SONG,
     {
         &globalLevelMenu,
         &globalPanMenu,
@@ -1110,12 +1075,11 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalStutterRateMenu,
         &midiLoopbackMenu,
     },
 };
 
-//Root menu for Kit Global FX
+// Root menu for Kit Global FX
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
@@ -1198,7 +1162,7 @@ MenuItem* paramShortcutsForSongView[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &globalStutterRateMenu             },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr             				  },
     {&globalLevelMenu,        nullptr,                 nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
@@ -1216,13 +1180,13 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr             				        },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr             				  },
     {&globalLevelMenu,        &globalPitchMenu,        nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
     {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &globalCompressorVolumeMenu,    &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		     nullptr,         	   nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		     nullptr,         	 nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },

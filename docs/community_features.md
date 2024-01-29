@@ -29,6 +29,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- For a detailed description of this feature, please refer to the feature documentation: [MIDI Follow Mode Documentation]
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`. 
+	- ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+		- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+	- ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
 - ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
 - ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
@@ -88,11 +91,12 @@ Here is a list of features that have been added to the firmware as a list, group
 
  - ([#163]) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is similar to the shortcut when setting the color while in a clip view.
 
-#### 4.1.3 - Fill Clips
+#### 4.1.3 - Fill Clips and Once Clips
 
- - ([#196]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type selection menu. The options are:
+ - ([#196] and [#1018]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type selection menu. The options are:
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+	- Once (ONCE) - Once clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of clips also work when soloing them, they will solo just for one loop and unsolo after that. **Limitation**: a Once clip is still subject to the one clip per instrument behavior of the Deluge, A Once clip can steal an output from other normal clips, so take that into account when you plan your performance.
 
 #### 4.1.4 - Catch Notes
 
@@ -227,25 +231,33 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- This is destructive (your original note positions are not saved) The implementation of this feature is likely to change in the future
 	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.3.4 - Fill Mode
- - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range, right before `5%`. Notes set to `FILL` are only played when fill mode is active. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+#### 4.3.4 - Fill / Not Fill Modes
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The `FILL` setting is at the start of the probability range. Notes set to `FILL` are only played when fill mode is active. These notes will be highlighted in bright blue color when the Fill button is held. There are two ways to activate `FILL` mode - set it as a Global MIDI Command and/or set it to override the front panel `SYNC-SCALING` button. For Global MIDI Commands go to `SETTINGS > MIDI > CMD > FILL`. To override to `SYNC-SCALING`, set `SETTINGS > COMMUNITY FEATURES > SYNC` to `FILL`. The orignal `SYNC-SCALING` function is moved to `SHIFT` + `SYNC-SCALING`.
+ - ([#994]) Additionaly, there is also the Not Fill Mode, which is right before the `FILL` setting in the probability selector. On the OLED Deluge, this is shown as `NOT FILL`, and on 7-SEG Deluge, this will be shown as `FILL.` (with a dot). Notes set to `NOT FILL` are only played when fill mode is NOT active, that is, while regular playback, and, contrary to `FILL` notes, will be silenced when the fill mode is active. These notes will be highlighted in bright red color when the Fill button is held.
 
 #### 4.3.5 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
- - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
+ - ([#241]) Automation Clip View is a new view that complements the existing Clip View.
 	- It is accessed from within the Clip View by pressing  `CLIP` (which will blink to indicate you are in the Automation View).
-	- You can edit Non-MPE Parameter Automation for Synth, Kit and MIDI instrument clips on a per step basis at any zoom level.
+	- You can edit Non-MPE Parameter Automation for Synth, Kit, MIDI, and Audio clips on a per step basis at any zoom level.
 	- A `COMMUNITY FEATURES` sub-menu titled `AUTOMATION` was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
  - Follow-up PR's: 
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
-	- ([#658]) Added Stutter Rate Parameter to Automation View. There is no grid shortcut for this parameter so you will not see a pad on the Automation Overview that indicates whether Stutter has been automated. This parameter can be selected and automated using the Select Encoder to scroll the available list of Automatable Parameters.
-	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Instrument Clip View.
+	- ([#658]) Added Stutter Rate Parameter to Automation View.
+	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Clip View.
 		- Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
-		- By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+		- By default in the Automation Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
 		- Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
+	- ([#886]) Remove parameters that have no effect in Automation View:
+		- Removed Arp and Portamento from Kit Affect Entire 
+		- Removed Portamento from Kit Rows
+	- ([#887]) Added ability to set the parameter value to the middle point between two pads pressed in a single column. E.g. press pads 4 and 5 to set the value to 25/50.
+	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
+	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
+	- ([#966]) Added automation view for audio clips
 
 #### 4.3.6 - Set Probability By Row
 
@@ -277,9 +289,32 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 ##### 4.4.1.4 - Display Norns Layout
 
- - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
+ - ([#250]) Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`).
-   
+	- Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
+	- The Midigrid mod translates MIDI notes between norns and Deluge to use the grid as a controller for a norns script. Midigrid sends MIDI notes on channel 16 from norns to Deluge to light up grid LEDs. When a pad is pressed on Deluge, it sends out a MIDI note on channel 16 to norns. This means that Deluge's usual way of learning a MIDI controller to a synth clip will be constantly interrupted by the stream of MIDI notes coming in on channel 16 from norns. To learn external MIDI controls to Deluge while using the Midigrid mod, first stop the running script on norns, turn off the Midigrid mod in the mod menu, or determine another method to pause the grid updating MIDI messages from norns.
+	- The functionality of the grid changes with each norns script.  
+
+	**1.** Connect Deluge to norns with a USB cable for MIDI.  
+	**2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on your norns, turn on the mod, set to 128 grid size.  
+	**3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+	**4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16 by turning the `SELECT` encoder.  
+	**5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to select "Norns Layout" (NORN).  
+	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
+	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
+
+#### 4.4.2 - New scales
+
+ - ([#991]) Added new scales for instrument clips.
+  	 - The new set of scales is:
+	  	 - 7-note scales: Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Melodic Minor, Hungarian Minor, Marva (Indian), Arabian
+		 - 6-note scales: Whole Tone, Blues
+		 - 5-note scales: Pentatonic Minor, Hirajoshi (Japanese)
+	 - You rotate through them the same way as before, using Shift + Scale.
+	 - **Improvement:** when you exit Scale mode, and enter Scale mode again, if there was already a selected Scale, and it fits the notes you have entered, the Deluge will prefer that scale, instead of trying to change your scale or root note to other scale.
+	 - **Migrating from previous firmwares:** the new Default Scale setting is saved in a different memory slot. The Deluge will import the selected scale from the old location, resetting the old location value to "None".
+	 - **Limitation:** For being able to change your scale to a scale with less notes (for example, from Arabic to Whole Tone, or from Blues to Pentatonic), in order for the Deluge to be able to transpose them, the notes entered among all clips in the song must fit the new scale. If you have added more notes that what can fit in the new scale, the Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the Major scale).
+
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
 #### 4.5.1 - Mod Matrix
@@ -375,13 +410,18 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 * Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
-  	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+  	* When On, enables keyboard layout which emulates monome grid for monome norns using midigrid mod where incoming midi notes on channel 16 are rendered as white pads using velocity for brightness.
 * Sticky Shift (STIC)
   	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
 * Light Shift (LIGH)
   	* When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with sticky shift.
 * Grain FX (GRFX)
 	* When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to only use one instance per song or resample and remove instance afterwards.	 
+* Emulated Display (EMUL)
+	* This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
+	* In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at any time.
+	* With the "7SEG" mode, the deluge will boot with the emulated display.
+	* This option is technically available also on deluge with 7SEG hardware. But as you need an external display to render the OLED screen, it is of more limited use.
 
 ## 6. Sysex Handling
 
@@ -459,9 +499,20 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
+[#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
+[#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
+[#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
-[#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
+[#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
+[#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
+[#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
+[#991]: https://github.com/SynthstromAudible/DelugeFirmware/pull/991
+[#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
+[#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
+[#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
+[MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc

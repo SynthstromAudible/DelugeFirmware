@@ -332,13 +332,13 @@ private:
 	/// Number of elements allocated in the embedded storage:
 	size_type size_ = 0;
 
-	//using aligned_storage_t = std::aligned_storage_t<sizeof(std::remove_const_t<T>), alignof(std::remove_const_t<T>)>;
-	//using data_t = std::conditional_t<!std::is_const_v<T>, aligned_storage_t, const aligned_storage_t>;
-	//alignas(alignof(T)) data_t data_[Capacity]{};
-	// FIXME: ^ this won't work for types with "broken" alignof
-	// like SIMD types (one would also need to provide an
-	// overload of operator new to make heap allocations of this
-	// type work for these types).
+	// using aligned_storage_t = std::aligned_storage_t<sizeof(std::remove_const_t<T>),
+	// alignof(std::remove_const_t<T>)>; using data_t = std::conditional_t<!std::is_const_v<T>, aligned_storage_t, const
+	// aligned_storage_t>; alignas(alignof(T)) data_t data_[Capacity]{};
+	//  FIXME: ^ this won't work for types with "broken" alignof
+	//  like SIMD types (one would also need to provide an
+	//  overload of operator new to make heap allocations of this
+	//  type work for these types).
 
 	// Kate's solution to deal with badly aligned members
 	// This will be fixed with the GMA rework
@@ -385,10 +385,10 @@ public:
 	/// Contract: the storage is not full.
 	template <typename... Args>
 	requires std::constructible_from<T, Args...>
-	void emplace_back(Args&&... args) noexcept(noexcept(new (end()) T(std::forward<Args>(args)...))) {
+	void emplace_back(Args&&... args) noexcept(noexcept(new(end()) T(std::forward<Args>(args)...))) {
 		SV_EXPECT(!full() && "tried to emplace_back on full storage");
-		//new (end()) T(std::forward<Args>(args)...);
-		//unsafe_set_size(size() + 1);
+		// new (end()) T(std::forward<Args>(args)...);
+		// unsafe_set_size(size() + 1);
 
 		// NOTE: (Kate) Faster somehow...
 		void* end = &data_[size_++];
@@ -637,8 +637,9 @@ public:
 
 	/// Appends a default constructed `T` at the end of the vector.
 
-	void push_back() noexcept(
-	    noexcept(emplace_back(T{}))) requires std::constructible_from<T, T> && std::assignable_from<reference, T&&> {
+	void push_back() noexcept(noexcept(emplace_back(T{})))
+	requires std::constructible_from<T, T> && std::assignable_from<reference, T&&>
+	{
 		SV_EXPECT(!full() && "vector is full!");
 		emplace_back(T{});
 	}
@@ -655,23 +656,25 @@ public:
 	}
 
 	constexpr iterator insert(const_iterator position,
-	                          const_reference x) noexcept(noexcept(insert(position, size_type(1),
-	                                                                      x))) requires std::copy_constructible<T> {
+	                          const_reference x) noexcept(noexcept(insert(position, size_type(1), x)))
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(!full() && "tried insert on full static_vector!");
 		assert_iterator_in_range(position);
 		return insert(position, size_type(1), x);
 	}
 
-	constexpr iterator
-	insert(const_iterator position,
-	       value_type&& x) noexcept(noexcept(move_insert(position, &x, &x + 1))) requires std::move_constructible<T> {
+	constexpr iterator insert(const_iterator position,
+	                          value_type&& x) noexcept(noexcept(move_insert(position, &x, &x + 1)))
+	requires std::move_constructible<T>
+	{
 		SV_EXPECT(!full() && "tried insert on full static_vector!");
 		assert_iterator_in_range(position);
 		return move_insert(position, &x, &x + 1);
 	}
 
-	constexpr iterator insert(const_iterator position, size_type n,
-	                          const T& x) noexcept(noexcept(push_back(x))) requires std::copy_constructible<T>
+	constexpr iterator insert(const_iterator position, size_type n, const T& x) noexcept(noexcept(push_back(x)))
+	requires std::copy_constructible<T>
 
 	{
 		assert_iterator_in_range(position);
@@ -689,8 +692,8 @@ public:
 	}
 
 	template <class InputIt>
-	requires std::input_iterator<InputIt> && std::constructible_from<value_type,
-	                                                                 sv_detail::iterator_reference_t<InputIt>>
+	requires std::input_iterator<InputIt>
+	         && std::constructible_from<value_type, sv_detail::iterator_reference_t<InputIt>>
 	constexpr iterator insert(const_iterator position, InputIt first,
 	                          InputIt last) noexcept(noexcept(emplace_back(*first))) {
 		assert_iterator_in_range(position);
@@ -737,18 +740,24 @@ public:
 		return writable_position;
 	}
 
-	constexpr iterator insert(const_iterator position, std::initializer_list<T> il) noexcept(
-	    noexcept(insert(position, il.begin(), il.end()))) requires std::copy_constructible<T> {
+	constexpr iterator insert(const_iterator position,
+	                          std::initializer_list<T> il) noexcept(noexcept(insert(position, il.begin(), il.end())))
+	requires std::copy_constructible<T>
+	{
 		assert_iterator_in_range(position);
 		return insert(position, il.begin(), il.end());
 	}
 
-	constexpr iterator erase(const_iterator position) noexcept requires std::movable<value_type> {
+	constexpr iterator erase(const_iterator position) noexcept
+	requires std::movable<value_type>
+	{
 		assert_iterator_in_range(position);
 		return erase(position, position + 1);
 	}
 
-	constexpr iterator erase(const_iterator first, const_iterator last) noexcept requires std::movable<value_type> {
+	constexpr iterator erase(const_iterator first, const_iterator last) noexcept
+	requires std::movable<value_type>
+	{
 		assert_iterator_pair_in_range(first, last);
 		iterator p = begin() + (first - begin());
 		if (first != last) {
@@ -759,8 +768,9 @@ public:
 		return p;
 	}
 
-	constexpr void
-	swap(static_vector& other) noexcept(std::is_nothrow_swappable_v<T>) requires std::assignable_from<T&, T&&> {
+	constexpr void swap(static_vector& other) noexcept(std::is_nothrow_swappable_v<T>)
+	requires std::assignable_from<T&, T&&>
+	{
 		static_vector tmp = move(other);
 		other = move(*this);
 		(*this) = move(tmp);
@@ -769,9 +779,9 @@ public:
 	/// Resizes the container to contain \p sz elements. If elements
 	/// need to be appended, these are copy-constructed from \p value.
 	///
-	constexpr void
-	resize(size_type sz,
-	       T const& value) noexcept(std::is_nothrow_copy_constructible_v<T>) requires std::copy_constructible<T> {
+	constexpr void resize(size_type sz, T const& value) noexcept(std::is_nothrow_copy_constructible_v<T>)
+	requires std::copy_constructible<T>
+	{
 		if (sz == size()) {
 			return;
 		}
@@ -789,8 +799,9 @@ public:
 private:
 	constexpr void
 	emplace_n(size_type n) noexcept((std::move_constructible<T> && std::is_nothrow_move_constructible_v<T>)
-	                                || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>)) requires
-	    std::move_constructible<T> || std::copy_constructible<T> {
+	                                || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>))
+	requires std::move_constructible<T> || std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity()
 		          && "static_vector cannot be "
 		             "resized to a size greater than "
@@ -804,9 +815,11 @@ public:
 	/// Resizes the container to contain \p sz elements. If elements
 	/// need to be appended, these are move-constructed from `T{}` (or
 	/// copy-constructed if `T` is not `std::move_constructible`).
-	constexpr void resize(size_type sz) noexcept(
-	    (std::move_constructible<T> && std::is_nothrow_move_constructible_v<T>)
-	    || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>)) requires std::movable<value_type> {
+	constexpr void
+	resize(size_type sz) noexcept((std::move_constructible<T> && std::is_nothrow_move_constructible_v<T>)
+	                              || (std::copy_constructible<T> && std::is_nothrow_copy_constructible_v<T>))
+	requires std::movable<value_type>
+	{
 		if (sz == size()) {
 			return;
 		}
@@ -828,24 +841,28 @@ public:
 	constexpr static_vector() = default;
 
 	/// Copy constructor.
-	constexpr static_vector(static_vector const& other) noexcept(
-	    noexcept(insert(begin(), other.begin(), other.end()))) requires std::copy_constructible<value_type> {
+	constexpr static_vector(static_vector const& other) noexcept(noexcept(insert(begin(), other.begin(), other.end())))
+	requires std::copy_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		insert(begin(), other.begin(), other.end());
 	}
 
 	/// Move constructor.
-	constexpr static_vector(static_vector&& other) noexcept(
-	    noexcept(move_insert(begin(), other.begin(), other.end()))) requires std::move_constructible<value_type> {
+	constexpr static_vector(static_vector&& other) noexcept(noexcept(move_insert(begin(), other.begin(), other.end())))
+	requires std::move_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		move_insert(begin(), other.begin(), other.end());
 	}
 
 	/// Copy assignment.
-	constexpr static_vector& operator=(static_vector const& other) noexcept(noexcept(clear()) && noexcept(
-	    insert(begin(), other.begin(), other.end()))) requires std::assignable_from<reference, const_reference> {
+	constexpr static_vector& operator=(static_vector const& other) noexcept(
+	    noexcept(clear()) && noexcept(insert(begin(), other.begin(), other.end())))
+	requires std::assignable_from<reference, const_reference>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		clear();
@@ -854,8 +871,10 @@ public:
 	}
 
 	/// Move assignment.
-	constexpr static_vector& operator=(static_vector&& other) noexcept(noexcept(clear()) and noexcept(
-	    move_insert(begin(), other.begin(), other.end()))) requires std::move_constructible<value_type> {
+	constexpr static_vector& operator=(static_vector&& other) noexcept(
+	    noexcept(clear()) and noexcept(move_insert(begin(), other.begin(), other.end())))
+	requires std::move_constructible<value_type>
+	{
 		// nothin to assert: size of other cannot exceed capacity
 		// because both vectors have the same type
 		clear();
@@ -864,16 +883,17 @@ public:
 	}
 
 	/// Initializes vector with \p n default-constructed elements.
-	explicit constexpr static_vector(size_type n) noexcept(
-	    noexcept(emplace_n(n))) requires std::copy_constructible<T> || std::move_constructible<T> {
+	explicit constexpr static_vector(size_type n) noexcept(noexcept(emplace_n(n)))
+	requires std::copy_constructible<T> || std::move_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		emplace_n(n);
 	}
 
 	/// Initializes vector with \p n with \p value.
-	constexpr static_vector(size_type n,
-	                        T const& value) noexcept(noexcept(insert(begin(), n,
-	                                                                 value))) requires std::copy_constructible<T> {
+	constexpr static_vector(size_type n, T const& value) noexcept(noexcept(insert(begin(), n, value)))
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		insert(begin(), n, value);
 	}
@@ -908,19 +928,25 @@ public:
 		insert(begin(), first, last);
 	}
 
-	constexpr void assign(size_type n, const T& u) requires std::copy_constructible<T> {
+	constexpr void assign(size_type n, const T& u)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(n <= capacity() && "size exceeds capacity");
 		clear();
 		insert(begin(), n, u);
 	}
 
-	constexpr void assign(std::initializer_list<T> const& il) requires std::copy_constructible<T> {
+	constexpr void assign(std::initializer_list<T> const& il)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(il.size() <= capacity() && "initializer_list size exceeds capacity");
 		clear();
 		insert(this->begin(), il.begin(), il.end());
 	}
 
-	constexpr void assign(std::initializer_list<T>&& il) requires std::copy_constructible<T> {
+	constexpr void assign(std::initializer_list<T>&& il)
+	requires std::copy_constructible<T>
+	{
 		SV_EXPECT(il.size() <= capacity() && "initializer_list size exceeds capacity");
 		clear();
 		insert(this->begin(), il.begin(), il.end());

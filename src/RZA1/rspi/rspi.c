@@ -1,37 +1,37 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-*
-* Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ *
+ * Copyright (C) 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name     : rspi.c
-* Device(s)     : RZ/A1H (R7S721001)
-* Tool-Chain    : GNUARM-NONEv14.02-EABI
-* H/W Platform  : RSK+RZA1H CPU Board
-* Description   : This file implements device driver for RSPI module.
-*******************************************************************************/
+ * File Name     : rspi.c
+ * Device(s)     : RZ/A1H (R7S721001)
+ * Tool-Chain    : GNUARM-NONEv14.02-EABI
+ * H/W Platform  : RSK+RZA1H CPU Board
+ * Description   : This file implements device driver for RSPI module.
+ *******************************************************************************/
 /*******************************************************************************
-* History       : DD.MM.YYYY Version Description
-*               : 21.10.2014 1.00
-*******************************************************************************/
+ * History       : DD.MM.YYYY Version Description
+ *               : 21.10.2014 1.00
+ *******************************************************************************/
 
 /******************************************************************************
 Includes
@@ -78,11 +78,11 @@ uint8_t* g_pspi_tx_address;
 uint16_t g_spi_tx_count;
 
 /*******************************************************************************
-* Function Name: R_RSPI1_Create
-* Description  : This function initialises the RSPI1 module.
-* Arguments    : None
-* Return Value : None
-*******************************************************************************/
+ * Function Name: R_RSPI1_Create
+ * Description  : This function initialises the RSPI1 module.
+ * Arguments    : None
+ * Return Value : None
+ *******************************************************************************/
 
 void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dataSize)
 {
@@ -123,7 +123,8 @@ void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dat
         RSPI(channel).SPBFCR.BYTE = 0b00100001;
     else
         RSPI(channel).SPBFCR.BYTE =
-            0b00100000; // Receive buffer data triggering number is 1 byte. TX buffer declared "empty" as soon as it has 4 bytes of "space" in it (remember, it has 8 bytes total)
+            0b00100000; // Receive buffer data triggering number is 1 byte. TX buffer declared "empty" as soon as it has
+                        // 4 bytes of "space" in it (remember, it has 8 bytes total)
     dummy_byte = RSPI(channel).SPBFCR.BYTE;
 
     if (dataSize == 32)
@@ -140,11 +141,11 @@ void R_RSPI_Create(uint8_t channel, uint32_t bitRate, uint8_t phase, uint8_t dat
 }
 
 /*******************************************************************************
-* Function Name: R_RSPI1_Start
-* Description  : This function starts the RSPI1 module operation.
-* Arguments    : None
-* Return Value : None
-*******************************************************************************/
+ * Function Name: R_RSPI1_Start
+ * Description  : This function starts the RSPI1 module operation.
+ * Arguments    : None
+ * Return Value : None
+ *******************************************************************************/
 void R_RSPI_Start(uint8_t channel)
 {
     volatile uint8_t dummy = 0u;
@@ -172,11 +173,11 @@ void R_RSPI_Start(uint8_t channel)
 }
 
 /*******************************************************************************
-* Function Name: R_RSPI1_Stop
-* Description  : This function stops the RSPI1 module operation.
-* Arguments    : None
-* Return Value : None
-*******************************************************************************/
+ * Function Name: R_RSPI1_Stop
+ * Description  : This function stops the RSPI1 module operation.
+ * Arguments    : None
+ * Return Value : None
+ *******************************************************************************/
 void R_RSPI1_Stop(void)
 {
     /* Disable RSPI interrupts */
@@ -187,17 +188,17 @@ void R_RSPI1_Stop(void)
 }
 
 /*******************************************************************************
-* Function Name: R_RSPI1_SendReceive
-* Description  : This function sends and receives CSI#n1 data.
-* Arguments    : tx_buf -
-*                 transfer buffer pointer (not used when data is handled by DTC)
-*                tx_num -
-*                    buffer size
-*                rx_buf -
-*                 receive buffer pointer (not used when data is handled by DTC)
-* Return Value : status -
-*                    MD_OK or MD_ARGERROR
-*******************************************************************************/
+ * Function Name: R_RSPI1_SendReceive
+ * Description  : This function sends and receives CSI#n1 data.
+ * Arguments    : tx_buf -
+ *                 transfer buffer pointer (not used when data is handled by DTC)
+ *                tx_num -
+ *                    buffer size
+ *                rx_buf -
+ *                 receive buffer pointer (not used when data is handled by DTC)
+ * Return Value : status -
+ *                    MD_OK or MD_ARGERROR
+ *******************************************************************************/
 uint8_t R_RSPI1_SendReceive(uint32_t* const tx_buf, uint16_t tx_num, uint32_t* const rx_buf)
 {
     uint8_t status = 0u;
@@ -238,7 +239,8 @@ uint8_t R_RSPI1_SendReceiveBasic(uint8_t channel, uint8_t data)
     while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
         ;
 
-    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI
+    // transmission halts once the RX buffer is full
     return RSPI(channel).SPDR.BYTE.LL;
 }
 
@@ -252,7 +254,8 @@ uint16_t R_RSPI1_SendReceiveBasic_16(uint8_t channel, uint16_t data)
     while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
         ;
 
-    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI
+    // transmission halts once the RX buffer is full
     return RSPI(channel).SPDR.WORD.L;
 }
 
@@ -266,7 +269,8 @@ uint32_t R_RSPI1_SendReceiveBasic_32(uint8_t channel, uint32_t data)
     while (0 == RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
         ;
 
-    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+    // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI
+    // transmission halts once the RX buffer is full
     return RSPI(channel).SPDR.LONG;
 }
 
@@ -277,7 +281,8 @@ void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data)
     while (RZA_IO_RegRead_8(&(RSPI(channel).SPSR.BYTE), RSPIn_SPSR_SPRF_SHIFT, RSPIn_SPSR_SPRF))
     {
 
-        // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI transmission halts once the RX buffer is full
+        // Receive data. Note that even if we didn't want the receive data, we still have to read it back, because SPI
+        // transmission halts once the RX buffer is full
         uint8_t dummy = RSPI(channel).SPDR.BYTE.LL;
     }
 
@@ -286,22 +291,22 @@ void R_RSPI_SendAndDontWait(uint8_t channel, uint8_t data)
 }
 
 /*******************************************************************************
-* Function Name: R_RSPI1_LoopBackReversed
-* Description  : This function .
-* Arguments    : None
-* Return Value : None
-*******************************************************************************/
+ * Function Name: R_RSPI1_LoopBackReversed
+ * Description  : This function .
+ * Arguments    : None
+ * Return Value : None
+ *******************************************************************************/
 void R_RSPI1_LoopBackReversed(void)
 {
     RZA_IO_RegWrite_8(&(RSPI1.SPPCR), (uint8_t)1, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);
 }
 
 /*******************************************************************************
-* Function Name: R_RSPI1_LoopBackDisable
-* Description  : This function disable loop-back mode.
-* Arguments    : None
-* Return Value : None
-*******************************************************************************/
+ * Function Name: R_RSPI1_LoopBackDisable
+ * Description  : This function disable loop-back mode.
+ * Arguments    : None
+ * Return Value : None
+ *******************************************************************************/
 void R_RSPI1_LoopBackDisable(void)
 {
     RZA_IO_RegWrite_8(&(RSPI1.SPPCR), 0, RSPIn_SPPCR_SPLP_SHIFT, RSPIn_SPPCR_SPLP);

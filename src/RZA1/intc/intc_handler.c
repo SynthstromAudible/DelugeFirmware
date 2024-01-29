@@ -1,31 +1,31 @@
 /*******************************************************************************
-* DISCLAIMER
-* This software is supplied by Renesas Electronics Corporation and is only
-* intended for use with Renesas products. No other uses are authorized. This
-* software is owned by Renesas Electronics Corporation and is protected under
-* all applicable laws, including copyright laws.
-* THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
-* THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
-* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
-* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
-* TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
-* ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
-* FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
-* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
-* BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-* Renesas reserves the right, without notice, to make changes to this software
-* and to discontinue the availability of this software. By using this software,
-* you agree to the additional terms and conditions found by accessing the
-* following link:
-* http://www.renesas.com/disclaimer
-* Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
-*******************************************************************************/
+ * DISCLAIMER
+ * This software is supplied by Renesas Electronics Corporation and is only
+ * intended for use with Renesas products. No other uses are authorized. This
+ * software is owned by Renesas Electronics Corporation and is protected under
+ * all applicable laws, including copyright laws.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+ * THIS SOFTWARE, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING BUT NOT
+ * LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE
+ * AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXPRESSLY DISCLAIMED.
+ * TO THE MAXIMUM EXTENT PERMITTED NOT PROHIBITED BY LAW, NEITHER RENESAS
+ * ELECTRONICS CORPORATION NOR ANY OF ITS AFFILIATED COMPANIES SHALL BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+ * ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+ * BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+ * Renesas reserves the right, without notice, to make changes to this software
+ * and to discontinue the availability of this software. By using this software,
+ * you agree to the additional terms and conditions found by accessing the
+ * following link:
+ * http://www.renesas.com/disclaimer
+ * Copyright (C) 2012 - 2014 Renesas Electronics Corporation. All rights reserved.
+ *******************************************************************************/
 /*******************************************************************************
-* File Name   : intc_handler.c
-* $Rev: 819 $
-* $Date:: 2014-04-18 17:03:54 +0900#$
-* Description : INTC Driver - Handler process
-*******************************************************************************/
+ * File Name   : intc_handler.c
+ * $Rev: 819 $
+ * $Date:: 2014-04-18 17:03:54 +0900#$
+ * Description : INTC Driver - Handler process
+ *******************************************************************************/
 
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
@@ -41,7 +41,7 @@ Includes   <System Includes> , "Project Includes"
 #include <intrinsics.h>
 #endif
 #ifdef __GNUC__
-//#include "irq.h"
+// #include "irq.h"
 #endif
 
 #ifdef __CC_ARM
@@ -68,19 +68,19 @@ Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
 
 /******************************************************************************
-* Function Name: INTC_Handler_Interrupt
-* Description  : This function is the INTC interrupt handler processing called
-*              : by the irq_handler. Executes the handler processing which
-*              : corresponds to the INTC interrupt source ID specified by the
-*              : icciar by calling the Userdef_INTC_HandlerExe function. The IRQ
-*              : multiple interrupts are enabled. The processing for unsupported
-*              : interrupt ID is executed by calling Userdef_INTC_UndefId function.
-*              : In the interrupt handler processing, when the int_sense shows
-*              : "INTC_LEVEL_SENSITIVE", clear the interrupt source because it
-*              : means a level sense interrupt.
-* Arguments    : uint32_t icciar : Interrupt ID (value of ICCIAR register)
-* Return Value : none
-******************************************************************************/
+ * Function Name: INTC_Handler_Interrupt
+ * Description  : This function is the INTC interrupt handler processing called
+ *              : by the irq_handler. Executes the handler processing which
+ *              : corresponds to the INTC interrupt source ID specified by the
+ *              : icciar by calling the Userdef_INTC_HandlerExe function. The IRQ
+ *              : multiple interrupts are enabled. The processing for unsupported
+ *              : interrupt ID is executed by calling Userdef_INTC_UndefId function.
+ *              : In the interrupt handler processing, when the int_sense shows
+ *              : "INTC_LEVEL_SENSITIVE", clear the interrupt source because it
+ *              : means a level sense interrupt.
+ * Arguments    : uint32_t icciar : Interrupt ID (value of ICCIAR register)
+ * Return Value : none
+ ******************************************************************************/
 void INTC_Handler_Interrupt(uint32_t icciar)
 {
     /* Stacks are restored by ASM with the top level to correspond to multiple interrupts */
@@ -108,10 +108,10 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     if (int_id >= INTC_ID_TOTAL) /* In case of unsupported interrupt ID */
     {
         // Insane thing that keeps happening - we get here somehow, with int_id 1023.
-        //FREEZE_WITH_ERROR("i029");
+        // FREEZE_WITH_ERROR("i029");
         uartPrintln("i029 ----------------------------------------------------!!");
         return; // Just keep running - it seems to work at least most of the time?
-        //Userdef_INTC_UndefId(int_id); // Previously, it'd just go in here and freeze.
+        // Userdef_INTC_UndefId(int_id); // Previously, it'd just go in here and freeze.
     }
 
     /* ==== Interrupt handler call ==== */
@@ -138,12 +138,12 @@ void INTC_Handler_Interrupt(uint32_t icciar)
 }
 
 /*******************************************************************************
-* Function Name: FiqHandler_Interrupt
-* Description  : This function is the INTC interrupt handler processing called by
-*              : the fiq_handler.
-* Arguments    : none
-* Return Value : none
-*******************************************************************************/
+ * Function Name: FiqHandler_Interrupt
+ * Description  : This function is the INTC interrupt handler processing called by
+ *              : the fiq_handler.
+ * Arguments    : none
+ * Return Value : none
+ *******************************************************************************/
 void fiq_handler_interrupt(void)
 {
     Userdef_FIQ_HandlerExe();

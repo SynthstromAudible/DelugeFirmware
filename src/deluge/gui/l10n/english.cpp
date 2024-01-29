@@ -46,155 +46,155 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PATCH_SOURCE_Y, "MPE Y"},
 
         /*
-		 * Start Parameter Strings
-		 */
+         * Start Parameter Strings
+         */
 
         /*
-		 * Where used:
-		 * - automation_instrument_clip_view.cpp
-		 */
+         * Where used:
+         * - automation_instrument_clip_view.cpp
+         */
 
         // Patched Params (originally from functions.cpp)
 
-        //Master Level, Pitch, Pan
+        // Master Level, Pitch, Pan
         {STRING_FOR_PARAM_LOCAL_VOLUME, "Level"},
         {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX, "Master Level"},
         {STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Master Pitch"},
         {STRING_FOR_PARAM_LOCAL_PAN, "Master Pan"},
 
-        //LPF Frequency, Resonance, Morph
+        // LPF Frequency, Resonance, Morph
         {STRING_FOR_PARAM_LOCAL_LPF_FREQ, "LPF frequency"},
         {STRING_FOR_PARAM_LOCAL_LPF_RESONANCE, "LPF resonance"},
         {STRING_FOR_PARAM_LOCAL_LPF_MORPH, "LPF morph"},
 
-        //HPF Frequency, Resonance, Morph
+        // HPF Frequency, Resonance, Morph
         {STRING_FOR_PARAM_LOCAL_HPF_FREQ, "HPF frequency"},
         {STRING_FOR_PARAM_LOCAL_HPF_RESONANCE, "HPF resonance"},
         {STRING_FOR_PARAM_LOCAL_HPF_MORPH, "HPF morph"},
 
-        //Reverb Amount
+        // Reverb Amount
         {STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT, "Reverb amount"},
 
-        //Delay Rate, Amount
+        // Delay Rate, Amount
         {STRING_FOR_PARAM_GLOBAL_DELAY_RATE, "Delay rate"},
         {STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK, "Delay amount"},
 
-        //Sidechain Level
+        // Sidechain Level
         {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, "Sidechain Level"},
 
-        //Wavefolder
+        // Wavefolder
         {STRING_FOR_WAVEFOLDER, "Wavefolder"},
 
-        //OSC 1 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
+        // OSC 1 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Osc1 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave position"},
 
-        //OSC 2 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
+        // OSC 2 Level, Pitch, Pulse Width, Carrier Feedback, Wave Position
         {STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 pulse width"},
         {STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Osc2 feedback"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave position"},
 
-        //FM Mod 1 Level, Pitch, Feedback
+        // FM Mod 1 Level, Pitch, Feedback
         {STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME, "FM mod1 level"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, "FM mod1 pitch"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK, "FM mod1 feedback"},
 
-        //FM Mod 2 Level, Pitch, Feedback
+        // FM Mod 2 Level, Pitch, Feedback
         {STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME, "FM mod2 level"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, "FM mod2 pitch"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK, "FM mod2 feedback"},
 
-        //Env 1 ADSR
+        // Env 1 ADSR
         {STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK, "Env1 attack"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_DECAY, "Env1 decay"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN, "Env1 sustain"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE, "Env1 release"},
 
-        //Env 2 ADSR
+        // Env 2 ADSR
         {STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK, "Env2 attack"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_DECAY, "Env2 decay"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN, "Env2 sustain"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE, "Env2 release"},
 
-        //LFO 1 Rate
+        // LFO 1 Rate
         {STRING_FOR_PARAM_GLOBAL_LFO_FREQ, "LFO1 rate"},
 
-        //LFO 2 Rate
+        // LFO 2 Rate
         {STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ, "LFO2 rate"},
 
-        //Mod FX Depth, Rate
+        // Mod FX Depth, Rate
         {STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH, "Mod-FX depth"},
         {STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE, "Mod-FX rate"},
 
-        //Arp Rate
+        // Arp Rate
         {STRING_FOR_PARAM_GLOBAL_ARP_RATE, "Arp. rate"},
 
-        //Noise
+        // Noise
         {STRING_FOR_PARAM_LOCAL_NOISE_VOLUME, "Noise level"},
 
         // Unpatched Params (originally from functions.cpp)
 
-        //Master Level, Pitch, Pan
+        // Master Level, Pitch, Pan
         {STRING_FOR_MASTER_LEVEL, "Master level"},
         {STRING_FOR_MASTER_PITCH, "Master pitch"},
         {STRING_FOR_MASTER_PAN, "Master pan"},
 
-        //LPF Frequency, Resonance
+        // LPF Frequency, Resonance
         {STRING_FOR_LPF_FREQUENCY, "LPF frequency"},
         {STRING_FOR_LPF_RESONANCE, "LPF resonance"},
 
-        //HPF Frequency, Resonance
+        // HPF Frequency, Resonance
         {STRING_FOR_HPF_FREQUENCY, "HPF frequency"},
         {STRING_FOR_HPF_RESONANCE, "HPF resonance"},
 
-        //Bass, Bass Freq
+        // Bass, Bass Freq
         {STRING_FOR_BASS, "BASS"},
         {STRING_FOR_BASS_FREQUENCY, "Bass frequency"},
 
-        //Treble, Treble Freq
+        // Treble, Treble Freq
         {STRING_FOR_TREBLE, "TREBLE"},
         {STRING_FOR_TREBLE_FREQUENCY, "Treble frequency"},
 
-        //Reverb Amount
+        // Reverb Amount
         {STRING_FOR_REVERB_AMOUNT, "Reverb amount"},
 
-        //Delay Rate, Amount
+        // Delay Rate, Amount
         {STRING_FOR_DELAY_RATE, "Delay rate"},
         {STRING_FOR_DELAY_AMOUNT, "Delay amount"},
 
-        //Sidechain Level, Shape
+        // Sidechain Level, Shape
         {STRING_FOR_SIDECHAIN_LEVEL, "Sidechain level"},
         {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
 
-        //Decimation, Bitcrush
+        // Decimation, Bitcrush
         {STRING_FOR_DISTORTION, "Distortion"},
         {STRING_FOR_DECIMATION, "DECIMATION"},
         {STRING_FOR_BITCRUSH, "Bitcrush"},
 
-        //Mod FX Offset, Feedback, Depth, Rate
+        // Mod FX Offset, Feedback, Depth, Rate
         {STRING_FOR_MODFX_OFFSET, "MOD-FX offset"},
         {STRING_FOR_MODFX_FEEDBACK, "MOD-FX feedback"},
         {STRING_FOR_MODFX_DEPTH, "MOD-FX depth"},
         {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
 
-        //Arp Gate
+        // Arp Gate
         {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp. gate"},
 
-        //Portamento
+        // Portamento
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
-        //Stutter Rate
+        // Stutter Rate
         {STRING_FOR_STUTTER, "STUTTER"},
         {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
 
         /*
-		 * End Parameter Strings
-		 */
+         * End Parameter Strings
+         */
 
         // General
         {STRING_FOR_DISABLED, "Disabled"},
@@ -231,6 +231,7 @@ PLACE_SDRAM_DATA Language english{
         // gui/context_menu/launch_style.cpp
         {STRING_FOR_DEFAULT_LAUNCH, "Default Clip"},
         {STRING_FOR_FILL_LAUNCH, "Fill Clip"},
+        {STRING_FOR_ONCE_LAUNCH, "Once Clip"},
 
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "Load all"},
@@ -335,12 +336,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SHORTCUTS_VERSION_3, "3.0"},
         {STRING_FOR_CANT_RECORD_AUDIO_FM_MODE, "Can't record audio into an FM synth"},
 
-        //Autogen
+        // Autogen
         {STRING_FOR_FACTORY_RESET, "Factory reset"},
         {STRING_FOR_CLIPPING_OCCURRED, "Clipping occurred"},
         {STRING_FOR_NO_SAMPLE, "No sample"},
         {STRING_FOR_PARAMETER_NOT_APPLICABLE, "Parameter not applicable"},
-        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select a row or affect-entire"},
+        {STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE, "Select row / affect-entire"},
         {STRING_FOR_UNIMPLEMENTED, "Feature not (yet?) implemented"},
         {STRING_FOR_CANT_LEARN, "Can't learn"},
         {STRING_FOR_CANT_LEARN_PC, "Can't learn Program Change"},
@@ -782,8 +783,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FILL, "Fill"},
 
         /* Strings Specifically for Automation Instrument Clip View
-        * automation_instrument_clip_view.cpp
-        */
+         * automation_instrument_clip_view.cpp
+         */
 
         {STRING_FOR_AUTOMATION, "AUTOMATION"},
         {STRING_FOR_AUTOMATION_OVERVIEW, "Automation Overview"},
@@ -799,8 +800,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
 
         /* Strings Specifically for Performance View
-        * performance_session_view.cpp
-        */
+         * performance_session_view.cpp
+         */
 
         {STRING_FOR_PERFORM_VIEW, "Performance View"},
         {STRING_FOR_PERFORM_FX, "Perform FX"},
@@ -811,16 +812,15 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
 
         /* Strings Specifically for Song View
-        * session_view.cpp
-        */
+         * session_view.cpp
+         */
         {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
 
         {STRING_FOR_SONG_VIEW, "Song View"},
-        {STRING_FOR_SONG_FX, "Song FX"},
 
         /* Strings Specifically for Arranger View
-        * arranger_view.cpp
-        */
+         * arranger_view.cpp
+         */
 
         {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
 
@@ -830,14 +830,14 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PITCH, "Pitch"},
 
         /* Strings Specifically for Midi Learning View
-        * midi_follow.cpp
-        */
-        //strings for midi follow menu
+         * midi_follow.cpp
+         */
+        // strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},
-        {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
-        {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
+        {STRING_FOR_FOLLOW_CHANNEL_A, "Channel A"},
+        {STRING_FOR_FOLLOW_CHANNEL_B, "Channel B"},
+        {STRING_FOR_FOLLOW_CHANNEL_C, "Channel C"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
@@ -848,9 +848,13 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
         {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
 
-        //String for Select Kit Row Menu
+        // String for Select Kit Row Menu
 
         {STRING_FOR_SELECT_KIT_ROW, "Select Kit Row"},
+
+        {STRING_FOR_MODEL, "Model"},
+        {STRING_FOR_FREEVERB, "Freeverb"},
+        {STRING_FOR_MUTABLE, "Mutable"},
     },
 };
 } // namespace deluge::l10n::built_in

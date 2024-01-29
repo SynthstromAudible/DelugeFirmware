@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "pan.h"
 
 #include "gui/ui/sound_editor.h"
@@ -26,7 +26,7 @@
 namespace deluge::gui::menu_item::unpatched_param {
 
 void Pan::drawValue() {    // TODO: should really combine this with the "patched" version
-	uint8_t drawDot = 255; //soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
+	uint8_t drawDot = 255; // soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
 	char buffer[5];
 	intToString(std::abs(this->getValue()), buffer, 1);
 	if (this->getValue() < 0) {

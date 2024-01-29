@@ -33,16 +33,4 @@ if [ -z "$DBT_NO_SYNC" ]; then
     git submodule update --init --depth 1 --jobs "$N_GIT_THREADS";
 fi
 
-if [ -z "$DBT_NO_PYTHON_UPGRADE" ]; then
-    # Install python wheels if not already installed, upgrade pip
-    # afterward (needs certifi in place).
-    pip_cmd="python3 -m pip";
-    pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
-    pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
-    pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
-    $pip_cmd install -q "${pip_certifi_wheel}"
-    $pip_cmd install -q --upgrade pip
-    $pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
-fi
-
 $DBT_EP "$@"

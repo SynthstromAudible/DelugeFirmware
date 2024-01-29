@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/cv/submenu.h"
@@ -48,7 +48,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto cv1 = l10n::getView(STRING_FOR_CV_OUTPUT_1);
 		static auto cv2 = l10n::getView(STRING_FOR_CV_OUTPUT_2);

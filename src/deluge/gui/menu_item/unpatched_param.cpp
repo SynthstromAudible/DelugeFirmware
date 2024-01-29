@@ -52,7 +52,7 @@ void UnpatchedParam::writeCurrentValue() {
 	int32_t value = getFinalValue();
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
 
-	//send midi follow feedback
+	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 }
@@ -71,7 +71,7 @@ int32_t UnpatchedParam::getFinalValue() {
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + ::Param::Unpatched::START);
+	paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::UNPATCHED_START);
 	return paramDescriptor;
 }
 

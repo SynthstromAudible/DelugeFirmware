@@ -17,6 +17,7 @@
 
 #include "gui/ui/slicer.h"
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -50,7 +51,11 @@
 #include <new>
 #include <string.h>
 
+using namespace deluge::gui;
+
 Slicer slicer{};
+
+namespace params = deluge::modulation::params;
 
 void Slicer::focusRegained() {
 
@@ -102,56 +107,52 @@ void Slicer::redraw() {
 	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 
-bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	if (slicerMode == SLICER_MODE_REGION) {
-		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 	}
 	else if (slicerMode == SLICER_MODE_MANUAL) {
 
-		uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, myImage, &waveformBasicNavigator.renderData);
 
 		for (int32_t xx = 0; xx < kDisplayWidth; xx++) {
 			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
-				image[yy + 4][xx][0] = (myImage[yy * 2][xx][0] + myImage[yy * 2 + 1][xx][0]) / 2;
-				image[yy + 4][xx][1] = (myImage[yy * 2][xx][1] + myImage[yy * 2 + 1][xx][1]) / 2;
-				image[yy + 4][xx][2] = (myImage[yy * 2][xx][2] + myImage[yy * 2 + 1][xx][2]) / 2;
+				image[yy + 4][xx] = RGB::average(myImage[yy * 2][xx], myImage[yy * 2 + 1][xx]);
 			}
 		}
 		for (int32_t i = 0; i < numManualSlice; i++) { // Slices
 			int32_t x = manualSlicePoints[i].startPos / (waveformBasicNavigator.sample->lengthInSamples + 0.0) * 16;
-			image[4][x][0] = 1;
-			image[4][x][1] = (i == currentSlice) ? 200 : 16;
-			image[4][x][2] = 1;
+			image[4][x] = RGB{
+			    1,
+			    (i == currentSlice) ? 200_u8 : 16_u8,
+			    1,
+			};
 		}
 
 		for (int32_t i = 0; i < MAX_MANUAL_SLICES; i++) { // Lower screen
 			int32_t xx = (i % 4) + (i / 16) * 4;
 			int32_t yy = (i / 4) % 4;
 			int32_t page = i / 16;
-			uint8_t colour[] = {3, 3, 3};
 
+			RGB colour = RGB::monochrome(3);
+			size_t dimLevel = (i < numManualSlice) ? 2 : 6;
 			if (page % 2 == 0) {
-				colour[0] = (i < numManualSlice) ? 0 : 0;
-				colour[1] = (i < numManualSlice) ? 0 : 0;
-				colour[2] = (i < numManualSlice) ? 64 : 3;
+				colour = colours::green.dim(dimLevel);
 			}
 			else {
-				colour[0] = (i < numManualSlice) ? 0 : 0;
-				colour[1] = (i < numManualSlice) ? 32 : 1;
-				colour[2] = (i < numManualSlice) ? 64 : 3;
+				colour = colours::darkblue.dim(dimLevel);
 			}
 			if (i == this->currentSlice) {
-				colour[0] = 0;
-				colour[1] = 127;
-				colour[2] = 0;
+				colour = colours::green.dim();
 			}
-			memcpy(image[yy][xx], colour, 3);
+
+			image[yy][xx] = colour;
 		}
 	}
 	return true;
@@ -169,7 +170,7 @@ void Slicer::graphicsRoutine() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
 		if (drum->hasAnyVoices()) {
 
@@ -291,7 +292,7 @@ void Slicer::selectEncoderAction(int8_t offset) {
 			numClips = 256;
 		}
 	}
-	else { //SLICER_MODE_MANUAL
+	else { // SLICER_MODE_MANUAL
 		if (offset < 0) {
 			numManualSlice += offset;
 			if (numManualSlice <= 0) {
@@ -321,7 +322,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	//switch slicer mode
+	// switch slicer mode
 	if (b == X_ENC && on) {
 		slicerMode++;
 		slicerMode %= 2;
@@ -334,12 +335,12 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			redraw();
 		}
 
-		getCurrentKit()->firstDrum->unassignAllVoices(); //stop
+		getCurrentKit()->firstDrum->unassignAllVoices(); // stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return ActionResult::DEALT_WITH;
 	}
 
-	//pop up Transpose value
+	// pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
 		if (display->haveOLED()) {
 
@@ -357,7 +358,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return ActionResult::DEALT_WITH;
 	}
 
-	//delete slice
+	// delete slice
 	if (b == SAVE && on && slicerMode == SLICER_MODE_MANUAL) {
 		int32_t xx = (currentSlice % 4) + (currentSlice / 16) * 4;
 		int32_t yy = (currentSlice / 4) % 4;
@@ -399,7 +400,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			doSlice();
 		}
 		else {
-			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
+			getCurrentKit()->firstDrum->unassignAllVoices(); // stop
 			numClips = numManualSlice;
 			doSlice();
 			Kit* kit = getCurrentKit();
@@ -421,11 +422,11 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
-			uint8_t myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];
+			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);
-			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
+			getCurrentKit()->firstDrum->unassignAllVoices(); // stop
 			Kit* kit = getCurrentKit();
 			Drum* drum = kit->firstDrum;
 			SoundDrum* soundDrum = (SoundDrum*)drum;
@@ -479,16 +480,16 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_ATTACK);
+		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
+		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
 	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
@@ -499,7 +500,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 		int32_t slicePadIndex = (x % 4 + (x / 4) * 16) + ((y % 4) * 4); //
 
-		if (slicePadIndex < numManualSlice) { //play slice
+		if (slicePadIndex < numManualSlice) { // play slice
 			bool closePopup = (currentSlice != slicePadIndex);
 			currentSlice = slicePadIndex;
 			if (slicePadIndex + 1 < numManualSlice) {
@@ -523,7 +524,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+			if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 				if (drum->hasAnyVoices()) {
 					Voice* assignedVoice = NULL;
 
@@ -582,7 +583,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
-		preview(0, 0, 0, 0);                                                                           //off
+		preview(0, 0, 0, 0);                                                                           // off
 	}
 
 	if (slicerMode == SLICER_MODE_MANUAL) {
@@ -618,14 +619,16 @@ getOut:
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-		int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
+		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
 		ModelStackWithAutoParam* modelStackWithParam =
 		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated()) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), false);
+			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
+			// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
+			// getCurrentClip(), false);
 		}
 
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
@@ -664,11 +667,11 @@ getOut:
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =
-			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, Param::Local::ENV_0_RELEASE);
+			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 		}
 
 		// Do the rest of the Drums
@@ -720,11 +723,11 @@ ramError2:
 			range->sampleHolder.loadFile(false, false, true);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_ATTACK].setCurrentValueBasicForSetup(
-				    getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
+				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
-					paramManager.getPatchedParamSet()->params[Param::Local::ENV_0_RELEASE].setCurrentValueBasicForSetup(
-					    getParamFromUserValue(Param::Local::ENV_0_RELEASE, 1));
+					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 				}
 			}
 
@@ -739,7 +742,7 @@ ramError2:
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);
 
-	((Instrument*)getCurrentInstrument())->beenEdited();
+	getCurrentInstrument()->beenEdited();
 
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();

@@ -18,14 +18,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/sidechain/sidechain.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patcher.h"
+#include "modulation/sidechain/sidechain.h"
 #include "processing/source.h"
 #include "util/misc.h"
 
@@ -54,12 +55,13 @@ struct ParamLPF {
 /*
  * Sound can be either an Instrument or a Drum, in the form of SoundInstrument or SoundDrum respectively.
  * These classes are implemented using “multiple inheritance”, which is sacrilegious to many C++ programmers.
- * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase where it’s used.
- * It’s a little while though since I’ve sat and thought about what the alternatives could be and whether anything else would be appropriate.
+ * I (Rohan) consider it to be a more or less appropriate solution in this case and a few others in the Deluge codebase
+ * where it’s used. It’s a little while though since I’ve sat and thought about what the alternatives could be and
+ * whether anything else would be appropriate.
  *
- * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the two.
- * And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s),
- * or as just a Drum - one of the many items in a Kit, normally associated with a row of notes.
+ * Anyway, Sound (which may be named a bit too broadly) basically means a synth or sample, or any combination of the
+ * two. And, to reiterate the above, it can exist as a “synth” as the melodic Output of one entire Clip(s), or as just a
+ * Drum - one of the many items in a Kit, normally associated with a row of notes.
  */
 
 class Sound : public ModControllableAudio {
@@ -72,8 +74,9 @@ public:
 
 	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with Global::FIRST_PARAM, so subtract that from your p value before accessing this array!
-	int32_t paramFinalValues[kNumParams - Param::Global::FIRST];
+	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
+	// before accessing this array!
+	int32_t paramFinalValues[deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL];
 	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
@@ -119,8 +122,8 @@ public:
 
 	uint8_t whichExpressionSourcesChangedAtSynthLevel;
 
-	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
-	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
+	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
+	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
 	int32_t monophonicExpressionValues[kNumExpressionDimensions];
 
@@ -133,8 +136,8 @@ public:
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;
 	uint32_t timeStartedSkippingRenderingArp;
-	uint32_t
-	    startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if mod fx are on
+	uint32_t startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if
+	                                       // mod fx are on
 
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
@@ -229,7 +232,7 @@ public:
 	void doneReadingFromFile();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
-	//void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
+	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
@@ -255,8 +258,6 @@ public:
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile();
-	char const* paramToString(uint8_t param) final;
-	int32_t stringToParam(char const* string) final;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);

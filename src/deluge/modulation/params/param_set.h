@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include <array>
 
@@ -30,9 +31,9 @@ class ParamManagerMIDI;
 class TimelineCounter;
 class ModelStackWithParamCollection;
 
-// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't need other info stored besides their index - like MIDI CC,
-// or patch cable details.
-// This differs from other inheriting classes of ParamCollection.
+// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't
+// need other info stored besides their index - like MIDI CC, or patch cable details. This differs from other inheriting
+// classes of ParamCollection.
 
 class ParamSet : public ParamCollection {
 protected:
@@ -101,12 +102,12 @@ public:
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
-	Param::Kind getParamKind() { return kind; }
+	deluge::modulation::params::Kind getParamKind() { return kind; }
 
-	Param::Kind kind = Param::Kind::NONE;
+	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
-	std::array<AutoParam, kMaxNumUnpatchedParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
 };
 
 class PatchedParamSet final : public ParamSet {
@@ -118,10 +119,10 @@ public:
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
-	Param::Kind getParamKind() { return Param::Kind::PATCHED; }
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
-	std::array<AutoParam, kNumParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
 };
 
 class ExpressionParamSet final : public ParamSet {
@@ -140,11 +141,13 @@ public:
 	void clearValues(ModelStackWithParamCollection const* modelStack);
 	void cancelAllOverriding();
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
-	Param::Kind getParamKind() { return Param::Kind::EXPRESSION; }
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::EXPRESSION; }
 
-	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
-	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,
-	// in which case they do move to the backedUpParamManager. This is exactly the persistence we want for bendRanges too.
+	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them
+	// in the ParamManager would make more sense, except for one thing
+	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't
+	// "stolen" or "backed up" - unless the last Clip is being deleted, in which case they do move to the
+	// backedUpParamManager. This is exactly the persistence we want for bendRanges too.
 	uint8_t bendRanges[2];
 
 private:

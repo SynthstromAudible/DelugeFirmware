@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 #include "definitions_cxx.hpp"
@@ -54,8 +54,8 @@ public:
 		}
 	}
 
-	std::vector<std::string_view> getOptions() override {
-		std::vector<std::string_view> options = {
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> options = {
 		    l10n::getView(l10n::String::STRING_FOR_AUTO),
 		    l10n::getView(l10n::String::STRING_FOR_POLYPHONIC),
 		    l10n::getView(l10n::String::STRING_FOR_MONOPHONIC),

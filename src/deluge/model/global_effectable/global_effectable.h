@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -50,8 +50,6 @@ public:
 	static void readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	char const* paramToString(uint8_t param);
-	int32_t stringToParam(char const* string);
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false, bool soundComingIn = true);
 	bool isEditingComp() override { return editingComp; }

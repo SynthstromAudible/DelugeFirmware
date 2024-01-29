@@ -53,7 +53,8 @@ bool SaveInstrumentPresetUI::opened() {
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
 doReturnFalse:
-		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on the pads.
+		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
+		                                 // the pads.
 		return false;
 	}
 
@@ -95,7 +96,7 @@ gotError:
 	String filePath;
 	error = getCurrentFilePath(&filePath);
 	if (error) goto gotError;
-    currentFileExists = storageManager.fileExists(filePath.get());
+	currentFileExists = storageManager.fileExists(filePath.get());
 */
 
 	focusRegained();
@@ -121,7 +122,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 			return false;
 		}
 
-		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking in memory with that slot, which we need to just delete
+		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
+		// in memory with that slot, which we need to just delete
 		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
 	}
 
@@ -133,7 +135,7 @@ fail:
 		return false;
 	}
 
-	error = storageManager.createXMLFile(filePath.get(), mayOverwrite);
+	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
 
 	if (error == ERROR_FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -175,7 +177,8 @@ fail:
 	instrumentToSave->dirPath.set(&currentDir);
 	instrumentToSave->existsOnCard = true;
 
-	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the user to select such a slot
+	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
+	// user to select such a slot
 
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
 	close();
@@ -185,78 +188,76 @@ fail:
 /*
 void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
-	SaveUI::selectEncoderAction(offset);
+    SaveUI::selectEncoderAction(offset);
 
-	// Normal navigation through numeric or text-based names
-	if (numberEditPos == -1) {
+    // Normal navigation through numeric or text-based names
+    if (numberEditPos == -1) {
 
-		Instrument* instrument = getCurrentInstrument();
+        Instrument* instrument = getCurrentInstrument();
 
-		int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
+        int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
-		int32_t error = storageManager.decideNextSaveableSlot(offset,
-				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
-				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(), outputType, getCurrentInstrument());
-		if (error) {
-			display->displayError(error);
-			if (error != ERROR_FOLDER_DOESNT_EXIST) {
-				close();
-			}
-			return;
-		}
+        int32_t error = storageManager.decideNextSaveableSlot(offset,
+                &currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
+                previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(),
+outputType, getCurrentInstrument()); if (error) { display->displayError(error); if (error != ERROR_FOLDER_DOESNT_EXIST)
+{ close();
+            }
+            return;
+        }
 
-		enteredTextEditPos = std::min(enteredTextEditPos, enteredText.getLength());
+        enteredTextEditPos = std::min(enteredTextEditPos, enteredText.getLength());
 
-		currentFilename.set(&enteredText); // Only used for folders.
-	}
+        currentFilename.set(&enteredText); // Only used for folders.
+    }
 
-	// Editing specific digit of numeric names. Pretty much no one will really be using this anymore
-	else {
-		int32_t jumpSize;
-		if (numberEditPos == 0) jumpSize = 1;
-		else if (numberEditPos == 1) jumpSize = 10;
-		else jumpSize = 100;
+    // Editing specific digit of numeric names. Pretty much no one will really be using this anymore
+    else {
+        int32_t jumpSize;
+        if (numberEditPos == 0) jumpSize = 1;
+        else if (numberEditPos == 1) jumpSize = 10;
+        else jumpSize = 100;
 
-		currentSlot += jumpSize * offset;
+        currentSlot += jumpSize * offset;
 
-		int16_t bestSlotFound;
-		int8_t bestSubSlotFound;
+        int16_t bestSlotFound;
+        int8_t bestSubSlotFound;
 
-		if (currentSlot >= kNumSongSlots) currentSlot = 0;
-		else if (currentSlot < 0) currentSlot = kNumSongSlots - 1;
+        if (currentSlot >= kNumSongSlots) currentSlot = 0;
+        else if (currentSlot < 0) currentSlot = kNumSongSlots - 1;
 
-		// We want the "last" subslot, or -1 if there's none
+        // We want the "last" subslot, or -1 if there's none
 
-		int8_t nothing;
-		Instrument* nothingInstrument;
-		bool nothing2;
+        int8_t nothing;
+        Instrument* nothingInstrument;
+        bool nothing2;
 
-		storageManager.findNextInstrumentPreset(-1, outputType,
-				&bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
-				currentSlot + 1, -1, NULL, currentDir.get(),
-				&nothing, Availability::ANY, &nothingInstrument, &nothing2);
+        storageManager.findNextInstrumentPreset(-1, outputType,
+                &bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
+                currentSlot + 1, -1, NULL, currentDir.get(),
+                &nothing, Availability::ANY, &nothingInstrument, &nothing2);
 
-		if (bestSlotFound == currentSlot) {
-			// If the preset was already saved in this slot, offer a brand new subslot
-			if (currentSlot == getCurrentInstrument()->slot) {
-				currentSubSlot = bestSubSlotFound + 1;
-				currentFileExists = false;
+        if (bestSlotFound == currentSlot) {
+            // If the preset was already saved in this slot, offer a brand new subslot
+            if (currentSlot == getCurrentInstrument()->slot) {
+                currentSubSlot = bestSubSlotFound + 1;
+                currentFileExists = false;
 
-				if (currentSubSlot >= 26) goto doNormalThing; // Watch out for end of alphabet
-			}
+                if (currentSubSlot >= 26) goto doNormalThing; // Watch out for end of alphabet
+            }
 
-			else {
+            else {
 doNormalThing:
-				currentSubSlot = bestSubSlotFound;
-				currentFileExists = true;
-			}
-		}
-		else {
-			currentSubSlot = -1;
-			currentFileExists = false;
-		}
-	}
+                currentSubSlot = bestSubSlotFound;
+                currentFileExists = true;
+            }
+        }
+        else {
+            currentSubSlot = -1;
+            currentFileExists = false;
+        }
+    }
 
-	displayText(false);
+    displayText(false);
 }
 */

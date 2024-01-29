@@ -34,7 +34,7 @@ public:
 protected:
 	int32_t beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
-	//bool predictExtendedText();
+	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
@@ -42,10 +42,9 @@ protected:
 
 	static bool currentFileHasSuffixFormatNameImplied;
 
-	Instrument*
-	    currentInstrument; // Although this is only needed by the child class LoadInstrumentPresetUI, we cut a corner by including it here so our functions
-	                       // can set it to NULL, which is needed.
-	                       // This is the Instrument we're currently scrolled onto. Might not be actually loaded (yet)?
-	                       // We do need this, separate from the current FileItem, because if user moves onto a folder,
-	                       // the currentInstrument needs to remain the same.
+	Instrument* currentInstrument; // Although this is only needed by the child class LoadInstrumentPresetUI, we cut a
+	                               // corner by including it here so our functions can set it to NULL, which is needed.
+	                               // This is the Instrument we're currently scrolled onto. Might not be actually loaded
+	                               // (yet)? We do need this, separate from the current FileItem, because if user moves
+	                               // onto a folder, the currentInstrument needs to remain the same.
 };

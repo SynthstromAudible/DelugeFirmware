@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -96,7 +96,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Pad pressed down, add to list if not full
 	if (velocity) {
-		//TODO: Logic should be inverted as part of a bigger rewrite
+		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
 			return ActionResult::DEALT_WITH;
@@ -260,7 +260,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 
 			else {
-				Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 				bool scaleAltered = false;
 
@@ -355,9 +355,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					exitScaleModeOnButtonRelease = true;
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
-					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
-					// 	flashDefaultRootNoteOn = false;
-					// 	flashDefaultRootNote();
+					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
+					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
 					// }
 				}
 			}
@@ -395,8 +394,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				changeRootUI(&automationInstrumentClipView);
+			if (getCurrentClip()->onAutomationClipView) {
+				changeRootUI(&automationClipView);
 			}
 			else {
 				changeRootUI(&instrumentClipView);
@@ -418,15 +417,16 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		sessionView.transitionToSessionView();
 	}
 
-	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
+	// toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular
+	// instrument clip view
 	else if (b == CLIP_VIEW) {
 		if (on) {
-			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = false;
+			if (getCurrentClip()->onAutomationClipView) {
+				getCurrentClip()->onAutomationClipView = false;
 				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 			}
 			else {
-				getCurrentInstrumentClip()->onAutomationInstrumentClipView = true;
+				getCurrentClip()->onAutomationClipView = true;
 				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 			}
 		}
@@ -585,7 +585,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 
-	// Precalculate because changing instruments can change pad colors
+	// Precalculate because changing instruments can change pad colours
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
 }
@@ -661,7 +661,7 @@ void KeyboardScreen::openedInBackground() {
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -677,7 +677,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplay
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;

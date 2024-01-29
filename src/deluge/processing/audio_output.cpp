@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/audio_output.h"
 #include "definitions_cxx.hpp"
@@ -36,6 +36,8 @@
 extern "C" {
 #include "drivers/ssi/ssi.h"
 }
+
+namespace params = deluge::modulation::params;
 
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
@@ -83,12 +85,12 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	//audio outputs can have an activeClip while being muted
+	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 		if (activeAudioClip->voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[Param::Local::ENV_0_ATTACK];
+			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
 
 renderEnvelope:
@@ -260,7 +262,8 @@ renderEnvelope:
 				outputPos->l += inputL;
 				outputPos->r += inputR;
 
-				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos you're obviously already hearing the output channel
+				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos
+				// you're obviously already hearing the output channel
 			}
 
 			outputPos++;
@@ -282,8 +285,8 @@ bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
 void AudioOutput::cutAllSound() {
 	if (activeClip) {
 		((AudioClip*)activeClip)->unassignVoiceSample();
-		((AudioClip*)activeClip)
-		    ->abortRecording(); // Needed for when this is being called as part of a song-swap - we can't leave recording happening in such a case.
+		((AudioClip*)activeClip)->abortRecording(); // Needed for when this is being called as part of a song-swap - we
+		                                            // can't leave recording happening in such a case.
 	}
 }
 
@@ -292,7 +295,8 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
                                          int32_t* highestReverbAmountFound) {
 }
 
-// Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always be NULL
+// Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
+// be NULL
 bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	storageManager.writeAttribute("name", name.get());
@@ -309,7 +313,8 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	storageManager.writeOpeningTagEnd();
 
 	ParamManager* paramManager = NULL;
-	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we should use / save
+	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
+	// should use / save
 	if (!activeClip) {
 		paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	}

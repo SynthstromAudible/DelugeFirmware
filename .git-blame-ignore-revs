@@ -8,3 +8,5 @@ df18601b7d9a2aa87cdb514afe82c373b3b878be
 # one-line-if change
 33ea047f73f859c2135f060d76ffdb01f30615ad
 4a7dae048b07472bf70be9aec345f82d23756fbc
+# change clang-format versions
+e23e966757dd374921be794e564706e23a695e8c

@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
-#include "version.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -33,14 +33,14 @@
 #define ALLOW_SPAM_MODE 0 // For debugging (in buttons.cpp, audio_engine.cpp, deluge.cpp)
 
 #if ALPHA_OR_BETA_VERSION
-//#define TEST_VECTOR 1
-//#define TEST_VECTOR_SEARCH_MULTIPLE 1
+// #define TEST_VECTOR 1
+// #define TEST_VECTOR_SEARCH_MULTIPLE 1
 #define TEST_GENERAL_MEMORY_ALLOCATION 0
-//#define TEST_VECTOR_DUPLICATES 1
-//#define TEST_BST 1
-//#define TEST_OPEN_ADDRESSING_HASH_TABLE 1
-//#define TEST_SD_WRITE 1
-//#define TEST_SAMPLE_LOOP_POINTS 1
+// #define TEST_VECTOR_DUPLICATES 1
+// #define TEST_BST 1
+// #define TEST_OPEN_ADDRESSING_HASH_TABLE 1
+// #define TEST_SD_WRITE 1
+// #define TEST_SAMPLE_LOOP_POINTS 1
 #endif
 
 #define SD_TEST_MODE_ENABLED 0
@@ -59,9 +59,9 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
-// FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0 release
-// correspondingly, we should probably we storing the semver version in three bytes in the flash rather than trying to compress
-// it all to one (see above class)
+// FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0
+// release correspondingly, we should probably we storing the semver version in three bytes in the flash rather than
+// trying to compress it all to one (see above class)
 enum FirmwareVersion : uint8_t {
 	FIRMWARE_OLD = 0,
 	FIRMWARE_1P2P0 = 1,
@@ -353,36 +353,33 @@ enum class PatchSource : uint8_t {
 constexpr PatchSource kLastPatchSource = PatchSource::NONE;
 constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 
-//constexpr PatchSource kFirstGlobalSourceWithChangedStatusAutomaticallyUpdated = PatchSource::ENVELOPE_0;
+// constexpr PatchSource kFirstGlobalSourceWithChangedStatusAutomaticallyUpdated = PatchSource::ENVELOPE_0;
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
-//constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
+// constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
-//Menu Min Max Values
+// Menu Min Max Values
 
-//regular menu range e.g. 0 - 50
+// regular menu range e.g. 0 - 50
 constexpr int32_t kMaxMenuValue = 50;
 constexpr int32_t kMinMenuValue = 0;
 constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
 
-//relative menu range e.g. -25 to +25 - used with pan and pitch
+// relative menu range e.g. -25 to +25 - used with pan and pitch
 constexpr int32_t kMaxMenuRelativeValue = kMaxMenuValue / 2;
 constexpr int32_t kMinMenuRelativeValue = -1 * kMaxMenuRelativeValue;
 
-//patch cable menu range e.g. -5000 to 5000
+// patch cable menu range e.g. -5000 to 5000
 constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
 constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 
-//metronome volume menu range : 22 to 27
+// metronome volume menu range : 22 to 27
 constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
-//Performance View and Automation View Constant
-constexpr uint32_t kNoParamID = 0xFFFFFFFF;
-
-//Automation View constants
+// Automation View constants
 constexpr int32_t kNoSelection = 255;
-constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 56;
-constexpr int32_t kNumKitAffectEntireParamsForAutomation = 23;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 56;
+constexpr int32_t kNumGlobalParamsForAutomation = 23;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
@@ -391,7 +388,7 @@ constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 constexpr int32_t kParamNodeWidth = 3;
 //
 
-//Performance View constant
+// Performance View constant
 constexpr int32_t kNumParamsForPerformance = 16;
 constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
 constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
@@ -404,7 +401,7 @@ enum class PerformanceEditingMode : int32_t {
 	PARAM,
 };
 
-//Midi Follow Mode Feedback Automation Modes
+// Midi Follow Mode Feedback Automation Modes
 
 enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 	DISABLED,
@@ -412,182 +409,6 @@ enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 	MEDIUM,
 	HIGH,
 };
-
-// Linear params have different sources multiplied together, then multiplied by the neutral value
-// -- and "volume" ones get squared at the end
-
-// Hybrid params have different sources added together, then added to the neutral value
-
-// Exp params have different sources added together, converted to an exponential scale, then multiplied by the neutral value
-
-using ParamType = uint8_t;
-
-namespace Param {
-
-enum Kind : int32_t {
-	NONE,
-
-	PATCHED,
-	UNPATCHED_SOUND,
-	UNPATCHED_GLOBAL,
-	STATIC,
-	MIDI,
-	PATCH_CABLE,
-	EXPRESSION,
-};
-
-namespace Local {
-enum : ParamType {
-	// Local linear params begin
-	OSC_A_VOLUME,
-	OSC_B_VOLUME,
-	VOLUME,
-	NOISE_VOLUME,
-	MODULATOR_0_VOLUME,
-	MODULATOR_1_VOLUME,
-	FOLD,
-
-	// Local non-volume params begin
-	MODULATOR_0_FEEDBACK,
-	MODULATOR_1_FEEDBACK,
-	CARRIER_0_FEEDBACK,
-	CARRIER_1_FEEDBACK,
-	LPF_RESONANCE,
-	HPF_RESONANCE,
-	ENV_0_SUSTAIN,
-	ENV_1_SUSTAIN,
-	LPF_MORPH,
-	HPF_MORPH,
-
-	// Local hybrid params begin
-	OSC_A_PHASE_WIDTH,
-	OSC_B_PHASE_WIDTH,
-	OSC_A_WAVE_INDEX,
-	OSC_B_WAVE_INDEX,
-	PAN,
-
-	// Local exp params begin
-	LPF_FREQ,
-	PITCH_ADJUST,
-	OSC_A_PITCH_ADJUST,
-	OSC_B_PITCH_ADJUST,
-	MODULATOR_0_PITCH_ADJUST,
-	MODULATOR_1_PITCH_ADJUST,
-	HPF_FREQ,
-	LFO_LOCAL_FREQ,
-	ENV_0_ATTACK,
-	ENV_1_ATTACK,
-	ENV_0_DECAY,
-	ENV_1_DECAY,
-	ENV_0_RELEASE,
-	ENV_1_RELEASE,
-
-	LAST,
-};
-constexpr ParamType FIRST_NON_VOLUME = MODULATOR_0_FEEDBACK;
-constexpr ParamType FIRST_HYBRID = OSC_A_PHASE_WIDTH;
-constexpr ParamType FIRST_EXP = LPF_FREQ;
-} // namespace Local
-
-namespace Global {
-enum : ParamType {
-	// Global (linear) params begin
-	VOLUME_POST_FX = Local::LAST,
-	VOLUME_POST_REVERB_SEND,
-	REVERB_AMOUNT,
-	MOD_FX_DEPTH,
-
-	// Global non-volume params begin
-	DELAY_FEEDBACK,
-
-	// Global hybrid params begin
-	// Global exp params begin
-	DELAY_RATE,
-	MOD_FX_RATE,
-	LFO_FREQ,
-	ARP_RATE,
-	// ANY TIME YOU UPDATE THIS LIST! CHANGE Sound::paramToString()
-
-	NONE,
-};
-constexpr ParamType FIRST = Global::VOLUME_POST_FX;
-constexpr ParamType FIRST_NON_VOLUME = Global::DELAY_FEEDBACK;
-constexpr ParamType FIRST_HYBRID = Global::DELAY_RATE;
-constexpr ParamType FIRST_EXP = Global::DELAY_RATE;
-} // namespace Global
-
-constexpr ParamType PLACEHOLDER_RANGE = 89; // Not a real param. For the purpose of reading old files from before V3.2.0
-namespace Unpatched {
-constexpr ParamType START = 90;
-
-enum Shared : ParamType {
-	// For all ModControllables
-	STUTTER_RATE,
-	BASS,
-	TREBLE,
-	BASS_FREQ,
-	TREBLE_FREQ,
-	SAMPLE_RATE_REDUCTION,
-	BITCRUSHING,
-	MOD_FX_OFFSET,
-	MOD_FX_FEEDBACK,
-	COMPRESSOR_SHAPE,
-	// ANY TIME YOU UPDATE THIS LIST! paramToString() in functions.cpp
-	NUM_SHARED,
-};
-
-// Just for Sounds
-namespace Sound {
-enum : ParamType {
-	ARP_GATE = Param::Unpatched::NUM_SHARED,
-	PORTAMENTO,
-	// ANY TIME YOU UPDATE THIS LIST! paramToString() in functions.cpp
-	MAX_NUM,
-};
-}
-
-// Just for GlobalEffectables
-namespace GlobalEffectable {
-enum : ParamType {
-	MOD_FX_RATE = Param::Unpatched::NUM_SHARED,
-	MOD_FX_DEPTH,
-	DELAY_RATE,
-	DELAY_AMOUNT,
-	PAN,
-	LPF_FREQ,
-	LPF_RES,
-	HPF_FREQ,
-	HPF_RES,
-	REVERB_SEND_AMOUNT,
-	VOLUME,
-	SIDECHAIN_VOLUME,
-	PITCH_ADJUST,
-	MAX_NUM,
-};
-}
-} // namespace Unpatched
-
-namespace Static {
-constexpr ParamType START = 162;
-
-enum : ParamType {
-	COMPRESSOR_ATTACK = START,
-	COMPRESSOR_RELEASE,
-
-	// Only used for the reverb compressor. Normally this is done with patching
-	COMPRESSOR_VOLUME,
-	PATCH_CABLE = 190, // Special case
-};
-} // namespace Static
-static_assert(std::max<ParamType>(Unpatched::GlobalEffectable::MAX_NUM, Unpatched::Sound::MAX_NUM) + Unpatched::START
-                  < Static::START,
-              "Error: Too many Param::Unpatched (collision with Param::Static)");
-
-} // namespace Param
-
-//None is the last global param, 0 indexed so it's also the number of real params
-constexpr ParamType kNumParams = util::to_underlying(Param::Global::NONE);
-constexpr ParamType kMaxNumUnpatchedParams = Param::Unpatched::GlobalEffectable::MAX_NUM;
 
 enum class OscType {
 	SINE,
@@ -687,14 +508,14 @@ constexpr int32_t kNumPhysicalModKnobs = 2;
 enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
-	SVF_BAND,              //first HPF mode
-	SVF_NOTCH,             //last LPF mode
+	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
+	SVF_BAND,              // first HPF mode
+	SVF_NOTCH,             // last LPF mode
 	HPLADDER,
-	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-//Off is not an LPF mode but is used to reset filters
+// Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
 constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
 constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
@@ -814,11 +635,12 @@ constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCA
 constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
 enum class MIDIFollowChannelType : uint8_t {
-	SYNTH,
-	KIT,
-	PARAM,
+	A,
+	B,
+	C,
+	FEEDBACK,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::PARAM) + 1;
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::FEEDBACK) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
@@ -851,6 +673,7 @@ enum class ArmState {
 constexpr int32_t kNumProbabilityValues = 20;
 constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
 constexpr int32_t kFillProbabilityValue = 0;
+constexpr int32_t kNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {
@@ -923,7 +746,8 @@ constexpr int32_t kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numb
 constexpr int32_t kMaxUnisonDetune = 50;
 constexpr int32_t kMaxUnisonStereoSpread = 50;
 
-// This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
+// This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details
+// were lost in the output
 constexpr int32_t kPercBufferReductionMagnitude = 7;
 constexpr int32_t kPercBufferReductionSize = (1 << kPercBufferReductionMagnitude);
 constexpr int32_t kDifferenceLPFPoles = 2;
@@ -966,7 +790,8 @@ namespace Crossfade {
 // 3 sounds way better than 2. After that, kinda diminishing returns
 constexpr int32_t kNumMovingAverages = 3;
 
-// Anywhere between 30 and 40 seemed ideal. Point of interest - high numbers (e.g. I tried 140) screw up the high notes, so more is not more!
+// Anywhere between 30 and 40 seemed ideal. Point of interest - high numbers (e.g. I tried 140) screw up the high notes,
+// so more is not more!
 constexpr int32_t kMovingAverageLength = 35;
 
 } // namespace Crossfade
@@ -1006,8 +831,9 @@ enum class ActionResult {
 
 constexpr int32_t kAudioClipMarginSizePostEnd = 2048;
 
-// Let's just do a 100 sample crossfade. Even 12 samples actually sounded fine for my voice - just obviously not so good for a low sine wave.
-// Of course, if like 60 samples are being processed at a time under CPU load, then this might end up as low as 40.
+// Let's just do a 100 sample crossfade. Even 12 samples actually sounded fine for my voice - just obviously not so good
+// for a low sine wave. Of course, if like 60 samples are being processed at a time under CPU load, then this might end
+// up as low as 40.
 constexpr int32_t kAntiClickCrossfadeLength = 100;
 
 constexpr int32_t kAudioClipDefaultAttackIfPreMargin = (7 * 85899345 - 2147483648);
@@ -1047,11 +873,10 @@ enum StealableQueue {
 	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA,
 	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_CONVERTED,
 	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work to load it all again
+	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work
+	                                                     // to load it all again
 	NUM_STEALABLE_QUEUES,
 };
-
-constexpr int32_t kUndefinedGreyShade = 7;
 
 enum class SequenceDirection {
 	FORWARD,
@@ -1066,7 +891,8 @@ enum class AudioFileType {
 	WAVETABLE,
 };
 
-// Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code, which would take up program size for little gain.
+// Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code, which would take up program
+// size for little gain.
 constexpr int32_t kWavetableMinCycleSize = 8;
 constexpr int32_t kWavetableMaxCycleSize = 65536; // TODO: work out what this should actually be.
 
@@ -1152,9 +978,9 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 /// Rate at which midi follow feedback for automation is sent
-constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    //500 ms
-constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; //150 ms
-constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    //40 ms
+constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    // 500 ms
+constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
+constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    // 40 ms
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
@@ -1176,3 +1002,10 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeBlue,
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
+
+enum class ClipType {
+	INSTRUMENT,
+	AUDIO,
+};
+
+enum class LaunchStyle { DEFAULT, FILL, ONCE };

@@ -38,7 +38,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[Param::Global::ARP_RATE],
+			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
 			                              cableToExpParamShortcut(activeInstrumentClip->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;
@@ -47,9 +47,9 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			                   &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-				noteOffPostArp(
-				    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-				    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
+				               kDefaultLiftValue); // Is there some better option than using the default lift value? The
+				                                   // lift event wouldn't have occurred yet...
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -119,9 +119,10 @@ lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 
-			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a note-on-post-arp.
-			// I realise this is potentially frequent writing when it's only going to be read occasionally, but since we're already this far (the Instrument being notified),
-			// it's hardly any extra work.
+			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a
+			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
+			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
+			// work.
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 
 			int32_t noteCodeBeforeArpeggiation =
@@ -138,8 +139,8 @@ lookAtArpNote:
 				// Otherwise, just take note of which octave is currently outputting
 				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
 
-				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still be sounding on the connected synth,
-				// so this probably makes sense
+				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still
+				// be sounding on the connected synth, so this probably makes sense
 			}
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
@@ -161,9 +162,9 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 	                                                         currentPos, activeClip->currentlyPlayingReversed);
 
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(
-		    instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
-		    kDefaultLiftValue); // Is there some better option than using the default lift value? The lift event wouldn't have occurred yet...
+		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
+		               kDefaultLiftValue); // Is there some better option than using the default lift value? The lift
+		                                   // event wouldn't have occurred yet...
 	}
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {

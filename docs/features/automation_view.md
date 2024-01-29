@@ -1,10 +1,10 @@
 # Description
 
-Automation Instrument Clip View is a new view that complements the existing Instrument Clip View (which is accessed by pressing the Clip Button). It allows you to edit automatable parameters on a per step basis at any zoom level.
+Automation Clip View is a new view that complements the existing Clip View (which is accessed by pressing the Clip Button). It allows you to edit automatable parameters on a per step basis at any zoom level.
 
-Automatable Parameters are broken down into two categories for Automation Instrument Clip View purposes:
+Automatable Parameters are broken down into three categories for Automation Clip View purposes:
 
-1. Automatable Parameters for Synths, Kits with affect entire DISABLED, and Midi
+1. Automatable Parameters for Synths, Kits with affect entire DISABLED
 
 >The 56 parameters that can be edited are:
 >
@@ -30,9 +30,9 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Portamento**
 > - **Stutter** Rate
 
-2. Automatable Parameters for Kits with affect entire ENABLED
+2. Automatable Parameters for Kits with affect entire ENABLED, and Audio Clips
 
->The 25 parameters that can be edited are:
+>The 23 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance
@@ -45,35 +45,39 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Stutter** Rate
 
-It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.
+3. Automatable CC's for MIDI Clips
 
-The sidebar from the instrument clip types is available in the Automation Instrument Clip View so that you can audition sounds while viewing/editing parameter automations.
+>You can automate MIDI CC's 0-121, with 120 being Pitch Bend and 121 being After Touch
 
-The Automation Instrument Clip View functionality covered by this PR can be broken down into these sections:
+It can be thought of as a layer sitting on top of the Clip View for Synths, Kits, MIDI, and Audio clip types.
 
-1. Entering/Exiting the Automation Instrument Clip View
+For Non-Audio Instrument Clip Types (Synths, Kits, and MIDI), the sidebar from these instrument clip types is available in the Automation Clip View so that you can audition sounds while viewing/editing parameter automations.
+
+The Automation Clip View functionality covered by this feature can be broken down into these sections:
+
+1. Entering/Exiting the Automation Clip View
 4. Automation Overview
 5. Parameter Selection
 6. Automation Editor
 7. Button Shortcuts/Combos
-8. Community Features (Enhancements to the existing Instrument Clip View)
+8. Community Features (Enhancements to the existing Clip View)
 
 A more detailed break-down of the above sections is found below.
 
-## Enter/Exit Automation Instrument Clip View
+## Enter/Exit Automation Clip View
 
-The Automation Instrument Clip View can be accessed from the Instrument Clip View by pressing on the Clip button. The Clip button will flash when you are in the Automation Instrument Clip View
+The Automation Clip View can be accessed from the Clip View by pressing on the Clip button. The Clip button will flash when you are in the Automation Clip View
 
 Some additional things to note:
 
-- If you are in Automation Instrument Clip View and transition to Song/Arranger View, the Deluge will remember that on a per Instrument Clip basis. This means that when you transition back to an Instrument Clip it will re-load the Automation Instrument Clip View if you were in that view previously. 
+- If you are in Automation Clip View and transition to Song/Arranger View, the Deluge will remember that on a per Clip basis. This means that when you transition back to a Clip it will re-load the Automation Clip View if you were in that view previously. 
 
 > **Note:** This information is saved with the song.
 
-- You can load up the Keyboard Screen while in the Automation Instrument Clip View so you can quickly switch between editing a Parameter and playing notes on the Keyboard.
+- For non-Audio Instrument Clip Types, you can load up the Keyboard Screen while in the Automation Clip View so you can quickly switch between editing a Parameter and playing notes on the Keyboard.
 - Automation settings are saved per Instrument per Clip with the Song
 - Automations that are recorded in using the Mod Encoders (Gold Knobs) are always recorded with Interpolation.
-- MPE automations are not covered/edited by this Automation Instrument Clip View. If MPE must be edited/nudged/shifted, it must be done in the current Instrument Clip View.
+- MPE automations are not covered/edited by this Automation Clip View. If MPE must be edited/nudged/shifted, it must be done in the current Instrument Clip View.
 
 ## Automation Overview
 
@@ -82,15 +86,15 @@ The Automation Overview provides an overview of the Parameters that can be autom
 The Automation Overview **will:**
 
 - Allow you to automate Master FX section parameters using the Mod Encoders (gold knobs)
-- For Synth and Kit clips, illuminate the shortcut pad's on the grid that correspond to a parameter that can be automated.
-- For Midi clips, illuminate the pads to represents the CC values that can be automated from 0-121 (with the last two being Pitch Bend and After Touch and are placed in the bottom right hand corner).
+- For Synth, Kit, and Audio clips, illuminate the shortcut pad's on the grid that correspond to a parameter that can be automated.
+- For MIDI clips, illuminate the pads to represents the CC values that can be automated from 0-121 (with the last two being Pitch Bend and After Touch and are placed in the bottom right hand corner).
 - provide visual feedback on which parameters that can be automated and are currently automated by illuminating the corresponding shortcut pads white
 
 > **Note:** While in the automation overview, if you hit play, record and then record in Master FX automations using the Mod Encoder (Gold Knobs), the automation overview grid will update to show you that those parameters are now automated by highlighted the corresponding pads on the grid white. Note: the update will happen after you turn record off.
 
-- be quickly accessible at any time from within the Automation Instrument Clip View by holding shift + clip or by pressing the instrument clip type button that corresponds to the type of clip you are currently in (e.g. if you're in a Synth, press Synth). 
+- be quickly accessible at any time from within the Automation Clip View by holding shift + clip, audition + clip, or affect entire. 
 
-> **Note 1:** The Automation Overview will also be displayed if you change clip types (e.g. from Synth to Midi).
+> **Note 1:** The Automation Overview will also be displayed if you change clip types (e.g. from Synth to MIDI).
 
 > **Note 2:** In a Kit clip, the Automation Overview will be displayed any time you change your kit row selection (e.g. by pressing on the mute or audition pads).
 
@@ -126,7 +130,7 @@ You can select the Parameter that you want to edit in three ways:
 1. From the Automation Overview by pressing any of the illuminated pads
 2. By turning select
 5. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
-9. Once you select a Parameter, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Instrument Clip View, Song View or Arranger View, when you transition back to the Automation Instrument Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
+9. Once you select a Parameter, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
 
 > **Note:** This information is saved with the song.
 
@@ -134,14 +138,14 @@ You can select the Parameter that you want to edit in three ways:
 
 The Automation Editor enables you to view and edit parameter automation values.
 
-- For Synths and Midi clips, automations are recorded/edited on a clip basis (e.g. not on a per note row basis).
+- For Synths, MIDI and Audio clips, automations are recorded/edited on a clip basis (e.g. not on a per note row basis).
 
 - For Kit clips, automations can be recorded/edited on a clip basis and on a row basis (two layers of automation).
 
 The Automation Editor **will:**
 
 - show you visually whether automation is enabled on a parameter by dimming the pads when automation is off, and increasing the brightness when automation is on
-- display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for Midi clips)
+- display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for MIDI clips)
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
@@ -177,7 +181,7 @@ The Automation Editor **will:**
 > 
 > In a long press, you will also note that the LED indicators change to show the current value of the start and end position. Once you've let go of the long press, the LED indicators reset back to the parameters overall current value.
 
-> **Note 2:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Instrument Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section).
+> **Note 2:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section).
 
 > **Note 3:** If the parameter selected is not currently automated, turning the Mod Encoders (Gold Knobs) will increase the value of every step in the automation grid in unison (e.g. same value for all steps).
 
@@ -222,7 +226,7 @@ The Automation Editor **will:**
 - enable you to shift the automation for the parameter in focus horizontally across the grid timeline by using the existing familiar combo of pressing down the vertical encoder and turning the horizontal encoder
 - enable you to copy / paste automations from one parameter to another based on the parameter editor in view using the current combo (learn + press on either of the Mod Encoders (Gold Knobs) to copy and learn + shift + press on either of the Mod Encoders (Gold Knobs) to paste)
 - enable you to record in automations live with either of the Mod Encoders (Gold Knobs) so that you can see your automations displayed on the grid
-- display the current parameter being edited on the grid by flashing the parameter shortcut pad white. you can also see the name of the parameter you are editing by holding shift + pressing the flashing shortcut pad to see the parameter name on the screen. Note: for 7seg, you will only cc the Midi CC # on the screen, not the parameter names in a Synth or Kit as the names are too complicated to abbreviate for a 7seg display and they are not currently shown in the sound editor).
+- display the current parameter being edited on the grid by flashing the parameter shortcut pad white. you can also see the name of the parameter you are editing by holding shift + pressing the flashing shortcut pad to see the parameter name on the screen. Note: for 7seg, you will only cc the MIDI CC # on the screen, not the parameter names in a Synth or Kit as the names are too complicated to abbreviate for a 7seg display and they are not currently shown in the sound editor).
 - quickly change the interpolation on/off setting by pressing down on the settings encoder
 - delete automation for the current parameter being edited using shift + press on either of the Mod Encoders (Gold Knobs)
 
@@ -230,11 +234,11 @@ The Automation Editor **will:**
 
 - extend/shorten the clip length using the current combo (shift + turn horizontal encoder)
 
-> **Note:** For Synth, Midi and Kit Clips with Affect Entire enabled, the Automation Editor grid will display the shortened clip size (e.g. you cannot edit automation past the clip length boundary).
+> **Note:** For Synth, MIDI, Kit Clips with Affect Entire enabled, and Audio Clips, the Automation Editor grid will display the shortened clip size (e.g. you cannot edit automation past the clip length boundary).
 
 - extend/shorten a note row length using the current combo (audition pad + turn horizontal encoder)
 
-> **Note 1:** For Synth and Midi clips, the automation editor will not display the shortened note row, but you will see that it has been shortened when playing the clip as the cursor will move independently of other rows).
+> **Note 1:** For Synth and MIDI clips, the automation editor will not display the shortened note row, but you will see that it has been shortened when playing the clip as the cursor will move independently of other rows).
 
 > **Note 2:** For Kit Clips with Affect Entire disabled, the Automation Editor grid will display the shortened clip row size (e.g. you cannot edit automation past the clip row length boundary).
 
@@ -256,19 +260,19 @@ The Automation Editor **will not allow you to:**
 - edit existing note row sounds in a kit (e.g. change the sample)
 - add new rows in a kit
 - re-arrange rows in a kit
-- change root note in a synth/midi/cv clip
+- change root note in a synth/MIDI/CV clip
 
 ## Community Features
 
-Described below are a couple of toggable enhancements that change existing behaviour in the Instrument Clip View but are of benefit to the user now that Automation's can be edited separately from the Instrument Clip View.
+Described below are a couple of toggable enhancements that change existing behaviour in the Clip View but are of benefit to the user now that Automation's can be edited separately from the Clip View.
 
 ### Interpolation
 
-Interpolation does not change existing behaviour. This toggle is only used in the new Automation Instrument Clip View. 
+Interpolation does not change existing behaviour. This toggle is only used in the new Automation Clip View. 
 
-This sets the default value for the Interpolation setting in the Automation Instrument Clip View. 
+This sets the default value for the Interpolation setting in the Automation Clip View. 
 
-> **Note:** This default value is loaded every time you enter the Automation Instrument Clip View.
+> **Note:** This default value is loaded every time you enter the Automation Clip View.
 
 Interpolation itself can be toggled on/off by pressing down on the Setting button however that does not change the default setting.
 
@@ -288,7 +292,7 @@ It is important to recognize that in the Deluge, Notes, are recorded **separatel
 
 Thus, this community feature clearly delineates this behaviour by changing the Clip Clearing behaviour in the Instrument Clip View to only clear Notes, and not Automations.
 
-Similarly, in the Automation Instrument Clip View, clearing a clip will only clear Automations, and not Notes.
+Similarly, in the Automation Clip View, clearing a clip will only clear Automations, and not Notes.
 
 This change can be reversed by setting the "Clip Clear" community feature to OFF.
 
@@ -306,17 +310,17 @@ This community feature addresses this by changing the behaviour to only nudge no
 
 This change can be reversed by setting the "Nudge Notes" community feature to OFF.
 
-> **Note:** there is no Automation nudging functionality in the Automation Instrument Clip View. But you can shift the entire Automation sequence horizontally left/right or manually edit the automation.
+> **Note:** there is no Automation nudging functionality in the Automation Clip View. But you can shift the entire Automation sequence horizontally left/right or manually edit the automation.
 
 > **Note:** MPE recorded will still be nudged as the scope of this PR does not cover editing MPE.
 
 ### Shifting Clip Horizontally
 
-Currently in the Instrument Clip View if you press down on the Vertical Encoder and turn the Horizontal Encoder, it will shift Notes AND the ALL Automations of the entire clip horizontally.
+Currently in the Clip View if you press down on the Vertical Encoder and turn the Horizontal Encoder, it will shift Notes AND the ALL Automations of the entire clip horizontally.
 
-Similar to above with the Nudging Notes community feature, this feature will disable the shifting of Automations within the existing Instrument Clip View and leave that behaviour to the Automation Instrument Clip View.
+Similar to above with the Nudging Notes community feature, this feature will disable the shifting of Automations within the existing Clip View and leave that behaviour to the Automation Clip View.
 
-In the Automation Instrument Clip View, functionality is provided to shift automations at the parameter level.
+In the Automation Clip View, functionality is provided to shift automations at the parameter level.
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
@@ -324,13 +328,13 @@ In the Automation Instrument Clip View, functionality is provided to shift autom
 
 Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
 
-By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+By default in the Automation Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
 
 Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
 
 > **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
 
-# Fun things to try with the new Automation Instrument Clip View
+# Fun things to try with the new Automation Clip View
 
 ## Two Hand Automation Drumming
 
@@ -338,7 +342,7 @@ Through the community features menu, you can disable this change and re-instate 
 
 2. Press play.
 
-5. Switch to Automation Instrument Clip View
+5. Switch to Automation Clip View
 
 6. Enter the Automation Editor for a Parameter, e.g. LPF Frequency is a good one
 
@@ -346,7 +350,7 @@ Through the community features menu, you can disable this change and re-instate 
 
 ## Editing Automations with your left hand and playing the piano roll with your right hand
 
-1. While in the Automation Instrument Clip View, start playing the Piano roll in the sidebar
+1. While in the Automation Clip View, start playing the Piano roll in the sidebar
 
 2. While you're playing the Piano roll, use your left hand to select the parameters you want to edit. E.g. while holding an audition pad you can press the clip button to go back to the Automation Overview and select a Parameter.
 
@@ -360,15 +364,14 @@ Through the community features menu, you can disable this change and re-instate 
 
 This view is tightly integrated with the Instrument Clip View and calls many of the functions and writes to many of the variables in the Instrument Clip View.
 
-Some functions and variables that were previously Private in the Instrument Clip View were made Public so that they could be used by the Automation Instrument Clip View.
+Some functions and variables that were previously Private in the Instrument Clip View were made Public so that they could be used by the Automation Clip View.
 
-The Automation Instrument Clip View is recognized as a new UI so many of the calls that check the current UI in view (e.g. getCurrentUI(), getRootUI()) were modified to check if the Automation Instrument Clip View is currently open.
+The Automation Clip View is recognized as a new UI so many of the calls that check the current UI in view (e.g. getCurrentUI(), getRootUI()) were modified to check if the Automation Clip View is currently open.
 
-Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" to tell other views (e.g. Song, Arranger) whether to open up the Keyboard screen (instead of the Instrument Clip View) when transitioning to/from the Instrument Clip View, the Automation Clip View also uses a similar variable "onAutomationClipView" for the same purpose.
+Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" to tell other views (e.g. Song, Arranger) whether to open up the Keyboard screen (instead of the Instrument Clip View) when transitioning to/from the Instrument Clip View / Audio Clip View, the Automation Clip View also uses a similar variable "onAutomationClipView" for the same purpose.
 
 # De-scoped Items (Future Release)
 
-- Automation for Audio Clips
 - Key Frames + Parameter value for each frame
 - Automation Shapes
 - Jump from Sound Editor Menu to Automation View
@@ -380,11 +383,10 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 - Is automation in song/arranger views possible?
 - Can automation run at a sequence length independent of clip/row? (Currently no, the deluge isn't built that way)
 - MPE note automation view
-- Cross-screen automation editing
 
 # Button Shortcuts/Combos
 
-These are the main button shortcuts/combos that will be used in the Automation Instrument Clip View
+These are the main button shortcuts/combos that will be used in the Automation Clip View
 
 ## Automation Overview
 

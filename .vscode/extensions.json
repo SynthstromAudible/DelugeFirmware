@@ -3,6 +3,7 @@
 		"ms-vscode.cpptools",
 		"editorconfig.editorconfig",
 		"xaver.clang-format",
-		"marus25.cortex-debug"
+		"marus25.cortex-debug",
+		"webfreak.advanced-local-formatters"
 	]
 }

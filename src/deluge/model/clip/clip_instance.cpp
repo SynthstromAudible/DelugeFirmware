@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/clip/clip_instance.h"
 #include "memory/general_memory_allocator.h"
@@ -28,13 +28,12 @@ ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub
 }
 
-void ClipInstance::getColour(uint8_t* colour) {
+RGB ClipInstance::getColour() {
 	if (!clip || clip->isArrangementOnlyClip()) {
-		memset(colour, 128, 3);
+		return RGB::monochrome(128);
 	}
-	else {
-		hueToRGB(defaultClipGroupColours[clip->section], colour);
-	}
+
+	return RGB::fromHue(defaultClipGroupColours[clip->section]);
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {

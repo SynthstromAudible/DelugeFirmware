@@ -66,7 +66,7 @@ public:
 	char const* readTagOrAttributeValue();
 
 	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false);
+	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
 	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                    bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
@@ -137,8 +137,8 @@ private:
 	uint8_t xmlArea;
 	bool xmlReachedEnd;
 	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int32_t
-	    tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
+	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
+	                      // to finding next useful data.
 	int32_t xmlReadCount;
 
 	void skipUntilChar(char endChar);

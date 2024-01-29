@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -38,11 +38,15 @@ class TimeStretcher;
 class String;
 class SideChain;
 class VoiceVector;
-class revmodel;
+class Freeverb;
 class Metronome;
 class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
+
+namespace deluge::dsp {
+class Reverb;
+}
 
 /*
  * ================== Audio rendering ==================
@@ -98,12 +102,13 @@ class SoundDrum;
  * ====================== Audio / CPU performance ======================
  * A huge number of factors influence the performance of a particular Deluge firmware build.
  * Subpar performance will usually be noticed in the form of sounds dropping out in songs which
- * performed better in other firmware versions. As an open source contributer, ensuring optimal performance of any code modifications you make,
- * and subsequently their builds, will be a big challenge. But don’t sweat it too much - if you’ve
- * added some cool features which are useful to you or others, maybe lowered audio performance is a reasonable tradeoff?
+ * performed better in other firmware versions. As an open source contributer, ensuring optimal performance of any code
+ * modifications you make, and subsequently their builds, will be a big challenge. But don’t sweat it too much - if
+ * you’ve added some cool features which are useful to you or others, maybe lowered audio performance is a reasonable
+ * tradeoff?
  *
- * The Deluge codebase, since 2021, has been built with GCC 9.2. I (Rohan) compared this with the other 9.x GCC versions,
- * some 10.x ones, and the 6.x version(s) that the Deluge had used earlier. Performance differences were
+ * The Deluge codebase, since 2021, has been built with GCC 9.2. I (Rohan) compared this with the other 9.x GCC
+ * versions, some 10.x ones, and the 6.x version(s) that the Deluge had used earlier. Performance differences were
  * negligible in most cases, and ultimately I settled on GCC 9.2 because it resulted in a built binary which was
  * smaller by a number of kilobytes compared to other versions. GCC 10.x was particularly bad in this regard.
  *
@@ -112,9 +117,9 @@ class SoundDrum;
  * ease of code debugging. If you’re using live code uploading via a J-link and want to do some tests for
  * real-world performance, you should enable these for this configuration, at least while doing your tests.
  *
- * A few other of the standard compiler optimizations are enabled, like –gc-sections to remove unused code from the build.
- * Beyond that, I’ve experimented with enabling various of the most advanced GCC optimizations,
- * but haven’t found any that improve overall performance.
+ * A few other of the standard compiler optimizations are enabled, like –gc-sections to remove unused code from the
+ * build. Beyond that, I’ve experimented with enabling various of the most advanced GCC optimizations, but haven’t found
+ * any that improve overall performance.
  */
 
 namespace AudioEngine {
@@ -188,7 +193,7 @@ extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbCompressor;
 extern uint32_t timeThereWasLastSomeReverb;
 extern VoiceVector activeVoices;
-extern revmodel reverb;
+extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbCompressorVolume;

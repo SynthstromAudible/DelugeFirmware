@@ -50,7 +50,7 @@ void usb_pstd_brdy_pipe(uint16_t bitsts)
 {
     /* When operating by the peripheral function, usb_pstd_brdy_pipe() is executed with PIPEx request because */
     /* two BRDY messages are issued even when the demand of PIPE0 and PIPEx has been generated at the same time. */
-    //if ((bitsts & USB_BRDY0) == USB_BRDY0) { // Changed by Rohan - now we only come here for pipe0
+    // if ((bitsts & USB_BRDY0) == USB_BRDY0) { // Changed by Rohan - now we only come here for pipe0
     switch (usb_pstd_read_data(USB_PIPE0, USB_CUSE))
     {
         /* End of data read */
@@ -139,7 +139,7 @@ void usb_pstd_bemp_pipe(uint16_t bitsts)
     /* When operating by the peripheral function, usb_pstd_bemp_pipe() is executed with PIPEx request because */
     /* two BEMP messages are issued even when the demand of PIPE0 and PIPEx has been generated at the same time. */
 
-    //if ((bitsts & USB_BEMP0) == USB_BEMP0) // Changed by Rohan - now only bemp for pipe 0 comes to this function
+    // if ((bitsts & USB_BEMP0) == USB_BEMP0) // Changed by Rohan - now only bemp for pipe 0 comes to this function
     //{
     switch (usb_pstd_write_data(USB_PIPE0, USB_CUSE))
     {

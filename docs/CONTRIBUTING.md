@@ -12,7 +12,7 @@ Even if you are not a software developer you can contribute immensely by informi
 * Please submit an [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) highlighting as much *relevant* context about the bug as possible.
 * Quality of information (rather than quantity, necessarily) is key! See [How to Report Bugs Effectively](https://www.chiark.greenend.org.uk/~sgtatham/bugs.html) by Simon Tatham for more on this topic.
 * Do let us know whether the bug was found on an OLED or 7seg Deluge as this may be important as well as the source and version of firmware (branch/etc.).
-* Where the bug exists in build scripts, e2, or other development, building, and debugging processes, please provide excerpts of the relevant logs if you suspect they might be helpful.
+* Where the bug exists in build scripts, editors, or other development, building, and debugging processes, please provide excerpts of the relevant logs if you suspect they might be helpful.
 * Bugs in related projects should be submitted to the appropriate issue tracker:
     * DelugeProbe: [litui/delugeprobe](https://github.com/litui/delugeprobe).
     * DBT-Toolchain: [litui/dbt-toolchain](https://github.com/litui/dbt-toolchain).

@@ -33,9 +33,9 @@ class UI;
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+extern RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
 extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-extern uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+extern RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
 extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 extern bool transitionTakingPlaceOnRow[kDisplayHeight];
@@ -101,7 +101,7 @@ extern int8_t scrollDirection;
 extern bool scrollingToNothing;
 } // namespace vertical
 
-void sendRGBForOnePadFast(int32_t x, int32_t y, const uint8_t* colourSource);
+RGB prepareColour(int32_t x, int32_t y, RGB colourSource);
 void clearTickSquares(bool shouldSend = true);
 void setTickSquares(const uint8_t* squares, const uint8_t* colours);
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);

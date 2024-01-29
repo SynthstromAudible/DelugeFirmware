@@ -75,7 +75,7 @@ high --> Ending index */
 void QuickSorter::quickSort(int32_t low, int32_t high) {
 	if (low < high) {
 		/* pi is partitioning index, arr[p] is now
-        at right place */
+		at right place */
 		int32_t pi = partition(low, high);
 
 		// Separately sort elements before
@@ -85,7 +85,8 @@ void QuickSorter::quickSort(int32_t low, int32_t high) {
 	}
 }
 
-// Make sure numElements isn't 0 before you call this! And you should also make sure it's not just 1 before you bother calling.
+// Make sure numElements isn't 0 before you call this! And you should also make sure it's not just 1 before you bother
+// calling.
 void QuickSorter::sort(int32_t numElements) {
 	quickSort(0, numElements - 1);
 

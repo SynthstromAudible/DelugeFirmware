@@ -13,12 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
+#include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/colour/colour.h"
 #include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
@@ -26,6 +28,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <stdint.h>
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -49,7 +52,8 @@ char const* getThingName(OutputType outputType);
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 
-	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just always saturating by the same amount!
+	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just
+	// always saturating by the same amount!
 	switch (bits) {
 	case 31:
 		return signed_saturate<31>(val);
@@ -115,7 +119,7 @@ template <uint8_t lshift>
 /**
  * replace asterix with a digit
  * Only works for single digits
-*/
+ */
 [[gnu::always_inline]] constexpr void asterixToInt(char* str, int32_t i) {
 	while (*str != 0) {
 		if (*str == '*') {
@@ -165,8 +169,8 @@ AudioInputChannel stringToInputChannel(char const* string);
 
 char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
 SequenceDirection stringToSequenceDirectionMode(char const* string);
-char const* launchStyleToString(int launchStyle);
-int stringToLaunchStyle(char const* string);
+char const* launchStyleToString(LaunchStyle launchStyle);
+LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
 void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
@@ -181,8 +185,6 @@ char const* getFileNameFromEndOfPath(char const* filePathChars);
 int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
-uint32_t rshift_round(uint32_t value, uint32_t rshift);
-int32_t rshift_round_signed(int32_t value, uint32_t rshift);
 int32_t instantTan(int32_t input);
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2);
@@ -201,16 +203,11 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples);
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
-char const* getPatchedParamDisplayName(int32_t p);
-char const* getParamDisplayName(Param::Kind kind, int32_t p);
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-char const* patchedParamToStringShort(int32_t p);
-
-bool paramNeedsLPF(int32_t p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
@@ -351,8 +348,8 @@ template <unsigned saturationAmount>
 
 /* Should be faster, but isn't...
  * inline int32_t getTriangleSmall(int32_t phase) {
-	int32_t multiplier = (phase >> 31) | 1;
-	phase *= multiplier;
+    int32_t multiplier = (phase >> 31) | 1;
+    phase *= multiplier;
  */
 
 [[gnu::always_inline]] inline int32_t getTriangleSmall(uint32_t phase) {
@@ -363,7 +360,7 @@ template <unsigned saturationAmount>
 
 [[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
 	return ((phase < 2147483648u) ? 2 : -2) * phase + 2147483648u;
-	//return getTriangleSmall(phase) << 1;
+	// return getTriangleSmall(phase) << 1;
 }
 
 int32_t getDecay8(uint32_t input, uint8_t numBitsInInput);
@@ -391,8 +388,6 @@ extern bool octaveStartsFromA;
 
 int32_t random(int32_t upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
-void hueToRGB(int32_t hue, unsigned char* rgb);
-void hueToRGBPastel(int32_t hue, unsigned char* rgb);
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
 uint32_t getLFOInitialPhaseForZero(LFOType waveType);
@@ -406,103 +401,43 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
-inline void drawSquare(uint8_t squareColour[], int32_t intensity, uint8_t square[], uint8_t* occupancyMask,
-                       int32_t occupancyFromWhichColourCame) {
+inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
+                      int32_t occupancyFromWhichColourCame) {
 
 	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColourCame) >> 6; // Out of 65536
 
 	// Make new colour being drawn into this square marginalise the colour already in the square
 	int32_t colourRemainingAmount = 65536;
 
-	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space" that it may still occupy
+	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space"
+	// that it may still occupy
 	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
 
 	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
-	if (*occupancyMask > maxOldOccupancy)
+	if (*occupancyMask > maxOldOccupancy) {
 		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
+	}
 
 	// Add the new colour, reducing the old if that's what we're doing
 	int32_t newOccupancyMaskValue =
 	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
 	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
 
-	for (int32_t colour = 0; colour < 3; colour++) {
-		int32_t newColourValue = rshift_round((int32_t)square[colour] * colourRemainingAmount, 16)
-		                         + rshift_round((int32_t)squareColour[colour] * modifiedIntensity, 16);
-		square[colour] = std::min<int32_t>(255, newColourValue);
-	}
-}
-
-inline void drawSolidSquare(uint8_t squareColour[], uint8_t square[], uint8_t* occupancyMask) {
-	memcpy(square, squareColour, 3);
-	*occupancyMask = 64;
-}
-
-inline void getTailColour(uint8_t rgb[], uint8_t fromRgb[]) {
-	uint32_t averageBrightness = ((uint32_t)fromRgb[0] + fromRgb[1] + fromRgb[2]);
-	rgb[0] = (((int32_t)fromRgb[0] * 21 + averageBrightness) * 157) >> 14;
-	rgb[1] = (((int32_t)fromRgb[1] * 21 + averageBrightness) * 157) >> 14;
-	rgb[2] = (((int32_t)fromRgb[2] * 21 + averageBrightness) * 157) >> 14;
-}
-
-inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
-	uint32_t averageBrightness = (uint32_t)fromRgb[0] * 5 + fromRgb[1] * 9 + fromRgb[2] * 9;
-	rgb[0] = ((uint32_t)fromRgb[0] * 5 + averageBrightness) >> 5;
-	rgb[1] = ((uint32_t)fromRgb[1] * 5 + averageBrightness) >> 5;
-	rgb[2] = ((uint32_t)fromRgb[2] * 1 + averageBrightness) >> 5;
-}
-
-// clang-format off
-
-constexpr uint32_t IMat[4][4] = {{ONE_Q15, 0, 0, 0},
-								{0, ONE_Q15, 0, 0},
-								{0, 0, ONE_Q15, 0},
-								{0, 0, 0, ONE_Q15}};
-
-constexpr float c = cos(1.0f);
-constexpr float s = sin(1.0f);
-constexpr uint32_t RMat[4][4] = {{(uint32_t)(c*ONE_Q15), 		 			 0, (uint32_t)(s*ONE_Q15), 		 0},
-							 	 {(uint32_t)(s*ONE_Q15), (uint32_t)(c*ONE_Q15), 					0, 		 0},
-							 	 {		  			  0, (uint32_t)(s*ONE_Q15), (uint32_t)(c*ONE_Q15), 		 0},
-							 	 {		  			  0, 		 			 0, 					0, ONE_Q15}};
-
-// clang-format on
-
-inline void xformrgb(uint8_t rgb[], uint8_t fromRgb[], const uint32_t mat[4][4]) {
-
-	uint8_t r = fromRgb[0];
-	uint8_t g = fromRgb[1];
-	uint8_t b = fromRgb[2];
-
-	rgb[0] = (uint8_t)((r * mat[0][0] + g * mat[1][0] + b * mat[2][0] + mat[3][0]) >> 16);
-	rgb[1] = (uint8_t)((r * mat[0][1] + g * mat[1][1] + b * mat[2][1] + mat[3][1]) >> 16);
-	rgb[2] = (uint8_t)((r * mat[0][2] + g * mat[1][2] + b * mat[2][2] + mat[3][2]) >> 16);
-}
-/**
- * This rotates the colour in fromRgb by 1 radian and places it in rgb
- * This is useful to generate a complementary colour with the same brightness
-*/
-inline void rotateColour(uint8_t rgb[], uint8_t fromRgb[]) {
-	xformrgb(rgb, fromRgb, RMat);
-}
-inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
-	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
-	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
-	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
+	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
 }
 
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
-	if (magnitude >= 0)
+	if (magnitude >= 0) {
 		return number << magnitude;
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 [[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
-	if (magnitude > 0)
+	if (magnitude > 0) {
 		return lshiftAndSaturateUnknown(number, magnitude);
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
@@ -541,7 +476,6 @@ int32_t getWhichKernel(int32_t phaseIncrement);
 
 int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
-void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion);
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();

@@ -6,9 +6,9 @@
 
 Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 
-- Note: although there are three types of MIDI follow channel's, all three channels will control the instrument of the active context. The three follow channel's allows you to learn different devices to MIDI follow, should you require device specific channel settings.
+- Note: although there are three MIDI follow channel's (A/B/C), all three channels will control the instrument of the active context. The three follow channel's allows you to learn different devices to MIDI follow, should you require device specific channel settings.
 
-Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
+Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
 Comes with an XML file with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
@@ -24,10 +24,10 @@ Comes with an XML file with default CC to Deluge parameter mappings. You can cus
 
 To use MIDI follow mode, you will need to configure the various MIDI Follow Mode settings by entering the settings menu and going to the sub menu for MIDI -> MIDI-Follow
 
-- In the MIDI-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE, for Synths (will apply to Synth Clips, MIDI Clips, and CV Clips), Kits and Params.
+- In the MIDI-Follow > Channel submenu, set the channel between 1 and 16 for Non-MPE or MPE Lower/Upper for MPE. There are three channel's (A/B/C) available to accomodate learning multiple devices / channels to MIDI Follow Mode.
 - In the MIDI-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the MIDI-Follow > Display Param submenu, enable or disable param pop-ups
-- In the MIDI-Follow > Feedback > Feedback submenu, enable or disable MIDI follow feedback
+- In the MIDI-Follow > Feedback > Channel submenu, enable or disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
 - In the MIDI-Follow > Feedback > Automation Feedback submenu, enabled or disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
 - In the MIDI-Follow > Feedback > Filter Responses submenu, enable or disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
@@ -36,7 +36,7 @@ If you wish to use Input Device Differentiation with MIDI Follow Mode, you will 
 
 To learn the device, you need to enter the MIDI Follow Channel submenu, hold the Learn button and then send a Note or CC.
 
-For example, if you enter the channel submenu for a Synth or Kit (e.g. `MIDI-Follow > Channel > Synth` or `MIDI-Follow > Channel > Kit`) and then `press and and hold the Learn button` and then send a Note to the deluge, the Deluge will update the the Synth channel to match the device and, if you are using an OLED Deluge, it will display the Device that has been learned on the screen.
+For example, if you enter the channel submenu (e.g. `MIDI-Follow > Channel > Channel A` or `MIDI-Follow > Channel > Channel B`) and then `press and and hold the Learn button` and then send a Note to the deluge, the Deluge will update the the Synth channel to match the device and, if you are using an OLED Deluge, it will display the Device that has been learned on the screen.
 
 ### **Learning a Channel / Root Note**
 
@@ -72,7 +72,7 @@ The default MIDI CC to parameter mappings, as mapped the to the parameter shortc
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
 
-> * See Appendix for detailed listing and description of default CC # to Parameter mappings.
+> * See Appendix A for detailed listing and description of default CC # to Parameter mappings.
 
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
@@ -106,21 +106,38 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 
 1. Added new MIDI submenu for MIDI-Follow where you can: 
 
-- Set the MIDI Follow Channel and Device for Synth Notes (which also applies to MIDI and CV clips)
-- Set the MIDI Follow Channel and Device for Kit Notes
-- Set the MIDI Follow Channel and Device for Param CC's
+- Set up to three MIDI Follow Channels and Devices 
 - Set the MIDI Follow Root Note for Kits
 - Enable or Disable MIDI Follow Param Pop-up's
-- Enable or Disable MIDI Follow Feedback
+- Enable or Disable MIDI Follow Feedback by setting the MIDI Follow Feedback Channel
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
 2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) or the Parameters of the Active View (e.g. Song View, Arranger View, Audio Clip View, Instrument Clip View).
 3. By default, the root note for kit's is C1 for the bottom kit row but this can be configured in the MIDI Follow menu.
 4. Pop-up's are shown on the display for mapped MIDI CC's to show the name of the parameter being controlled and value being set for the parameter. This can be disabled in the menu.
-5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu.
+5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by unlearning the MIDI feedback channel.
 6. MIDI feedback for automated parameters can also be sent and can be enabled or disabled in the MIDI feedback sub menu. When enabled, you choose between 3 speeds at which to send feedback for automated parameters: Low (500 ms), Medium (150 ms), High (40 ms). Sending automated parameter feedback can be taxing on the deluge MIDI output system, so depending on the amount of automation you do, you may want to adjust the speed (e.g. slow it down) to not affect the performance of the Deluge.
 7. MIDI feedback can cause an undesirable result with certain applications when the application responds back to the Deluge after the Deluge has sent it an updated value (Loopy Pro and Drambo on iPad are known to do this). This can cause lag in the deluge and potential feedback loops. To handle this, a toggable filter was added which ignores messages received for the same ccNumber within 1 second of sending a MIDI feedback update. If the application receiving the MIDI feedback update does not send responses back to the Deluge, then this setting should be set to Disabled in the MIDI Feedback Filter Responses sub menu.
 
-## Appendix - List of Deluge Parameters with Default Mapped CC's
+## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
 <img width="470" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/bef76865-e591-415a-9fa7-04c79c8b310d">
+
+## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
+
+For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+    
+- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+
+<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
+
+## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
+
+For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
+
+- It is setup to send and receive on Channel 15 when the Deluge is setup in the Touch OSC Connections menu
+
+<img width="560" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png">
+
+[MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
+[MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
