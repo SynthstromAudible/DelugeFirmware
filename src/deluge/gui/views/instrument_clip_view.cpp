@@ -4575,20 +4575,15 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	if (display->haveOLED()) {
 		char buffer[24];
-		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
-		}
-		else {
-			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
-		}
-		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
-		strcpy(buffer + strlen(buffer), "%");
+		snprintf(buffer, sizeof(buffer), "%s %s%d%%",             //<
+		         (quantizeAmount >= 0) ? "Quantize" : "Humanize", //<
+		         (nudgeMode == NUDGEMODE_QUANTIZE) ? "" : "All ", //<
+		         abs(quantizeAmount * 10));
 		display->popupTextTemporary(buffer);
 	}
 	else {
 		char buffer[5];
-		strcpy(buffer, "");
-		intToString(quantizeAmount * 10, buffer + strlen(buffer)); // Negative means humanize
+		snprintf(buffer, sizeof(buffer), "%d", quantizeAmount * 10); // Negative means humanize
 		display->displayPopup(buffer, 0, true);
 	}
 
