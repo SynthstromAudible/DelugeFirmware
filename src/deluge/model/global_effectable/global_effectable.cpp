@@ -278,12 +278,10 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				                        : kNumModFXTypes;
 				// Get the current value to a tmp variable
 				ModFXType tmpModFXType = modFXType;
-				// Change the tmp value (only if popup is already showing)
-				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-					tmpModFXType = static_cast<ModFXType>((util::to_underlying(tmpModFXType) + 1) % modTypeCount);
-					if (tmpModFXType == ModFXType::NONE) {
-						tmpModFXType = static_cast<ModFXType>(1);
-					}
+				// Change the tmp value
+				tmpModFXType = static_cast<ModFXType>((util::to_underlying(tmpModFXType) + 1) % modTypeCount);
+				if (tmpModFXType == ModFXType::NONE) {
+					tmpModFXType = static_cast<ModFXType>(1);
 				}
 				// Write the change
 				modFXType = tmpModFXType;
@@ -324,10 +322,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				// Get the current value to a tmp variable
 				ModFXParam tmpModFXParam = currentModFXParam;
-				// Change the tmp value (only if popup is already showing)
-				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-					tmpModFXParam = static_cast<ModFXParam>((util::to_underlying(tmpModFXParam) + 1) % kNumModFXParams);
-				}
+				// Change the tmp value
+				tmpModFXParam = static_cast<ModFXParam>((util::to_underlying(tmpModFXParam) + 1) % kNumModFXParams);
 				// Write the change
 				currentModFXParam = tmpModFXParam;
 				// Sanitize (we need to do this before showing popup for modFXParam)
@@ -360,10 +356,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				// Get the current value to a tmp variable
 				FilterType tmpFilterType = currentFilterType;
-				// Change the tmp value (only if popup is already showing)
-				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-					tmpFilterType = static_cast<FilterType>((util::to_underlying(tmpFilterType) + 1) % kNumFilterTypes);
-				}
+				// Change the tmp value
+				tmpFilterType = static_cast<FilterType>((util::to_underlying(tmpFilterType) + 1) % kNumFilterTypes);
 				// Show popup (may be the original value or the changed value)
 				std::string_view displayText;
 				switch (tmpFilterType) {
@@ -453,10 +447,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				else {
 					// Get the current value to a tmp variable
 					CompParam tmpCompParam = currentCompParam;
-					// Change the tmp value (only if popup is already showing)
-					if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-						tmpCompParam = static_cast<CompParam>((util::to_underlying(tmpCompParam) + 1) % maxCompParam);
-					}
+					// Change the tmp value
+					tmpCompParam = static_cast<CompParam>((util::to_underlying(tmpCompParam) + 1) % maxCompParam);
 					// Show popup (may be the original value or the changed value)
 					display->popupTextTemporary(getCompressorParamDisplayName(tmpCompParam),
 					                            DisplayPopupType::MOD_ENCODER_CYCLE);
@@ -469,10 +461,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				// Get the current value to a tmp variable
 				bool tmpValue = editingComp;
-				// Change the tmp value (only if popup is already showing)
-				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-					tmpValue = !tmpValue;
-				}
+				// Change the tmp value
+				tmpValue = !tmpValue;
 				// Show popup (may be the original value or the changed value)
 				display->popupTextTemporary(getCompressorModeDisplayName(tmpValue),
 				                            DisplayPopupType::MOD_ENCODER_CYCLE);

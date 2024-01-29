@@ -1495,11 +1495,9 @@ void View::cycleThroughReverbPresets() {
 	int32_t currentPreset = getCurrentReverbPreset();
 	int32_t newPreset = currentPreset;
 	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		newPreset = currentPreset + 1;
-		if (newPreset >= NUM_PRESET_REVERBS) {
-			newPreset = 0;
-		}
+	newPreset = currentPreset + 1;
+	if (newPreset >= NUM_PRESET_REVERBS) {
+		newPreset = 0;
 	}
 	// Show popup (may be the original value or the changed value)
 	display->popupTextTemporary(getReverbPresetDisplayName(newPreset), DisplayPopupType::MOD_ENCODER_CYCLE);

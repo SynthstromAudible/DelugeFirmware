@@ -4145,21 +4145,14 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			}
 			// Get the current value to a tmp variable
 			SyncLevel tmpSyncLevel = compressor.syncLevel;
-			// Change the tmp value (only if popup is already showing)
-			if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-				if (tmpSyncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-					tmpSyncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				}
-				else {
-					tmpSyncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				}
-			}
-			// Show popup (may be the original value or the changed value)
-			if (tmpSyncLevel == (SyncLevel)(9 - insideWorldTickMagnitude)) {
+			// Change the tmp value and show the popup
+			if (tmpSyncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+				tmpSyncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 				display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST),
 				                            DisplayPopupType::MOD_ENCODER_CYCLE);
 			}
 			else {
+				tmpSyncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 				display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW),
 				                            DisplayPopupType::MOD_ENCODER_CYCLE);
 			}
@@ -4175,57 +4168,42 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	// Switching between LPF, HPF and EQ
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
 		if (on && synthMode != SynthMode::FM) {
-			if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-				ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_HPF_FREQ);
-				// Switch resonance too
-				if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-				        params::LOCAL_LPF_RESONANCE)) {
-					modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-					    params::LOCAL_HPF_RESONANCE);
-				}
-				display->popupTextTemporary("HPF", DisplayPopupType::MOD_ENCODER_CYCLE);
+			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_HPF_FREQ);
+			// Switch resonance too
+			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
+			        params::LOCAL_LPF_RESONANCE)) {
+				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
+				    params::LOCAL_HPF_RESONANCE);
 			}
-			else {
-				display->popupTextTemporary("LPF", DisplayPopupType::MOD_ENCODER_CYCLE);
-			}
+			display->popupTextTemporary("HPF", DisplayPopupType::MOD_ENCODER_CYCLE);
 		}
 		return false;
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
 		if (on && synthMode != SynthMode::FM) {
-			if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-				ourModKnob->paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_TREBLE);
-				// Switch resonance too
-				if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-				        params::LOCAL_HPF_RESONANCE)) {
-					modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-					    params::UNPATCHED_START + params::UNPATCHED_BASS);
-				}
-				display->popupTextTemporary("EQ", DisplayPopupType::MOD_ENCODER_CYCLE);
+			ourModKnob->paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_TREBLE);
+			// Switch resonance too
+			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
+			        params::LOCAL_HPF_RESONANCE)) {
+				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START
+				                                                                              + params::UNPATCHED_BASS);
 			}
-			else {
-				display->popupTextTemporary("HPF", DisplayPopupType::MOD_ENCODER_CYCLE);
-			}
+			display->popupTextTemporary("EQ", DisplayPopupType::MOD_ENCODER_CYCLE);
 		}
 		return false;
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)) {
 		if (on && synthMode != SynthMode::FM) {
-			if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-				ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
-				// Switch resonance too
-				if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-				        params::UNPATCHED_START + params::UNPATCHED_BASS)) {
-					modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-					    params::LOCAL_LPF_RESONANCE);
-				}
-				display->popupTextTemporary("LPF", DisplayPopupType::MOD_ENCODER_CYCLE);
+			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+			// Switch resonance too
+			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
+			        params::UNPATCHED_START + params::UNPATCHED_BASS)) {
+				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
+				    params::LOCAL_LPF_RESONANCE);
 			}
-			else {
-				display->popupTextTemporary("EQ", DisplayPopupType::MOD_ENCODER_CYCLE);
-			}
+			display->popupTextTemporary("LPF", DisplayPopupType::MOD_ENCODER_CYCLE);
 		}
 		return false;
 	}

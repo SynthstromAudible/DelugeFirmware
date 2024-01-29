@@ -2292,10 +2292,8 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 void ModControllableAudio::switchDelayPingPong() {
 	// Get the current value to a tmp variable
 	bool tmpValue = delay.pingPong;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		tmpValue = !tmpValue;
-	}
+	// Change the tmp value
+	tmpValue = !tmpValue;
 	// Show popup (may be the original value or the changed value)
 	char const* displayText;
 	switch (tmpValue) {
@@ -2315,10 +2313,8 @@ void ModControllableAudio::switchDelayPingPong() {
 void ModControllableAudio::switchDelayAnalog() {
 	// Get the current value to a tmp variable
 	bool tmpValue = delay.analog;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		tmpValue = !tmpValue;
-	}
+	// Change the tmp value
+	tmpValue = !tmpValue;
 	// Show popup (may be the original value or the changed value)
 	display->popupTextTemporary(getDelayTypeDisplayName(tmpValue), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
@@ -2338,20 +2334,18 @@ char const* ModControllableAudio::getDelayTypeDisplayName(bool isAnalog) {
 void ModControllableAudio::switchDelaySyncType() {
 	// Get the current value to a tmp variable
 	SyncType tmpSyncType = delay.syncType;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		switch (delay.syncType) {
-		case SYNC_TYPE_TRIPLET:
-			tmpSyncType = SYNC_TYPE_DOTTED;
-			break;
-		case SYNC_TYPE_DOTTED:
-			tmpSyncType = SYNC_TYPE_EVEN;
-			break;
+	// Change the tmp value
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		tmpSyncType = SYNC_TYPE_DOTTED;
+		break;
+	case SYNC_TYPE_DOTTED:
+		tmpSyncType = SYNC_TYPE_EVEN;
+		break;
 
-		default: // SYNC_TYPE_EVEN
-			tmpSyncType = SYNC_TYPE_TRIPLET;
-			break;
-		}
+	default: // SYNC_TYPE_EVEN
+		tmpSyncType = SYNC_TYPE_TRIPLET;
+		break;
 	}
 	// Show popup (may be the original value or the changed value)
 	display->popupTextTemporary(getDelaySyncTypeDisplayName(tmpSyncType), DisplayPopupType::MOD_ENCODER_CYCLE);
@@ -2373,11 +2367,9 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName(SyncType syncType)
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Get the current value to a tmp variable
 	SyncLevel tmpSyncLevel = delay.syncLevel;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		tmpSyncLevel = (SyncLevel)((tmpSyncLevel % SyncLevel::SYNC_LEVEL_256TH + 1)
-		                           % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
-	}
+	// Change the tmp value
+	tmpSyncLevel = (SyncLevel)((tmpSyncLevel % SyncLevel::SYNC_LEVEL_256TH + 1)
+	                           % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
 	// Show popup (may be the original value or the changed value)
 	char displayName[30];
 	getDelaySyncLevelDisplayName(tmpSyncLevel, displayName);
@@ -2395,10 +2387,8 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(SyncLevel syncLevel, cha
 void ModControllableAudio::switchLPFMode() {
 	// Get the current value to a tmp variable
 	FilterMode tmpLpfMode = lpfMode;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		tmpLpfMode = static_cast<FilterMode>((util::to_underlying(tmpLpfMode) + 1) % kNumLPFModes);
-	}
+	// Change the tmp value
+	tmpLpfMode = static_cast<FilterMode>((util::to_underlying(tmpLpfMode) + 1) % kNumLPFModes);
 	// Show popup (may be the original value or the changed value)
 	display->popupTextTemporary(getLPFModeDisplayName(tmpLpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
@@ -2426,10 +2416,8 @@ char const* ModControllableAudio::getLPFModeDisplayName(FilterMode filterMode) {
 void ModControllableAudio::switchHPFMode() {
 	// Get the current value to a tmp variable
 	FilterMode tmpHpfMode = hpfMode;
-	// Change the tmp value (only if popup is already showing)
-	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-		tmpHpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	}
+	// Change the tmp value
+	tmpHpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
 	// Show popup (may be the original value or the changed value)
 	display->popupTextTemporary(getHPFModeDisplayName(tmpHpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change

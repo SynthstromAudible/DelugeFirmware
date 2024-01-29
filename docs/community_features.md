@@ -70,9 +70,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.11 - Mod Button Pop-up
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
-#### 3.12 - Mod Encoder Button Click Actions Require Confirmation
-- ([#1124]) Fixed inconsistency with golden knob encoder clicks for those that change the controlled parameter. Now the first click shows the current mode of the encoder, and while there is still a popup in the screen, subsequent clicks do change the value.
-
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -535,7 +532,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
-[#1124]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1124
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

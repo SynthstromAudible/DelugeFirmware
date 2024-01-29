@@ -276,21 +276,14 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				}
 				// Get the current value to a tmp variable
 				SyncLevel tmpSyncLevel = compressor.syncLevel;
-				// Change the tmp value (only if popup is already showing)
-				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
-					if (tmpSyncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-						tmpSyncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-					}
-					else {
-						tmpSyncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-					}
-				}
-				// Show popup (may be the original value or the changed value)
-				if (tmpSyncLevel == (SyncLevel)(9 - insideWorldTickMagnitude)) {
+				// Change the tmp value and show popup
+				if (tmpSyncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+					tmpSyncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST),
 					                            DisplayPopupType::MOD_ENCODER_CYCLE);
 				}
 				else {
+					tmpSyncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW),
 					                            DisplayPopupType::MOD_ENCODER_CYCLE);
 				}
