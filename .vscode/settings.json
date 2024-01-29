@@ -4,7 +4,8 @@
     "files.encoding": "utf8",
     "cmake.generator": "Ninja Multi-Config",
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
     },
     "files.associations": {
         "*.scons": "python",
