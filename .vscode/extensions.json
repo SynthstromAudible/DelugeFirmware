@@ -1,11 +1,11 @@
 {
 	"recommendations": [
-		"ms-vscode.cpptools",
 		"editorconfig.editorconfig",
-		"xaver.clang-format",
-		"marus25.cortex-debug",
-		"webfreak.advanced-local-formatters",
 		"llvm-vs-code-extensions.vscode-clangd",
+		"marus25.cortex-debug",
 		"ms-python.black-formatter",
+		"ms-vscode.cpptools",
+		"webfreak.advanced-local-formatters",
+		"xaver.clang-format",
 	]
 }
