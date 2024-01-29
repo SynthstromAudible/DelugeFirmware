@@ -1138,7 +1138,6 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	return NO_ERROR;
 }
 
-// Caller must call expectEvent on Clip after this
 int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
                                             uint32_t wrapEditLevel, int32_t nudgeOffset) {
 
@@ -1435,6 +1434,53 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	notes.testSequentiality("E327");
 #endif
 
+	return NO_ERROR;
+}
+
+int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount) {
+	if (notes.getNumElements() == 0) {
+		// Nothing to do, and checking this now makes some later logic simpler
+		return NO_ERROR;
+	}
+
+	int32_t halfIncrement = increment / 2;
+	int32_t effectiveLength = modelStack->getLoopLength();
+
+	// Apply quantization/humanization
+	for (auto j = 0; j < notes.getNumElements(); ++j) {
+		Note* note = notes.getElement(j);
+		int32_t destination = ((note->pos - 1 + halfIncrement) / increment) * increment;
+		if (amount < 0) { // Humanize
+			int32_t hmAmout = trunc(random(halfIncrement / 2) - (increment / float{kQuantizationPrecision}));
+			destination = note->pos + hmAmout;
+		}
+		int32_t distance = destination - note->pos;
+		distance = (distance * abs(amount)) / kQuantizationPrecision;
+		note->pos += distance;
+	}
+
+	// Fix up note lengths so there are no overlaps
+	for (auto j = 1; j < notes.getNumElements(); ++j) {
+		Note* prev = notes.getElement(j - 1);
+		Note* next = notes.getElement(j);
+
+		auto maxLength = next->pos - prev->pos;
+		prev->length = std::min(prev->length, maxLength);
+	}
+
+	// The last note needs special handling because it effectively wraps around to the beginning of the row (and we
+	// therefore need to check its length against the start position of the first note)
+	{
+		Note* last = notes.getElement(notes.getNumElements() - 1);
+		Note* first = notes.getElement(0);
+
+		auto maxLength = (effectiveLength - last->pos) + first->pos;
+		last->length = std::min(maxLength, last->length);
+	}
+
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E452");
+#endif
 	return NO_ERROR;
 }
 

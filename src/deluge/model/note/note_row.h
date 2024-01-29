@@ -63,9 +63,20 @@ struct PendingNoteOnList {
 	uint8_t count;
 };
 
+constexpr int32_t kQuantizationPrecision = 10;
+
 #define STATUS_OFF 0
 #define STATUS_SEQUENCED_NOTE 1
 
+/// An ordered list of notes which all share the same nominal y value.
+///
+/// In kits, the y value represents the row within the kit directly. In other types of clips, the y value maps to a MIDI
+/// pitch value.
+///
+/// Notes within the row must not overlap -- the end location of each note (described by note.pos + note.length) must be
+/// strictly less than the start location of the next note. The length of the last note in the row can exceed the loop
+/// length of this NoteRow (either loopLengthIfIndependent if that value is nonzero, or the loop length of the clip
+/// containing this NoteRow).
 class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
@@ -164,8 +175,18 @@ public:
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                    int32_t changeType, int32_t changeValue);
+	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
+	///
+	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
 	int32_t nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                   uint32_t wrapEditLevel, int32_t nudgeOffset);
+	/// Quantize the notes in this NoteRow so their positions are within `(kQuantizationPrecision - amount) *
+	/// increment/kQuantizationPrecision` of the grid defined by `n * increment`. If `amount` is negative, the row is
+	/// instead "humanized" by jittering the note positions to `±amount * increment / kQuantizationPrecision` sequencer
+	/// ticks of the `n * increment` grid.
+	///
+	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
+	int32_t quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount);
 	int32_t editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
 	                                       Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
 	void setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
