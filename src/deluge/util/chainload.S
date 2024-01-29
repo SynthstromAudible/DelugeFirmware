@@ -87,7 +87,7 @@ chainloader_copy_start:
   add       r6, r6, #4
   b         chainloader_copy_start
 chainloader_copy_done:
-  // Reload arguments and jump to the new code
+  // Reload arguments and jump to the second-stage chainloader
   ldr       r0, [sp, #0x00]
   ldr       r1, [sp, #0x04]
   ldr       r2, [sp, #0x08]
@@ -98,6 +98,7 @@ chainloader_copy_done:
   // Ensure instruction alignment
   .align 2
   // Start of the second-stage chainloder
+  // Expects r0, r1, r2, and r3 to be set as described in the arugments
 chainload_code_start:
   // Copy the new image to $r0
   // r4 is scratch storage (the data being copied)
@@ -125,7 +126,6 @@ buffer_copy_done:
   dsb
   isb
   // Jump to the new firmware image
-  ldr       r2, [sp, #0x08]
   bx        r2
 
   // Align to a full instruction so the first-stage chainloader copies enough bytes
