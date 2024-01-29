@@ -136,8 +136,8 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 	switch (func) {
 	case VELOCITY:
 		if (pad.active) {
-			auto v32 = velocityMin + pad.y * velocityStep;
-			velocity = (v32 + kHalfStep) >> kVelModShift;
+			vDisplay = velocityMin + pad.y * velocityStep;
+			velocity = (vDisplay + kHalfStep) >> kVelModShift;
 			display->displayPopup(velocity);
 		}
 		else if (!pad.padPressHeld) {
@@ -145,15 +145,16 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			velocity = (velocity32 + kHalfStep) >> kVelModShift;
 		}
 		else {
+			vDisplay = velocity32;
 			velocity = (velocity32 + kHalfStep) >> kVelModShift;
 		}
 		break;
 	case MOD:
 		if (pad.active) {
-			auto m32 = modMin + pad.y * modStep;
-			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, m32,
+			modDisplay = modMin + pad.y * modStep;
+			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, modDisplay,
 			                                                         modelStackWithTimelineCounter);
-			display->displayPopup((m32 + kHalfStep) >> kVelModShift);
+			display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 		}
 		else if (!pad.padPressHeld) {
 			mod32 = modMin + pad.y * modStep;
@@ -161,6 +162,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			                                                         modelStackWithTimelineCounter);
 		}
 		else {
+			modDisplay = mod32;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
 			                                                         modelStackWithTimelineCounter);
 		}
@@ -388,7 +390,7 @@ void ColumnControlsKeyboard::renderColumnVelocity(RGB image[][kDisplayWidth + kS
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool velocity_selected =
-		    velocity32 >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && velocity32 <= velocityVal + kHalfStep;
+		    vDisplay >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && vDisplay <= velocityVal + kHalfStep;
 		otherChannels = velocity_selected ? 0xf0 : 0;
 		uint8_t base = velocity_selected ? 0xff : brightness + 0x04;
 		image[y][column] = {base, otherChannels, otherChannels};
@@ -403,7 +405,7 @@ void ColumnControlsKeyboard::renderColumnMod(RGB image[][kDisplayWidth + kSideBa
 	uint32_t modVal = modMin;
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		bool mod_selected = mod32 >= (y > 0 ? (modVal - (modStep - 1)) : 0) && mod32 <= modVal;
+		bool mod_selected = modDisplay >= (y > 0 ? (modVal - (modStep - 1)) : 0) && modDisplay <= modVal;
 		otherChannels = mod_selected ? 0xf0 : 0;
 		uint8_t base = mod_selected ? 0xff : brightness + 0x04;
 		image[y][column] = {otherChannels, otherChannels, base};
