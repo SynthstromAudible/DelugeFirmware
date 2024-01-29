@@ -189,12 +189,12 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
-	char const* getLPFModeDisplayName();
-	char const* getHPFModeDisplayName();
-	char const* getDelayTypeDisplayName();
+	char const* getLPFModeDisplayName(FilterMode filterMode);
+	char const* getHPFModeDisplayName(FilterMode filterMode);
+	char const* getDelayTypeDisplayName(bool isAnalog);
 	char const* getDelayPingPongStatusDisplayName();
-	char const* getDelaySyncTypeDisplayName();
-	void getDelaySyncLevelDisplayName(char* displayName);
+	char const* getDelaySyncTypeDisplayName(SyncType syncType);
+	void getDelaySyncLevelDisplayName(SyncLevel syncLevel, char* displayNam);
 
 	void displayLPFMode(bool on);
 	void displayHPFMode(bool on);

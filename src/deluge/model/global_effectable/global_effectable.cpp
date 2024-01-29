@@ -24,6 +24,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
@@ -137,15 +138,26 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
-		// Master Compressor
-		popupMsg.append("Comp Mode: ");
-		popupMsg.append(getCompressorModeDisplayName());
-
+		if (getCurrentClip()) {
+			// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
+			popupMsg.append("Sidechain: ");
+			if (compressor.syncLevel == SYNC_LEVEL_32ND) {
+				popupMsg.append("SLOW");
+			}
+			else {
+				popupMsg.append("FAST");
+			}
+		}
+		else {
+			// We are in song or arranger: show Compressor mode
+			popupMsg.append("Comp Mode: ");
+			popupMsg.append(getCompressorModeDisplayName(editingComp));
+		}
 		popupMsg.append("\n");
 
 		if (editingComp) {
 			popupMsg.append("Comp Param: ");
-			popupMsg.append(getCompressorParamDisplayName());
+			popupMsg.append(getCompressorParamDisplayName(currentCompParam));
 		}
 		else {
 			// Reverb
@@ -156,11 +168,23 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	}
 	else {
 		if (on) {
-			display->displayPopup(getCompressorModeDisplayName());
+			if (getCurrentClip()) {
+				// We are inside a clip (either audioclip or affect-entire kit): show Sidechain sync
+				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
+					display->displayPopup("SLOW");
+				}
+				else {
+					display->displayPopup("FAST");
+				}
+			}
+			else {
+				// We are in song or arranger: show Compressor mode
+				display->displayPopup(getCompressorModeDisplayName(editingComp));
+			}
 		}
 		else {
 			if (editingComp) {
-				display->displayPopup(getCompressorParamDisplayName());
+				display->displayPopup(getCompressorParamDisplayName(currentCompParam));
 			}
 			else {
 				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
@@ -169,14 +193,14 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	}
 }
 
-char const* GlobalEffectable::getCompressorModeDisplayName() {
-	return editingComp ? "FULL" : "ONE";
+char const* GlobalEffectable::getCompressorModeDisplayName(bool isEditingComp) {
+	return isEditingComp ? "FULL" : "ONE";
 }
 
-char const* GlobalEffectable::getCompressorParamDisplayName() {
-	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
+char const* GlobalEffectable::getCompressorParamDisplayName(CompParam compParam) {
+	CompParam tmpCompParam = static_cast<CompParam>(util::to_underlying(compParam) % maxCompParam);
 	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
-	return params[int(currentCompParam)];
+	return params[int(tmpCompParam)];
 }
 
 void GlobalEffectable::displayModFXSettings(bool on) {
@@ -268,10 +292,20 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				                     == RuntimeFeatureStateToggle::Off)
 				                        ? (kNumModFXTypes - 1)
 				                        : kNumModFXTypes;
-				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % modTypeCount);
-				if (modFXType == ModFXType::NONE) {
-					modFXType = static_cast<ModFXType>(1);
+				// Get the current value to a tmp variable
+				ModFXType tmpModFXType = modFXType;
+				// Change the tmp value (only if popup is already showing)
+				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+					tmpModFXType = static_cast<ModFXType>((util::to_underlying(tmpModFXType) + 1) % modTypeCount);
+					if (tmpModFXType == ModFXType::NONE) {
+						tmpModFXType = static_cast<ModFXType>(1);
+					}
 				}
+				// Write the change
+				modFXType = tmpModFXType;
+				// Sanitize (we need to do this before showing popup for modFXParam)
+				ensureModFXParamIsValid();
+				// Show popup
 				std::string_view displayText;
 				switch (modFXType) {
 				case ModFXType::FLANGER:
@@ -295,8 +329,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				case ModFXType::NONE:
 					__builtin_unreachable();
 				}
-				display->displayPopup(displayText.data());
-				ensureModFXParamIsValid();
+				display->popupTextTemporary(displayText.data(), DisplayPopupType::MOD_ENCODER_CYCLE);
 				return true;
 			}
 			else {
@@ -305,10 +338,17 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				currentModFXParam =
-				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
+				// Get the current value to a tmp variable
+				ModFXParam tmpModFXParam = currentModFXParam;
+				// Change the tmp value (only if popup is already showing)
+				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+					tmpModFXParam = static_cast<ModFXParam>((util::to_underlying(tmpModFXParam) + 1) % kNumModFXParams);
+				}
+				// Write the change
+				currentModFXParam = tmpModFXParam;
+				// Sanitize (we need to do this before showing popup for modFXParam)
 				ensureModFXParamIsValid();
-
+				// Show popup
 				std::string_view displayText;
 				switch (currentModFXParam) {
 				case ModFXParam::DEPTH:
@@ -323,7 +363,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = l10n::getView(STRING_FOR_OFFSET);
 					break;
 				}
-				display->displayPopup(displayText.data());
+				display->popupTextTemporary(displayText.data(), DisplayPopupType::MOD_ENCODER_CYCLE);
 			}
 
 			return false;
@@ -334,11 +374,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 1) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				currentFilterType =
-				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % kNumFilterTypes);
-
+				// Get the current value to a tmp variable
+				FilterType tmpFilterType = currentFilterType;
+				// Change the tmp value (only if popup is already showing)
+				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+					tmpFilterType = static_cast<FilterType>((util::to_underlying(tmpFilterType) + 1) % kNumFilterTypes);
+				}
+				// Show popup (may be the original value or the changed value)
 				std::string_view displayText;
-				switch (currentFilterType) {
+				switch (tmpFilterType) {
 				case FilterType::LPF:
 					displayText = l10n::getView(STRING_FOR_LPF);
 					break;
@@ -351,7 +395,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = l10n::getView(STRING_FOR_EQ);
 					break;
 				}
-				display->displayPopup(displayText.data());
+				display->popupTextTemporary(displayText.data(), DisplayPopupType::MOD_ENCODER_CYCLE);
+				// Write the change
+				currentFilterType = tmpFilterType;
 			}
 
 			return false;
@@ -421,16 +467,33 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					view.cycleThroughReverbPresets();
 				}
 				else {
-					currentCompParam =
-					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					display->displayPopup(getCompressorParamDisplayName());
+					// Get the current value to a tmp variable
+					CompParam tmpCompParam = currentCompParam;
+					// Change the tmp value (only if popup is already showing)
+					if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+						tmpCompParam = static_cast<CompParam>((util::to_underlying(tmpCompParam) + 1) % maxCompParam);
+					}
+					// Show popup (may be the original value or the changed value)
+					display->popupTextTemporary(getCompressorParamDisplayName(tmpCompParam),
+					                            DisplayPopupType::MOD_ENCODER_CYCLE);
+					// Write the change
+					currentCompParam = tmpCompParam;
 				}
 			}
 		}
 		else {
 			if (on) {
-				editingComp = !editingComp;
-				display->displayPopup(getCompressorModeDisplayName());
+				// Get the current value to a tmp variable
+				bool tmpValue = editingComp;
+				// Change the tmp value (only if popup is already showing)
+				if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+					tmpValue = !tmpValue;
+				}
+				// Show popup (may be the original value or the changed value)
+				display->popupTextTemporary(getCompressorModeDisplayName(tmpValue),
+				                            DisplayPopupType::MOD_ENCODER_CYCLE);
+				// Write the change
+				editingComp = tmpValue;
 			}
 		}
 

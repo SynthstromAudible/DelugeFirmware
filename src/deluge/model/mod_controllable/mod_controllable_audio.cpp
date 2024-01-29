@@ -2290,10 +2290,15 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::switchDelayPingPong() {
-	delay.pingPong = !delay.pingPong;
-
+	// Get the current value to a tmp variable
+	bool tmpValue = delay.pingPong;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		tmpValue = !tmpValue;
+	}
+	// Show popup (may be the original value or the changed value)
 	char const* displayText;
-	switch (delay.pingPong) {
+	switch (tmpValue) {
 	case 0:
 		displayText = "Normal delay";
 		break;
@@ -2302,16 +2307,26 @@ void ModControllableAudio::switchDelayPingPong() {
 		displayText = "Ping-pong delay";
 		break;
 	}
-	display->displayPopup(displayText);
+	display->popupTextTemporary(displayText, DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	delay.pingPong = tmpValue;
 }
 
 void ModControllableAudio::switchDelayAnalog() {
-	delay.analog = !delay.analog;
-	display->displayPopup(getDelayTypeDisplayName());
+	// Get the current value to a tmp variable
+	bool tmpValue = delay.analog;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		tmpValue = !tmpValue;
+	}
+	// Show popup (may be the original value or the changed value)
+	display->popupTextTemporary(getDelayTypeDisplayName(tmpValue), DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	delay.analog = tmpValue;
 }
 
-char const* ModControllableAudio::getDelayTypeDisplayName() {
-	switch (delay.analog) {
+char const* ModControllableAudio::getDelayTypeDisplayName(bool isAnalog) {
+	switch (isAnalog) {
 		using enum deluge::l10n::String;
 	case 0:
 		return l10n::get(STRING_FOR_DIGITAL_DELAY);
@@ -2321,23 +2336,31 @@ char const* ModControllableAudio::getDelayTypeDisplayName() {
 }
 
 void ModControllableAudio::switchDelaySyncType() {
-	switch (delay.syncType) {
-	case SYNC_TYPE_TRIPLET:
-		delay.syncType = SYNC_TYPE_DOTTED;
-		break;
-	case SYNC_TYPE_DOTTED:
-		delay.syncType = SYNC_TYPE_EVEN;
-		break;
+	// Get the current value to a tmp variable
+	SyncType tmpSyncType = delay.syncType;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		switch (delay.syncType) {
+		case SYNC_TYPE_TRIPLET:
+			tmpSyncType = SYNC_TYPE_DOTTED;
+			break;
+		case SYNC_TYPE_DOTTED:
+			tmpSyncType = SYNC_TYPE_EVEN;
+			break;
 
-	default: // SYNC_TYPE_EVEN
-		delay.syncType = SYNC_TYPE_TRIPLET;
-		break;
+		default: // SYNC_TYPE_EVEN
+			tmpSyncType = SYNC_TYPE_TRIPLET;
+			break;
+		}
 	}
-	display->displayPopup(getDelaySyncTypeDisplayName());
+	// Show popup (may be the original value or the changed value)
+	display->popupTextTemporary(getDelaySyncTypeDisplayName(tmpSyncType), DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	delay.syncType = tmpSyncType;
 }
 
-char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
-	switch (delay.syncType) {
+char const* ModControllableAudio::getDelaySyncTypeDisplayName(SyncType syncType) {
+	switch (syncType) {
 	case SYNC_TYPE_TRIPLET:
 		return "Triplet";
 	case SYNC_TYPE_DOTTED:
@@ -2348,30 +2371,43 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
-	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
+	// Get the current value to a tmp variable
+	SyncLevel tmpSyncLevel = delay.syncLevel;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		tmpSyncLevel = (SyncLevel)((tmpSyncLevel % SyncLevel::SYNC_LEVEL_256TH + 1)
+		                           % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
+	}
+	// Show popup (may be the original value or the changed value)
 	char displayName[30];
-	getDelaySyncLevelDisplayName(displayName);
-	display->displayPopup(displayName);
+	getDelaySyncLevelDisplayName(tmpSyncLevel, displayName);
+	display->popupTextTemporary(displayName, DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	delay.syncLevel = tmpSyncLevel;
 }
 
-void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
-	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
+void ModControllableAudio::getDelaySyncLevelDisplayName(SyncLevel syncLevel, char* displayName) {
 	StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - syncLevel));
 	strncpy(displayName, buffer.data(), 29);
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	display->displayPopup(getLPFModeDisplayName());
+	// Get the current value to a tmp variable
+	FilterMode tmpLpfMode = lpfMode;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		tmpLpfMode = static_cast<FilterMode>((util::to_underlying(tmpLpfMode) + 1) % kNumLPFModes);
+	}
+	// Show popup (may be the original value or the changed value)
+	display->popupTextTemporary(getLPFModeDisplayName(tmpLpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	lpfMode = tmpLpfMode;
 }
 
-char const* ModControllableAudio::getLPFModeDisplayName() {
-	lpfMode = static_cast<FilterMode>(util::to_underlying(lpfMode) % kNumLPFModes);
+char const* ModControllableAudio::getLPFModeDisplayName(FilterMode filterMode) {
 	using enum deluge::l10n::String;
-	switch (lpfMode) {
+	switch (filterMode) {
 	case FilterMode::TRANSISTOR_12DB:
 		return l10n::get(STRING_FOR_12DB_LADDER);
 	case FilterMode::TRANSISTOR_24DB:
@@ -2388,15 +2424,21 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 }
 
 void ModControllableAudio::switchHPFMode() {
-	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	display->displayPopup(getHPFModeDisplayName());
+	// Get the current value to a tmp variable
+	FilterMode tmpHpfMode = hpfMode;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		tmpHpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+	}
+	// Show popup (may be the original value or the changed value)
+	display->popupTextTemporary(getHPFModeDisplayName(tmpHpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	hpfMode = tmpHpfMode;
 }
 
-char const* ModControllableAudio::getHPFModeDisplayName() {
-	hpfMode = static_cast<FilterMode>(util::to_underlying(hpfMode) % kNumHPFModes + kFirstHPFMode);
+char const* ModControllableAudio::getHPFModeDisplayName(FilterMode filterMode) {
 	using enum deluge::l10n::String;
-	switch (hpfMode) {
+	switch (filterMode) {
 	case FilterMode::HPLADDER:
 		return l10n::get(STRING_FOR_HPLADDER);
 	case FilterMode::SVF_BAND:
@@ -2542,7 +2584,7 @@ void ModControllableAudio::displayLPFMode(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 40);
 		popupMsg.append("LPF: ");
-		popupMsg.append(getLPFModeDisplayName());
+		popupMsg.append(getLPFModeDisplayName(lpfMode));
 		display->displayPopup(popupMsg.c_str());
 	}
 	else {
@@ -2550,7 +2592,7 @@ void ModControllableAudio::displayLPFMode(bool on) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LPF));
 		}
 		else {
-			display->displayPopup(getLPFModeDisplayName());
+			display->displayPopup(getLPFModeDisplayName(lpfMode));
 		}
 	}
 }
@@ -2559,7 +2601,7 @@ void ModControllableAudio::displayHPFMode(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 40);
 		popupMsg.append("HPF: ");
-		popupMsg.append(getHPFModeDisplayName());
+		popupMsg.append(getHPFModeDisplayName(hpfMode));
 		display->displayPopup(popupMsg.c_str());
 	}
 	else {
@@ -2567,7 +2609,7 @@ void ModControllableAudio::displayHPFMode(bool on) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
 		}
 		else {
-			display->displayPopup(getHPFModeDisplayName());
+			display->displayPopup(getHPFModeDisplayName(hpfMode));
 		}
 	}
 }
@@ -2578,15 +2620,15 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 		    == RuntimeFeatureStateToggle::On) {
 			popupMsg.append("Sync Type: ");
-			popupMsg.append(getDelaySyncTypeDisplayName());
+			popupMsg.append(getDelaySyncTypeDisplayName(delay.syncType));
 
 			popupMsg.append("\n Sync Level: ");
 			char displayName[30];
-			getDelaySyncLevelDisplayName(displayName);
+			getDelaySyncLevelDisplayName(delay.syncLevel, displayName);
 			popupMsg.append(displayName);
 		}
 		else {
-			popupMsg.append(getDelayTypeDisplayName());
+			popupMsg.append(getDelayTypeDisplayName(delay.analog));
 
 			popupMsg.append("\n Ping pong: ");
 			popupMsg.append(getDelayPingPongStatusDisplayName());
@@ -2598,17 +2640,17 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 		    == RuntimeFeatureStateToggle::On) {
 			if (on) {
-				display->displayPopup(getDelaySyncTypeDisplayName());
+				display->displayPopup(getDelaySyncTypeDisplayName(delay.syncType));
 			}
 			else {
 				char displayName[30];
-				getDelaySyncLevelDisplayName(displayName);
+				getDelaySyncLevelDisplayName(delay.syncLevel, displayName);
 				display->displayPopup(displayName);
 			}
 		}
 		else {
 			if (on) {
-				display->displayPopup(getDelayTypeDisplayName());
+				display->displayPopup(getDelayTypeDisplayName(delay.analog));
 			}
 			else {
 				display->displayPopup(getDelayPingPongStatusDisplayName());

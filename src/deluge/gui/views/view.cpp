@@ -1489,18 +1489,23 @@ void View::pretendModKnobsUntouchedForAWhile() {
 }
 
 void View::cycleThroughReverbPresets() {
-
+	// Get the current value to a tmp variable
 	int32_t currentPreset = getCurrentReverbPreset();
-
-	int32_t newPreset = currentPreset + 1;
-	if (newPreset >= NUM_PRESET_REVERBS) {
-		newPreset = 0;
+	int32_t newPreset = currentPreset;
+	// Change the tmp value (only if popup is already showing)
+	if (display->hasPopupOfType(DisplayPopupType::MOD_ENCODER_CYCLE)) {
+		newPreset = currentPreset + 1;
+		if (newPreset >= NUM_PRESET_REVERBS) {
+			newPreset = 0;
+		}
 	}
-
-	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
-
-	display->displayPopup(getReverbPresetDisplayName(newPreset));
+	// Show popup (may be the original value or the changed value)
+	display->popupTextTemporary(getReverbPresetDisplayName(newPreset), DisplayPopupType::MOD_ENCODER_CYCLE);
+	// Write the change
+	if (newPreset != currentPreset) {
+		AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
+		AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
+	}
 }
 
 int32_t View::getCurrentReverbPreset() {
