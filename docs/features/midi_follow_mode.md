@@ -44,6 +44,10 @@ As explained above, in the MIDI-Follow Channel submenu's you can hold learn to l
 
 You can also use this method for updating the Kit Root Note. In the Kit Root Note menu, hold Learn and send a note from your device to update the Kit Root Note.
 
+### **Unlearning a Channel and Device**
+
+You can unlearn a channel and device by pressing Shift + Learn while in the channel submenu's.
+
 ### **Notes:**
 Notes received on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
@@ -109,7 +113,7 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Set up to three MIDI Follow Channels and Devices 
 - Set the MIDI Follow Root Note for Kits
 - Enable or Disable MIDI Follow Param Pop-up's
-- Enable or Disable MIDI Follow Feedback by setting the MIDI Follow Feedback Channel
+- Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
 2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) or the Parameters of the Active View (e.g. Song View, Arranger View, Audio Clip View, Instrument Clip View).
