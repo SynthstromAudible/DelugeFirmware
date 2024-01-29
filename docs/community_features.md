@@ -67,6 +67,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
 	- In addition, a `DEFAULTS` menu entry was created titled `METRONOME` which enables you to set a value between 1-50 to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 50 being the loudest metronome volume.
 
+#### 3.11 - Mod Button Pop-up
+- ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -516,6 +519,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
 [#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
 [#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
+[#888]: https://github.com/SynthstromAudible/DelugeFirmware/pull/888
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
