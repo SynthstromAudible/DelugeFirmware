@@ -9,8 +9,8 @@ import rtmidi
 def argparser():
     midiout = rtmidi.MidiOut()
     available_ports = midiout.get_ports()
-    s = "\nusage example: dbt loadfw 3 abcd1243 /path/deluge.bin"
-    s += "\n\nloads /path/deluge.bin to the deluge with key abcd1243, connected on MIDI port 3"
+    s = "\nusage example: dbt loadfw 123 abcd1243 /path/deluge.bin"
+    s += "\n\nloads /path/deluge.bin to the deluge with key abcd1243, connected on MIDI port # 123"
     s += "\n\nAvailable MIDI ports:\n\n"
     for i, p in enumerate(available_ports):
         s += "Port # " + str(i) + " : " + str(p) + "\n"
@@ -23,7 +23,7 @@ def argparser():
         exit_on_error=True,
     )
     parser.group = "Development"
-    parser.add_argument("port_number", help="MIDI port number (example: 0)", type=int)
+    parser.add_argument("port_number", help="MIDI port number (example: 123) use 'dbt loadfw -h' to list available ports", type=int)
     parser.add_argument("hex_key", help="8-digit Deluge Hex Key (example 1234abcd)")
     parser.add_argument(
         "firmware_file",
@@ -31,9 +31,9 @@ def argparser():
     )
     parser.add_argument(
         "-d",
-        default=1,
+        default=2,
         type=int,
-        help="Delay in milliseconds between SysEx packets. Default is 1. Increase in case of checksum errors.",
+        help="Delay in milliseconds between SysEx packets. Default is 2. Increase in case of checksum errors.",
     )
     return parser
 
