@@ -211,7 +211,7 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
 	- Freeverb (the original Deluge reverb)
 	- Mutable (an adapted version of the reverb found in Mutable Instruments' Rings module)
-		- Note: The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
+		- The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
 
 ### 4.3 - Instrument Clip View - General Features
 
