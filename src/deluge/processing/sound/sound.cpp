@@ -3936,11 +3936,12 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	endStutter(paramManager);
 
-	if ((!on && display->haveOLED()) || display->have7SEG()) {
-		int32_t modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
-		ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
 
+	// LPF/HPF/EQ
+	if (whichModButton == 1) {
 		if (getSynthMode() != SynthMode::FM) {
 			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
 				displayLPFMode(on);
@@ -3953,11 +3954,15 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 				display->displayPopup("EQ");
 			}
 		}
-
+	}
+	// Delay
+	else if (whichModButton == 3) {
 		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
 			displayDelaySettings(on);
 		}
-
+	}
+	// Compressor/Reverb
+	else if (whichModButton == 4) {
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
 		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
 			displaySidechainAndReverbSettings(on);
@@ -4249,7 +4254,8 @@ void Sound::wontBeRenderedForAWhile() {
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
 	compressor.status = EnvelopeStage::OFF;
 
-	reassessRenderSkippingStatus(NULL, true); // Tell it to just cut the MODFX tail - we needa change status urgently!
+	// Tell it to just cut the MODFX tail - we needa change status urgently!
+	reassessRenderSkippingStatus(NULL, true);
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
@@ -4264,8 +4270,8 @@ void Sound::detachSourcesFromAudioFiles() {
 }
 
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
-	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during
-	// memory allocation
+	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
+	// during memory allocation
 	unassignAllVoices();
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.getElement(r)->~MultiRange();
@@ -4330,8 +4336,8 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		}
 	}
 
-	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to investigate
-	// each Voice
+	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to
+	// investigate each Voice
 	if (mustExamineSourceInEachVoice) {
 
 		int32_t ends[2];

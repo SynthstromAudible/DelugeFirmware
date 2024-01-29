@@ -103,34 +103,34 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 		endStutter(paramManager);
 	}
 
-	if ((!on && display->haveOLED()) || display->have7SEG()) {
-		int32_t modKnobMode = *getModKnobMode();
+	// LPF/HPF/EQ
+	if (whichModButton == 1) {
+		currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
+		switch (currentFilterType) {
+		case FilterType::LPF:
+			displayLPFMode(on);
+			break;
 
-		if (modKnobMode == 1) {
-			currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
-			switch (currentFilterType) {
-			case FilterType::LPF:
-				displayLPFMode(on);
-				break;
+		case FilterType::HPF:
+			displayHPFMode(on);
+			break;
 
-			case FilterType::HPF:
-				displayHPFMode(on);
-				break;
-
-			case FilterType::EQ:
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_EQ));
-				break;
-			}
+		case FilterType::EQ:
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_EQ));
+			break;
 		}
-		else if (modKnobMode == 3) {
-			displayDelaySettings(on);
-		}
-		else if (modKnobMode == 4) {
-			displayCompressorAndReverbSettings(on);
-		}
-		else if (modKnobMode == 5) {
-			displayModFXSettings(on);
-		}
+	}
+	// Delay
+	else if (whichModButton == 3) {
+		displayDelaySettings(on);
+	}
+	// Compressor / Reverb
+	else if (whichModButton == 4) {
+		displayCompressorAndReverbSettings(on);
+	}
+	// Mod FX
+	else if (whichModButton == 5) {
+		displayModFXSettings(on);
 	}
 }
 
