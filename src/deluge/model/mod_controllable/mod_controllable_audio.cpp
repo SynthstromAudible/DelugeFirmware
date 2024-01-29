@@ -2294,7 +2294,7 @@ void ModControllableAudio::switchDelayPingPong() {
 	bool tmpValue = delay.pingPong;
 	// Change the tmp value
 	tmpValue = !tmpValue;
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	char const* displayText;
 	switch (tmpValue) {
 	case 0:
@@ -2315,7 +2315,7 @@ void ModControllableAudio::switchDelayAnalog() {
 	bool tmpValue = delay.analog;
 	// Change the tmp value
 	tmpValue = !tmpValue;
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	display->popupTextTemporary(getDelayTypeDisplayName(tmpValue), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
 	delay.analog = tmpValue;
@@ -2347,7 +2347,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		tmpSyncType = SYNC_TYPE_TRIPLET;
 		break;
 	}
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	display->popupTextTemporary(getDelaySyncTypeDisplayName(tmpSyncType), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
 	delay.syncType = tmpSyncType;
@@ -2370,7 +2370,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Change the tmp value
 	tmpSyncLevel = (SyncLevel)((tmpSyncLevel % SyncLevel::SYNC_LEVEL_256TH + 1)
 	                           % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	char displayName[30];
 	getDelaySyncLevelDisplayName(tmpSyncLevel, displayName);
 	display->popupTextTemporary(displayName, DisplayPopupType::MOD_ENCODER_CYCLE);
@@ -2389,7 +2389,7 @@ void ModControllableAudio::switchLPFMode() {
 	FilterMode tmpLpfMode = lpfMode;
 	// Change the tmp value
 	tmpLpfMode = static_cast<FilterMode>((util::to_underlying(tmpLpfMode) + 1) % kNumLPFModes);
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	display->popupTextTemporary(getLPFModeDisplayName(tmpLpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
 	lpfMode = tmpLpfMode;
@@ -2418,7 +2418,7 @@ void ModControllableAudio::switchHPFMode() {
 	FilterMode tmpHpfMode = hpfMode;
 	// Change the tmp value
 	tmpHpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	display->popupTextTemporary(getHPFModeDisplayName(tmpHpfMode), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
 	hpfMode = tmpHpfMode;

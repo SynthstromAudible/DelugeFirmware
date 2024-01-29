@@ -1499,7 +1499,7 @@ void View::cycleThroughReverbPresets() {
 	if (newPreset >= NUM_PRESET_REVERBS) {
 		newPreset = 0;
 	}
-	// Show popup (may be the original value or the changed value)
+	// Show popup
 	display->popupTextTemporary(getReverbPresetDisplayName(newPreset), DisplayPopupType::MOD_ENCODER_CYCLE);
 	// Write the change
 	if (newPreset != currentPreset) {

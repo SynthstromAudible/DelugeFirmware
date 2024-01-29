@@ -358,7 +358,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				FilterType tmpFilterType = currentFilterType;
 				// Change the tmp value
 				tmpFilterType = static_cast<FilterType>((util::to_underlying(tmpFilterType) + 1) % kNumFilterTypes);
-				// Show popup (may be the original value or the changed value)
+				// Show popup
 				std::string_view displayText;
 				switch (tmpFilterType) {
 				case FilterType::LPF:
@@ -449,7 +449,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					CompParam tmpCompParam = currentCompParam;
 					// Change the tmp value
 					tmpCompParam = static_cast<CompParam>((util::to_underlying(tmpCompParam) + 1) % maxCompParam);
-					// Show popup (may be the original value or the changed value)
+					// Show popup
 					display->popupTextTemporary(getCompressorParamDisplayName(tmpCompParam),
 					                            DisplayPopupType::MOD_ENCODER_CYCLE);
 					// Write the change
@@ -463,7 +463,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				bool tmpValue = editingComp;
 				// Change the tmp value
 				tmpValue = !tmpValue;
-				// Show popup (may be the original value or the changed value)
+				// Show popup
 				display->popupTextTemporary(getCompressorModeDisplayName(tmpValue),
 				                            DisplayPopupType::MOD_ENCODER_CYCLE);
 				// Write the change
