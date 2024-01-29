@@ -129,7 +129,7 @@ public:
 	[[nodiscard]] float getDamping() const override { return 1.f - util::map(lp_, kLpMin, kLpMax, 0.f, 1.f); }
 
 	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
-	[[nodiscard]] float getWidth() const override { return util::map(reverb_time_, kWidthMin, kWidthMax, 0.f, 1.f); };
+	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
 private:
 	static constexpr float sample_rate = 44100.f;
