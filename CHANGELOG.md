@@ -2,6 +2,8 @@
 
 ## c1.1.0 Beethoven
 
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+
 ### Sound Engine
 
 - Added an adapted version of the reverb found in Émilie Gillet's Mutable Instruments Rings module. Can be enabled via a new `REVERB MODEL` sub-menu under the existing Reverb menu. 
