@@ -4663,8 +4663,10 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			continue;
 		}
 
-		action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId, &thisNoteRow->notes,
-		                                        false);
+		if (action != nullptr) {
+			action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId, &thisNoteRow->notes,
+			                                        false);
+		}
 
 		thisNoteRow->quantize(modelStackWithNoteRow, squareSize, quantizeAmount);
 	}
