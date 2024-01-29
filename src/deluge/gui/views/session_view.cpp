@@ -31,7 +31,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
@@ -587,7 +587,8 @@ doActualSimpleChange:
 		goto changeOutputType;
 	}
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on && (currentUIMode == UI_MODE_NONE)
+		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
 			changeRootUI(&performanceSessionView);
 		}
 	}
@@ -2447,7 +2448,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	if (clip->onAutomationClipView) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
-		automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+		automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 		clip->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
@@ -2541,7 +2542,7 @@ void SessionView::transitionToSessionView() {
 		return;
 	}
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		AudioClip* clip = getCurrentAudioClip();
 		// !clip probably couldn't happen, but just in case...
 		if (!clip || !clip->sampleHolder.audioFile) {
@@ -2560,8 +2561,8 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(getCurrentClip());
-		if (getCurrentUI() == &automationClipView) {
-			automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+		if (getCurrentUI() == &automationView) {
+			automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 			getCurrentClip()->renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			// I didn't see a difference but the + 2 seems intentional
@@ -2820,33 +2821,42 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			}
 		}
 
-		// Action modes column
-		uint32_t actionModeColumnIndex = kDisplayWidth + 1;
-		bool modeExists = true;
-		bool modeActive = false;
-		RGB modeColour = colours::black;
-		switch (y) {
-		case 7: {
-			modeActive = (gridModeActive == SessionGridModeLaunch);
-			modeColour = colours::green; // Green
-			break;
-		}
-		case 6: {
-			modeActive = (gridModeActive == SessionGridModeEdit);
-			modeColour = colours::blue; // Blue
-			break;
-		}
-
-		default: {
-			modeExists = false;
-			break;
-		}
-		}
-		occupancyMask[y][actionModeColumnIndex] = (modeExists ? 1 : 0);
-		image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
+		gridRenderActionModes(y, image, occupancyMask);
 	}
 
 	return true;
+}
+
+void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	// Action modes column
+	uint32_t actionModeColumnIndex = kDisplayWidth + 1;
+	bool modeExists = true;
+	bool modeActive = false;
+	RGB modeColour = colours::black;
+	switch (y) {
+	case GridMode::GREEN: {
+		modeActive = (gridModeActive == SessionGridModeLaunch);
+		modeColour = colours::green; // Green
+		break;
+	}
+	case GridMode::BLUE: {
+		modeActive = (gridModeActive == SessionGridModeEdit);
+		modeColour = colours::blue; // Blue
+		break;
+	}
+	case GridMode::PINK: {
+		modeActive = performanceSessionView.gridModeActive;
+		modeColour = colours::magenta; // Pink
+	}
+
+	default: {
+		modeExists = false;
+		break;
+	}
+	}
+	occupancyMask[y][actionModeColumnIndex] = (modeExists ? 1 : 0);
+	image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
 }
 
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -3278,13 +3288,20 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		if (on) {
 			gridActiveModeUsed = false;
 			switch (y) {
-			case 7: {
+			case GridMode::GREEN: {
 				gridModeActive = SessionGridModeLaunch;
 				break;
 			}
-			case 6: {
+			case GridMode::BLUE: {
 				gridModeActive = SessionGridModeEdit;
 				break;
+			}
+			case GridMode::PINK: {
+				performanceSessionView.gridModeActive = true;
+				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
+				changeRootUI(&performanceSessionView);
+				uiNeedsRendering(&performanceSessionView);
+				return ActionResult::DEALT_WITH;
 			}
 			}
 		}
@@ -3664,7 +3681,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 void SessionView::gridTransitionToSessionView() {
 	Sample* sample;
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
 			changeRootUI(&sessionView);
@@ -3686,7 +3703,7 @@ void SessionView::gridTransitionToSessionView() {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
@@ -3701,7 +3718,7 @@ void SessionView::gridTransitionToSessionView() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
 		PadLEDs::clearSideBar();
 	}
 

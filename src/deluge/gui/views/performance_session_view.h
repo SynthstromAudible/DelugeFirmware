@@ -65,6 +65,9 @@ public:
 	void graphicsRoutine() override;
 	ActionResult timerCallback() override;
 
+	// ui
+	UIType getUIType() { return UIType::PERFORMANCE_SESSION_VIEW; }
+
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
@@ -119,6 +122,10 @@ public:
 	PadPress lastPadPress;
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
+
+	// public so Grid View can access it
+	bool gridModeActive;
+	uint32_t timeGridModePress;
 
 private:
 	// initialize

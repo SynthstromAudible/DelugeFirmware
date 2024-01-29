@@ -68,6 +68,9 @@ public:
 	int32_t loopLength = 0;
 	bool loopLocked = false;
 
+	// ui
+	UIType getUIType() { return UIType::SAMPLE_MARKER_EDITOR; }
+
 private:
 	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
 	void exitUI();

@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
@@ -409,9 +409,9 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 	// if you're in automation midi clip view and editing the same CC that was just updated
 	// by a learned midi knob, then re-render the pads on the automation editor grid
 	if (type == OutputType::MIDI_OUT) {
-		if (getRootUI() == &automationClipView) {
+		if (getRootUI() == &automationView) {
 			if (activeClip->lastSelectedParamID == ccNumber) {
-				uiNeedsRendering(&automationClipView);
+				uiNeedsRendering(&automationView);
 			}
 		}
 	}

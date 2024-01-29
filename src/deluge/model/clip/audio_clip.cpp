@@ -1283,7 +1283,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 
 	// this never gets called from Automation View because in the Automation View we shift specific parameters not all
 	// parameters
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+	if (!FlashStorage::automationShift) {
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 			paramManager.shiftHorizontally(
 			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount,

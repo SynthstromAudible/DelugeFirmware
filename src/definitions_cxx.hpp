@@ -270,6 +270,35 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 constexpr size_t kFilenameBufferSize = 256;
 
+enum class UIType : uint8_t {
+	ARRANGER_VIEW,
+	SESSION_VIEW,
+	INSTRUMENT_CLIP_VIEW,
+	AUDIO_CLIP_VIEW,
+	KEYBOARD_SCREEN,
+	AUTOMATION_VIEW,
+	PERFORMANCE_SESSION_VIEW,
+	TIMELINE_VIEW,
+	BROWSER,
+	CONTEXT_MENU,
+	LOAD_SONG,
+	LOAD_INSTRUMENT_PRESET,
+	RENAME_OUTPUT,
+	RENAME_DRUM,
+	AUDIO_RECORDER,
+	SOUND_EDITOR,
+	SAMPLE_MARKER_EDITOR,
+	SLICER,
+	NONE = 255,
+};
+
+enum class AutomationSubType : uint8_t {
+	ARRANGER,
+	INSTRUMENT,
+	AUDIO,
+	NONE = 255,
+};
+
 enum class OutputType : uint8_t {
 	SYNTH,
 	KIT,
@@ -698,6 +727,7 @@ enum class ExistenceChangeType {
 };
 
 enum CCNumber {
+	CC_NUMBER_MOD_WHEEL = 1,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_Y_AXIS = 122,
@@ -1001,6 +1031,18 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeGreen,
 	GridDefaultActiveModeBlue,
 	GridDefaultActiveModeMaxElement // Keep as boundary
+};
+
+// mapping of grid modes to y axis
+enum GridMode : uint8_t {
+	PINK,
+	Unassigned1,
+	Unassigned2,
+	Unassigned3,
+	Unassigned4,
+	Unassigned5,
+	BLUE,
+	GREEN,
 };
 
 enum class ClipType {

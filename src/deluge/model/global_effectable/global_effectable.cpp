@@ -102,6 +102,145 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 		endStutter(paramManager);
 	}
+
+	if ((!on && display->haveOLED()) || display->have7SEG()) {
+		int32_t modKnobMode = *getModKnobMode();
+
+		if (modKnobMode == 1) {
+			currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
+			switch (currentFilterType) {
+			case FilterType::LPF:
+				displayLPFMode(on);
+				break;
+
+			case FilterType::HPF:
+				displayHPFMode(on);
+				break;
+
+			case FilterType::EQ:
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_EQ));
+				break;
+			}
+		}
+		else if (modKnobMode == 3) {
+			displayDelaySettings(on);
+		}
+		else if (modKnobMode == 4) {
+			displayCompressorAndReverbSettings(on);
+		}
+		else if (modKnobMode == 5) {
+			displayModFXSettings(on);
+		}
+	}
+}
+
+void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		// Master Compressor
+		popupMsg.append("Comp Mode: ");
+		popupMsg.append(getCompressorModeDisplayName());
+
+		popupMsg.append("\n");
+
+		if (editingComp) {
+			popupMsg.append("Comp Param: ");
+			popupMsg.append(getCompressorParamDisplayName());
+		}
+		else {
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(getCompressorModeDisplayName());
+		}
+		else {
+			if (editingComp) {
+				display->displayPopup(getCompressorParamDisplayName());
+			}
+			else {
+				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			}
+		}
+	}
+}
+
+char const* GlobalEffectable::getCompressorModeDisplayName() {
+	return editingComp ? "FULL" : "ONE";
+}
+
+char const* GlobalEffectable::getCompressorParamDisplayName() {
+	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
+	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
+	return params[int(currentCompParam)];
+}
+
+void GlobalEffectable::displayModFXSettings(bool on) {
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 100);
+		popupMsg.append("Type: ");
+		popupMsg.append(getModFXTypeDisplayName());
+
+		popupMsg.append("\n Param: ");
+		popupMsg.append(getModFXParamDisplayName());
+
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(getModFXTypeDisplayName());
+		}
+		else {
+			display->displayPopup(getModFXParamDisplayName());
+		}
+	}
+}
+
+char const* GlobalEffectable::getModFXTypeDisplayName() {
+	auto modTypeCount =
+	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off)
+	        ? (kNumModFXTypes - 1)
+	        : kNumModFXTypes;
+
+	modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
+	if (modFXType == ModFXType::NONE) {
+		modFXType = static_cast<ModFXType>(1);
+	}
+	switch (modFXType) {
+		using enum deluge::l10n::String;
+	case ModFXType::FLANGER:
+		return l10n::get(STRING_FOR_FLANGER);
+	case ModFXType::PHASER:
+		return l10n::get(STRING_FOR_PHASER);
+	case ModFXType::CHORUS:
+		return l10n::get(STRING_FOR_CHORUS);
+	case ModFXType::CHORUS_STEREO:
+		return l10n::get(STRING_FOR_STEREO_CHORUS);
+	case ModFXType::GRAIN:
+		return l10n::get(STRING_FOR_GRAIN);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
+char const* GlobalEffectable::getModFXParamDisplayName() {
+	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
+
+	switch (currentModFXParam) {
+		using enum deluge::l10n::String;
+	case ModFXParam::DEPTH:
+		return l10n::get(STRING_FOR_DEPTH);
+	case ModFXParam::FEEDBACK:
+		return l10n::get(STRING_FOR_FEEDBACK);
+	case ModFXParam::OFFSET:
+		return l10n::get(STRING_FOR_OFFSET);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
 }
 
 // Returns whether Instrument changed
@@ -284,15 +423,14 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
-					display->popupTextTemporary(params[int(currentCompParam)]);
+					display->displayPopup(getCompressorParamDisplayName());
 				}
 			}
 		}
 		else {
 			if (on) {
 				editingComp = !editingComp;
-				display->popupTextTemporary(editingComp ? "FULL" : "ONE");
+				display->displayPopup(getCompressorModeDisplayName());
 			}
 		}
 

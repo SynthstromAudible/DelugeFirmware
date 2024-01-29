@@ -24,7 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -395,7 +395,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 			instrumentClipView.recalculateColours();
 			if (getCurrentClip()->onAutomationClipView) {
-				changeRootUI(&automationClipView);
+				changeRootUI(&automationView);
 			}
 			else {
 				changeRootUI(&instrumentClipView);

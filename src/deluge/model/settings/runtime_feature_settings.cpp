@@ -135,26 +135,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER), "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
-	// InterpolateAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION),
-	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
-	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP), "automationClearClip",
-	                  RuntimeFeatureStateToggle::On);
-	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE), "automationNudgeNote",
-	                  RuntimeFeatureStateToggle::On);
-	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP), "automationShiftClip",
-	                  RuntimeFeatureStateToggle::On);
-	// Disable Audition Pad Shortcuts in Automation View
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS),
-	                  "automationDisableAuditionPadShortcuts", RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",

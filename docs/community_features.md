@@ -133,7 +133,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.6 - New Performance View
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Performance View Documentation]
-- ([#711]) Adds a new performance view, accessible from Song and Arranger View's using the Keyboard button.
+- ([#711]) Adds a new performance view, accessible from Song Row View and Arranger View's using the Keyboard button or the Song Grid View using the Pink Grid Mode pad in the bottom right hand corner of the sidebar.
 	- Each column on the grid represents a different "FX" and each pad/row in the column corresponds to a different FX value.
 	- Specifications:
 		- Perform FX menu to edit Song level parameters and enable/disable editing mode.
@@ -207,6 +207,12 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
     
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
+#### 4.2.8 - Alternate Reverb Models
+- ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
+	- Freeverb (the original Deluge reverb)
+	- Mutable (an adapted version of the reverb found in Mutable Instruments' Rings module)
+		- The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -258,6 +264,32 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- ([#887]) Updated Master Pitch parameter to display the value range of -25 to +25.
 	- ([#889]) Fixed bug where automation view grid would not update / refresh when a parameter value was changed by a MIDI Controller that was learned to that param.
 	- ([#966]) Added automation view for audio clips
+	- ([#1039]) Added automation view for arranger. 
+		- Hold `SHIFT` and press `SONG` to enter Automation Arranger View from Arranger View.
+		- Press `SONG` while in Automation Arranger View to exit back to Arranger View
+		- Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
+		- Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during playback
+		- Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > AUTOMATION`
+			* Automation (AUTO)
+				* Interpolation (INTE)
+					* When On, Interpolation is on by default in the Automation View.
+					* Note: This is just a default setting and can be overriden in the Automation View using the Select encoder button.
+				* Clear (CLEA)
+					* When On, clearing the arrangement in arranger view / a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
+					* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
+				* Shift Note (SHIF)
+					* When On, shifting notes horizontally in the regular Arranger View / Instrument Clip View will shift the Arrangement / Notes and MPE, but not the Automation.
+					* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.					
+				* Nudge (NUDG)
+					* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
+					* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Clip View.
+				* Disable Audition Pad Shortcuts (SCUT)
+					* When On, audition pad shortcuts are disabled. Holding an audition pad and pressing a shortcut pad will not activate the shortcut and will not change the selected parameter.
+					* When On, to change the selected parameter you will need to either: 
+						1) use the select encoder; 
+						2) use the shift + shortcut pad combo; or
+						3) go back to the automation overview;		
+	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -384,25 +416,6 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
 * Stutter Rate Quantize (STUT)
 	* When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it is enabled.
-* Automation (AUTO)
-	* Interpolation (INTE)
-		* When On, Interpolation is on by default in the Automation Instrument Clip View.
-		* Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
-	* Clear Clip (CLEA)
-		* When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
-		* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
-	* Nudge Note (NUDG)
-		* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
-		* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
-	* Shift Note (SHIF)
-		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
-		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
-	* Disable Audition Pad Shortcuts (SCUT)
-		* When On, audition pad shortcuts are disabled. Holding an audition pad and pressing a shortcut pad will not activate the shortcut and will not change the selected parameter.
-		* When On, to change the selected parameter you will need to either: 
-			1) use the select encoder; 
-			2) use the shift + shortcut pad combo; or
-			3) go back to the automation overview;
 * Allow Insecure Develop Sysex Messages (SYSX)
   	* When On, the ability to load firmware over USB is enabled.
 * Sync Scaling Action (SCAL)
@@ -510,7 +523,10 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#991]: https://github.com/SynthstromAudible/DelugeFirmware/pull/991
 [#994]: https://github.com/SynthstromAudible/DelugeFirmware/pull/994
 [#1018]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1018
+[#1039]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1039
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
+[#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
+[#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

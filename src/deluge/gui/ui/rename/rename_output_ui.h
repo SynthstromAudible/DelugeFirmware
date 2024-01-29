@@ -33,6 +33,9 @@ public:
 
 	Output* output;
 
+	// ui
+	UIType getUIType() { return UIType::RENAME_OUTPUT; }
+
 protected:
 	void enterKeyPress();
 

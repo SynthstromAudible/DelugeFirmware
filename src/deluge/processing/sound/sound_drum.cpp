@@ -16,7 +16,7 @@
  */
 
 #include "processing/sound/sound_drum.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/debug/print.h"
@@ -170,7 +170,7 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
-		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationClipView)
+		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationView)
 		    && instrumentClipView.isDrumAuditioned(this)) {
 			return;
 		}

@@ -24,7 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -796,10 +796,10 @@ void timerRoutine() {
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
 					if (getCurrentClip()->onAutomationClipView) {
-						changeRootUI(&automationClipView); // We want to fade the sidebar in
+						changeRootUI(&automationView); // We want to fade the sidebar in
 						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 						if (anyZoomingDone) {
-							uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+							uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 						}
 					}
 					else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
@@ -990,11 +990,11 @@ void renderClipExpandOrCollapse() {
 			currentUIMode = UI_MODE_NONE;
 
 			if (getCurrentClip()->onAutomationClipView) {
-				changeRootUI(&automationClipView);
+				changeRootUI(&automationView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 				}
 			}
 			else {
@@ -1035,7 +1035,7 @@ void renderNoteRowExpandOrCollapse() {
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
 		if (getCurrentClip()->onAutomationClipView) {
-			uiNeedsRendering(&automationClipView);
+			uiNeedsRendering(&automationView);
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView);

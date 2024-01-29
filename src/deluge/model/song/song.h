@@ -355,6 +355,15 @@ public:
 	int32_t masterCompressorRatio;
 	int32_t masterCompressorSidechain;
 
+	// START ~ new Automation Arranger View Variables
+	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
+	deluge::modulation::params::Kind
+	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	int32_t lastSelectedParamShortcutX;
+	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
+	// END ~ new Automation Arranger View Variables
+
 private:
 	bool fillModeActive;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
