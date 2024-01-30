@@ -116,7 +116,12 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 			break;
 
 		case FilterType::EQ:
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_EQ));
+			if (on) {
+				display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
+			}
+			else {
+				display->cancelPopup();
+			}
 			break;
 		}
 	}

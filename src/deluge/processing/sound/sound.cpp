@@ -3952,7 +3952,7 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
 			                                                              + params::UNPATCHED_TREBLE)) {
 				if (on) {
-					display->popupText("EQ");
+					display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
 				}
 				else {
 					display->cancelPopup();
