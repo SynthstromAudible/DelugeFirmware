@@ -1176,10 +1176,12 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		if (on) {
 
 			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
+				// change the button selection before calling mod button action so that mod button action
+				// knows the mod button parameter context
+				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
+
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
-
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
 
 				setKnobIndicatorLevels();
 				setModLedStates();

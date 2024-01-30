@@ -99,6 +99,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	if (b == AFFECT_ENTIRE) {
+		if (on) {
+			display->cancelPopup();
+		}
 		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
 			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {

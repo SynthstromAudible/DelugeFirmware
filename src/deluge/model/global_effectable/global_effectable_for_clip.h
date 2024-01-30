@@ -33,6 +33,7 @@ public:
 	GlobalEffectableForClip();
 
 	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
 	virtual Output* toOutput() = 0;
 	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
@@ -70,4 +71,5 @@ protected:
 
 private:
 	bool renderedLastTime;
+	void displaySidechainAndReverbSettings(bool on);
 };

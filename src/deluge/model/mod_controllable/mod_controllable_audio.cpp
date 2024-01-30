@@ -2538,12 +2538,36 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t wh
 	return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
 }
 
+char const* ModControllableAudio::getSidechainDisplayName() {
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+	using enum deluge::l10n::String;
+	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST);
+	}
+}
+
 void ModControllableAudio::displayLPFMode(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
-		popupMsg.append("LPF: ");
-		popupMsg.append(getLPFModeDisplayName());
-		display->displayPopup(popupMsg.c_str());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+			popupMsg.append("LPF: ");
+			popupMsg.append(getLPFModeDisplayName());
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
@@ -2557,10 +2581,16 @@ void ModControllableAudio::displayLPFMode(bool on) {
 
 void ModControllableAudio::displayHPFMode(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
-		popupMsg.append("HPF: ");
-		popupMsg.append(getHPFModeDisplayName());
-		display->displayPopup(popupMsg.c_str());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+			popupMsg.append("HPF: ");
+			popupMsg.append(getHPFModeDisplayName());
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
@@ -2574,25 +2604,30 @@ void ModControllableAudio::displayHPFMode(bool on) {
 
 void ModControllableAudio::displayDelaySettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-		    == RuntimeFeatureStateToggle::On) {
-			popupMsg.append("Sync Type: ");
-			popupMsg.append(getDelaySyncTypeDisplayName());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+			    == RuntimeFeatureStateToggle::On) {
+				popupMsg.append("Type: ");
+				popupMsg.append(getDelaySyncTypeDisplayName());
 
-			popupMsg.append("\n Sync Level: ");
-			char displayName[30];
-			getDelaySyncLevelDisplayName(displayName);
-			popupMsg.append(displayName);
+				popupMsg.append("\nLevel: ");
+				char displayName[30];
+				getDelaySyncLevelDisplayName(displayName);
+				popupMsg.append(displayName);
+			}
+			else {
+				popupMsg.append(getDelayTypeDisplayName());
+
+				popupMsg.append("\nPing pong: ");
+				popupMsg.append(getDelayPingPongStatusDisplayName());
+			}
+
+			display->popupText(popupMsg.c_str());
 		}
 		else {
-			popupMsg.append(getDelayTypeDisplayName());
-
-			popupMsg.append("\n Ping pong: ");
-			popupMsg.append(getDelayPingPongStatusDisplayName());
+			display->cancelPopup();
 		}
-
-		display->displayPopup(popupMsg.c_str());
 	}
 	else {
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
