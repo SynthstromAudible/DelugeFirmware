@@ -18,6 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/filter/filter.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -32,6 +33,7 @@
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
+#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
 #include "model/sample/sample_recorder.h"
@@ -128,7 +130,10 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
+float rmsLevel{0};
 RMSFeedbackCompressor mastercompressor{};
+AbsValueFollower envelopeFollower{};
+int32_t timeLastPopup{0};
 
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
@@ -705,6 +710,8 @@ startAgain:
 
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
+	// around the mutable noise floor, ~70dB from peak
+	reverbOn |= (rmsLevel > 9);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -801,6 +808,8 @@ startAgain:
 	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer.data(), numSamples);
+
+	rmsLevel = envelopeFollower.calc_rms(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
