@@ -252,7 +252,7 @@ void GlobalEffectableForClip::displaySidechainAndReverbSettings(bool on) {
 	}
 	else {
 		if (on) {
-			getSidechainDisplayName();
+			display->displayPopup(getSidechainDisplayName());
 		}
 		else {
 			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
@@ -264,7 +264,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
                                                      ModelStackWithThreeMainThings* modelStack) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
-		if (whichModEncoder == 4) {
+		if (*getModKnobMode() == 4) {
 			if (whichModEncoder == 1) { // Sidechain
 				int32_t insideWorldTickMagnitude;
 				if (currentSong) { // Bit of a hack just referring to currentSong in here...
