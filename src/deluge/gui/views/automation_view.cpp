@@ -686,8 +686,15 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
-		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		int32_t knobPos = 0;
+
+		if (isAutomated) {
+			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
+		}
+		else {
+			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		}
 
 		RGB& pixel = image[xDisplay];
 
@@ -3402,6 +3409,27 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 	}
 
 	return squareStart;
+}
+
+// calculates value of all nodes within a square for automation editor rendering
+// and for display of square value in pad selection mode
+int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
+                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+	int32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
+	int32_t numNodesWithinSquare = squareWidth / kParamNodeWidth;
+
+	int32_t totalKnobPos = 0;
+
+	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
+		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
+		totalKnobPos =
+		    totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack) + kKnobPosOffset;
+	}
+
+	int32_t averageKnobPos = totalKnobPos / numNodesWithinSquare;
+
+	return averageKnobPos;
 }
 
 // this function obtains a parameters value and converts it to a knobPos

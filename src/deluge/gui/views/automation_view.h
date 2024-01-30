@@ -219,6 +219,8 @@ private:
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	int32_t getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay, int32_t effectiveLength,
+	                                     int32_t xScroll, int32_t xZoom);
 
 	void getParameterName(Clip* clip, OutputType outputType, char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
