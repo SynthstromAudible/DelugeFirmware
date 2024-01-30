@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2023-2024 Mark Adams
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -72,7 +72,7 @@ public:
 	}
 
 	void updateER(float numSamples, q31_t finalVolume);
-	float calc_rms(StereoSample* buffer, uint16_t numSamples);
+	float calcRMS(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
 
 private:

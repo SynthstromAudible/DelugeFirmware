@@ -809,7 +809,7 @@ startAgain:
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer.data(), numSamples);
 
-	rmsLevel = envelopeFollower.calc_rms(renderingBuffer.data(), numSamples);
+	rmsLevel = envelopeFollower.calcRMS(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
