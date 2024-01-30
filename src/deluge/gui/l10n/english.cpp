@@ -420,8 +420,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP, "Can't grab tempo from clip"},
         {STRING_FOR_SYNC_NUDGED, "Sync nudged"},
         {STRING_FOR_FOLLOWING_EXTERNAL_CLOCK, "Following external clock"},
-        {STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR, "Slow sidechain compressor"},
-        {STRING_FOR_FAST_SIDECHAIN_COMPRESSOR, "Fast sidechain compressor"},
         {STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD, "Reboot to use this SD card"},
         {STRING_FOR_LARGE_ROOM_REVERB, "Large room reverb"},
         {STRING_FOR_MEDIUM_ROOM_REVERB, "Medium room reverb"},
