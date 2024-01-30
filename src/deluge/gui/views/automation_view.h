@@ -67,6 +67,7 @@ public:
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
+	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
@@ -126,6 +127,9 @@ public:
 	// public so instrument clip view can access it
 	void initParameterSelection();
 	bool onArrangerView;
+
+	// public so uiTimerManager can access it
+	void blinkInterpolationShortcut();
 
 private:
 	// button action functions
@@ -196,9 +200,7 @@ private:
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
 	void selectMIDICC(int32_t offset, Clip* clip);
-	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
-	                                          int32_t numParams);
-	void getLastSelectedParamShortcut(Clip* clip, OutputType outputType);
+	void getLastSelectedMIDIParamShortcut(Clip* clip);
 
 	// Automation Lanes Functions
 	void initPadSelection();
@@ -240,9 +242,15 @@ private:
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();
+	void resetParameterShortcutBlinking();
+	void resetInterpolationShortcutBlinking();
 
 	bool encoderAction;
-	bool shortcutBlinking;
+	bool parameterShortcutBlinking;
+
+	bool interpolationShortcutBlinking;
+	uint8_t interpolationShortcutX;
+	uint8_t interpolationShortcutY;
 
 	bool padSelectionOn;
 	bool multiPadPressSelected;

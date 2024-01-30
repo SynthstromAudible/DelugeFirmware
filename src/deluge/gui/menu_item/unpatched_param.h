@@ -38,6 +38,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return Param::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }
+	ActionResult buttonAction(deluge::hid::Button b, bool on) final { return Param::buttonAction(b, on); }
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }

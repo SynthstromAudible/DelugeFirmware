@@ -32,6 +32,7 @@ public:
 	[[nodiscard]] virtual int32_t getMinValue() const { return kMinMenuValue; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
 
 	uint8_t p;

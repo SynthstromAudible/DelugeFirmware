@@ -17,12 +17,17 @@
 
 #include "param.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_set.h"
 
 namespace deluge::gui::menu_item {
 
@@ -42,4 +47,38 @@ MenuItem* Param::selectButtonPress() {
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	return (MenuItem*)0xFFFFFFFF; // Don't navigate away
 }
+
+ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+
+	// Clip or Song button
+	// Used to enter automation view from sound editor
+	if ((b == CLIP_VIEW && rootUIIsClipMinderScreen())
+	    || (b == SESSION_VIEW && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+		if (on) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
+
+			int32_t p = getP();
+			modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+
+			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				currentSong->lastSelectedParamID = p;
+				currentSong->lastSelectedParamKind = kind;
+				automationView.onArrangerView = true;
+			}
+			else {
+				Clip* clip = getCurrentClip();
+				clip->lastSelectedParamID = p;
+				clip->lastSelectedParamKind = kind;
+			}
+			swapOutRootUILowLevel(&automationView);
+			automationView.openedInBackground();
+			soundEditor.exitCompletely();
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+
 } // namespace deluge::gui::menu_item

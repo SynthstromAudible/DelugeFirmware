@@ -31,6 +31,7 @@ public:
 	PatchedParam() = default;
 	PatchedParam(int32_t newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
+	ActionResult buttonAction(deluge::hid::Button b, bool on) { return Param::buttonAction(b, on); }
 
 	// 7SEG Only
 	virtual void drawValue() = 0;

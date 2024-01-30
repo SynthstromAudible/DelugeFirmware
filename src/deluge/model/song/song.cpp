@@ -176,7 +176,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
 	// end initialize of automation arranger view variables
 
 	masterTransposeInterval = 0;
@@ -1204,7 +1203,6 @@ weAreInArrangementEditorOrInClipInstance:
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
 	globalEffectable.writeAttributesToFile(false);
@@ -1631,10 +1629,6 @@ unknownTag:
 				storageManager.exitTag("lastSelectedParamShortcutY");
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("lastSelectedParamArrayPosition");
-			}
 			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {

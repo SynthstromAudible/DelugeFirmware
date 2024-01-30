@@ -364,7 +364,6 @@ public:
 	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
 	int32_t masterTransposeInterval;

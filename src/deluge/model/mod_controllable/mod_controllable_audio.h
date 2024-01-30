@@ -168,7 +168,6 @@ private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
 	                                        int32_t ccNumber = MIDI_CC_NONE);
-	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind kind, int32_t id);
 	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
