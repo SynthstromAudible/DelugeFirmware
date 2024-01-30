@@ -264,7 +264,7 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
                                                      ModelStackWithThreeMainThings* modelStack) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
-		if (*getModKnobMode() == 4) {
+		if (whichModEncoder == 4) {
 			if (whichModEncoder == 1) { // Sidechain
 				int32_t insideWorldTickMagnitude;
 				if (currentSong) { // Bit of a hack just referring to currentSong in here...
