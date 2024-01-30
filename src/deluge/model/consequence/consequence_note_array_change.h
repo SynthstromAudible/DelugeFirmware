@@ -27,7 +27,7 @@ class ConsequenceNoteArrayChange final : public Consequence {
 public:
 	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector,
 	                           bool stealData);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	InstrumentClip* clip;
 	int32_t noteRowId;
