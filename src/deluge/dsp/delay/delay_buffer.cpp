@@ -26,7 +26,7 @@ DelayBuffer::DelayBuffer() {
 }
 
 DelayBuffer::~DelayBuffer() {
-	discard(true);
+	discard();
 }
 
 // Returns error status
@@ -92,12 +92,10 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherB
 	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216 * otherBufferAmountTooFast / (double)size);
 }
 
-void DelayBuffer::discard(bool beingDestructed) {
+void DelayBuffer::discard() {
 	if (bufferStart) {
 		delugeDealloc(bufferStart);
-		if (!beingDestructed) {
-			bufferStart = NULL; // If destructing, writing anything would be a waste of time
-		}
+		bufferStart = nullptr;
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2023-2024 Mark Adams
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -59,9 +59,9 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * ratio;
 
 	// this is the most gain available without overflow
-	float dbGain = 0.85 + er + reduction;
+	float dbGain = 0.85f + er + reduction;
 
-	float gain = exp((dbGain));
+	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
 
 	float finalVolumeL = gain * float(volAdjustL >> 9);
@@ -86,23 +86,23 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
 	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
-	rms = calc_rms(buffer, numSamples);
+	rms = calcRMS(buffer, numSamples);
 }
 
 float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) {
-	float s;
+	float s{0};
 	if (desired > current) {
-		s = desired + exp(a_ * numSamples) * (current - desired);
+		s = desired + std::exp(a_ * numSamples) * (current - desired);
 	}
 	else {
-		s = desired + exp(r_ * numSamples) * (current - desired);
+		s = desired + std::exp(r_ * numSamples) * (current - desired);
 	}
 	return s;
 }
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-float RMSFeedbackCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
+float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
@@ -123,7 +123,7 @@ float RMSFeedbackCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples)
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
 	// at high cpu loads
 	mean = (mean * ns + lastMean) / (1 + ns);
-	float rms = ONE_Q31 * sqrt(mean);
+	float rms = ONE_Q31 * std::sqrt(mean);
 
 	float logmean = std::log(std::max(rms, 1.0f));
 

@@ -23,7 +23,7 @@
 class ConsequenceSwingChange final : public Consequence {
 public:
 	ConsequenceSwingChange(int8_t newSwingBefore, int8_t newSwingAfter);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	int8_t swing[2];
 };
