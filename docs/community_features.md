@@ -399,6 +399,16 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
  - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument clips.
 
+### 4.8 Third Party Device Integration
+
+This is largely on the development side and created the start of a system of modules and hook points for enabling actions on the Deluge to signal third-party equipment over hosted USB. To start things off this includes some support for the Lumi Keys Studio Edition, described below.
+
+### 4.8.1 Lumi Keys Studio Edition
+
+- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave.
+	- The lit and darkened keys will be aligned with the selected root and scale, so long as the selected scale is one of the builtin scales supported by the Lumi.
+	- While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range defined on the Deluge (upper or lower dominant).
+
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
