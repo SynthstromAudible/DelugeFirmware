@@ -3951,7 +3951,12 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
 			                                                              + params::UNPATCHED_TREBLE)) {
-				display->displayPopup("EQ");
+				if (on) {
+					display->popupText("EQ");
+				}
+				else {
+					display->cancelPopup();
+				}
 			}
 		}
 	}
