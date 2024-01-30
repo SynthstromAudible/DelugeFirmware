@@ -62,10 +62,10 @@ public:
 
 	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
 	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
-		SevenSegment::displayPopup(text, type);
+		SevenSegment::displayPopup(text, 0, false, 255, 1, type);
 	}
 	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
-		SevenSegment::displayPopup(text, type);
+		SevenSegment::displayPopup(text, 3, false, 255, 1, type);
 	}
 
 	void removeWorkingAnimation() override {}

@@ -298,5 +298,4 @@ private:
 	                                                      bool allowCreation = true);
 
 	void displaySidechainAndReverbSettings(bool on);
-	char const* getSidechainDisplayName(int32_t insideWorldTickMagnitude);
 };
