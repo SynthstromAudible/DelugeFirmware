@@ -1,4 +1,7 @@
 #pragma once
+#include "RZA1/cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -8,15 +11,14 @@
 #define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
 
-#include "RZA1/cpu_specific.h"
-#include "RZA1/system/r_typedefs.h"
-#include "fault_handler.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 // This is defined in display.cpp
 extern void freezeWithError(char const* errmsg);
+//this is defined in deluge.cpp
+enum DebugPrintMode { kDebugPrintModeDefault, kDebugPrintModeRaw, kDebugPrintModeNewlined };
+void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...);
 #ifdef __cplusplus
 }
 #endif
@@ -71,10 +73,8 @@ extern void freezeWithError(char const* errmsg);
 
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
 // SDRAM, maybe timing?
-#ifndef D_PRINTLN
 
 #if ENABLE_TEXT_OUTPUT
-#include "deluge/deluge.h"
 #define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
 #define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
 #define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
@@ -86,4 +86,4 @@ extern void freezeWithError(char const* errmsg);
 #define D_PRINT_RAW(...)
 #endif
 
-#endif
+
