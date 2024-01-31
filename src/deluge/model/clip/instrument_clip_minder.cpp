@@ -358,13 +358,8 @@ yesLoadInstrument:
 		}
 
 		else if (b == KIT) {
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
-				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
-			}
-			else {
-				Browser::outputTypeToLoad = OutputType::KIT;
-				goto yesLoadInstrument;
-			}
+			Browser::outputTypeToLoad = OutputType::KIT;
+			goto yesLoadInstrument;
 		}
 	}
 
