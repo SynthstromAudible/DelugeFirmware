@@ -57,8 +57,8 @@
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/stb/stb.h"
-#include "RZA1/uart/sio_char.h"
-#include "definitions.h"
+#include "RZA1/uart/sio_char.h" // IWYU pragma: keep false positive, needed for R_INTC_Init
+#include "definitions.h" // IWYU pragma: keep false positive, needed for memory limits
 #include "deluge/deluge.h"
 #include <string.h> //memset
 
