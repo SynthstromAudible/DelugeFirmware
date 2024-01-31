@@ -19,9 +19,6 @@
 #include "definitions.h"
 #include "util/misc.h"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
