@@ -16,9 +16,8 @@
  */
 
 #include "util/cfunctions.h"
-
+#include "RZA1/mtu/mtu.h"
 #include "definitions.h"
-#include "drivers/mtu/mtu.h"
 #include <string.h>
 
 int32_t getNumDecimalDigits(uint32_t number) {
