@@ -20,16 +20,15 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour/colour.h" // IWYU pragma: export
+#include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
 #include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <bit>
 #include <cstdint>
 #include <cstring>
-extern "C" {
-#include "util/cfunctions.h"
-}
+#include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
+
 
 class UI;
 
