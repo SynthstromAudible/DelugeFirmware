@@ -22,13 +22,8 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
-#include "io/debug/print.h"
-#include "model/action/action_logger.h"
-#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
 #include <string.h>
 
