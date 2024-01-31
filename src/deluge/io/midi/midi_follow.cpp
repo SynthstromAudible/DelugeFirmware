@@ -190,7 +190,7 @@ MidiFollow::getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelSt
 	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 	if (paramID != kNoParamID) {
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+		modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 	}
 
 	return modelStackWithParam;

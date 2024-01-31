@@ -1192,7 +1192,7 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 /// in regular performance view, this function will also update the parameter value shown on the display
 bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1253,7 +1253,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 /// update current value stored
 void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1280,18 +1280,6 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			}
 		}
 	}
-}
-
-/// get's the modelstack for the parameters that are being edited
-ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
-                                                                        int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
 }
 
 /// converts grid pad press yDisplay into a knobPosition value default

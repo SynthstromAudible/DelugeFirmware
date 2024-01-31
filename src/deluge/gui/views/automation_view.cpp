@@ -538,8 +538,8 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -627,8 +627,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 					continue;
 				}
-				modelStackWithParam =
-				    performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 			}
 			else {
 				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
@@ -884,8 +883,8 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1075,8 +1074,8 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1503,8 +1502,8 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		if (onArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1608,8 +1607,8 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2183,8 +2182,8 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		int32_t shiftAmount = offset * squareSize;
 
 		if (onArrangerView) {
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			Clip* clip = getCurrentClip();
@@ -2537,8 +2536,8 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2729,8 +2728,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2970,8 +2969,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 		if (onArrangerView) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
