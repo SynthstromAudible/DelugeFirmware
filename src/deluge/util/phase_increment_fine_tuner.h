@@ -17,9 +17,7 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "util/lookuptables/lookuptables.h"
-
+#include <cstdint>
 class PhaseIncrementFineTuner {
 public:
 	PhaseIncrementFineTuner();

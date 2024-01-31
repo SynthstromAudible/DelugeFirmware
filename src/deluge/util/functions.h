@@ -20,15 +20,13 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour/colour.h"
+#include "gui/colour/colour.h" // IWYU pragma: export
 #include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <bit>
-#include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <stdint.h>
 extern "C" {
 #include "util/cfunctions.h"
 }
