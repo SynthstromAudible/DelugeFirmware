@@ -417,3 +417,17 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
 	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
 	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
 }
+
+ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                             int32_t paramID, params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+	}
+
+	return modelStackWithParam;
+}

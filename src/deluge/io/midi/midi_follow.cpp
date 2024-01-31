@@ -165,13 +165,13 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
 	if (clip) {
 		if (modelStackWithTimelineCounter) {
 			modelStackWithParam =
-			    getModelStackWithParamWithClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
+			    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		}
 	}
 	// null clip means you're dealing with the song context
 	else {
 		if (modelStackWithThreeMainThings) {
-			modelStackWithParam = getModelStackWithParamWithoutClip(modelStackWithThreeMainThings, xDisplay, yDisplay);
+			modelStackWithParam = getModelStackWithParamForSong(modelStackWithThreeMainThings, xDisplay, yDisplay);
 		}
 	}
 
@@ -184,8 +184,8 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-                                              int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+                                          int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
@@ -197,34 +197,35 @@ MidiFollow::getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* mod
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                           int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                          int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (clip->type == ClipType::INSTRUMENT) {
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		OutputType outputType = clip->output->type;
-
-		if (outputType == OutputType::SYNTH) {
+	switch (clip->type) {
+	case ClipType::INSTRUMENT: {
+		switch (clip->output->type) {
+		case OutputType::SYNTH: {
 			modelStackWithParam =
-			    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+			    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		}
-		else if (outputType == OutputType::KIT) {
+		case OutputType::KIT: {
 			modelStackWithParam =
-			    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+			    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
+		}
 		}
 	}
-	else {
+	case ClipType::AUDIO: {
 		modelStackWithParam =
-		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, (AudioClip*)clip, xDisplay, yDisplay);
+		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
+	}
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                               int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
@@ -238,16 +239,16 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationView.getModelStackWithParamForSynthClip(modelStackWithTimelineCounter,
-		                                                                        instrumentClip, paramID, paramKind);
+		modelStackWithParam =
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                             int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	params::Kind paramKind = params::Kind::NONE;
 	int32_t paramID = kNoParamID;
@@ -272,22 +273,21 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 		}
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationView.getModelStackWithParamForKitClip(modelStackWithTimelineCounter,
-		                                                                      instrumentClip, paramID, paramKind);
+		modelStackWithParam =
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                               int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 	if (paramID != kNoParamID) {
-		modelStackWithParam =
-		    automationView.getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, audioClip, paramID);
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID);
 	}
 
 	return modelStackWithParam;

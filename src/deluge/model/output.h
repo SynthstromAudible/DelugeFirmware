@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
+#include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
 
@@ -34,6 +35,7 @@ class ModControllable;
 class GlobalEffectableForClip;
 class ModelStack;
 class ModelStackWithTimelineCounter;
+class ModelStackWithAutoParam;
 class MIDIDevice;
 class LearnedMIDI;
 class ParamManager;
@@ -145,6 +147,11 @@ public:
 	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
+
+	virtual ModelStackWithAutoParam*
+	getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                       int32_t paramID = deluge::modulation::params::kNoParamID,
+	                       deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE) = 0;
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
