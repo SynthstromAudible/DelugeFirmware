@@ -309,6 +309,7 @@ const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		// 5-note scales
 		{0, 3, 5, 7, 10, 0, 0}, // PENT Pentatonic Minor (matches Launchpad and Lumi scale)
 		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale, and, transposed, also matches Lumi JAPANESE scale)
+		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale, and, transposed, also matches Lumi JAPANESE scale)
 
 };
 
