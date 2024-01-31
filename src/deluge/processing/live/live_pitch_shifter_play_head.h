@@ -17,9 +17,8 @@
 
 #pragma once
 
+#include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
-
-typedef __simd64_int16_t int16x4_t;
 
 class LivePitchShifter;
 class LiveInputBuffer;

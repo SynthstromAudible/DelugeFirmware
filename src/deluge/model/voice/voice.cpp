@@ -16,13 +16,12 @@
  */
 
 #include "model/voice/voice.h"
-#include "arm_neon.h"
+#include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "dsp/util.h"
+#include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
-#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
