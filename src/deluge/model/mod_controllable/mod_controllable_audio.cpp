@@ -42,9 +42,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
-#include "util/fast_fixed_math.h"
 #include "util/misc.h"
-#include <string.h>
+#include <cstring>
 
 namespace params = deluge::modulation::params;
 
