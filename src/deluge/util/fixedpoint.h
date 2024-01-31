@@ -16,7 +16,6 @@
  */
 #pragma once
 
-#include <cmath>
 #include <cstdint>
 // signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
 typedef int32_t q31_t;
