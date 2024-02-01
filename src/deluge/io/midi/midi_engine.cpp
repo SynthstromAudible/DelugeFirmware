@@ -16,7 +16,6 @@
  */
 
 #include "io/midi/midi_engine.h"
-#include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
@@ -26,11 +25,10 @@
 #include "io/debug/sysex.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "mem_functions.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
-#include "util/functions.h"
-#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

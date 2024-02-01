@@ -20,7 +20,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "io/debug/log.h"
-#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
