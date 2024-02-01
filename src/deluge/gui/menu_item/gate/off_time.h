@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "gui/menu_item/decimal.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 
 namespace deluge::gui::menu_item::gate {

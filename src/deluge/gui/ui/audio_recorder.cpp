@@ -17,7 +17,6 @@
 
 #include "gui/ui/audio_recorder.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -25,15 +24,13 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/instrument/kit.h"
+#include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
@@ -41,10 +38,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include <new>
 #include <string.h>
 
 AudioRecorder audioRecorder{};
@@ -52,14 +47,8 @@ AudioRecorder audioRecorder{};
 extern "C" void routineForSD(void);
 
 extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-
-#include "drivers/uart/uart.h"
 
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
-#include "RZA1/spibsc/r_spibsc_ioset_api.h"
-#include "RZA1/spibsc/spibsc.h"
 
 void oledRoutine();
 }

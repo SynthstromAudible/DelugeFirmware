@@ -17,9 +17,9 @@
 
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
+#include "mem_functions.h"
 #include "memory/memory_allocator_interface.h"
-
-#include <string.h>
+#include <cmath>
 
 DelayBuffer::DelayBuffer() {
 	bufferStart = 0;

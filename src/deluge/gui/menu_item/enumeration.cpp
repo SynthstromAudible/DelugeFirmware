@@ -1,4 +1,5 @@
 #include "enumeration.h"
+#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item {
 void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {

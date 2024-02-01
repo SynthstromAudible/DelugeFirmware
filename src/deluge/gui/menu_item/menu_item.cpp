@@ -17,6 +17,7 @@
 
 #include "menu_item.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include <string_view>
 
 using namespace deluge;

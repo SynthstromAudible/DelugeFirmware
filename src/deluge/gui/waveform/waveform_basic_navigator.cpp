@@ -20,7 +20,6 @@
 #include "gui/ui/ui.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/sample/sample.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/misc.h"

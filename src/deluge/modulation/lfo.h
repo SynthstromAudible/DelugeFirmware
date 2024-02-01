@@ -18,9 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "modulation/lfo.h"
 #include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
 
 class LFO {
 public:

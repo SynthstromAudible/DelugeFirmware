@@ -16,8 +16,7 @@
  */
 
 #include "number.h"
-#include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
+#include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item {
 

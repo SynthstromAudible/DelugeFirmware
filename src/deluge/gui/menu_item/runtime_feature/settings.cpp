@@ -20,13 +20,7 @@
 #include "emulated_display.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
-
-#include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
-#include <algorithm>
 #include <array>
-#include <cstdio>
-#include <iterator>
 
 extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 

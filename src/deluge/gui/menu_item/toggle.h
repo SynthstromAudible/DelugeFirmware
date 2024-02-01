@@ -1,6 +1,5 @@
 #pragma once
 
-#include "util/sized.h"
 #include "value.h"
 
 namespace deluge::gui::menu_item {

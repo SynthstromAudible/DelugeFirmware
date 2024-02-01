@@ -14,7 +14,8 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
+#include "deluge/util/fixedpoint.h"
+#include "deluge/util/functions.h"
 namespace deluge::dsp {
 /**
  * Fold reduces the input by the amount it's over the level

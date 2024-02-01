@@ -20,9 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
-#include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
-#include "storage/flash_storage.h"
 
 class Editor;
 class InstrumentClip;

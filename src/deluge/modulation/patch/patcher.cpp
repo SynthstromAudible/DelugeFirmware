@@ -17,18 +17,12 @@
 
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
-#include "model/voice/voice.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace params = deluge::modulation::params;
-
-extern "C" {
-#include "RZA1/mtu/mtu.h"
-}
 
 Patcher::Patcher(const PatchableInfo* newInfo) : patchableInfo(newInfo) {
 }

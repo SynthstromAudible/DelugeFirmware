@@ -22,7 +22,6 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
-#include <string.h>
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;

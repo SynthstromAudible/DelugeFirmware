@@ -16,7 +16,7 @@
  */
 
 #include "model/consequence/consequence_audio_clip_set_sample.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef __cplusplus
-#include <compare>
+#include <compare> // IWYU pragma: keep -used for operator <=>, false positive
 #include <cstdint>
 
 struct SemVer {

@@ -17,8 +17,7 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-
+#include <cstdint>
 #define TIMER_DISPLAY 0
 #define TIMER_MIDI_LEARN_FLASH 1
 #define TIMER_DEFAULT_ROOT_NOTE 2

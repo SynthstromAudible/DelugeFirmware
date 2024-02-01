@@ -15,10 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include <string>
 
 namespace deluge::gui::menu_item::lfo {
 

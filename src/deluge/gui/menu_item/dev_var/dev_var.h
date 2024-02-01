@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
 #include "storage/storage_manager.h"
 
 namespace deluge::gui::menu_item::dev_var {

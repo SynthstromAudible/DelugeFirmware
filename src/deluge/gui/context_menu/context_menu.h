@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <cstddef>
-
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "util/sized.h"

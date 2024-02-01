@@ -24,7 +24,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"

@@ -4,6 +4,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include <cstddef>
 

@@ -24,8 +24,6 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "source_selection.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 

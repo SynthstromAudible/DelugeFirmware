@@ -19,9 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
-#include "hid/display/display.h"
 #include "storage/flash_storage.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::defaults {
 class DefaultGridDefaultActiveMode final : public Selection {

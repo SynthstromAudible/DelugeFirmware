@@ -16,17 +16,11 @@
  */
 
 #include "RZA1/gpio/gpio.h"
-#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
-#include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
-#include "RZA1/system/rza_io_regrw.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
-#include "diskio.h"
-#include "fatfs/diskio.h"
-#include <stdio.h>
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 

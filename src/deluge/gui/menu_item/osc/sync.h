@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"

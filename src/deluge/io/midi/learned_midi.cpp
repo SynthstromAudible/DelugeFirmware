@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
 #include <string.h>
 
 LearnedMIDI::LearnedMIDI() {

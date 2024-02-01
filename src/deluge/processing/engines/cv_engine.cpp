@@ -18,7 +18,7 @@
 #include "processing/engines/cv_engine.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include "util/functions.h"

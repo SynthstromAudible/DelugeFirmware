@@ -27,7 +27,7 @@
 #include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"

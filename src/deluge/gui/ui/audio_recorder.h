@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "model/sample/sample.h"
 
 extern "C" {
 #include "fatfs/ff.h"
