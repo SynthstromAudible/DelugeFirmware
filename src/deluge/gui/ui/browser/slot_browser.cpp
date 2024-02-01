@@ -56,9 +56,8 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 	}
 
 	if (shouldDrawKeys) {
-		PadLEDs::clearAllPadsWithoutSending();
+
 		drawKeys();
-		PadLEDs::sendOutMainPadColours();
 	}
 
 	return NO_ERROR;
