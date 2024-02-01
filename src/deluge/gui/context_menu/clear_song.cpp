@@ -16,7 +16,6 @@
  */
 
 #include "gui/context_menu/clear_song.h"
-#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -26,11 +25,9 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
-#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include <new>
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();

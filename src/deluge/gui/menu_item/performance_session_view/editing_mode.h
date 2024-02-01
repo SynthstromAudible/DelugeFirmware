@@ -16,9 +16,11 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/toggle.h"
+#include "gui/menu_item/selection.h"
 #include "gui/views/performance_session_view.h"
 #include "hid/led/indicator_leds.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {

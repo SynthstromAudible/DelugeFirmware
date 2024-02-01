@@ -19,7 +19,7 @@
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"

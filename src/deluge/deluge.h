@@ -22,9 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-enum DebugPrintMode { kDebugPrintModeDefault, kDebugPrintModeRaw, kDebugPrintModeNewlined };
-
 extern int main(void);
 extern int32_t deluge_main(void);
 
@@ -34,9 +31,7 @@ extern void routineWithClusterLoading(void);
 extern void loadAnyEnqueuedClustersRoutine(void);
 
 extern void logAudioAction(char const* string);
-#if ENABLE_TEXT_OUTPUT
-void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...);
-#endif
+
 extern void consoleTextIfAllBootedUp(char const* text);
 
 extern void routineForSD(void);

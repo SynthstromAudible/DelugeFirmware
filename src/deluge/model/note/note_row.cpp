@@ -22,7 +22,7 @@
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"

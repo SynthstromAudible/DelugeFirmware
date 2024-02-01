@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "io/midi/device_specific/midi_device_lumi_keys.h"
+#include "io/midi/device_specific/midi_device_lumi_keys.h" // IWYU pragma: export
 #include "io/midi/midi_device.h"
 
 enum class SpecificMidiDeviceType { NONE = 0, LUMI_KEYS = 1 };

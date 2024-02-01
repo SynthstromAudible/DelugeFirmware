@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/menu_item/integer.h"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
 

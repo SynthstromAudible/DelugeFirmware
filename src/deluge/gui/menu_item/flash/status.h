@@ -17,9 +17,7 @@
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
-#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::flash {
 class Status final : public Selection {

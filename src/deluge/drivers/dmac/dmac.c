@@ -16,7 +16,7 @@
  */
 
 #include "drivers/dmac/dmac.h"
-
+#include "RZA1/system/iodefines/dmac_iodefine.h"
 void setDMARS(int32_t dmaChannel, uint32_t dmarsValue) {
 
 	uint32_t mask = 0xFFFF0000;

@@ -19,7 +19,6 @@
 
 #include "gui/menu_item/enumeration.h"
 #include "util/containers.h"
-#include <span>
 #include <string_view>
 
 namespace deluge::gui::menu_item {

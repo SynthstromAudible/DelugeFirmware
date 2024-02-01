@@ -21,7 +21,6 @@
 #include "gui/views/view.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item {
 class SynthMode final : public Selection {

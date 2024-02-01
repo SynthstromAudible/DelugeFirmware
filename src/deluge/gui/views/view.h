@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
-#include "gui/colour/palette.h"
 #include "hid/button.h"
 #include "model/model_stack.h"
 #include "modulation/params/param.h"

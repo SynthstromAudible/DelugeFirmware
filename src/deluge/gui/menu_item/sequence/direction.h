@@ -23,7 +23,6 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
 class Direction final : public Selection {

@@ -18,7 +18,7 @@
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>

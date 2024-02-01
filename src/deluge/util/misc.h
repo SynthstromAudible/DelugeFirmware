@@ -1,5 +1,5 @@
 #pragma once
-#include <concepts>
+#include <concepts> // IWYU pragma: keep this is actually needed for std::integral, clangd is messing it up
 #include <cstdint>
 #include <limits>
 #include <type_traits>

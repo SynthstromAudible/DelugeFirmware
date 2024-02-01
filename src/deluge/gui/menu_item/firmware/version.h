@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/menu_item.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
 #include <version.h>
 

@@ -1,4 +1,6 @@
 #include "submenu.h"
+#include "hid/display/display.h"
+#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {

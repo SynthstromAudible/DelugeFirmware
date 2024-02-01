@@ -20,7 +20,6 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
 void MenuItemWithCCLearning::unlearnAction() {
 

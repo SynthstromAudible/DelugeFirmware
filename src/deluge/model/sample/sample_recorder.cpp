@@ -22,7 +22,7 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"

@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_cache.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"

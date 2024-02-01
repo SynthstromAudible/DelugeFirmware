@@ -16,14 +16,12 @@
  */
 
 #include "sample_marker_editor.h"
-#include "processing/sound/sound.h"
-
-#include "gui/menu_item/sample/loop_point.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::audio_clip {
 

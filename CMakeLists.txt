@@ -132,6 +132,7 @@ add_compile_options(
     # Feature flags
     -fdiagnostics-parseable-fixits
     -fsigned-char
+    -D_GNU_SOURCE #for strcasestr
 
     # Debug symbols, also for release so we get a full ELF
     $<$<CONFIG:DEBUG,RELEASE,RELWITHDEBINFO>:-ggdb3> # Include

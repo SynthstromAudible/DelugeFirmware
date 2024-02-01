@@ -1,4 +1,4 @@
-#include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define OFF_USER_CODE_START 0x20
 #define OFF_USER_CODE_END 0x24

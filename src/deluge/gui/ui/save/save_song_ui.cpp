@@ -16,23 +16,18 @@
  */
 #include "gui/ui/save/save_song_ui.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/context_menu/overwrite_file.h"
-#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/views/view.h"
-#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
 #include <string.h>
 
 extern "C" {

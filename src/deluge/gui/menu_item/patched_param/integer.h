@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
 
 namespace deluge::gui::menu_item::patched_param {

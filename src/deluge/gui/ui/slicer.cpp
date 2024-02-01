@@ -18,7 +18,6 @@
 #include "gui/ui/slicer.h"
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
-#include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -29,7 +28,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -46,9 +44,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
-#include "util/cfunctions.h"
 #include "util/functions.h"
-#include <new>
 #include <string.h>
 
 using namespace deluge::gui;
@@ -696,7 +692,7 @@ ramError:
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
 			if (!range) {
 ramError2:
-				newDrum->~Drum();
+				newDrum->~SoundDrum();
 				delugeDealloc(drumMemory);
 				goto ramError;
 			}

@@ -17,10 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "model/sample/sample_holder_for_voice.h"
 #include "storage/multi_range/multi_range.h"
-#include "util/d_string.h"
 
 class Source;
 class Sample;

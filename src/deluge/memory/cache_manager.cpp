@@ -1,9 +1,8 @@
 #include "cache_manager.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
-#include <tuple>
 
 extern bool skipConsistencyCheck;
 uint32_t currentTraversalNo = 0;

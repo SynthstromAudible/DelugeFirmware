@@ -23,7 +23,6 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include <limits>
 
 class ModelStack;
 

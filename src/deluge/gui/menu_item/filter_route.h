@@ -20,7 +20,6 @@
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item {
 class FilterRouting final : public Selection {

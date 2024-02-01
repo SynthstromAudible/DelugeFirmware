@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gui/menu_item/enumeration.h"
-#include "gui/menu_item/selection.h"
 #include "util/d_string.h"
 
 namespace deluge::gui::menu_item {
