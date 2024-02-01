@@ -16,12 +16,10 @@
  */
 
 #include "definitions_cxx.hpp"
-#define _GNU_SOURCE // Wait why?
+#include "model/sample/sample.h"
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
-
 #include "extern.h"
-#include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/l10n/l10n.h"
@@ -39,9 +37,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
 #include "hid/display/oled.h"
-#include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -72,12 +68,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <new>
-#include <string.h>
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include <cstring>
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
@@ -1932,7 +1923,7 @@ getOut:
 
 				range = source->getOrCreateFirstRange();
 				if (!range) {
-					drum->~Drum();
+					drum->~SoundDrum();
 					delugeDealloc(drumMemory);
 					goto getOut;
 				}

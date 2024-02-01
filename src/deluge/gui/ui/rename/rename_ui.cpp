@@ -16,7 +16,6 @@
  */
 
 #include "gui/ui/rename/rename_ui.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
 
 RenameUI::RenameUI() {

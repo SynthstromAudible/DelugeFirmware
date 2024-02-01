@@ -29,11 +29,8 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -43,8 +40,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
-#include <new>
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -53,7 +48,6 @@ extern void songLoaded(Song* song);
 extern void setUIForLoadedSong(Song* song);
 extern "C" {
 void routineForSD(void);
-#include "RZA1/uart/sio_char.h"
 }
 extern void setupBlankSong();
 

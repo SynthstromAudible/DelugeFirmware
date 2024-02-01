@@ -3,7 +3,10 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/mpe/zone_num_member_channels.h"
+#include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -13,7 +16,6 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
@@ -27,6 +29,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -42,23 +45,13 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "storage/flash_storage.h"
-#include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include "util/comparison.h"
 #include "util/functions.h"
-#include <new>
-#include <string.h>
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 #include "menus.h"
 
@@ -248,7 +241,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 						if (result != MenuPermission::NO) {
 
 							if (result == MenuPermission::MUST_SELECT_RANGE) {
-								currentMultiRange = NULL;
+								currentMultiRange = nullptr;
 								menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 								newItem = &menu_item::multiRangeMenu;
 							}
@@ -816,7 +809,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		const MenuItem* item = NULL;
+		const MenuItem* item = nullptr;
 
 		// performance session view
 		if (isUIPerformanceSessionView) {
@@ -871,7 +864,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 						}
 					}
 					else {
-						item = NULL;
+						item = nullptr;
 					}
 				}
 				else {
@@ -1140,7 +1133,7 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 		// Otherwise, everything's fine
 		else {
-			getCurrentMenuItem()->learnKnob(NULL, whichModEncoder, getCurrentOutput()->modKnobMode, 255);
+			getCurrentMenuItem()->learnKnob(nullptr, whichModEncoder, getCurrentOutput()->modKnobMode, 255);
 		}
 	}
 
@@ -1152,10 +1145,10 @@ void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
-	Sound* newSound = NULL;
-	ParamManagerForTimeline* newParamManager = NULL;
-	ArpeggiatorSettings* newArpSettings = NULL;
-	ModControllableAudio* newModControllable = NULL;
+	Sound* newSound = nullptr;
+	ParamManagerForTimeline* newParamManager = nullptr;
+	ArpeggiatorSettings* newArpSettings = nullptr;
+	ModControllableAudio* newModControllable = nullptr;
 
 	bool isUISessionView =
 	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
@@ -1188,7 +1181,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				else if (selectedDrum) {
 					if (selectedDrum->type == DrumType::SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
-						if (noteRow == NULL) {
+						if (noteRow == nullptr) {
 							return false;
 						}
 						newSound = (SoundDrum*)selectedDrum;
@@ -1296,7 +1289,7 @@ doMIDIOrCV:
 
 	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor)
 	    || sourceIndex != currentSourceIndex) {
-		newRange = NULL;
+		newRange = nullptr;
 	}
 
 	// This isn't a very nice solution, but we have to set currentParamManager before calling
@@ -1314,7 +1307,7 @@ doMIDIOrCV:
 
 		D_PRINTLN("must select range");
 
-		newRange = NULL;
+		newRange = nullptr;
 		menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 		newItem = &menu_item::multiRangeMenu;
 	}
@@ -1338,7 +1331,7 @@ doMIDIOrCV:
 		currentSampleControls = &currentSource->sampleControls;
 		currentPriority = &currentSound->voicePriority;
 
-		if (result == MenuPermission::YES && currentMultiRange == NULL) {
+		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
 			if (currentSource->ranges.getNumElements()) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
@@ -1442,7 +1435,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 	else {
-		NoteRow* noteRow = NULL;
+		NoteRow* noteRow = nullptr;
 		int32_t noteRowIndex;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;

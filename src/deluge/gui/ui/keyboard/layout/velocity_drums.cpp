@@ -16,9 +16,6 @@
  */
 
 #include "gui/ui/keyboard/layout/velocity_drums.h"
-#include "definitions.h"
-#include "gui/views/instrument_clip_view.h"
-#include "model/model_stack.h"
 #include "util/functions.h"
 #include <stdint.h>
 
