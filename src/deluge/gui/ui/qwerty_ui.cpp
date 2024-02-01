@@ -53,7 +53,6 @@ bool QwertyUI::opened() {
 	return true;
 }
 
-// Won't "send"
 void QwertyUI::drawKeys() {
 	PadLEDs::clearMainPadsWithoutSending();
 
