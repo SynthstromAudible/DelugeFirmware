@@ -21,7 +21,6 @@
 
 extern "C" {
 #include "deluge/drivers/uart/uart.h"
-
 }
 
 namespace Debug {

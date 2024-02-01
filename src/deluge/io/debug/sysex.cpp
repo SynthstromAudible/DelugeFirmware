@@ -25,8 +25,6 @@
 
 #include "util/pack.h"
 
-
-
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
 		return;
@@ -85,11 +83,11 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	device->sendSysex(reply, len + 6);
 }
 #ifdef ENABLE_SYSEX_LOAD
-#include "memory/general_memory_allocator.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "memory/general_memory_allocator.h"
+#include "model/settings/runtime_feature_settings.h"
 
 static uint8_t* load_buf;
 static size_t load_bufsize;
