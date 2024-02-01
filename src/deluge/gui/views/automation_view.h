@@ -23,7 +23,6 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/automation/copied_param_automation.h"
-#include "modulation/params/param_node.h"
 
 class Action;
 class CopiedNoteRow;

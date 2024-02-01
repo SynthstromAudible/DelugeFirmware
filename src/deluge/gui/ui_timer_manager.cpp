@@ -29,17 +29,12 @@
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "model/clip/clip_minder.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/uart/sio_char.h"
 }
 
 UITimerManager uiTimerManager{};

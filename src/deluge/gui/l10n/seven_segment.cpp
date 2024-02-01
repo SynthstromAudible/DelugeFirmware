@@ -1,4 +1,4 @@
-#include "definitions_cxx.hpp"
+#include "definitions.h"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 

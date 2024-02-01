@@ -20,8 +20,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/display.h"
-#include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 
 extern "C" {
 #include "fatfs/ff.h"

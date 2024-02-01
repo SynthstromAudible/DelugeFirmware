@@ -18,21 +18,13 @@
 #include "gui/views/performance_session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
-#include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
-#include "gui/menu_item/colour.h"
 #include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/ui.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -42,26 +34,19 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
+#include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/consequence/consequence_performance_view_press.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <new>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+extern "C" {}
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::Kind;
