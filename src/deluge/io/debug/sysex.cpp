@@ -18,21 +18,14 @@
  */
 
 #include "io/debug/sysex.h"
-#include "gui/l10n/l10n.h"
-#include "hid/display/oled.h"
-#include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "memory/general_memory_allocator.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "util/chainload.h"
-#include "util/functions.h"
+
 #include "util/pack.h"
 
-extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-}
+
 
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
@@ -91,8 +84,13 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 
 	device->sendSysex(reply, len + 6);
 }
-
 #ifdef ENABLE_SYSEX_LOAD
+#include "memory/general_memory_allocator.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "gui/l10n/l10n.h"
+#include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
+
 static uint8_t* load_buf;
 static size_t load_bufsize;
 static size_t load_codesize;

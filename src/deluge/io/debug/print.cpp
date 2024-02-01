@@ -18,11 +18,10 @@
 #include "io/debug/print.h"
 #include "io/debug/sysex.h"
 #include "io/midi/midi_engine.h"
-#include "util/functions.h"
-#include <math.h>
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
+#include "deluge/drivers/uart/uart.h"
+
 }
 
 namespace Debug {
