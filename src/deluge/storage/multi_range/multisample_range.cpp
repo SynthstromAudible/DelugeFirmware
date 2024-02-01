@@ -16,17 +16,7 @@
  */
 
 #include "storage/multi_range/multisample_range.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "hid/display/display.h"
 #include "model/sample/sample.h"
-#include "processing/source.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
-#include <cstdint>
-#include <math.h>
-#include <string.h>
 
 MultisampleRange::MultisampleRange() {
 }

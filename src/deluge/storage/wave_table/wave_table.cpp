@@ -17,10 +17,8 @@
 
 #include "storage/wave_table/wave_table.h"
 #include "NE10.h"
-#include "RZA1/mtu/mtu.h"
-#include "arm_neon.h"
+#include "arm_neon_shim.h"
 #include "dsp/fft/fft_config_manager.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
