@@ -17,7 +17,6 @@
 #pragma once
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 

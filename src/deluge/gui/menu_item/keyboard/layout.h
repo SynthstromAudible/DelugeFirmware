@@ -17,10 +17,8 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::keyboard {
 class Layout final : public Selection {

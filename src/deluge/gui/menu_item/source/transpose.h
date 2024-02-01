@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/decimal.h"
 #include "gui/menu_item/transpose.h"
 #include "gui/ui/sound_editor.h"
 

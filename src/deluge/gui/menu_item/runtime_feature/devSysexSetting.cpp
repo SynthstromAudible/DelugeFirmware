@@ -17,14 +17,9 @@
 
 #include "devSysexSetting.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/runtime_feature/setting.h"
-#include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <algorithm>
-#include <iterator>
-#include <ranges>
 
 namespace deluge::gui::menu_item::runtime_feature {
 

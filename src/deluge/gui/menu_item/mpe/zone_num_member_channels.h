@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gui/menu_item/integer.h"
-#include "io/midi/midi_device_manager.h"
 
 class MIDIPort;
 

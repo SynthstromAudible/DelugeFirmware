@@ -17,7 +17,6 @@
 #pragma once
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::envelope {
 class Segment : public source::PatchedParam, public FormattedTitle {

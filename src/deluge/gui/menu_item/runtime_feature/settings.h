@@ -17,9 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
 #include "gui/menu_item/submenu.h"
-#include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
 

@@ -19,7 +19,6 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {
 

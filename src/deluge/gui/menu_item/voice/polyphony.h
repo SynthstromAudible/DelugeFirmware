@@ -19,13 +19,11 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
 class Polyphony final : public Selection {
