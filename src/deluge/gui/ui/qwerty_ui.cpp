@@ -52,8 +52,8 @@ bool QwertyUI::opened() {
 	return true;
 }
 
-// Won't "send"
 void QwertyUI::drawKeys() {
+	PadLEDs::clearMainPadsWithoutSending();
 
 	PadLEDs::clearTickSquares(false);
 
@@ -97,6 +97,8 @@ void QwertyUI::drawKeys() {
 		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colours::blue;
 		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
+
+	PadLEDs::sendOutMainPadColours();
 }
 
 void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,

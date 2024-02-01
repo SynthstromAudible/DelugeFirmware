@@ -772,15 +772,8 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 	if (qwertyVisible) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
-		if (currentFileItem && !currentFileItem->isFolder) {
-			drawSongPreview(false); // Only draw this again so we can draw the keyboard on top of it. I think...
-		}
-		else {
-			PadLEDs::clearAllPadsWithoutSending();
-		}
-
 		drawKeys();
-		PadLEDs::sendOutMainPadColours();
+
 		PadLEDs::sendOutSidebarColours();
 	}
 }
