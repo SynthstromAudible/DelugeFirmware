@@ -90,7 +90,7 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 
-	// leave stutter running in perfomance session view
+	// leave stutter running in performance view
 	if (getRootUI() != &performanceSessionView) {
 		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 		endStutter(paramManager);

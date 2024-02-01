@@ -21,6 +21,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 #include "modulation/params/param.h"
+#include "util/d_string.h"
 
 class Editor;
 class InstrumentClip;
@@ -57,6 +58,7 @@ struct ParamsForPerformance {
 class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
+
 	bool opened() override;
 	void focusRegained() override;
 
@@ -64,7 +66,7 @@ public:
 	ActionResult timerCallback() override;
 
 	// ui
-	UIType getUIType() { return UIType::PERFORMANCE_SESSION_VIEW; }
+	UIType getUIType() { return UIType::PERFORMANCE_VIEW; }
 
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -103,7 +105,7 @@ public:
 
 	// public so soundEditor can access it
 	void savePerformanceViewLayout();
-	void loadPerformanceViewLayout();
+	void loadPerformanceViewLayout(ModelStackWithThreeMainThings* modelStack);
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
@@ -113,16 +115,54 @@ public:
 	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
 
+	// public so global midi commands can access it
+	void receivedMorphCC(int32_t value);
+
 	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
+	// pink mode related
 	// public so Grid View can access it
 	bool gridModeActive;
 	uint32_t timeGridModePress;
 
+	// layout variants
+	// public so song can access it
+	void initializeLayoutVariantsFromSong();
+
+	// morph mode
+	// public so soundEditor && view.setModLedStates can access it
+	bool morphMode;
+	void exitMorphMode();
+
 private:
+	// button action functions
+	void handleKeyboardButtonAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleVerticalEncoderButtonAction(bool on);
+	void handleHorizontalEncoderButtonAction(bool on);
+	void handleBackAndHorizontalEncoderButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleScaleAndCrossButtonComboAction(bool on);
+	void handleScaleButtonAction(bool on, int32_t variant);
+	void handleCrossButtonAction(bool on, int32_t variant);
+	void handleSavingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant);
+	void handleKeyboardAndSaveButtonComboAction(bool on);
+	void handleSynthAndSaveButtonComboAction(bool on);
+	void handleKitAndSaveButtonComboAction(bool on);
+	void handleMidiAndSaveButtonComboAction(bool on);
+	void handleCVAndSaveButtonComboAction(bool on);
+	void handleKeyboardAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleLoadingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant,
+	                                       ModelStackWithThreeMainThings* modelStack);
+	void handleSynthAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleKitAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleMidiAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleCVAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleSynthMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleCVMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack);
+	void handleSelectEncoderButtonAction(bool on);
+
 	// initialize
 	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
@@ -133,6 +173,7 @@ private:
 	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
+	bool onMorphDisplay;
 
 	// pad action
 	void normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay, int32_t on);
@@ -150,21 +191,28 @@ private:
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
+	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
+	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
+	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
+
 	/// write/load default values
+	String tempFilePath;
+	void setLayoutFilePath();
 	void writeDefaultsToFile();
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
 	void writeDefaultFXHoldStatusToFile(int32_t xDisplay);
 	void loadDefaultLayout();
-	void readDefaultsFromBackedUpFile();
-	void readDefaultsFromFile();
-	void readDefaultFXValuesFromFile();
-	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
+	void readDefaultsFromBackedUpFile(ModelStackWithThreeMainThings* modelStack);
+	void readDefaultsFromFile(ModelStackWithThreeMainThings* modelStack);
+	void readDefaultFXValuesFromFile(ModelStackWithThreeMainThings* modelStack);
+	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack);
 	void readDefaultFXParamFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
-	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
-	void initializeHeldFX(int32_t xDisplay);
+	void readDefaultFXHoldStatusFromFile(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack);
+	void initializeHeldFX(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack);
+	void layoutUpdated();
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
 
@@ -175,27 +223,52 @@ private:
 	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
-	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
-	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
-	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
+	FXColumnPress morphAFXPress[kDisplayWidth];
+	ParamsForPerformance morphALayoutForPerformance[kDisplayWidth];
+	int32_t morphAFXValues[kDisplayWidth][kDisplayHeight];
+
+	FXColumnPress morphBFXPress[kDisplayWidth];
+	ParamsForPerformance morphBLayoutForPerformance[kDisplayWidth];
+	int32_t morphBFXValues[kDisplayWidth][kDisplayHeight];
 
 	PadPress firstPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
-	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+
+	// saving layouts
+	int32_t layoutBank; // 0, 1, 2
+	// 0 = default
+	// 1 = Bank A
+	// 2 = Bank B
+	// De-select bank A or B by loading default layout
+
+	// morph mode
+	bool backupMorphALayout;
+	bool backupMorphBLayout;
+	int32_t morphPosition; // position between morphLayoutA and morphLayoutB (0 = A, 128 = B)
+	void selectLayoutVariant(int32_t offset, int32_t& variant);
+	void displayLayoutVariant(int32_t variant);
+	void loadSelectedLayoutVariantFromFile(int32_t variant, ModelStackWithThreeMainThings* modelStack);
+	void enterMorphMode();
+	void morph(int32_t offset, bool isMIDICommand = false);
+	bool isMorphingPossible();
+	void adjustMorphPosition(int32_t offset);
+	void morphTowardsTarget(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
+	                        int32_t targetKnobPosition, int32_t offset);
+	void loadMorphALayout(ModelStackWithThreeMainThings* modelStack);
+	void loadMorphBLayout(ModelStackWithThreeMainThings* modelStack);
+	void setMorphLEDStates();
+	void setKnobIndicatorLevels();
+	void renderMorphDisplay();
+	int32_t calculateMorphPositionForDisplay();
+	void drawMorphBar(int32_t yTop);
 
 	// backup current layout
-	void backupPerformanceLayout();
+	void backupPerformanceLayout(bool onlyMorph = false);
 	bool performanceLayoutBackedUp;
 	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);
 	bool anyChangesToLog();
 	FXColumnPress backupFXPress[kDisplayWidth];
-
-	// Members regarding rendering different layouts
-private:
-	bool sessionButtonActive = false;
-	bool sessionButtonUsed = false;
 };
 
 extern PerformanceSessionView performanceSessionView;

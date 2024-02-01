@@ -447,6 +447,9 @@ swapDone:
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
+
+	// initialize performance view layouts
+	performanceSessionView.initializeLayoutVariantsFromSong();
 }
 
 ActionResult LoadSongUI::timerCallback() {

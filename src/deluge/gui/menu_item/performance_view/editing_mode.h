@@ -22,7 +22,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 
-namespace deluge::gui::menu_item::performance_session_view {
+namespace deluge::gui::menu_item::performance_view {
 class EditingMode final : public Selection {
 public:
 	using Selection::Selection;
@@ -55,6 +55,9 @@ public:
 		}
 
 		if (performanceSessionView.defaultEditingMode) {
+			if (performanceSessionView.morphMode) {
+				performanceSessionView.exitMorphMode();
+			}
 			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 		}
 		else {
@@ -79,4 +82,4 @@ public:
 	}
 };
 
-} // namespace deluge::gui::menu_item::performance_session_view
+} // namespace deluge::gui::menu_item::performance_view

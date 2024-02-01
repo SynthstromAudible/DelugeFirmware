@@ -165,7 +165,7 @@ bool SoundEditor::opened() {
 
 	setLedStates();
 
-	// update save button blinking status when in performance session view
+	// update save button blinking status when in performance view
 	if (getRootUI() == &performanceSessionView) {
 		performanceSessionView.updateLayoutChangeStatus();
 	}
@@ -193,7 +193,7 @@ void SoundEditor::focusRegained() {
 
 	setLedStates();
 
-	// update save button blinking status when in performance session view
+	// update save button blinking status when in performance view
 	if (getRootUI() == &performanceSessionView) {
 		performanceSessionView.updateLayoutChangeStatus();
 	}
@@ -782,7 +782,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
 	bool ignoreAction = false;
-	// if in Performance Session View
+	// if in Performance View
 	if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
 		// ignore if you're not in editing mode or if you're in editing mode but editing a param
 		ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
@@ -800,10 +800,9 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUIPerformanceView = (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
 
-	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceSessionView)) {
+	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceView)) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -811,8 +810,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		const MenuItem* item = nullptr;
 
-		// performance session view
-		if (isUIPerformanceSessionView) {
+		// performance view
+		if (isUIPerformanceView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
@@ -1002,11 +1001,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUIPerformanceView = (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
 
 	// used to convert column press to a shortcut to change Perform FX menu displayed
-	if (isUIPerformanceSessionView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
+	if (isUIPerformanceView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
 	    && !performanceSessionView.editingParam) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
@@ -1070,7 +1068,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		// used in performanceSessionView to ignore pad presses when you just exited soundEditor
+		// used in performanceView to ignore pad presses when you just exited soundEditor
 		// with a padAction
 		if (getRootUI() == &performanceSessionView) {
 			performanceSessionView.justExitedSoundEditor = true;
@@ -1153,7 +1151,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	bool isUISessionView =
 	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
-	// getParamManager and ModControllable for Performance Session View (and Session View)
+	// getParamManager and ModControllable for Performance View (and Session View)
 	if (isUISessionView) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =

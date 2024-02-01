@@ -275,7 +275,7 @@ enum class UIType : uint8_t {
 	AUDIO_CLIP_VIEW,
 	KEYBOARD_SCREEN,
 	AUTOMATION_VIEW,
-	PERFORMANCE_SESSION_VIEW,
+	PERFORMANCE_VIEW,
 	TIMELINE_VIEW,
 	BROWSER,
 	CONTEXT_MENU,
@@ -420,6 +420,7 @@ constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAu
 constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
 constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
 constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
+constexpr int32_t kMaxPerformanceLayoutVariants = 9;
 
 enum class PerformanceEditingMode : int32_t {
 	DISABLED,
@@ -626,6 +627,7 @@ enum class GlobalMIDICommand {
 	UNDO,
 	REDO,
 	FILL,
+	MORPH,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;

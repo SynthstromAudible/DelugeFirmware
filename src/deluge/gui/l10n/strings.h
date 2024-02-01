@@ -728,7 +728,7 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_ON,
 
 	/* Strings Specifically for Performance View
-	 * performance_session_view.cpp
+	 * performance_view.cpp
 	 */
 
 	STRING_FOR_PERFORM_VIEW,
@@ -736,8 +736,8 @@ enum class String : size_t {
 	STRING_FOR_PERFORM_EDITOR,
 	STRING_FOR_PERFORM_EDIT_PARAM,
 	STRING_FOR_PERFORM_EDIT_VALUE,
-	STRING_FOR_PERFORM_DEFAULTS_LOADED,
-	STRING_FOR_PERFORM_DEFAULTS_SAVED,
+	STRING_FOR_PERFORM_CANT_MORPH,
+	STRING_FOR_PERFORM_DEFAULT_LAYOUT,
 
 	/* Strings Specifically for Song View
 	 * session_view.cpp

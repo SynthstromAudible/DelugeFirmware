@@ -399,6 +399,13 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_OFF, "OFF"},
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
+        /* Strings Specifically for Performance View
+         * performance_view.cpp
+         */
+
+        {STRING_FOR_PERFORM_CANT_MORPH, "CANT"},
+        {STRING_FOR_PERFORM_DEFAULT_LAYOUT, "DEFA"},
+
         /* Strings for Midi Learning View
          * midi_follow.cpp
          */

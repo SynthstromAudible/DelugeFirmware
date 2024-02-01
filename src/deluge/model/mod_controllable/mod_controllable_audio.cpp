@@ -1790,7 +1790,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
-				if (getRootUI() == &automationView && !automationView.onArrangerView) {
+				if (getRootUI() == &automationView && !currentSong->onAutomationArrangerView) {
 					Clip* clip = (Clip*)modelStack->getTimelineCounter();
 					// check that the clip that the param is being edited for is the same as the
 					// current clip as the current clip is what's actively displayed in automation view
@@ -2162,12 +2162,12 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 // by a learned midi knob, then re-render the pads on the automation editor grid
 bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind kind, int32_t id) {
 	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
+	if (clip && !currentSong->onAutomationArrangerView) {
 		if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
 			doRefreshGrid = true;
 		}
 	}
-	else if (automationView.onArrangerView) {
+	else if (currentSong->onAutomationArrangerView) {
 		if ((currentSong->lastSelectedParamID == id) && (currentSong->lastSelectedParamKind == kind)) {
 			doRefreshGrid = true;
 		}

@@ -802,7 +802,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
 
         /* Strings Specifically for Performance View
-         * performance_session_view.cpp
+         * performance_view.cpp
          */
 
         {STRING_FOR_PERFORM_VIEW, "Performance View"},
@@ -810,8 +810,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
         {STRING_FOR_PERFORM_EDIT_PARAM, "Param"},
         {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
-        {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
-        {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
+        {STRING_FOR_PERFORM_CANT_MORPH, "Can't Morph"},
+        {STRING_FOR_PERFORM_DEFAULT_LAYOUT, "Default"},
 
         /* Strings Specifically for Song View
          * session_view.cpp
