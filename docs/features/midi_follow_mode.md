@@ -62,6 +62,8 @@ You can unlearn a channel and device by pressing Shift + Learn while in the chan
 If you unlearn all MIDI Follow channels, MIDI Follow Mode will be disabled.
 If you unlearn the MIDI Feedback channel, MIDI Feedback will be disabled.
 
+You can also unlearn a channel using the Select encoder by scrolling between MPE Upper Zone and Channel 1.
+
 ### **Notes:**
 Notes received on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
