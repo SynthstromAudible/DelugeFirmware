@@ -17,7 +17,6 @@
 
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
@@ -29,7 +28,6 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cmath>
 #include <cstdlib>

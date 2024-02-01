@@ -7,8 +7,6 @@
 #include "fx_engine.hpp"
 #include <array>
 #include <limits>
-#include <numeric>
-#include <span>
 
 namespace deluge::dsp::reverb {
 

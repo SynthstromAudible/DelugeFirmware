@@ -25,6 +25,7 @@
 #include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "processing/sound/sound.h"
+#include <cmath>
 #include <string.h>
 
 extern "C" {
