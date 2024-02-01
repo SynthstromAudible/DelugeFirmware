@@ -108,11 +108,11 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.5 - Grid View
 
- - ([#251]) Add new grid session layout to "SONG" mode. All functionality from (classic) row layout applies except for the following:
+ - ([#251]) Add new grid session layout to song view. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
 	 - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make them visible move the clips to other sections
 	 - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks in the same order as in arrangement mode
-	 - In song mode hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
+	 - In song view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
 	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - Every track (column) has a random generated color that can be changed in edit mode (see below)
 	 - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
