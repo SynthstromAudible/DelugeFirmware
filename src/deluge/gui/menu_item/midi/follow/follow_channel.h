@@ -114,11 +114,11 @@ public:
 		}
 		else {
 			this->setValue(this->getValue() + offset);
-			if (this->getValue() >= NUM_CHANNELS) {
-				this->setValue(this->getValue() - NUM_CHANNELS);
-			}
-			else if (this->getValue() < 0) {
-				this->setValue(this->getValue() + NUM_CHANNELS);
+			if ((this->getValue() >= NUM_CHANNELS) || (this->getValue() < 0)) {
+				this->setValue(MIDI_CHANNEL_NONE);
+				midiInput.clear();
+				renderDisplay();
+				return;
 			}
 		}
 		Number::selectEncoderAction(offset);
@@ -128,12 +128,7 @@ public:
 		this->setValue(MIDI_CHANNEL_NONE);
 		midiInput.clear();
 		if (soundEditor.getCurrentMenuItem() == this) {
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				drawValue();
-			}
+			renderDisplay();
 		}
 		else {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
@@ -146,12 +141,7 @@ public:
 		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				drawValue();
-			}
+			renderDisplay();
 		}
 		else {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
@@ -166,15 +156,19 @@ public:
 		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				drawValue();
-			}
+			renderDisplay();
 		}
 		else {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
+		}
+	}
+
+	void renderDisplay() {
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
 		}
 	}
 
