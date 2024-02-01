@@ -333,6 +333,8 @@ public:
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
+	/// Gets a modelstack with the song-global unpatched param paramID.
+	/// used in performance view and in automation arranger view
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
 	// Whether this song wants notes/cc/etc from delly midi clips looped back

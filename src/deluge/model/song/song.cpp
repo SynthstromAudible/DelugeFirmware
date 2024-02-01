@@ -5758,8 +5758,6 @@ ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
 	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
 }
 
-// get's the model stack for Song level parameters that are being edited
-// used in performance view and in automation arranger view
 ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
