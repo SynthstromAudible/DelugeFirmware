@@ -19,12 +19,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/ui.h"
-#include "gui/ui_timer_manager.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 

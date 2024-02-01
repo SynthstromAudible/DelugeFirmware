@@ -19,8 +19,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
+#include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
@@ -31,7 +30,6 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
-#include <string.h>
 
 SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;

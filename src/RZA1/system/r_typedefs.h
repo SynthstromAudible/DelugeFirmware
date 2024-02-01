@@ -37,10 +37,9 @@
 /******************************************************************************
 Includes <System Includes> , "Project Includes"
 ******************************************************************************/
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-
+#include <stdbool.h> // IWYU pragma: export
+#include <stddef.h> // IWYU pragma: export
+#include <stdint.h> // IWYU pragma: export
 /* Multiple inclusion prevention macro */
 #ifndef R_TYPEDEFS_H
 #define R_TYPEDEFS_H

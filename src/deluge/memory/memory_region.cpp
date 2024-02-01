@@ -17,14 +17,15 @@
 
 #include "memory/memory_region.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
+#include "util/fixedpoint.h"
+#include <cstring>
+
 #ifdef DO_AUDIO_LOG
 #include "processing/engines/audio_engine.h"
 #endif
-#include "util/functions.h"
-#include <cstring>
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;

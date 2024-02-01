@@ -18,11 +18,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/selection.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "transpose.h"
-#include "volts.h"
-#include <ranges>
 
 extern void setCvNumberForTitle(int32_t m);
 extern deluge::gui::menu_item::cv::Submenu cvSubmenu;

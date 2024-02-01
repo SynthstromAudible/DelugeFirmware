@@ -16,7 +16,6 @@
  */
 
 #include "storage/audio/audio_file_vector.h"
-#include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
 
 #pragma GCC diagnostic push

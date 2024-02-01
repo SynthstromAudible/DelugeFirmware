@@ -31,7 +31,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/song/song.h"

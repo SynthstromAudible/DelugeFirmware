@@ -20,7 +20,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/ui/root_ui.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"

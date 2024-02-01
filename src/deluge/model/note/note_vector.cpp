@@ -16,7 +16,7 @@
  */
 
 #include "model/note/note_vector.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/note/note.h"
 #include <cstdint>
 #include <string.h>

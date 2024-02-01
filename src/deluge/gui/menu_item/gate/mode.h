@@ -21,7 +21,6 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
-#include "util/misc.h"
 #include <string_view>
 
 namespace deluge::gui::menu_item::gate {

@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "gui/menu_item/sync_level.h"
-#include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::swing {

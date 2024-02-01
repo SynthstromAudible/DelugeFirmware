@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "gui/menu_item/submenu.h"
-#include "model/clip/clip.h"
 #include "model/output.h"
 #include "model/song/song.h"
 

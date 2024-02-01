@@ -21,7 +21,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
-#include "hid/button.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/note/note_row.h"

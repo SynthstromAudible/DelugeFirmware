@@ -18,10 +18,8 @@
  */
 
 #include "chainload.h"
-#include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/mtu/mtu.h"
-#include "definitions_cxx.hpp"
-#include <cstddef>
+#include "definitions.h"
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 

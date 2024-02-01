@@ -24,10 +24,11 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -42,9 +43,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
-#include "util/fast_fixed_math.h"
 #include "util/misc.h"
-#include <string.h>
 
 namespace params = deluge::modulation::params;
 
@@ -53,11 +52,11 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 ModControllableAudio::ModControllableAudio() {
 
 	// Mod FX
-	modFXBuffer = NULL;
+	modFXBuffer = nullptr;
 	modFXBufferWriteIndex = 0;
 
 	// Grain
-	modFXGrainBuffer = NULL;
+	modFXGrainBuffer = nullptr;
 	wrapsToShutdown = 0;
 	modFXGrainBufferWriteIndex = 0;
 	grainShift = 13230; // 300ms
@@ -1192,12 +1191,12 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
-	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
 	// a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
 	// Convert back to value range
-	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
+	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
 	int32_t rate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
@@ -1538,7 +1537,7 @@ doReadPatchedParam:
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "midiKnob")) {
 
-				MIDIDevice* device = NULL;
+				MIDIDevice* device = nullptr;
 				uint8_t channel;
 				uint8_t ccNumber;
 				bool relative;
@@ -1621,7 +1620,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* kn
 
 ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
                                                                              int32_t noteRowIndex) {
-	NoteRow* noteRow = NULL;
+	NoteRow* noteRow = nullptr;
 	int32_t noteRowId = 0;
 	ParamManager* paramManager;
 
@@ -1643,8 +1642,8 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		else {
 			paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
 			    this,
-			    NULL); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they even
-			           // have them).
+			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
+			              // even have them).
 		}
 	}
 
@@ -2221,7 +2220,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
-		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
 		}
@@ -2411,7 +2410,7 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
-	endStutter(NULL);
+	endStutter(nullptr);
 }
 
 void ModControllableAudio::clearModFXMemory() {

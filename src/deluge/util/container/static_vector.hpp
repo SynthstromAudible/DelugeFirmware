@@ -56,11 +56,9 @@
 #include <array>
 #include <cstddef>     // for size_t
 #include <cstdint>     // for fixed-width integer types
-#include <cstdio>      // for assertion diagnostics
 #include <functional>  // for less and equal_to
 #include <iterator>    // for reverse_iterator and iterator traits
 #include <limits>      // for numeric_limits
-#include <stdexcept>   // for length_error
 #include <type_traits> // for aligned_storage and all meta-functions
 
 /// Optimizer allowed to assume that EXPR evaluates to true
@@ -89,7 +87,7 @@ namespace sv_detail {
 
 template <class = void>
 [[noreturn]] void assert_failure(char const* file, int line, char const* msg) {
-	fprintf(stderr, "%s(%d): %s\n", file, line, msg);
+	printf("%s(%d): %s\n", file, line, msg);
 	abort();
 }
 

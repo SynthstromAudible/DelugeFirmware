@@ -28,6 +28,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/audio_clip.h"
@@ -46,10 +47,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/cfunctions.h"
 #include "util/misc.h"
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 using namespace deluge::gui;
 

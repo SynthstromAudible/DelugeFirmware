@@ -16,7 +16,6 @@
  */
 #pragma once
 #include "gui/menu_item/ppqn.h"
-#include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 

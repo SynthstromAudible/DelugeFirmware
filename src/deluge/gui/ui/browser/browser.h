@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
+#include "io/debug/log.h"
 #include "storage/file_item.h"
 #include "util/container/array/c_string_array.h"
 
@@ -147,7 +148,6 @@ protected:
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
 
-#include "io/debug/print.h"
 inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
