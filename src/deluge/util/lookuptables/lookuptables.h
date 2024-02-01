@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
-#include "util/lookuptables/lookuptables.h"
 #include <array>
 #include <cstdint>
 

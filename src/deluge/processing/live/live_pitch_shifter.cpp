@@ -18,12 +18,9 @@
 #include "processing/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
-#include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstdlib>
 

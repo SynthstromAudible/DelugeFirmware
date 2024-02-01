@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
-#include "dsp/filter/filter.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/context_menu/sample_browser/kit.h"
@@ -35,6 +34,7 @@
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
@@ -46,6 +46,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
+#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -56,10 +57,6 @@
 #include <cstring>
 #include <new>
 
-extern "C" {
-#include "RZA1/compiler/asm/inc/asm.h"
-}
-
 namespace params = deluge::modulation::params;
 
 #if AUTOMATED_TESTER_ENABLED
@@ -67,9 +64,7 @@ namespace params = deluge::modulation::params;
 #endif
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
-#include "drivers/mtu/mtu.h"
+#include "RZA1/mtu/mtu.h"
 #include "drivers/ssi/ssi.h"
 
 #include "RZA1/intc/devdrv_intc.h"
