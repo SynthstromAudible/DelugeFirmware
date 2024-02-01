@@ -24,6 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -2495,7 +2496,8 @@ void PlaybackHandler::tapTempoButtonPress() {
 }
 
 // Returns whether the message has been used up by a command
-bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note) {
+bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, bool on, int32_t channel, int32_t note,
+                                            int32_t velocity) {
 
 	bool foundAnything = false;
 
@@ -2503,24 +2505,29 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
-				if (recording != RecordingMode::ARRANGEMENT) {
+				if (on && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				break;
 
 			case GlobalMIDICommand::PLAY:
-				playButtonPressed(kMIDIKeyInputLatency);
+				if (on) {
+					playButtonPressed(kMIDIKeyInputLatency);
+				}
 				break;
 
 			case GlobalMIDICommand::RECORD:
-				recordButtonPressed();
+				if (on) {
+					recordButtonPressed();
+				}
 				break;
 
 			case GlobalMIDICommand::LOOP:
 			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
-				if (actionLogger.allowedToDoReversion()
-				    // Not quite sure if this describes exactly what we want but it'll do...
-				    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
+				if (on
+				    && (actionLogger.allowedToDoReversion()
+				        // Not quite sure if this describes exactly what we want but it'll do...
+				        || currentUIMode == UI_MODE_RECORD_COUNT_IN)) {
 					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
 					                                ? OverDubType::Normal
 					                                : OverDubType::ContinuousLayering;
@@ -2530,7 +2537,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 			case GlobalMIDICommand::REDO:
 			case GlobalMIDICommand::UNDO:
-				if (actionLogger.allowedToDoReversion()) {
+				if (on && actionLogger.allowedToDoReversion()) {
 					// We're going to "pend" it rather than do it right now in any case.
 					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a
 					// SampleRecorder. Secondly, reversion can take a lot of time, and may want to call the audio
@@ -2541,12 +2548,16 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				break;
 
 			case GlobalMIDICommand::FILL:
-				currentSong->changeFillMode(true);
+				currentSong->changeFillMode(on);
+				break;
+
+			case GlobalMIDICommand::MORPH:
+				performanceSessionView.receivedMorphCC(velocity);
 				break;
 
 			// case GlobalMIDICommand::TAP:
 			default:
-				if (getCurrentUI() == getRootUI()) {
+				if (on && getCurrentUI() == getRootUI()) {
 					if (currentUIMode == UI_MODE_NONE) {
 						tapTempoButtonPress();
 					}
@@ -2556,21 +2567,6 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 			foundAnything = true;
 		}
-	}
-
-	return foundAnything;
-}
-
-// Returns whether the message has been used up by a note-off command
-bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note) {
-
-	bool foundAnything = false;
-
-	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
-	                                                                                               note)) {
-		currentSong->changeFillMode(false);
-		foundAnything = true;
 	}
 
 	return foundAnything;
@@ -2589,19 +2585,15 @@ void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t chan
 		offerNoteToLearnedThings(fromDevice, true, channel + IS_A_PC, program);
 	}
 }
-bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note) {
+bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+                                               int32_t velocity) {
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
 
 	bool foundAnything = false;
 
 	// Check global function commands - Off variant checks note off for momentary commands
-	if (on) {
-		foundAnything = tryGlobalMIDICommands(fromDevice, channel, note);
-	}
-	else {
-		foundAnything = tryGlobalMIDICommandsOff(fromDevice, channel, note);
-	}
+	foundAnything = tryGlobalMIDICommands(fromDevice, on, channel, note, velocity);
 
 	// Go through all sections
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
@@ -2656,7 +2648,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
 
-	if (offerNoteToLearnedThings(fromDevice, on, channel, note)) {
+	if (offerNoteToLearnedThings(fromDevice, on, channel, note, velocity)) {
 		return;
 	}
 
@@ -2838,7 +2830,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 			return;
 		}
 		// check if it was learned to on/off commands (loop, drums, section launch etc.)
-		else if (offerNoteToLearnedThings(fromDevice, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
+		else if (offerNoteToLearnedThings(fromDevice, value > 0, channelOrZone + IS_A_CC, ccNumber, value)) {
 			return;
 		}
 	}

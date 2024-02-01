@@ -125,7 +125,6 @@ public:
 
 	// public so instrument clip view can access it
 	void initParameterSelection();
-	bool onArrangerView;
 
 private:
 	// button action functions

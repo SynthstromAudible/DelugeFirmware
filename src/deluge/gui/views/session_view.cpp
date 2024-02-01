@@ -163,6 +163,7 @@ void SessionView::focusRegained() {
 	setLedStates();
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
+	currentSong->onPerformanceView = false;
 }
 
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {

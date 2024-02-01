@@ -90,6 +90,7 @@ private:
 	void offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                          MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                          bool* doingMidiThru, Clip* clip);
+	void offerReceivedCCToOtherControls(uint8_t ccNumber, uint8_t value);
 
 	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,

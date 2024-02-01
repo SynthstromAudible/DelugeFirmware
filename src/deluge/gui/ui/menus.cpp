@@ -89,7 +89,7 @@
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/patched_param/pan.h"
-#include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/menu_item/performance_view/editing_mode.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/model.h"
@@ -855,6 +855,7 @@ midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
 midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
+midi::Command morphMidiCommand{STRING_FOR_MORPH, GlobalMIDICommand::MORPH};
 
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
@@ -869,6 +870,7 @@ Submenu midiCommandsMenu{
         &loopMidiCommand,
         &loopContinuousLayeringMidiCommand,
         &fillMidiCommand,
+        &morphMidiCommand,
     },
 };
 
@@ -1157,7 +1159,7 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
 };
 
 // Menu for Performance View Editing Mode
-menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
+menu_item::performance_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
 
 // Root menu for Performance View
 menu_item::Submenu soundEditorRootMenuPerformanceView{

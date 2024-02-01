@@ -172,6 +172,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
 
 	// initialize automation arranger view variables
+	onAutomationArrangerView = false;
 	lastSelectedParamID = kNoSelection;
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
@@ -180,6 +181,13 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	// end initialize of automation arranger view variables
 
 	masterTransposeInterval = 0;
+
+	// initialize performance view variables
+	onPerformanceView = false;
+	performanceLayoutVariant = 0;
+	performanceMorphLayoutAVariant = kNoSelection;
+	performanceMorphLayoutBVariant = kNoSelection;
+	// end initialize performance view variables
 
 	dirPath.set("SONGS");
 }
@@ -1199,6 +1207,10 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("midiLoopback", midiLoopback);
 
+	if (onAutomationArrangerView) {
+		storageManager.writeAttribute("onAutomationArrangerView", (char*)"1");
+	}
+
 	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
@@ -1206,6 +1218,13 @@ weAreInArrangementEditorOrInClipInstance:
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
+
+	if (onPerformanceView) {
+		storageManager.writeAttribute("onPerformanceView", (char*)"1");
+	}
+	storageManager.writeAttribute("performanceLayoutVariant", performanceLayoutVariant);
+	storageManager.writeAttribute("performanceMorphLayoutAVariant", performanceMorphLayoutAVariant);
+	storageManager.writeAttribute("performanceMorphLayoutBVariant", performanceMorphLayoutBVariant);
 
 	globalEffectable.writeAttributesToFile(false);
 
@@ -1611,6 +1630,12 @@ unknownTag:
 				storageManager.exitTag("midiLoopback");
 			}
 
+			else if (!strcmp(tagName, "onAutomationArrangerView")) {
+				onAutomationArrangerView = storageManager.readTagOrAttributeValueInt();
+				inClipMinderViewOnLoad = !onAutomationArrangerView;
+				storageManager.exitTag("onAutomationArrangerView");
+			}
+
 			else if (!strcmp(tagName, "lastSelectedParamID")) {
 				lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("lastSelectedParamID");
@@ -1635,6 +1660,28 @@ unknownTag:
 				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
+
+			else if (!strcmp(tagName, "onPerformanceView")) {
+				onPerformanceView = storageManager.readTagOrAttributeValueInt();
+				inClipMinderViewOnLoad = !onPerformanceView;
+				storageManager.exitTag("onPerformanceView");
+			}
+
+			else if (!strcmp(tagName, "performanceLayoutVariant")) {
+				performanceLayoutVariant = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("performanceLayoutVariant");
+			}
+
+			else if (!strcmp(tagName, "performanceMorphLayoutAVariant")) {
+				performanceMorphLayoutAVariant = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("performanceMorphLayoutAVariant");
+			}
+
+			else if (!strcmp(tagName, "performanceMorphLayoutBVariant")) {
+				performanceMorphLayoutBVariant = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("performanceMorphLayoutBVariant");
+			}
+
 			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {

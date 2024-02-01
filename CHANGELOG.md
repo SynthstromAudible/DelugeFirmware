@@ -13,10 +13,9 @@
 - Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
-
 ### User Interface
 
-- Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX. Includes support for multiple performance layouts and a midi-controllable morph mode to morph between two performance layouts. 
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
 - Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).

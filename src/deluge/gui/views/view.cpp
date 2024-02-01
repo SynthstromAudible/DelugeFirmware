@@ -260,6 +260,11 @@ doEndMidiLearnPressSession:
 				}
 			}
 		}
+		// to prevent situation where save button get's stuck in holding mode
+		else {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
+		}
 	}
 
 	// Load button
@@ -317,6 +322,11 @@ doEndMidiLearnPressSession:
 					indicator_leds::setLedState(IndicatorLED::LOAD, false);
 				}
 			}
+		}
+		// to prevent situation where load button get's stuck in holding mode
+		else {
+			currentUIMode = UI_MODE_NONE;
+			indicator_leds::setLedState(IndicatorLED::LOAD, false);
 		}
 	}
 
@@ -1021,7 +1031,6 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
 	}
 
-returnValue:
 	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
@@ -1083,7 +1092,11 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	// don't update knob indicator levels when you're in performance view morph mode
+	UI* currentUI = getCurrentUI();
+	if (((currentUI == &automationView) && !automationView.isOnAutomationOverview())
+	    || ((currentUI == &performanceSessionView) && performanceSessionView.morphMode
+	        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 		return;
 	}
 
@@ -1161,7 +1174,11 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	// ignore modButtonAction when in the Performance View Morph Mode
+	RootUI* rootUI = getRootUI();
+	if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
+	    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode
+	        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 		return;
 	}
 
@@ -1215,7 +1232,7 @@ void View::setModLedStates() {
 			itsTheSong = true;
 			break;
 
-		case UIType::PERFORMANCE_SESSION_VIEW:
+		case UIType::PERFORMANCE_VIEW:
 			itsTheSong = true;
 			break;
 
@@ -1330,8 +1347,8 @@ void View::setModLedStates() {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
 				break;
-			case UIType::PERFORMANCE_SESSION_VIEW:
-				// if performanceSessionView was entered from arranger
+			case UIType::PERFORMANCE_VIEW:
+				// if performanceView was entered from arranger
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
@@ -1362,7 +1379,10 @@ void View::setModLedStates() {
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+		// if you're in the Performance View Morph Mode, turn off Mod LED's
+		if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
+		    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode
+		        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {
@@ -2219,7 +2239,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+			if (rootUI == &sessionView || rootUI == &performanceSessionView) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2296,7 +2316,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX

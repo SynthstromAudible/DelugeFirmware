@@ -137,6 +137,9 @@ namespace FlashStorage {
 151: automationShift;
 152: automationNudgeNote;
 153: automationDisableAuditionPadShortcuts;
+154: GlobalMIDICommand::MORPH channel + 1
+155: GlobalMIDICommand::MORPH noteCode + 1
+156-159: GlobalMIDICommand::MORPH product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -338,6 +341,8 @@ void readSettings() {
 	    buffer[71] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::MORPH)].channelOrZone = buffer[154] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::MORPH)].noteOrCC = buffer[155] - 1;
 
 	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
@@ -349,6 +354,7 @@ void readSettings() {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
+		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::MORPH, &buffer[156]);
 	}
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
@@ -675,6 +681,8 @@ void writeSettings() {
 	    + 1;
 	buffer[71] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
+	buffer[154] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::MORPH)].channelOrZone + 1;
+	buffer[155] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::MORPH)].noteOrCC + 1;
 
 	/* Global MIDI command device references - these occupy 4 bytes each */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
@@ -686,6 +694,7 @@ void writeSettings() {
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::UNDO, &buffer[104]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::REDO, &buffer[108]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::FILL, &buffer[116]);
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::MORPH, &buffer[156]);
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 

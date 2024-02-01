@@ -359,6 +359,7 @@ public:
 	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
+	bool onAutomationArrangerView;
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
 	deluge::modulation::params::Kind
 	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
@@ -371,6 +372,20 @@ public:
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
+
+	// START - performance view variables
+	bool onPerformanceView;
+	int32_t performanceLayoutVariant; // 0, 1, 2, 3, 4, 5, 6, 7, 8
+	// 0 = Default - Load + Keyboard button
+	// 1-4 = Bank A, layout A, B, C, D - Load + Synth/Kit/Midi/CV buttons
+	// 5-8 = Bank B, layout E, F, G, H - Load + Synth/Kit/Midi/CV buttons
+
+	// morph mode
+
+	int32_t performanceMorphLayoutAVariant; // assign layoutVariant above to morph layout A
+	int32_t performanceMorphLayoutBVariant; // assign layoutVariant above to morph Layout B
+
+	// END - performance view variables
 
 private:
 	bool fillModeActive;

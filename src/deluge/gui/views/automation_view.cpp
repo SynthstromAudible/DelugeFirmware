@@ -277,7 +277,6 @@ AutomationView::AutomationView() {
 	rightPadSelectedY = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
 	playbackStopped = false;
-	onArrangerView = false;
 	navSysId = NAVIGATION_CLIP;
 
 	initMIDICCShortcutsForAutomation();
@@ -304,6 +303,10 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 // called everytime you open up the automation view
 bool AutomationView::opened() {
+	if (currentSong->lastClipInstanceEnteredStartPos == 0) {
+		currentSong->onAutomationArrangerView = true;
+	}
+
 	navSysId = getNavSysId();
 
 	if (!midiCCShortcutsLoaded) {
@@ -319,7 +322,7 @@ bool AutomationView::opened() {
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
-	if (!onArrangerView) {
+	if (!currentSong->onAutomationArrangerView) {
 		// only applies to instrument clips (not audio)
 		if (clip) {
 			OutputType outputType = clip->output->type;
@@ -342,7 +345,7 @@ bool AutomationView::opened() {
 
 	openedInBackground();
 
-	if (!onArrangerView) {
+	if (!currentSong->onAutomationArrangerView) {
 		// only applies to instrument clips (not audio)
 		if (clip) {
 			InstrumentClipMinder::opened();
@@ -356,8 +359,9 @@ bool AutomationView::opened() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationView::focusRegained() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 		currentSong->affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
@@ -383,7 +387,7 @@ void AutomationView::focusRegained() {
 void AutomationView::openedInBackground() {
 	Clip* clip = getCurrentClip();
 
-	if (!onArrangerView) {
+	if (!currentSong->onAutomationArrangerView) {
 		// used when you're in song view / arranger view / keyboard view
 		//(so it knows to come back to automation view)
 		clip->onAutomationClipView = true;
@@ -403,7 +407,7 @@ void AutomationView::openedInBackground() {
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
 		               true);
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			arrangerView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
 			                           &PadLEDs::occupancyMaskStore[kDisplayHeight]);
 		}
@@ -419,7 +423,7 @@ void AutomationView::openedInBackground() {
 
 // used for the play cursor
 void AutomationView::graphicsRoutine() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		arrangerView.graphicsRoutine();
 	}
 	else {
@@ -435,7 +439,7 @@ void AutomationView::graphicsRoutine() {
 // used to return whether Automation View is in the AUTOMATION_ARRANGER_VIEW UI Type, AUTOMATION_INSTRUMENT_CLIP_VIEW or
 // AUTOMATION_AUDIO_CLIP_VIEW UI Type
 AutomationSubType AutomationView::getAutomationSubType() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return AutomationSubType::ARRANGER;
 	}
 	else {
@@ -471,7 +475,7 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	PadLEDs::renderingLock = true;
 
 	Clip* clip = getCurrentClip();
-	if (!onArrangerView && clip->type == ClipType::INSTRUMENT) {
+	if (!currentSong->onAutomationArrangerView && clip->type == ClipType::INSTRUMENT) {
 		instrumentClipView.recalculateColours();
 	}
 
@@ -487,7 +491,7 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	if (encoderAction == false) {
 		int32_t lastSelectedParamShortcutX = kNoSelection;
 		int32_t lastSelectedParamShortcutY = kNoSelection;
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
 			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
 		}
@@ -536,7 +540,7 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
@@ -552,7 +556,7 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 		if (whichRows & (1 << yDisplay)) {
 			uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-			if (onArrangerView
+			if (currentSong->onAutomationArrangerView
 			    || (outputType != OutputType::CV
 			        && !(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 			             && !((Kit*)output)->selectedDrum))) {
@@ -592,7 +596,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (!onArrangerView
+		if (!currentSong->onAutomationArrangerView
 		    && ((outputType == OutputType::SYNTH
 		         || (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()))
 		        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
@@ -617,11 +621,11 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 		}
 
-		else if ((onArrangerView || (outputType == OutputType::AUDIO)
+		else if ((currentSong->onAutomationArrangerView || (outputType == OutputType::AUDIO)
 		          || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))
 		         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-			if (onArrangerView) {
+			if (currentSong->onAutomationArrangerView) {
 				// don't make pitch adjust or sidechain available for automation in arranger
 				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
@@ -771,7 +775,7 @@ void AutomationView::renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDi
 // depending on the active clip
 bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return arrangerView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	else {
@@ -804,10 +808,10 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	OutputType outputType = clip->output->type;
 
 	// if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
-	if (onArrangerView || outputType != OutputType::MIDI_OUT) {
+	if (currentSong->onAutomationArrangerView || outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;
 			lastSelectedParamID = currentSong->lastSelectedParamID;
 		}
@@ -847,8 +851,8 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 
 		// display Automation Overview or Can't Automate CV
 		char const* overviewText;
-		if (onArrangerView || outputType != OutputType::CV) {
-			if (!onArrangerView
+		if (currentSong->onAutomationArrangerView || outputType != OutputType::CV) {
+			if (!currentSong->onAutomationArrangerView
 			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 			        && !((Kit*)clip->output)->selectedDrum)) {
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
@@ -866,7 +870,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 		}
 	}
-	else if (onArrangerView || outputType != OutputType::CV) {
+	else if (currentSong->onAutomationArrangerView || outputType != OutputType::CV) {
 		// display parameter name
 		char parameterName[30];
 		getParameterName(clip, outputType, parameterName);
@@ -886,7 +890,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -951,9 +955,9 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 	// display OVERVIEW or CANT
 	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
 		char const* overviewText;
-		if (onArrangerView || outputType != OutputType::CV) {
+		if (currentSong->onAutomationArrangerView || outputType != OutputType::CV) {
 			char const* overviewText;
-			if (!onArrangerView
+			if (!currentSong->onAutomationArrangerView
 			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 			        && !((Kit*)clip->output)->selectedDrum)) {
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
@@ -967,7 +971,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 		}
 		display->setScrollingText(overviewText);
 	}
-	else if (onArrangerView || outputType != OutputType::CV) {
+	else if (currentSong->onAutomationArrangerView || outputType != OutputType::CV) {
 		/* check if you're holding a pad
 		 * if yes, store pad press knob position in lastPadSelectedKnobPos
 		 * so that it can be used next time as the knob position if returning here
@@ -980,7 +984,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 			else if (lastPadSelectedKnobPos != kNoSelection) {
 				params::Kind lastSelectedParamKind = params::Kind::NONE;
 				int32_t lastSelectedParamID = kNoSelection;
-				if (onArrangerView) {
+				if (currentSong->onAutomationArrangerView) {
 					lastSelectedParamKind = currentSong->lastSelectedParamKind;
 					lastSelectedParamID = currentSong->lastSelectedParamID;
 				}
@@ -1017,11 +1021,11 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* parameterName) {
-	if (onArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
+	if (currentSong->onAutomationArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
 	    || outputType == OutputType::AUDIO) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;
 			lastSelectedParamID = currentSong->lastSelectedParamID;
 		}
@@ -1077,7 +1081,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1129,12 +1133,12 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	bool isAudioClip = clip->type == ClipType::AUDIO;
 
 	// these button actions are not used in the audio clip automation view
-	if (isAudioClip || onArrangerView) {
+	if (isAudioClip || currentSong->onAutomationArrangerView) {
 		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		if (b == CLIP_VIEW) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -1169,7 +1173,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Auto scrolling
 	// Only works in arranger view (for now)
 	else if (b == CROSS_SCREEN_EDIT) {
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			handleCrossScreenButtonAction(on);
 		}
 		else {
@@ -1243,7 +1247,7 @@ passToOthers:
 		}
 
 		ActionResult result;
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			result = TimelineView::buttonAction(b, on, inCardRoutine);
 		}
 		else if (isAudioClip) {
@@ -1298,8 +1302,7 @@ bool AutomationView::handleScaleButtonAction(InstrumentClip* instrumentClip, Out
 // called by button action if b == SESSION_VIEW
 void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	if (on && currentUIMode == UI_MODE_NONE) {
-		if (onArrangerView) {
-			onArrangerView = false;
+		if (currentSong->onAutomationArrangerView) {
 			changeRootUI(&arrangerView);
 		}
 		else if (currentSong->lastClipInstanceEnteredStartPos != -1 || clip->isArrangementOnlyClip()) {
@@ -1442,7 +1445,7 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
-	if (isAudioClip || onArrangerView) {
+	if (isAudioClip || currentSong->onAutomationArrangerView) {
 		return true;
 	}
 	// If user wants to "multiple" Clip contents
@@ -1479,9 +1482,9 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on) {
 	// only allow clearing of a clip if you're in the automation overview
 	if (on && isOnAutomationOverview()) {
-		if (clip->type == ClipType::AUDIO || onArrangerView) {
+		if (clip->type == ClipType::AUDIO || currentSong->onAutomationArrangerView) {
 			// clear all arranger automation
-			if (onArrangerView) {
+			if (currentSong->onAutomationArrangerView) {
 				Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
 
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1512,7 +1515,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			modelStackWithParam =
@@ -1538,7 +1541,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 	if (on && currentUIMode == UI_MODE_NONE) {
-		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
+		if (currentSong->onAutomationArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 		}
 	}
@@ -1627,7 +1630,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
@@ -1661,7 +1664,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                  InstrumentClip* instrumentClip, Output* output, OutputType outputType,
                                                  int32_t y, int32_t velocity) {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return arrangerView.handleStatusPadAction(y, velocity, this);
 	}
 	else {
@@ -1710,7 +1713,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+	if (currentSong->onAutomationArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1896,7 +1899,7 @@ bool AutomationView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 // called by pad action when pressing a pad in the audition column (x = kDisplayWidth + 1)
 ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output,
                                                      OutputType outputType, int32_t y, int32_t velocity) {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		if (isOnAutomationOverview()) {
 			return arrangerView.handleAuditionPadAction(y, velocity, this);
 		}
@@ -2183,7 +2186,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	}
 	else {
@@ -2203,7 +2206,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
 		int32_t shiftAmount = offset * squareSize;
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			modelStackWithParam =
 			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
@@ -2284,7 +2287,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 			currentSong->transpose(offset);
 		}
@@ -2549,7 +2552,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
@@ -2655,7 +2658,8 @@ bool AutomationView::modEncoderActionForSelectedPad(ModelStackWithAutoParam* mod
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
 			// recorded if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In
 			// which case, ignore value change
-			if (!onArrangerView && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
+			if (!currentSong->onAutomationArrangerView
+			    && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
 				return true;
 			}
 
@@ -2701,7 +2705,8 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
 			// recorded if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In
 			// which case, ignore value change
-			if (!onArrangerView && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
+			if (!currentSong->onAutomationArrangerView
+			    && ((clip->output->type == OutputType::MIDI_OUT) && (newKnobPos == 64))) {
 				return;
 			}
 
@@ -2714,7 +2719,7 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
 			                                                          view.modLength);
 
-			if (!onArrangerView) {
+			if (!currentSong->onAutomationArrangerView) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
@@ -2741,7 +2746,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		modelStackWithParam =
 		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
@@ -2951,10 +2956,10 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 	// if you're in a synth, kit, or audio clip
-	else if (onArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
+	else if (currentSong->onAutomationArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
 	         || outputType == OutputType::AUDIO) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
-		if (onArrangerView || (outputType == OutputType::AUDIO)
+		if (currentSong->onAutomationArrangerView || (outputType == OutputType::AUDIO)
 		    || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire())) {
 			selectGlobalParam(offset, clip);
 		}
@@ -2982,7 +2987,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			modelStackWithParam =
 			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
@@ -3006,7 +3011,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 // used with SelectEncoderAction to get the next arranger / audio clip / kit affect entire parameter
 void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		auto idx = getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
@@ -3111,7 +3116,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip, OutputType outputT
 	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (onArrangerView) {
+			if (currentSong->onAutomationArrangerView) {
 				if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
 					currentSong->lastSelectedParamShortcutX = x;
 					currentSong->lastSelectedParamShortcutY = y;
@@ -3161,7 +3166,7 @@ void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 
 // called by playback_handler.cpp
 void AutomationView::notifyPlaybackBegun() {
-	if (!onArrangerView && getCurrentClip()->type != ClipType::AUDIO) {
+	if (!currentSong->onAutomationArrangerView && getCurrentClip()->type != ClipType::AUDIO) {
 		instrumentClipView.reassessAllAuditionStatus();
 	}
 }
@@ -3171,7 +3176,7 @@ void AutomationView::notifyPlaybackBegun() {
 void AutomationView::initParameterSelection() {
 	initPadSelection();
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		currentSong->lastSelectedParamID = kNoSelection;
 		currentSong->lastSelectedParamKind = params::Kind::NONE;
 		currentSong->lastSelectedParamShortcutX = kNoSelection;
@@ -3239,7 +3244,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 
 	int32_t effectiveLength = 0;
 
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		effectiveLength = arrangerView.getMaxLength();
 	}
 	else if (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()) {
@@ -3256,7 +3261,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 }
 
 uint32_t AutomationView::getMaxLength() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return arrangerView.getMaxLength();
 	}
 	else {
@@ -3265,7 +3270,7 @@ uint32_t AutomationView::getMaxLength() {
 }
 
 uint32_t AutomationView::getMaxZoom() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return arrangerView.getMaxZoom();
 	}
 	else {
@@ -3274,7 +3279,7 @@ uint32_t AutomationView::getMaxZoom() {
 }
 
 int32_t AutomationView::getNavSysId() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		return NAVIGATION_ARRANGEMENT;
 	}
 	else {
@@ -3410,7 +3415,7 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
 	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
 
-	if (!onArrangerView) {
+	if (!currentSong->onAutomationArrangerView) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
 	}
 
@@ -3471,7 +3476,7 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 
 	// this means you are selecting a parameter
 	if ((shortcutPress || isOnAutomationOverview())
-	    && (onArrangerView
+	    && (currentSong->onAutomationArrangerView
 	        || !(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 	             && !((Kit*)output)->selectedDrum)
 	        || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))) {
@@ -3492,7 +3497,7 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 // called by handle single pad press when it is determined that you are selecting a parameter on automation overview
 // or by using a grid shortcut combo
 bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
-	if (!onArrangerView
+	if (!currentSong->onAutomationArrangerView
 	    && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()))
 	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
@@ -3525,7 +3530,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	}
 
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
-	else if ((onArrangerView || (outputType == OutputType::AUDIO)
+	else if ((currentSong->onAutomationArrangerView || (outputType == OutputType::AUDIO)
 	          || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))
 	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 
@@ -3533,12 +3538,12 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
-		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
+		if (currentSong->onAutomationArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
 		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 			return true;
 		}
 
-		if (onArrangerView) {
+		if (currentSong->onAutomationArrangerView) {
 			currentSong->lastSelectedParamKind = paramKind;
 			currentSong->lastSelectedParamID = paramID;
 		}
@@ -3551,7 +3556,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 			auto [kind, id] = globalParamsForAutomation[idx];
 
-			if (onArrangerView) {
+			if (currentSong->onAutomationArrangerView) {
 				if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
 					currentSong->lastSelectedParamArrayPosition = idx;
 					break;
@@ -3577,7 +3582,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	}
 
 	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		currentSong->lastSelectedParamShortcutX = xDisplay;
 		currentSong->lastSelectedParamShortcutY = yDisplay;
 	}
@@ -3784,7 +3789,7 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
 			                                                          squareWidth);
 
-			if (!onArrangerView) {
+			if (!currentSong->onAutomationArrangerView) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 		}
@@ -3879,7 +3884,7 @@ int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32
 // used to disable certain actions on the automation overview screen
 // e.g. doubling clip length, editing clip length
 bool AutomationView::isOnAutomationOverview() {
-	if (onArrangerView) {
+	if (currentSong->onAutomationArrangerView) {
 		if (currentSong->lastSelectedParamID == kNoSelection) {
 			return true;
 		}

@@ -177,7 +177,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 			if (currentUIMode == UI_MODE_NONE) {
 				if (Buttons::isShiftButtonPressed()) {
-					automationView.onArrangerView = true;
 					changeRootUI(&automationView);
 				}
 				else {
@@ -477,6 +476,8 @@ void ArrangerView::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	currentSong->lastClipInstanceEnteredStartPos = 0;
+	currentSong->onAutomationArrangerView = false;
+	currentSong->onPerformanceView = false;
 
 	if (!doingAutoScrollNow) {
 		reassessWhetherDoingAutoScroll(); // Can start, but can't stop

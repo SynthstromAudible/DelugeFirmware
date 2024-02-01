@@ -87,7 +87,7 @@ void UITimerManager::routine() {
 
 				case TIMER_PLAY_ENABLE_FLASH: {
 					RootUI* rootUI = getRootUI();
-					if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
 						sessionView.flashPlayRoutine();
 					}
 					break;

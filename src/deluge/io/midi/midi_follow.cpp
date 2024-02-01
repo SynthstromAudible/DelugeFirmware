@@ -136,7 +136,7 @@ Clip* getSelectedClip(bool useActiveClip) {
 			clip = currentSong->getClipWithOutput(output);
 		}
 		break;
-	case UIType::PERFORMANCE_SESSION_VIEW:
+	case UIType::PERFORMANCE_VIEW:
 		// if you're in performance view, no clip will be selected for param control
 		break;
 	case UIType::AUTOMATION_VIEW:

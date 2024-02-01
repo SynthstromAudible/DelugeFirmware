@@ -146,11 +146,17 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Long press pads in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
 			- Short press pads in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
 		- Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-		- Save defaults as PerformanceView.xml file
-			- Adjustable default Values assigned to each FX column via "Value" editing mode or PerformanceView.xml
-			- Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
-			- Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-		- Load defaults from PerformanceView.xml file
+		- Save defaults as xml file
+			- Adjustable default Values assigned to each FX column via "Value" editing mode or the Performance View layout XML files
+			- Adjustable default Param assigned to each FX column via "Param" editing mode or the Performance View layout XML files
+			- Adjustable default "held pad" settings for each FX column via Performance View or xml file(simply change a held pad in Performance View and save the layout to save the layout with the held pads).
+		- Load defaults from xml file
+- ([#1185]) Adds Morph Mode and 8 Alternate Layouts to Performance View
+	- Morph Mode is a new sub-mode in Performance View that lets you load two layouts into two layout banks for morphing between the two layouts. Morph Mode can be MIDI controlled by learning the Global MIDI Command MORPH.
+	- Performance View layouts are now saved in a separate folder titled PERFORMANCE_VIEW on your SD card. 
+	- You can now saved 9 total layouts for Performance View which are saved and named as follows: 
+		- Default.XMl, 1.XML, 2.XML, 3.XML, 4.XML, 5.XML, 6.XML, 7.XML, 8.XML
+	- You can now save the current layout loaded and the layouts assigned in Morph Mode with the Song. When the Song is loaded it will load the layouts used in that Song from the PERFORMANCE_VIEW folder on your SD card.
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 - ([#1159]) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all scale mode clips up or down by 1 semitone.
@@ -559,6 +565,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1159]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1159
 [#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
 [#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183
+[#1185]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1185
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
