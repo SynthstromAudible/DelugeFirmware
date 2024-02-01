@@ -197,6 +197,15 @@ submenu::Filter hpfMenu{
 // Filter Route Menu ----------------------------------------------------------------------------------------------
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 
+Submenu soundFiltersMenu{
+    STRING_FOR_FILTERS,
+    {
+        &lpfMenu,
+        &hpfMenu,
+        &filterRoutingMenu,
+    },
+};
+
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
 envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -449,13 +458,10 @@ fx::Clipping clippingMenu{STRING_FOR_SATURATION};
 UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION};
 UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING};
 patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD};
-Submenu fxMenu{
-    STRING_FOR_FX,
+
+Submenu soundDistortionMenu{
+    STRING_FOR_DISTORTION,
     {
-        &modFXMenu,
-        &eqMenu,
-        &delayMenu,
-        &reverbMenu,
         &clippingMenu,
         &srrMenu,
         &bitcrushMenu,
@@ -487,6 +493,23 @@ UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST}
 // Pan
 unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
+Submenu songMasterMenu{
+    STRING_FOR_MASTER,
+    {
+        &globalLevelMenu,
+        &globalPanMenu,
+    },
+};
+
+Submenu kitClipMasterMenu{
+    STRING_FOR_MASTER,
+    {
+        &globalLevelMenu,
+        &globalPitchMenu,
+        &globalPanMenu,
+    },
+};
+
 // LPF Menu
 UnpatchedParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::UNPATCHED_LPF_FREQ};
 UnpatchedParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::UNPATCHED_LPF_RES};
@@ -513,6 +536,15 @@ Submenu globalHPFMenu{
     },
 };
 
+Submenu globalFiltersMenu{
+    STRING_FOR_FILTERS,
+    {
+        &globalLPFMenu,
+        &globalHPFMenu,
+        &filterRoutingMenu,
+    },
+};
+
 // EQ Menu
 
 Submenu globalEQMenu{
@@ -522,6 +554,21 @@ Submenu globalEQMenu{
         &trebleMenu,
         &bassFreqMenu,
         &trebleFreqMenu,
+    },
+};
+
+// Delay Menu
+UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::UNPATCHED_DELAY_AMOUNT};
+UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
+
+Submenu globalDelayMenu{
+    STRING_FOR_DELAY,
+    {
+        &globalDelayFeedbackMenu,
+        &globalDelayRateMenu,
+        &delayPingPongMenu,
+        &delayAnalogMenu,
+        &delaySyncMenu,
     },
 };
 
@@ -543,36 +590,6 @@ Submenu globalReverbMenu{
         &reverbWidthMenu,
         &reverbPanMenu,
         &reverbCompressorMenu,
-    },
-};
-
-// Delay Menu
-UnpatchedParam globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::UNPATCHED_DELAY_AMOUNT};
-UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
-
-Submenu globalDelayMenu{
-    STRING_FOR_DELAY,
-    {
-        &globalDelayFeedbackMenu,
-        &globalDelayRateMenu,
-        &delayPingPongMenu,
-        &delayAnalogMenu,
-        &delaySyncMenu,
-    },
-};
-
-// Sidechain menu
-unpatched_param::UpdatingReverbParams globalCompressorVolumeMenu{STRING_FOR_VOLUME_DUCKING,
-                                                                 params::UNPATCHED_SIDECHAIN_VOLUME};
-
-Submenu globalCompressorMenu{
-    STRING_FOR_SIDECHAIN_COMPRESSOR,
-    {
-        &globalCompressorVolumeMenu,
-        &sidechainSyncMenu,
-        &compressorAttackMenu,
-        &compressorReleaseMenu,
-        &compressorShapeMenu,
     },
 };
 
@@ -600,15 +617,71 @@ Submenu globalDistortionMenu{
     },
 };
 
-// Stutter Menu
+Submenu globalFXMenu{
+    STRING_FOR_FX,
+    {
+        &globalEQMenu,
+        &globalDelayMenu,
+        &globalReverbMenu,
+        &globalModFXMenu,
+        &globalDistortionMenu,
+    },
+};
 
+// Stutter Menu
 UnpatchedParam globalStutterRateMenu{
     STRING_FOR_STUTTER,
     STRING_FOR_STUTTER_RATE,
     params::UNPATCHED_STUTTER_RATE,
 };
 
+// Sidechain menu
+unpatched_param::UpdatingReverbParams globalCompressorVolumeMenu{STRING_FOR_VOLUME_DUCKING,
+                                                                 params::UNPATCHED_SIDECHAIN_VOLUME};
+
+Submenu globalCompressorMenu{
+    STRING_FOR_SIDECHAIN_COMPRESSOR,
+    {
+        &globalCompressorVolumeMenu,
+        &sidechainSyncMenu,
+        &compressorAttackMenu,
+        &compressorReleaseMenu,
+        &compressorShapeMenu,
+    },
+};
+
 // AudioClip stuff ---------------------------------------------------------------------------
+
+audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
+
+Submenu audioClipMasterMenu{
+    STRING_FOR_MASTER,
+    {
+        &globalLevelMenu,
+        &audioClipTransposeMenu,
+        &globalPanMenu,
+    },
+};
+
+Submenu audioClipDistortionMenu{
+    STRING_FOR_DISTORTION,
+    {
+        &clippingMenu,
+        &srrMenu,
+        &bitcrushMenu,
+    },
+};
+
+Submenu audioClipFXMenu{
+    STRING_FOR_FX,
+    {
+        &eqMenu,
+        &globalDelayMenu,
+        &globalReverbMenu,
+        &globalModFXMenu,
+        &audioClipDistortionMenu,
+    },
+};
 
 // Sample Menu
 audio_clip::Reverse audioClipReverseMenu{STRING_FOR_REVERSE};
@@ -626,21 +699,7 @@ Submenu audioClipSampleMenu{
     },
 };
 
-audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
-
-Submenu audioClipFXMenu{
-    STRING_FOR_FX,
-    {
-        &globalModFXMenu,
-        &eqMenu,
-        &globalDelayMenu,
-        &globalReverbMenu,
-        &clippingMenu,
-        &srrMenu,
-        &bitcrushMenu,
-    },
-};
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
     &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpModeMenu, nullptr, nullptr, nullptr,
@@ -998,39 +1057,54 @@ menu_item::DrumName drumNameMenu{STRING_FOR_NAME};
 
 // Synth only
 menu_item::SynthMode synthModeMenu{STRING_FOR_SYNTH_MODE};
-
 bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
 patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX};
 patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
 PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
+Submenu soundMasterMenu{
+    STRING_FOR_MASTER,
+    {
+        &volumeMenu,
+        &masterTransposeMenu,
+        &vibratoMenu,
+        &panMenu,
+        &synthModeMenu,
+        &drumNameMenu,
+    },
+};
+
+Submenu soundFXMenu{
+    STRING_FOR_FX,
+    {
+        &eqMenu,
+        &delayMenu,
+        &reverbMenu,
+        &modFXMenu,
+        &soundDistortionMenu,
+        &noiseMenu,
+    },
+};
+
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
+        &soundMasterMenu,
+        &soundFiltersMenu,
+        &soundFXMenu,
+        &compressorMenu,
         &source0Menu,
         &source1Menu,
         &modulator0Menu,
         &modulator1Menu,
-        &noiseMenu,
-        &masterTransposeMenu,
-        &vibratoMenu,
-        &lpfMenu,
-        &hpfMenu,
-        &filterRoutingMenu,
-        &drumNameMenu,
-        &synthModeMenu,
         &env0Menu,
         &env1Menu,
         &lfo0Menu,
         &lfo1Menu,
         &voiceMenu,
-        &fxMenu,
-        &compressorMenu,
         &bendMenu,
         &drumBendRangeMenu,
-        &volumeMenu,
-        &panMenu,
         &patchCablesMenu,
         &sequenceDirectionMenu,
     },
@@ -1054,17 +1128,13 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
-        &audioClipSampleMenu,
-        &audioClipTransposeMenu,
-        &globalLPFMenu,
-        &globalHPFMenu,
-        &filterRoutingMenu,
-        &audioClipAttackMenu,
-        &priorityMenu,
+        &audioClipMasterMenu,
+        &globalFiltersMenu,
         &audioClipFXMenu,
         &globalCompressorMenu,
-        &globalLevelMenu,
-        &globalPanMenu,
+        &audioClipSampleMenu,
+        &audioClipAttackMenu,
+        &priorityMenu,
     },
 };
 
@@ -1076,15 +1146,8 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
         &performEditorMenu,
-        &globalLevelMenu,
-        &globalPanMenu,
-        &globalLPFMenu,
-        &globalHPFMenu,
-        &globalEQMenu,
-        &globalReverbMenu,
-        &globalDelayMenu,
-        &globalModFXMenu,
-        &globalDistortionMenu,
+        &globalFiltersMenu,
+        &globalFXMenu,
     },
 };
 
@@ -1098,15 +1161,9 @@ ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK,
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
-        &globalLevelMenu,
-        &globalPanMenu,
-        &globalLPFMenu,
-        &globalHPFMenu,
-        &globalEQMenu,
-        &globalReverbMenu,
-        &globalDelayMenu,
-        &globalModFXMenu,
-        &globalDistortionMenu,
+        &songMasterMenu,
+        &globalFiltersMenu,
+        &globalFXMenu,
         &midiLoopbackMenu,
     },
 };
@@ -1115,17 +1172,10 @@ menu_item::Submenu soundEditorRootMenuSongView{
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
-        &globalLevelMenu,
-        &globalPitchMenu,
-        &globalPanMenu,
-        &globalLPFMenu,
-        &globalHPFMenu,
-        &globalEQMenu,
-        &globalReverbMenu,
-        &globalDelayMenu,
+        &kitClipMasterMenu,
+        &globalFiltersMenu,
+        &globalFXMenu,
         &globalCompressorMenu,
-        &globalModFXMenu,
-        &globalDistortionMenu,
     },
 };
 
