@@ -203,9 +203,8 @@ useDefaultFolder:
 
 	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came
 	// in from (musical) keyboard view, I think
-	PadLEDs::clearAllPadsWithoutSending();
+
 	drawKeys();
-	PadLEDs::sendOutMainPadColours();
 
 	if (showingAuditionPads()) {
 		instrumentClipView.recalculateColours();

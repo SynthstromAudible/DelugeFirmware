@@ -44,9 +44,8 @@ bool RenameDrumUI::opened() {
 
 	displayText();
 
-	PadLEDs::clearMainPadsWithoutSending();
 	drawKeys();
-	PadLEDs::sendOutMainPadColours();
+
 	return true;
 }
 
