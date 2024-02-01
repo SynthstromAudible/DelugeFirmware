@@ -17,8 +17,6 @@
 
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
-#include "model/clip/instrument_clip.h"
-#include "processing/sound/sound.h"
 
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;

@@ -18,8 +18,6 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
-#include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -30,11 +28,6 @@
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {

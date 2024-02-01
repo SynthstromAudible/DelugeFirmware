@@ -17,6 +17,7 @@
 
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/colour/colour.h"
+#include "hid/display/display.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 

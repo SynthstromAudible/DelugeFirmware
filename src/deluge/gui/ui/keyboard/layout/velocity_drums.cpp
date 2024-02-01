@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/keyboard/layout/velocity_drums.h"
+#include "hid/display/display.h"
 #include "util/functions.h"
 #include <stdint.h>
 
