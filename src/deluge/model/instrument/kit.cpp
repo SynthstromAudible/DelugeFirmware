@@ -1501,24 +1501,22 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 	if (!instrumentClip->affectEntire) {
 		Drum* drum = selectedDrum;
 
-		if (drum) {
-			if (drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+		if (drum && drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
+			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
 
-				if (modelStackWithNoteRow) {
+			if (modelStackWithNoteRow) {
 
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
-					if (modelStackWithThreeMainThings) {
-						if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-							modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-						}
+				if (modelStackWithThreeMainThings) {
+					if (paramKind == deluge::modulation::params::Kind::PATCHED) {
+						modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+					}
 
-						else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-							modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-						}
+					else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
+						modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 					}
 				}
 			}
