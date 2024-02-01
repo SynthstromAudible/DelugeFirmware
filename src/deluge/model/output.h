@@ -148,10 +148,9 @@ public:
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 
-	virtual ModelStackWithAutoParam*
-	getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                       int32_t paramID = deluge::modulation::params::kNoParamID,
-	                       deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE) = 0;
+	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                        int32_t paramID,
+	                                                        deluge::modulation::params::Kind paramKind) = 0;
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

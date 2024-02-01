@@ -281,10 +281,12 @@ ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                                int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
 	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 	if (paramID != kNoParamID) {
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID);
+		modelStackWithParam =
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
 	}
 
 	return modelStackWithParam;

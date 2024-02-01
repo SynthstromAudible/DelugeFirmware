@@ -82,10 +82,8 @@ public:
 	AudioInputChannel inputChannel;
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
-	ModelStackWithAutoParam*
-	getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                       int32_t paramID = deluge::modulation::params::kNoParamID,
-	                       deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
