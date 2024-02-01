@@ -1494,17 +1494,17 @@ gotParamManager:
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                      int32_t paramID, params::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 	// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 	// for a kit with affect entire off, we are automating information at the noterow level
-	if (!instrumentClipView.getAffectEntire()) {
+	if (!instrumentClip->affectEntire) {
 		Drum* drum = selectedDrum;
 
 		if (drum) {
 			if (drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
 
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
+				ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
 
 				if (modelStackWithNoteRow) {
 
