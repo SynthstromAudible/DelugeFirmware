@@ -18,7 +18,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"

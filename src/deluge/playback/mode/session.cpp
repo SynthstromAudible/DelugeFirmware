@@ -23,7 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"

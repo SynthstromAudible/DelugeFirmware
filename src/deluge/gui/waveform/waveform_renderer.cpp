@@ -24,7 +24,7 @@
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/instrument/instrument.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"

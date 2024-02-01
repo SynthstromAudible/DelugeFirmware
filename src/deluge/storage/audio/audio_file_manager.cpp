@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"

@@ -20,7 +20,7 @@
 #include "dsp/stereo_sample.h"
 #include <stdlib.h>
 // #include <algorithm>
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "util/functions.h"
 
 Delay::Delay() {

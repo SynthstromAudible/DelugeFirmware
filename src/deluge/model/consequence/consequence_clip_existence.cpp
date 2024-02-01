@@ -18,7 +18,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_array.h"

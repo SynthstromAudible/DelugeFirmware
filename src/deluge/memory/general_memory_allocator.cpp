@@ -18,7 +18,7 @@
 #include "memory/general_memory_allocator.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"

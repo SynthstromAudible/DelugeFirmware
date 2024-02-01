@@ -17,7 +17,7 @@
 
 #include "memory/memory_region.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
 #ifdef DO_AUDIO_LOG

@@ -17,7 +17,7 @@
 
 #include "storage/cluster/cluster.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"

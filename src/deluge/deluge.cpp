@@ -39,7 +39,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -61,7 +61,6 @@
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
-#include <string.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -808,43 +807,6 @@ bool inSpamMode = false;
 extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if ENABLE_TEXT_OUTPUT
-// only called from the D_PRINT macros
-void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
-	static char buffer[512];
-	va_list args;
-
-	// Start variadic argument processing
-	va_start(args, format);
-	// Compose the log message into the buffer
-	const char* baseFile = getFileNameFromEndOfPath(file);
-	if (mode == kDebugPrintModeRaw) {
-		vsnprintf(buffer, bufsize, format, args);
-	}
-	else {
-		snprintf(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
-		vsnprintf(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
-	}
-	// End variadic argument processing
-	va_end(args);
-
-	// Pass the buffer to another logging library
-	if (mode == kDebugPrintModeNewlined) {
-		Debug::println(buffer);
-	}
-	else {
-		Debug::print(buffer);
-	}
-}
-#endif
-
-#ifdef __cplusplus
-}
-#endif
 
 extern "C" void routineForSD(void) {
 

@@ -24,7 +24,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"

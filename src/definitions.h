@@ -16,9 +16,6 @@ extern "C" {
 #endif
 // This is defined in display.cpp
 extern void freezeWithError(char const* errmsg);
-// this is defined in deluge.cpp
-enum DebugPrintMode { kDebugPrintModeDefault, kDebugPrintModeRaw, kDebugPrintModeNewlined };
-void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...);
 #ifdef __cplusplus
 }
 #endif
@@ -73,15 +70,3 @@ void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsi
 
 // #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
 // SDRAM, maybe timing?
-
-#if ENABLE_TEXT_OUTPUT
-#define D_PRINTLN(...) logDebug(kDebugPrintModeNewlined, __FILE__, __LINE__, 256, __VA_ARGS__)
-#define D_PRINT(...) logDebug(kDebugPrintModeDefault, __FILE__, __LINE__, 256, __VA_ARGS__)
-#define D_PRINT_RAW(...) logDebug(kDebugPrintModeRaw, __FILE__, __LINE__, 256, __VA_ARGS__)
-
-#else
-
-#define D_PRINTLN(...)
-#define D_PRINT(...)
-#define D_PRINT_RAW(...)
-#endif

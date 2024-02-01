@@ -17,7 +17,7 @@
 
 #include "storage/cluster/cluster_priority_queue.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 
 class Cluster;
 

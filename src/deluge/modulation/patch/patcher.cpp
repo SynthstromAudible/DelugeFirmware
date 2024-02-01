@@ -17,7 +17,7 @@
 
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/voice/voice.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"

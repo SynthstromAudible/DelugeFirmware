@@ -17,7 +17,7 @@
 
 #include "util/container/list/bidirectional_linked_list.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "storage/cluster/cluster.h"
 
 BidirectionalLinkedList::BidirectionalLinkedList() {

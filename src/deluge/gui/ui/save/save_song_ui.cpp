@@ -26,7 +26,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
