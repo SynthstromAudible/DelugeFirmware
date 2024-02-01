@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/ui.h"
+#include "hid/display/display.h"
 #include "menu_item.h"
 #include "util/misc.h"
 

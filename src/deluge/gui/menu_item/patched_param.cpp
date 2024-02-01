@@ -15,23 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <cmath>
-#include <cstring>
-
+#include "patched_param.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "patch_cable_strength.h"
-#include "patched_param.h"
 #include "source_selection.h"
-#include "util/cfunctions.h"
 
 namespace deluge::gui::menu_item {
 MenuItem* PatchedParam::selectButtonPress() {

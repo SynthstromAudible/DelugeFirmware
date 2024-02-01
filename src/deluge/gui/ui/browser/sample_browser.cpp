@@ -40,6 +40,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"

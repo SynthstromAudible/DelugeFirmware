@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
 
 class MIDIDevice;

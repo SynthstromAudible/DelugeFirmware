@@ -18,7 +18,6 @@
 #pragma once
 
 #include "number.h"
-#include "patched_param.h"
 
 namespace deluge::gui::menu_item {
 

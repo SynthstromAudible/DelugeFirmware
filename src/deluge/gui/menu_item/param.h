@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "integer.h"
-
+#include "gui/menu_item/menu_item.h"
+#include <cstdint>
 class ParamSet;
 class ModelStackWithAutoParam;
 

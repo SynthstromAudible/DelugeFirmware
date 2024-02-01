@@ -34,6 +34,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"

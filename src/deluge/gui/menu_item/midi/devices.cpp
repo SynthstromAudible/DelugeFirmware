@@ -22,6 +22,7 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "util/container/static_vector.hpp"
 #include <array>
 #include <string_view>
 
