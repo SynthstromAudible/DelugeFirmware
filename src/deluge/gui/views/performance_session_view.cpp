@@ -605,13 +605,13 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 					buffer = "8ths";
 				}
 				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16ths";
+					buffer = "16th";
 				}
 				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nds";
+					buffer = "32nd";
 				}
 				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64ths";
+					buffer = "64th";
 				}
 				display->displayPopup(buffer, 3, true);
 			}
