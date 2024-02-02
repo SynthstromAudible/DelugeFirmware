@@ -152,7 +152,7 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
 		- Load defaults from PerformanceView.xml file
 
-### 4.1.7 - Added Master Transpose of Instrument Clips
+### 4.1.7 - Added Master Transpose of All Instrument Clips
 - ([#1159]) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all clips up or down by 1 semitone.
 	- You can customize the amount of semitones that clips are transposed by, by holding Shift and turning `▼︎▲︎`. The display will show the number of semitones.
 	- The display will show the total number of semitones that clips have been transposed by.
