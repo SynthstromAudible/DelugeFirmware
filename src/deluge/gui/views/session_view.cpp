@@ -1270,7 +1270,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		currentSong->transpose(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
