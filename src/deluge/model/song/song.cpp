@@ -477,6 +477,9 @@ traverseClips:
 		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
+		if (clip->output->type == OutputType::KIT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (!onlyScaleModeClips || (onlyScaleModeClips && instrumentClip->isScaleModeClip())) {
