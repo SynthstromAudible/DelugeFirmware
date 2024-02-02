@@ -27,7 +27,7 @@
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
 - Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
-- Added Master Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger, Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and turn `▼︎▲︎` to transpose the clips by +/- 1 semitone).
+- Added Master Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger, Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and turn `▼︎▲︎` to transpose the clips by +/- 1 semitone). The number of semitones transposed is customizable (Press shift and turn `▼︎▲︎`) and the display will show you the total number of semitones transposed.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

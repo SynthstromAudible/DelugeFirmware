@@ -196,6 +196,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	lastSelectedParamArrayPosition = 0;
 	// end initialize of automation arranger view variables
 
+	masterTransposeOffset = 0;
+	totalSemitonesTransposed = 0;
+
 	dirPath.set("SONGS");
 }
 
@@ -5730,6 +5733,60 @@ doHibernatingInstruments:
 	}
 
 	return NO_ERROR;
+}
+
+void Song::adjustMasterTransposeOffset(int32_t offset) {
+	masterTransposeOffset += offset;
+	if (masterTransposeOffset < 0) {
+		masterTransposeOffset = 0;
+	}
+	displayMasterTransposeOffset();
+}
+
+void Song::displayMasterTransposeOffset() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+
+	if (display->haveOLED()) {
+		popupMsg.append("Transpose Offset: \n");
+		if (masterTransposeOffset == 0) {
+			popupMsg.append("Encoder");
+		}
+		else {
+			popupMsg.appendInt(masterTransposeOffset);
+			popupMsg.append(" Semitones");
+		}
+	}
+	else {
+		if (masterTransposeOffset == 0) {
+			popupMsg.append("ENC");
+		}
+		else {
+			popupMsg.appendInt(masterTransposeOffset);
+		}
+	}
+	display->displayPopup(popupMsg.c_str());
+}
+
+void Song::transpose(int32_t offset) {
+	if (masterTransposeOffset != 0) {
+		offset *= currentSong->masterTransposeOffset;
+	}
+	transposeAllScaleModeClips(offset);
+	totalSemitonesTransposed += offset;
+	displayTotalSemitonesTransposed();
+}
+
+void Song::displayTotalSemitonesTransposed() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+
+	if (display->haveOLED()) {
+		popupMsg.append("Semitones Transposed: \n");
+		popupMsg.appendInt(totalSemitonesTransposed);
+	}
+	else {
+		popupMsg.appendInt(totalSemitonesTransposed);
+	}
+	display->displayPopup(popupMsg.c_str());
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
