@@ -1179,9 +1179,9 @@ void updateReverbParams() {
 compressorFound:
 			reverbCompressorShapeInEffect =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE);
-			reverbCompressor.attack = modControllable->compressor.attack;
-			reverbCompressor.release = modControllable->compressor.release;
-			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
+			reverbCompressor.attack = modControllable->sidechain.attack;
+			reverbCompressor.release = modControllable->sidechain.release;
+			reverbCompressor.syncLevel = modControllable->sidechain.syncLevel;
 			return;
 		}
 

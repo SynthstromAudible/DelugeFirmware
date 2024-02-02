@@ -125,7 +125,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
 	filterRoute = other->filterRoute;
-	compressor.cloneFrom(&other->compressor);
+	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
 	delay.cloneFrom(&other->delay);
 }
@@ -1289,10 +1289,10 @@ void ModControllableAudio::writeTagsToFile() {
 
 	// Sidechain compressor
 	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", compressor.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.syncLevel);
-	storageManager.writeAttribute("attack", compressor.attack);
-	storageManager.writeAttribute("release", compressor.release);
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	storageManager.writeAttribute("attack", sidechain.attack);
+	storageManager.writeAttribute("release", sidechain.release);
 	storageManager.closeTag();
 
 	// MIDI knobs
@@ -1505,24 +1505,24 @@ doReadPatchedParam:
 
 	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
-		compressor.syncType = SYNC_TYPE_EVEN;
-		compressor.syncLevel = SYNC_LEVEL_NONE;
+		sidechain.syncType = SYNC_TYPE_EVEN;
+		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				compressor.attack = storageManager.readTagOrAttributeValueInt();
+				sidechain.attack = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				compressor.release = storageManager.readTagOrAttributeValueInt();
+				sidechain.release = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				compressor.syncType = storageManager.readSyncTypeFromFile(song);
+				sidechain.syncType = storageManager.readSyncTypeFromFile(song);
 				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				compressor.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
+				sidechain.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
@@ -2547,7 +2547,7 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	}
 	using enum deluge::l10n::String;
-	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 		return l10n::get(STRING_FOR_SLOW);
 	}
 	else {

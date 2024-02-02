@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -159,7 +160,7 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	SideChain compressor; // Song doesn't use this, despite extending this class
+	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
 

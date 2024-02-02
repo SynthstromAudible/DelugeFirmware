@@ -2083,13 +2083,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	// Do compressor
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 		if (sideChainHitPending) {
-			compressor.registerHit(sideChainHitPending);
+			sidechain.registerHit(sideChainHitPending);
 		}
 
 		const auto patchSourceCompressorUnderlying = util::to_underlying(PatchSource::COMPRESSOR);
 
 		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
-		globalSourceValues[patchSourceCompressorUnderlying] = compressor.render(
+		globalSourceValues[patchSourceCompressorUnderlying] = sidechain.render(
 		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
 		uint32_t anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
 		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
@@ -2342,7 +2342,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// Do sidechain compressor
 			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 			if (AudioEngine::sizeLastSideChainHit) {
-				compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
+				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 				                                      AudioEngine::audioSampleTimer
 				                                          - AudioEngine::timeLastSideChainHit);
 				//}
@@ -4149,12 +4149,12 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 			}
 
-			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
+			if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+				sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 			}
 			else {
-				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
+				sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 			}
 			return true;
@@ -4244,7 +4244,7 @@ void Sound::wontBeRenderedForAWhile() {
 	                     // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	compressor.status = EnvelopeStage::OFF;
+	sidechain.status = EnvelopeStage::OFF;
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(NULL, true);
