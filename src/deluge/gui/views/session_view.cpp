@@ -1274,7 +1274,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		currentSong->transposeAllScaleModeClips(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-	    || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
