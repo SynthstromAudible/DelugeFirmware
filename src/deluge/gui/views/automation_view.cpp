@@ -2263,10 +2263,17 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 
 // vertical encoder action
 // no change compared to instrument clip view version
-// not used with Audio Clip Automation View or Arranger Automation View
+// not used with Audio Clip Automation View
 ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (onArrangerView) {
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			currentSong->transposeAllScaleModeClips(offset);
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
