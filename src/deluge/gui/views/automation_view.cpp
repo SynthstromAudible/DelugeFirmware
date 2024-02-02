@@ -2271,7 +2271,10 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	if (onArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-			currentSong->transposeAllScaleModeClips(offset);
+			currentSong->transpose(offset);
+		}
+		else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+			currentSong->adjustMasterTransposeOffset(offset);
 		}
 		return ActionResult::DEALT_WITH;
 	}

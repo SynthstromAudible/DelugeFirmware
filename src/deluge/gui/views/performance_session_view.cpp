@@ -1367,7 +1367,10 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		currentSong->transposeAllScaleModeClips(offset);
+		currentSong->transpose(offset);
+	}
+	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+		currentSong->adjustMasterTransposeOffset(offset);
 	}
 	return ActionResult::DEALT_WITH;
 }

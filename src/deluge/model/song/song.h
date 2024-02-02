@@ -360,6 +360,13 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
+	int32_t masterTransposeOffset;
+	int32_t totalSemitonesTransposed;
+	void transpose(int32_t offset);
+	void displayMasterTransposeOffset();
+	void adjustMasterTransposeOffset(int32_t offset);
+	void displayTotalSemitonesTransposed();
+
 private:
 	bool fillModeActive;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);

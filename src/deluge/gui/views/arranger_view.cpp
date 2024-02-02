@@ -2914,11 +2914,13 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		currentSong->transposeAllScaleModeClips(offset);
+		currentSong->transpose(offset);
 		return ActionResult::DEALT_WITH;
 	}
-
-	if (Buttons::isShiftButtonPressed()) {
+	else if (Buttons::isShiftButtonPressed()) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->adjustMasterTransposeOffset(offset);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
