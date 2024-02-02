@@ -17,15 +17,14 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "model/model_stack.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::unison {
 class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { this->setValue(soundEditor.currentSound->unisonStereoSpread); }
-	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(this->getValue()); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonStereoSpread); }
+	void writeCurrentValue() override { soundEditor.currentSound->setUnisonStereoSpread(this->getValue()); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
 };
 

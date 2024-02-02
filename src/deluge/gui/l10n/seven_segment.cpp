@@ -1,4 +1,4 @@
-#include "definitions_cxx.hpp"
+#include "definitions.h"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
@@ -406,6 +406,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_TITLE, "FOLO"},
         {STRING_FOR_FOLLOW, "FOLO"},
         {STRING_FOR_CHANNEL, "CHAN"},
+        {STRING_FOR_FOLLOW_CHANNEL_A, "A"},
+        {STRING_FOR_FOLLOW_CHANNEL_B, "B"},
+        {STRING_FOR_FOLLOW_CHANNEL_C, "C"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "KIT"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "DISP"},
         {STRING_FOR_FOLLOW_FEEDBACK, "FEED"},
@@ -419,6 +422,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FREEVERB, "FVRB"},
         {STRING_FOR_MUTABLE, "MTBL"},
 
+        {STRING_FOR_MASTER, "MSTR"},
+        {STRING_FOR_FILTERS, "FLTR"},
     },
     &built_in::english,
 };

@@ -20,12 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "hid/display/display.h"
-#include "hid/display/oled.h"
-#include "util/sized.h"
 #include <cstdint>
 #include <span>
-#include <vector>
 
 enum class MenuPermission {
 	NO,

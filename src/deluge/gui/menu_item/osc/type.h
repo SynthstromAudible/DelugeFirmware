@@ -24,7 +24,6 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "util/comparison.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection, public FormattedTitle {

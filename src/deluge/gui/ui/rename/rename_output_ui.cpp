@@ -23,7 +23,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/output.h"
 #include "model/song/song.h"
 
@@ -50,9 +49,8 @@ bool RenameOutputUI::opened() {
 
 	displayText();
 
-	PadLEDs::clearMainPadsWithoutSending();
 	drawKeys();
-	PadLEDs::sendOutMainPadColours();
+
 	return true;
 }
 

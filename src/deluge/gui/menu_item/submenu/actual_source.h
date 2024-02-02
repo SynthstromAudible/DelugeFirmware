@@ -19,7 +19,6 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "string.h"
-#include "util/cfunctions.h"
 
 extern void setOscillatorNumberForTitles(int32_t);
 

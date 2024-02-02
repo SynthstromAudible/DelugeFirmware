@@ -19,7 +19,6 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "hid/display/display.h"
 
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1

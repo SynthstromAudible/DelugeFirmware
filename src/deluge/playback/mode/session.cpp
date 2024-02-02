@@ -23,8 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "io/debug/print.h"
-#include "io/midi/midi_engine.h"
+#include "io/debug/log.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -40,7 +39,6 @@
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/views/audio_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/clip/audio_clip.h"

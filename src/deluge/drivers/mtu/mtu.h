@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/mtu/mtu.h"
+#include "RZA1/mtu/mtu.h" // IWYU pragma: export
 
 static inline void timerEnableInterruptsTGRA(int32_t timerNo) {
 	*TIER[timerNo] = 1;

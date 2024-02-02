@@ -17,7 +17,7 @@
 
 #include "model/action/action.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_clip_state.h"
 #include "model/action/action_logger.h"

@@ -16,7 +16,6 @@
  */
 
 #include "direction_selector.h"
-#include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device.h"
 #include "zone_selector.h"
 

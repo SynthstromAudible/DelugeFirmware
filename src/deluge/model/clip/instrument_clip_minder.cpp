@@ -30,7 +30,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -358,13 +358,8 @@ yesLoadInstrument:
 		}
 
 		else if (b == KIT) {
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
-				indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
-			}
-			else {
-				Browser::outputTypeToLoad = OutputType::KIT;
-				goto yesLoadInstrument;
-			}
+			Browser::outputTypeToLoad = OutputType::KIT;
+			goto yesLoadInstrument;
 		}
 	}
 

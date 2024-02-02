@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/voice/voice.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"

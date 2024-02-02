@@ -21,7 +21,6 @@
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "string.h"
 
 namespace deluge::gui::menu_item::mpe {
 

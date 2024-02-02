@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
 
 int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none

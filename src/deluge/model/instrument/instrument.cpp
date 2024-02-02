@@ -18,7 +18,7 @@
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"

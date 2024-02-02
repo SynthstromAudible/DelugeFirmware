@@ -17,10 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
-
+#include <cmath>
 class AbsValueFollower {
 public:
 	AbsValueFollower();
@@ -31,7 +29,7 @@ public:
 	inline int32_t getAttackMS() { return attackMS; }
 	int32_t setAttack(q31_t attack) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
-		attackMS = 0.5 + (exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
+		attackMS = 0.5 + (std::exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
 		a_ = (-1000.0 / 44100) / attackMS;
 		attackKnobPos = attack;
 		return attackMS;
@@ -41,7 +39,7 @@ public:
 	inline int32_t getReleaseMS() { return releaseMS; }
 	int32_t setRelease(q31_t release) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
-		releaseMS = 50 + (exp(2 * float(release) / ONE_Q31f) - 1) * 50;
+		releaseMS = 50 + (std::exp(2 * float(release) / ONE_Q31f) - 1) * 50;
 		r_ = (-1000.0 / 44100) / releaseMS;
 		releaseKnobPos = release;
 		return releaseMS;

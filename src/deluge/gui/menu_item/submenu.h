@@ -17,20 +17,10 @@
 
 #pragma once
 
-#include "definitions.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "menu_item.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/instrument.h"
-#include "model/song/song.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "processing/sound/sound_drum.h"
-#include "util/container/static_vector.hpp"
 #include "util/containers.h"
-#include <array>
 #include <initializer_list>
 #include <span>
 

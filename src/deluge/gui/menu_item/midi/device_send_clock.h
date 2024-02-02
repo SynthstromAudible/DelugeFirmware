@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 
 namespace deluge::gui::menu_item::midi {

@@ -17,10 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "memory/cache_manager.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "util/container/list/bidirectional_linked_list.h"
 
 struct EmptySpaceRecord {
 	uint32_t length;

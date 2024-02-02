@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "hid/display/display.h"
 #include "menu_item.h"
 #include "util/misc.h"
 

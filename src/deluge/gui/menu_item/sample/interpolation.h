@@ -21,7 +21,6 @@
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection, public FormattedTitle {

@@ -6,7 +6,6 @@
 #include "argon.hpp"
 #include <cmath>
 #include <initializer_list>
-#include <numbers>
 
 class DualCosineOscillator {
 public:

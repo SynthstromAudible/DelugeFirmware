@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"

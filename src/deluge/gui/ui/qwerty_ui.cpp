@@ -25,7 +25,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -53,8 +52,8 @@ bool QwertyUI::opened() {
 	return true;
 }
 
-// Won't "send"
 void QwertyUI::drawKeys() {
+	PadLEDs::clearMainPadsWithoutSending();
 
 	PadLEDs::clearTickSquares(false);
 
@@ -98,6 +97,8 @@ void QwertyUI::drawKeys() {
 		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colours::blue;
 		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
+
+	PadLEDs::sendOutMainPadColours();
 }
 
 void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,

@@ -18,12 +18,13 @@
 #include "processing/live/live_pitch_shifter_play_head.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/live/live_pitch_shifter.h"
-#include "util/functions.h"
+#include "util/fixedpoint.h"
+#include "util/lookuptables/lookuptables.h"
 
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")
 
-#include "arm_neon.h"
+#include "arm_neon_shim.h"
 
 LivePitchShifterPlayHead::LivePitchShifterPlayHead() {
 	// TODO Auto-generated constructor stub

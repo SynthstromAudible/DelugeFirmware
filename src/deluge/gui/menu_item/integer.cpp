@@ -16,10 +16,9 @@
  */
 
 #include "integer.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "util/cfunctions.h"
-#include <cstring>
 
 namespace deluge::gui::menu_item {
 
