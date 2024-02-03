@@ -34,6 +34,7 @@
 
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/rspi/rspi.h"
+#include "RZA1/sdhi/inc/sdif.h"
 #include "RZA1/system/rza_io_regrw.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/uart/uart.h"
@@ -127,66 +128,54 @@ int sdIntCallback(int sd_port, int cd)
 #include "RZA1/sdhi/inc/sd_cfg.h"
 #include "RZA1/sdhi/inc/sdif.h"
 
-// #define SD_RW_BUFF_SIZE    (1 * 1024)
-// static uint32_t test_sd_rw_buff[ SD_RW_BUFF_SIZE / sizeof(uint32_t) ]; // Actually this buffer never gets used, so
-// I've removed it! - Rohan
 uint32_t initializationWorkArea[SD_SIZE_OF_INIT / sizeof(uint32_t)];
 
 DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive */
 )
 {
-    // uartPrintln("disk_initialize");
-
-    // If no card present, nothing more we can do
+    // If no card, return early
     if (diskStatus & STA_NODISK)
         return SD_ERR_NO_CARD;
 
-    int error;
-
-    if (false)
+    // Try initializing, configuring and mounting card; return on error
+    currentlyAccessingCard = 1;
+    int error              = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
+    currentlyAccessingCard = 0;
+    if (error)
     {
 processError:
         diskStatus = STA_NOINIT;
-
         if (error == SD_ERR_NO_CARD)
+        {
             diskStatus |= STA_NODISK;
-
+        }
         return diskStatus;
     }
 
-    diskStatus = STA_NOINIT; // But then we'll try and initialize it now
-
-    currentlyAccessingCard = 1;
-    error                  = sd_init(SD_PORT, SDCFG_IP1_BASE, &initializationWorkArea[0], SD_CD_SOCKET);
-    currentlyAccessingCard = 0;
-
-    if (error)
-        goto processError;
-
 #ifdef SDCFG_CD_INT
-    // uartPrintln("set card detect by interrupt\n");
     error = sd_cd_int(SD_PORT, SD_CD_INT_ENABLE, sdIntCallback);
 #else
-    // uartPrintln("set card detect by polling\n");
     error = sd_cd_int(1, SD_CD_INT_DISABLE, 0);
 #endif
     if (error)
         goto processError;
 
-    // sd_set_buffer(SD_PORT, &test_sd_rw_buff[0], SD_RW_BUFF_SIZE); // Actually this buffer never gets used, so I've
-    // removed it! - Rohan
-
-    // error = cmd_sd_ioatt(0, 0);
     currentlyAccessingCard = 1;
     error                  = sd_mount(SD_PORT, SDCFG_DRIVER_MODE, SD_VOLT_3_3);
     currentlyAccessingCard = 0;
-
     if (error)
         goto processError;
 
-    diskStatus = 0; // Disk is ok!
+    // If we got here, card is ok
+    diskStatus = 0;
 
-    return 0; // Success
+    // but it might still be write-protected
+    if (sd_iswp(SD_PORT))
+    {
+        diskStatus |= STA_PROTECT;
+    }
+
+    return diskStatus;
 }
 
 /*-----------------------------------------------------------------------*/
