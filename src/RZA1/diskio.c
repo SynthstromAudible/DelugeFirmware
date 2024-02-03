@@ -39,6 +39,7 @@
 #include "deluge/drivers/uart/uart.h"
 #include "diskio.h"
 #include "ff.h"
+#include "RZA1/sdhi/inc/sdif.h"
 
 uint8_t currentlyAccessingCard = 0;
 
@@ -141,6 +142,7 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
     if (diskStatus & STA_NODISK)
         return SD_ERR_NO_CARD;
 
+
     int error;
 
     if (false)
@@ -185,6 +187,11 @@ processError:
         goto processError;
 
     diskStatus = 0; // Disk is ok!
+
+	if( sd_iswp(SD_PORT) ) {
+		diskStatus |= STA_PROTECT;
+		return diskStatus;
+	}
 
     return 0; // Success
 }
