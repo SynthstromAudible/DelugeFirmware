@@ -2430,18 +2430,15 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if (instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255
-		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
-			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
+		instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-			if (noteRow) {
-				// If recording, record a note-off for this NoteRow, if one exists
-				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-					clip->recordNoteOff(modelStackWithNoteRow);
-				}
+		if (noteRow) {
+			// If recording, record a note-off for this NoteRow, if one exists
+			if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+				clip->recordNoteOff(modelStackWithNoteRow);
 			}
 		}
 	}
