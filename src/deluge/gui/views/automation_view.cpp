@@ -135,7 +135,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},    // Delay Rate, Amount
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
     {params::Kind::PATCHED, params::LOCAL_FOLD},
@@ -196,7 +196,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},         // Delay Rate, Amount
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET}, // Mod FX Offset, Feedback, Depth, Rate
@@ -623,7 +623,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 			if (onArrangerView) {
 				// don't make pitch adjust or sidechain available for automation in arranger
-				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE)
+				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 					continue;
 				}
@@ -2993,7 +2993,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
-			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_COMPRESSOR_SHAPE
+			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 
 				if (offset < 0) {
@@ -3493,7 +3493,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 			return true;
 		}
 

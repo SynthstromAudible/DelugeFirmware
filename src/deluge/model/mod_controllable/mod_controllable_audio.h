@@ -136,6 +136,8 @@ public:
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
 
+	RMSFeedbackCompressor compressor;
+
 	// Grain
 	int32_t wrapsToShutdown;
 	void setWrapsToShutdown();

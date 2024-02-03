@@ -101,7 +101,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 			sidechain.registerHit(sideChainHitPending);
 		}
 		int32_t compressorOutput =
-		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
+		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(compressorOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))

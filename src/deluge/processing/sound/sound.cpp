@@ -2090,7 +2090,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
 		globalSourceValues[patchSourceCompressorUnderlying] = sidechain.render(
-		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
+		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 		uint32_t anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
 		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
 	}
@@ -3020,7 +3020,7 @@ int32_t Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManage
 
 	initParams(paramManager);
 
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(
+	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
 	return NO_ERROR;
 }
@@ -3470,7 +3470,7 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		storageManager.exitTag("portamento");
 	}
 	else if (!strcmp(tagName, "compressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
 		storageManager.exitTag("compressorShape");
 	}
 
@@ -3677,7 +3677,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_COMPRESSOR_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
 	patchedParams->writeParamAsAttribute("oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute("oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);

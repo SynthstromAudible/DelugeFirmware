@@ -756,7 +756,7 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 		                                       writeAutomation, false, valuesForOverride);
 	}
 
-	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", params::UNPATCHED_COMPRESSOR_SHAPE,
+	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
 
 	unpatchedParams->writeParamAsAttribute("modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
@@ -872,7 +872,7 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
 		storageManager.exitTag("sidechainCompressorShape");
 	}
 
