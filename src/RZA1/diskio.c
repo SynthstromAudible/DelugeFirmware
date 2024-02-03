@@ -146,7 +146,9 @@ DSTATUS disk_initialize(BYTE pdrv /* Physical drive nmuber to identify the drive
 processError:
         diskStatus = STA_NOINIT;
         if (error == SD_ERR_NO_CARD)
+        {
             diskStatus |= STA_NODISK;
+        }
         return diskStatus;
     }
 
