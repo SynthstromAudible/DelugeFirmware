@@ -1239,15 +1239,6 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressor.syncLevel = song->reverbCompressorSync;
 }
 
-void getMasterCompressorParamsFromSong(Song* song) {
-	q31_t a = song->masterCompressorAttack;
-	q31_t r = song->masterCompressorRelease;
-	q31_t t = song->masterCompressorThresh;
-	q31_t rat = song->masterCompressorRatio;
-	q31_t fc = song->masterCompressorSidechain;
-	song->globalEffectable.compressor.setup(a, r, t, rat, fc);
-}
-
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;

@@ -18,11 +18,11 @@
 #include "dsp/compressor/rms_feedback.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
-	setAttack(0);
-	setRelease(0);
+	setAttack(10 << 24);
+	setRelease(20 << 24);
 	setThreshold(0);
 	setRatio(0);
-	setSidechain(0);
+	setSidechain(ONE_Q31 >> 1);
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
