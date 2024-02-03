@@ -1490,3 +1490,48 @@ gotParamManager:
 }
 
 // for (Drum* drum = firstDrum; drum; drum = drum->next) {
+
+ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                     int32_t paramID, params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+	// for a kit we have two types of automation: with Affect Entire and without Affect Entire
+	// for a kit with affect entire off, we are automating information at the noterow level
+	if (!instrumentClip->affectEntire) {
+		Drum* drum = selectedDrum;
+
+		if (drum && drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+
+			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
+
+			if (modelStackWithNoteRow) {
+
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
+				if (modelStackWithThreeMainThings) {
+					if (paramKind == deluge::modulation::params::Kind::PATCHED) {
+						modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+					}
+
+					else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
+						modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+					}
+				}
+			}
+		}
+	}
+
+	else { // model stack for automating kit params when "affect entire" is enabled
+
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+		if (modelStackWithThreeMainThings) {
+			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		}
+	}
+
+	return modelStackWithParam;
+}

@@ -698,3 +698,24 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 	expressionValueChangesMustBeDoneSmoothly = false;
 }
+
+ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
+                                                                   Clip* clip, int32_t paramID,
+                                                                   deluge::modulation::params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		if (paramKind == deluge::modulation::params::Kind::PATCHED) {
+			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+		}
+
+		else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
+			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+		}
+	}
+
+	return modelStackWithParam;
+}
