@@ -125,7 +125,6 @@ int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
 float rmsLevel{0};
-RMSFeedbackCompressor mastercompressor{};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
@@ -782,25 +781,21 @@ startAgain:
 				masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, amplitudeR) << 2;
 			}
 		}
-	}
-	logAction("mastercomp start");
-	int32_t songVolume;
-	if (currentSong) {
-		songVolume =
+		logAction("mastercomp start");
+
+		int32_t songVolume =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       deluge::modulation::params::UNPATCHED_VOLUME)))
 		    >> 1;
-	}
-	else {
-		songVolume = 1 << 26;
+
+		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL,
+		                                                masterVolumeAdjustmentR, songVolume);
+		masterVolumeAdjustmentL = ONE_Q31;
+		masterVolumeAdjustmentR = ONE_Q31;
+		logAction("mastercomp end");
 	}
 
-	mastercompressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR,
-	                        songVolume);
-	masterVolumeAdjustmentL = ONE_Q31;
-	masterVolumeAdjustmentR = ONE_Q31;
-	logAction("mastercomp end");
 	metronome.render(renderingBuffer.data(), numSamples);
 
 	rmsLevel = envelopeFollower.calcRMS(renderingBuffer.data(), numSamples);
@@ -1250,7 +1245,7 @@ void getMasterCompressorParamsFromSong(Song* song) {
 	q31_t t = song->masterCompressorThresh;
 	q31_t rat = song->masterCompressorRatio;
 	q31_t fc = song->masterCompressorSidechain;
-	mastercompressor.setup(a, r, t, rat, fc);
+	song->globalEffectable.compressor.setup(a, r, t, rat, fc);
 }
 
 Voice* solicitVoice(Sound* forSound) {

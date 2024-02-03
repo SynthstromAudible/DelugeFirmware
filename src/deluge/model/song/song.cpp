@@ -193,7 +193,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
 	masterCompressorSidechain = ONE_Q31 >> 1;
-	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
@@ -1256,18 +1255,18 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	storageManager.writeOpeningTagBeginning("songCompressor");
-	int32_t attack = AudioEngine::mastercompressor.getAttack();
-	int32_t release = AudioEngine::mastercompressor.getRelease();
-	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
-	int32_t ratio = AudioEngine::mastercompressor.getRatio();
-	int32_t hpf = AudioEngine::mastercompressor.getSidechain();
-	storageManager.writeAttribute("attack", attack);
-	storageManager.writeAttribute("release", release);
-	storageManager.writeAttribute("thresh", thresh);
-	storageManager.writeAttribute("ratio", ratio);
-	storageManager.writeAttribute("compHPF", hpf);
-	storageManager.closeTag();
+	// storageManager.writeOpeningTagBeginning("songCompressor");
+	// int32_t attack = AudioEngine::mastercompressor.getAttack();
+	// int32_t release = AudioEngine::mastercompressor.getRelease();
+	// int32_t thresh = AudioEngine::mastercompressor.getThreshold();
+	// int32_t ratio = AudioEngine::mastercompressor.getRatio();
+	// int32_t hpf = AudioEngine::mastercompressor.getSidechain();
+	// storageManager.writeAttribute("attack", attack);
+	// storageManager.writeAttribute("release", release);
+	// storageManager.writeAttribute("thresh", thresh);
+	// storageManager.writeAttribute("ratio", ratio);
+	// storageManager.writeAttribute("compHPF", hpf);
+	// storageManager.closeTag();
 
 	globalEffectable.writeTagsToFile(NULL, false);
 

@@ -18,25 +18,18 @@
 #include "dsp/compressor/rms_feedback.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
-
-	// an appropriate range is 0-50*one q 15
-
-	thresholdKnobPos = 0;
-	sideChainKnobPos = ONE_Q31 >> 1;
-	// this is 2:1
-	ratioKnobPos = 0;
-
-	currentVolumeL = 0;
-	currentVolumeR = 0;
-	er = 0;
-	setSidechain(sideChainKnobPos);
+	setAttack(0);
+	setRelease(0);
+	setThreshold(0);
+	setRatio(0);
+	setSidechain(0);
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolume = std::log(finalVolume) - 2;
+	float songVolume = logf(finalVolume) - 2;
 
 	threshdb = songVolume * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
@@ -128,12 +121,4 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 	float logmean = std::log(std::max(rms, 1.0f));
 
 	return logmean;
-}
-// takes in knob positions in the range 0-ONE_Q31
-void RMSFeedbackCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
-	setAttack(a);
-	setRelease(r);
-	setThreshold(t);
-	setRatio(rat);
-	setSidechain(fc);
 }
