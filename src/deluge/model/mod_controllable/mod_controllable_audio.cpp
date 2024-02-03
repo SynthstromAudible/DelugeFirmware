@@ -1288,11 +1288,20 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.closeTag();
 
 	// Sidechain compressor
-	storageManager.writeOpeningTagBeginning("compressor");
+	storageManager.writeOpeningTagBeginning("Sidechain");
 	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
 	storageManager.writeAttribute("attack", sidechain.attack);
 	storageManager.writeAttribute("release", sidechain.release);
+	storageManager.closeTag();
+
+	// Audio compressor
+	storageManager.writeOpeningTagBeginning("AudioCompressor");
+	storageManager.writeAttribute("attack", compressor.getAttack());
+	storageManager.writeAttribute("release", compressor.getRelease());
+	storageManager.writeAttribute("thresh", compressor.getThreshold());
+	storageManager.writeAttribute("ratio", compressor.getRatio());
+	storageManager.writeAttribute("compHPF", compressor.getSidechain());
 	storageManager.closeTag();
 
 	// MIDI knobs
@@ -1503,8 +1512,43 @@ doReadPatchedParam:
 		storageManager.exitTag("delay");
 	}
 
-	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
+	else if (!strcmp(tagName, "AudioCompressor")) {
+		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "attack")) {
+				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+				compressor.setAttack(masterCompressorAttack);
+				storageManager.exitTag("attack");
+			}
+			else if (!strcmp(tagName, "release")) {
+				q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+				compressor.setRelease(masterCompressorRelease);
+				storageManager.exitTag("release");
+			}
+			else if (!strcmp(tagName, "thresh")) {
+				q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+				compressor.setThreshold(masterCompressorThresh);
+				storageManager.exitTag("thresh");
+			}
+			else if (!strcmp(tagName, "ratio")) {
+				q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+				compressor.setRatio(masterCompressorRatio);
+				storageManager.exitTag("ratio");
+			}
+			else if (!strcmp(tagName, "compHPF")) {
+				q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+				compressor.setSidechain(masterCompressorSidechain);
+				storageManager.exitTag("compHPF");
+			}
+			else {
+				storageManager.exitTag(tagName);
+			}
+		}
+		storageManager.exitTag("AudioCompressor");
+	}
+	// this is actually the sidechain but pre 1.1 songs save it as compressor
+	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "Sidechain")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
+		const char* name = tagName;
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
@@ -1529,7 +1573,7 @@ doReadPatchedParam:
 				storageManager.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("compressor");
+		storageManager.exitTag(name);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
