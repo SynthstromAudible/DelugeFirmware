@@ -158,7 +158,7 @@ private:
 	void setMPEZone(MPEZone mpeZone);
 	void setMPENumChannels(uint8_t numChannels);
 	void setRootNote(int16_t rootNote);
-	std::pair<Scale, int16_t> determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount);
+	Scale determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
 	void setColour(ColourZone zone, RGB rgb);
 };

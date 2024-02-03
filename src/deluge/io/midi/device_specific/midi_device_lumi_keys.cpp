@@ -38,8 +38,7 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	Scale currentScale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -62,8 +61,8 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	}
 
 	// Since we're in the neighbourhood, set the root and scale
-	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
-	setScale(scaleAndRootNoteOffset.first);
+	setRootNote(currentSong->rootNote % kOctaveSize);
+	setScale(currentScale);
 
 	// Run colour-setting hook.
 	hookOnRecalculateColour();
@@ -75,17 +74,12 @@ void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
-	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
-	setScale(scaleAndRootNoteOffset.first);
+	setRootNote(currentSong->rootNote % kOctaveSize);
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
-	std::pair<MIDIDeviceLumiKeys::Scale, int16_t> scaleAndRootNoteOffset =
-	    determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
-	setRootNote((currentSong->rootNote + scaleAndRootNoteOffset.second) % kOctaveSize);
-	setScale(scaleAndRootNoteOffset.first);
+	Scale scale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	setScale(scale);
 }
 
 void MIDIDeviceLumiKeys::hookOnEnterScaleMode() {
@@ -242,9 +236,8 @@ void MIDIDeviceLumiKeys::setRootNote(int16_t rootNote) {
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
-std::pair<MIDIDeviceLumiKeys::Scale, int16_t>
-MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes, uint8_t noteCount) {
-	// First try with all scales "as is" (without transposition)
+MIDIDeviceLumiKeys::Scale MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes,
+                                                                                       uint8_t noteCount) {
 	// Turn notes in octave into 12 bit binary
 	uint16_t noteInt = 0;
 	for (uint8_t note = 0; note < noteCount; note++) {
@@ -253,26 +246,11 @@ MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes,
 	// Compare with Lumis pre-built binary list of scales
 	for (uint8_t scale = 0; scale < MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT; scale++) {
 		if (noteInt == scaleNotes[scale]) {
-			return {Scale(scale), 0};
+			return Scale(scale);
 		}
 	}
 
-	// Then if no matches found, try with all possible transpositions of all the scales
-	for (int32_t i = 0; i < kOctaveSize; i++) {
-		// Turn notes in octave into 12 bit binary
-		noteInt = 0;
-		for (uint8_t note = 0; note < noteCount; note++) {
-			noteInt |= 1 << ((modeNotes[note] + i) % kOctaveSize);
-		}
-		// Compare with pre-built binary list of scales
-		for (uint8_t scale = 0; scale < MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT; scale++) {
-			if (noteInt == scaleNotes[scale]) {
-				return {Scale(scale), i};
-			}
-		}
-	}
-
-	return {Scale::CHROMATIC, 0};
+	return Scale::CHROMATIC;
 }
 
 void MIDIDeviceLumiKeys::setScale(Scale scale) {
