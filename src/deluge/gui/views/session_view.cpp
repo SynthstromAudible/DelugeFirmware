@@ -709,6 +709,7 @@ holdingRecord:
 
 				// If Clip present here...
 				else if (clip) {
+					currentSong->currentClip = clip;
 
 					// If holding down tempo knob...
 					if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
@@ -920,7 +921,7 @@ justEndClipPress:
 
 				// If Clip is present here
 				if (clip) {
-
+					currentSong->currentClip = clip;
 					return view.clipStatusPadAction(clip, on, yDisplay);
 				}
 			}
@@ -936,7 +937,7 @@ justEndClipPress:
 
 				// If Clip is present here
 				if (clip) {
-
+					currentSong->currentClip = clip;
 					switch (currentUIMode) {
 					case UI_MODE_MIDI_LEARN:
 						if (sdRoutineLock) {
@@ -3324,6 +3325,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		gridActiveModeUsed = true;
 
 		Clip* clip = gridClipFromCoords(x, y);
+		currentSong->currentClip = clip;
 		ActionResult modeHandleResult = ActionResult::NOT_DEALT_WITH;
 		switch (gridModeActive) {
 		case SessionGridModeEdit: {

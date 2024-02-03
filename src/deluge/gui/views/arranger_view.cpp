@@ -1176,6 +1176,7 @@ void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex,
 }
 
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
+	currentSong->currentClip = clipInstance->clip;
 	lastInteractedOutputIndex = yDisplay + currentSong->arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
 	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
