@@ -121,6 +121,9 @@ public:
 
 	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
 
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+
 protected:
 	bool isKit() { return true; }
 

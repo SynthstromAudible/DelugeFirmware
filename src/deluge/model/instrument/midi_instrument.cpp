@@ -998,3 +998,23 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 		sendMonophonicExpressionEvent(whichExpressionDimension);
 	}
 }
+
+ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                                int32_t paramID,
+                                                                deluge::modulation::params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;
+
+		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+
+			modelStackWithParam = getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+		}
+	}
+
+	return modelStackWithParam;
+}

@@ -119,22 +119,9 @@ public:
 
 	// public to midi follow can access it
 	ModelStackWithAutoParam*
-	getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t paramID = 0xFFFFFFFF,
-	                       deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
-	ModelStackWithAutoParam* getModelStackWithParamForSynthClip(
-	    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	    int32_t paramID = deluge::modulation::params::kNoParamID,
-	    deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
-	ModelStackWithAutoParam* getModelStackWithParamForKitClip(
-	    ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	    int32_t paramID = deluge::modulation::params::kNoParamID,
-	    deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                  int32_t paramID = deluge::modulation::params::kNoParamID);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack, AudioClip* clip,
-	                                   int32_t paramID = deluge::modulation::params::kNoParamID);
+	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                              int32_t paramID = deluge::modulation::params::kNoParamID,
+	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
 
 	// public so instrument clip view can access it
 	void initParameterSelection();

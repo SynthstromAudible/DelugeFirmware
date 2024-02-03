@@ -87,6 +87,9 @@ public:
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : "channel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
 
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
