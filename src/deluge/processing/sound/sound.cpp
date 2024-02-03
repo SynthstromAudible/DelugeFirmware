@@ -2343,8 +2343,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-				                                      AudioEngine::audioSampleTimer
-				                                          - AudioEngine::timeLastSideChainHit);
+				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
