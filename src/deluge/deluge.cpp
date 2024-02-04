@@ -59,11 +59,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "util/d_string.h"
 #include "util/misc.h"
 #include "util/pack.h"
-#include <cstdint>
-#include <stdlib.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
