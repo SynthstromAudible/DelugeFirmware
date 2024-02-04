@@ -29,13 +29,13 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolume = logf(finalVolume) - 2;
+	float songVolumedB = logf(finalVolume) - 2;
 
-	threshdb = songVolume * threshold;
+	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
 	// reduce clicking
 	float lastER = er;
-	er = std::max<float>((songVolume - threshdb - 1) * ratio, 0);
+	er = std::max<float>((songVolumedB - threshdb - 1) * ratio, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
 }
