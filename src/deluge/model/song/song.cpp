@@ -1647,7 +1647,7 @@ unknownTag:
 				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
-			// legacy section, read as part of global effectable (songParams tag) post 1.1
+			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {

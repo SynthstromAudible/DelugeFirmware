@@ -1545,7 +1545,7 @@ doReadPatchedParam:
 		}
 		storageManager.exitTag("AudioCompressor");
 	}
-	// this is actually the sidechain but pre 1.1 songs save it as compressor
+	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;
