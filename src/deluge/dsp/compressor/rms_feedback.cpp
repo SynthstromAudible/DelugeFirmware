@@ -18,31 +18,24 @@
 #include "dsp/compressor/rms_feedback.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
-
-	// an appropriate range is 0-50*one q 15
-
-	thresholdKnobPos = 0;
-	sideChainKnobPos = ONE_Q31 >> 1;
-	// this is 2:1
-	ratioKnobPos = 0;
-
-	currentVolumeL = 0;
-	currentVolumeR = 0;
-	er = 0;
-	setSidechain(sideChainKnobPos);
+	setAttack(10 << 24);
+	setRelease(20 << 24);
+	setThreshold(0);
+	setRatio(0);
+	setSidechain(ONE_Q31 >> 1);
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolume = std::log(finalVolume) - 2;
+	float songVolumedB = logf(finalVolume) - 2;
 
-	threshdb = songVolume * threshold;
+	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
 	// reduce clicking
 	float lastER = er;
-	er = std::max<float>((songVolume - threshdb - 1) * ratio, 0);
+	er = std::max<float>((songVolumedB - threshdb - 1) * ratio, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
 }
@@ -128,12 +121,4 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 	float logmean = std::log(std::max(rms, 1.0f));
 
 	return logmean;
-}
-// takes in knob positions in the range 0-ONE_Q31
-void RMSFeedbackCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
-	setAttack(a);
-	setRelease(r);
-	setThreshold(t);
-	setRatio(rat);
-	setSidechain(fc);
 }

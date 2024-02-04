@@ -28,7 +28,7 @@ public:
 	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentCompressor =
-		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
+		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->sidechain;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 

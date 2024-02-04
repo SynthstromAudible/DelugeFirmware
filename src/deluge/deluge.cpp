@@ -439,7 +439,6 @@ void setupBlankSong() {
 	preLoadedSong = NULL;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

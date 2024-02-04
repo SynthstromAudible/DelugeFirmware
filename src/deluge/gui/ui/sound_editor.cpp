@@ -1322,7 +1322,7 @@ doMIDIOrCV:
 	currentModControllable = newModControllable;
 
 	if (currentModControllable) {
-		currentCompressor = &currentModControllable->compressor;
+		currentCompressor = &currentModControllable->sidechain;
 	}
 
 	if (currentSound) {

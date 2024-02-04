@@ -141,7 +141,6 @@ void logAction(char const* string);
 void logAction(int32_t number);
 
 void getReverbParamsFromSong(Song* song);
-void getMasterCompressorParamsFromSong(Song* song);
 
 VoiceSample* solicitVoiceSample();
 void voiceSampleUnassigned(VoiceSample* voiceSample);

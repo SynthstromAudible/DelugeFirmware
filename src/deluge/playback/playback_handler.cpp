@@ -1235,7 +1235,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because
 	// resyncInternalTicksToInputTicks() references it
