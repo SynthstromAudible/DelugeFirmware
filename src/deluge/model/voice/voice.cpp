@@ -1147,8 +1147,9 @@ decidedWhichBufferRenderingInto:
 	else {
 		// two first indicies are reserved in case we need stereo for unison spread
 		oscBuffer = spareRenderingBuffer[0];
+		int32_t channels = stereoUnison ? 2 : 1;
 
-		int32_t const* const oscBufferEnd = oscBuffer + numSamples;
+		int32_t const* const oscBufferEnd = oscBuffer + numSamples * channels;
 
 		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
 		// unison. Increasing number of unison cuts the volume of the oscillators
@@ -1177,7 +1178,6 @@ decidedWhichBufferRenderingInto:
 
 		// Otherwise, clear the buffer
 		else {
-			int32_t channels = stereoUnison ? 2 : 1;
 			memset(oscBuffer, 0, channels * numSamples * sizeof(int32_t));
 		}
 
