@@ -594,6 +594,11 @@ doActualSimpleChange:
 			changeRootUI(&performanceSessionView);
 		}
 	}
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);

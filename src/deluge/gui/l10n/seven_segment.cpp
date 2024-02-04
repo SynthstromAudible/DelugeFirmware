@@ -424,6 +424,8 @@ PLACE_SDRAM_DATA Language seven_segment{
 
         {STRING_FOR_MASTER, "MSTR"},
         {STRING_FOR_FILTERS, "FLTR"},
+
+        {STRING_FOR_CANT_TRANSPOSE, "CANT"},
     },
     &built_in::english,
 };

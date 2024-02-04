@@ -103,6 +103,8 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void displayCurrentRootNoteAndScaleName();
+	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
@@ -361,11 +363,9 @@ public:
 	// END ~ new Automation Arranger View Variables
 
 	int32_t masterTransposeOffset;
-	int32_t totalSemitonesTransposed;
 	void transpose(int32_t offset);
-	void displayMasterTransposeOffset();
 	void adjustMasterTransposeOffset(int32_t offset);
-	void displayTotalSemitonesTransposed();
+	void displayMasterTransposeOffset();
 
 private:
 	bool fillModeActive;

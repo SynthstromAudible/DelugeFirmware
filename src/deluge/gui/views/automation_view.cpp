@@ -1215,6 +1215,12 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		}
 	}
 
+	// Vertical encoder button
+	// Not relevant for audio clip
+	else if (b == Y_ENC && !isAudioClip) {
+		handleVerticalEncoderButtonAction(on);
+	}
+
 	// Select encoder
 	// if you're not pressing shift and press down on the select encoder, toggle interpolation on/off
 	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC) {
@@ -1527,6 +1533,15 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	return false;
+}
+
+// handle by button action if b == Y_ENC
+void AutomationView::handleVerticalEncoderButtonAction(bool on) {
+	if (on && currentUIMode == UI_MODE_NONE) {
+		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
 }
 
 // called by button action if b == SELECT_ENC and shift button is not pressed
