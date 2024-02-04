@@ -27,7 +27,7 @@ class RMSFeedbackCompressor {
 public:
 	RMSFeedbackCompressor();
 
-	// takes in knob positions in the range 0-ONE_Q31
+	/// takes in all values as knob positions in the range 0-ONE_Q31
 	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
 		setAttack(a);
 		setRelease(r);
