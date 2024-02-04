@@ -357,7 +357,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.5.2 - Unison Stereo Spread
  - ([#223]) The unison parts can be spread accross the stereo field. Press `SELECT` when in the `UNISON NUMBER` menu to access the new unison spread parameter.
- - **Warning: Do not use with `RING MOD` synth type when `UNISON NUMBER` and `NOISE` are both values greater than 1. Extremely loud noise is produced. (Known Bug)**
 
 #### 4.5.3 - Waveform Loop Lock
  - ([#293]) When a sample has `LOOP START` (CYAN) and `LOOP END` (MAGENTA) points set, holding down `LOOP START` and tapping `LOOP END` will `LOCK` the points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use `SHIFT` + turn `◀︎▶︎` to double or half the loop length.
