@@ -98,10 +98,10 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	if (sidechainVolumeParam != -2147483648) {
 		if (sideChainHitPending != 0) {
-			compressor.registerHit(sideChainHitPending);
+			sidechain.registerHit(sideChainHitPending);
 		}
 		int32_t compressorOutput =
-		    compressor.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
+		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
 		    multiply_32x32_rshift32(compressorOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
@@ -274,12 +274,12 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				else {
 					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-					compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
+				if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+					sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
 					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 				}
 				else {
-					compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
+					sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
 					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 				}
 				return true;

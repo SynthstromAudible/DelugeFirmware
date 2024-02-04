@@ -8,6 +8,7 @@
 
 - Added an adapted version of the reverb found in Émilie Gillet's Mutable Instruments Rings module. Can be enabled via a new `REVERB MODEL` sub-menu under the existing Reverb menu. 
     - The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
+- Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
 ### User Interface

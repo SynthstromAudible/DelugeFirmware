@@ -401,7 +401,7 @@ sidechain::Sync sidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC};
 compressor::Attack compressorAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE};
 compressor::Release compressorReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE};
 unpatched_param::UpdatingReverbParams compressorShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE,
-                                                          params::UNPATCHED_COMPRESSOR_SHAPE};
+                                                          params::UNPATCHED_SIDECHAIN_SHAPE};
 reverb::compressor::Shape reverbCompressorShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE};
 
 submenu::Compressor compressorMenu{

@@ -459,28 +459,28 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			current = (AudioEngine::mastercompressor.getThreshold() >> 24);
+			current = (compressor.getThreshold() >> 24);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				current = (AudioEngine::mastercompressor.getRatio() >> 24);
+				current = (compressor.getRatio() >> 24);
 
 				break;
 
 			case CompParam::ATTACK:
-				current = AudioEngine::mastercompressor.getAttack() >> 24;
+				current = compressor.getAttack() >> 24;
 
 				break;
 
 			case CompParam::RELEASE:
-				current = AudioEngine::mastercompressor.getRelease() >> 24;
+				current = compressor.getRelease() >> 24;
 
 				break;
 
 			case CompParam::SIDECHAIN:
-				current = AudioEngine::mastercompressor.getSidechain() >> 24;
+				current = compressor.getSidechain() >> 24;
 				break;
 			}
 		}
@@ -496,53 +496,53 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		int ledLevel;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
-			current = (AudioEngine::mastercompressor.getThreshold() >> 24) - 64;
+			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-			AudioEngine::mastercompressor.setThreshold(lshiftAndSaturate<24>(current + 64));
+			compressor.setThreshold(lshiftAndSaturate<24>(current + 64));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				current = (AudioEngine::mastercompressor.getRatio() >> 24) - 64;
+				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 
-				displayLevel = AudioEngine::mastercompressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				displayLevel = compressor.setRatio(lshiftAndSaturate<24>(current + 64));
 				break;
 
 			case CompParam::ATTACK:
-				current = (AudioEngine::mastercompressor.getAttack() >> 24) - 64;
+				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = AudioEngine::mastercompressor.setAttack(lshiftAndSaturate<24>(current + 64));
+				displayLevel = compressor.setAttack(lshiftAndSaturate<24>(current + 64));
 				break;
 
 			case CompParam::RELEASE:
-				current = (AudioEngine::mastercompressor.getRelease() >> 24) - 64;
+				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = AudioEngine::mastercompressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				displayLevel = compressor.setRelease(lshiftAndSaturate<24>(current + 64));
 				break;
 
 			case CompParam::SIDECHAIN:
-				current = (AudioEngine::mastercompressor.getSidechain() >> 24) - 64;
+				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
-				displayLevel = AudioEngine::mastercompressor.setSidechain(lshiftAndSaturate<24>(current + 64));
+				displayLevel = compressor.setSidechain(lshiftAndSaturate<24>(current + 64));
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
@@ -756,7 +756,7 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 		                                       writeAutomation, false, valuesForOverride);
 	}
 
-	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", params::UNPATCHED_COMPRESSOR_SHAPE,
+	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
 
 	unpatchedParams->writeParamAsAttribute("modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
@@ -872,7 +872,7 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
 		storageManager.exitTag("sidechainCompressorShape");
 	}
 

@@ -1998,7 +1998,7 @@ void SessionView::graphicsRoutine() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
