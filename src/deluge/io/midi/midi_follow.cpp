@@ -191,7 +191,7 @@ MidiFollow::getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelSt
 
 	if (paramID != kNoParamID) {
 		// can't control Pitch or Sidechain params in Song view
-		if ((paramID != params::UNPATCHED_PITCH_ADJUST) && (paramID != params::UNPATCHED_COMPRESSOR_SHAPE)
+		if ((paramID != params::UNPATCHED_PITCH_ADJUST) && (paramID != params::UNPATCHED_SIDECHAIN_SHAPE)
 		    && (paramID != params::UNPATCHED_SIDECHAIN_VOLUME)) {
 			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 		}
