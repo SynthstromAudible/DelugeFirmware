@@ -181,7 +181,7 @@ doNormal:
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-		                           postReverbVolumeLastTime, reverbSendAmount, pan, true);
+		                           postReverbVolume, reverbSendAmount, pan, true);
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 

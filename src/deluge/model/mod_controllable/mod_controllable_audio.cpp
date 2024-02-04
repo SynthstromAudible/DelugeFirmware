@@ -961,6 +961,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	if (reverbSendAmount != 0) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
+	postReverbVolumeLastTime = postReverbVolume;
 }
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
