@@ -125,7 +125,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
 	filterRoute = other->filterRoute;
-	compressor.cloneFrom(&other->compressor);
+	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
 	delay.cloneFrom(&other->delay);
 }
@@ -147,7 +147,7 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
@@ -1288,11 +1288,20 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.closeTag();
 
 	// Sidechain compressor
-	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", compressor.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.syncLevel);
-	storageManager.writeAttribute("attack", compressor.attack);
-	storageManager.writeAttribute("release", compressor.release);
+	storageManager.writeOpeningTagBeginning("sidechain");
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	storageManager.writeAttribute("attack", sidechain.attack);
+	storageManager.writeAttribute("release", sidechain.release);
+	storageManager.closeTag();
+
+	// Audio compressor
+	storageManager.writeOpeningTagBeginning("audioCompressor");
+	storageManager.writeAttribute("attack", compressor.getAttack());
+	storageManager.writeAttribute("release", compressor.getRelease());
+	storageManager.writeAttribute("thresh", compressor.getThreshold());
+	storageManager.writeAttribute("ratio", compressor.getRatio());
+	storageManager.writeAttribute("compHPF", compressor.getSidechain());
 	storageManager.closeTag();
 
 	// MIDI knobs
@@ -1503,33 +1512,68 @@ doReadPatchedParam:
 		storageManager.exitTag("delay");
 	}
 
-	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
-		// Set default values in case they are not configured
-		compressor.syncType = SYNC_TYPE_EVEN;
-		compressor.syncLevel = SYNC_LEVEL_NONE;
-
+	else if (!strcmp(tagName, "audioCompressor")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				compressor.attack = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+				compressor.setAttack(masterCompressorAttack);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				compressor.release = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+				compressor.setRelease(masterCompressorRelease);
+				storageManager.exitTag("release");
+			}
+			else if (!strcmp(tagName, "thresh")) {
+				q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+				compressor.setThreshold(masterCompressorThresh);
+				storageManager.exitTag("thresh");
+			}
+			else if (!strcmp(tagName, "ratio")) {
+				q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+				compressor.setRatio(masterCompressorRatio);
+				storageManager.exitTag("ratio");
+			}
+			else if (!strcmp(tagName, "compHPF")) {
+				q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+				compressor.setSidechain(masterCompressorSidechain);
+				storageManager.exitTag("compHPF");
+			}
+			else {
+				storageManager.exitTag(tagName);
+			}
+		}
+		storageManager.exitTag("AudioCompressor");
+	}
+	// this is actually the sidechain but pre c1.1 songs save it as compressor
+	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
+		// Set default values in case they are not configured
+		const char* name = tagName;
+		sidechain.syncType = SYNC_TYPE_EVEN;
+		sidechain.syncLevel = SYNC_LEVEL_NONE;
+
+		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "attack")) {
+				sidechain.attack = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("attack");
+			}
+			else if (!strcmp(tagName, "release")) {
+				sidechain.release = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				compressor.syncType = storageManager.readSyncTypeFromFile(song);
+				sidechain.syncType = storageManager.readSyncTypeFromFile(song);
 				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				compressor.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
+				sidechain.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
 				storageManager.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("compressor");
+		storageManager.exitTag(name);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
@@ -2547,7 +2591,7 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	}
 	using enum deluge::l10n::String;
-	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 		return l10n::get(STRING_FOR_SLOW);
 	}
 	else {

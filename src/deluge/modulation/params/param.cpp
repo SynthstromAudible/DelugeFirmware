@@ -191,7 +191,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_BITCRUSHING] = STRING_FOR_BITCRUSH,
 		    [UNPATCHED_MOD_FX_OFFSET] = STRING_FOR_MODFX_OFFSET,
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
-		    [UNPATCHED_COMPRESSOR_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
+		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
 		};
 		return l10n::get(NAMES[p]);
 	}
@@ -358,7 +358,7 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		case UNPATCHED_MOD_FX_FEEDBACK:
 			return "modFXFeedback";
 
-		case UNPATCHED_COMPRESSOR_SHAPE:
+		case UNPATCHED_SIDECHAIN_SHAPE:
 			return "compressorShape";
 
 		case UNPATCHED_NUM_SHARED:
