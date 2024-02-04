@@ -709,7 +709,6 @@ holdingRecord:
 
 				// If Clip present here...
 				else if (clip) {
-					currentSong->currentClip = clip;
 
 					// If holding down tempo knob...
 					if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
@@ -729,7 +728,6 @@ removePendingOverdub:
 
 					// Or, normal action - select the pressed Clip
 					else {
-
 						selectedClipYDisplay = yDisplay;
 						// This is only interresting for changing colour
 						clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
@@ -871,6 +869,8 @@ justEndClipPress:
 							                                                     // selected,
 						}
 						// and we don't want the loading animation or anything to get stuck onscreen
+						currentSong->currentClip = clip;
+						display->displayPopup("NEW CURRENT");
 						clipPressEnded();
 					}
 				}
@@ -921,7 +921,6 @@ justEndClipPress:
 
 				// If Clip is present here
 				if (clip) {
-					currentSong->currentClip = clip;
 					return view.clipStatusPadAction(clip, on, yDisplay);
 				}
 			}
@@ -937,7 +936,6 @@ justEndClipPress:
 
 				// If Clip is present here
 				if (clip) {
-					currentSong->currentClip = clip;
 					switch (currentUIMode) {
 					case UI_MODE_MIDI_LEARN:
 						if (sdRoutineLock) {
@@ -3323,9 +3321,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	}
 	else {
 		gridActiveModeUsed = true;
-
 		Clip* clip = gridClipFromCoords(x, y);
-		currentSong->currentClip = clip;
 		ActionResult modeHandleResult = ActionResult::NOT_DEALT_WITH;
 		switch (gridModeActive) {
 		case SessionGridModeEdit: {
@@ -3453,21 +3449,26 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		// First finger up
 		if (gridFirstPressedX == x && gridFirstPressedY == y) {
 			// Open clip if no other pad was previously pressed, timer has not run out and clip is pressed
-			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease
-			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
+			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease) {
+				if (AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
-				// Not allowed if recording arrangement
-				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+					// Not allowed if recording arrangement
+					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+						display->displayPopup(
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+					}
+					else {
+						if (clip != nullptr) {
+							transitionToViewForClip(clip);
+						}
+						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+					}
 				}
 				else {
-					if (clip != nullptr) {
-						transitionToViewForClip(clip);
-					}
-					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+					currentSong->currentClip = clip;
+					display->displayPopup("NEW CURRENT");
 				}
 			}
-
 			clipPressEnded();
 		}
 
@@ -3605,12 +3606,15 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 	}
 	else {
 		if (gridFirstPressedX == x && gridFirstPressedY == y) {
-			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease
-			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
-
-				gridHandlePadsLaunchToggleArming(clip, false);
+			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease) {
+				if (AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
+					gridHandlePadsLaunchToggleArming(clip, false);
+				}
+				else {
+					currentSong->currentClip = clip;
+					display->displayPopup("NEW CURRENT");
+				}
 			}
-
 			clipPressEnded();
 		}
 	}

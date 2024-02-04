@@ -1518,13 +1518,17 @@ getItFromSection:
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
-
 					// If no action to perform...
-					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
+					if (!actionOnDepress) {
 justGetOut:
 						exitSubModeWithoutAction();
 					}
-
+					else if ((int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
+						// could this be replaced by "output->activeClip"?
+						currentSong->currentClip = output->clipInstances.getElement(pressedClipInstanceIndex)->clip;
+						display->displayPopup("NEW CURRENT");
+						goto justGetOut;
+					}
 					// Or if yes we do want to do some action...
 					else {
 						ClipInstance* clipInstance =
