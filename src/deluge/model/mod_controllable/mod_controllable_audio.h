@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
@@ -135,6 +136,8 @@ public:
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
 
+	RMSFeedbackCompressor compressor;
+
 	// Grain
 	int32_t wrapsToShutdown;
 	void setWrapsToShutdown();
@@ -159,7 +162,7 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	SideChain compressor; // Song doesn't use this, despite extending this class
+	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
 
