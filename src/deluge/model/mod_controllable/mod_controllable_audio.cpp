@@ -1288,7 +1288,7 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.closeTag();
 
 	// Sidechain compressor
-	storageManager.writeOpeningTagBeginning("Sidechain");
+	storageManager.writeOpeningTagBeginning("sidechain");
 	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
 	storageManager.writeAttribute("attack", sidechain.attack);
@@ -1296,7 +1296,7 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.closeTag();
 
 	// Audio compressor
-	storageManager.writeOpeningTagBeginning("AudioCompressor");
+	storageManager.writeOpeningTagBeginning("audioCompressor");
 	storageManager.writeAttribute("attack", compressor.getAttack());
 	storageManager.writeAttribute("release", compressor.getRelease());
 	storageManager.writeAttribute("thresh", compressor.getThreshold());
@@ -1512,7 +1512,7 @@ doReadPatchedParam:
 		storageManager.exitTag("delay");
 	}
 
-	else if (!strcmp(tagName, "AudioCompressor")) {
+	else if (!strcmp(tagName, "audioCompressor")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
@@ -1546,7 +1546,7 @@ doReadPatchedParam:
 		storageManager.exitTag("AudioCompressor");
 	}
 	// this is actually the sidechain but pre 1.1 songs save it as compressor
-	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "Sidechain")) { // Remember, Song doesn't use this
+	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
 		// Set default values in case they are not configured
 		const char* name = tagName;
 		sidechain.syncType = SYNC_TYPE_EVEN;
