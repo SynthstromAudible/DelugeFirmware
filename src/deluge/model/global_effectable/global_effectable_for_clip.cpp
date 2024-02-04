@@ -23,6 +23,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <string.h>
@@ -112,14 +113,16 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 		                      >> 16); // This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND)
 		                              // returning 134217728
 	}
-
+	q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSet.isOn() && !delayWorkingState.doDelay && (!pan || !AudioEngine::renderInStereo)
-	    && !clippingAmount && !hasBassAdjusted(paramManagerForClip) && !hasTrebleAdjusted(paramManagerForClip)
-	    && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip) && !isSRREnabled(paramManagerForClip)
-	    && getActiveModFXType(paramManagerForClip) == ModFXType::NONE && stutterer.status == STUTTERER_STATUS_OFF;
+	    !isKit() && !filterSet.isOn() && compThreshold == 0 && !delayWorkingState.doDelay
+	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
+	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
+	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
+	    && stutterer.status == STUTTERER_STATUS_OFF;
 
 	if (canRenderDirectlyIntoSongBuffer) {
 
@@ -181,8 +184,8 @@ doNormal:
 		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-		                           postReverbVolume, reverbSendAmount, pan, true);
+		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
+		                           reverbSendAmount, pan, true);
 		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, postReverbVolume);
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}

@@ -2279,10 +2279,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	          &postFXVolume, paramManager, 8);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
-	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume,
-	                           postReverbVolume, reverbSendAmount, 0, true);
+	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
+	                           reverbSendAmount, 0, true);
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
+	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
 	compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postReverbVolume);
 
 	postReverbVolumeLastTime = postReverbVolume;
