@@ -462,10 +462,6 @@ gotError2:
 }
 
 void Song::transposeAllScaleModeClips(int32_t offset) {
-	transposeAllClips(offset, true);
-}
-
-void Song::transposeAllClips(int32_t offset, bool onlyScaleModeClips) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -482,7 +478,7 @@ traverseClips:
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (!onlyScaleModeClips || (onlyScaleModeClips && instrumentClip->isScaleModeClip())) {
+		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
 			instrumentClip->transpose(offset, modelStackWithTimelineCounter);
@@ -5778,7 +5774,7 @@ void Song::transpose(int32_t offset) {
 	if (masterTransposeOffset != 0) {
 		offset *= currentSong->masterTransposeOffset;
 	}
-	transposeAllClips(offset);
+	transposeAllScaleModeClips(offset);
 	totalSemitonesTransposed += offset;
 	displayTotalSemitonesTransposed();
 }
