@@ -17,8 +17,7 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-
+#include <cstdint>
 #define TIMER_DISPLAY 0
 #define TIMER_MIDI_LEARN_FLASH 1
 #define TIMER_DEFAULT_ROOT_NOTE 2
@@ -39,7 +38,8 @@
 #define TIMER_OLED_SCROLLING_AND_BLINKING 17
 #define TIMER_SYSEX_DISPLAY 18
 #define TIMER_METER_INDICATOR_BLINK 19
-#define NUM_TIMERS 20
+#define TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION 20
+#define NUM_TIMERS 21
 
 struct Timer {
 	bool active;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/audio_output.h"
 #include "definitions_cxx.hpp"
@@ -21,14 +21,13 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
-#include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <new>
@@ -37,7 +36,9 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
-AudioOutput::AudioOutput() : Output(InstrumentType::AUDIO) {
+namespace params = deluge::modulation::params;
+
+AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
 	echoing = false;
@@ -62,7 +63,7 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::AUDIO, 5);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, 5);
 }
 
 void AudioOutput::resetEnvelope() {
@@ -83,12 +84,12 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	//audio outputs can have an activeClip while being muted
+	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 		if (activeAudioClip->voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[Param::Local::ENV_0_ATTACK];
+			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
 
 renderEnvelope:
@@ -260,7 +261,8 @@ renderEnvelope:
 				outputPos->l += inputL;
 				outputPos->r += inputR;
 
-				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos you're obviously already hearing the output channel
+				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos
+				// you're obviously already hearing the output channel
 			}
 
 			outputPos++;
@@ -282,8 +284,8 @@ bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
 void AudioOutput::cutAllSound() {
 	if (activeClip) {
 		((AudioClip*)activeClip)->unassignVoiceSample();
-		((AudioClip*)activeClip)
-		    ->abortRecording(); // Needed for when this is being called as part of a song-swap - we can't leave recording happening in such a case.
+		((AudioClip*)activeClip)->abortRecording(); // Needed for when this is being called as part of a song-swap - we
+		                                            // can't leave recording happening in such a case.
 	}
 }
 
@@ -292,7 +294,8 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
                                          int32_t* highestReverbAmountFound) {
 }
 
-// Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always be NULL
+// Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
+// be NULL
 bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	storageManager.writeAttribute("name", name.get());
@@ -309,7 +312,8 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	storageManager.writeOpeningTagEnd();
 
 	ParamManager* paramManager = NULL;
-	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we should use / save
+	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
+	// should use / save
 	if (!activeClip) {
 		paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	}
@@ -411,4 +415,18 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
                                          int32_t* highestReverbAmountFound) {
 	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
 	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
+}
+
+ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                             int32_t paramID, params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+	}
+
+	return modelStackWithParam;
 }

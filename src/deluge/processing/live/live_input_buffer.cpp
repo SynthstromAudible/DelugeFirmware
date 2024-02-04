@@ -13,11 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/live/live_input_buffer.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <string.h>
@@ -75,7 +74,7 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 
 		for (int32_t p = 0; p < kDifferenceLPFPoles; p++) {
 			int32_t distanceToGo = angle - angleLPFMem[p];
-			angleLPFMem[p] += multiply_32x32_rshift32_rounded(distanceToGo, 1 << 23); //distanceToGo >> 9;
+			angleLPFMem[p] += multiply_32x32_rshift32_rounded(distanceToGo, 1 << 23); // distanceToGo >> 9;
 
 			angle = angleLPFMem[p];
 		}

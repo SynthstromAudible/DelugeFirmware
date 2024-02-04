@@ -13,17 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include <cmath>
 #include <cstring>
 
 #include "gui/menu_item/integer.h"
-
-#include "gui/ui/sound_editor.h"
-#include "util/cfunctions.h"
-
 #include "processing/engines/audio_engine.h"
+#include "util/cfunctions.h"
 
 namespace deluge::gui::menu_item::reverb {
 class Pan final : public Integer {
@@ -44,9 +41,9 @@ public:
 	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->getValue() * 33554432); }
 
 	void readCurrentValue() override {
-		this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuPanValue * 4) + 2147483648) >> 32);
+		this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuRelativeValue * 4) + 2147483648) >> 32);
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuPanValue; }
-	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuPanValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 };
 } // namespace deluge::gui::menu_item::reverb

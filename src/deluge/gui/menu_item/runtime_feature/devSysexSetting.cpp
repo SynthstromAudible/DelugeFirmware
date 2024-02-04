@@ -13,17 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "devSysexSetting.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/runtime_feature/setting.h"
-#include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "util/d_string.h"
 #include "util/functions.h"
-#include <algorithm>
-#include <iterator>
-#include <ranges>
 
 namespace deluge::gui::menu_item::runtime_feature {
 
@@ -53,7 +49,7 @@ void DevSysexSetting::writeCurrentValue() {
 	}
 }
 
-std::vector<std::string_view> DevSysexSetting::getOptions() {
+deluge::vector<std::string_view> DevSysexSetting::getOptions() {
 	intToHex(onValue, &on_val[5]);
 	return {
 	    l10n::get(l10n::String::STRING_FOR_OFF),

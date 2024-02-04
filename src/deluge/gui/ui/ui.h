@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "hid/button.h"
 
 class RootUI;
@@ -74,7 +75,8 @@ extern bool pendingUIRenderingLock;
 
 #define EXCLUSIVE_UI_MODES_MASK ((uint32_t)255)
 
-// Non-exclusive UI modes, which can (if the code allows) occur at the same time as other ones, including the "exclusive" ones above.
+// Non-exclusive UI modes, which can (if the code allows) occur at the same time as other ones, including the
+// "exclusive" ones above.
 #define UI_MODE_STUTTERING (1 << 28)
 #define UI_MODE_HORIZONTAL_SCROLL (1 << 29)
 #define UI_MODE_AUDITIONING (1 << 30)
@@ -109,6 +111,9 @@ public:
 	virtual bool canSeeViewUnderneath() { return false; }
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}
+	virtual const char* getName() { return "UI"; }
+	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
+
 	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 		return false;
 	} // Returns whether it was used, I think?
@@ -120,12 +125,12 @@ public:
 	// When these return false it means they're transparent, showing what's underneath.
 	// These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
 	// Cos we need to be able to quiz these without actually getting any rendering done.
-	virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	virtual bool renderMainPads(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
 	                            bool drawUndefinedArea = true) {
 		return false;
 	}
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return false;
 	}
@@ -134,6 +139,8 @@ public:
 
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
+
+	virtual UIType getUIType() = 0;
 };
 
 // UIs
@@ -154,7 +161,7 @@ void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
 bool rootUIIsTimelineView();
 bool rootUIIsClipMinderScreen();
-void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols();
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);

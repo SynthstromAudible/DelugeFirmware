@@ -88,6 +88,8 @@ public:
 	void consoleTimerEvent();
 	static void scrollingAndBlinkingTimerEvent();
 
+	static void renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display);
+
 	static uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 	static uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 	static uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];

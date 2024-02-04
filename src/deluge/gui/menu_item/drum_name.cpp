@@ -13,12 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "drum_name.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {

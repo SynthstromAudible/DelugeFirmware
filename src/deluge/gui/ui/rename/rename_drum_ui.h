@@ -31,6 +31,9 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
+	// ui
+	UIType getUIType() { return UIType::RENAME_DRUM; }
+
 protected:
 	void enterKeyPress();
 

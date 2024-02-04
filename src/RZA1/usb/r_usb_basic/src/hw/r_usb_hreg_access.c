@@ -44,7 +44,7 @@ extern uint8_t g_usb_std_uclksel;
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_rwupe
  Description     : Set the RWUPE-bit specified port's DVSTCTR0 reg-
-                 : ister. When host. To allow detection of remote wake-up from 
+                 : ister. When host. To allow detection of remote wake-up from
                  : a USB Function.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -61,7 +61,7 @@ void hw_usb_hset_rwupe(usb_utr_t* ptr, uint16_t port)
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_rwupe
  Description     : Clear the RWUPE-bit specified port's DVSTCTR0 reg-
-                 : ister. When host. To prohibit detection of remote wake-up from 
+                 : ister. When host. To prohibit detection of remote wake-up from
                  : a USB Function.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -77,7 +77,7 @@ void hw_usb_hclear_rwupe(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_resume
- Description     : Set the RESUME-bit specified port's DVSTCTR0 register 
+ Description     : Set the RESUME-bit specified port's DVSTCTR0 register
                  : When host. To allow output of resume signal to a USB Function.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -93,7 +93,7 @@ void hw_usb_hset_resume(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_resume
- Description     : Clear the RESUME-bit specified port's DVSTCTR0 register 
+ Description     : Clear the RESUME-bit specified port's DVSTCTR0 register
                  : When host. To prohibit output of resume signal to a USB Func-
                  : tion.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
@@ -110,7 +110,7 @@ void hw_usb_hclear_resume(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_uact
- Description     : Set UACT-bit (USB Bus Enable) specified port's DVSTCTR0 
+ Description     : Set UACT-bit (USB Bus Enable) specified port's DVSTCTR0
                  : register. When Host, to output SOF.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -126,7 +126,7 @@ void hw_usb_hset_uact(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_uact
- Description     : Clear UACT-bit (USB Bus Enable) specified port's DVSTCTR0 
+ Description     : Clear UACT-bit (USB Bus Enable) specified port's DVSTCTR0
                  : register. When Host, to prohibit output SOF.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -182,8 +182,8 @@ void hw_usb_hclear_enb_ovrcre(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_enb_bchge
- Description     : The BCHGE-bit (USB Bus Change Interrupt Enable) is set in the 
-                 : specified port's INTENB1 register. This will cause a BCHG 
+ Description     : The BCHGE-bit (USB Bus Change Interrupt Enable) is set in the
+                 : specified port's INTENB1 register. This will cause a BCHG
                  : interrupt when a change of USB bus state has been detected.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -199,7 +199,7 @@ void hw_usb_hset_enb_bchge(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_enb_bchge
- Description     : The BCHGE-bit (USB Bus Change Interrupt Enable) is cleared in 
+ Description     : The BCHGE-bit (USB Bus Change Interrupt Enable) is cleared in
                  : the specified port's INTENB1 register.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -215,7 +215,7 @@ void hw_usb_hclear_enb_bchge(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_enb_dtche
- Description     : Enable the specified port's DTCHE-interrupt "Disconnection 
+ Description     : Enable the specified port's DTCHE-interrupt "Disconnection
                  : Detection" by setting the DTCHE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -231,7 +231,7 @@ void hw_usb_hset_enb_dtche(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_enb_dtche
- Description     : Disable the specified port's DTCHE-interrupt "Disconnection 
+ Description     : Disable the specified port's DTCHE-interrupt "Disconnection
                  : Detection" by clearing the DTCHE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -247,7 +247,7 @@ void hw_usb_hclear_enb_dtche(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_enb_attche
- Description     : Enable the specified port's ATTCHE-interrupt "Connection 
+ Description     : Enable the specified port's ATTCHE-interrupt "Connection
                  : Detection" by setting the ATTCHE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -263,7 +263,7 @@ void hw_usb_hset_enb_attche(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_enb_attche
- Description     : Disable the specified port's ATTCHE-interrupt "Disconnection 
+ Description     : Disable the specified port's ATTCHE-interrupt "Disconnection
                  : Detection" by clearing the ATTCHE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -291,7 +291,7 @@ void hw_usb_hset_enb_signe(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_enb_sacke
- Description     : Enable the SACKE-interrupt "Setup Transaction 
+ Description     : Enable the SACKE-interrupt "Setup Transaction
                  : Normal Response" by setting the SACKE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
@@ -303,8 +303,8 @@ void hw_usb_hset_enb_sacke(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_enb_pddetinte
- Description     : Enable the PDDETINT-interrupt "Connection Detection for 
-                 : Battery Charging Supporting Device" by setting 
+ Description     : Enable the PDDETINT-interrupt "Connection Detection for
+                 : Battery Charging Supporting Device" by setting
                  : the PDDETINTE-bit.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
@@ -332,7 +332,7 @@ void hw_usb_hwrite_intsts(usb_utr_t* ptr, uint16_t port, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_sts_ovrcr
- Description     : Clear the specified port's OVRCR-bit; "Overcurrent 
+ Description     : Clear the specified port's OVRCR-bit; "Overcurrent
                  : Input Change Interrupt Status".
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -344,7 +344,7 @@ void hw_usb_hclear_sts_ovrcr(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hclear_sts_bchg
- Description     : Clear the specified port's BCHG-bit; "USB Bus Change Interrupt 
+ Description     : Clear the specified port's BCHG-bit; "USB Bus Change Interrupt
                  : Status".
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     port         : Port number.
@@ -429,8 +429,8 @@ void hw_usb_hclear_sts_pddetint(usb_utr_t* ptr)
 /***********************************************************************************************************************
  Function Name   : hw_usb_hwrite_usbreq
  Description     : Write bRequest and bmRequestType to USBREQ register.
-                 : When Host, the values of bRequest and bmRequestType 
-                 : to be transmitted are written. (When Function, the received 
+                 : When Host, the values of bRequest and bmRequestType
+                 : to be transmitted are written. (When Function, the received
                  : values of bRequest and bmRequestType are stored in USBREQ).
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -444,8 +444,8 @@ void hw_usb_hwrite_usbreq(usb_utr_t* ptr, uint16_t data)
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_usbval
  Description     : Write the specified 'wValue' to USBVAL register,
-                 : to write the USB request. When Host, the value of 
-                 : wValue to be transmitted is set. (When Function, the value of 
+                 : to write the USB request. When Host, the value of
+                 : wValue to be transmitted is set. (When Function, the value of
                  : wValue that has been received is stored in USBREQ.)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -459,7 +459,7 @@ void hw_usb_hset_usbval(usb_utr_t* ptr, uint16_t data)
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_usbindx
  Description     : Write the specified 'wIndex', the USB request, to USBINDX
-                 : register, for host setup requests for control 
+                 : register, for host setup requests for control
                  : transfers.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -472,7 +472,7 @@ void hw_usb_hset_usbindx(usb_utr_t* ptr, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_usbleng
- Description     : Write the specified 'wLength' value to USBINDX register, 
+ Description     : Write the specified 'wLength' value to USBINDX register,
                  : for host setup requests for control.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
                  : uint16_t     data         : Setting value.
@@ -497,7 +497,7 @@ void hw_usb_hwrite_dcpctr(usb_utr_t* ptr, uint16_t data)
 
 /***********************************************************************************************************************
  Function Name   : hw_usb_hset_sureq
- Description     : Set te SUREQ-bit in the DCPCTR register 
+ Description     : Set te SUREQ-bit in the DCPCTR register
                  : (Set SETUP packet send when HostController function is selected)
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return value    : none
@@ -511,7 +511,7 @@ void hw_usb_hset_sureq(usb_utr_t* ptr)
  Function Name   : hw_usb_hread_devadd
  Description     : Return the DEVADD register value for the specified USB device address.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
-                 : uint16_t     devsel       ; USB device address value 
+                 : uint16_t     devsel       ; USB device address value
  Return value    : DEVADDx content
  ***********************************************************************************************************************/
 uint16_t hw_usb_hread_devadd(usb_utr_t* ptr, uint16_t devsel)
@@ -623,8 +623,8 @@ void hw_usb_hmodule_init(usb_ctrl_t* p_ctrl)
         USB200.SUSPMODE |= USB_SUSPM;
         USB200.BUSWAIT = USB_CFG_BUSWAIT;
         USB200.SYSCFG0 |= USB_DCFM;
-        USB200.SYSCFG0 &=
-            ~USB_DPRPU; // Added by Rohan. Otherwise, incorrectly thinks a device is already connected if we'd previously initialized the peripheral module
+        USB200.SYSCFG0 &= ~USB_DPRPU; // Added by Rohan. Otherwise, incorrectly thinks a device is already connected if
+                                      // we'd previously initialized the peripheral module
         USB200.SYSCFG0 |= USB_DRPD;
         USB200.SYSCFG0 |= USB_USBE;
 

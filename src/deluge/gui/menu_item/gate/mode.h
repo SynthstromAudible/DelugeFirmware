@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -21,14 +21,13 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
-#include "util/misc.h"
 #include <string_view>
 
 namespace deluge::gui::menu_item::gate {
 
 class Mode final : public Selection, public FormattedTitle {
 
-	std::vector<l10n::String> options_ = {
+	deluge::vector<l10n::String> options_ = {
 	    l10n::String::STRING_FOR_V_TRIGGER,
 	    l10n::String::STRING_FOR_S_TRIGGER,
 	};
@@ -41,8 +40,8 @@ public:
 	void writeCurrentValue() override {
 		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
 	}
-	std::vector<std::string_view> getOptions() override {
-		std::vector<std::string_view> output;
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> output;
 		for (l10n::String str : options_) {
 			output.push_back(l10n::getView(str));
 		}

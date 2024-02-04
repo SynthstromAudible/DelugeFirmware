@@ -61,8 +61,9 @@
  * USB_CFG_ENABLE       : Uses DMA
  * USB_CFG_DISABLE      : Does not use DMA
  */
-// I can only get DMA working for one pipe. Look at usb_pstd_pipe2fport(). This sets the DMA channel per pipe, for up to two pipes. So long as only one of these pipes
-// is used, it'll work. Something's stopping both from working together. But, even if I fixed it, using DMA for just 2 pipes still wouldn't be all that helpful.
+// I can only get DMA working for one pipe. Look at usb_pstd_pipe2fport(). This sets the DMA channel per pipe, for up to
+// two pipes. So long as only one of these pipes is used, it'll work. Something's stopping both from working together.
+// But, even if I fixed it, using DMA for just 2 pipes still wouldn't be all that helpful.
 #define USB_CFG_DMA USB_CFG_DISABLE
 
 /** [DMA Channel setting(USB0 module Send transfer)]

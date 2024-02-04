@@ -14,15 +14,25 @@ def snake_case(name):
 
 def main():
     parser = argparse.ArgumentParser(description="Rename files to snake case.")
-    parser.add_argument("-v", "--verbose", help="print the list of renamed files", action='store_true')
-    parser.add_argument("-r", "--recursive", help="process directory recursively", action='store_true')
-    parser.add_argument("-d", "--dry-run", help="don't actually do the action", action='store_true')    
-    parser.add_argument('directory')
+    parser.add_argument(
+        "-v", "--verbose", help="print the list of renamed files", action="store_true"
+    )
+    parser.add_argument(
+        "-r", "--recursive", help="process directory recursively", action="store_true"
+    )
+    parser.add_argument(
+        "-d", "--dry-run", help="don't actually do the action", action="store_true"
+    )
+    parser.add_argument("directory")
 
     args = parser.parse_args()
 
     path = args.directory
-    paths = [os.path.join(dp, f) for dp, dn, fn in os.walk(path) for f in fn] if args.recursive else os.listdir(path)
+    paths = (
+        [os.path.join(dp, f) for dp, dn, fn in os.walk(path) for f in fn]
+        if args.recursive
+        else os.listdir(path)
+    )
 
     for path in paths:
         dirname, filename = os.path.split(path)

@@ -35,7 +35,7 @@ class Sound;
 class Source;
 class ParamManagerForTimeline;
 class InstrumentClip;
-class Compressor;
+class SideChain;
 class Arpeggiator;
 class MultisampleRange;
 class Clip;
@@ -61,7 +61,7 @@ public:
 	int8_t currentSourceIndex;
 	Source* currentSource;
 	ParamManagerForTimeline* currentParamManager;
-	Compressor* currentCompressor;
+	SideChain* currentCompressor;
 	ArpeggiatorSettings* currentArpSettings;
 	MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
@@ -78,7 +78,6 @@ public:
 	bool editingKit();
 
 	ActionResult timerCallback() override;
-
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
@@ -106,6 +105,7 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 
+	bool programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
@@ -116,9 +116,11 @@ public:
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
+	bool inSongMenu();
 	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
+	bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program);
 	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
@@ -137,6 +139,9 @@ public:
 	void mpeZonesPotentiallyUpdated();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+
+	// ui
+	UIType getUIType() { return UIType::SOUND_EDITOR; }
 
 private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);

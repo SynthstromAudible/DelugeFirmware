@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -23,7 +23,6 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include <limits>
 
 class ModelStack;
 
@@ -41,9 +40,9 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void selectEncoderAction(int8_t offset);
 
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void flashDefaultRootNote();
@@ -53,6 +52,9 @@ public:
 	uint8_t highlightedNotes[kHighestKeyboardNote] = {0};
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
+
+	// ui
+	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
 
 private:
 	bool opened();

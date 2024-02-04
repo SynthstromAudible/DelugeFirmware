@@ -13,11 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "zone_selector.h"
-#include "direction_selector.h"
-#include "gui/ui/sound_editor.h"
 #include "zone_num_member_channels.h"
 
 namespace deluge::gui::menu_item::mpe {

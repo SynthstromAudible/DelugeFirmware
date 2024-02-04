@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "sync_level.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item {
@@ -28,48 +28,50 @@ void SyncLevel::drawValue() {
 		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
-		char* buffer = shortStringBuffer;
+		StringBuf buffer{shortStringBuffer, kShortStringBufferSize};
 		getNoteLengthName(buffer);
-		display->setScrollingText(buffer, 0);
+		display->setScrollingText(buffer.data(), 0);
 	}
 }
 
-void SyncLevel::getNoteLengthName(char* buffer) {
-	char type[7] = "";
-	if (this->getValue() < SYNC_TYPE_TRIPLET) {
-		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->getValue()));
-	}
-	else if (this->getValue() < SYNC_TYPE_DOTTED) {
-		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->getValue()));
-		strcpy(type, "-tplts");
-	}
-	else {
-		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->getValue()));
-		strcpy(type, "-dtted");
-	}
-	if (strlen(type) > 0) {
-		if (strcmp(&buffer[2], "bar") == 0) { // OLED `1-bar` -> '1-bar-trplts`
-			strcat(buffer, type);
+void SyncLevel::getNoteLengthName(StringBuf& buffer) {
+	char const* typeStr = nullptr;
+	uint32_t value = this->getValue();
+	::SyncType type{menuOptionToSyncType(value)};
+	::SyncLevel level{menuOptionToSyncLevel(value)};
+
+	uint32_t shift = SYNC_LEVEL_256TH - level;
+	uint32_t noteLength = uint32_t{3} << shift;
+
+	switch (type) {
+	case SYNC_TYPE_EVEN:
+		if (value != 0) {
+			typeStr = "-notes";
 		}
-		else {
-			if (display->haveOLED()) {
-				char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
-				strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
-			}
-			else {
-				strcat(buffer, type); // 7SEG just append the type
-			}
+		break;
+	case SYNC_TYPE_TRIPLET:
+		typeStr = "-tplts";
+		break;
+	case SYNC_TYPE_DOTTED:
+		typeStr = "-dtted";
+		break;
+	}
+
+	currentSong->getNoteLengthName(buffer, noteLength, typeStr);
+
+	if (typeStr != nullptr) {
+		if ((value >= SYNC_TYPE_TRIPLET && level <= SYNC_LEVEL_2ND) || display->have7SEG()) {
+			// On OLED, getNoteLengthName handles adding this for the non-bar levels. On 7seg, always append it
+			buffer.append(typeStr);
 		}
 	}
 }
 
 void SyncLevel::drawPixelsForOled() {
 	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
-	char buffer[30];
-	if (this->getValue()) {
-		text = buffer;
+	DEF_STACK_STRING_BUF(buffer, 30);
+	if (this->getValue() != 0) {
+		text = buffer.data();
 		getNoteLengthName(buffer);
 	}
 	deluge::hid::display::OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL,

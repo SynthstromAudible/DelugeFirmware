@@ -16,13 +16,12 @@
  */
 
 #include "storage/multi_range/multi_range_array.h"
-#include "hid/display/display.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include <new>
 
 #pragma GCC diagnostic push
-//This is supported by GCC and other compilers should error (not warn), so turn off for this
+// This is supported by GCC and other compilers should error (not warn), so turn off for this
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 MultiRangeArray::MultiRangeArray()
@@ -82,8 +81,8 @@ int32_t MultiRangeArray::changeType(int32_t newSize) {
 
 		newRange->topNote = oldRange->topNote;
 
-		oldRange
-		    ->~MultiRange(); // Always have to do this manually - the Array doesn't otherwise take care of destructing these.
+		oldRange->~MultiRange(); // Always have to do this manually - the Array doesn't otherwise take care of
+		                         // destructing these.
 	}
 
 	empty();

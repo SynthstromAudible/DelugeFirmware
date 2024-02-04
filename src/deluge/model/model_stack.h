@@ -18,6 +18,7 @@
 #pragma once
 
 #include "hid/display/display.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 
 class Song;
@@ -54,7 +55,8 @@ class ParamCollectionSummary;
  * However, if I later decided that a function needed additional access - say to the relevant ParamCollection,
  * this could be tiresome to change, since the function’s caller might not have this,
  * so its caller would have to pass it through, but that caller might not have it either - etc.
- * Also, all this passing of arguments can’t be good for the compiled code’s efficiency and RAM / stack / register usage.
+ * Also, all this passing of arguments can’t be good for the compiled code’s efficiency and RAM / stack / register
+ * usage.
  *
  * Another option would be for each “thing”, as stored in memory to include a pointer to its “parent” object.
  * E.g. each Clip would contain a pointer back to the Song, so that any function dealing with the
@@ -62,11 +64,11 @@ class ParamCollectionSummary;
  * storage and access would be being used for something which theoretically the code should just be able to “know”.
  *
  * Enter my (Rohan’s) own invented solution, “ModelStacks” - a “stack” of the relevant parts of the “model”
- * (objects representing the makeup of a project on the Deluge) which the currently executing functions are dealing with.
- * Things can be “pushed and popped” (though the implementation doesn’t quite put it that way)
- * onto and off the ModelStack as needed. Now all that needs to be passed between functions is the
- * pointer to the ModelStack - no other memory or pointers need copying (except in special cases),
- * and no additional arguments need to be passed. The ModelStack typically exists in program stack memory.
+ * (objects representing the makeup of a project on the Deluge) which the currently executing functions are dealing
+ * with. Things can be “pushed and popped” (though the implementation doesn’t quite put it that way) onto and off the
+ * ModelStack as needed. Now all that needs to be passed between functions is the pointer to the ModelStack - no other
+ * memory or pointers need copying (except in special cases), and no additional arguments need to be passed. The
+ * ModelStack typically exists in program stack memory.
  *
  * For example, suppose a Song needs to call a function on all Clips. The ModelStack begins by containing just the Song.
  * Then as each Clip has its function called, that Clip is set on the ModelStack.
@@ -152,13 +154,9 @@ public:
 		return timelineCounter;
 	}
 
-	inline TimelineCounter* getTimelineCounterAllowNull() const {
-		return timelineCounter;
-	}
+	inline TimelineCounter* getTimelineCounterAllowNull() const { return timelineCounter; }
 
-	inline void setTimelineCounter(TimelineCounter* newTimelineCounter) {
-		timelineCounter = newTimelineCounter;
-	}
+	inline void setTimelineCounter(TimelineCounter* newTimelineCounter) { timelineCounter = newTimelineCounter; }
 
 protected:
 	TimelineCounter* timelineCounter; // Allowed to be NULL
@@ -205,13 +203,9 @@ public:
 		return noteRow;
 	}
 
-	inline NoteRow* getNoteRowAllowNull() const {
-		return noteRow;
-	}
+	inline NoteRow* getNoteRowAllowNull() const { return noteRow; }
 
-	inline void setNoteRow(NoteRow* newNoteRow) {
-		noteRow = newNoteRow;
-	}
+	inline void setNoteRow(NoteRow* newNoteRow) { noteRow = newNoteRow; }
 
 	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable* newModControllable,
 	                                                 ParamManager* newParamManager) const;
@@ -246,6 +240,8 @@ public:
 	                                               ParamCollectionSummary* newSummary, int32_t newParamId) const;
 	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary,
 	                                  int32_t newParamId, AutoParam* newAutoParam) const;
+	ModelStackWithAutoParam* getUnpatchedAutoParamFromId(int32_t newParamId);
+	ModelStackWithAutoParam* getPatchedAutoParamFromId(int32_t newParamId);
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
@@ -266,11 +262,13 @@ public:
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
 
-	bool isParam(Param::Kind kind, ParamType id);
+	bool isParam(deluge::modulation::params::Kind kind, deluge::modulation::params::ParamType id);
 };
 
 class ModelStackWithAutoParam : public ModelStackWithParamId {
 public:
+	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
+	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
 };
 
@@ -386,7 +384,7 @@ ModelStackWithNoteRow::addModControllable(ModControllable* newModControllable) c
 
 /**
  * adds a modcontrollable and a param manager
-*/
+ */
 inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(ModControllable* newModControllable,
                                                                                ParamManager* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
@@ -402,7 +400,8 @@ ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParam
 	return toReturn;
 }
 
-// Although the ParamCollection is referenced inside the Summary, this is to call when you've already grabbed that pointer out, to avoid the CPU having to go and look at it again.
+// Although the ParamCollection is referenced inside the Summary, this is to call when you've already grabbed that
+// pointer out, to avoid the CPU having to go and look at it again.
 inline ModelStackWithParamCollection*
 ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamCollection,
                                                   ParamCollectionSummary* newSummary) const {
@@ -497,13 +496,14 @@ ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurr
 */
 
 /*
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+    ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
+    ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
+    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+    ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory,
+   currentSong)->addTimelineCounter(clip);
 
 
  */

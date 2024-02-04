@@ -13,11 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
-
-#include <cstddef>
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -29,6 +27,7 @@ namespace deluge::gui {
 class ContextMenu : public UI {
 public:
 	ContextMenu() { oledShowsUIUnderneath = true; };
+
 	virtual ~ContextMenu() = default;
 
 	void focusRegained() override;
@@ -51,6 +50,9 @@ public:
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 	int32_t scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 	virtual char const* getTitle() = 0;
+
+	// ui
+	UIType getUIType() { return UIType::CONTEXT_MENU; }
 };
 
 class ContextMenuForSaving : public ContextMenu {

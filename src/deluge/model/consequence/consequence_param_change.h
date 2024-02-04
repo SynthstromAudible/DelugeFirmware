@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -25,7 +25,7 @@
 class ConsequenceParamChange final : public Consequence {
 public:
 	ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int32_t revert(TimeType time, ModelStack* modelStackWithSong);
+	int32_t revert(TimeType time, ModelStack* modelStackWithSong) override;
 
 	union {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

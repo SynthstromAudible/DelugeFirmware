@@ -13,12 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include <string>
 
 namespace deluge::gui::menu_item::lfo {
 
@@ -26,7 +24,7 @@ class Shape : public Selection {
 public:
 	using Selection::Selection;
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_SINE),

@@ -13,13 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/song/song.h"
 
 int32_t ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording; // -1 means none

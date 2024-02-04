@@ -13,12 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
 #include "model/timeline_counter.h"
@@ -61,13 +62,13 @@ public:
 	void repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength);
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t posIncrement);
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
-	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
+	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	void toggleNoteRowMute(ModelStackWithNoteRow* modelStack);
 	void overviewMutePadPress(bool, bool);
 	void midiCommandMute(bool);
-	void getMainColourFromY(int32_t yNote, int8_t, uint8_t[]);
+	RGB getMainColourFromY(int32_t yNote, int8_t);
 	void stopAllNotesPlaying(ModelStackWithTimelineCounter* modelStack, bool actuallySoundChange = true);
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers = true);
@@ -119,8 +120,8 @@ public:
 	int32_t ticksTilNextNoteRowEvent;
 	int32_t noteRowsNumTicksBehindClip;
 
-	LearnedMIDI
-	    soundMidiCommand; // This is now handled by the Instrument, but for loading old songs, we need to capture and store this
+	LearnedMIDI soundMidiCommand; // This is now handled by the Instrument, but for loading old songs, we need to
+	                              // capture and store this
 
 	NoteRowVector noteRows;
 
@@ -137,24 +138,11 @@ public:
 
 	bool onKeyboardScreen;
 
-	//START ~ new Automation Clip View Variables
-	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
-	                                     //(e.g. if you leave clip and want to come back where you left off)
-
-	int32_t lastSelectedParamID;       //last selected Parameter to be edited in Automation Instrument Clip View
-	Param::Kind lastSelectedParamKind; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
-	int32_t lastSelectedParamShortcutX;
-	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
-	InstrumentType lastSelectedInstrumentType;
-
-	//END ~ new Automation Clip View Variables
-
 	uint8_t midiBank; // 128 means none
 	uint8_t midiSub;  // 128 means none
 	uint8_t midiPGM;  // 128 means none
 
-	InstrumentType instrumentTypeWhileLoading; // For use only while loading song
+	OutputType outputTypeWhileLoading; // For use only while loading song
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int32_t* getIndex = NULL);
@@ -217,7 +205,7 @@ public:
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
 	int32_t appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited();
-	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType);
+	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
 	int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                  ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
@@ -244,6 +232,11 @@ public:
 
 	// ----- TimelineCounter implementation -------
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
+
+	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+	};
 
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);

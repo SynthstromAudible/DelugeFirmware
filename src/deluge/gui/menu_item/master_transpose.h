@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
@@ -36,8 +36,8 @@ public:
 	}
 	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }
 	uint8_t shouldDrawDotOnName() override { return PatchedParam::shouldDrawDotOnName(); }
-	uint8_t getPatchedParamIndex() override { return ::Param::Local::PITCH_ADJUST; }
-	uint8_t getP() override { return ::Param::Local::PITCH_ADJUST; }
+	uint8_t getPatchedParamIndex() override { return deluge::modulation::params::LOCAL_PITCH_ADJUST; }
+	uint8_t getP() override { return deluge::modulation::params::LOCAL_PITCH_ADJUST; }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}

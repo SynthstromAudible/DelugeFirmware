@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "menu_item.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include <string_view>
 
 using namespace deluge;

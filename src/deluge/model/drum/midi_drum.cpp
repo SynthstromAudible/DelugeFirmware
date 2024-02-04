@@ -16,16 +16,13 @@
  */
 
 #include "model/drum/midi_drum.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
@@ -116,7 +113,9 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	NonAudioDrum::modEncoderAction(modelStack, offset, whichModEncoder);
 
-	if ((getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView)
+	if ((getCurrentUI() == &instrumentClipView
+	     || (getCurrentUI() == &automationView
+	         && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT))
 	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 1) {
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
@@ -138,6 +137,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensio
 void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
                                                         int32_t channelOrNoteNumber,
                                                         MIDICharacteristic whichCharacteristic) {
-	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
+	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
+	// yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }

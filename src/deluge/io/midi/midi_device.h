@@ -27,6 +27,7 @@
 #define VENDOR_ID_DIN 2
 #define VENDOR_ID_UPSTREAM_USB2 3
 #define VENDOR_ID_UPSTREAM_USB3 4
+#define VENDOR_ID_LOOPBACK 5
 
 #define MIDI_DIRECTION_INPUT_TO_DELUGE 0
 #define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
@@ -61,9 +62,9 @@ public:
 class MIDIInputChannel {
 public:
 	MIDIInputChannel() {
-		bendRange =
-		    0; // Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for finger-level because this is a non-MPE single MIDI channel.
-		rpnLSB = 127; // Means no param specified
+		bendRange = 0; // Means not set; don't copy value. Also, note this is the "main" bend range; there isn't one for
+		               // finger-level because this is a non-MPE single MIDI channel.
+		rpnLSB = 127;  // Means no param specified
 		rpnMSB = 127;
 	}
 	uint8_t rpnLSB;
@@ -110,10 +111,10 @@ public:
 	// Originally done to ease integration to the midi device setting menu
 	MIDIPort ports[2];
 
-	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll want to scale this up again to 32-bit to use them.
-	 * X and Y may be both positive and negative, and Z may only be positive (so has been scaled up less from incoming bits).
-	 * These default to 0.
-	 * These are just for MelodicInstruments. For Drums, the values get stored in the Drum itself.
+	/* These are stored as full-range 16-bit values (scaled up from 7 or 14-bit MIDI depending on which), and you'll
+	 * want to scale this up again to 32-bit to use them. X and Y may be both positive and negative, and Z may only be
+	 * positive (so has been scaled up less from incoming bits). These default to 0. These are just for
+	 * MelodicInstruments. For Drums, the values get stored in the Drum itself.
 	 */
 
 	int16_t defaultInputMPEValuesPerMIDIChannel[16][kNumExpressionDimensions];
@@ -127,14 +128,14 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-	bool sendClock; //whether to send clocks to this device
+	bool sendClock; // whether to send clocks to this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void
-	writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(); // These only go into MIDIDEVICES.XML.
+	virtual void writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset
+	                                                   // files where there's a reference to this Device.
+	void writeDefinitionAttributesToFile();            // These only go into MIDIDEVICES.XML.
 };
 
 class MIDIDeviceUSB : public MIDIDevice {
@@ -152,15 +153,70 @@ public:
 	uint8_t portNumber;
 };
 
-class MIDIDeviceUSBHosted final : public MIDIDeviceUSB {
+class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBHosted() {}
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 
+	// Add new hooks to the below list.
+
+	// Gets called once for each freshly connected hosted device.
+	virtual void hookOnConnected(){};
+
+	// Gets called when something happens that changes the root note
+	virtual void hookOnChangeRootNote(){};
+
+	// Gets called when something happens that changes the scale/mode
+	virtual void hookOnChangeScale(){};
+
+	// Gets called when entering Scale Mode in a clip
+	virtual void hookOnEnterScaleMode(){};
+
+	// Gets called when exiting Scale Mode in a clip
+	virtual void hookOnExitScaleMode(){};
+
+	// Gets called when learning/unlearning a midi device to a clip
+	virtual void hookOnMIDILearn(){};
+
+	// Gets called when recalculating colour in clip mode
+	virtual void hookOnRecalculateColour(){};
+
+	// Gets called when transitioning to ArrangerView
+	virtual void hookOnTransitionToArrangerView(){};
+
+	// Gets called when transitioning to ClipView
+	virtual void hookOnTransitionToClipView(){};
+
+	// Gets called when transitioning to SessionView
+	virtual void hookOnTransitionToSessionView(){};
+
+	// Gets called when hosted device info is saved to XML (usually after changing settings)
+	virtual void hookOnWriteHostedDeviceToFile(){};
+
+	// Add an entry to this enum if adding new virtual hook functions above
+	enum class Hook {
+		HOOK_ON_CONNECTED = 0,
+		HOOK_ON_CHANGE_ROOT_NOTE,
+		HOOK_ON_CHANGE_SCALE,
+		HOOK_ON_ENTER_SCALE_MODE,
+		HOOK_ON_EXIT_SCALE_MODE,
+		HOOK_ON_MIDI_LEARN,
+		HOOK_ON_RECALCULATE_COLOUR,
+		HOOK_ON_TRANSITION_TO_ARRANGER_VIEW,
+		HOOK_ON_TRANSITION_TO_CLIP_VIEW,
+		HOOK_ON_TRANSITION_TO_SESSION_VIEW,
+		HOOK_ON_WRITE_HOSTED_DEVICE_TO_FILE
+	};
+
+	// Ensure to add a case to this function in midi_device.cpp when adding new hooks
+	void callHook(Hook hook);
+
 	uint16_t vendorId;
 	uint16_t productId;
+
+	bool freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	String name;
 };
@@ -178,6 +234,17 @@ public:
 	MIDIDeviceDINPorts() {
 		connectionFlags = 1; // DIN ports are always connected
 	}
+	void writeReferenceAttributesToFile();
+	void writeToFlash(uint8_t* memory);
+	char const* getDisplayName();
+	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendSysex(uint8_t* data, int32_t len) override;
+	int32_t sendBufferSpace() override;
+};
+
+class MIDIDeviceLoopback final : public MIDIDevice {
+public:
+	MIDIDeviceLoopback() { connectionFlags = 1; }
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();

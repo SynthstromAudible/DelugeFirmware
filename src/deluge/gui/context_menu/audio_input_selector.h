@@ -13,12 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "gui/context_menu/context_menu.h"
-#include "gui/l10n/l10n.h"
 
 class AudioOutput;
 

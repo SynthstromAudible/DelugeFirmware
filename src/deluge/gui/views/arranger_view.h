@@ -13,11 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "gui/views/timeline_view.h"
 #include "hid/button.h"
 
@@ -38,50 +39,53 @@ class ModelStackWithNoteRow;
 class ArrangerView final : public TimelineView {
 public:
 	ArrangerView();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
+	ActionResult handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	void selectEncoderAction(int8_t offset);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void selectEncoderAction(int8_t offset) override;
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 
 	void repopulateOutputsOnScreen(bool doRender = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void drawMuteSquare(int32_t yDisplay, uint8_t thisImage[][3]);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	void drawMuteSquare(int32_t yDisplay, RGB thisImage[]);
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, RGB* thisImage,
 	               uint8_t thisOccupancyMask[], int32_t renderWidth);
 	void editPadAction(int32_t x, int32_t y, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	uint32_t getMaxLength();
-	uint32_t getMaxZoom();
-	void graphicsRoutine();
-	int32_t getNavSysId() { return NAVIGATION_ARRANGEMENT; }
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
+	void graphicsRoutine() override;
+	int32_t getNavSysId() override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
 	void notifyActiveClipChangedOnOutput(Output* output);
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();
 	bool initiateXScroll(int32_t newScrollPos);
-	bool supportsTriplets() { return false; }
+	bool supportsTriplets() override { return false; }
 	bool putDraggedClipInstanceInNewPosition(Output* output);
-	void tellMatrixDriverWhichRowsContainSomethingZoomable();
-	void scrollFinished();
-	void notifyPlaybackBegun();
-	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	void playbackEnded();
-	void clipNeedsReRendering(Clip* clip);
-	void exitSubModeWithoutAction();
+	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
+	void scrollFinished() override;
+	void notifyPlaybackBegun() override;
+	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
+	void playbackEnded() override;
+	void clipNeedsReRendering(Clip* clip) override;
+	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
 	void setLedStates();
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 
 	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;
@@ -108,20 +112,24 @@ public:
 	int32_t lastInteractedOutputIndex;
 	int32_t lastInteractedPos;
 	uint8_t lastInteractedSection;
+	ClipInstance* lastInteractedClipInstance;
 
 	int32_t lastTickSquare;
 
 	int32_t xScrollWhenPlaybackStarted;
 
+	// ui
+	UIType getUIType() { return UIType::ARRANGER_VIEW; }
+
 private:
-	void changeInstrumentType(InstrumentType newInstrumentType);
+	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
-	void auditionPadAction(bool on, int32_t y);
+	void auditionPadAction(bool on, int32_t y, UI* ui);
 	void beginAudition(Output* output);
 	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
-	void drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);
 	void setNoSubMode();
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
@@ -134,11 +142,11 @@ private:
 	void auditionEnded();
 	void goToSongView();
 	void changeOutputToAudio();
-	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
+	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
-	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(InstrumentType newInstrumentType);
-	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
+	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
+	void changeOutputToInstrument(OutputType newOutputType);
+	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
 };

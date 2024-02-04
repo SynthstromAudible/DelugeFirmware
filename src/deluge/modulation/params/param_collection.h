@@ -18,7 +18,7 @@
 #pragma once
 #include <cstdint>
 
-#include "definitions_cxx.hpp"
+#include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
 class Sound;
@@ -67,8 +67,8 @@ public:
 	                             bool automatedNow); // Watch the heck out! This might delete the AutoParam in question.
 	virtual ModelStackWithAutoParam* getAutoParamFromId(
 	    ModelStackWithParamId* modelStack,
-	    bool allowCreation =
-	        false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
+	    bool allowCreation = false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings
+	                                     // (wait why again?). May return NULL
 
 	virtual bool mayParamInterpolate(int32_t paramId);
 	virtual bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return false; }
@@ -76,7 +76,7 @@ public:
 	virtual int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	virtual int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
-	virtual Param::Kind getParamKind() = 0;
+	virtual deluge::modulation::params::Kind getParamKind() = 0;
 
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent;

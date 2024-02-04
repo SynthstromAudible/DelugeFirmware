@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "range.h"
 
@@ -21,8 +21,8 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
@@ -185,8 +185,9 @@ void Range::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * textLength;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	deluge::hid::display::OLED::drawString(buffer, stringStartX, baseY, deluge::hid::display::OLED::oledMainImage[0],
-	                                       OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
+	deluge::hid::display::OLED::drawString(buffer, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL,
+	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       digitWidth, digitHeight);
 
 	int32_t hilightStartX, hilightWidth;
 
@@ -194,7 +195,9 @@ void Range::drawPixelsForOled() {
 		hilightStartX = stringStartX;
 		hilightWidth = digitWidth * leftLength;
 doHilightJustOneEdge:
-		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY - 1, baseY + digitHeight + 1,
+		// Invert the area 1px around the digits being rendered
+		baseY += OLED_MAIN_TOPMOST_PIXEL - 1;
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + digitHeight + 1,
 		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {

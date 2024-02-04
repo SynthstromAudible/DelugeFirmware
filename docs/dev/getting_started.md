@@ -36,18 +36,19 @@ DBT runs and builds on:
 
 To run DBT, simply open up a command prompt or your terminal/shell in your operating system of choice, change directory to the git repository you cloned earlier, and type the following variation of the command, depending on your operating system:
 
-* Windows: `dbt`, `dbt.cmd`, or `.\dbt.cmd`
+* Windows (cmd): `dbt`, `dbt.cmd`, or `.\dbt.cmd`
+* Windows (PowerShell): `./dbt`
 * MacOS (Darwin): `./dbt`
 * Linux: `./dbt`
 
 The first time you run DBT, it will check for the toolchain in the `toolchain` folder and if it's missing it will start the process of downloading and installing. Nothing will be installed or extracted outside of the repository directory so there is no worry of your system becoming polluted with dependencies. The toolchain includes:
 
-* xPack GNU ARM Embedded GCC (v12.2.1)
+* xPack GNU ARM Embedded GCC (v13.2.1)
 * xPack OpenOCD (v0.12.0)
-* xPack Clang (v14.0.6) (only `clang-format` and `clang-tidy`)
-* xPack CMake (v3.23.5)
+* xPack Clang (v17.0.6) (only `clang-format` and `clang-tidy`)
+* xPack CMake (v3.26.5)
 * xPack Ninja (v1.11.1)
-* Standalone Python (v3.11.3)
+* Standalone Python (v3.12.1)
     * SSL/TLS Certificates (certifi)
     * Multiple additional Python libraries from a frequently changing list
 

@@ -31,6 +31,10 @@ void* QuickSorter::getElementAddress(int32_t i) {
 	return (void*)((uint32_t)memory + i * elementSize);
 }
 
+// GCC doesn't like that workingMemory would be unbounded if elementSize is unbounded
+#pragma GCC push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+
 // A utility function to swap two elements
 void QuickSorter::swap(int32_t i, int32_t j) {
 	void* addressI = getElementAddress(i);
@@ -40,7 +44,7 @@ void QuickSorter::swap(int32_t i, int32_t j) {
 	memcpy(addressI, addressJ, elementSize);
 	memcpy(addressJ, temp, elementSize);
 }
-
+#pragma GCC pop
 int32_t QuickSorter::getKey(int32_t i) {
 	return *(uint32_t*)getElementAddress(i) & keyMask;
 }
@@ -71,7 +75,7 @@ high --> Ending index */
 void QuickSorter::quickSort(int32_t low, int32_t high) {
 	if (low < high) {
 		/* pi is partitioning index, arr[p] is now
-        at right place */
+		at right place */
 		int32_t pi = partition(low, high);
 
 		// Separately sort elements before
@@ -81,7 +85,8 @@ void QuickSorter::quickSort(int32_t low, int32_t high) {
 	}
 }
 
-// Make sure numElements isn't 0 before you call this! And you should also make sure it's not just 1 before you bother calling.
+// Make sure numElements isn't 0 before you call this! And you should also make sure it's not just 1 before you bother
+// calling.
 void QuickSorter::sort(int32_t numElements) {
 	quickSort(0, numElements - 1);
 

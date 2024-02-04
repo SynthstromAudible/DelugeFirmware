@@ -80,11 +80,11 @@ Additional information:
 #define UNCACHED_MIRROR_OFFSET 0x40000000 // originally from: "RZA1/cpu_specific.h"
 
 /*********************************************************************
-*
-*       Configuration, default values
-*
-**********************************************************************
-*/
+ *
+ *       Configuration, default values
+ *
+ **********************************************************************
+ */
 
 #ifndef BUFFER_SIZE_UP
 #define BUFFER_SIZE_UP 1024 // Size of the buffer for terminal output of target, up to host
@@ -163,11 +163,11 @@ Additional information:
 #endif
 
 /*********************************************************************
-*
-*       Defines, fixed
-*
-**********************************************************************
-*/
+ *
+ *       Defines, fixed
+ *
+ **********************************************************************
+ */
 #if (defined __ICCARM__) || (defined __ICCRX__)
 #define RTT_PRAGMA(P) _Pragma(#P)
 #endif
@@ -230,21 +230,21 @@ Additional information:
 #endif
 
 /*********************************************************************
-*
-*       Static const data
-*
-**********************************************************************
-*/
+ *
+ *       Static const data
+ *
+ **********************************************************************
+ */
 
 static unsigned char _aTerminalId[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                          '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
 /*********************************************************************
-*
-*       Static data
-*
-**********************************************************************
-*/
+ *
+ *       Static data
+ *
+ **********************************************************************
+ */
 //
 // RTT Control Block and allocate buffers for channel 0
 //
@@ -261,21 +261,21 @@ SEGGER_RTT_PUT_BUFFER_SECTION(SEGGER_RTT_BUFFER_ALIGN(static char _acDownBufferR
 static unsigned char _ActiveTerminal;
 
 /*********************************************************************
-*
-*       Static functions
-*
-**********************************************************************
-*/
+ *
+ *       Static functions
+ *
+ **********************************************************************
+ */
 
 /*********************************************************************
-*
-*       _DoInit()
-*
-*  Function description
-*    Initializes the control block an buffers.
-*    May only be called via INIT() to avoid overriding settings.
-*
-*/
+ *
+ *       _DoInit()
+ *
+ *  Function description
+ *    Initializes the control block an buffers.
+ *    May only be called via INIT() to avoid overriding settings.
+ *
+ */
 #define INIT()                                                                                                         \
 	do {                                                                                                               \
 		if (_SEGGER_RTT_UNCACHED.acID[0] == '\0') {                                                                    \
@@ -325,24 +325,24 @@ static void _DoInit(void) {
 }
 
 /*********************************************************************
-*
-*       _WriteBlocking()
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT ring buffer
-*    and updates the associated write pointer which is periodically
-*    read by the host.
-*    The caller is responsible for managing the write chunk sizes as
-*    _WriteBlocking() will block until all data has been posted successfully.
-*
-*  Parameters
-*    pRing        Ring buffer to post to.
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Return value
-*    >= 0 - Number of bytes written into buffer.
-*/
+ *
+ *       _WriteBlocking()
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT ring buffer
+ *    and updates the associated write pointer which is periodically
+ *    read by the host.
+ *    The caller is responsible for managing the write chunk sizes as
+ *    _WriteBlocking() will block until all data has been posted successfully.
+ *
+ *  Parameters
+ *    pRing        Ring buffer to post to.
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Return value
+ *    >= 0 - Number of bytes written into buffer.
+ */
 static unsigned _WriteBlocking(SEGGER_RTT_BUFFER_UP* pRing, const char* pBuffer, unsigned NumBytes) {
 	unsigned NumBytesToWrite;
 	unsigned NumBytesWritten;
@@ -393,23 +393,23 @@ static unsigned _WriteBlocking(SEGGER_RTT_BUFFER_UP* pRing, const char* pBuffer,
 }
 
 /*********************************************************************
-*
-*       _WriteNoCheck()
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT ring buffer
-*    and updates the associated write pointer which is periodically
-*    read by the host.
-*    It is callers responsibility to make sure data actually fits in buffer.
-*
-*  Parameters
-*    pRing        Ring buffer to post to.
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Notes
-*    (1) If there might not be enough space in the "Up"-buffer, call _WriteBlocking
-*/
+ *
+ *       _WriteNoCheck()
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT ring buffer
+ *    and updates the associated write pointer which is periodically
+ *    read by the host.
+ *    It is callers responsibility to make sure data actually fits in buffer.
+ *
+ *  Parameters
+ *    pRing        Ring buffer to post to.
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Notes
+ *    (1) If there might not be enough space in the "Up"-buffer, call _WriteBlocking
+ */
 static void _WriteNoCheck(SEGGER_RTT_BUFFER_UP* pRing, const char* pData, unsigned NumBytes) {
 	unsigned NumBytesAtOnce;
 	unsigned WrOff;
@@ -463,18 +463,18 @@ static void _WriteNoCheck(SEGGER_RTT_BUFFER_UP* pRing, const char* pData, unsign
 }
 
 /*********************************************************************
-*
-*       _PostTerminalSwitch()
-*
-*  Function description
-*    Switch terminal to the given terminal ID.  It is the caller's
-*    responsibility to ensure the terminal ID is correct and there is
-*    enough space in the buffer for this to complete successfully.
-*
-*  Parameters
-*    pRing        Ring buffer to post to.
-*    TerminalId   Terminal ID to switch to.
-*/
+ *
+ *       _PostTerminalSwitch()
+ *
+ *  Function description
+ *    Switch terminal to the given terminal ID.  It is the caller's
+ *    responsibility to ensure the terminal ID is correct and there is
+ *    enough space in the buffer for this to complete successfully.
+ *
+ *  Parameters
+ *    pRing        Ring buffer to post to.
+ *    TerminalId   Terminal ID to switch to.
+ */
 static void _PostTerminalSwitch(SEGGER_RTT_BUFFER_UP* pRing, unsigned char TerminalId) {
 	unsigned char ac[2];
 
@@ -484,19 +484,19 @@ static void _PostTerminalSwitch(SEGGER_RTT_BUFFER_UP* pRing, unsigned char Termi
 }
 
 /*********************************************************************
-*
-*       _GetAvailWriteSpace()
-*
-*  Function description
-*    Returns the number of bytes that can be written to the ring
-*    buffer without blocking.
-*
-*  Parameters
-*    pRing        Ring buffer to check.
-*
-*  Return value
-*    Number of bytes that are free in the buffer.
-*/
+ *
+ *       _GetAvailWriteSpace()
+ *
+ *  Function description
+ *    Returns the number of bytes that can be written to the ring
+ *    buffer without blocking.
+ *
+ *  Parameters
+ *    pRing        Ring buffer to check.
+ *
+ *  Return value
+ *    Number of bytes that are free in the buffer.
+ */
 static unsigned _GetAvailWriteSpace(SEGGER_RTT_BUFFER_UP* pRing) {
 	unsigned RdOff;
 	unsigned WrOff;
@@ -517,33 +517,33 @@ static unsigned _GetAvailWriteSpace(SEGGER_RTT_BUFFER_UP* pRing) {
 }
 
 /*********************************************************************
-*
-*       Public code
-*
-**********************************************************************
-*/
+ *
+ *       Public code
+ *
+ **********************************************************************
+ */
 /*********************************************************************
-*
-*       SEGGER_RTT_ReadUpBufferNoLock()
-*
-*  Function description
-*    Reads characters from SEGGER real-time-terminal control block
-*    which have been previously stored by the application.
-*    Do not lock against interrupts and multiple access.
-*    Used to do the same operation that J-Link does, to transfer
-*    RTT data via other channels, such as TCP/IP or UART.
-*
-*  Parameters
-*    BufferIndex  Index of Up-buffer to be used.
-*    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-up-buffer to.
-*    BufferSize   Size of the target application buffer.
-*
-*  Return value
-*    Number of bytes that have been read.
-*
-*  Additional information
-*    This function must not be called when J-Link might also do RTT.
-*/
+ *
+ *       SEGGER_RTT_ReadUpBufferNoLock()
+ *
+ *  Function description
+ *    Reads characters from SEGGER real-time-terminal control block
+ *    which have been previously stored by the application.
+ *    Do not lock against interrupts and multiple access.
+ *    Used to do the same operation that J-Link does, to transfer
+ *    RTT data via other channels, such as TCP/IP or UART.
+ *
+ *  Parameters
+ *    BufferIndex  Index of Up-buffer to be used.
+ *    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-up-buffer to.
+ *    BufferSize   Size of the target application buffer.
+ *
+ *  Return value
+ *    Number of bytes that have been read.
+ *
+ *  Additional information
+ *    This function must not be called when J-Link might also do RTT.
+ */
 unsigned SEGGER_RTT_ReadUpBufferNoLock(unsigned BufferIndex, void* pData, unsigned BufferSize) {
 	unsigned NumBytesRem;
 	unsigned NumBytesRead;
@@ -622,22 +622,22 @@ unsigned SEGGER_RTT_ReadUpBufferNoLock(unsigned BufferIndex, void* pData, unsign
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_ReadNoLock()
-*
-*  Function description
-*    Reads characters from SEGGER real-time-terminal control block
-*    which have been previously stored by the host.
-*    Do not lock against interrupts and multiple access.
-*
-*  Parameters
-*    BufferIndex  Index of Down-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-down-buffer to.
-*    BufferSize   Size of the target application buffer.
-*
-*  Return value
-*    Number of bytes that have been read.
-*/
+ *
+ *       SEGGER_RTT_ReadNoLock()
+ *
+ *  Function description
+ *    Reads characters from SEGGER real-time-terminal control block
+ *    which have been previously stored by the host.
+ *    Do not lock against interrupts and multiple access.
+ *
+ *  Parameters
+ *    BufferIndex  Index of Down-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-down-buffer to.
+ *    BufferSize   Size of the target application buffer.
+ *
+ *  Return value
+ *    Number of bytes that have been read.
+ */
 unsigned SEGGER_RTT_ReadNoLock(unsigned BufferIndex, void* pData, unsigned BufferSize) {
 	unsigned NumBytesRem;
 	unsigned NumBytesRead;
@@ -713,30 +713,30 @@ unsigned SEGGER_RTT_ReadNoLock(unsigned BufferIndex, void* pData, unsigned Buffe
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_ReadUpBuffer
-*
-*  Function description
-*    Reads characters from SEGGER real-time-terminal control block
-*    which have been previously stored by the application.
-*    Used to do the same operation that J-Link does, to transfer
-*    RTT data via other channels, such as TCP/IP or UART.
-*
-*  Parameters
-*    BufferIndex  Index of Up-buffer to be used.
-*    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-up-buffer to.
-*    BufferSize   Size of the target application buffer.
-*
-*  Return value
-*    Number of bytes that have been read.
-*
-*  Additional information
-*    This function must not be called when J-Link might also do RTT.
-*    This function locks against all other RTT operations. I.e. during
-*    the read operation, writing is also locked.
-*    If only one consumer reads from the up buffer,
-*    call sEGGER_RTT_ReadUpBufferNoLock() instead.
-*/
+ *
+ *       SEGGER_RTT_ReadUpBuffer
+ *
+ *  Function description
+ *    Reads characters from SEGGER real-time-terminal control block
+ *    which have been previously stored by the application.
+ *    Used to do the same operation that J-Link does, to transfer
+ *    RTT data via other channels, such as TCP/IP or UART.
+ *
+ *  Parameters
+ *    BufferIndex  Index of Up-buffer to be used.
+ *    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-up-buffer to.
+ *    BufferSize   Size of the target application buffer.
+ *
+ *  Return value
+ *    Number of bytes that have been read.
+ *
+ *  Additional information
+ *    This function must not be called when J-Link might also do RTT.
+ *    This function locks against all other RTT operations. I.e. during
+ *    the read operation, writing is also locked.
+ *    If only one consumer reads from the up buffer,
+ *    call sEGGER_RTT_ReadUpBufferNoLock() instead.
+ */
 unsigned SEGGER_RTT_ReadUpBuffer(unsigned BufferIndex, void* pBuffer, unsigned BufferSize) {
 	unsigned NumBytesRead;
 	//
@@ -754,21 +754,21 @@ unsigned SEGGER_RTT_ReadUpBuffer(unsigned BufferIndex, void* pBuffer, unsigned B
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_Read
-*
-*  Function description
-*    Reads characters from SEGGER real-time-terminal control block
-*    which have been previously stored by the host.
-*
-*  Parameters
-*    BufferIndex  Index of Down-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-down-buffer to.
-*    BufferSize   Size of the target application buffer.
-*
-*  Return value
-*    Number of bytes that have been read.
-*/
+ *
+ *       SEGGER_RTT_Read
+ *
+ *  Function description
+ *    Reads characters from SEGGER real-time-terminal control block
+ *    which have been previously stored by the host.
+ *
+ *  Parameters
+ *    BufferIndex  Index of Down-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to buffer provided by target application, to copy characters from RTT-down-buffer to.
+ *    BufferSize   Size of the target application buffer.
+ *
+ *  Return value
+ *    Number of bytes that have been read.
+ */
 unsigned SEGGER_RTT_Read(unsigned BufferIndex, void* pBuffer, unsigned BufferSize) {
 	unsigned NumBytesRead;
 	//
@@ -786,28 +786,28 @@ unsigned SEGGER_RTT_Read(unsigned BufferIndex, void* pBuffer, unsigned BufferSiz
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteWithOverwriteNoLock
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT
-*    control block.
-*    SEGGER_RTT_WriteWithOverwriteNoLock does not lock the application
-*    and overwrites data if the data does not fit into the buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Notes
-*    (1) If there is not enough space in the "Up"-buffer, data is overwritten.
-*    (2) For performance reasons this function does not call Init()
-*        and may only be called after RTT has been initialized.
-*        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
-*    (3) Do not use SEGGER_RTT_WriteWithOverwriteNoLock if a J-Link
-*        connection reads RTT data.
-*/
+ *
+ *       SEGGER_RTT_WriteWithOverwriteNoLock
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT
+ *    control block.
+ *    SEGGER_RTT_WriteWithOverwriteNoLock does not lock the application
+ *    and overwrites data if the data does not fit into the buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Notes
+ *    (1) If there is not enough space in the "Up"-buffer, data is overwritten.
+ *    (2) For performance reasons this function does not call Init()
+ *        and may only be called after RTT has been initialized.
+ *        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
+ *    (3) Do not use SEGGER_RTT_WriteWithOverwriteNoLock if a J-Link
+ *        connection reads RTT data.
+ */
 void SEGGER_RTT_WriteWithOverwriteNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	const char* pData;
 	SEGGER_RTT_BUFFER_UP* pRing;
@@ -884,32 +884,32 @@ void SEGGER_RTT_WriteWithOverwriteNoLock(unsigned BufferIndex, const void* pBuff
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteSkipNoLock
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT
-*    control block which is then read by the host.
-*    SEGGER_RTT_WriteSkipNoLock does not lock the application and
-*    skips all data, if the data does not fit into the buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*                 MUST be > 0!!!
-*                 This is done for performance reasons, so no initial check has do be done.
-*
-*  Return value
-*    1: Data has been copied
-*    0: No space, data has not been copied
-*
-*  Notes
-*    (1) If there is not enough space in the "Up"-buffer, all data is dropped.
-*    (2) For performance reasons this function does not call Init()
-*        and may only be called after RTT has been initialized.
-*        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
-*/
+ *
+ *       SEGGER_RTT_WriteSkipNoLock
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT
+ *    control block which is then read by the host.
+ *    SEGGER_RTT_WriteSkipNoLock does not lock the application and
+ *    skips all data, if the data does not fit into the buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *                 MUST be > 0!!!
+ *                 This is done for performance reasons, so no initial check has do be done.
+ *
+ *  Return value
+ *    1: Data has been copied
+ *    0: No space, data has not been copied
+ *
+ *  Notes
+ *    (1) If there is not enough space in the "Up"-buffer, all data is dropped.
+ *    (2) For performance reasons this function does not call Init()
+ *        and may only be called after RTT has been initialized.
+ *        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
+ */
 #if (RTT_USE_ASM == 0)
 unsigned SEGGER_RTT_WriteSkipNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	const char* pData;
@@ -947,10 +947,10 @@ CopyStraight:
 			memcpy(pRing->pBuffer + WrOff, pData, Rem); // Copy 1st chunk
 			NumBytes -= Rem;
 			//
-			// Special case: First check that assumed RdOff == 0 calculated that last element before wrap-around could not be used
-			// But 2nd check (considering space until wrap-around and until RdOff) revealed that RdOff is not 0, so we can use the last element
-			// In this case, we may use a copy straight until buffer end anyway without needing to copy 2 chunks
-			// Therefore, check if 2nd memcpy is necessary at all
+			// Special case: First check that assumed RdOff == 0 calculated that last element before wrap-around could
+			// not be used But 2nd check (considering space until wrap-around and until RdOff) revealed that RdOff is
+			// not 0, so we can use the last element In this case, we may use a copy straight until buffer end anyway
+			// without needing to copy 2 chunks Therefore, check if 2nd memcpy is necessary at all
 			//
 			if (NumBytes) {
 				memcpy(pRing->pBuffer, pData + Rem, NumBytes);
@@ -970,33 +970,33 @@ CopyStraight:
 #endif
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteDownBufferNoLock
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT
-*    control block inside a <Down> buffer.
-*    SEGGER_RTT_WriteDownBufferNoLock does not lock the application.
-*    Used to do the same operation that J-Link does, to transfer
-*    RTT data from other channels, such as TCP/IP or UART.
-*
-*  Parameters
-*    BufferIndex  Index of "Down"-buffer to be used.
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Down"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*    (2) For performance reasons this function does not call Init()
-*        and may only be called after RTT has been initialized.
-*        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
-*
-*  Additional information
-*    This function must not be called when J-Link might also do RTT.
-*/
+ *
+ *       SEGGER_RTT_WriteDownBufferNoLock
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT
+ *    control block inside a <Down> buffer.
+ *    SEGGER_RTT_WriteDownBufferNoLock does not lock the application.
+ *    Used to do the same operation that J-Link does, to transfer
+ *    RTT data from other channels, such as TCP/IP or UART.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Down"-buffer to be used.
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Down"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ *    (2) For performance reasons this function does not call Init()
+ *        and may only be called after RTT has been initialized.
+ *        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
+ *
+ *  Additional information
+ *    This function must not be called when J-Link might also do RTT.
+ */
 unsigned SEGGER_RTT_WriteDownBufferNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	unsigned Status;
 	unsigned Avail;
@@ -1006,7 +1006,8 @@ unsigned SEGGER_RTT_WriteDownBufferNoLock(unsigned BufferIndex, const void* pBuf
 	pData = (const char*)pBuffer;
 	//
 	// Get "to-target" ring buffer.
-	// It is save to cast that to a "to-host" buffer. Up and Down buffer differ in volatility of offsets that might be modified by J-Link.
+	// It is save to cast that to a "to-host" buffer. Up and Down buffer differ in volatility of offsets that might be
+	// modified by J-Link.
 	//
 	pRing = (SEGGER_RTT_BUFFER_UP*)&_SEGGER_RTT_UNCACHED.aDown[BufferIndex];
 	//
@@ -1052,28 +1053,28 @@ unsigned SEGGER_RTT_WriteDownBufferNoLock(unsigned BufferIndex, const void* pBuf
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteNoLock
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT
-*    control block which is then read by the host.
-*    SEGGER_RTT_WriteNoLock does not lock the application.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*    (2) For performance reasons this function does not call Init()
-*        and may only be called after RTT has been initialized.
-*        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
-*/
+ *
+ *       SEGGER_RTT_WriteNoLock
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT
+ *    control block which is then read by the host.
+ *    SEGGER_RTT_WriteNoLock does not lock the application.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ *    (2) For performance reasons this function does not call Init()
+ *        and may only be called after RTT has been initialized.
+ *        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
+ */
 unsigned SEGGER_RTT_WriteNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	unsigned Status;
 	unsigned Avail;
@@ -1128,30 +1129,30 @@ unsigned SEGGER_RTT_WriteNoLock(unsigned BufferIndex, const void* pBuffer, unsig
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteDownBuffer
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT control block in a <Down> buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Down"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*
-*  Additional information
-*    This function must not be called when J-Link might also do RTT.
-*    This function locks against all other RTT operations. I.e. during
-*    the write operation, writing from the application is also locked.
-*    If only one consumer writes to the down buffer,
-*    call SEGGER_RTT_WriteDownBufferNoLock() instead.
-*/
+ *
+ *       SEGGER_RTT_WriteDownBuffer
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT control block in a <Down> buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Down"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ *
+ *  Additional information
+ *    This function must not be called when J-Link might also do RTT.
+ *    This function locks against all other RTT operations. I.e. during
+ *    the write operation, writing from the application is also locked.
+ *    If only one consumer writes to the down buffer,
+ *    call SEGGER_RTT_WriteDownBufferNoLock() instead.
+ */
 unsigned SEGGER_RTT_WriteDownBuffer(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	unsigned Status;
 	//
@@ -1170,24 +1171,24 @@ unsigned SEGGER_RTT_WriteDownBuffer(unsigned BufferIndex, const void* pBuffer, u
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_Write
-*
-*  Function description
-*    Stores a specified number of characters in SEGGER RTT
-*    control block which is then read by the host.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
-*    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*/
+ *
+ *       SEGGER_RTT_Write
+ *
+ *  Function description
+ *    Stores a specified number of characters in SEGGER RTT
+ *    control block which is then read by the host.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    pBuffer      Pointer to character array. Does not need to point to a \0 terminated string.
+ *    NumBytes     Number of bytes to be stored in the SEGGER RTT control block.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ */
 unsigned SEGGER_RTT_Write(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes) {
 	unsigned Status;
 	//
@@ -1206,25 +1207,25 @@ unsigned SEGGER_RTT_Write(unsigned BufferIndex, const void* pBuffer, unsigned Nu
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WriteString
-*
-*  Function description
-*    Stores string in SEGGER RTT control block.
-*    This data is read by the host.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    s            Pointer to string.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*    (2) String passed to this function has to be \0 terminated
-*    (3) \0 termination character is *not* stored in RTT buffer
-*/
+ *
+ *       SEGGER_RTT_WriteString
+ *
+ *  Function description
+ *    Stores string in SEGGER RTT control block.
+ *    This data is read by the host.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    s            Pointer to string.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ *    (2) String passed to this function has to be \0 terminated
+ *    (3) \0 termination character is *not* stored in RTT buffer
+ */
 unsigned SEGGER_RTT_WriteString(unsigned BufferIndex, const char* s) {
 	unsigned Len;
 
@@ -1233,27 +1234,27 @@ unsigned SEGGER_RTT_WriteString(unsigned BufferIndex, const char* s) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_PutCharSkipNoLock
-*
-*  Function description
-*    Stores a single character/byte in SEGGER RTT buffer.
-*    SEGGER_RTT_PutCharSkipNoLock does not lock the application and
-*    skips the byte, if it does not fit into the buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    c            Byte to be stored.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) If there is not enough space in the "Up"-buffer, the character is dropped.
-*    (2) For performance reasons this function does not call Init()
-*        and may only be called after RTT has been initialized.
-*        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
-*/
+ *
+ *       SEGGER_RTT_PutCharSkipNoLock
+ *
+ *  Function description
+ *    Stores a single character/byte in SEGGER RTT buffer.
+ *    SEGGER_RTT_PutCharSkipNoLock does not lock the application and
+ *    skips the byte, if it does not fit into the buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    c            Byte to be stored.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) If there is not enough space in the "Up"-buffer, the character is dropped.
+ *    (2) For performance reasons this function does not call Init()
+ *        and may only be called after RTT has been initialized.
+ *        Either by calling SEGGER_RTT_Init() or calling another RTT API function first.
+ */
 
 unsigned SEGGER_RTT_PutCharSkipNoLock(unsigned BufferIndex, char c) {
 	SEGGER_RTT_BUFFER_UP* pRing;
@@ -1286,22 +1287,22 @@ unsigned SEGGER_RTT_PutCharSkipNoLock(unsigned BufferIndex, char c) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_PutCharSkip
-*
-*  Function description
-*    Stores a single character/byte in SEGGER RTT buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    c            Byte to be stored.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) If there is not enough space in the "Up"-buffer, the character is dropped.
-*/
+ *
+ *       SEGGER_RTT_PutCharSkip
+ *
+ *  Function description
+ *    Stores a single character/byte in SEGGER RTT buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    c            Byte to be stored.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) If there is not enough space in the "Up"-buffer, the character is dropped.
+ */
 
 unsigned SEGGER_RTT_PutCharSkip(unsigned BufferIndex, char c) {
 	SEGGER_RTT_BUFFER_UP* pRing;
@@ -1343,22 +1344,22 @@ unsigned SEGGER_RTT_PutCharSkip(unsigned BufferIndex, char c) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_PutChar
-*
-*  Function description
-*    Stores a single character/byte in SEGGER RTT buffer.
-*
-*  Parameters
-*    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
-*    c            Byte to be stored.
-*
-*  Return value
-*    Number of bytes which have been stored in the "Up"-buffer.
-*
-*  Notes
-*    (1) Data is stored according to buffer flags.
-*/
+ *
+ *       SEGGER_RTT_PutChar
+ *
+ *  Function description
+ *    Stores a single character/byte in SEGGER RTT buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of "Up"-buffer to be used (e.g. 0 for "Terminal").
+ *    c            Byte to be stored.
+ *
+ *  Return value
+ *    Number of bytes which have been stored in the "Up"-buffer.
+ *
+ *  Notes
+ *    (1) Data is stored according to buffer flags.
+ */
 
 unsigned SEGGER_RTT_PutChar(unsigned BufferIndex, char c) {
 	SEGGER_RTT_BUFFER_UP* pRing;
@@ -1408,20 +1409,20 @@ unsigned SEGGER_RTT_PutChar(unsigned BufferIndex, char c) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_GetKey
-*
-*  Function description
-*    Reads one character from the SEGGER RTT buffer.
-*    Host has previously stored data there.
-*
-*  Return value
-*    <  0 -   No character available (buffer empty).
-*    >= 0 -   Character which has been read. (Possible values: 0 - 255)
-*
-*  Notes
-*    (1) This function is only specified for accesses to RTT buffer 0.
-*/
+ *
+ *       SEGGER_RTT_GetKey
+ *
+ *  Function description
+ *    Reads one character from the SEGGER RTT buffer.
+ *    Host has previously stored data there.
+ *
+ *  Return value
+ *    <  0 -   No character available (buffer empty).
+ *    >= 0 -   Character which has been read. (Possible values: 0 - 255)
+ *
+ *  Notes
+ *    (1) This function is only specified for accesses to RTT buffer 0.
+ */
 int SEGGER_RTT_GetKey(void) {
 	char c;
 	int r;
@@ -1437,20 +1438,20 @@ int SEGGER_RTT_GetKey(void) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_WaitKey
-*
-*  Function description
-*    Waits until at least one character is avaible in the SEGGER RTT buffer.
-*    Once a character is available, it is read and this function returns.
-*
-*  Return value
-*    >=0 -   Character which has been read.
-*
-*  Notes
-*    (1) This function is only specified for accesses to RTT buffer 0
-*    (2) This function is blocking if no character is present in RTT buffer
-*/
+ *
+ *       SEGGER_RTT_WaitKey
+ *
+ *  Function description
+ *    Waits until at least one character is avaible in the SEGGER RTT buffer.
+ *    Once a character is available, it is read and this function returns.
+ *
+ *  Return value
+ *    >=0 -   Character which has been read.
+ *
+ *  Notes
+ *    (1) This function is only specified for accesses to RTT buffer 0
+ *    (2) This function is blocking if no character is present in RTT buffer
+ */
 int SEGGER_RTT_WaitKey(void) {
 	int r;
 
@@ -1461,19 +1462,19 @@ int SEGGER_RTT_WaitKey(void) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_HasKey
-*
-*  Function description
-*    Checks if at least one character for reading is available in the SEGGER RTT buffer.
-*
-*  Return value
-*    == 0 -     No characters are available to read.
-*    == 1 -     At least one character is available.
-*
-*  Notes
-*    (1) This function is only specified for accesses to RTT buffer 0
-*/
+ *
+ *       SEGGER_RTT_HasKey
+ *
+ *  Function description
+ *    Checks if at least one character for reading is available in the SEGGER RTT buffer.
+ *
+ *  Return value
+ *    == 0 -     No characters are available to read.
+ *    == 1 -     At least one character is available.
+ *
+ *  Notes
+ *    (1) This function is only specified for accesses to RTT buffer 0
+ */
 int SEGGER_RTT_HasKey(void) {
 	unsigned RdOff;
 	int r;
@@ -1490,17 +1491,17 @@ int SEGGER_RTT_HasKey(void) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_HasData
-*
-*  Function description
-*    Check if there is data from the host in the given buffer.
-*
-*  Return value:
-*  ==0:  No data
-*  !=0:  Data in buffer
-*
-*/
+ *
+ *       SEGGER_RTT_HasData
+ *
+ *  Function description
+ *    Check if there is data from the host in the given buffer.
+ *
+ *  Return value:
+ *  ==0:  No data
+ *  !=0:  Data in buffer
+ *
+ */
 unsigned SEGGER_RTT_HasData(unsigned BufferIndex) {
 	SEGGER_RTT_BUFFER_DOWN* pRing;
 	unsigned v;
@@ -1511,17 +1512,17 @@ unsigned SEGGER_RTT_HasData(unsigned BufferIndex) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_HasDataUp
-*
-*  Function description
-*    Check if there is data remaining to be sent in the given buffer.
-*
-*  Return value:
-*  ==0:  No data
-*  !=0:  Data in buffer
-*
-*/
+ *
+ *       SEGGER_RTT_HasDataUp
+ *
+ *  Function description
+ *    Check if there is data remaining to be sent in the given buffer.
+ *
+ *  Return value:
+ *  ==0:  No data
+ *  !=0:  Data in buffer
+ *
+ */
 unsigned SEGGER_RTT_HasDataUp(unsigned BufferIndex) {
 	SEGGER_RTT_BUFFER_UP* pRing;
 	unsigned v;
@@ -1532,24 +1533,24 @@ unsigned SEGGER_RTT_HasDataUp(unsigned BufferIndex) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_AllocDownBuffer
-*
-*  Function description
-*    Run-time configuration of the next down-buffer (H->T).
-*    The next buffer, which is not used yet is configured.
-*    This includes: Buffer address, size, name, flags, ...
-*
-*  Parameters
-*    sName        Pointer to a constant name string.
-*    pBuffer      Pointer to a buffer to be used.
-*    BufferSize   Size of the buffer.
-*    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
-*
-*  Return value
-*    >= 0 - O.K. Buffer Index
-*     < 0 - Error
-*/
+ *
+ *       SEGGER_RTT_AllocDownBuffer
+ *
+ *  Function description
+ *    Run-time configuration of the next down-buffer (H->T).
+ *    The next buffer, which is not used yet is configured.
+ *    This includes: Buffer address, size, name, flags, ...
+ *
+ *  Parameters
+ *    sName        Pointer to a constant name string.
+ *    pBuffer      Pointer to a buffer to be used.
+ *    BufferSize   Size of the buffer.
+ *    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
+ *
+ *  Return value
+ *    >= 0 - O.K. Buffer Index
+ *     < 0 - Error
+ */
 int SEGGER_RTT_AllocDownBuffer(const char* sName, void* pBuffer, unsigned BufferSize, unsigned Flags) {
 	int BufferIndex;
 
@@ -1578,24 +1579,24 @@ int SEGGER_RTT_AllocDownBuffer(const char* sName, void* pBuffer, unsigned Buffer
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_AllocUpBuffer
-*
-*  Function description
-*    Run-time configuration of the next up-buffer (T->H).
-*    The next buffer, which is not used yet is configured.
-*    This includes: Buffer address, size, name, flags, ...
-*
-*  Parameters
-*    sName        Pointer to a constant name string.
-*    pBuffer      Pointer to a buffer to be used.
-*    BufferSize   Size of the buffer.
-*    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
-*
-*  Return value
-*    >= 0 - O.K. Buffer Index
-*     < 0 - Error
-*/
+ *
+ *       SEGGER_RTT_AllocUpBuffer
+ *
+ *  Function description
+ *    Run-time configuration of the next up-buffer (T->H).
+ *    The next buffer, which is not used yet is configured.
+ *    This includes: Buffer address, size, name, flags, ...
+ *
+ *  Parameters
+ *    sName        Pointer to a constant name string.
+ *    pBuffer      Pointer to a buffer to be used.
+ *    BufferSize   Size of the buffer.
+ *    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
+ *
+ *  Return value
+ *    >= 0 - O.K. Buffer Index
+ *     < 0 - Error
+ */
 int SEGGER_RTT_AllocUpBuffer(const char* sName, void* pBuffer, unsigned BufferSize, unsigned Flags) {
 	int BufferIndex;
 
@@ -1624,30 +1625,30 @@ int SEGGER_RTT_AllocUpBuffer(const char* sName, void* pBuffer, unsigned BufferSi
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_ConfigUpBuffer
-*
-*  Function description
-*    Run-time configuration of a specific up-buffer (T->H).
-*    Buffer to be configured is specified by index.
-*    This includes: Buffer address, size, name, flags, ...
-*
-*  Parameters
-*    BufferIndex  Index of the buffer to configure.
-*    sName        Pointer to a constant name string.
-*    pBuffer      Pointer to a buffer to be used.
-*    BufferSize   Size of the buffer.
-*    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
-*
-*  Return value
-*    >= 0 - O.K.
-*     < 0 - Error
-*
-*  Additional information
-*    Buffer 0 is configured on compile-time.
-*    May only be called once per buffer.
-*    Buffer name and flags can be reconfigured using the appropriate functions.
-*/
+ *
+ *       SEGGER_RTT_ConfigUpBuffer
+ *
+ *  Function description
+ *    Run-time configuration of a specific up-buffer (T->H).
+ *    Buffer to be configured is specified by index.
+ *    This includes: Buffer address, size, name, flags, ...
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer to configure.
+ *    sName        Pointer to a constant name string.
+ *    pBuffer      Pointer to a buffer to be used.
+ *    BufferSize   Size of the buffer.
+ *    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
+ *
+ *  Return value
+ *    >= 0 - O.K.
+ *     < 0 - Error
+ *
+ *  Additional information
+ *    Buffer 0 is configured on compile-time.
+ *    May only be called once per buffer.
+ *    Buffer name and flags can be reconfigured using the appropriate functions.
+ */
 int SEGGER_RTT_ConfigUpBuffer(unsigned BufferIndex, const char* sName, void* pBuffer, unsigned BufferSize,
                               unsigned Flags) {
 	int r;
@@ -1673,30 +1674,30 @@ int SEGGER_RTT_ConfigUpBuffer(unsigned BufferIndex, const char* sName, void* pBu
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_ConfigDownBuffer
-*
-*  Function description
-*    Run-time configuration of a specific down-buffer (H->T).
-*    Buffer to be configured is specified by index.
-*    This includes: Buffer address, size, name, flags, ...
-*
-*  Parameters
-*    BufferIndex  Index of the buffer to configure.
-*    sName        Pointer to a constant name string.
-*    pBuffer      Pointer to a buffer to be used.
-*    BufferSize   Size of the buffer.
-*    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error
-*
-*  Additional information
-*    Buffer 0 is configured on compile-time.
-*    May only be called once per buffer.
-*    Buffer name and flags can be reconfigured using the appropriate functions.
-*/
+ *
+ *       SEGGER_RTT_ConfigDownBuffer
+ *
+ *  Function description
+ *    Run-time configuration of a specific down-buffer (H->T).
+ *    Buffer to be configured is specified by index.
+ *    This includes: Buffer address, size, name, flags, ...
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer to configure.
+ *    sName        Pointer to a constant name string.
+ *    pBuffer      Pointer to a buffer to be used.
+ *    BufferSize   Size of the buffer.
+ *    Flags        Operating modes. Define behavior if buffer is full (not enough space for entire message).
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error
+ *
+ *  Additional information
+ *    Buffer 0 is configured on compile-time.
+ *    May only be called once per buffer.
+ *    Buffer name and flags can be reconfigured using the appropriate functions.
+ */
 int SEGGER_RTT_ConfigDownBuffer(unsigned BufferIndex, const char* sName, void* pBuffer, unsigned BufferSize,
                                 unsigned Flags) {
 	int r;
@@ -1722,21 +1723,21 @@ int SEGGER_RTT_ConfigDownBuffer(unsigned BufferIndex, const char* sName, void* p
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_SetNameUpBuffer
-*
-*  Function description
-*    Run-time configuration of a specific up-buffer name (T->H).
-*    Buffer to be configured is specified by index.
-*
-*  Parameters
-*    BufferIndex  Index of the buffer to renamed.
-*    sName        Pointer to a constant name string.
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error
-*/
+ *
+ *       SEGGER_RTT_SetNameUpBuffer
+ *
+ *  Function description
+ *    Run-time configuration of a specific up-buffer name (T->H).
+ *    Buffer to be configured is specified by index.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer to renamed.
+ *    sName        Pointer to a constant name string.
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error
+ */
 int SEGGER_RTT_SetNameUpBuffer(unsigned BufferIndex, const char* sName) {
 	int r;
 
@@ -1754,21 +1755,21 @@ int SEGGER_RTT_SetNameUpBuffer(unsigned BufferIndex, const char* sName) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_SetNameDownBuffer
-*
-*  Function description
-*    Run-time configuration of a specific Down-buffer name (T->H).
-*    Buffer to be configured is specified by index.
-*
-*  Parameters
-*    BufferIndex  Index of the buffer to renamed.
-*    sName        Pointer to a constant name string.
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error
-*/
+ *
+ *       SEGGER_RTT_SetNameDownBuffer
+ *
+ *  Function description
+ *    Run-time configuration of a specific Down-buffer name (T->H).
+ *    Buffer to be configured is specified by index.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer to renamed.
+ *    sName        Pointer to a constant name string.
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error
+ */
 int SEGGER_RTT_SetNameDownBuffer(unsigned BufferIndex, const char* sName) {
 	int r;
 
@@ -1786,21 +1787,21 @@ int SEGGER_RTT_SetNameDownBuffer(unsigned BufferIndex, const char* sName) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_SetFlagsUpBuffer
-*
-*  Function description
-*    Run-time configuration of specific up-buffer flags (T->H).
-*    Buffer to be configured is specified by index.
-*
-*  Parameters
-*    BufferIndex  Index of the buffer.
-*    Flags        Flags to set for the buffer.
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error
-*/
+ *
+ *       SEGGER_RTT_SetFlagsUpBuffer
+ *
+ *  Function description
+ *    Run-time configuration of specific up-buffer flags (T->H).
+ *    Buffer to be configured is specified by index.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer.
+ *    Flags        Flags to set for the buffer.
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error
+ */
 int SEGGER_RTT_SetFlagsUpBuffer(unsigned BufferIndex, unsigned Flags) {
 	int r;
 
@@ -1818,21 +1819,21 @@ int SEGGER_RTT_SetFlagsUpBuffer(unsigned BufferIndex, unsigned Flags) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_SetFlagsDownBuffer
-*
-*  Function description
-*    Run-time configuration of specific Down-buffer flags (T->H).
-*    Buffer to be configured is specified by index.
-*
-*  Parameters
-*    BufferIndex  Index of the buffer to renamed.
-*    Flags        Flags to set for the buffer.
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error
-*/
+ *
+ *       SEGGER_RTT_SetFlagsDownBuffer
+ *
+ *  Function description
+ *    Run-time configuration of specific Down-buffer flags (T->H).
+ *    Buffer to be configured is specified by index.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the buffer to renamed.
+ *    Flags        Flags to set for the buffer.
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error
+ */
 int SEGGER_RTT_SetFlagsDownBuffer(unsigned BufferIndex, unsigned Flags) {
 	int r;
 
@@ -1850,32 +1851,33 @@ int SEGGER_RTT_SetFlagsDownBuffer(unsigned BufferIndex, unsigned Flags) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_Init
-*
-*  Function description
-*    Initializes the RTT Control Block.
-*    Should be used in RAM targets, at start of the application.
-*
-*/
+ *
+ *       SEGGER_RTT_Init
+ *
+ *  Function description
+ *    Initializes the RTT Control Block.
+ *    Should be used in RAM targets, at start of the application.
+ *
+ */
 void SEGGER_RTT_Init(void) {
 	_DoInit();
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_SetTerminal
-*
-*  Function description
-*    Sets the terminal to be used for output on channel 0.
-*
-*  Parameters
-*    TerminalId  Index of the terminal.
-*
-*  Return value
-*    >= 0  O.K.
-*     < 0  Error (e.g. if RTT is configured for non-blocking mode and there was no space in the buffer to set the new terminal Id)
-*/
+ *
+ *       SEGGER_RTT_SetTerminal
+ *
+ *  Function description
+ *    Sets the terminal to be used for output on channel 0.
+ *
+ *  Parameters
+ *    TerminalId  Index of the terminal.
+ *
+ *  Return value
+ *    >= 0  O.K.
+ *     < 0  Error (e.g. if RTT is configured for non-blocking mode and there was no space in the buffer to set the new
+ * terminal Id)
+ */
 int SEGGER_RTT_SetTerminal(unsigned char TerminalId) {
 	unsigned char ac[2];
 	SEGGER_RTT_BUFFER_UP* pRing;
@@ -1890,7 +1892,8 @@ int SEGGER_RTT_SetTerminal(unsigned char TerminalId) {
 		ac[1] = _aTerminalId[TerminalId];
 		pRing = &_SEGGER_RTT_UNCACHED
 		             .aUp[0]; // Buffer 0 is always reserved for terminal I/O, so we can use index 0 here, fixed
-		SEGGER_RTT_LOCK(); // Lock to make sure that no other task is writing into buffer, while we are and number of free bytes in buffer does not change downwards after checking and before writing
+		SEGGER_RTT_LOCK();    // Lock to make sure that no other task is writing into buffer, while we are and number of
+		                      // free bytes in buffer does not change downwards after checking and before writing
 		if ((pRing->Flags & SEGGER_RTT_MODE_MASK) == SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL) {
 			_ActiveTerminal = TerminalId;
 			_WriteBlocking(pRing, (const char*)ac, 2u);
@@ -1914,22 +1917,22 @@ int SEGGER_RTT_SetTerminal(unsigned char TerminalId) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_TerminalOut
-*
-*  Function description
-*    Writes a string to the given terminal
-*     without changing the terminal for channel 0.
-*
-*  Parameters
-*    TerminalId   Index of the terminal.
-*    s            String to be printed on the terminal.
-*
-*  Return value
-*    >= 0 - Number of bytes written.
-*     < 0 - Error.
-*
-*/
+ *
+ *       SEGGER_RTT_TerminalOut
+ *
+ *  Function description
+ *    Writes a string to the given terminal
+ *     without changing the terminal for channel 0.
+ *
+ *  Parameters
+ *    TerminalId   Index of the terminal.
+ *    s            String to be printed on the terminal.
+ *
+ *  Return value
+ *    >= 0 - Number of bytes written.
+ *     < 0 - Error.
+ *
+ */
 int SEGGER_RTT_TerminalOut(unsigned char TerminalId, const char* s) {
 	int Status;
 	unsigned FragLen;
@@ -2009,35 +2012,35 @@ int SEGGER_RTT_TerminalOut(unsigned char TerminalId, const char* s) {
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_GetAvailWriteSpace
-*
-*  Function description
-*    Returns the number of bytes available in the ring buffer.
-*
-*  Parameters
-*    BufferIndex  Index of the up buffer.
-*
-*  Return value
-*    Number of bytes that are free in the selected up buffer.
-*/
+ *
+ *       SEGGER_RTT_GetAvailWriteSpace
+ *
+ *  Function description
+ *    Returns the number of bytes available in the ring buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the up buffer.
+ *
+ *  Return value
+ *    Number of bytes that are free in the selected up buffer.
+ */
 unsigned SEGGER_RTT_GetAvailWriteSpace(unsigned BufferIndex) {
 	return _GetAvailWriteSpace(&_SEGGER_RTT_UNCACHED.aUp[BufferIndex]);
 }
 
 /*********************************************************************
-*
-*       SEGGER_RTT_GetBytesInBuffer()
-*
-*  Function description
-*    Returns the number of bytes currently used in the up buffer.
-*
-*  Parameters
-*    BufferIndex  Index of the up buffer.
-*
-*  Return value
-*    Number of bytes that are used in the buffer.
-*/
+ *
+ *       SEGGER_RTT_GetBytesInBuffer()
+ *
+ *  Function description
+ *    Returns the number of bytes currently used in the up buffer.
+ *
+ *  Parameters
+ *    BufferIndex  Index of the up buffer.
+ *
+ *  Return value
+ *    Number of bytes that are used in the buffer.
+ */
 unsigned SEGGER_RTT_GetBytesInBuffer(unsigned BufferIndex) {
 	unsigned RdOff;
 	unsigned WrOff;

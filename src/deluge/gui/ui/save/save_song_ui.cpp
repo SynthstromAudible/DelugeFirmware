@@ -16,23 +16,18 @@
  */
 #include "gui/ui/save/save_song_ui.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/context_menu/overwrite_file.h"
-#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/views/view.h"
-#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
 #include <string.h>
 
 extern "C" {
@@ -52,7 +47,7 @@ SaveSongUI::SaveSongUI() {
 }
 
 bool SaveSongUI::opened() {
-	instrumentTypeToLoad = InstrumentType::NONE;
+	outputTypeToLoad = OutputType::NONE;
 
 	// Grab screenshot of song, for saving, before qwerty drawn
 	memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
@@ -60,7 +55,8 @@ bool SaveSongUI::opened() {
 	bool success = SaveUI::opened(); // Clears enteredText
 	if (!success) {                  // In this case, an error will have already displayed.
 doReturnFalse:
-		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on the pads.
+		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
+		                                 // the pads.
 		return false;
 	}
 
@@ -98,9 +94,9 @@ gotError:
 	indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 
 	focusRegained();
-	//do this after focus regained, otherwise the first scroll starts
-	//from the beginning instead of showing the incremented number
-	enteredTextEditPos = 0; //enteredText.getLength();
+	// do this after focus regained, otherwise the first scroll starts
+	// from the beginning instead of showing the incremented number
+	enteredTextEditPos = 0; // enteredText.getLength();
 	return true;
 }
 
@@ -150,8 +146,8 @@ gotError:
 		}
 	}
 
-	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they were loaded in from a collected folder and we now need to
-	// put them in the main samples folder.
+	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they
+	// were loaded in from a collected folder and we now need to put them in the main samples folder.
 
 	// Create sample dir
 	String newSongAlternatePath;
@@ -195,21 +191,20 @@ gotError:
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
 						/*
-						Debug::print("rename failed. ");
-						Debug::println(result);
-						Debug::println(((Sample*)sample)->tempFilePathForRecording.get());
-						Debug::println(sample->filePath.get());
+						D_PRINTLN("rename failed.  %d %s %s", result, ((Sample*)sample)->tempFilePathForRecording.get(),
+						sample->filePath.get());
 						*/
 					}
 				}
 			}
 
-			// Or if file needs copying either to or from an "alt" location - either because we're doing a "collect media" or importing from such a folder.
-			// Crucial obscure combination - we could be doing a "collect media" *AND ALSO* have moved (or even failed to move!) a recorded file
-			// from its "temp" location above
+			// Or if file needs copying either to or from an "alt" location - either because we're doing a "collect
+			// media" or importing from such a folder. Crucial obscure combination - we could be doing a "collect media"
+			// *AND ALSO* have moved (or even failed to move!) a recorded file from its "temp" location above
 			if (collectingSamples || !audioFile->loadedFromAlternatePath.isEmpty()) {
 
-				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no need to do it again
+				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
+				// need to do it again
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
 					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
 						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
@@ -222,7 +217,8 @@ gotError:
 
 				// Sort out source file path
 				if (!audioFile->loadedFromAlternatePath.isEmpty()) {
-					// If we loaded the file from an alternate path originally, well we saved that exact path just so we can recall it here!
+					// If we loaded the file from an alternate path originally, well we saved that exact path just so we
+					// can recall it here!
 					sourceFilePath = audioFile->loadedFromAlternatePath.get();
 				}
 				else {
@@ -231,17 +227,17 @@ gotError:
 					     || ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
 					        ? audioFile->filePath.get()
 					        : ((Sample*)audioFile)
-					              ->tempFilePathForRecording
-					              .get(); // It may still have a temp path if for some reason we failed to move it, above
+					              ->tempFilePathForRecording.get(); // It may still have a temp path if for some reason
+					                                                // we failed to move it, above
 				}
 
-				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we converted
+				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we
+				// converted
 
 				// Open file to read
 				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
 				if (result != FR_OK) {
-					Debug::println("open fail");
-					Debug::println(sourceFilePath);
+					D_PRINTLN("open fail %s", sourceFilePath);
 					error = ERROR_UNSPECIFIED;
 					goto gotError;
 				}
@@ -255,7 +251,8 @@ gotError:
 				if (collectingSamples) {
 
 					// If this sample is a "recording", we need to append a random string on the end
-					// NOTE: I guess this would do this multiple times if we kept re-saving... probably not the end of the world?
+					// NOTE: I guess this would do this multiple times if we kept re-saving... probably not the end of
+					// the world?
 					normalFilePath = audioFile->filePath.get();
 					if (!memcasecmp(normalFilePath, "SAMPLES/RECORD/REC", 18)
 					    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
@@ -292,15 +289,18 @@ gotError:
 							// Append that random string
 							audioFile->filePath.concatenateAtPos(buffer, fileNamePos + 8);
 
-							// And because the AudioFile in memory is now associated with a file name which only exists in the "alternative location",
-							// we need to mark it as if it was loaded from there, so any future copying of that file will treat it correctly
-							// - particularly if the user does another collect-media save over this one, meaning the file should not be copied again.
+							// And because the AudioFile in memory is now associated with a file name which only exists
+							// in the "alternative location", we need to mark it as if it was loaded from there, so any
+							// future copying of that file will treat it correctly
+							// - particularly if the user does another collect-media save over this one, meaning the
+							// file should not be copied again.
 							needToPretendLoadedAlternate =
 							    true; // We don't have that alternate path yet, so just make a note to do it below.
 						}
 					}
 
-					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was designed for...
+					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
+					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
 						error = audioFileManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew,
 						                                                     &audioFile->filePath);
@@ -311,8 +311,8 @@ failAfterOpeningSourceFile:
 						}
 					}
 
-					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have to just use the original filename, and hope
-					// it doesn't clash with anything.
+					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
+					// to just use the original filename, and hope it doesn't clash with anything.
 					else {
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
@@ -348,7 +348,7 @@ failAfterOpeningSourceFile:
 						result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
-							Debug::println("read fail");
+							D_PRINTLN("read fail");
 fail3:
 							f_close(&recorderFileSystemStuff.currentFile);
 							error = ERROR_UNSPECIFIED;
@@ -362,8 +362,7 @@ fail3:
 						result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 						                 bytesRead, &bytesWritten);
 						if (result || bytesWritten != bytesRead) {
-							Debug::println("write fail");
-							Debug::println(result);
+							D_PRINTLN("write fail %d", result);
 							goto fail3;
 						}
 
@@ -377,8 +376,9 @@ fail3:
 
 				f_close(&fileSystemStuff.currentFile); // Close source file
 
-				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES folder).
-				// Unless we were collection media, in which case it won't be there - it'll be in the new alternate location we put it in.
+				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
+				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new
+				// alternate location we put it in.
 				if (!collectingSamples) {
 					audioFile->loadedFromAlternatePath.clear();
 				}
@@ -418,16 +418,16 @@ fail3:
 		filePathDuringWrite.set(&filePath);
 	}
 
-	Debug::print("creating: ");
-	Debug::println(filePathDuringWrite.get());
+	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = storageManager.createXMLFile(filePathDuringWrite.get(), false);
+	error = storageManager.createXMLFile(filePathDuringWrite.get(), false, false);
 	if (error) {
 		goto gotError;
 	}
 
-	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be for either overwriting or not.
+	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
+	// for either overwriting or not.
 
 	currentSong->writeToFile();
 

@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 
 namespace deluge::gui::menu_item::midi {

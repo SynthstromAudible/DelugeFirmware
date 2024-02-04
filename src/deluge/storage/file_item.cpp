@@ -13,10 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "storage/file_item.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/instrument/instrument.h"
 #include <string.h>
 
@@ -44,8 +44,7 @@ int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernatin
 	tempFilePath.concatenate(filename.get());
 	bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
 	if (!fileExists) {
-		Debug::print("couldn't get filepath for file");
-		Debug::println(filename.get());
+		D_PRINTLN("couldn't get filepath for file %d", filename.get());
 	}
 	return NO_ERROR;
 }

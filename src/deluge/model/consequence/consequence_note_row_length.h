@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -25,7 +25,7 @@ class ModelStackWithNoteRow;
 class ConsequenceNoteRowLength final : public Consequence {
 public:
 	ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t newLength);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 	void performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
 	                   bool hadIndependentPlayPosBefore);
 	int32_t backedUpLength;

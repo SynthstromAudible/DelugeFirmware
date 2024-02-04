@@ -13,20 +13,19 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
-#include "math.h"
 #include <cstdint>
-//signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
-typedef int32_t q31_t;
+// signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
+using q31_t = int32_t;
 
-#define ONE_Q31 2147483647
-#define ONE_Q31f 2147483647.0
-#define ONE_Q15 65536
-#define NEGATIVE_ONE_Q31 -2147483648
-#define ONE_OVER_SQRT2_Q31 1518500250
-//this is only defined for 32 bit arm
+constexpr q31_t ONE_Q31{2147483647};
+constexpr float ONE_Q31f{2147483647.0f};
+constexpr q31_t ONE_Q15{65536};
+constexpr q31_t NEGATIVE_ONE_Q31{-2147483648};
+constexpr q31_t ONE_OVER_SQRT2_Q31{1518500250};
+// this is only defined for 32 bit arm
 #if defined(__arm__)
 // This multiplies two numbers in signed Q31 fixed point and truncates the result
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));

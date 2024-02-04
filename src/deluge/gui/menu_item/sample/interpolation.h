@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
@@ -21,7 +21,6 @@
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection, public FormattedTitle {
@@ -37,7 +36,7 @@ public:
 		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {l10n::getView(l10n::String::STRING_FOR_LINEAR), l10n::getView(l10n::String::STRING_FOR_SINC)};
 	}
 

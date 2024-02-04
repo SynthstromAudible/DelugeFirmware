@@ -13,18 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/d_string.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
-#include "util/functions.h"
-#include <string.h>
-
-extern "C" {
 #include "util/cfunctions.h"
-}
+#include <cstring>
 
 const char nothing = 0;
 
@@ -134,13 +129,13 @@ doCopy:
 void String::set(String* otherString) {
 	char* sm = otherString->stringMemory;
 #if ALPHA_OR_BETA_VERSION
-	//if the other string has memory and it's not in the non audio region
+	// if the other string has memory and it's not in the non audio region
 	if (sm) {
 		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
 			FREEZE_WITH_ERROR("S001");
 			return;
 		}
-		//or if it doesn't have an allocation
+		// or if it doesn't have an allocation
 		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
 			FREEZE_WITH_ERROR("S002");
 			return;
@@ -325,4 +320,57 @@ bool String::equals(char const* otherChars) {
 
 bool String::equalsCaseIrrespective(char const* otherChars) {
 	return !strcasecmp(get(), otherChars);
+}
+
+/**********************************************************************************************************************\
+ * String formatting and parsing functions
+\**********************************************************************************************************************/
+
+char halfByteToHexChar(uint8_t thisHalfByte) {
+	if (thisHalfByte < 10) {
+		return 48 + thisHalfByte;
+	}
+	else {
+		return 55 + thisHalfByte;
+	}
+}
+
+char hexCharToHalfByte(unsigned char hexChar) {
+	if (hexChar >= 65) {
+		return hexChar - 55;
+	}
+	else {
+		return hexChar - 48;
+	}
+}
+
+void intToHex(uint32_t number, char* output, int32_t numChars) {
+	output[numChars] = 0;
+	for (int32_t i = numChars - 1; i >= 0; i--) {
+		output[i] = halfByteToHexChar(number & 15);
+		number >>= 4;
+	}
+}
+
+uint32_t hexToInt(char const* string) {
+	int32_t output = 0;
+	while (*string) {
+		output <<= 4;
+		output |= hexCharToHalfByte(*string);
+		string++;
+	}
+	return output;
+}
+
+// length must be >0
+uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) {
+	uint32_t output = 0;
+	char const* const endChar = hexChars + length;
+	do {
+		output <<= 4;
+		output |= hexCharToHalfByte(*hexChars);
+		hexChars++;
+	} while (hexChars != endChar);
+
+	return output;
 }

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -43,8 +43,9 @@ public:
 
 	const AudioFileType type;
 	uint8_t numChannels;
-	String
-	    loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same filename (in special folder) as the original. So we need to remember which format the name took.
+	String loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same
+	                                // filename (in special folder) as the original. So we need to remember which format
+	                                // the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
 
 protected:

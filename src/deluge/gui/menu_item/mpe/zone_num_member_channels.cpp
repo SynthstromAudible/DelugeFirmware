@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "zone_num_member_channels.h"
 #include "gui/menu_item/mpe/direction_selector.h"
@@ -21,7 +21,6 @@
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "string.h"
 
 namespace deluge::gui::menu_item::mpe {
 
@@ -76,7 +75,8 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 	MIDIDeviceManager::recountSmallestMPEZones();
 	MIDIDeviceManager::anyChangesToSave = true;
 
-	// If this was for an output, we transmit an MCM message to tell the device about our MPE zone for the MIDI they'll be receiving from us.
+	// If this was for an output, we transmit an MCM message to tell the device about our MPE zone for the MIDI they'll
+	// be receiving from us.
 	if (directionSelectorMenu.whichDirection == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
 		int32_t masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
 

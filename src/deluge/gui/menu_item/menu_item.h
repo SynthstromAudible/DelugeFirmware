@@ -13,19 +13,15 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "hid/display/display.h"
-#include "hid/display/oled.h"
-#include "util/sized.h"
 #include <cstdint>
 #include <span>
-#include <vector>
 
 enum class MenuPermission {
 	NO,
@@ -81,6 +77,7 @@ public:
 	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
+	virtual void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {}
 	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
 	virtual bool shouldBlinkLearnLed() { return false; }
 	virtual bool isRangeDependent() { return false; }

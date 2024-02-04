@@ -13,16 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/context_menu/audio_input_selector.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
-#include "hid/display/display.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "processing/audio_output.h"
 
 extern AudioInputChannel defaultAudioOutputInputChannel;

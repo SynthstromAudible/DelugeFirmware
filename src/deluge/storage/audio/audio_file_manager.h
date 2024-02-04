@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster_priority_queue.h"
-#include "util/container/list/bidirectional_linked_list.h"
 #include <cstdint>
 #include <stdint.h>
 
@@ -119,8 +118,8 @@ public:
 	bool cardDisabled;
 
 	Cluster* clusterBeingLoaded;
-	int32_t
-	    minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
+	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug
+	                                            // hunting only.
 
 	String alternateAudioFileLoadPath;
 	AlternateLoadDirStatus alternateLoadDirStatus;

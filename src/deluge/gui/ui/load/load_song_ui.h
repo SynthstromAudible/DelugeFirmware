@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -36,6 +36,9 @@ public:
 
 	bool deletedPartsOfOldSong;
 
+	// ui
+	UIType getUIType() { return UIType::LOAD_SONG; }
+
 protected:
 	void displayText(bool blinkImmediately = false);
 	void enterKeyPress();
@@ -48,7 +51,7 @@ private:
 	void displayArmedPopup();
 
 	bool scrollingIntoSlot;
-	//int32_t findNextFile(int32_t offset);
+	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
 };

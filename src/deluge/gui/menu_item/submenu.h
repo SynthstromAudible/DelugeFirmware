@@ -13,23 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "definitions.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "menu_item.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/instrument.h"
-#include "model/song/song.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "processing/sound/sound_drum.h"
-#include "util/container/static_vector.hpp"
-#include <array>
+#include "util/containers.h"
 #include <initializer_list>
 #include <span>
 
@@ -54,10 +45,11 @@ public:
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
+	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber);
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 
-	std::vector<MenuItem*> items;
+	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 };
 

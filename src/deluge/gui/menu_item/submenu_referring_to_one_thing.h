@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
@@ -22,10 +22,9 @@
 namespace deluge::gui::menu_item {
 class SubmenuReferringToOneThing : public Submenu {
 public:
-	SubmenuReferringToOneThing(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
-	    : Submenu(newName, newItems), thingIndex(newThingIndex) {}
-
 	SubmenuReferringToOneThing(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems), thingIndex(newThingIndex) {}
+	SubmenuReferringToOneThing(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
 	    : Submenu(newName, newItems), thingIndex(newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {

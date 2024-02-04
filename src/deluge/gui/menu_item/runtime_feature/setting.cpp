@@ -13,15 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "setting.h"
 #include "gui/menu_item/runtime_feature/setting.h"
-#include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
-#include <algorithm>
-#include <iterator>
-#include <ranges>
 
 namespace deluge::gui::menu_item::runtime_feature {
 
@@ -45,8 +41,8 @@ void Setting::writeCurrentValue() {
 	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
 }
 
-std::vector<std::string_view> Setting::getOptions() {
-	std::vector<std::string_view> options;
+deluge::vector<std::string_view> Setting::getOptions() {
+	deluge::vector<std::string_view> options;
 	for (const RuntimeFeatureSettingOption& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 		options.push_back(option.displayName);
 	}

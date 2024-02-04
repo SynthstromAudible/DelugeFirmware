@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "integer.h"
 
@@ -24,8 +24,8 @@ public:
 	void drawValue() override;
 
 protected:
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuPanValue; }
-	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuPanValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 	int32_t getFinalValue() override;
 	void readCurrentValue() override;
 };

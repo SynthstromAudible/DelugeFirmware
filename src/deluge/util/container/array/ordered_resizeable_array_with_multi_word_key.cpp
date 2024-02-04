@@ -17,7 +17,7 @@
 
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
                                                                                int32_t newNumWordsInKey)
     : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
@@ -113,9 +113,7 @@ bool OrderedResizeableArrayWithMultiWordKey::deleteAtKeyMultiWord(uint32_t* __re
 		return true;
 	}
 	else {
-		Debug::println("couldn't find key to delete");
-		Debug::println(keyWords[0]);
-		Debug::println(keyWords[1]);
+		D_PRINTLN("couldn't find key to delete %s / %s", keyWords[0], keyWords[1]);
 		return false;
 	}
 }
@@ -132,7 +130,7 @@ void OrderedResizeableArrayWithMultiWordKey::testSequentiality(char const* error
 			}
 			if (difference == 0) {
 				if (j == numWordsInKey - 1) {
-					//if we got here it's a duplicate key
+					// if we got here it's a duplicate key
 					FREEZE_WITH_ERROR(errorCode);
 				}
 			}

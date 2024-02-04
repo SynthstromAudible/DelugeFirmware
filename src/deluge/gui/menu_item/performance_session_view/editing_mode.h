@@ -13,12 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/toggle.h"
+#include "gui/menu_item/selection.h"
 #include "gui/views/performance_session_view.h"
 #include "hid/led/indicator_leds.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {
@@ -47,7 +49,7 @@ public:
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = false;
 		}
-		else { //PerformanceEditingMode::PARAM
+		else { // PerformanceEditingMode::PARAM
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = true;
 		}
@@ -67,7 +69,7 @@ public:
 		}
 		uiNeedsRendering(&performanceSessionView);
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED),

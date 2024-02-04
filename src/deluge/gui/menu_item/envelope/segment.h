@@ -13,11 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
-#include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::envelope {
 class Segment : public source::PatchedParam, public FormattedTitle {

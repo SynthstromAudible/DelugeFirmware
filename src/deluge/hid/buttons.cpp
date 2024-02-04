@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "hid/buttons.h"
 #include "definitions_cxx.hpp"
@@ -62,7 +62,8 @@ bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
+	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this
+	// function, and don't want to then be setting this after that later action, erasing what it set
 	auto xy = deluge::hid::button::toXY(b);
 	buttonStates[xy.x][xy.y] = on;
 
@@ -97,6 +98,19 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
+	if (b == AFFECT_ENTIRE) {
+		if (on) {
+			display->cancelPopup();
+		}
+		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {
+				deluge::hid::display::swapDisplayType();
+				goto dealtWith;
+			}
+		}
+	}
+
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -119,7 +133,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 
 			else {
 
-				//if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				// if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 
 				// Begin output-recording simultaneously with playback
@@ -158,7 +172,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 					delta += releaseTime;
 				}
 				// We got a short press, maybe enable sticky keys
-				//5th of a second
+				// 5th of a second
 				if (delta < kHoldTime) {
 					// unstick shift if another button was pressed while shift was held, or we were already stuck and
 					// this short press is to get us unstuck.

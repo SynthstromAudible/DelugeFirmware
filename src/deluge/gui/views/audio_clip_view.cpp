@@ -13,16 +13,18 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -31,7 +33,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_minder.h"
@@ -50,27 +51,27 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
+using namespace deluge::gui;
+
 AudioClipView audioClipView{};
 
 AudioClipView::AudioClipView() {
 }
 
-inline AudioClip* getClip() {
-	return (AudioClip*)currentSong->currentClip;
-}
-
 inline Sample* getSample() {
-	if (getClip()->getCurrentlyRecordingLinearly()) {
-		return getClip()->recorder->sample;
+	if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
+		return getCurrentAudioClip()->recorder->sample;
 	}
 	else {
-		return (Sample*)getClip()->sampleHolder.audioFile;
+		return (Sample*)getCurrentAudioClip()->sampleHolder.audioFile;
 	}
 }
 
 bool AudioClipView::opened() {
 	mustRedrawTickSquares = true;
 	uiNeedsRendering(this);
+
+	getCurrentClip()->onAutomationClipView = false;
 
 	focusRegained();
 	return true;
@@ -81,21 +82,21 @@ void AudioClipView::focusRegained() {
 	endMarkerVisible = false;
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	view.focusRegained();
-	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
+	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
 	if (display->have7SEG()) {
-		view.displayOutputName(currentSong->currentClip->output, false);
+		view.displayOutputName(getCurrentOutput(), false);
 	}
 #ifdef currentClipStatusButtonX
-	view.drawCurrentClipPad(currentSong->currentClip);
+	view.drawCurrentClipPad(getCurrentClip());
 #endif
 }
 
 void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	view.displayOutputName(currentSong->currentClip->output, false);
+	view.displayOutputName(getCurrentOutput(), false);
 }
 
-bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -106,7 +107,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 	}
 
 	int32_t endSquareDisplay = divide_round_negative(
-	    getClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+	    getCurrentAudioClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 
 	// If no Sample, just clear display
@@ -120,16 +121,15 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 	// Or if yes Sample...
 	else {
 
-		SampleRecorder* recorder = getClip()->recorder;
+		SampleRecorder* recorder = getCurrentAudioClip()->recorder;
 
 		int64_t xScrollSamples;
 		int64_t xZoomSamples;
 
-		getClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-		                                     &xScrollSamples, &xZoomSamples);
+		getCurrentAudioClip()->getScrollAndZoomInSamples(
+		    currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
 
-		uint8_t rgb[3];
-		getClip()->getColour(rgb);
+		RGB rgb = getCurrentAudioClip()->getColour();
 
 		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
@@ -137,9 +137,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		}
 		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
-		bool success =
-		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getClip()->renderData,
-		                                      recorder, rgb, getClip()->sampleControls.reversed, xEnd);
+		bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image,
+		                                                 &getCurrentAudioClip()->renderData, recorder, rgb,
+		                                                 getCurrentAudioClip()->sampleControls.reversed, xEnd);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
@@ -171,7 +171,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 					xDisplay = 0;
 				}
 
-				memset(image[y][xDisplay], 7, (kDisplayWidth - xDisplay) * 3);
+				std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), colours::grey);
 			}
 		}
 	}
@@ -188,7 +188,7 @@ ActionResult AudioClipView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -199,7 +199,8 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWi
 	}
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
+		RGB* const start = &image[y][kDisplayWidth];
+		std::fill(start, start + kSideBarWidth, colours::black);
 	}
 
 	return true;
@@ -216,20 +217,19 @@ void AudioClipView::graphicsRoutine() {
 
 	int32_t newTickSquare;
 
-	if (!playbackHandler.playbackState || !currentSong->isClipActive(currentSong->currentClip)
+	if (!playbackHandler.playbackState || !currentSong->isClipActive(getCurrentClip())
 	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 
 	// Tempoless or arranger recording
 	else if (!playbackHandler.isEitherClockActive()
-	         || (currentPlaybackMode == &arrangement && currentSong->currentClip->getCurrentlyRecordingLinearly())) {
+	         || (currentPlaybackMode == &arrangement && getCurrentClip()->getCurrentlyRecordingLinearly())) {
 		newTickSquare = kDisplayWidth - 1;
 
 		// Linearly recording
-		if (currentSong->currentClip
-		        ->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-			((AudioClip*)currentSong->currentClip)->renderData.xScroll = -1; // Make sure values are recalculated
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
+			getCurrentAudioClip()->renderData.xScroll = -1;      // Make sure values are recalculated
 			needsRenderingDependingOnSubMode();
 		}
 	}
@@ -237,7 +237,7 @@ void AudioClipView::graphicsRoutine() {
 	else {
 		newTickSquare = getTickSquare();
 
-		if (getClip()->getCurrentlyRecordingLinearly()) {
+		if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
 			needsRenderingDependingOnSubMode();
 		}
 
@@ -251,7 +251,7 @@ void AudioClipView::graphicsRoutine() {
 		uint8_t tickSquares[kDisplayHeight];
 		memset(tickSquares, newTickSquare, kDisplayHeight);
 
-		const uint8_t* colours = currentSong->currentClip->getCurrentlyRecordingLinearly() ? twos : zeroes;
+		const uint8_t* colours = getCurrentClip()->getCurrentlyRecordingLinearly() ? twos : zeroes;
 		PadLEDs::setTickSquares(tickSquares, colours);
 
 		lastTickSquare = newTickSquare;
@@ -286,8 +286,7 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 
-			if (currentSong->lastClipInstanceEnteredStartPos != -1
-			    || currentSong->currentClip->isArrangementOnlyClip()) {
+			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
 				bool success = arrangerView.transitionToArrangementEditor();
 				if (!success) {
 					goto doOther;
@@ -297,6 +296,17 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 doOther:
 				sessionView.transitionToSessionView();
 			}
+		}
+	}
+
+	// Clip view button
+	else if (b == CLIP_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			changeRootUI(&automationView);
 		}
 	}
 
@@ -324,7 +334,7 @@ dontDeactivateMarker:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (!soundEditor.setup(currentSong->currentClip)) {
+			if (!soundEditor.setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
 			openUI(&soundEditor);
@@ -342,13 +352,13 @@ dontDeactivateMarker:
 			}
 
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
-			getClip()->clear(action, modelStack);
+			getCurrentAudioClip()->clear(action, modelStack);
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -386,7 +396,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
-				playbackHandler.grabTempoFromClip(getClip());
+				playbackHandler.grabTempoFromClip(getCurrentAudioClip());
 			}
 		}
 
@@ -411,7 +421,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 			else if (on && !currentUIMode) {
 
-				AudioClip* clip = getClip();
+				AudioClip* clip = getCurrentAudioClip();
 
 				int32_t endSquareDisplay = divide_round_negative(
 				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
@@ -454,7 +464,8 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 								newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
 
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
+								// If the end pos is very close to the end pos marked in the audio file, assume some
+								// rounding happened along the way and just go with the original
 								if (sample->fileLoopStartSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
@@ -490,7 +501,8 @@ setTheStartPos:
 							else {
 								newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
 
-								// If the end pos is very close to the end pos marked in the audio file, assume some rounding happened along the way and just go with the original
+								// If the end pos is very close to the end pos marked in the audio file, assume some
+								// rounding happened along the way and just go with the original
 								if (sample->fileLoopEndSamples) {
 									int64_t distanceFromFileEndMarker =
 									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
@@ -518,14 +530,15 @@ setTheEndPos:
 								valueToChange = &clip->sampleHolder.endPos;
 							}
 
-							int32_t actionType =
-							    (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
+							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
+							                                                : ActionType::CLIP_LENGTH_INCREASE;
 
-							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
+							// Change sample end-pos value. Must do this before calling setClipLength(), which will end
+							// up reading this value.
 							uint64_t oldValue = *valueToChange;
 							*valueToChange = newEndPosSamples;
 
-							Action* action = actionLogger.getNewAction(actionType, false);
+							Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 							currentSong->setClipLength(clip, newLength, action);
 
 							if (action) {
@@ -563,13 +576,13 @@ needRendering:
 
 void AudioClipView::playbackEnded() {
 
-	// A few reasons we might want to redraw the waveform. If a Sample had only partially recorded, it will have just been discarded. Or, if tempoless
-	// or arrangement recording, zoom and everything will have just changed
+	// A few reasons we might want to redraw the waveform. If a Sample had only partially recorded, it will have just
+	// been discarded. Or, if tempoless or arrangement recording, zoom and everything will have just changed
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 void AudioClipView::clipNeedsReRendering(Clip* clip) {
-	if (clip == getClip()) {
+	if (clip == getCurrentAudioClip()) {
 
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
@@ -593,7 +606,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
-	view.navigateThroughAudioOutputsForAudioClip(offset, getClip());
+	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
@@ -603,7 +616,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 		}
 
 		// Shift colour spectrum
-		getClip()->colourOffset += offset;
+		getCurrentAudioClip()->colourOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	return ActionResult::DEALT_WITH;
@@ -611,7 +624,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 
 bool AudioClipView::setupScroll(uint32_t oldScroll) {
 
-	if (!getClip()->currentlyScrollableAndZoomable()) {
+	if (!getCurrentAudioClip()->currentlyScrollableAndZoomable()) {
 		return false;
 	}
 
@@ -624,15 +637,15 @@ void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 
 uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
-		return currentSong->currentClip->loopLength + 1;
+		return getCurrentClip()->loopLength + 1;
 	}
 	else {
-		return currentSong->currentClip->loopLength;
+		return getCurrentClip()->loopLength;
 	}
 }
 
 uint32_t AudioClipView::getMaxZoom() {
-	int32_t maxZoom = currentSong->currentClip->getMaxZoom();
+	int32_t maxZoom = getCurrentClip()->getMaxZoom();
 	if (endMarkerVisible && maxZoom < 1073741824) {
 		maxZoom <<= 1;
 	}

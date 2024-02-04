@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -21,7 +21,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
-#include "hid/button.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/note/note_row.h"
@@ -30,14 +29,6 @@
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
 
 namespace deluge::gui::ui::keyboard {
-
-inline InstrumentClip* currentClip() {
-	return (InstrumentClip*)currentSong->currentClip;
-}
-
-inline Instrument* currentInstrument() {
-	return (Instrument*)currentSong->currentClip->output;
-}
 
 enum class RequiredScaleMode : uint8_t {
 	Undefined = 0,
@@ -63,16 +54,17 @@ public:
 	/// Will be called with offset 0 to recalculate bounds on clip changes
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) = 0;
 
-	/// This function is called on visibility change and if color offset changes
+	/// This function is called on visibility change and if colour offset changes
 	virtual void precalculate() = 0;
 
 	/// Handle output
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
+	virtual void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {}
 
-	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 		// Clean sidebar if function is not overwritten
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
+			image[y][kDisplayWidth] = colours::black;
+			image[y][kDisplayWidth + 1] = colours::black;
 		}
 	};
 
@@ -87,44 +79,44 @@ public:
 	virtual NotesState& getNotesState() { return currentNotesState; }
 
 protected:
-	inline bool isKit() { return currentInstrument()->type == InstrumentType::KIT; }
+	inline bool isKit() { return getCurrentOutputType() == OutputType::KIT; }
 	/// Song root note can be in any octave, layouts get the normalized one
 	inline int16_t getRootNote() { return (currentSong->rootNote % kOctaveSize); }
-	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
+	inline bool getScaleModeEnabled() { return getCurrentInstrumentClip()->inScaleMode; }
 	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
 
 	inline ModesArray& getScaleNotes() { return currentSong->modeNotes; }
 
-	inline uint8_t getDefaultVelocity() { return currentInstrument()->defaultVelocity; }
+	inline uint8_t getDefaultVelocity() { return getCurrentInstrument()->defaultVelocity; }
 
 	inline int32_t getLowestClipNote() { return kLowestKeyboardNote; }
 	inline int32_t getHighestClipNote() {
 		if (isKit()) {
-			return currentClip()->noteRows.getNumElements() - 1;
+			return getCurrentInstrumentClip()->noteRows.getNumElements() - 1;
 		}
 
 		return kHighestKeyboardNote;
 	}
 
-	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
-		int32_t colourOffset = 0;
+	inline RGB getNoteColour(uint8_t note) {
+		int8_t colourOffset = 0;
 
 		// Get colour offset for kit rows
-		if (currentInstrument()->type == InstrumentType::KIT) {
-			if (note >= 0 && note < currentClip()->noteRows.getNumElements()) {
-				NoteRow* noteRow = currentClip()->noteRows.getElement(note);
+		if (getCurrentOutputType() == OutputType::KIT) {
+			if (note >= 0 && note < getCurrentInstrumentClip()->noteRows.getNumElements()) {
+				NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(note);
 				if (noteRow) {
-					colourOffset = noteRow->getColourOffset(currentClip());
+					colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
 				}
 			}
 		}
 
-		currentClip()->getMainColourFromY(note, colourOffset, rgb);
+		return getCurrentInstrumentClip()->getMainColourFromY(note, colourOffset);
 	}
 
 	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
 
-	inline KeyboardState& getState() { return currentClip()->keyboardState; }
+	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
 
 protected:
 	NotesState currentNotesState;

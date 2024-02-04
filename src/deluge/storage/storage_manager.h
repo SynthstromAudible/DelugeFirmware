@@ -66,7 +66,7 @@ public:
 	char const* readTagOrAttributeValue();
 
 	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false);
+	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
 	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                    bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
@@ -79,20 +79,21 @@ public:
 	                              char const* endString = NULL);
 	uint32_t readCharXML(char* thisChar);
 	void write(char const* output);
+	void writef(char const* format, ...);
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	int32_t openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer);
+	int32_t openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 	bool readXMLFileCluster();
 	int32_t getNumCharsRemainingInValue();
-	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
-	int32_t loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
+	Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
+	int32_t loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
 	                               bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
 	                               String* name, String* dirPath);
-	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot);
+	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int32_t readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
 	                              int8_t* getCC = NULL);
@@ -136,8 +137,8 @@ private:
 	uint8_t xmlArea;
 	bool xmlReachedEnd;
 	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int32_t
-	    tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
+	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
+	                      // to finding next useful data.
 	int32_t xmlReadCount;
 
 	void skipUntilChar(char endChar);

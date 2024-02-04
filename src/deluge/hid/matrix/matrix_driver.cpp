@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "hid/matrix/matrix_driver.h"
 #include "definitions_cxx.hpp"
@@ -31,7 +31,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/song/song.h"

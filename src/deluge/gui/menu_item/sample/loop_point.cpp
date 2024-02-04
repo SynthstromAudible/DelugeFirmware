@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "loop_point.h"
 
@@ -66,7 +66,7 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 	sampleMarkerEditor.markerType = markerType;
 	bool success = openUI(&sampleMarkerEditor); // Shouldn't be able to fail anymore
 	if (!success) {
-		//if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
+		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }

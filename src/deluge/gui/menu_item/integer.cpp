@@ -13,16 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "integer.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include <cstring>
-
-extern "C" {
+#include "hid/display/oled.h"
 #include "util/cfunctions.h"
-}
 
 namespace deluge::gui::menu_item {
 

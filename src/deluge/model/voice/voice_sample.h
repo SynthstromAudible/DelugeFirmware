@@ -71,20 +71,21 @@ public:
 
 	VoiceSample* nextUnassigned;
 
-	uint32_t
-	    pendingSamplesLate; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact number isn't relevant - it gets recalculated
+	uint32_t pendingSamplesLate; // This isn't used for AudioClips. And for samples in STRETCH mode, the exact number
+	                             // isn't relevant - it gets recalculated
 	TimeStretcher* timeStretcher;
 
 	SampleCache* cache;
 	int32_t cacheBytePos;
 	bool doneFirstRenderYet;
 	bool fudging;
-	bool forAudioClip;   // This is a wee bit of a hack - but we need to be able to know this
-	bool writingToCache; // Value is only valid if cache assigned
-	int32_t
-	    cacheLoopEndPointBytes; // 2147483647 means no looping. Will be set to sample end-point if looping there. Gets re-set to 2147483647 when note "released"
-	int32_t
-	    cacheEndPointBytes; // Will sometimes be the whole length of the sample. Wherever the red marker is. Or a little further if it's the full length of the sample, to allow for timestretch / interpolation ring-out
+	bool forAudioClip;              // This is a wee bit of a hack - but we need to be able to know this
+	bool writingToCache;            // Value is only valid if cache assigned
+	int32_t cacheLoopEndPointBytes; // 2147483647 means no looping. Will be set to sample end-point if looping there.
+	                                // Gets re-set to 2147483647 when note "released"
+	int32_t cacheEndPointBytes; // Will sometimes be the whole length of the sample. Wherever the red marker is. Or a
+	                            // little further if it's the full length of the sample, to allow for timestretch /
+	                            // interpolation ring-out
 	uint32_t cacheLoopLengthBytes;
 
 private:

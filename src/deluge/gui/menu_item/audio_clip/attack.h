@@ -13,10 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
 
@@ -26,14 +25,10 @@ public:
 	using Integer::Integer;
 
 	void readCurrentValue() override {
-		this->setValue(
-		    (((int64_t)(static_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * kMaxMenuValue
-		     + 2147483648)
-		    >> 32);
+		this->setValue((((int64_t)getCurrentAudioClip()->attack + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		(static_cast<AudioClip*>(currentSong->currentClip))->attack =
-		    (uint32_t)this->getValue() * 85899345 - 2147483648;
+		getCurrentAudioClip()->attack = (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

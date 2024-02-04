@@ -18,7 +18,7 @@
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
@@ -388,7 +388,7 @@ void OpenAddressingHashTable::test() {
 	while (true) {
 		count++;
 		if (!(count & ((1 << 13) - 1))) {
-			Debug::println("still going");
+			D_PRINTLN("still going");
 		}
 
 		int32_t numElementsAdded = 0;
@@ -405,7 +405,7 @@ void OpenAddressingHashTable::test() {
 			numElementsAdded++;
 
 			if (!result) {
-				Debug::println("couldn't add element");
+				D_PRINTLN("couldn't add element");
 				while (1) {
 					;
 				}
@@ -413,7 +413,7 @@ void OpenAddressingHashTable::test() {
 		}
 
 		if (numElements != NUM_ELEMENTS_TO_ADD) {
-			Debug::println("wrong numElements");
+			D_PRINTLN("wrong numElements");
 			while (1) {
 				;
 			}
@@ -422,7 +422,7 @@ void OpenAddressingHashTable::test() {
 		// See if it'll let us remove an element that doesn't exist
 		bool result = remove(0);
 		if (result) {
-			Debug::println("reported successful removal of nonexistent element");
+			D_PRINTLN("reported successful removal of nonexistent element");
 			while (1) {
 				;
 			}
@@ -431,14 +431,8 @@ void OpenAddressingHashTable::test() {
 		for (int32_t i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
 			bool result = remove(elementsAdded[i]);
 			if (!result) {
-				Debug::print("remove failed. i == ");
-				Debug::println(i);
-				Debug::print("numBuckets == ");
-				Debug::println(numBuckets);
-				Debug::print("numElements == ");
-				Debug::println(numElements);
-				Debug::print("key == ");
-				Debug::println(elementsAdded[i]);
+				D_PRINTLN("remove failed. i ==  %d numBuckets ==  %d numElements ==  %d key ==  %d", i, numBuckets,
+				          numElements, elementsAdded[i]);
 				while (1) {
 					;
 				}
@@ -446,7 +440,7 @@ void OpenAddressingHashTable::test() {
 		}
 
 		if (numElements != 0) {
-			Debug::println("numElements didn't return to 0");
+			D_PRINTLN("numElements didn't return to 0");
 			while (1) {
 				;
 			}
@@ -455,7 +449,7 @@ void OpenAddressingHashTable::test() {
 		// See if it'll let us remove an element that doesn't exist
 		result = remove(0);
 		if (result) {
-			Debug::println("reported successful removal of element when there are no elements at all");
+			D_PRINTLN("reported successful removal of element when there are no elements at all");
 			while (1) {
 				;
 			}

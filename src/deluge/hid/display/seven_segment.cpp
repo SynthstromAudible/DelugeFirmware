@@ -23,11 +23,13 @@
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
 #include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
+#include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <cstdint>
 #include <cstring>
@@ -36,27 +38,72 @@
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 namespace deluge::hid::display {
 uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
-uint8_t letterSegments[26] = {0x77, 0x1F, 0x4E, 0x3D, 0x4F,
-                              0x47, //F
-                              0x5E,
-                              0x37, //H
-                              0x04,
-                              0x38, //J
-                              0x57, //0x2F,
-                              0x0E, //L
-                              0x55,
-                              0x15, //N
-                              0x1D, 0x67,
-                              0x73, //Q
-                              0x05, 0x5B,
-                              0x0F, //T
-                              0x3E, 0x27, 0x5C, 0x49, 0x3B, 0x6D};
+uint8_t letterSegments[] = {
+    0x77,
+    0x1F,
+    0x4E,
+    0x3D,
+    0x4F,
+    0x47, // F
+    0x5E,
+    0x37, // H
+    0x04,
+    0x38, // J
+    0x57, // 0x2F,
+    0x0E, // L
+    0x55,
+    0x15, // N
+    0x1D,
+    0x67,
+    0x73, // Q
+    0x05,
+    0x5B,
+    0x0F, // T
+    0x3E,
+    0x27,
+    0x5C,
+    0x49,
+    0x3B,
+    0x6D, // Z
+    0x00, // [
+    0x00, // backslash
+    0x00, // ]
+    0x00, // ^
+    0x00, // _
+    0x00, // `
+          // Lowercase
+    0x77,
+    0x1F,
+    0x0D,
+    0x3D,
+    0x4F,
+    0x47, // F
+    0x5E,
+    0x37, // H
+    0x04,
+    0x38, // J
+    0x57, // 0x2F,
+    0x0E, // L
+    0x55,
+    0x15, // N
+    0x1D,
+    0x67,
+    0x73, // Q
+    0x05,
+    0x5B,
+    0x0F, // T
+    0x3E,
+    0x27,
+    0x5C,
+    0x49,
+    0x3B,
+    0x6D,
+};
 
 void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 	newTopLayer->next = topLayer;
@@ -307,7 +354,8 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 			}
 
 			else {
-				// If we're not the first character, and the previous character didn't already have its dot illuminated, we'll just illuminate it
+				// If we're not the first character, and the previous character didn't already have its dot illuminated,
+				// we'll just illuminate it
 				if (writePos != -scrollPos && !(prevSegment & 0b10000000)) {
 					writePos--;
 					if (writePos >= 0) {
@@ -342,7 +390,12 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 				break;
 
 			case 'a' ... 'z':
-				*segments = letterSegments[thisChar - 'a']; // Letters
+				if (use_lowercase) {
+					*segments = letterSegments[thisChar - 'A']; // Letters
+				}
+				else {
+					*segments = letterSegments[thisChar - 'a']; // Letters
+				}
 				break;
 
 			case '0' ... '9':
@@ -449,7 +502,7 @@ void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, boo
                                  int32_t blinkPos, bool blinkImmediately) {
 	char text[12];
 
-	//int32_t minNumDigits = std::max(1, blinkPos + 1);
+	// int32_t minNumDigits = std::max(1, blinkPos + 1);
 	int32_t minNumDigits = (blinkPos == -1) ? -1 : 3;
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
@@ -538,7 +591,12 @@ void SevenSegment::render() {
 	layer->render(segments.data());
 	lastDisplay_ = segments;
 
-	PIC::update7SEG(segments);
+	if (have_oled_screen) {
+		OLED::renderEmulated7Seg(segments);
+	}
+	else {
+		PIC::update7SEG(segments);
+	}
 	HIDSysex::sendDisplayIfChanged();
 }
 
@@ -562,7 +620,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 	PIC::update7SEG(segments);
 }
 
-// Highest error code used, main branch: E451
+// Highest error code used, main branch: E452
 // Highest error code used, fix branch: i041
 
 void SevenSegment::freezeWithError(char const* text) {

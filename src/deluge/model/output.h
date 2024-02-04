@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
+#include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
 
@@ -34,13 +35,14 @@ class ModControllable;
 class GlobalEffectableForClip;
 class ModelStack;
 class ModelStackWithTimelineCounter;
+class ModelStackWithAutoParam;
 class MIDIDevice;
 class LearnedMIDI;
 class ParamManager;
 
 class Output {
 public:
-	Output(InstrumentType newType);
+	Output(OutputType newType);
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
@@ -50,7 +52,7 @@ public:
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
 	             // Definitely does not contain the ".XML" on the end.
 	Output* next;
-	const InstrumentType type;
+	const OutputType type;
 	bool mutedInArrangementMode;
 	bool soloingInArrangementMode;
 	bool inValidState;
@@ -145,6 +147,10 @@ public:
 	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
+
+	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                        int32_t paramID,
+	                                                        deluge::modulation::params::Kind paramKind) = 0;
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

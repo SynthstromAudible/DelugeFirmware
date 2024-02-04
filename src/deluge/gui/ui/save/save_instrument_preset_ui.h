@@ -26,18 +26,18 @@ public:
 	SaveInstrumentPresetUI();
 
 	bool opened();
-	//void selectEncoderAction(int8_t offset);
+	// void selectEncoderAction(int8_t offset);
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
 	void endSession(){};
 	bool performSave(bool mayOverwrite);
 
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
 
 protected:
-	//int32_t arrivedInNewFolder(int32_t direction);
+	// int32_t arrivedInNewFolder(int32_t direction);
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;

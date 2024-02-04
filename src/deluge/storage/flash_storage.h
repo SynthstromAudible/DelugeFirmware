@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -40,14 +40,25 @@ extern uint8_t defaultBendRange[2];
 extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
-extern bool gridUnarmEmptyPads;
+extern bool gridEmptyPadsUnarm;
+extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
 
 extern uint8_t defaultMetronomeVolume;
 
+extern bool automationInterpolate;
+extern bool automationClear;
+extern bool automationShift;
+extern bool automationNudgeNote;
+extern bool automationDisableAuditionPadShortcuts;
+
 void readSettings();
 void writeSettings();
 void resetSettings();
+void resetMidiFollowSettings();
+void resetAutomationSettings();
+bool areMidiFollowSettingsValid(uint8_t* buffer);
+bool areAutomationSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage

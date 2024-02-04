@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -33,6 +33,7 @@ public:
 	GlobalEffectableForClip();
 
 	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
 	virtual Output* toOutput() = 0;
 	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
@@ -57,7 +58,7 @@ protected:
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                  InstrumentType instrumentType, int32_t analogDelaySaturationAmount);
+	                  OutputType outputType, int32_t analogDelaySaturationAmount);
 
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,
@@ -70,4 +71,5 @@ protected:
 
 private:
 	bool renderedLastTime;
+	void displaySidechainAndReverbSettings(bool on);
 };

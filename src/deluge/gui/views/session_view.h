@@ -52,20 +52,20 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void removeClip(Clip* clip);
 	void redrawClipsOnScreen(bool doRender = true);
 	uint32_t getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
-	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
+	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
 	int32_t getClipPlaceOnScreen(Clip* clip);
-	void drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
-	void drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	void drawStatusSquare(uint8_t yDisplay, RGB thisImage[]);
+	void drawSectionSquare(uint8_t yDisplay, RGB thisImage[]);
 	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
 	uint32_t getMaxLength();
 	bool setupScroll(uint32_t oldScroll);
@@ -80,7 +80,7 @@ public:
 	void setLedStates();
 	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void midiLearnFlash();
 
@@ -105,8 +105,8 @@ public:
 	uint8_t selectedClipPressXDisplay;
 	bool clipWasSelectedWithShift; // Whether shift was held when clip pad started to be held
 	bool performActionOnPadRelease;
-	bool
-	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
+	bool performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder
+	                                       // action to set this to false
 	uint8_t sectionPressed;
 	uint8_t masterCompEditMode;
 
@@ -114,6 +114,12 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+
+	// ui
+	UIType getUIType() { return UIType::SESSION_VIEW; }
 
 private:
 	void renderViewDisplay(char const* viewString);
@@ -124,7 +130,7 @@ private:
 	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
-	void replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType);
+	void replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 
@@ -138,14 +144,13 @@ private:
 	bool viewingRecordArmingActive = false;
 	// Members for grid layout
 private:
-	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	void gridRenderClipColor(Clip* clip, uint8_t resultColour[]);
+	RGB gridRenderClipColor(Clip* clip);
 
-	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
@@ -181,8 +186,8 @@ private:
 
 	Clip* gridCloneClip(Clip* sourceClip);
 	Clip* gridCreateClipInTrack(Output* targetOutput);
-	bool gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip, bool copyDrumsFromClip);
-	InstrumentClip* gridCreateClipWithNewTrack(InstrumentType type);
+	bool gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
+	InstrumentClip* gridCreateClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
 

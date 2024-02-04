@@ -57,8 +57,8 @@
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/stb/stb.h"
-#include "RZA1/uart/sio_char.h"
-#include "definitions.h"
+#include "RZA1/uart/sio_char.h" // IWYU pragma: keep false positive, needed for R_INTC_Init
+#include "definitions.h"        // IWYU pragma: keep false positive, needed for memory limits
 #include "deluge/deluge.h"
 #include <string.h> //memset
 
@@ -100,7 +100,7 @@ void _fini(void) {
 	// empty
 }
 
-inline void emptySection(uint32_t* start, uint32_t* end) {
+static void emptySection(uint32_t* start, uint32_t* end) {
 	uint32_t* dst = start;
 	while (dst < end) {
 		*dst = 0;
@@ -108,7 +108,7 @@ inline void emptySection(uint32_t* start, uint32_t* end) {
 	}
 }
 
-inline void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
+static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
 	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
 	uint32_t* dst = start;
 	while (dst < end) {
@@ -165,7 +165,7 @@ void resetprg(void) {
 	setPinMux(5, 14, 1);
 	setPinMux(5, 15, 1);
 
-	//setPinMux(7, 8, 1); // CS2
+	// setPinMux(7, 8, 1); // CS2
 	setPinMux(2, 0, 1); // CS3
 	setPinMux(2, 1, 1); // RAS
 	setPinMux(2, 2, 1); // CAS

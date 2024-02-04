@@ -15,6 +15,7 @@ fi
 
 DBT_TOOLCHAIN_PATH="${DBT_TOOLCHAIN_PATH:-$DEFAULT_SCRIPT_PATH}";
 DBT_VERBOSE="${DBT_VERBOSE:-""}";
+DBT_DID_UNPACKING=""
 
 dbtenv_show_usage()
 {
@@ -153,7 +154,7 @@ dbtenv_get_kernel_type()
     if [[ "${SYS_TYPE}" == "darwin" || "${SYS_TYPE}" == "linux" ]]; then
         # Disabling rosetta checking now that we've got native arm64
         # dbtenv_check_rosetta || return 1;
-        TOOLCHAIN_ARCH_DIR="${DBT_TOOLCHAIN_PATH}/toolchain/${SYS_TYPE}-${ARCH_TYPE}";
+        TOOLCHAIN_ARCH_DIR="${DBT_TOOLCHAIN_PATH}/toolchain/v${DBT_TOOLCHAIN_VERSION}/${SYS_TYPE}-${ARCH_TYPE}";
         TOOLCHAIN_URL="https://github.com/SynthstromAudible/dbt-toolchain/releases/download/v${DBT_TOOLCHAIN_VERSION}/dbt-toolchain-${DBT_TOOLCHAIN_VERSION}-${SYS_TYPE}-${ARCH_TYPE}.tar.gz";
     elif echo "$SYS_TYPE" | grep -q "MINGW"; then
         echo "In MinGW shell, use \"[u]dbt.cmd\" instead of \"[u]dbt\"";
@@ -210,13 +211,6 @@ dbtenv_download_toolchain_tar()
     return 0;
 }
 
-dbtenv_remove_old_tooclhain()
-{
-    printf "Removing old toolchain..";
-    rm -rf "${TOOLCHAIN_ARCH_DIR:?}";
-    echo "done";
-}
-
 dbtenv_show_unpack_percentage()
 {
     LINE=0;
@@ -231,12 +225,31 @@ dbtenv_show_unpack_percentage()
 
 dbtenv_unpack_toolchain()
 {
-    echo "Unpacking toolchain to '$DBT_TOOLCHAIN_PATH/toolchain':";
-    tar -xvf "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_TAR" -C "$DBT_TOOLCHAIN_PATH/toolchain" 2>&1 | dbtenv_show_unpack_percentage;
+    echo "Unpacking toolchain to '$DBT_TOOLCHAIN_PATH/toolchain/v${DBT_TOOLCHAIN_VERSION}':";
+    mkdir -p "$DBT_TOOLCHAIN_PATH/toolchain/v${DBT_TOOLCHAIN_VERSION}" || return 1;
+    tar -xvf "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_TAR" -C "$DBT_TOOLCHAIN_PATH/toolchain/v${DBT_TOOLCHAIN_VERSION}/" 2>&1 | dbtenv_show_unpack_percentage;
     mkdir -p "$DBT_TOOLCHAIN_PATH/toolchain" || return 1;
     mv "$DBT_TOOLCHAIN_PATH/toolchain/$TOOLCHAIN_DIR" "$TOOLCHAIN_ARCH_DIR" || return 1;
     echo "done";
+
+    DBT_DID_UNPACKING=1
+
     return 0;
+}
+
+dbtenv_setup_python()
+{
+    if [ -z "$DBT_NO_PYTHON_UPGRADE" ]; then
+        # Install python wheels if not already installed, upgrade pip
+        # afterward (needs certifi in place).
+        pip_cmd="python3 -m pip";
+        pip_requirements_path="${SCRIPT_PATH}/scripts/toolchain/requirements.txt"
+        pip_wheel_path="${TOOLCHAIN_ARCH_DIR}/python/wheel";
+        pip_certifi_wheel=$(find $pip_wheel_path/certifi*)
+        $pip_cmd install -q "${pip_certifi_wheel}"
+        $pip_cmd install -q --upgrade pip
+        $pip_cmd install -q -f "${pip_wheel_path}" -r "${pip_requirements_path}"
+    fi
 }
 
 dbtenv_cleanup()
@@ -244,7 +257,7 @@ dbtenv_cleanup()
     
     # Kludgey but, quick path to getting rid of these
     printf "Removing any nuisance mac dotfiles..";
-    find toolchain | grep -e '\/[.][^\/]*$' | sed -e 's/\(.*\)/rm \"\1\"/' | /usr/bin/env bash;
+    find toolchain | grep -e '/[.][^\/]*$' | sed -e 's/\(.*\)/rm \"\1\"/' | /usr/bin/env bash;
     echo "done";
 
     printf "Cleaning up..";
@@ -306,7 +319,6 @@ dbtenv_download_toolchain()
         dbtenv_curl_wget_check || return 1;
         dbtenv_download_toolchain_tar || return 1;
     fi
-    dbtenv_remove_old_tooclhain;
     dbtenv_unpack_toolchain || return 1;
     dbtenv_cleanup;
     return 0;
@@ -347,7 +359,7 @@ dbtenv_main()
     export SAVED_PYTHONPATH="${PYTHONPATH:-""}";
     export SAVED_PYTHONHOME="${PYTHONHOME:-""}";
 
-    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.11/site-packages/certifi/cacert.pem";
+    export SSL_CERT_FILE="$TOOLCHAIN_ARCH_DIR/python/lib/python3.12/site-packages/certifi/cacert.pem";
     export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
     export PYTHONNOUSERSITE=1;
     export PYTHONPATH="$DEFAULT_SCRIPT_PATH/scripts";
@@ -356,6 +368,10 @@ dbtenv_main()
     if [ "$SYS_TYPE" = "Linux" ]; then
         export SAVED_TERMINFO_DIRS="${TERMINFO_DIRS:-""}";
         export TERMINFO_DIRS="$TOOLCHAIN_ARCH_DIR/ncurses/share/terminfo";
+    fi
+
+    if [ -n "${DBT_DID_UNPACKING}" ]; then
+      dbtenv_setup_python
     fi
 }
 

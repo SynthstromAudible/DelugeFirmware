@@ -13,12 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::reverb::compressor {
 
@@ -39,6 +38,18 @@ public:
 		}
 		else {
 			Integer::drawValue();
+		}
+	}
+
+	void drawPixelsForOled() override {
+		if (this->getValue() < 0) {
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTO),
+			                                              18 + OLED_MAIN_TOPMOST_PIXEL,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
+		}
+		else {
+			Integer::drawPixelsForOled();
 		}
 	}
 };

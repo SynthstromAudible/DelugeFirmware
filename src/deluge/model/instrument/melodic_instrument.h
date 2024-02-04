@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -28,11 +28,9 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class MIDIDevice;
 
-enum MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
-
 class MelodicInstrument : public Instrument {
 public:
-	MelodicInstrument(InstrumentType newType) : Instrument(newType) {}
+	MelodicInstrument(OutputType newType) : Instrument(newType) {}
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
@@ -45,17 +43,24 @@ public:
 	bool writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void writeMelodicInstrumentTagsToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
-	MIDIMatchType checkMatch(MIDIDevice* fromDevice, int32_t channel);
+
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru);
+	void receivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t midiChannel,
+	                  MIDIMatchType match, int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru);
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
+	void receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                       MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
-
+	void receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                        MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
 	void stopAnyAuditioning(ModelStack* modelStack) final;
@@ -86,4 +91,10 @@ public:
 	EarlyNoteArray notesAuditioned;
 
 	LearnedMIDI midiInput;
+
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+
+private:
+	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);
 };

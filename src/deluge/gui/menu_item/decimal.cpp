@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <cmath>
 #include <cstring>
@@ -24,13 +24,8 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "source_selection.h"
-#include "util/functions.h"
-
-extern "C" {
 #include "util/cfunctions.h"
-}
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item {
 

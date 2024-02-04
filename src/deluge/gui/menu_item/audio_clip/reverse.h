@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
@@ -29,11 +29,9 @@ class Reverse final : public Toggle {
 public:
 	using Toggle::Toggle;
 
-	void readCurrentValue() override {
-		this->setValue((static_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed);
-	}
+	void readCurrentValue() override { this->setValue(getCurrentAudioClip()->sampleControls.reversed); }
 	void writeCurrentValue() override {
-		auto* clip = static_cast<AudioClip*>(currentSong->currentClip);
+		auto* clip = getCurrentAudioClip();
 		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
 
 		clip->unassignVoiceSample();

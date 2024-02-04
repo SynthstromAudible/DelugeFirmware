@@ -13,10 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 
@@ -24,10 +23,62 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
-	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
-	std::vector<std::string_view> getOptions() override {
-		return {presetScaleNames.begin(), presetScaleNames.begin() + NUM_PRESET_SCALES + 2};
+
+	void readCurrentValue() override {
+		int32_t savedScale = FlashStorage::defaultScale;
+		if (savedScale == PRESET_SCALE_RANDOM) {
+			this->setValue(NUM_PRESET_SCALES);
+		}
+		else if (savedScale == PRESET_SCALE_NONE) {
+			this->setValue(NUM_PRESET_SCALES + 1);
+		}
+		else {
+			if (savedScale >= OFFSET_5_NOTE_SCALE) {
+				// remove offset for 5 note scales
+				savedScale = FIRST_5_NOTE_SCALE_INDEX + savedScale - OFFSET_5_NOTE_SCALE;
+			}
+			else if (savedScale >= OFFSET_6_NOTE_SCALE) {
+				// remove offset for 6 note scales
+				savedScale = FIRST_6_NOTE_SCALE_INDEX + savedScale - OFFSET_6_NOTE_SCALE;
+			}
+			if (savedScale >= NUM_PRESET_SCALES) {
+				// Index is out of bounds, so reset to 0
+				this->setValue(0);
+			}
+			else {
+				// Otherwise set to the saved scale
+				this->setValue(savedScale);
+			}
+		}
+	}
+
+	void writeCurrentValue() override {
+		int32_t v = this->getValue();
+		if (v == NUM_PRESET_SCALES) {
+			FlashStorage::defaultScale = PRESET_SCALE_RANDOM;
+		}
+		else if (v == NUM_PRESET_SCALES + 1) {
+			FlashStorage::defaultScale = PRESET_SCALE_NONE;
+		}
+		else {
+			if (v >= FIRST_5_NOTE_SCALE_INDEX) {
+				// apply offset to 5 note scales
+				v = OFFSET_5_NOTE_SCALE + v - FIRST_5_NOTE_SCALE_INDEX;
+			}
+			else if (v >= FIRST_6_NOTE_SCALE_INDEX) {
+				// apply offset to 6 note scales
+				v = OFFSET_6_NOTE_SCALE + v - FIRST_6_NOTE_SCALE_INDEX;
+			}
+			FlashStorage::defaultScale = v;
+		}
+	}
+
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> scales = {presetScaleNames.begin(),
+		                                           presetScaleNames.begin() + NUM_PRESET_SCALES};
+		scales.push_back("RANDOM");
+		scales.push_back("NONE");
+		return scales;
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

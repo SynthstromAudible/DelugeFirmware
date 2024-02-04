@@ -13,8 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
-
+ */
+// todo - make interpolation standalone functions which receive buffers so they can be compiled with arm and
+// deduplicated
 int16_t strength2 = oscPos >> 9;
 int16_t strength1 = 32767 - strength2;
 

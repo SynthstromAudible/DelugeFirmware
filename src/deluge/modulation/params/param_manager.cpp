@@ -20,7 +20,6 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
@@ -165,7 +164,8 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
                                                 int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params for another clip
+	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
+	// for another clip
 	if (this != other) {
 		if (mpeParamsOrNullHere.paramCollection) {
 			cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
@@ -173,8 +173,9 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 	}
 
 	// First, allocate the memories
-	ParamCollectionSummary newSummaries
-	    [PARAM_COLLECTIONS_STORAGE_NUM]; // Temporary separate storage, so we can clone from self (when this function is called from beenCloned()).
+	ParamCollectionSummary
+	    newSummaries[PARAM_COLLECTIONS_STORAGE_NUM]; // Temporary separate storage, so we can clone from self (when this
+	                                                 // function is called from beenCloned()).
 
 	ParamCollectionSummary* __restrict__ newSummary = newSummaries;
 	ParamCollectionSummary* otherSummary =
@@ -223,7 +224,8 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 		otherSummary++;
 	}
 
-	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special treatment
+	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special
+	// treatment
 	if (this == other) {
 		*newSummary = {0}; // Mark end of list
 	}
@@ -362,7 +364,8 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
                                                 bool reversed, bool didPingpong, bool mayInterpolate) {
 
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	ticksSkipped += ticksSinceLast;
@@ -394,7 +397,8 @@ void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* m
 	}
 }
 
-// Very minimal function - doesn't take a ModelStack, because we use this to decide whether we even need to create / populate the ModelStack.
+// Very minimal function - doesn't take a ModelStack, because we use this to decide whether we even need to create /
+// populate the ModelStack.
 bool ParamManagerForTimeline::mightContainAutomation() {
 
 	ParamCollectionSummary* summary = summaries;
@@ -411,7 +415,8 @@ bool ParamManagerForTimeline::mightContainAutomation() {
 // You'll usually want to call mightContainAutomation() before bothering with this, to save time.
 void ParamManagerForTimeline::setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -427,7 +432,8 @@ void ParamManagerForTimeline::setPlayPos(uint32_t pos, ModelStackWithThreeMainTh
 void ParamManagerForTimeline::grabValuesFromPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack) {
 
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -451,7 +457,8 @@ void ParamManager::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* m
 void ParamManagerForTimeline::shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount,
                                                 int32_t effectiveLength) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -463,7 +470,8 @@ void ParamManagerForTimeline::shiftHorizontally(ModelStackWithThreeMainThings* m
 
 void ParamManagerForTimeline::deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -476,7 +484,8 @@ void ParamManagerForTimeline::deleteAllAutomation(Action* action, ModelStackWith
 void ParamManagerForTimeline::trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack,
                                            Action* action, bool maySetupPatching) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -500,9 +509,11 @@ void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* 
                                                  ModelStackWithThreeMainThings* otherModelStack, int32_t oldLength,
                                                  int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 	otherModelStack->paramManager->toForTimeline()
-	    ->ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	    ->ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do"
+	                                    // below with its "while".
 #endif
 
 	ParamCollectionSummary* otherSummary = otherModelStack->paramManager->summaries;
@@ -519,14 +530,15 @@ otherSummary++;
 while (summary->paramCollection)
 	;
 
-ticksTilNextEvent =
-    0; // Should probably really call expectEvent(), but we're only called when a tick is just about to happen anyway, so shouldn't matter
+ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about to
+                       // happen anyway, so shouldn't matter
 }
 
 // Note: you must only call this if playbackHandler.isEitherClockActive()
 void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	// Beware - for efficiency, the caller of this sometimes pre-checks whether to even call this at all
@@ -561,9 +573,8 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int3
 		// Normal case
 		else {
 
-			//if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationNudgeNote)
-			    == RuntimeFeatureStateToggle::Off) {
+			// if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
+			if (!FlashStorage::automationNudgeNote) {
 				summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
 				                                                          modelStackWithParamCollection);
 			}
@@ -575,7 +586,8 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int3
 
 void ParamManagerForTimeline::notifyPingpongOccurred(ModelStackWithThreeMainThings* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -587,7 +599,8 @@ void ParamManagerForTimeline::notifyPingpongOccurred(ModelStackWithThreeMainThin
 
 void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below with its "while".
+	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
+	                              // with its "while".
 #endif
 
 	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
@@ -598,10 +611,11 @@ void ParamManagerForTimeline::expectNoFurtherTicks(ModelStackWithThreeMainThings
 }
 
 /*
-		ParamCollection** paramCollection = paramCollections;
-		do {
- 			ModelStackWithParamCollection* modelStackWithParamCollection = modelStack->addParamCollection((*paramCollection));
-			(*paramCollection)->
-			paramCollection++;
-		} while (*paramCollection);
+        ParamCollection** paramCollection = paramCollections;
+        do {
+            ModelStackWithParamCollection* modelStackWithParamCollection =
+   modelStack->addParamCollection((*paramCollection));
+            (*paramCollection)->
+            paramCollection++;
+        } while (*paramCollection);
  */

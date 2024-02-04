@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
@@ -28,7 +28,7 @@ public:
 	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentCompressor =
-		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
+		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->sidechain;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 

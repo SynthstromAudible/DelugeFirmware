@@ -13,14 +13,15 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "modulation/envelope.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
 #include "model/voice/voice.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+
+namespace params = deluge::modulation::params;
 
 Envelope::Envelope() {
 }
@@ -31,15 +32,14 @@ int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, u
 considerEnvelopeStage:
 	switch (state) {
 	case EnvelopeStage::ATTACK:
-		pos +=
-		    attack
-		    * numSamples; // Increment the pos *before* taking a value, so we can skip the attack section entirely with a high posIncrease
+		pos += attack * numSamples; // Increment the pos *before* taking a value, so we can skip the attack section
+		                            // entirely with a high posIncrease
 		if (pos >= 8388608) {
 			pos = 0;
 			setState(EnvelopeStage::DECAY);
 			goto considerEnvelopeStage;
 		}
-		//lastValue = pos << 8;
+		// lastValue = pos << 8;
 		lastValue = 2147483647 - getDecay4(pos, 23); // Makes curved attack
 		lastValue = std::max(lastValue, (int32_t)1);
 		break;
@@ -76,9 +76,9 @@ considerEnvelopeStage:
 			lastValue = 0;
 			return -2147483648;
 		}
-		//int32_t thisValue = multiply_32x32_rshift32(getDecay8(pos, 23), lastValue) << 1;
-		//int32_t negativePos = (8388608 - pos) >> 13;
-		//int32_t thisValue = multiply_32x32_rshift32(negativePos * negativePos * negativePos, lastValue) << 2;
+		// int32_t thisValue = multiply_32x32_rshift32(getDecay8(pos, 23), lastValue) << 1;
+		// int32_t negativePos = (8388608 - pos) >> 13;
+		// int32_t thisValue = multiply_32x32_rshift32(negativePos * negativePos * negativePos, lastValue) << 2;
 		lastValue = multiply_32x32_rshift32(interpolateTable(pos, 23, releaseTable), lastValuePreCurrentStage) << 1;
 		break;
 
@@ -89,10 +89,11 @@ considerEnvelopeStage:
 			return -2147483648;
 		}
 
-		//lastValue = multiply_32x32_rshift32((8388608 - pos) << 8, lastValuePreRelease) << 1;
+		// lastValue = multiply_32x32_rshift32((8388608 - pos) << 8, lastValuePreRelease) << 1;
 
-		// This alternative line does the release in a sine shape, which you'd think would cause less high-frequency content than the above kinda "triangle" one, but it sounds about the same somehow
-		// Actually no it does sound a bit better for Kody's deep bass sample
+		// This alternative line does the release in a sine shape, which you'd think would cause less high-frequency
+		// content than the above kinda "triangle" one, but it sounds about the same somehow Actually no it does sound a
+		// bit better for Kody's deep bass sample
 		lastValue =
 		    multiply_32x32_rshift32((getSine(pos + (8388608 >> 1), 24) >> 1) + 1073741824, lastValuePreCurrentStage)
 		    << 1;
@@ -121,7 +122,7 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 }
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
-	int32_t attack = voice->paramFinalValues[Param::Local::ENV_0_ATTACK + envelopeIndex];
+	int32_t attack = voice->paramFinalValues[params::LOCAL_ENV_0_ATTACK + envelopeIndex];
 
 	bool directlyToDecay = (attack > 245632);
 
@@ -133,8 +134,8 @@ void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimel
 	if (!sound->envelopeHasSustainCurrently(envelopeIndex, paramManager)) {
 		ignoredNoteOff = true;
 	}
-	else if (state < EnvelopeStage::
-	             RELEASE) { // Could we ever have already been in release state? Probably not, but just in case
+	else if (state < EnvelopeStage::RELEASE) { // Could we ever have already been in release state? Probably not, but
+		                                       // just in case
 		unconditionalRelease();
 	}
 }

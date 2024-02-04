@@ -13,17 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/drum/gate_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;

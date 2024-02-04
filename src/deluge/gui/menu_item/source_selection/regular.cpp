@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "regular.h"
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patch_cable_strength/regular.h"
@@ -36,9 +36,9 @@ MenuItem* Regular::selectButtonPress() {
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (navigatedBackwardFrom != nullptr) {
-		if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_REVERB_SEND
-		    || soundEditor.patchingParamSelected == ::Param::Local::VOLUME) {
-			soundEditor.patchingParamSelected = ::Param::Global::VOLUME_POST_FX;
+		if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
+		    || soundEditor.patchingParamSelected == deluge::modulation::params::LOCAL_VOLUME) {
+			soundEditor.patchingParamSelected = deluge::modulation::params::GLOBAL_VOLUME_POST_FX;
 		}
 	}
 

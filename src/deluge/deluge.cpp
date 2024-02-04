@@ -13,60 +13,41 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "deluge.h"
-#include "NE10.h"
-#include "RZA1/system/iodefine.h"
+
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
-#include "dsp/stereo_sample.h"
-#include "gui/context_menu/audio_input_selector.h"
-#include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/delete_file.h"
-#include "gui/context_menu/load_instrument_preset.h"
-#include "gui/context_menu/overwrite_file.h"
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
-#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
-#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
-#include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "gui/waveform/waveform_basic_navigator.h"
-#include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
-#include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
+#include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "memory/general_memory_allocator.h"
-#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/note/note.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -76,16 +57,11 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "testing/hardware_testing.h"
-#include "util/container/hashtable/open_addressing_hash_table.h"
 #include "util/misc.h"
 #include "util/pack.h"
-#include <new>
 #include <stdlib.h>
-#include <string.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -94,21 +70,13 @@
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/system/rza_io_regrw.h"
-#include "RZA1/uart/sio_char.h"
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "drivers/mtu/mtu.h"
 #include "drivers/oled/oled.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 
-#include "RZA1/bsc/bsc_userdef.h"
 #include "RZA1/rspi/rspi.h"
 #include "RZA1/spibsc/spibsc_Deluge_setup.h"
-#include "RZA1/ssi/ssi.h"
-#include "drivers/usb/userdef/r_usb_pmidi_config.h"
 }
 
 extern uint8_t currentlyAccessingCard;
@@ -152,15 +120,13 @@ void inputRoutine() {
 
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
-		Debug::print("headphone ");
-		Debug::println(headphoneNow);
+		D_PRINT("headphone %d", headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
 	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
 	if (micNow != AudioEngine::micPluggedIn) {
-		Debug::print("mic ");
-		Debug::println(micNow);
+		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
 	}
 
@@ -174,8 +140,7 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		Debug::print("line in ");
-		Debug::println(lineInNow);
+		D_PRINT("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -189,10 +154,11 @@ void inputRoutine() {
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
 
-		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
+		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
+		// resistive divider already
 		batteryMV = (voltageReadingLastTime) >> 15;
-		//Debug::print("batt mV: ");
-		//Debug::println(batteryMV);
+		// D_PRINT("batt mV: ");
+		// D_PRINTLN(batteryMV);
 
 		// See if we've reached threshold to change verdict on battery level
 
@@ -265,12 +231,10 @@ bool readButtonsAndPads() {
 	}
 
 	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >= (44100 << 1)) {
-		Debug::println("closing peripheral");
-		closeUSBPeripheral();
-		Debug::println("switching back to host");
-		openUSBHost();
-		closedPeripheral = true;
+	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
+	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
+	    openUSBHost();
+	    closedPeripheral = true;
 	}
 	*/
 
@@ -278,7 +242,7 @@ bool readButtonsAndPads() {
 		if (sdRoutineLock) {
 			return false;
 		}
-		Debug::println("got to end of sd routine");
+		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
 	}
 
@@ -296,13 +260,13 @@ bool readButtonsAndPads() {
 	if (!inSDRoutine && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 		if (playbackHandler.playbackState) {
 
-			Debug::println("");
-			Debug::println("undoing");
+			D_PRINTLN("");
+			D_PRINTLN("undoing");
 			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
-			Debug::println("");
-			Debug::println("beginning playback");
+			D_PRINTLN("");
+			D_PRINTLN("beginning playback");
 			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
@@ -336,7 +300,7 @@ bool readButtonsAndPads() {
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
-				Debug::println("putCharBack ---------");
+				D_PRINTLN("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
 				waitingForSDRoutineToEnd = true;
 				return false;
@@ -353,7 +317,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -425,13 +389,13 @@ void setUIForLoadedSong(Song* song) {
 	UI* newUI;
 
 	// If in a Clip-minder view
-	if (song->currentClip && song->inClipMinderViewOnLoad) {
-		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
+	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
+		if (getCurrentClip()->onAutomationClipView) {
+			newUI = &automationView;
+		}
+		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+			if (getCurrentInstrumentClip()->onKeyboardScreen) {
 				newUI = &keyboardScreen;
-			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
-				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
@@ -475,19 +439,18 @@ void setupBlankSong() {
 	preLoadedSong = NULL;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
 void setupOLED() {
-	//delayMS(10);
+	// delayMS(10);
 
 	// Set up 8-bit
 	RSPI0.SPDCR = 0x20u;               // 8-bit
 	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+	RSPI0.SPBFCR.BYTE = 0b01100000;    // 0b00100000;
 
 	PIC::setDCLow();
 	PIC::enableOLED();
@@ -498,7 +461,7 @@ void setupOLED() {
 
 	oledMainInit();
 
-	//delayMS(5);
+	// delayMS(5);
 
 	PIC::deselectOLED();
 	PIC::flush();
@@ -567,12 +530,11 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
-	R_RSPI_Create(
-	    SPI_CHANNEL_CV,
-	    have_oled
-	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-	        : 30000000,
-	    0, 32);
+	R_RSPI_Create(SPI_CHANNEL_CV,
+	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
+	                                   // datasheet's spec of 100ns (10MHz).
+	                        : 30000000,
+	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
@@ -591,6 +553,8 @@ extern "C" int32_t deluge_main(void) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
+	// remember the physical display type
+	deluge::hid::display::have_oled_screen = have_oled;
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -610,7 +574,8 @@ extern "C" int32_t deluge_main(void) {
 	// Setup for gate output
 	cvEngine.init();
 
-	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't that.) Otherwise didn't seem necessary.
+	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
+	// that.) Otherwise didn't seem necessary.
 	PIC::waitForFlush();
 
 	PIC::setupForPads();
@@ -624,8 +589,8 @@ extern "C" int32_t deluge_main(void) {
 
 	audioFileManager.init();
 
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
-	// has to be running
+	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
+	// and audio routines into the SPIBSC wait routines, so that has to be running
 	setPinMux(4, 2, 2);
 	setPinMux(4, 3, 2);
 	setPinMux(4, 4, 2);
@@ -649,8 +614,7 @@ extern "C" int32_t deluge_main(void) {
 
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
-			Debug::print("PIC firmware version reported: ");
-			Debug::println(value);
+			D_PRINTLN("PIC firmware version reported: %s", value);
 			return 0; // continue
 		}
 
@@ -686,25 +650,31 @@ extern "C" int32_t deluge_main(void) {
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
-	runtimeFeatureSettings.readSettingsFromFile();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
 
 	usbLock = 1;
 	openUSBHost();
 
 	// If nothing was plugged in to us as host, we'll go peripheral
+	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
+	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
 	if (!anythingInitiallyAttachedAsUSBHost) {
-		Debug::println("switching from host to peripheral");
+		D_PRINTLN("switching from host to peripheral");
 		closeUSBHost();
 		openUSBPeripheral();
 	}
 
 	usbLock = 0;
 
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then, that hadn't fully
-	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
-
-	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can read this file now.
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
 
 	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
 
@@ -784,7 +754,7 @@ extern "C" int32_t deluge_main(void) {
 
 	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
 
-	Debug::println("going into main loop");
+	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
 	while (1) {
@@ -792,7 +762,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->haveOLED()) {
+		if (deluge::hid::display::have_oled_screen) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -817,7 +787,8 @@ extern "C" int32_t deluge_main(void) {
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
+		// called in card routine
 		audioFileManager.slowRoutine();
 		AudioEngine::slowRoutine();
 
@@ -843,7 +814,8 @@ extern "C" void routineForSD(void) {
 		return;
 	}
 
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() -> USB -> routineForSD()
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
 	if (sdRoutineLock) {
 		return;
 	}
@@ -895,8 +867,8 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::unassignAllVoices(
-	    true); // Need to do this now that we're not bothering getting the old Song's Instruments detached and everything on delete
+	AudioEngine::unassignAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
+	                                      // Instruments detached and everything on delete
 
 	view.activeModControllableModelStack.modControllable = NULL;
 	view.activeModControllableModelStack.setTimelineCounter(NULL);
@@ -1054,11 +1026,11 @@ void spamMode() {
 				if (!sdFileCurrentlyOpen) {
 					result = f_open(&fil, "written.txt", FA_CREATE_ALWAYS | FA_WRITE);
 					if (result) {
-						//Debug::println("couldn't create");
+						// D_PRINTLN("couldn't create");
 					}
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("writing");
+							D_PRINTLN("writing");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1068,13 +1040,13 @@ void spamMode() {
 					UINT bytesWritten = 0;
 					char thisByte = getRandom255();
 					result = f_write(&fil, &thisByte, 1, &bytesWritten);
-					//if (result) Debug::println("couldn't write");
+					// if (result) D_PRINTLN("couldn't write");
 
 					sdTotalBytesWritten++;
 
 					if (sdTotalBytesWritten > 1000 * 5) {
 						f_close(&fil);
-						//Debug::println("finished writing");
+						// D_PRINTLN("finished writing");
 						sdReading = true;
 						sdFileCurrentlyOpen = false;
 					}
@@ -1089,12 +1061,12 @@ void spamMode() {
 
 					result = f_open(&fil, "written.txt", FA_READ);
 					if (result) {
-						//Debug::println("file not found");
+						// D_PRINTLN("file not found");
 					}
 
 					else {
 						if (spamStates[SPAM_MIDI])
-							Debug::println("reading");
+							D_PRINTLN("reading");
 						sdFileCurrentlyOpen = true;
 					}
 				}
@@ -1108,7 +1080,7 @@ void spamMode() {
 
 					if (bytesRead <= 0) {
 						f_close(&fil);
-						//Debug::println("finished file");
+						// D_PRINTLN("finished file");
 						sdReading = false;
 						sdFileCurrentlyOpen = false;
 						sdTotalBytesWritten = 0;

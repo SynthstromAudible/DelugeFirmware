@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -26,7 +26,7 @@ class Note;
 class ConsequenceNoteExistence final : public Consequence {
 public:
 	ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note, ExistenceChangeType newType);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	InstrumentClip* clip;
 	int32_t noteRowId;

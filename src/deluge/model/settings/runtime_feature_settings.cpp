@@ -77,6 +77,30 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::s
 	};
 }
 
+static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+                                        std::string_view xmlName, RuntimeFeatureStateEmulatedDisplay def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	// what is displayed depends on the physical display type more the active mode
+	bool have_oled = deluge::hid::display::have_oled_screen;
+	setting.options = {
+	    {
+	        .displayName = have_oled ? "OLED" : "7SEG",
+	        .value = RuntimeFeatureStateEmulatedDisplay::Hardware,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Toggle" : "TOGL",
+	        .value = RuntimeFeatureStateEmulatedDisplay::Toggle,
+	    },
+	    {
+	        .displayName = have_oled ? "7SEG" : "OLED",
+	        .value = RuntimeFeatureStateEmulatedDisplay::OnBoot,
+	    },
+	};
+}
+
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
@@ -111,26 +135,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER), "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
-	// InterpolateAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION),
-	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
-	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP), "automationClearClip",
-	                  RuntimeFeatureStateToggle::On);
-	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE), "automationNudgeNote",
-	                  RuntimeFeatureStateToggle::On);
-	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP), "automationShiftClip",
-	                  RuntimeFeatureStateToggle::On);
-	// Disable Audition Pad Shortcuts in Automation View
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS),
-	                  "automationDisableAuditionPadShortcuts", RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
@@ -160,6 +164,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX), "enableGrainFX",
 	                  RuntimeFeatureStateToggle::Off);
+
+	// EmulatedDisplay
+	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay], "Emulated Display",
+	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
@@ -207,7 +215,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 
 			// Remember unknown settings for writing them back
 			if (!found) {
-				//unknownSettings.insertSetting(&currentName, currentValue);
+				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
 				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
 					return;

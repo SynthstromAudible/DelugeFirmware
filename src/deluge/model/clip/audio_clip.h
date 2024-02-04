@@ -13,11 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "model/clip/clip.h"
 #include "model/sample/sample_controls.h"
@@ -43,7 +44,7 @@ public:
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
 	                      bool shouldBackUpExpressionParamsToo = true);
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
-	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
+	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	int32_t claimOutput(ModelStackWithTimelineCounter* modelStack);
@@ -63,7 +64,7 @@ public:
 	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
 	                  AudioClip* favourClipForCloningParamManager = NULL);
-	void getColour(uint8_t rgb[]);
+	RGB getColour();
 	bool currentlyScrollableAndZoomable();
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
@@ -96,8 +97,8 @@ public:
 
 	WaveformRenderData renderData;
 
-	SampleRecorder*
-	    recorder; // Will be set to NULL right at the end of the loop's recording, even though the SampleRecorder itself will usually persist slightly longer
+	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
+	                          // SampleRecorder itself will usually persist slightly longer
 
 	int32_t attack;
 
@@ -105,6 +106,11 @@ public:
 
 	bool doingLateStart;
 	bool maySetupCache;
+
+	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
+		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
+	};
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);

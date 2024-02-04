@@ -17,16 +17,12 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
+#include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 namespace deluge::gui::menu_item {
 
@@ -48,7 +44,12 @@ ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 void UnpatchedParam::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory);
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(getFinalValue(), modelStackWithParam);
+	int32_t value = getFinalValue();
+	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
+
+	// send midi follow feedback
+	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 }
 
 int32_t UnpatchedParam::getFinalValue() {
@@ -65,7 +66,7 @@ int32_t UnpatchedParam::getFinalValue() {
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + ::Param::Unpatched::START);
+	paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::UNPATCHED_START);
 	return paramDescriptor;
 }
 

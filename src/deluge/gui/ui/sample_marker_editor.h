@@ -42,9 +42,9 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void graphicsRoutine();
 	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL);
 
 	// OLED
@@ -53,12 +53,23 @@ public:
 	// 7SEG
 	void displayText();
 
+	/// Unlock the loop, allowing the ends to be moved independently
+	void loopUnlock();
+	/// Lock the loop so the start and end are always the same number of samples apart
+	void loopLock();
+
 	MarkerType markerType;
 
 	bool blinkInvisible;
 
 	int8_t pressX;
 	int8_t pressY;
+
+	int32_t loopLength = 0;
+	bool loopLocked = false;
+
+	// ui
+	UIType getUIType() { return UIType::SAMPLE_MARKER_EDITOR; }
 
 private:
 	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
@@ -71,9 +82,9 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int32_t xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+	void renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int32_t xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+	void renderMarkersForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                            MarkerColumn* cols);
 };
 

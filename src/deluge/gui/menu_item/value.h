@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "hid/display/display.h"
 #include "menu_item.h"
 #include "util/misc.h"
 
@@ -71,7 +71,8 @@ template <typename T>
 void Value<T>::selectEncoderAction(int32_t offset) {
 	writeCurrentValue();
 
-	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
+	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render
+	// the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}

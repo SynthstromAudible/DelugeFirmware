@@ -13,16 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/selection.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "transpose.h"
-#include "volts.h"
-#include <ranges>
 
 extern void setCvNumberForTitle(int32_t m);
 extern deluge::gui::menu_item::cv::Submenu cvSubmenu;
@@ -48,7 +44,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto cv1 = l10n::getView(STRING_FOR_CV_OUTPUT_1);
 		static auto cv2 = l10n::getView(STRING_FOR_CV_OUTPUT_2);

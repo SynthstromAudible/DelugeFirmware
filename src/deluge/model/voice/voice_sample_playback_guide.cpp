@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/voice/voice.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
@@ -70,7 +69,8 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	}
 }
 
-// This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause looping too)
+// This is, whether to obey the loop-end point as opposed to the actual end-of-sample point (which sometimes might cause
+// looping too)
 bool VoiceSamplePlaybackGuide::shouldObeyLoopEndPointNow() {
 	return (loopEndPlaybackAtByte && !noteOffReceived);
 }

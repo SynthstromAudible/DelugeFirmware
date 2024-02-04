@@ -10,6 +10,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write #required to update release tags
+
 jobs:
   build:
     name: Build
@@ -17,27 +20,27 @@ jobs:
     steps:
       - name: normal check out repo
         if: inputs.build-type != 'nightly' && inputs.build-type != 'release'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: nightly check out repo
         if: inputs.build-type == 'nightly'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: 'community'
       - name: release check out repo
         if: inputs.build-type == 'release'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: 'release/1.0'
       - name: Fetch container image
         run: |
-          docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
+          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
       - name: Run build
         run: |
           docker run --rm \
             --user=$(id --user):$(id --group) \
             -e DBT_NO_PYTHON_UPGRADE=1 \
             -v $(pwd):/src \
-            ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
             build \
             --verbose \
             --tag-metadata \
@@ -45,21 +48,21 @@ jobs:
             all
 
       - name: Publish built firmware (debug-bin)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: debug.bin
           path: build/Debug/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (release-bin)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release.bin
           path: build/Release/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (elf)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: all-elfs
           path: build/*/deluge*.elf
@@ -70,31 +73,33 @@ jobs:
         if: inputs.build-type == 'nightly'
         run: |
           zip -j ./nightly.zip build/Release/deluge*.bin
-      - name: Deploy nightly zip to releases
+      - name: Update Nightly Release
         if: inputs.build-type == 'nightly'
-        uses: WebFreak001/deploy-nightly@v2.0.0
+        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: https://uploads.github.com/repos/SynthstromAudible/DelugeFirmware/releases/117673232/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
-          release_id: 117673232 # same as above (id can just be taken out the upload_url, it's used to find old releases)
-          asset_path: ./nightly.zip # path to archive to upload
-          asset_name: deluge-nightly.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
-          asset_content_type: application/zip # required by GitHub API
-          max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
+          tag_name: nightly #will update tag to point at current head
+          name: 'Deluge Nightly Release $$' #will fill in with date
+          prerelease: true
+          body: 'This is a nightly release and may have bugs - please report them!
+          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
+          files: |
+            ./nightly.zip
       - name: Create release archive
         if: inputs.build-type == 'release'
         run: |
-          zip -j ./release.zip build/Release/deluge*.bin
-      - name: Deploy release zip to releases
+          zip -j ./beta.zip build/Release/deluge*.bin
+      - name: Update Beta Release
         if: inputs.build-type == 'release'
-        uses: WebFreak001/deploy-nightly@v2.0.0
+        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: https://uploads.github.com/repos/SynthstromAudible/DelugeFirmware/releases/123368988/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
-          release_id: 123368988 # same as above (id can just be taken out the upload_url, it's used to find old releases)
-          asset_path: ./release.zip # path to archive to upload
-          asset_name: deluge-community-release.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
-          asset_content_type: application/zip # required by GitHub API
-          max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
+          tag_name: beta #will update tag to point at current head
+          name: 'Deluge Beta Release $$' #will fill in with date
+          prerelease: true
+          body: 'This is a beta release and may have bugs - please report them!
+          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
+          files: |
+            ./beta.zip

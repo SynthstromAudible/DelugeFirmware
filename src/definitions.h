@@ -1,4 +1,7 @@
 #pragma once
+#include "RZA1/cpu_specific.h"
+#include "RZA1/system/r_typedefs.h"
+#include "fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -7,10 +10,6 @@
 #else
 #define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
-
-#include "RZA1/cpu_specific.h"
-#include "RZA1/system/r_typedefs.h"
-#include "fault_handler.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,4 +68,5 @@ extern void freezeWithError(char const* errmsg);
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 
-// #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from SDRAM, maybe timing?
+// #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
+// SDRAM, maybe timing?

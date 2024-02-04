@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -81,6 +81,9 @@ public:
 
 	AudioInputChannel inputChannel;
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
+
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);

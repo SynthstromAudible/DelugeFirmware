@@ -13,17 +13,15 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "sample_marker_editor.h"
-#include "processing/sound/sound.h"
-
-#include "gui/menu_item/sample/loop_point.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::audio_clip {
 
@@ -35,7 +33,7 @@ MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, i
 	}
 
 	// Before going ahead, make sure a Sample is loaded
-	if ((static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.audioFile == nullptr) {
+	if (getCurrentAudioClip()->sampleHolder.audioFile == nullptr) {
 		return MenuPermission::NO;
 	}
 

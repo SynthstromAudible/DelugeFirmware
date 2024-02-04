@@ -13,19 +13,17 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/clip/clip.h"
 #include "model/drum/drum.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
 
@@ -43,7 +41,7 @@ public:
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
+			Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
@@ -80,10 +78,11 @@ public:
 			soundEditor.currentSource->repeatMode = current_value;
 		}
 
-		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
+		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just
+		// one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),

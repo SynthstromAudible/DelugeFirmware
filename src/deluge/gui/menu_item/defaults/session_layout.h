@@ -13,16 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
 #include "storage/flash_storage.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::defaults {
 class SessionLayout final : public Selection {
@@ -30,7 +27,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
 	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
 		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_GRID),

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
@@ -26,8 +26,7 @@ class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
 	void readCurrentValue() override {
-		this->setValue((static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
-		               + (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents);
+		this->setValue(getCurrentAudioClip()->sampleHolder.transpose * 100 + getCurrentAudioClip()->sampleHolder.cents);
 	}
 	void writeCurrentValue() override {
 		int32_t currentValue = this->getValue() + 25600;
@@ -36,7 +35,7 @@ public:
 		int32_t cents = currentValue - semitones * 100;
 		int32_t transpose = semitones - 256;
 
-		auto& sampleHolder = (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder;
+		auto& sampleHolder = getCurrentAudioClip()->sampleHolder;
 		sampleHolder.transpose = transpose;
 		sampleHolder.cents = cents;
 		sampleHolder.recalculateNeutralPhaseIncrement();
@@ -54,8 +53,8 @@ public:
 
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(::Param::Unpatched::START
-		                                   + ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST);
+		paramDescriptor.setToHaveParamOnly(deluge::modulation::params::UNPATCHED_START
+		                                   + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
 		return paramDescriptor;
 	}
 };

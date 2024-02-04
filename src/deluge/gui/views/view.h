@@ -18,8 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "hid/button.h"
 #include "model/model_stack.h"
+#include "modulation/params/param.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -58,6 +60,7 @@ public:
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
 	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
+	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
 	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
@@ -72,6 +75,8 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
+	char const* getReverbPresetDisplayName(int32_t preset);
+	int32_t getCurrentReverbPreset();
 	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t noteRowId = 0);
 	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
 	void displayAutomation();
@@ -80,13 +85,12 @@ public:
 	void navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
 	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
-	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
-	                          bool doBlink = false);
-	void drawOutputNameFromDetails(InstrumentType instrumentType, int32_t slot, int32_t subSlot, char const* name,
+	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
+	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads = false,
-	                             bool allowMIDIFlash = true);
+	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads = false,
+	                                          bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
@@ -122,15 +126,15 @@ public:
 	// == activeModControllableTimelineCounter
 	uint32_t modLength;
 
-	bool isParamPan(Param::Kind kind, int32_t paramID);
-	int32_t calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos);
-	bool isParamQuantizedStutter(Param::Kind kind, int32_t paramID);
+	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
+	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
+	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
+	                            bool isAutomation = false);
 
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
-	void displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos);
 };
 
 extern View view;

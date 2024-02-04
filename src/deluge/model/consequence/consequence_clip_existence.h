@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -27,8 +27,8 @@ class ClipArray;
 class ConsequenceClipExistence final : public Consequence {
 public:
 	ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, ExistenceChangeType newType);
-	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	void prepareForDestruction(int32_t whichQueueActionIn, Song* song) override;
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	Clip* clip;
 	ClipArray* clipArray;

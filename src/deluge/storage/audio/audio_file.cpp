@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "storage/audio/audio_file.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -77,8 +77,8 @@ int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveT
 
 		uint32_t bytesCurrentChunkNotRoundedUp = thisChunk.length;
 		thisChunk.length =
-		    (thisChunk.length + 1)
-		    & ~(uint32_t)1; // If chunk size is odd, skip the extra byte of padding at the end too. Weird RIFF file requirement.
+		    (thisChunk.length + 1) & ~(uint32_t)1; // If chunk size is odd, skip the extra byte of padding at the end
+		                                           // too. Weird RIFF file requirement.
 
 		uint32_t bytePosOfThisChunkData = reader->getBytePos();
 
@@ -98,14 +98,17 @@ int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveT
 				if (type == AudioFileType::WAVETABLE) {
 doSetupWaveTable:
 					if (byteDepth == 255) {
-						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth or anything. Shouldn't happen.
+						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth
+						                               // or anything. Shouldn't happen.
 					}
 
 					if (numChannels != 1) {
-						return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as WaveTable, ever.
+						return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as
+						                                                            // WaveTable, ever.
 					}
 
-					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and the user isn't insisting, then opt not to do it.
+					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
+					// the user isn't insisting, then opt not to do it.
 					if (!fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
 						int32_t audioDataLengthSamples = audioDataLengthBytes / byteDepth;
 						if (audioDataLengthSamples & 2047) {
@@ -199,19 +202,16 @@ doSetupWaveTable:
 					}
 
 					/*
-					Debug::print("unity note: ");
-					Debug::println(midiNote);
+					D_PRINTLN("unity note:  %d", midiNote);
 
-					Debug::print("num loops: ");
-					Debug::println(numLoops);
+					D_PRINTLN("num loops:  %d", numLoops);
 					*/
 
 					if (numLoops == 1) {
 
 						// Go through loops
 						for (int32_t l = 0; l < numLoops; l++) {
-							//Debug::print("loop ");
-							//Debug::println(l);
+							D_PRINTLN("loop  %d", l);
 
 							uint32_t loopData[6];
 							error = reader->readBytes((char*)loopData, 4 * 6);
@@ -219,20 +219,17 @@ doSetupWaveTable:
 								goto finishedWhileLoop;
 							}
 
-							//Debug::print("start: ");
-							//Debug::println(loopData[2]);
+							D_PRINTLN("start:  %d", loopData[2]);
 							((Sample*)this)->fileLoopStartSamples = loopData[2];
 
-							//Debug::print("end: ");
-							//Debug::println(loopData[3]);
+							D_PRINTLN("end:  %d", loopData[3]);
 							((Sample*)this)->fileLoopEndSamples = loopData[3];
 
-							//Debug::print("play count: ");
-							//Debug::println(loopData[5]);
+							D_PRINTLN("play count:  %d", loopData[5]);
 						}
 					}
 
-					Debug::println("");
+					D_PRINTLN("");
 				}
 				break;
 			}
@@ -253,8 +250,7 @@ doSetupWaveTable:
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
 					}
 
-					Debug::print("unshifted note: ");
-					Debug::println(midiNote);
+					D_PRINTLN("unshifted note:  %d", midiNote);
 				}
 				break;
 			}
@@ -273,8 +269,7 @@ doSetupWaveTable:
 
 					if (number >= 1) {
 						waveTableCycleSize = number;
-						//Debug::print("clm tag num samples per cycle: ");
-						//Debug::println(waveTableNumSamplesPerCycle);
+						D_PRINTLN("clm tag num samples per cycle:  %d", waveTableCycleSize);
 					}
 				}
 
@@ -365,8 +360,7 @@ doSetupWaveTable:
 				}
 				numMarkers = swapEndianness2x16(numMarkers);
 
-				Debug::print("numMarkers: ");
-				Debug::println(numMarkers);
+				D_PRINTLN("numMarkers:  %d", numMarkers);
 
 				if (numMarkers > MAX_NUM_MARKERS) {
 					numMarkers = MAX_NUM_MARKERS;
@@ -380,9 +374,8 @@ doSetupWaveTable:
 					}
 					markerIDs[m] = swapEndianness2x16(markerId);
 
-					Debug::println("");
-					Debug::print("markerId: ");
-					Debug::println(markerIDs[m]);
+					D_PRINTLN("");
+					D_PRINTLN("markerId:  %d", markerIDs[m]);
 
 					uint32_t markerPos;
 					error = reader->readBytes((char*)&markerPos, 4);
@@ -391,8 +384,7 @@ doSetupWaveTable:
 					}
 					markerPositions[m] = swapEndianness32(markerPos);
 
-					Debug::print("markerPos: ");
-					Debug::println(markerPositions[m]);
+					D_PRINTLN("markerPos:  %d", markerPositions[m]);
 
 					uint8_t stringLength;
 					error = reader->readBytes((char*)&stringLength, 1);
@@ -420,14 +412,13 @@ doSetupWaveTable:
 					int8_t fineTune = data[1];
 					if ((midiNote || fineTune) && midiNote < 128) {
 						((Sample*)this)->midiNoteFromFile = (float)midiNote - (float)fineTune * 0.01;
-						//Debug::print("unshifted note: ");
-						//Debug::printlnfloat(newSample->midiNoteFromFile);
+						D_PRINTLN("unshifted note:  %s", ((Sample*)this)->midiNoteFromFile);
 					}
 
-					//for (int32_t l = 0; l < 2; l++) {
+					// for (int32_t l = 0; l < 2; l++) {
 
-					//if (l == 0) Debug::println("sustain loop:");
-					//else Debug::println("release loop:");
+					// if (l == 0) D_PRINTLN("sustain loop:");
+					// else D_PRINTLN("release loop:");
 
 					// Just read the sustain loop, which is first
 
@@ -437,16 +428,13 @@ doSetupWaveTable:
 						break;
 					}
 
-					//Debug::print("play mode: ");
-					//Debug::println(swapEndianness2x16(loopData[0]));
+					D_PRINTLN("play mode:  %d", swapEndianness2x16(loopData[0]));
 
 					sustainLoopBeginMarkerId = swapEndianness2x16(loopData[1]);
-					//Debug::print("begin marker id: ");
-					//Debug::println(sustainLoopBeginMarkerId);
+					D_PRINTLN("begin marker id:  %d", sustainLoopBeginMarkerId);
 
 					sustainLoopEndMarkerId = swapEndianness2x16(loopData[2]);
-					//Debug::print("end marker id: ");
-					//Debug::println(sustainLoopEndMarkerId);
+					D_PRINTLN("end marker id:  %d", sustainLoopEndMarkerId);
 					//}
 				}
 				break;
@@ -526,10 +514,12 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 		return false;
 	}
 
-	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
+	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's
+	// being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
 	return (thingNotToStealFrom != &audioFileManager.audioFiles);
 
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
+	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
+	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
 }
 
 void AudioFile::steal(char const* errorCode) {

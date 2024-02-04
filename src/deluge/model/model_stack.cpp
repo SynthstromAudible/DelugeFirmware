@@ -25,6 +25,8 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
+using namespace deluge::modulation::params;
+
 // Takes the NoteRow's *index*, not id!
 // NoteRow must have a paramManager.
 ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int32_t noteRowIndex,
@@ -40,7 +42,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
-	bool isKit = (output->type == InstrumentType::KIT);
+	bool isKit = (output->type == OutputType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
@@ -49,7 +51,8 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	return toReturn;
 }
 
-// This could set a NULL NoteRow if it's not found. This would hopefully get picked up on call to getNoteRow(), which checks.
+// This could set a NULL NoteRow if it's not found. This would hopefully get picked up on call to getNoteRow(), which
+// checks.
 ModelStackWithNoteRow* ModelStackWithNoteRowId::automaticallyAddNoteRowFromId() const {
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
@@ -88,8 +91,9 @@ int32_t ModelStackWithNoteRow::getLastProcessedPos() const {
 
 	if (noteRow && noteRow->hasIndependentPlayPos()) {
 		return noteRow->lastProcessedPosIfIndependent;
-		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's usually zero when this gets called,
-		// and perhaps the other times I want to ignore it? Should probably investigate further.
+		// I have a feeling I should sort of be taking noteRowsNumTicksBehindClip into account here - but I know it's
+		// usually zero when this gets called, and perhaps the other times I want to ignore it? Should probably
+		// investigate further.
 	}
 	else {
 		return getTimelineCounter()->getLastProcessedPos();
@@ -137,10 +141,10 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
-						cutPos =
-						    noteRow->lastProcessedPosIfIndependent
-						        ? 0
-						        : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when we pingpong at the right-hand end of the Clip/etc.
+						cutPos = noteRow->lastProcessedPosIfIndependent
+						             ? 0
+						             : -getLoopLength(); // Check we're not right at pos 0, as we briefly will be when
+						                                 // we pingpong at the right-hand end of the Clip/etc.
 					}
 				}
 				else {
@@ -177,15 +181,14 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-	toReturn->modControllable =
-	    (clip->output->type == InstrumentType::KIT && noteRowHere->drum) // What if there's no Drum?
-	        ? noteRowHere->drum->toModControllable()
-	        : clip->output->toModControllable();
+	toReturn->modControllable = (clip->output->type == OutputType::KIT && noteRowHere->drum) // What if there's no Drum?
+	                                ? noteRowHere->drum->toModControllable()
+	                                : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
 
-bool ModelStackWithParamId::isParam(Param::Kind kind, ParamType id) {
+bool ModelStackWithParamId::isParam(Kind kind, ParamType id) {
 	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
 }
 
@@ -217,4 +220,30 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 
 void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
+}
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
+
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+
+		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+	}
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager->getPatchedParamSetSummary();
+
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+
+		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+	}
+	return modelStackWithParam;
 }

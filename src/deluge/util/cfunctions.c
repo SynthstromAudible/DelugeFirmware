@@ -13,12 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/cfunctions.h"
-
+#include "RZA1/mtu/mtu.h"
 #include "definitions.h"
-#include "drivers/mtu/mtu.h"
 #include <string.h>
 
 int32_t getNumDecimalDigits(uint32_t number) {
@@ -173,7 +172,8 @@ moveBackOneDigit:
 		(*writePos)++; // Increment that digit. Not moving the pointer.
 	}
 
-	// Or if not rounding up, we still may have a string of zeros on the end, which may go above our min decimal places, so we should lose those.
+	// Or if not rounding up, we still may have a string of zeros on the end, which may go above our min decimal places,
+	// so we should lose those.
 	else {
 		while (true) {
 			writePos--;
@@ -194,7 +194,7 @@ moveBackOneDigit:
 	return;
 
 	// If we reached left of string, oh no, we can't move back any further. So move everything else instead.
-needExtraDigitOnLeft : {}
+needExtraDigitOnLeft: {}
 	char* readPos = oldEndPos;
 	while (readPos >= leftmostDigitPos) {
 		*(readPos + 1) = *readPos;

@@ -1,4 +1,6 @@
 #include "submenu.h"
+#include "hid/display/display.h"
+#include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -13,7 +15,9 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
-	while (!(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+	// loop through non-null items until we find a relevant one
+	while ((*current_item_ != nullptr)
+	       && !(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 		current_item_++;
 		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
 			current_item_ = items.begin();
@@ -133,6 +137,11 @@ bool Submenu::allowsLearnMode() {
 void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	}
+}
+void Submenu::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
+	if (soundEditor.getCurrentMenuItem() == this) {
+		(*current_item_)->learnProgramChange(fromDevice, channel, programNumber);
 	}
 }
 

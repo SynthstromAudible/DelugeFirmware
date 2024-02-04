@@ -13,12 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "gui/l10n/strings.h"
-#include "util/lookuptables/lookuptables.h"
 #include <array>
 #include <cstdint>
 
@@ -116,8 +115,8 @@ extern const int16_t analogSquare_861[];
 extern const int16_t analogSquare_1217[];
 extern const int16_t analogSquare_1722[];
 
-// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible without going over 22.05kHz (2147483648),
-// even when shifted up a semitone (via osc-cents and unison combined)
+// Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
+// without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
 extern const int32_t noteFrequencyTable[12];
 extern const int32_t noteIntervalTable[12];
 extern const int32_t timeStretchAdjustTable[193];
@@ -130,11 +129,20 @@ extern const int16_t oldResonanceCompensation[];
 extern const int16_t windowedSincKernel[][17][16];
 extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 
-#define NUM_PRESET_SCALES 7
+#define OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX 7
+#define OFFICIAL_FIRMWARE_NONE_SCALE_INDEX 8
+#define NUM_PRESET_SCALES 16
+#define FIRST_7_NOTE_SCALE_INDEX 0
+#define FIRST_6_NOTE_SCALE_INDEX 12
+#define FIRST_5_NOTE_SCALE_INDEX 14
 extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
-extern std::array<char const*, NUM_PRESET_SCALES + 2> presetScaleNames;
-#define PRESET_SCALE_RANDOM 7
-#define PRESET_SCALE_NONE 8
+extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
+#define PRESET_SCALE_RANDOM 254
+#define PRESET_SCALE_NONE 255
+// These offsets allows us to introduce new 7, 6 and 5 note scales in between the existing ones
+// keeping the decreasing order and without breaking backwards compatibility
+#define OFFSET_6_NOTE_SCALE 64
+#define OFFSET_5_NOTE_SCALE 128
 
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};

@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "model/clip/clip.h"
+#include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -55,7 +55,7 @@ public:
 	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return currentSong->currentClip->output->type == InstrumentType::MIDI_OUT;
+		return getCurrentOutputType() == OutputType::MIDI_OUT;
 	}
 
 	void selectEncoderAction(int32_t offset) override {

@@ -19,15 +19,22 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/instrument/instrument.h"
+#include "model/output.h"
 #include "model/timeline_counter.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
 
 class MidiCommand;
+class Clip;
+class AudioClip;
+class Instrument;
 class InstrumentClip;
 class Synth;
 class ParamManagerForTimeline;
@@ -47,6 +54,14 @@ class Output;
 class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
+
+Clip* getCurrentClip();
+InstrumentClip* getCurrentInstrumentClip();
+AudioClip* getCurrentAudioClip();
+Output* getCurrentOutput();
+Kit* getCurrentKit();
+Instrument* getCurrentInstrument();
+OutputType getCurrentOutputType();
 
 class Section {
 public:
@@ -103,9 +118,9 @@ public:
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
-	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int32_t presetNumber,
-	                                        int32_t presetSubSlotNumber, char const* name, char const* dirPath,
-	                                        bool searchHibernatingToo = true, bool searchNonHibernating = true);
+	Instrument* getInstrumentFromPresetSlot(OutputType outputType, int32_t presetNumber, int32_t presetSubSlotNumber,
+	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
+	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
@@ -114,7 +129,7 @@ public:
 	void deleteOrHibernateOutput(Output* output);
 	uint32_t getLivePos();
 	int32_t getLoopLength();
-	Instrument* getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentType, Availability availabilityRequirement,
+	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
 	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int32_t clipIndex);
 	void changeSwingInterval(int32_t newValue);
@@ -144,13 +159,15 @@ public:
 	uint64_t timePerTimerTickBig;
 	int32_t divideByTimePerTimerTick;
 
-	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with inputTickScale, which is usually 1,
-	// but is different if there's an inputTickScaleClip.
-	// So, e.g. if insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so MIDI sync coming in representing
-	// an 8th-note would be interpreted internally as a quarter-note (because two internal 8th-notes would have happened, twice as fast, making a quarter-note)
+	// How many orders of magnitude faster internal ticks are going than input ticks. Used in combination with
+	// inputTickScale, which is usually 1, but is different if there's an inputTickScaleClip. So, e.g. if
+	// insideWorldTickMagnitude is 1, this means the inside world is spinning twice as fast as the external world, so
+	// MIDI sync coming in representing an 8th-note would be interpreted internally as a quarter-note (because two
+	// internal 8th-notes would have happened, twice as fast, making a quarter-note)
 	int32_t insideWorldTickMagnitude;
 
-	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
+	// Sometimes, we'll do weird stuff to insideWorldTickMagnitude for sync-scaling, which would make BPM values look
+	// weird. So, we keep insideWorldTickMagnitudeOffsetFromBPM
 	int32_t insideWorldTickMagnitudeOffsetFromBPM;
 
 	int8_t swingAmount;
@@ -178,21 +195,21 @@ public:
 	uint8_t sectionToReturnToAfterSongEnd;
 
 	bool wasLastInArrangementEditor;
-	int32_t
-	    lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the ArrangementEditor, it's 0
+	int32_t lastClipInstanceEnteredStartPos; // -1 means we are not "inside" an arrangement. While we're in the
+	                                         // ArrangementEditor, it's 0
 
 	bool arrangerAutoScrollModeActive;
 
 	MIDIInstrument* hibernatingMIDIInstrument;
 
-	bool
-	    outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn other functions not to look at Output::clipInstances
+	bool outputClipInstanceListIsCurrentlyInvalid; // Set to true during scenarios like replaceInstrument(), to warn
+	                                               // other functions not to look at Output::clipInstances
 
 	bool paramsInAutomationMode;
 
 	bool inClipMinderViewOnLoad; // Temp variable only valid while loading Song
 
-	int32_t unautomatedParamValues[kMaxNumUnpatchedParams];
+	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
 
 	String dirPath;
 
@@ -238,11 +255,11 @@ public:
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
-	bool doesNonAudioSlotHaveActiveClipInSession(InstrumentType instrumentType, int32_t slot, int32_t subSlot = -1);
+	bool doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot = -1);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
-	void deleteHibernatingInstrumentWithSlot(InstrumentType instrumentType, char const* name);
+	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly();
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = NULL,
 	                               int32_t* clipIndex = NULL, bool excludePendingOverdubs = false);
@@ -284,13 +301,15 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo();
 	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
-	bool canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
+	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
 	void instrumentSwapped(Instrument* newInstrument);
-	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
+	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
-	void getNoteLengthName(char* text, uint32_t noteLength, bool clarifyPerColumn = false);
+	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
+	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
+	                       bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);
 	bool deletePendingOverdubs(Output* onlyWithOutput = NULL, int32_t* originalClipIndex = NULL,
@@ -309,13 +328,19 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
 	                                          int32_t whichBendRange, int32_t bendSemitones);
-	int32_t addInstrumentsToFileItems(InstrumentType instrumentType);
+	int32_t addInstrumentsToFileItems(OutputType outputType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
+	/// Gets a modelstack with the song-global unpatched param paramID.
+	/// used in performance view and in automation arranger view
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+
+	// Whether this song wants notes/cc/etc from delly midi clips looped back
+	bool midiLoopback = false;
 
 	// Reverb params to be stored here between loading and song being made the active one
 	float reverbRoomSize;
@@ -328,11 +353,14 @@ public:
 	int32_t reverbCompressorRelease;
 	SyncLevel reverbCompressorSync;
 
-	int32_t masterCompressorAttack;
-	int32_t masterCompressorRelease;
-	int32_t masterCompressorThresh;
-	int32_t masterCompressorRatio;
-	int32_t masterCompressorSidechain;
+	// START ~ new Automation Arranger View Variables
+	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
+	deluge::modulation::params::Kind
+	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
+	int32_t lastSelectedParamShortcutX;
+	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
+	// END ~ new Automation Arranger View Variables
 
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
@@ -351,3 +379,11 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
+
+inline Instrument* getCurrentInstrumentOrNull() {
+	Output* out = currentSong->currentClip->output;
+	if (out->type != OutputType::AUDIO) {
+		return (Instrument*)out;
+	}
+	return nullptr;
+}

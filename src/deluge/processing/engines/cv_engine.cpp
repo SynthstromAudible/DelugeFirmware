@@ -13,18 +13,18 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "processing/engines/cv_engine.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include "util/functions.h"
 #include <math.h>
 #include <string.h>
-//#include <algorithm>
+// #include <algorithm>
 #include "playback/playback_handler.h"
 
 extern "C" {
@@ -110,7 +110,8 @@ void CVEngine::switchGateOff(int32_t channel) {
 	gateChannels[channel].timeLastSwitchedOff = AudioEngine::audioSampleTimer;
 }
 
-// In the future, it'd be great if manually-auditioned notes could supply doInstantlyIfPossible as true. Currently there's no infrastructure for an Instrument to know whether a note is manually auditioned.
+// In the future, it'd be great if manually-auditioned notes could supply doInstantlyIfPossible as true. Currently
+// there's no infrastructure for an Instrument to know whether a note is manually auditioned.
 void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 	gateChannels[channel].on = true;
 
@@ -129,7 +130,8 @@ void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 		gateOutputPending = true;
 	}
 
-	// If this gate was switched off more recently than any previous gate switch-off of a pending note-on, update the running record of that
+	// If this gate was switched off more recently than any previous gate switch-off of a pending note-on, update the
+	// running record of that
 	if ((int32_t)(gateChannels[channel].timeLastSwitchedOff - mostRecentSwitchOffTimeOfPendingNoteOn) > 0) {
 		mostRecentSwitchOffTimeOfPendingNoteOn = gateChannels[channel].timeLastSwitchedOff;
 	}
@@ -146,9 +148,11 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 	// Note-off
 	if (!on) {
 
-		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this one that we're now saying we wanted to stop)
+		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this
+		// one that we're now saying we wanted to stop)
 		if (gateChannels[channel].on
-		    && (channel >= NUM_CV_CHANNELS || note == -32768 || cvChannels[channel].noteCurrentlyPlaying == note)) {
+		    && (channel >= NUM_CV_CHANNELS || note == ALL_NOTES_OFF
+		        || cvChannels[channel].noteCurrentlyPlaying == note)) {
 
 			// Physically switch it right now, to get a head-start before it turns back on
 			switchGateOff(channel);
@@ -161,7 +165,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 		int32_t voltage;
 
 		// If it's not a gate-only note-on...
-		if (note != -32768) {
+		if (note != ALL_NOTES_OFF) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
@@ -190,7 +194,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 }
 
 void CVEngine::physicallySwitchGate(int32_t channel) {
-	//setOutputState is inverted - sending true turns the gate off
+	// setOutputState is inverted - sending true turns the gate off
 	int32_t on = gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
 	setOutputState(gatePort[channel], gatePin[channel], on);
 }
@@ -213,7 +217,8 @@ void CVEngine::setCVPitchBend(uint8_t channel, int32_t value, bool outputToo) {
 	}
 }
 
-// Does it even if the corresponding gate isn't "on", because the note might still be audible on the connected physical synth
+// Does it even if the corresponding gate isn't "on", because the note might still be audible on the connected physical
+// synth
 void CVEngine::recalculateCVChannelVoltage(uint8_t channel) {
 	int32_t voltage = calculateVoltage(cvChannels[channel].noteCurrentlyPlaying, channel);
 
@@ -314,9 +319,9 @@ void CVEngine::updateRunOutput() {
 	bool runState = (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn);
 
 	if (runState) {
-		switchGateOn(
-		    WHICH_GATE_OUTPUT_IS_RUN,
-		    true); // Try to do instantly, because it's actually good if RUN can switch on before the first clock is sent
+		switchGateOn(WHICH_GATE_OUTPUT_IS_RUN,
+		             true); // Try to do instantly, because it's actually good if RUN can switch on before the first
+		                    // clock is sent
 	}
 	else {
 		switchGateOff(WHICH_GATE_OUTPUT_IS_RUN);

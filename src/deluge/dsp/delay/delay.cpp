@@ -13,18 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "io/debug/log.h"
 #include <stdlib.h>
-//#include <algorithm>
-#include "io/debug/print.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "storage/flash_storage.h"
-#include "util/functions.h"
 
 Delay::Delay() {
 	pingPong = true;
@@ -32,17 +26,8 @@ Delay::Delay() {
 	repeatsUntilAbandon = 0;
 	prevFeedback = 0;
 
-	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
+	syncLevel = (SyncLevel)5;
+
 	syncType = SYNC_TYPE_EVEN;
 }
 
@@ -78,7 +63,8 @@ setupSecondaryBuffer:
 		// If it already was active...
 		if (previouslyActive) {
 			// If no writing has happened yet to this Delay, check that the buffer is the right size.
-			// The delay time might have changed since it was set up, and we could be better off making a new buffer, which is easily done now, before anything's been written
+			// The delay time might have changed since it was set up, and we could be better off making a new buffer,
+			// which is easily done now, before anything's been written
 			if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
 			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
@@ -88,7 +74,7 @@ setupSecondaryBuffer:
 
 				if (idealBufferSize != secondaryBuffer.size) {
 
-					Debug::println("new secondary buffer before writing starts");
+					D_PRINTLN("new secondary buffer before writing starts");
 
 					// Ditch that secondary buffer, make a new one
 					secondaryBuffer.discard();
@@ -124,20 +110,22 @@ bool Delay::isActive() {
 }
 
 // Set the rate and feedback in the workingState before calling this
-void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn) {
+void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+                              bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
 	bool mightDoDelay =
 	    (workingState->delayFeedbackAmount >= 256
 	     && (anySoundComingIn
-	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the patching engine spits out 112 even when this should be 0...
+	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the
+	                                   // patching engine spits out 112 even when this should be 0...
 
 	if (mightDoDelay) {
 
 		if (syncLevel != 0) {
 
-			workingState->userDelayRate = multiply_32x32_rshift32_rounded(
-			    workingState->userDelayRate, playbackHandler.getTimePerInternalTickInverse(true));
+			workingState->userDelayRate =
+			    multiply_32x32_rshift32_rounded(workingState->userDelayRate, timePerInternalTickInverse);
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (syncLevel + 5);
@@ -214,7 +202,7 @@ void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 		repeatsUntilAbandon = 255;
 	}
 
-	//if (!getRandom255()) Debug::println(workingState->delayFeedbackAmount);
+	// if (!getRandom255()) D_PRINTLN(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
@@ -224,7 +212,7 @@ void Delay::hasWrapped() {
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {
-		//Debug::println("discarding");
+		// D_PRINTLN("discarding");
 		discardBuffers();
 	}
 }

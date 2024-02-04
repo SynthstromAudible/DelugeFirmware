@@ -24,7 +24,7 @@ Specifications:
 
 ## Usage:
 
-#### 1) Enter performance view from song view / grid view / arranger view by pressing keyboard button
+#### 1) Enter performance view from song row view / arranger view by pressing the keyboard button / Enter performance view from song grid view by pressing the pink grid mode pad in the bottom right hand corner of the sidebar
 
 #### 2) Short press a pad in the columns to hold that pad's value (parameter and held value is displayed on the screen)
 
@@ -47,8 +47,8 @@ or
 Value Editing Mode:
 - While in the Value Editor, pressing any pad on the grid will open up the menu corresponding to the parameter for that pad. It will display the current value assigned to that pad when you pressed it.
 - You can edit that pad's value by turning the select encoder while selecting a single pad (so it's highlighted white) or holding down on that pad. The updated value will be reflected on the display.
-- After you have edited a value, the Save button will start flashing to indicate that you have "Unsaved" changes. Press the save button to save your changes. Once saved, the Save button will stop blinking. To avoid being distracting, the save button will only blink when you are in editing mode. If you exit editing mode it will stop blinking and if you re-enter editing mode it will blink again to remind you that you have unsaved changes.
-- You can re-load saved changes using the Load button. This will cause you to lose unsaved changes and the Save button will stop blinking.
+- After you have edited a value, the Save button will start flashing to indicate that you have "Unsaved" changes. Press and hold the save button + press the keyboard button to save your changes. Once saved, the Save button will stop blinking. To avoid being distracting, the save button will only blink when you are in editing mode. If you exit editing mode it will stop blinking and if you re-enter editing mode it will blink again to remind you that you have unsaved changes.
+- You can re-load saved changes by pressing and holding the Load button + press the keyboard button. This will cause you to lose unsaved changes and the Save button will stop blinking.
 - Defaults are saved in an XML file on your SD card called "PerformanceView.XML" - deleting this file will cause the PerformanceView to revert back to its regular default values for each pad.
 - Once you are done with editing mode, repeat the steps above to set editing mode back to "Disabled" and exit out of the menu to use Performance View in its regular state
 

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "io/midi/learned_midi.h"
 #include "definitions_cxx.hpp"
@@ -21,12 +21,25 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 
-extern "C" {
-#include "util/cfunctions.h"
-}
-
 LearnedMIDI::LearnedMIDI() {
 	clear();
+}
+MIDIMatchType LearnedMIDI::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
+	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
+	if (equalsDevice(fromDevice) && channelOrZone == corz) {
+		if (channelOrZone == midiChannel) {
+			return MIDIMatchType::CHANNEL;
+		}
+		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
+		if (master) {
+			return MIDIMatchType::MPE_MASTER;
+		}
+		else {
+			return MIDIMatchType::MPE_MEMBER;
+		}
+	}
+	return MIDIMatchType::NO_MATCH;
 }
 
 void LearnedMIDI::clear() {
@@ -49,8 +62,9 @@ char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {
 	}
 }
 
-// If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag for device - that can't be just an attribute.
-// You should be sure that containsSomething() == true before calling this.
+// If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag
+// for device - that can't be just an attribute. You should be sure that containsSomething() == true before calling
+// this.
 void LearnedMIDI::writeAttributesToFile(int32_t midiMessageType) {
 
 	if (isForMPEZone()) {
@@ -157,5 +171,5 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 			return (newChannel == getMasterChannel());
 		}
 	}
-	return false; //should never happen
+	return false; // should never happen
 }

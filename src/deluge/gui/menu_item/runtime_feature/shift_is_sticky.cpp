@@ -11,13 +11,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "shift_is_sticky.h"
 #include "hid/buttons.h"
 #include "model/settings/runtime_feature_settings.h"
-
-#include <cstdint>
 
 namespace deluge::gui::menu_item::runtime_feature {
 

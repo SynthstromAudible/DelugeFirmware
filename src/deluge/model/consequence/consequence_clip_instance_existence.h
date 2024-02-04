@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "definitions_cxx.hpp"
@@ -28,7 +28,7 @@ class ConsequenceClipInstanceExistence final : public Consequence {
 public:
 	ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, ExistenceChangeType newType);
 
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
 	Clip* clip;

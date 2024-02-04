@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/consequence/consequence_tempo_change.h"
 
@@ -33,7 +33,7 @@ int32_t ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
 
 	float newBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 
-	if (oldBPM >= 1000 && newBPM < 1000 && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+	if (oldBPM >= 1000 && newBPM < 1000 && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 		playbackHandler.forceResetPlayPos(modelStack->song);
 	}
 	return NO_ERROR;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "key_range.h"
 #include "gui/menu_item/range.h"
@@ -24,61 +24,22 @@
 namespace deluge::gui::menu_item {
 
 void KeyRange::selectEncoderAction(int32_t offset) {
+	int32_t const KEY_MIN = 0;
+	int32_t const KEY_MAX = 11;
 
 	// If editing the range
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 
 		// Editing lower
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-
-			int32_t newValue = lower + offset;
-			if (newValue < 0) {
-				newValue += 12;
-			}
-			else if (newValue >= 12) {
-				newValue -= 12;
-			}
-
-			if (offset == 1) {
-				if (lower == upper) {
-					goto justDrawRange;
-				}
-			}
-			else {
-				if (newValue == upper) {
-					goto justDrawRange;
-				}
-			}
-
-			lower = newValue;
+			// Do not allow lower to pass upper
+			lower = std::clamp(lower + offset, KEY_MIN, upper);
 		}
-
 		// Editing upper
 		else {
-
-			int32_t newValue = upper + offset;
-			if (newValue < 0) {
-				newValue += 12;
-			}
-			else if (newValue >= 12) {
-				newValue -= 12;
-			}
-
-			if (offset == 1) {
-				if (newValue == lower) {
-					goto justDrawRange;
-				}
-			}
-			else {
-				if (upper == lower) {
-					goto justDrawRange;
-				}
-			}
-
-			upper = newValue;
+			upper = std::clamp(upper + offset, lower, KEY_MAX);
 		}
 
-justDrawRange:
 		drawValueForEditingRange(false);
 	}
 
@@ -87,14 +48,7 @@ justDrawRange:
 			return;
 		}
 
-		lower += offset;
-		if (lower < 0) {
-			lower += 12;
-		}
-		else if (lower >= 12) {
-			lower -= 12;
-		}
-
+		lower = std::clamp(lower + offset, KEY_MIN, KEY_MAX);
 		upper = lower;
 
 		drawValue();

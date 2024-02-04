@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
@@ -25,13 +25,12 @@ class Gate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto* current_clip = static_cast<InstrumentClip*>(currentSong->currentClip);
+		auto* current_clip = getCurrentInstrumentClip();
 		int64_t arp_gate = (int64_t)current_clip->arpeggiatorGate + 2147483648;
 		this->setValue((arp_gate * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorGate =
-		    (uint32_t)this->getValue() * 85899345 - 2147483648;
+		getCurrentInstrumentClip()->arpeggiatorGate = (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }

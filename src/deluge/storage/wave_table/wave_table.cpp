@@ -17,11 +17,9 @@
 
 #include "storage/wave_table/wave_table.h"
 #include "NE10.h"
-#include "RZA1/mtu/mtu.h"
-#include "arm_neon.h"
+#include "arm_neon_shim.h"
 #include "dsp/fft/fft_config_manager.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
@@ -73,7 +71,7 @@ void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
 // This "should" handle inputs up to size 65536. Actually probably a bit bigger. Maybe even 131071?
 void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__ in, uint32_t N) {
 
-	//uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
+	// uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 
 	// For each input value...
 	for (uint32_t i = 0; i <= (N >> 1); i++) {
@@ -123,8 +121,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 	/*
 	uint16_t endTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t duration = endTime - startTime;
-	Debug::print("dft duration: ");
-	Debug::println(duration);
+	D_PRINTLN("dft duration:  %d", duration);
 	*/
 }
 
@@ -163,9 +160,11 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 	}
 
 	// We do some checking here for conditions which make it completely impossible for a file to be a WaveTable.
-	// As opposed for checks before this function is called, for softer conditions which merely determine that this file might not be *intended* as a WaveTable, but the user have have overridden.
+	// As opposed for checks before this function is called, for softer conditions which merely determine that this file
+	// might not be *intended* as a WaveTable, but the user have have overridden.
 	if (rawFileCycleSize < kWavetableMinCycleSize) {
-		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to WAVETABLE_MIN_CYCLE_SIZE.
+		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to
+		                                             // WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
 	int32_t initialBandCycleMagnitude = getMagnitude(rawFileCycleSize);
@@ -179,12 +178,14 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 		    && originalSampleLengthInSamples >= rawFileCycleSize) {
 			numCycles = 1;
 
-			// In order to represent all frequency information in the cycle once we render it out to a power-of-two size, well we'll need to go slightly bigger rather than slightly smaller.
-			// Also, the slightly bigger size is needed so that sufficient memory is allocated to do all the calculations in.
+			// In order to represent all frequency information in the cycle once we render it out to a power-of-two
+			// size, well we'll need to go slightly bigger rather than slightly smaller. Also, the slightly bigger size
+			// is needed so that sufficient memory is allocated to do all the calculations in.
 			initialBandCycleMagnitude++;
 		}
 
-		// Otherwise, if multiple cycles (wavetable), not allowed - it'd take too long to process, and no one has wavetables of weird sizes anyway.
+		// Otherwise, if multiple cycles (wavetable), not allowed - it'd take too long to process, and no one has
+		// wavetables of weird sizes anyway.
 		else {
 			return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
 		}
@@ -195,7 +196,8 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 		numCycles =
 		    originalSampleLengthInSamples >> initialBandCycleMagnitude; // Will round down, which is what we want.
 		if (numCycles < 1) {
-			return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // Surely can't happen, becacuse of the checks / limiting we've done above?
+			return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // Surely can't happen, becacuse of the checks / limiting we've
+			                                             // done above?
 		}
 	}
 
@@ -205,29 +207,30 @@ tryGettingFFTConfig:
 	AudioEngine::logAction("Got fft config");
 
 	// If that returned NULL, normally we can just opt to not do FFTs and have just 1 band.
-	// But in the case where the original wasn't a power-of-two size, we're gonna have to do FFTs (as well as one DFT)...
+	// But in the case where the original wasn't a power-of-two size, we're gonna have to do FFTs (as well as one
+	// DFT)...
 	if (!fftCFGForInitialBand && !rawFileCycleSizeIsAPowerOfTwo) {
 
-		// Actually screw it, this is so rare, it's easier just to make a rule that for non-power-of-two we *have* to render it out to that bigger size.
-		// Cos if we allow a smaller initial band, we don't have enough space in it for the dummy writing we do during load, which could be avoided, but yeah this is so rare.
+		// Actually screw it, this is so rare, it's easier just to make a rule that for non-power-of-two we *have* to
+		// render it out to that bigger size. Cos if we allow a smaller initial band, we don't have enough space in it
+		// for the dummy writing we do during load, which could be avoided, but yeah this is so rare.
 		return ERROR_INSUFFICIENT_RAM;
 
 		/*
 		// So, see if there's a smaller FFT config we can still get.
-		if (initialBandCycleMagnitude <= 3) return ERROR_INSUFFICIENT_RAM; // But, can't go smaller than size 8 (2^3) - see comment on min size below.
-		initialBandCycleMagnitude--;
-		goto tryGettingFFTConfig;
+		if (initialBandCycleMagnitude <= 3) return ERROR_INSUFFICIENT_RAM; // But, can't go smaller than size 8 (2^3) -
+		see comment on min size below. initialBandCycleMagnitude--; goto tryGettingFFTConfig;
 		*/
 	}
 
 	int32_t initialBandCycleSizeNoDuplicates =
-	    1
-	    << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a power of two.
+	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
+	                                    // power of two.
 
 	uint8_t error;
 
-	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code,
-	// which would take up program size for little advantage.
+	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
+	// that small unless we enable its additional C code, which would take up program size for little advantage.
 	{
 		int32_t numBands =
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
@@ -249,8 +252,8 @@ gotError2:
 	numCyclesMagnitude = getMagnitude(numCycles);
 
 	AudioEngine::logAction("just started wavetable");
-	AudioEngine::
-	    routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I didn't profile very closely.
+	AudioEngine::routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I
+	                                          // didn't profile very closely.
 	AudioEngine::logAction("about to set up bands");
 
 	for (int32_t b = 0; b < bands.getNumElements(); b++) {
@@ -264,7 +267,8 @@ gotError2:
 		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
 			error = ERROR_INSUFFICIENT_RAM;
-			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else tries to do anything with them.
+			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else
+			// tries to do anything with them.
 			bands.deleteAtIndex(b, bands.getNumElements() - b);
 			goto gotError2;
 		}
@@ -290,9 +294,10 @@ gotError2:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("allocating working memory");
 
-	// Create the temporary memory where we'll store the 32-bit int32_t version of the current cycle being read, to perform the FFT on.
-	// This will also be used for outputting the time-domain cycle data back out of the inverse FFT, so ensure it's big enough for that if our biggest band is bigger
-	// than the cycle size in the file (i.e. if that's not a power-of-two).
+	// Create the temporary memory where we'll store the 32-bit int32_t version of the current cycle being read, to
+	// perform the FFT on. This will also be used for outputting the time-domain cycle data back out of the inverse FFT,
+	// so ensure it's big enough for that if our biggest band is bigger than the cycle size in the file (i.e. if that's
+	// not a power-of-two).
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	// Internal RAM is good, and it's only temporary
 	int32_t* __restrict__ currentCycleInt32 =
@@ -302,7 +307,8 @@ gotError2:
 		goto gotError2;
 	}
 
-	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we use that same decision here
+	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we
+	// use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
 	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData =
 	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
@@ -333,8 +339,8 @@ gotError5:
 	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
 
 	if (!sample) {
-		reader->jumpForwardToBytePos(
-		    audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen in AIFF files, with their "offset"
+		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
+		                                                      // in AIFF files, with their "offset"
 	}
 
 	char const* sourceBuffer =
@@ -375,7 +381,8 @@ gotError5:
 			// If converting an existing Sample from memory into this WaveTable...
 			if (sample) {
 
-				// If we need to load a new Cluster now (which might not be the case if we've just switched into a new Cycle which starts still within the same Cluster)...
+				// If we need to load a new Cluster now (which might not be the case if we've just switched into a new
+				// Cycle which starts still within the same Cluster)...
 				if (clusterIndex != clusterIndexCurrentlyLoaded) {
 
 					// First, unload the old Cluster if there was one
@@ -398,7 +405,8 @@ gotError5:
 			else {
 				if (byteIndexWithinCluster < 0) {
 					reader->byteIndexWithinCluster -=
-					    byteIndexWithinCluster; // Will put it right at the start of the next cluster, to force it to read from card
+					    byteIndexWithinCluster; // Will put it right at the start of the next cluster, to force it to
+					                            // read from card
 				}
 				error = reader->advanceClustersIfNecessary();
 				if (error) {
@@ -407,24 +415,24 @@ gotError5:
 			}
 
 			// Macro setup for below
-#define CONVERT_AND_STORE_SAMPLE                                                                                          \
-	{                                                                                                                     \
-		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                            \
-			value32 = floatBitPatternToInt(value32);                                                                      \
-		}                                                                                                                 \
-		else {                                                                                                            \
-			if (swappingEndianness) {                                                                                     \
-				value32 = swapEndianness32(value32);                                                                      \
-			}                                                                                                             \
-			value32 &= bitMask;                                                                                           \
-			if (rawDataFormat == RAW_DATA_UNSIGNED_8) {                                                                   \
-				value32 += (1 << 31);                                                                                     \
-			}                                                                                                             \
-		}                                                                                                                 \
-		*(cycleBufferDestination++) =                                                                                     \
-		    value32                                                                                                       \
-		    >> MAGNITUDE_REDUCTION_FOR_FFT; /* Store full 32-bit value in cycle buffer (reduced in magnitude for FFT). */ \
-		*(initialBandWritePos++) = value32 >> 16; /* Bands only store 16-bit data. */                                     \
+#define CONVERT_AND_STORE_SAMPLE                                                                                       \
+	{                                                                                                                  \
+		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                         \
+			value32 = floatBitPatternToInt(value32);                                                                   \
+		}                                                                                                              \
+		else {                                                                                                         \
+			if (swappingEndianness) {                                                                                  \
+				value32 = swapEndianness32(value32);                                                                   \
+			}                                                                                                          \
+			value32 &= bitMask;                                                                                        \
+			if (rawDataFormat == RAW_DATA_UNSIGNED_8) {                                                                \
+				value32 += (1 << 31);                                                                                  \
+			}                                                                                                          \
+		}                                                                                                              \
+		*(cycleBufferDestination++) =                                                                                  \
+		    value32 >> MAGNITUDE_REDUCTION_FOR_FFT; /* Store full 32-bit value in cycle buffer (reduced in magnitude   \
+		                                               for FFT). */                                                    \
+		*(initialBandWritePos++) = value32 >> 16;   /* Bands only store 16-bit data. */                                \
 	}
 
 			// If previous Cluster had overlapping sample at end...
@@ -437,12 +445,13 @@ gotError5:
 
 				char const* source =
 				    sourceBuffer
-				    + byteIndexWithinClusterMisaligned; // Misalign pointer for reading start of this buffer, for byte depth and also to correct for the overlap.
+				    + byteIndexWithinClusterMisaligned; // Misalign pointer for reading start of this buffer, for byte
+				                                        // depth and also to correct for the overlap.
 
 				bytesOverlappingFromLastCluster &=
-				    ((uint32_t)0xFFFFFFFF
-				     >> ((4 + byteIndexWithinClusterMisaligned)
-				         * 8)); // Remember, this data was obtained with the pointer already correctly misaligned for byte depth.
+				    ((uint32_t)0xFFFFFFFF >> ((4 + byteIndexWithinClusterMisaligned)
+				                              * 8)); // Remember, this data was obtained with the pointer already
+				                                     // correctly misaligned for byte depth.
 				uint32_t bytesOverlappingThisCluster =
 				    *(uint32_t*)source & ((uint32_t)0xFFFFFFFF << (-byteIndexWithinClusterMisaligned * 8));
 
@@ -452,8 +461,8 @@ gotError5:
 
 				if (!sample) {
 					reader->byteIndexWithinCluster +=
-					    byteDepth
-					    + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward an extra -byteIndexWithinCluster, above.
+					    byteDepth + byteIndexWithinCluster; // +byteIndexWithinCluster because we already moved forward
+					                                        // an extra -byteIndexWithinCluster, above.
 				}
 
 				sourceBytesLeftToCopyThisCycle -= byteDepth;
@@ -504,9 +513,8 @@ gotError5:
 			// If we're less than one sample from the end of the cluster...
 			if (byteIndexWithinCluster > audioFileManager.clusterSize - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -=
-				    audioFileManager
-				        .clusterSize; // Might end up negative, indicating that we've got a sample overlapping the cluster boundary
+				byteIndexWithinCluster -= audioFileManager.clusterSize; // Might end up negative, indicating that we've
+				                                                        // got a sample overlapping the cluster boundary
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);
@@ -516,43 +524,48 @@ gotError5:
 		AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
-		Debug::print("\nCycle: ");
-		Debug::println(cycleIndex);
+		D_PRINTLN("\nCycle:  %d", cycleIndex);
 
-		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain data.
+		// If it wasn't a power-of-two size, we have to do a DFT even just to get the first band's useable time-domain
+		// data.
 		if (!rawFileCycleSizeIsAPowerOfTwo) {
 			AudioEngine::logAction("dft start");
 			dft_r2c(frequencyDomainData, currentCycleInt32, rawFileCycleSize);
-			// That function does indeed take ages, as shown by the AUDIO_LOG. But somehow, I'm not hearing voices drop... how?
+			// That function does indeed take ages, as shown by the AUDIO_LOG. But somehow, I'm not hearing voices
+			// drop... how?
 			AudioEngine::logAction("dft done");
 
-			// Because the raw file cycle size was a bit smaller than the initial band cycle size that we're going to be expanding it out to,
-			// we're going to be feeding a slightly wider bit of (freq domain) data back into the FFT to get time domain data (below), so have to clear the
-			// extra memory part to zeroes now.
+			// Because the raw file cycle size was a bit smaller than the initial band cycle size that we're going to be
+			// expanding it out to, we're going to be feeding a slightly wider bit of (freq domain) data back into the
+			// FFT to get time domain data (below), so have to clear the extra memory part to zeroes now.
 			for (int32_t i = (rawFileCycleSize >> 1) + 1; i <= (initialBandCycleSizeNoDuplicates >> 1); i++) {
 				frequencyDomainData[i].r = 0;
 				frequencyDomainData[i].i = 0;
 			}
 
 			// We need to move the band write pos forward for the next cycle.
-			// Remember, for non-power-of-two raw files, this data just gets overwritten later anyway, and we only write it in the first place
-			// just because the same code does this for power-of-two. But we need to at least move the pointer along so we don't overwrite anything we shouldn't.
-			// Adctually, because non-power-of-two raw files are only allowed to be single-cycle, this isn't strictly necessary, but let's do it for completeness
-			// and in case I ever change that rule.
+			// Remember, for non-power-of-two raw files, this data just gets overwritten later anyway, and we only write
+			// it in the first place just because the same code does this for power-of-two. But we need to at least move
+			// the pointer along so we don't overwrite anything we shouldn't. Adctually, because non-power-of-two raw
+			// files are only allowed to be single-cycle, this isn't strictly necessary, but let's do it for
+			// completeness and in case I ever change that rule.
 			initialBandWritePos = &initialBand->dataAccessAddress[(initialBandCycleSizeNoDuplicates
 			                                                       + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 			                                                      * (cycleIndex + 1)];
 		}
 
-		// Or if it *was* a power-of-two size, we can just do an easier FFT. (And also further down, we won't have to re-render time-domain data for this initial band.)
+		// Or if it *was* a power-of-two size, we can just do an easier FFT. (And also further down, we won't have to
+		// re-render time-domain data for this initial band.)
 		else {
 
-			// Write the duplicate values for this initial band - do this now, since we already have the final, useable time-domain data for it.
+			// Write the duplicate values for this initial band - do this now, since we already have the final, useable
+			// time-domain data for it.
 			for (int32_t i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
 				*(initialBandWritePos++) = *(nativeBandCycleStartPos++);
 			}
 
-			// In fact, if there are no further bands (usually won't happen unless out of RAM), we can get out as there's nothing more to do.
+			// In fact, if there are no further bands (usually won't happen unless out of RAM), we can get out as
+			// there's nothing more to do.
 			if (bands.getNumElements() <= 1) {
 				continue;
 			}
@@ -569,7 +582,8 @@ gotError5:
 		int32_t biggestValueIndex;
 		int32_t highestSignificantHarmonicIndex = 0;
 
-		// Scan the frequency domain of this native cycle, as loaded from the raw file (so not necessary power-of-two size), looking at harmonics
+		// Scan the frequency domain of this native cycle, as loaded from the raw file (so not necessary power-of-two
+		// size), looking at harmonics
 		for (int32_t i = 1; i <= (rawFileCycleSize >> 1); i++) {
 			int32_t thisValue = (fastPythag(frequencyDomainData[i].r, frequencyDomainData[i].i) >> 6)
 			                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
@@ -578,7 +592,8 @@ gotError5:
 				biggestValueIndex = i;
 			}
 
-			// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better take note that it exists.
+			// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better take note
+			// that it exists.
 			if (thisValue >= (biggestValue >> 5)) {
 				highestSignificantHarmonicIndex = i;
 			}
@@ -591,8 +606,8 @@ gotError5:
 		if (SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT
 		    && highestSignificantHarmonicIndex <= (rawFileCycleSize >> (1 + NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS))) {
 
-			// If haven't "started" this band yet, update record to show it starts from this cycle - which it might because the next cycle might be needed, and
-			// we have a rule that we start one cycle early.
+			// If haven't "started" this band yet, update record to show it starts from this cycle - which it might
+			// because the next cycle might be needed, and we have a rule that we start one cycle early.
 			if (!(startedBandsYet & 1)) {
 				band->fromCycleNumber = cycleIndex;
 			}
@@ -604,13 +619,14 @@ gotError5:
 			band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 		}
 
-		// If raw file wasn't power-of-two cycle size, then even this initial band needs the same treatment as the higher ones -
-		// we have to render its time-domain data by doing an FFT from the freq-domain.
+		// If raw file wasn't power-of-two cycle size, then even this initial band needs the same treatment as the
+		// higher ones - we have to render its time-domain data by doing an FFT from the freq-domain.
 		if (!rawFileCycleSizeIsAPowerOfTwo) {
 			goto transformBandToTimeDomain;
 		}
 
-		// Otherwise, if we're still here, we'll only need to render time-domain data for bands other than the initial one.
+		// Otherwise, if we're still here, we'll only need to render time-domain data for bands other than the initial
+		// one.
 
 		// For each band "higher" up (smaller cycle; less high harmonics), do all the stuff for it - for this cycle.
 		for (b = 1; b < bands.getNumElements(); b++) {
@@ -627,7 +643,8 @@ gotError5:
 						int32_t thisValue = (pythagValue >> 6)
 						                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
 
-						// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better take note that it exists.
+						// If this harmonic's magnitude is still not too much quieter than the biggest one, we'd better
+						// take note that it exists.
 						if (thisValue >= (biggestValue >> 5)) {
 							highestSignificantHarmonicIndex = i;
 							break;
@@ -640,8 +657,8 @@ gotError5:
 				    && highestSignificantHarmonicIndex
 				           <= (band->cycleSizeNoDuplicates >> (1 + NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS))) {
 
-					// If haven't "started" this band yet, update record to show it starts from this cycle - which it might because the next cycle might be needed, and
-					// we have a rule that we start one cycle early.
+					// If haven't "started" this band yet, update record to show it starts from this cycle - which it
+					// might because the next cycle might be needed, and we have a rule that we start one cycle early.
 					if (!(startedBandsYet & (1 << b))) {
 						band->fromCycleNumber = cycleIndex;
 					}
@@ -653,7 +670,8 @@ gotError5:
 					band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 				}
 
-				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary component (fun fact - that's just what happens)
+				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary
+				// component (fun fact - that's just what happens)
 				// - so cheat a little and put that into the real component.
 				ne10_fft_cpx_int32_t* nyquistFreq = &frequencyDomainData[(band->cycleSizeNoDuplicates >> 1)];
 				int32_t pythagValue = fastPythag(nyquistFreq->r, nyquistFreq->i);
@@ -711,8 +729,7 @@ transformBandToTimeDomain:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("finalizing wavetable");
 
-	Debug::print("initial num bands: ");
-	Debug::println(bands.getNumElements());
+	D_PRINTLN("initial num bands:  %d", bands.getNumElements());
 
 	// Ok, we've now processed all Cycles.
 
@@ -735,20 +752,18 @@ transformBandToTimeDomain:
 	delugeDealloc(frequencyDomainData);
 
 	// Printout stats
-	Debug::print("initial band size if all populated: ");
-	Debug::println(numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-	               * 2);
-	Debug::print("initial band size after trimming: ");
-	Debug::println((initialBand->toCycleNumber - initialBand->fromCycleNumber)
-	               * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	D_PRINTLN("initial band size if all populated: %d",
+	          numCycles * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
+	D_PRINTLN("initial band size after trimming: %d",
+	          (initialBand->toCycleNumber - initialBand->fromCycleNumber)
+	              * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
 	int32_t total = 0;
 	for (int32_t b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		total += (band->toCycleNumber - band->fromCycleNumber)
 		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
 	}
-	Debug::print("other bands total size after trimming: ");
-	Debug::println(total);
+	D_PRINTLN("other bands total size after trimming:  %d", total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
@@ -758,8 +773,7 @@ transformBandToTimeDomain:
 		if (band->fromCycleNumber >= band->toCycleNumber) {
 			band->~WaveTableBand();
 			bands.deleteAtIndex(b);
-			Debug::print("deleted whole band - ");
-			Debug::println(b);
+			D_PRINTLN("deleted whole band -  %d", b);
 		}
 
 		// Otherwise, can we shorten the memory?
@@ -768,10 +782,9 @@ transformBandToTimeDomain:
 			// Right-hand side
 			if (band->toCycleNumber < numCycles) {
 				if (!b) {
-					Debug::print("(band 0) ");
+					D_PRINTLN("(band 0) ");
 				}
-				Debug::print("deleting num cycles from right-hand side: ");
-				Debug::println(numCycles - band->toCycleNumber);
+				D_PRINTLN("deleting num cycles from right-hand side:  %d", numCycles - band->toCycleNumber);
 				int32_t newSize = band->toCycleNumber
 				                      * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                      * sizeof(int16_t)
@@ -829,8 +842,8 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
-		    >> (rshiftAmount
-		        - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude better not be bigger than that!
+		    >> (rshiftAmount - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude
+		                                                // better not be bigger than that!
 		int16_t strength2 = rshifted & 32767;
 
 		int32_t windowedSincTableLineOffsetBytes =
@@ -844,12 +857,13 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
-		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
+		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work.
+		Tried reading 2 values, too. I just get some noise from final output.
 
 		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
-			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
+		    int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
+		    int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
+		    kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
@@ -932,8 +946,8 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		uint32_t rshifted =
 		    ((uint32_t)-phase)
-		    >> (rshiftAmount
-		        - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude better not be bigger than that!
+		    >> (rshiftAmount - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude
+		                                                // better not be bigger than that!
 		int16_t strength2 = rshifted & 32767;
 
 		int32_t windowedSincTableLineOffsetBytes =
@@ -947,12 +961,13 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
 		/*
-		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
+		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work.
+		Tried reading 2 values, too. I just get some noise from final output.
 
 		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
-			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
+		    int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
+		    int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
+		    kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
@@ -993,8 +1008,8 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		int32_t waveTableFinalValue = multiply_accumulate_32x32_rshift32_rounded(
 		    value1 >> 1, difference,
-		    crossCycleStrength2
-		        >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a magnitude smaller as a multiplication like this always does.
+		    crossCycleStrength2 >> 1); // Have to make value1 a magnitude smaller, because the difference is getting a
+		                               // magnitude smaller as a multiplication like this always does.
 
 		*thisSample = waveTableFinalValue;
 
@@ -1013,8 +1028,7 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 	else if (phaseIncrement >= (band->maxPhaseIncrement * 0.354))
 		whichKernel = 1;
 	if (!getRandom255()) {
-		Debug::print("kernel: ");
-		Debug::println(whichKernel);
+		D_PRINTLN("kernel:  %d", whichKernel);
 	}
 #else
 	uint32_t phaseIncrementHere = phaseIncrement;
@@ -1047,7 +1061,8 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSample
 	if (numCycles > 1) {
 		int32_t numSamplesLeftToDo = numSamples;
 
-		// Haven't yet investigated why, but we do need to use the "rounded" multiply functions here, otherwise get a click when moving to wav pos 0 if numSamples is 32 (when testing performance).
+		// Haven't yet investigated why, but we do need to use the "rounded" multiply functions here, otherwise get a
+		// click when moving to wav pos 0 if numSamples is 32 (when testing performance).
 		int32_t waveIndexScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndex);
 		int32_t waveIndexIncrementScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndexIncrement);
 
@@ -1080,8 +1095,8 @@ startRenderingACycle:
 			int32_t numIncrementsWeCanDoNow =
 			    (uint32_t)waveIndexDistanceUntilFinalBigValueStillInThisCycle / (uint32_t)waveIndexIncrementScaledAbs;
 			numSamplesThisCycle =
-			    numIncrementsWeCanDoNow
-			    + 1; // +1 because we can only have to increment *between* the samples we're rendering. If can only do 1 increment, we can still render 2 samples.
+			    numIncrementsWeCanDoNow + 1; // +1 because we can only have to increment *between* the samples we're
+			                                 // rendering. If can only do 1 increment, we can still render 2 samples.
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
 				FREEZE_WITH_ERROR("E386");
 			}
@@ -1175,8 +1190,8 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 }
 
 /*
- 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
-		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
+    for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
+        WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 
-	}
+    }
  */

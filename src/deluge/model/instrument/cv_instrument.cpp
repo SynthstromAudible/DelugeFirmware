@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/instrument/cv_instrument.h"
 #include "model/model_stack.h"
@@ -26,12 +26,9 @@
 #include "util/functions.h"
 #include <string.h>
 
-CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
-
-	cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
-	cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
@@ -74,10 +71,12 @@ void CVInstrument::updatePitchBendOutput(bool outputToo) {
 		}
 	}
 
-	// If couldn't update bend ranges that way, no worries - we'll keep our cached ones, cos the user probably intended that.
+	// If couldn't update bend ranges that way, no worries - we'll keep our cached ones, cos the user probably intended
+	// that.
 
-	int32_t
-	    totalBendAmount = // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
+	int32_t totalBendAmount = // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is
+	                          // different to the equivalent calculation in Voice, which needs to get things into a
+	                          // number of octaves.
 	    (monophonicPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_MAIN]
 	    + (polyPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_FINGER_LEVEL];
 
@@ -85,7 +84,8 @@ void CVInstrument::updatePitchBendOutput(bool outputToo) {
 }
 
 bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
-	//NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below call
+	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
+	// call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
@@ -115,7 +115,8 @@ bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmC
 		}
 
 		updatePitchBendOutput(
-		    false); // Don't change the CV output voltage right now (we could, but this Clip-change might come with a note that's going to sound "now" anyway...)
+		    false); // Don't change the CV output voltage right now (we could, but this Clip-change might come with a
+		            // note that's going to sound "now" anyway...)
 		            // - but make it so the next note which sounds will have our new correct bend value / range.
 	}
 

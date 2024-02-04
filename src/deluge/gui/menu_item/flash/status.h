@@ -13,13 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
-#include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::flash {
 class Status final : public Selection {
@@ -32,7 +30,7 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_FAST),

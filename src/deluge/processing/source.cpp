@@ -19,9 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -29,10 +26,8 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
-#include <cmath>
 #include <cstring>
 
 Source::Source() {
@@ -53,7 +48,8 @@ Source::~Source() {
 	destructAllMultiRanges();
 }
 
-// Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the caller must do this.
+// Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the
+// caller must do this.
 void Source::destructAllMultiRanges() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
@@ -100,8 +96,8 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 void Source::detachAllAudioFiles() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		if (!(e & 7)) {
-			AudioEngine::
-			    routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
+			AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15
+			                                          // occasionally drops voices - for multisampled synths
 		}
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
 	}
@@ -111,8 +107,8 @@ int32_t Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) {
-			AudioEngine::
-			    routineWithClusterLoading(); // -------------------------------------- // 3 works, 7 occasionally drops voices - for multisampled synths
+			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7
+			                                          // occasionally drops voices - for multisampled synths
 		}
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return ERROR_ABORTED_BY_USER;
@@ -172,7 +168,8 @@ int32_t Source::getRangeIndex(int32_t note) {
 MultiRange* Source::getOrCreateFirstRange() {
 	if (!ranges.getNumElements()) {
 		MultiRange* newRange = ranges.insertMultiRange(
-		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
+		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
+		        // before oscType is switched over to SAMPLE - but this can't happen for WAVETABLE so that's ok
 		if (!newRange) {
 			return NULL;
 		}
@@ -242,7 +239,8 @@ bool Source::hasAnyLoopEndPoint() {
 	return false;
 }
 
-// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get emptied.
+// If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get
+// emptied.
 void Source::setOscType(OscType newType) {
 
 	int32_t multiRangeSize;
@@ -270,7 +268,8 @@ doChangeType:
 
 			oscType = newType;
 
-			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or something, we're screwed.
+			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
+			                         // something, we're screwed.
 
 			if (soundEditor.currentMultiRangeIndex >= 0
 			    && soundEditor.currentMultiRangeIndex < ranges.getNumElements()) {
@@ -288,8 +287,8 @@ doChangeType:
 }
 
 /*
-	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
-		ranges.getElement(e)->
-	}
+    for (int32_t e = 0; e < ranges.getNumElements(); e++) {
+        ranges.getElement(e)->
+    }
 
  */

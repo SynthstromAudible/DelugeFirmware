@@ -1,0 +1,31 @@
+name: Run tests
+
+on:
+  pull_request:
+    branches:
+      - 'community'
+      - 'release/**'
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    name: Build test binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install GCC multilib
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-12 gcc-12-multilib g++-12-multilib
+          echo "CC=gcc-12" >> $GITHUB_ENV
+          echo "CXX=g++-12" >> $GITHUB_ENV
+      - name: Configure build
+        uses: threeal/cmake-action@v1.3.0
+        with:
+          generator: Ninja
+          source-dir: tests
+          build-dir: build
+      - name: Run build
+        run: cmake --build build

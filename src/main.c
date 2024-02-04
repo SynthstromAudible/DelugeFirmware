@@ -13,20 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "RZA1/gpio/gpio.h"
-#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
-#include "RZA1/system/iodefine.h"
 #include "RZA1/system/r_typedefs.h"
-#include "RZA1/system/rza_io_regrw.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
-#include "diskio.h"
-#include "fatfs/diskio.h"
-#include <stdio.h>
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
@@ -60,7 +54,7 @@ static void int_irq6(uint32_t sense) {
 	triggerClockRisingEdgeTimes[triggerClockRisingEdgesReceived & (TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED - 1)] =
 	    DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n; // Reading this not as volatile works fine
 
-	//uartPrintln("int");
+	// uartPrintln("int");
 	triggerClockRisingEdgesReceived++;
 
 	clearIRQInterrupt(6);
@@ -69,14 +63,14 @@ static void int_irq6(uint32_t sense) {
 }
 
 /******************************************************************************
-* Function Name: main
-* Description  : Displays the sample program information on the terminal
-*              : connected with the CPU board by the UART, and executes initial
-*              : setting for the PORT connected with the LEDs on the board.
-*              : Executes initial setting for the OSTM channel 0.
-* Arguments    : none
-* Return Value : 0
-******************************************************************************/
+ * Function Name: main
+ * Description  : Displays the sample program information on the terminal
+ *              : connected with the CPU board by the UART, and executes initial
+ *              : setting for the PORT connected with the LEDs on the board.
+ *              : Executes initial setting for the OSTM channel 0.
+ * Arguments    : none
+ * Return Value : 0
+ ******************************************************************************/
 int main(void) {
 
 	// SSI pins
@@ -98,10 +92,11 @@ int main(void) {
 	/* The setup process the interrupt IntTgfa function.*/
 	R_INTC_RegistIntFunc(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], &midiAndGateOutputTimerInterrupt);
 	R_INTC_SetPriority(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], 5);
-	// Original comment regarding above priority: "Must be greater than 9, so less prioritized than USB interrupt, so that can still happen while this happening. But must be lower number / more prioritized than MIDI UART TX DMA interrupt! Or else random crash occasionally."
-	// But, I've now undone the change in "USB sending as host now done in ISR too!" commit, which set it to 11.
-	// That was causing the SD / UART lockups (checked and observed again around V4.0.0-beta2), and was possibly
-	// only actually done in the first place to help with my hack fix for what I
+	// Original comment regarding above priority: "Must be greater than 9, so less prioritized than USB interrupt, so
+	// that can still happen while this happening. But must be lower number / more prioritized than MIDI UART TX DMA
+	// interrupt! Or else random crash occasionally." But, I've now undone the change in "USB sending as host now done
+	// in ISR too!" commit, which set it to 11. That was causing the SD / UART lockups (checked and observed again
+	// around V4.0.0-beta2), and was possibly only actually done in the first place to help with my hack fix for what I
 	// thought was that USB "hardware bug", which I ended up resolving later anyway.
 
 	// Set up slow system timer - 33 ticks per millisecond (30.30303 microseconds per tick) on A1
@@ -124,24 +119,14 @@ int main(void) {
 	// Uart for MIDI
 	uartInit(UART_ITEM_MIDI, 31250);
 
-#if UART_CHANNEL_MIDI == 1
-	setPinMux(3, 15, 5); // TX
-	setPinMux(1, 9, 3);  // RX
-#elif UART_CHANNEL_MIDI == 0
 	setPinMux(6, 15, 5); // TX
 	setPinMux(6, 14, 5); // RX
-#endif
 
 	// Uart for PIC / display
 	uartInit(UART_ITEM_PIC, UART_INITIAL_SPEED_PIC_PADS_HZ);
 
-#if UART_CHANNEL_PIC == 2
-	setPinMux(7, 1, 4); // TX
-	setPinMux(1, 7, 3); // RX
-#elif UART_CHANNEL_PIC == 1
 	setPinMux(3, 15, 5); // TX
 	setPinMux(1, 9, 3);  // RX
-#endif
 
 	initUartDMA();
 
@@ -155,7 +140,8 @@ int main(void) {
 	setPinMux(7, 6, 3); // D3
 	setPinMux(7, 7, 3); // D2
 
-	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on the trigger clock rather than rising. */
+	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on
+	 * the trigger clock rather than rising. */
 	INTC.ICR1 = 0b0101010101010101;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);

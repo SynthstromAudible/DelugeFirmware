@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_cluster.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -43,10 +43,10 @@ SampleCluster::~SampleCluster() {
 		}
 
 		if (numReasonsToBeLoaded) {
-			Debug::print("uh oh, some reasons left... ");
-			Debug::println(numReasonsToBeLoaded);
+			D_PRINTLN("uh oh, some reasons left...  %d", numReasonsToBeLoaded);
 
-			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
+			// Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to
+			// happen though.
 			FREEZE_WITH_ERROR("E036");
 		}
 #endif
@@ -57,9 +57,7 @@ SampleCluster::~SampleCluster() {
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
 		if (cluster->numReasonsToBeLoaded) {
-			Debug::print("Cluster has reason! ");
-			Debug::println(cluster->numReasonsToBeLoaded);
-			Debug::println(sample->filePath.get());
+			D_PRINTLN("Cluster has reason!  %d %d", cluster->numReasonsToBeLoaded, sample->filePath.get());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
 				FREEZE_WITH_ERROR("E068");
@@ -86,18 +84,18 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
-			Debug::println("unloadable");
+			D_PRINTLN("unloadable");
 			if (error) {
 				*error = ERROR_FILE_NOT_FOUND;
 			}
 			return NULL;
 		}
 
-		//Debug::println("loading");
+		// D_PRINTLN("loading");
 		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
 		if (!cluster) {
-			Debug::println("couldn't allocate");
+			D_PRINTLN("couldn't allocate");
 			if (error) {
 				*error = ERROR_INSUFFICIENT_RAM;
 			}
@@ -116,7 +114,8 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		cluster->sample = sample;
 		cluster->clusterIndex = clusterIndex;
 
-		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a whole Cluster
+		// Sometimes we don't actually want to load at all - if we're re-processing a WAV file and want to overwrite a
+		// whole Cluster
 		if (loadInstruction == CLUSTER_DONT_LOAD) {
 			return cluster;
 		}
@@ -151,18 +150,21 @@ justEnqueue:
 			// If that didn't work...
 			if (!result) {
 
-				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the pointer
+				// If also an acceptable option, then just enqueue it, and we'll keep the "reason" and return the
+				// pointer
 				if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE) {
 					goto justEnqueue;
 				}
 
 				// Or if it was a must-load-now...
-				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd still exist but never get enqueued for loading
+				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
+				// still exist but never get enqueued for loading
 				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
 				if (error) {
 					*error =
-					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now cos card's being accessed, and that's fine, thanks for checking."
+					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now
+					                       // cos card's being accessed, and that's fine, thanks for checking."
 				}
 				cluster = NULL;
 			}
@@ -190,8 +192,7 @@ justEnqueue:
 
 			// If it's still not loaded and it was a must-load-now...
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
-				Debug::print("hurrying loading along failed for index: ");
-				Debug::println(clusterIndex);
+				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
 				if (error) {
 					*error = ERROR_UNSPECIFIED; // TODO: get actual error
 				}

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -35,6 +35,7 @@ public:
 	bool shouldBlinkLearnLed() override { return true; }
 	void unlearnAction() override;
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
+	void learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) override;
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
 
 	void drawPixelsForOled();

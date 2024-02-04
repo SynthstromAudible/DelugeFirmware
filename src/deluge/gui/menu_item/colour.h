@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "gui/menu_item/selection.h"
@@ -22,13 +22,25 @@ namespace deluge::gui::menu_item {
 
 class Colour final : public Selection {
 public:
+	enum Option : uint8_t {
+		RED,
+		GREEN,
+		BLUE,
+		YELLOW,
+		CYAN,
+		MAGENTA,
+		AMBER,
+		WHITE,
+		PINK,
+	};
+
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->getValue();
+		value = static_cast<Option>(this->getValue());
 		renderingNeededRegardlessOfUI();
 	};
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
 		    l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
@@ -37,8 +49,8 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_PINK),
 		};
 	}
-	void getRGB(uint8_t rgb[3]);
-	uint8_t value;
+	[[nodiscard]] RGB getRGB() const;
+	Option value;
 };
 
 extern Colour activeColourMenu;

@@ -13,13 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
+#include "io/debug/log.h"
 #include "storage/file_item.h"
 #include "util/container/array/c_string_array.h"
 
@@ -83,7 +84,7 @@ public:
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	int32_t getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
+	int32_t getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
 	bool checkFP();
@@ -97,8 +98,11 @@ public:
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 
-	static InstrumentType instrumentTypeToLoad;
+	static OutputType outputTypeToLoad;
 	static char const* filenameToStartSearchAt;
+
+	// ui
+	UIType getUIType() { return UIType::BROWSER; }
 
 protected:
 	int32_t setEnteredTextFromCurrentFilename();
@@ -114,14 +118,14 @@ protected:
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	int32_t readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
+	int32_t readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
 	                                         char const* filenameToStartAt, char const* defaultDirToAlsoTry,
 	                                         bool allowFoldersint,
 	                                         Availability availabilityRequirement = Availability::ANY,
 	                                         int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
-	static int32_t
-	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
+	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
+	                                  // maybe we're typing a new name.
 	static int32_t scrollPosVertical;
 	static int32_t
 	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
@@ -139,24 +143,18 @@ protected:
 
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
-	//filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
+	// filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
 
-#include "io/debug/print.h"
 inline void printInstrumentFileList(const char* where) {
-	Debug::print("\n");
-	Debug::print(where);
-	Debug::print(" List: \n");
+	D_PRINT("\n");
+	D_PRINT(where);
+	D_PRINT(" List: \n");
 	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
 		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
-		Debug::print(" - ");
-		Debug::print(fileItem->displayName);
-		Debug::print(" (");
-		Debug::print(fileItem->filePointer.sclust);
-		Debug::print(")\n");
+		D_PRINTLN(" - %s (%lu)", fileItem->displayName, fileItem->filePointer.sclust);
 	}
-
-	Debug::print("\n");
+	D_PRINT("\n");
 }

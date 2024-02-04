@@ -17,16 +17,12 @@
 
 #include "modulation/patch/patcher.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/print.h"
-#include "model/voice/voice.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-extern "C" {
-#include "RZA1/mtu/mtu.h"
-}
+namespace params = deluge::modulation::params;
 
 Patcher::Patcher(const PatchableInfo* newInfo) : patchableInfo(newInfo) {
 }
@@ -69,8 +65,8 @@ void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound,
 	getParamFinalValuesPointer()[p] = finalValue;
 }
 
-int32_t rangeFinalValues
-    [kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit of time... actually so minor though, maybe not worth it.
+int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanent memory per voice could save a tiny bit
+                                              // of time... actually so minor though, maybe not worth it.
 
 // You may as well check sourcesChanged before calling this.
 void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager) {
@@ -102,8 +98,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	uint8_t params[std::max<int32_t>(Param::Global::FIRST, kNumParams - Param::Global::FIRST) + 1];
-	int32_t cableCombinations[std::max<int32_t>(Param::Global::FIRST, kNumParams - Param::Global::FIRST)];
+	uint8_t params[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL) + 1];
+	int32_t cableCombinations[std::max<int32_t>(params::FIRST_GLOBAL, params::kNumParams - params::FIRST_GLOBAL)];
 	int32_t numParamsPatched = 0;
 
 	// Go through regular Destinations going directly to a param
@@ -136,7 +132,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	params[numParamsPatched] = 255; // To stop the below code from going past the end of the list we just created
 
-	// Now, turn those cableCombinations into paramFinalValues. Splitting these up like this caused a massive speed-up on all presets tested, somewhat surprisingly!
+	// Now, turn those cableCombinations into paramFinalValues. Splitting these up like this caused a massive speed-up
+	// on all presets tested, somewhat surprisingly!
 	{
 		int32_t i = 0;
 
@@ -209,8 +206,8 @@ inline void Patcher::cableToExpParam(int32_t sourceValue, int32_t cableStrength,
 }
 
 inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager) {
-	int32_t runningTotalCombination =
-	    536870912; // 536870912 means "1". runningTotalCombination will not be allowed to get bigger than 2147483647, which means "4".
+	int32_t runningTotalCombination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed to
+	                                             // get bigger than 2147483647, which means "4".
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
@@ -220,9 +217,9 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 		PatchSource s = patchCable->from;
 		int32_t sourceValue = getSourceValue(s);
 
-		// Special exception: If we're patching aftertouch to range. Normally, unlike other sources, aftertouch goes from 0 to 2147483647.
-		// This is because we want it to have no effect at its negative extreme, which isn't normally what we want.
-		// However, when patched to range, we do want this again, so "transpose" it here.
+		// Special exception: If we're patching aftertouch to range. Normally, unlike other sources, aftertouch goes
+		// from 0 to 2147483647. This is because we want it to have no effect at its negative extreme, which isn't
+		// normally what we want. However, when patched to range, we do want this again, so "transpose" it here.
 		if (s == PatchSource::AFTERTOUCH) {
 			sourceValue = (sourceValue - 1073741824) << 1;
 		}
@@ -232,16 +229,19 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 	}
 
 	return runningTotalCombination - 536870912;
-	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was "4" because of multiple patch cables being multiplied together
+	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was
+	// "4" because of multiple patch cables being multiplied together
 }
 
-// Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range from "0" to "2". Output (product) clips off at "4".
-// Call this if (p < getFirstHybridParam()) - "Pan" sits at the end of the linear params and is the exception to the rule - it doesn't want this multiplying treatment
-// Having this inline makes huge ~40% performance difference to performInitialPatching, I think because in that case it knows there are no cables.
+// Linear param - combine all cables by multiplying their values (values centred around 1). Inputs effectively range
+// from "0" to "2". Output (product) clips off at "4". Call this if (p < getFirstHybridParam()) - "Pan" sits at the end
+// of the linear params and is the exception to the rule - it doesn't want this multiplying treatment Having this inline
+// makes huge ~40% performance difference to performInitialPatching, I think because in that case it knows there are no
+// cables.
 inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
                                             ParamManager* paramManager) {
-	int32_t runningTotalCombination =
-	    536870912; // 536870912 means "1". runningTotalCombination will not be allowed to get bigger than 2147483647, which means "4".
+	int32_t runningTotalCombination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed to
+	                                             // get bigger than 2147483647, which means "4".
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
@@ -262,12 +262,14 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint
 	}
 
 	return runningTotalCombination - 536870912;
-	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was "4" because of multiple patch cables being multiplied together
+	// return value is ideally between -536870912 and 536870912, but may get up to 1610612736 if the result above was
+	// "4" because of multiple patch cables being multiplied together
 }
 
 // Exp param - combine all cables by adding their values (centred around 0)
 // Call this if (p >= getFirstHybridParam())
-// Having this inline makes huge ~40% performance difference to performInitialPatching, I think because in that case it knows there are no cables.
+// Having this inline makes huge ~40% performance difference to performInitialPatching, I think because in that case it
+// knows there are no cables.
 inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_t p, Sound* sound,
                                          ParamManager* paramManager) {
 
@@ -285,10 +287,11 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_
 			cableToExpParam(sourceValue, cableStrength, &runningTotalCombination, patchCable);
 		}
 
-		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the opposite end to be reached even if the user's
-		// preset value is all the way to one end.
-		// These params are "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I can't break users' songs.
-		if (p == Param::Local::OSC_A_WAVE_INDEX || p == Param::Local::OSC_B_WAVE_INDEX) {
+		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the
+		// opposite end to be reached even if the user's preset value is all the way to one end. These params are
+		// "hybrid" ones, and probably in a perfect world I would have made the other ones behave the same way. But I
+		// can't break users' songs.
+		if (p == params::LOCAL_OSC_A_WAVE_INDEX || p == params::LOCAL_OSC_B_WAVE_INDEX) {
 			runningTotalCombination <<= 1;
 		}
 	}
@@ -311,15 +314,17 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 */
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before going back over that array with the final step.
-	// This saves memory. Didn't seem to have a real effect on speed.
+	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
+	// going back over that array with the final step. This saves memory. Didn't seem to have a real effect on speed.
 
 	{
-		// The contents of this bit could be optimized further by doing even more passes, splitting up e.g. combineCablesLinear into iterations, which sometimes could be done on all params at once.
-		// Or, could just pre-compute and copy "final values" for where there's no patching
+		// The contents of this bit could be optimized further by doing even more passes, splitting up e.g.
+		// combineCablesLinear into iterations, which sometimes could be done on all params at once. Or, could just
+		// pre-compute and copy "final values" for where there's no patching
 		int32_t p = patchableInfo->firstParam;
 
-		// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for the few which do, we overwrite those values
+		// First for the params whose cables get multiplied, we go do them all as if they have no patching, and then for
+		// the few which do, we overwrite those values
 		int32_t firstHybridParam = patchableInfo->firstHybridParam;
 		for (; p < firstHybridParam; p++) {
 			paramFinalValues[p] = combineCablesLinear(NULL, p, sound, paramManager);
@@ -391,7 +396,7 @@ void Patcher::performInitialPatching(Sound* sound, ParamManager* paramManager) {
 
 	uint32_t timePassedUSA = timerCountToUS(duration);
 
-	Debug::print("duration, uSec: ");
-	Debug::println(timePassedUSA);
+	D_PRINT("duration, uSec: ");
+	D_PRINTLN(timePassedUSA);
 */
 }

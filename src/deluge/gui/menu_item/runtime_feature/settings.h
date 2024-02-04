@@ -13,18 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "definitions.h"
 #include "gui/menu_item/submenu.h"
-#include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
 
 /// Some runtime feature settings are squirrled away in submenus.
-constexpr size_t kNonTopLevelSettings = 4;
+constexpr size_t kNonTopLevelSettings = 0;
 // RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings
 class Settings final : public Submenu {
 public:

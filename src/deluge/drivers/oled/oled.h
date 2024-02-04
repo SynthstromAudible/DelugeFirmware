@@ -16,6 +16,8 @@
  */
 
 #pragma once
+#include "stdbool.h"
+#include "stdint.h"
 
 #define SPI_TRANSFER_QUEUE_SIZE 32
 

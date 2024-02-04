@@ -13,23 +13,24 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_clip_state.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
@@ -38,7 +39,7 @@
 #include "model/consequence/consequence_performance_view_press.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
@@ -60,9 +61,9 @@ void ActionLogger::deleteLastActionIfEmpty() {
 	if (firstAction[BEFORE]) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
-		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to crashes, we need to fix after release
-		// while (!firstAction[BEFORE]->firstConsequence) {
-		if (firstAction[BEFORE]->type == ACTION_RECORD && !firstAction[BEFORE]->firstConsequence) {
+		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to
+		// crashes, we need to fix after release while (!firstAction[BEFORE]->firstConsequence) {
+		if (firstAction[BEFORE]->type == ActionType::RECORD && !firstAction[BEFORE]->firstConsequence) {
 
 			deleteLastAction();
 		}
@@ -79,7 +80,7 @@ void ActionLogger::deleteLastAction() {
 	delugeDealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
 
 	deleteLog(AFTER);
 
@@ -92,16 +93,16 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 	Action* newAction;
 
 	// If recording arrangement...
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return NULL;
 
 		// If there's no action for that, we're really screwed, we'd better get out
-		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ACTION_ARRANGEMENT_RECORD) {
+		if (!firstAction[BEFORE] || firstAction[BEFORE]->type != ActionType::ARRANGEMENT_RECORD) {
 			return NULL;
 		}
 
 		// Only a couple of kinds of new actions are allowed to add to that action
-		if (newActionType == ACTION_SWING_CHANGE || newActionType == ACTION_TEMPO_CHANGE) {
+		if (newActionType == ActionType::SWING_CHANGE || newActionType == ActionType::TEMPO_CHANGE) {
 			newAction = firstAction[BEFORE];
 		}
 
@@ -112,9 +113,10 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 	}
 
 	// See if we can add to an existing action...
-	else if (addToExistingIfPossible && firstAction[BEFORE] && firstAction[BEFORE]->openForAdditions
-	         && firstAction[BEFORE]->type == newActionType && firstAction[BEFORE]->view == getCurrentUI()
-	         && (addToExistingIfPossible == ACTION_ADDITION_ALLOWED
+	else if (addToExistingIfPossible != ActionAddition::NOT_ALLOWED && firstAction[BEFORE]
+	         && firstAction[BEFORE]->openForAdditions && firstAction[BEFORE]->type == newActionType
+	         && firstAction[BEFORE]->view == getCurrentUI()
+	         && (addToExistingIfPossible == ActionAddition::ALLOWED
 	             || firstAction[BEFORE]->creationTime == AudioEngine::audioSampleTimer)) {
 		newAction = firstAction[BEFORE];
 	}
@@ -133,7 +135,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
 		if (!actionMemory) {
-			Debug::println("no ram to create new Action");
+			D_PRINTLN("no ram to create new Action");
 			return NULL;
 		}
 
@@ -170,7 +172,8 @@ traverseClips:
 
 		newAction->numClipStates = numClips;
 
-		// Only now put the new action into the list of undo actions - because in the above steps, we may have decided to delete it and get out (if we ran out of RAM while creating the ActionClipStates)
+		// Only now put the new action into the list of undo actions - because in the above steps, we may have decided
+		// to delete it and get out (if we ran out of RAM while creating the ActionClipStates)
 		newAction->nextAction = firstAction[BEFORE];
 		firstAction[BEFORE] = newAction;
 
@@ -188,11 +191,11 @@ traverseClips:
 
 		newAction->tripletsOn = currentSong->tripletsOn;
 		newAction->tripletsLevel = currentSong->tripletsLevel;
-		//newAction->modKnobModeSongView = currentSong->modKnobMode;
+		// newAction->modKnobModeSongView = currentSong->modKnobMode;
 		newAction->affectEntireSongView = currentSong->affectEntire;
 
 		newAction->view = getCurrentUI();
-		newAction->currentClip = currentSong->currentClip;
+		newAction->currentClip = getCurrentClip();
 	}
 
 	updateAction(newAction);
@@ -210,7 +213,7 @@ void ActionLogger::updateAction(Action* newAction) {
 			newAction->numClipStates = 0;
 			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Debug::println("discarded clip states");
+			D_PRINTLN("discarded clip states");
 		}
 
 		else {
@@ -222,7 +225,7 @@ traverseClips2:
 			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
-				if (clip->type == CLIP_TYPE_INSTRUMENT) {
+				if (clip->type == ClipType::INSTRUMENT) {
 					newAction->clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)clip)->yScroll;
 				}
 				i++;
@@ -246,9 +249,9 @@ traverseClips2:
 	memcpy(newAction->modeNotes[AFTER], currentSong->modeNotes, sizeof(currentSong->modeNotes));
 }
 
-void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int32_t actionType) {
+void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
 
-	Action* action = getNewAction(actionType, true);
+	Action* action = getNewAction(actionType, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
@@ -258,7 +261,7 @@ void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* m
 
 void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 
-	Action* action = getNewAction(ACTION_SWING_CHANGE, true);
+	Action* action = getNewAction(ActionType::SWING_CHANGE, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
@@ -280,7 +283,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 
 void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter) {
 
-	Action* action = getNewAction(ACTION_TEMPO_CHANGE, true);
+	Action* action = getNewAction(ActionType::TEMPO_CHANGE, ActionAddition::ALLOWED);
 	if (!action) {
 		return;
 	}
@@ -306,7 +309,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
                                               FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
 
-	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
+	Action* action = getNewAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, ActionAddition::ALLOWED);
 
 	if (!action) {
 		return;
@@ -322,10 +325,12 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 }
 
 // Returns whether anything was reverted.
-// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
-// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
+// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another
+// Clip resize. You must not call this during the card routine - though I've lost track of the exact reason why not - is
+// it just because we could then be in the middle of executing whichever function accessed the card and we don't know if
+// things will break?
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
-	Debug::println("ActionLogger::revert");
+	D_PRINTLN("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -349,34 +354,37 @@ bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation)
 	return false;
 }
 
-#define ANIMATION_NONE 0
-#define ANIMATION_SCROLL 1
-#define ANIMATION_ZOOM 2
-#define ANIMATION_CLIP_MINDER_TO_SESSION 3
-#define ANIMATION_SESSION_TO_CLIP_MINDER 4
-#define ANIMATION_ENTER_KEYBOARD_VIEW 5
-#define ANIMATION_EXIT_KEYBOARD_VIEW 6
-#define ANIMATION_CHANGE_CLIP 7
-#define ANIMATION_CLIP_MINDER_TO_ARRANGEMENT 8
-#define ANIMATION_ARRANGEMENT_TO_CLIP_MINDER 9
-#define ANIMATION_SESSION_TO_ARRANGEMENT 10
-#define ANIMATION_ARRANGEMENT_TO_SESSION 11
-#define ANIMATION_ENTER_AUTOMATION_VIEW 12
-#define ANIMATION_EXIT_AUTOMATION_VIEW 13
+enum class Animation {
+	NONE,
+	SCROLL,
+	ZOOM,
+	CLIP_MINDER_TO_SESSION,
+	SESSION_TO_CLIP_MINDER,
+	ENTER_KEYBOARD_VIEW,
+	EXIT_KEYBOARD_VIEW,
+	CHANGE_CLIP,
+	CLIP_MINDER_TO_ARRANGEMENT,
+	ARRANGEMENT_TO_CLIP_MINDER,
+	SESSION_TO_ARRANGEMENT,
+	ARRANGEMENT_TO_SESSION,
+	ENTER_AUTOMATION_VIEW,
+	EXIT_AUTOMATION_VIEW,
+};
 
-// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
+// doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another
+// Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
 
 	currentSong->deletePendingOverdubs();
 
-	int32_t whichAnimation = ANIMATION_NONE;
+	Animation whichAnimation = Animation::NONE;
 	uint32_t songZoomBeforeTransition = currentSong->xZoom[NAVIGATION_CLIP];
 	uint32_t arrangerZoomBeforeTransition = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
 	if (doNavigation) {
 
 		// If it's an arrangement record action...
-		if (action->type == ACTION_ARRANGEMENT_RECORD) {
+		if (action->type == ActionType::ARRANGEMENT_RECORD) {
 
 			// If user is in song view or arranger view, just stay in that UI.
 			if (getCurrentUI() == &arrangerView || getCurrentUI() == &sessionView) {
@@ -395,70 +403,71 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 			// Switching between session / arranger
 			if (action->view == &sessionView && getCurrentUI() == &arrangerView) {
-				whichAnimation = ANIMATION_ARRANGEMENT_TO_SESSION;
+				whichAnimation = Animation::ARRANGEMENT_TO_SESSION;
 			}
 			else if (action->view == &arrangerView && getCurrentUI() == &sessionView) {
-				whichAnimation = ANIMATION_SESSION_TO_ARRANGEMENT;
+				whichAnimation = Animation::SESSION_TO_ARRANGEMENT;
 			}
 
 			// Switching between session and clip view
 			else if (action->view == &sessionView && getCurrentUI()->toClipMinder()) {
-				whichAnimation = ANIMATION_CLIP_MINDER_TO_SESSION;
+				whichAnimation = Animation::CLIP_MINDER_TO_SESSION;
 			}
 			else if (action->view->toClipMinder() && getCurrentUI() == &sessionView) {
-				whichAnimation = ANIMATION_SESSION_TO_CLIP_MINDER;
+				whichAnimation = Animation::SESSION_TO_CLIP_MINDER;
 			}
 
 			// Entering / exiting arranger
 			else if (action->view == &arrangerView && getCurrentUI()->toClipMinder()) {
-				whichAnimation = ANIMATION_CLIP_MINDER_TO_ARRANGEMENT;
+				whichAnimation = Animation::CLIP_MINDER_TO_ARRANGEMENT;
 			}
 			else if (action->view->toClipMinder() && getCurrentUI() == &arrangerView) {
-				whichAnimation = ANIMATION_ARRANGEMENT_TO_CLIP_MINDER;
+				whichAnimation = Animation::ARRANGEMENT_TO_CLIP_MINDER;
 			}
 
 			// Then entering or exiting keyboard view
 			else if (action->view == &keyboardScreen && getCurrentUI() != &keyboardScreen) {
-				whichAnimation = ANIMATION_ENTER_KEYBOARD_VIEW;
+				whichAnimation = Animation::ENTER_KEYBOARD_VIEW;
 			}
 			else if (action->view != &keyboardScreen && getCurrentUI() == &keyboardScreen) {
-				whichAnimation = ANIMATION_EXIT_KEYBOARD_VIEW;
+				whichAnimation = Animation::EXIT_KEYBOARD_VIEW;
 			}
 
 			// Then entering or exiting automation view
-			else if (action->view == &automationInstrumentClipView && getCurrentUI() != &automationInstrumentClipView) {
-				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
+			else if (action->view == &automationView && getCurrentUI() != &automationView) {
+				whichAnimation = Animation::ENTER_AUTOMATION_VIEW;
 			}
-			else if (action->view != &automationInstrumentClipView && getCurrentUI() == &automationInstrumentClipView) {
-				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
+			else if (action->view != &automationView && getCurrentUI() == &automationView) {
+				whichAnimation = Animation::EXIT_AUTOMATION_VIEW;
 			}
 
 			// Or if we've changed Clip but ended up back in the same view...
-			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
-				whichAnimation = ANIMATION_CHANGE_CLIP;
+			else if (getCurrentUI()->toClipMinder() && getCurrentClip() != action->currentClip) {
+				whichAnimation = Animation::CHANGE_CLIP;
 			}
 
-			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical scroll isn't changed], and we're not on keyboard view
+			// Or if none of those is happening, we might like to do a horizontal zoom or scroll - only if [vertical
+			// scroll isn't changed], and we're not on keyboard view
 			else {
 				if (getCurrentUI() != &keyboardScreen) {
 
 					if (getCurrentUI() == &arrangerView) {
 						if (currentSong->xZoom[NAVIGATION_ARRANGEMENT] != action->xZoomArranger[time]) {
-							whichAnimation = ANIMATION_ZOOM;
+							whichAnimation = Animation::ZOOM;
 						}
 
 						else if (currentSong->xScroll[NAVIGATION_ARRANGEMENT] != action->xScrollArranger[time]) {
-							whichAnimation = ANIMATION_SCROLL;
+							whichAnimation = Animation::SCROLL;
 						}
 					}
 
 					else {
 						if (currentSong->xZoom[NAVIGATION_CLIP] != action->xZoomClip[time]) {
-							whichAnimation = ANIMATION_ZOOM;
+							whichAnimation = Animation::ZOOM;
 						}
 
 						else if (currentSong->xScroll[NAVIGATION_CLIP] != action->xScrollClip[time]) {
-							whichAnimation = ANIMATION_SCROLL;
+							whichAnimation = Animation::SCROLL;
 						}
 					}
 				}
@@ -483,16 +492,16 @@ traverseClips:
 				for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 					Clip* clip = clipArray->getClipAtIndex(c);
 
-					//clip->modKnobMode = action->clipStates[i].modKnobMode;
+					// clip->modKnobMode = action->clipStates[i].modKnobMode;
 
-					if (clip->type == CLIP_TYPE_INSTRUMENT) {
+					if (clip->type == ClipType::INSTRUMENT) {
 						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 						instrumentClip->yScroll = action->clipStates[i].yScrollSessionView[time];
 						instrumentClip->affectEntire = action->clipStates[i].affectEntire;
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == InstrumentType::KIT) {
+						if (clip->output->type == OutputType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
@@ -511,7 +520,7 @@ traverseClips:
 				}
 			}
 			else {
-				Debug::println("clip states wrong number so not restoring");
+				D_PRINTLN("clip states wrong number so not restoring");
 			}
 		}
 
@@ -524,38 +533,39 @@ traverseClips:
 		memcpy(currentSong->modeNotes, action->modeNotes[time], sizeof(currentSong->modeNotes));
 
 		// Other stuff
-		//currentSong->modKnobMode = action->modKnobModeSongView;
+		// currentSong->modKnobMode = action->modKnobModeSongView;
 		currentSong->affectEntire = action->affectEntireSongView;
 		currentSong->tripletsOn = action->tripletsOn;
 		currentSong->tripletsLevel = action->tripletsLevel;
 
-		// Now do the animation we decided on - for animations which we prefer to set up before reverting the actual action
-		if (whichAnimation == ANIMATION_SCROLL && getCurrentUI() == &arrangerView) {
+		// Now do the animation we decided on - for animations which we prefer to set up before reverting the actual
+		// action
+		if (whichAnimation == Animation::SCROLL && getCurrentUI() == &arrangerView) {
 			bool worthDoingAnimation = arrangerView.initiateXScroll(action->xScrollArranger[time]);
 			if (!worthDoingAnimation) {
-				whichAnimation = ANIMATION_NONE;
+				whichAnimation = Animation::NONE;
 				goto otherOption;
 			}
 		}
 		else {
 otherOption:
-			if (getCurrentUI() != &arrangerView || whichAnimation != ANIMATION_ZOOM) {
+			if (getCurrentUI() != &arrangerView || whichAnimation != Animation::ZOOM) {
 				currentSong->xScroll[NAVIGATION_ARRANGEMENT] =
-				    action->xScrollArranger
-				        [time]; // Have to do this if we didn't do the actual scroll animation yet some scrolling happened
+				    action->xScrollArranger[time]; // Have to do this if we didn't do the actual scroll animation yet
+				                                   // some scrolling happened
 			}
 		}
 
-		if (whichAnimation == ANIMATION_SCROLL && getCurrentUI() != &arrangerView) {
+		if (whichAnimation == Animation::SCROLL && getCurrentUI() != &arrangerView) {
 			((TimelineView*)getCurrentUI())->initiateXScroll(action->xScrollClip[time]);
 		}
-		else if (getCurrentUI() == &arrangerView || whichAnimation != ANIMATION_ZOOM) {
+		else if (getCurrentUI() == &arrangerView || whichAnimation != Animation::ZOOM) {
 			currentSong->xScroll[NAVIGATION_CLIP] =
-			    action->xScrollClip
-			        [time]; // Have to do this if we didn't do the actual scroll animation yet some scrolling happened
+			    action->xScrollClip[time]; // Have to do this if we didn't do the actual scroll animation yet some
+			                               // scrolling happened
 		}
 
-		if (whichAnimation == ANIMATION_ZOOM) {
+		if (whichAnimation == Animation::ZOOM) {
 			if (getCurrentUI() == &arrangerView) {
 				arrangerView.initiateXZoom(
 				    howMuchMoreMagnitude(action->xZoomArranger[time], arrangerZoomBeforeTransition),
@@ -568,19 +578,20 @@ otherOption:
 			}
 		}
 
-		else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_SESSION) {
+		else if (whichAnimation == Animation::CLIP_MINDER_TO_SESSION) {
 			sessionView.transitionToSessionView();
 		}
 
-		else if (whichAnimation == ANIMATION_SESSION_TO_CLIP_MINDER) {
+		else if (whichAnimation == Animation::SESSION_TO_CLIP_MINDER) {
 			sessionView.transitionToViewForClip(action->currentClip);
-			goto currentClipSwitchedOver; // Skip the below - our call to transitionToViewForClip will switch it over for us
+			goto currentClipSwitchedOver; // Skip the below - our call to transitionToViewForClip will switch it over
+			                              // for us
 		}
 
-		// Swap currentClip over. Can only do this after calling transitionToSessionView(). Previously, we did this much earlier,
-		// causing a crash. Hopefully moving it later here is ok...
-		if (action
-		        ->currentClip) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL, and we don't want to set currentSong->currentClip back to this
+		// Swap currentClip over. Can only do this after calling transitionToSessionView(). Previously, we did this much
+		// earlier, causing a crash. Hopefully moving it later here is ok...
+		if (action->currentClip) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL,
+			                       // and we don't want to set currentSong->currentClip back to this
 			currentSong->currentClip = action->currentClip;
 		}
 	}
@@ -593,62 +604,68 @@ currentClipSwitchedOver:
 	int32_t error = action->revert(time, modelStack);
 
 	// Some "animations", we prefer to do after we've reverted the action
-	if (whichAnimation == ANIMATION_ENTER_KEYBOARD_VIEW) {
+	if (whichAnimation == Animation::ENTER_KEYBOARD_VIEW) {
 		changeRootUI(&keyboardScreen);
 	}
 
-	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
+	else if (whichAnimation == Animation::EXIT_KEYBOARD_VIEW) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-			changeRootUI(&automationInstrumentClipView);
+		if (getCurrentClip()->onAutomationClipView) {
+			changeRootUI(&automationView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
 		}
 	}
 
-	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
-		changeRootUI(&automationInstrumentClipView);
+	else if (whichAnimation == Animation::ENTER_AUTOMATION_VIEW) {
+		changeRootUI(&automationView);
 	}
 
-	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
-		changeRootUI(&instrumentClipView);
+	else if (whichAnimation == Animation::EXIT_AUTOMATION_VIEW) {
+		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+			changeRootUI(&instrumentClipView);
+		}
+		else {
+			changeRootUI(&audioClipView);
+		}
 	}
 
-	else if (whichAnimation == ANIMATION_CHANGE_CLIP) {
+	else if (whichAnimation == Animation::CHANGE_CLIP) {
 		if (action->view != getCurrentUI()) {
 			changeRootUI(action->view);
 		}
 		else {
 			getCurrentUI()->focusRegained();
-			renderingNeededRegardlessOfUI(); // Didn't have this til March 2020, and stuff didn't update. Guess this is just needed? Can't remember specifics just now
+			renderingNeededRegardlessOfUI(); // Didn't have this til March 2020, and stuff didn't update. Guess this is
+			                                 // just needed? Can't remember specifics just now
 		}
 	}
 
-	else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
+	else if (whichAnimation == Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 		changeRootUI(&arrangerView);
 	}
 
-	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+	else if (whichAnimation == Animation::ARRANGEMENT_TO_CLIP_MINDER) {
+		if (getCurrentClip()->type == ClipType::AUDIO) {
 			changeRootUI(&audioClipView);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
+		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-			changeRootUI(&automationInstrumentClipView);
+		else if (getCurrentClip()->onAutomationClipView) {
+			changeRootUI(&automationView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
 		}
 	}
 
-	else if (whichAnimation == ANIMATION_SESSION_TO_ARRANGEMENT) {
+	else if (whichAnimation == Animation::SESSION_TO_ARRANGEMENT) {
 		changeRootUI(&arrangerView);
 	}
 
-	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_SESSION) {
+	else if (whichAnimation == Animation::ARRANGEMENT_TO_SESSION) {
 		changeRootUI(&sessionView);
 	}
 
@@ -656,47 +673,51 @@ currentClipSwitchedOver:
 
 		if (getCurrentUI() == &instrumentClipView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
-			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
-			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
+			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
+			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
-				if (!whichAnimation) {
+				if (whichAnimation == Animation::NONE) {
 					uiNeedsRendering(&instrumentClipView);
 				}
 			}
 		}
-		else if (getCurrentUI() == &automationInstrumentClipView) {
+		else if (getCurrentUI() == &automationView) {
 			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
-			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
-			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
-				instrumentClipView.recalculateColours();
-				if (!whichAnimation) {
-					uiNeedsRendering(&automationInstrumentClipView);
+			if (whichAnimation != Animation::CLIP_MINDER_TO_SESSION
+			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+					instrumentClipView.recalculateColours();
+				}
+				if (whichAnimation == Animation::NONE) {
+					uiNeedsRendering(&automationView);
 				}
 			}
 		}
 		else if (getCurrentUI() == &audioClipView) {
-			if (!whichAnimation) {
+			if (whichAnimation == Animation::NONE) {
 				uiNeedsRendering(&audioClipView);
 			}
 		}
 		else if (getCurrentUI() == &keyboardScreen) {
-			if (whichAnimation != ANIMATION_ENTER_KEYBOARD_VIEW) {
+			if (whichAnimation != Animation::ENTER_KEYBOARD_VIEW) {
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 			}
 		}
-		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have failed if the Clip wasn't long enough before we did the action->revert() ...
+		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
+		// failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (getCurrentUI() == &sessionView) {
 			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 		else if (getCurrentUI() == &arrangerView) {
-			arrangerView.repopulateOutputsOnScreen(!whichAnimation);
+			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);
 		}
 
-		// Usually need to re-display the mod LEDs etc, but not if either of these animations is happening, which means that it'll happen anyway
-		// when the animation finishes - and also, if we just deleted the Clip which was the activeModControllableClip, well that'll temporarily be pointing to invalid stuff.
-		// Check the actual UI mode rather than the whichAnimation variable we've been using in this function, because under some circumstances that'll bypass the actual
-		// animation / UI-mode.
-		// We would also put the "explode" animation for transitioning *to* arranger here, but it just doesn't get used during reversion.
+		// Usually need to re-display the mod LEDs etc, but not if either of these animations is happening, which means
+		// that it'll happen anyway when the animation finishes - and also, if we just deleted the Clip which was the
+		// activeModControllableClip, well that'll temporarily be pointing to invalid stuff. Check the actual UI mode
+		// rather than the whichAnimation variable we've been using in this function, because under some circumstances
+		// that'll bypass the actual animation / UI-mode. We would also put the "explode" animation for transitioning
+		// *to* arranger here, but it just doesn't get used during reversion.
 		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) && !isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 			view.setKnobIndicatorLevels();
 			view.setModLedStates();
@@ -704,16 +725,16 @@ currentClipSwitchedOver:
 
 		// So long as we're not gonna animate to different UI...
 		switch (whichAnimation) {
-		case ANIMATION_CLIP_MINDER_TO_SESSION:
-		case ANIMATION_SESSION_TO_CLIP_MINDER:
-		case ANIMATION_CLIP_MINDER_TO_ARRANGEMENT:
-		case ANIMATION_ARRANGEMENT_TO_CLIP_MINDER:
+		case Animation::CLIP_MINDER_TO_SESSION:
+		case Animation::SESSION_TO_CLIP_MINDER:
+		case Animation::CLIP_MINDER_TO_ARRANGEMENT:
+		case Animation::ARRANGEMENT_TO_CLIP_MINDER:
 			break;
 
 		default:
 			ClipMinder* clipMinder = getCurrentUI()->toClipMinder();
 			if (clipMinder) {
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
 			}
@@ -736,13 +757,13 @@ currentClipSwitchedOver:
 	}
 }
 
-void ActionLogger::closeAction(int32_t actionType) {
+void ActionLogger::closeAction(ActionType actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
 }
 
-void ActionLogger::closeActionUnlessCreatedJustNow(int32_t actionType) {
+void ActionLogger::closeActionUnlessCreatedJustNow(ActionType actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType
 	    && firstAction[BEFORE]->creationTime != AudioEngine::audioSampleTimer) {
 		firstAction[BEFORE]->openForAdditions = false;
@@ -766,19 +787,23 @@ void ActionLogger::deleteLog(int32_t time) {
 	}
 }
 
-// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
+// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just
+// because we could then be in the middle of executing whichever function accessed the card and we don't know if things
+// will break?
 void ActionLogger::undo() {
 
-	// Before we go and revert the most recent Action, there are a few recording-related states we first want to have a go at cancelling out of.
-	// These are treated as special cases here rather than being Consequences because they're never redoable: their "undoing" is a special case of cancellation.
+	// Before we go and revert the most recent Action, there are a few recording-related states we first want to have a
+	// go at cancelling out of. These are treated as special cases here rather than being Consequences because they're
+	// never redoable: their "undoing" is a special case of cancellation.
 
-	// But, this is to be done very sparingly! I used to have more of these which did things like deleting Clips for which linear recording was ongoing.
-	// But then what if other Consequences, e.g. param automation, had been recorded for those? Reverting those would call functions on invalid pointers.
-	// So instead, do just use regular Actions and Consequences for everything possible. And definitely don't delete any Clips here.
+	// But, this is to be done very sparingly! I used to have more of these which did things like deleting Clips for
+	// which linear recording was ongoing. But then what if other Consequences, e.g. param automation, had been recorded
+	// for those? Reverting those would call functions on invalid pointers. So instead, do just use regular Actions and
+	// Consequences for everything possible. And definitely don't delete any Clips here.
 
 	// If currently recording an arrangement from session, we have to stop doing so first
-	if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-		playbackHandler.recording = RECORDING_OFF;
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		playbackHandler.recording = RecordingMode::OFF;
 		currentSong->resumeClipsClonedForArrangementRecording();
 
 		view.setModLedStates(); // Set song LED back
@@ -792,7 +817,8 @@ void ActionLogger::undo() {
 	}
 
 	// Or if recording linearly to arrangement, gotta exit that mode
-	else if (playbackHandler.playbackState && playbackHandler.recording && currentPlaybackMode == &arrangement) {
+	else if (playbackHandler.playbackState && playbackHandler.recording != RecordingMode::OFF
+	         && currentPlaybackMode == &arrangement) {
 		arrangement.endAnyLinearRecording();
 	}
 
@@ -807,7 +833,9 @@ displayUndoMessage:
 	}
 }
 
-// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
+// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just
+// because we could then be in the middle of executing whichever function accessed the card and we don't know if things
+// will break?
 void ActionLogger::redo() {
 	if (revert(AFTER)) {
 #ifdef redoLedX
@@ -818,8 +846,13 @@ void ActionLogger::redo() {
 	}
 }
 
-const uint32_t reversionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
-                                     UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+const uint32_t reversionUIModes[] = {
+    UI_MODE_AUDITIONING,
+    UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
+    UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
+    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+    0,
+};
 
 bool ActionLogger::allowedToDoReversion() {
 	return (currentSong && getCurrentUI() == getRootUI() && isUIModeWithinRange(reversionUIModes));
@@ -828,7 +861,7 @@ bool ActionLogger::allowedToDoReversion() {
 void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 
 	// If there's an Action which only recorded the beginning of this Clip recording, we don't want it anymore.
-	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ACTION_RECORD) {
+	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ActionType::RECORD) {
 		Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
 		if (!firstConsequence->next && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
 			if (clip == ((ConsequenceClipBeginLinearRecord*)firstConsequence)->clip) {
@@ -838,11 +871,12 @@ void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 	}
 }
 
-// This function relies on Consequences having been sequentially added for each subsequent "mini action", so looking at the noteRowId of the most recent one,
-// we can then know that all further Consequences until we see the same noteRowId again are part of the same "mini action".
-// This will get called in some cases (Action types) were only one NoteRow, not many, could have had the editing done to it: that's fine too, and barely any time is really
-// wasted here.
-// Returns whether whole Action was reverted, which is the only case where visual updating / rendering, and also the calling of expectEvent(), would have taken place
+// This function relies on Consequences having been sequentially added for each subsequent "mini action", so looking at
+// the noteRowId of the most recent one, we can then know that all further Consequences until we see the same noteRowId
+// again are part of the same "mini action". This will get called in some cases (Action types) were only one NoteRow,
+// not many, could have had the editing done to it: that's fine too, and barely any time is really wasted here. Returns
+// whether whole Action was reverted, which is the only case where visual updating / rendering, and also the calling of
+// expectEvent(), would have taken place
 bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 
 	bool revertedWholeAction = false;
@@ -867,9 +901,9 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 		if (false) {
 gotMultipleConsequencesPerNoteRow:
 			do {
-				firstConsequence->revert(
-				    BEFORE,
-				    modelStack); // Unlike reverting a whole Action, this doesn't update anything visually or call any expectEvent() functions
+				firstConsequence->revert(BEFORE,
+				                         modelStack); // Unlike reverting a whole Action, this doesn't update anything
+				                                      // visually or call any expectEvent() functions
 				firstAction[BEFORE]->firstConsequence = firstConsequence->next;
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
@@ -879,13 +913,13 @@ gotMultipleConsequencesPerNoteRow:
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Debug::println("did secret undo, just one Consequence");
+			D_PRINTLN("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Debug::println("did secret undo, whole Action");
+			D_PRINTLN("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

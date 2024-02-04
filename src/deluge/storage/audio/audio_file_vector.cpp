@@ -13,20 +13,20 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "storage/audio/audio_file_vector.h"
-#include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
 
 #pragma GCC diagnostic push
-//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+// This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
 }
 
-// Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the caller must deal with these.
+// Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the
+// caller must deal with these.
 int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 	bool foundExactName;
 	int32_t i = search(audioFile->filePath.get(), GREATER_OR_EQUAL, &foundExactName);
@@ -36,7 +36,8 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 
 	AudioFile* foundAudioFile = (AudioFile*)getElement(i);
 
-	// If object doesn't match, then we were looking for a Sample and got a Wavetable, or vice versa. So check neighbours.
+	// If object doesn't match, then we were looking for a Sample and got a Wavetable, or vice versa. So check
+	// neighbours.
 	if (foundAudioFile != audioFile) {
 		if (i > 0) {
 			i--;

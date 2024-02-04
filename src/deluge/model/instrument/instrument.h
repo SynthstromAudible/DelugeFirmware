@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -36,13 +36,14 @@ class ModelStackWithTimelineCounter;
 class ModelStackWithThreeMainThings;
 
 /*
- * An Instrument is the “Output” of a Clip - the thing which turns the sequence or notes into sound (or MIDI or CV output).
- * Instruments include Kit, MIDIInstrument, and CVInsttrument. And then there’s SoundInstrument, which is basically a synth.
+ * An Instrument is the “Output” of a Clip - the thing which turns the sequence or notes into sound (or MIDI or CV
+ * output). Instruments include Kit, MIDIInstrument, and CVInsttrument. And then there’s SoundInstrument, which is
+ * basically a synth.
  */
 
 class Instrument : public Output {
 public:
-	Instrument(InstrumentType newType);
+	Instrument(OutputType newType);
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
@@ -54,10 +55,12 @@ public:
 	virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
 	virtual void beenEdited(bool shouldMoveToEmptySlot = true);
 	virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {
-	} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the activeClip
+	} // You must call this when an Instrument comes into existence or something... for every Clip, not just for the
+	  // activeClip
 	void deleteAnyInstancesOfClip(InstrumentClip* clip);
 
-	//virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const* subSlotName = "presetSubSlot");
+	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
+	// subSlotName = "presetSubSlot");
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
 

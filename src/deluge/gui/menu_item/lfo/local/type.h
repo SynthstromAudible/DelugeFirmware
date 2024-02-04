@@ -13,13 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::lfo::local {
 

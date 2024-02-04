@@ -13,16 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "storage/cluster/cluster.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "util/functions.h"
 #include <string.h>
 
 Cluster::Cluster() {
@@ -124,7 +121,7 @@ void Cluster::convertDataIfNecessary() {
 				endPos = (int32_t*)&data[audioFileManager.clusterSize - 3];
 			}
 
-			//uint16_t startTime = MTU2.TCNT_0;
+			// uint16_t startTime = MTU2.TCNT_0;
 
 			for (; pos < endPos; pos++) {
 
@@ -140,8 +137,7 @@ void Cluster::convertDataIfNecessary() {
 			uint16_t endTime = MTU2.TCNT_0;
 
 			if (clusterIndex != startCluster) {
-				Debug::print("time to convert: ");
-				Debug::println((uint16_t)(endTime - startTime));
+			    D_PRINTLN("time to convert:  %d", (uint16_t)(endTime - startTime));
 			}
 			*/
 		}
@@ -197,7 +193,7 @@ void Cluster::steal(char const* errorCode) {
 		// If first Cluster, delete whole cache. Wait, no, something might still be pointing to the cache...
 		/*
 		if (!clusterIndex) {
-			sampleCache->sample->deleteCache(sampleCache);
+		    sampleCache->sample->deleteCache(sampleCache);
 		}
 		*/
 		break;

@@ -122,13 +122,13 @@ usb_ctrl_t g_ctrl;
 
 /* USB data transfer */
 /* PIPEn Buffer counter */
-//uint32_t            g_usb_hstd_data_cnt[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
+// uint32_t            g_usb_hstd_data_cnt[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
 
 /* PIPEn Buffer pointer(8bit) */
-//uint8_t             *g_p_usb_hstd_data[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
+// uint8_t             *g_p_usb_hstd_data[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
 
 /* Message pipe */
-//usb_utr_t           *g_p_usb_hstd_pipe[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
+// usb_utr_t           *g_p_usb_hstd_pipe[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
 
 /* Hi-speed enable */
 uint16_t g_usb_hstd_hs_enable[USB_NUM_USBIP];
@@ -214,7 +214,7 @@ uint8_t* usb_hstd_dev_descriptor(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_con_descriptor
- Description     : Returns buffer header pointer that includes the configuration 
+ Description     : Returns buffer header pointer that includes the configuration
                  : descriptor.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return          : uint8_t *                 : Configuration Descriptor Pointer
@@ -226,7 +226,7 @@ uint8_t* usb_hstd_con_descriptor(usb_utr_t* ptr)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_transfer_start
- Description     : Send a request for data transfer to HCD (Host Control Driver) 
+ Description     : Send a request for data transfer to HCD (Host Control Driver)
                  : using the specified pipe.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return          : usb_er_t                  : USB_OK/USB_QOVR/USB_ERROR
@@ -596,7 +596,7 @@ void usb_hstd_bus_int_disable(usb_utr_t* ptr, uint16_t port)
 
 /***********************************************************************************************************************
  Function Name   : usb_hstd_interrupt
- Description     : Execute appropriate process depending on which USB interrupt 
+ Description     : Execute appropriate process depending on which USB interrupt
                  : occurred.
  Arguments       : usb_utr_t    *ptr         : Pointer to usb_utr_t structure.
  Return          : none
@@ -1275,7 +1275,8 @@ void usb_hstd_hcd_task(usb_vp_int_t stacd)
 extern uint8_t usbNumBytesSendingNow;
 extern char midiSendData[];
 
-// Heavily modified function by Rohan. Works for setting up a send, for both host and peripheral. Supply a NULL ptr for peripheral.
+// Heavily modified function by Rohan. Works for setting up a send, for both host and peripheral. Supply a NULL ptr for
+// peripheral.
 void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, int size)
 {
 #if 0
@@ -1296,30 +1297,33 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
     }
 #endif
 
-    //usb_cstd_select_nak(ptr, pipe);                                     /* Select NAK */
-    usb_cstd_set_nak_fast_rohan(
-        pipe); // Ok somehow even this wasn't necessary!! Rohan. (Trying re-enabling now to fix that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
+    // usb_cstd_select_nak(ptr, pipe);                                     /* Select NAK */
+    usb_cstd_set_nak_fast_rohan(pipe); // Ok somehow even this wasn't necessary!! Rohan. (Trying re-enabling now to fix
+                                       // that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
 
     // g_usb_data_cnt[pipe]      = length;                   /* Set data count */
-    //g_p_usb_data[pipe]        = (uint8_t*) pp->p_tranadr; /* Set data pointer */
+    // g_p_usb_data[pipe]        = (uint8_t*) pp->p_tranadr; /* Set data pointer */
     g_usb_hstd_ignore_cnt[USB_CFG_USE_USBIP][pipe] = (uint16_t)0;
     /* Ignore count clear */ // Only the original host function - not peripheral - had this.
 
     hw_usb_clear_status_bemp(NULL, pipe);
-    /* BEMP Status Clear */ // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
+    /* BEMP Status Clear */ // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in
+                            // usb_cstd_chg_curpipe_rohan_fast()...)
     hw_usb_clear_sts_brdy(NULL, pipe);
-    /* BRDY Status Clear */ // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
+    /* BRDY Status Clear */ // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in
+                            // usb_cstd_chg_curpipe_rohan_fast()...)
 
-    //usb_hstd_buf2fifo(ptr, pipe, useport);  /* Buffer to FIFO data write */
+    // usb_hstd_buf2fifo(ptr, pipe, useport);  /* Buffer to FIFO data write */
     {
         hw_usb_clear_brdyenb(NULL,
-            pipe); // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
+            pipe); // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in
+                   // usb_cstd_chg_curpipe_rohan_fast()...)
 
-        //end_flag = usb_hstd_write_data(ptr, pipe, useport);
+        // end_flag = usb_hstd_write_data(ptr, pipe, useport);
         {
 
             /* Changes FIFO port by the pipe. */
-            //buffer = usb_cstd_is_set_frdy(ptr, pipe, (uint16_t)USB_CUSE, USB_FALSE);
+            // buffer = usb_cstd_is_set_frdy(ptr, pipe, (uint16_t)USB_CUSE, USB_FALSE);
             uint16_t result = usb_cstd_is_set_frdy_rohan(pipe);
 
             /* Check error */
@@ -1328,9 +1332,10 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
                 goto gotFifoError;
             }
 
-            // Simplifications here by Rohan, since we always send 64 bytes or smaller, and that always fits within one transfer (max 512 bytes). Also, we always send in multiples of 4 bytes.
+            // Simplifications here by Rohan, since we always send 64 bytes or smaller, and that always fits within one
+            // transfer (max 512 bytes). Also, we always send in multiples of 4 bytes.
 
-            //g_p_usb_data[pipe] = usb_hstd_write_fifo(ptr, count, USB_CUSE, g_p_usb_data[pipe]);
+            // g_p_usb_data[pipe] = usb_hstd_write_fifo(ptr, count, USB_CUSE, g_p_usb_data[pipe]);
             {
                 char const* __restrict__ sendAddress = data;
                 char const* const stopAt             = data + size;
@@ -1346,10 +1351,11 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
                 }
             }
 
-            // Simplification by Rohan, since we always send 64 bytes or smaller, and that always fits within one transfer (max 512 bytes).
+            // Simplification by Rohan, since we always send 64 bytes or smaller, and that always fits within one
+            // transfer (max 512 bytes).
 
             /* Clear data count */
-            //g_usb_data_cnt[pipe] = (uint32_t)0u;
+            // g_usb_data_cnt[pipe] = (uint32_t)0u;
 
             volatile uint16_t* p_reg;
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
@@ -1364,11 +1370,13 @@ void usb_send_start_rohan(usb_utr_t* ptr, uint16_t pipe, uint8_t const* data, in
         /* End of data write */
         /* Enable Empty Interrupt */
         hw_usb_set_bempenb(USB_NULL,
-            pipe); // It'd be cool if we could only need to set this up once, on pipe setup... but that didn't seem to work.
+            pipe); // It'd be cool if we could only need to set this up once, on pipe setup... but that didn't seem to
+                   // work.
 
         /* Enable Not Ready Interrupt */
         hw_usb_set_nrdyenb(USB_NULL,
-            pipe); // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in usb_cstd_chg_curpipe_rohan_fast()...)
+            pipe); // Seems not necessary. Rohan. (Trying re-enabling now to fix that freeze I keep getting in
+                   // usb_cstd_chg_curpipe_rohan_fast()...)
     }
 
     if (false)
@@ -1383,8 +1391,8 @@ gotFifoError:
             usb_pstd_forced_termination(pipe, (uint16_t)USB_DATA_ERR);
     }
 
-    //usb_cstd_set_buf(ptr, pipe);            /* Set BUF */
-    //hw_usb_set_pid(ptr, pipe, USB_PID_BUF);
+    // usb_cstd_set_buf(ptr, pipe);            /* Set BUF */
+    // hw_usb_set_pid(ptr, pipe, USB_PID_BUF);
     hw_usb_set_pid_nonzero_pipe_rohan(pipe, USB_PID_BUF);
 }
 

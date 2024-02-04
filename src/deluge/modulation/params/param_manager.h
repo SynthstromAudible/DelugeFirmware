@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
@@ -161,16 +159,14 @@ public:
 #if ALPHA_OR_BETA_VERSION
 	virtual ParamManagerForTimeline* toForTimeline();
 #else
-	inline ParamManagerForTimeline* toForTimeline() {
-		return (ParamManagerForTimeline*)this;
-	}
+	inline ParamManagerForTimeline* toForTimeline() { return (ParamManagerForTimeline*)this; }
 #endif
 
 	bool resonanceBackwardsCompatibilityProcessed;
 	uint8_t expressionParamSetOffset;
 
-	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if we
-	// know this, we can check for stuff faster.
+	// This list should be terminated by an object whose values are all zero. Yes, all of them must be zero, because if
+	// we know this, we can check for stuff faster.
 	ParamCollectionSummary summaries[PARAM_COLLECTIONS_STORAGE_NUM];
 };
 

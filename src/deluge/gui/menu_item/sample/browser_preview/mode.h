@@ -13,10 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::sample::browser_preview {
@@ -25,7 +24,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::sampleBrowserPreviewMode); }
 	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->getValue(); }
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_DISABLED),
 		    l10n::getView(l10n::String::STRING_FOR_CONDITIONAL),

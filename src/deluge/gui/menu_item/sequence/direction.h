@@ -13,17 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
 class Direction final : public Selection {
@@ -32,8 +31,8 @@ public:
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
-		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
-			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
+		if (!clip->affectEntire && clip->output->type == OutputType::KIT) {
+			Kit* kit = getCurrentKit();
 			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
 			}
@@ -50,7 +49,7 @@ public:
 			this->setValue(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
+			this->setValue(getCurrentInstrumentClip()->sequenceDirectionMode);
 		}
 	}
 
@@ -63,13 +62,13 @@ public:
 			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow, current_value);
 		}
 		else {
-			(static_cast<InstrumentClip*>(currentSong->currentClip))
-			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(), current_value);
+			getCurrentInstrumentClip()->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
+			                                                     current_value);
 		}
 	}
 
-	std::vector<std::string_view> getOptions() override {
-		std::vector<std::string_view> sequenceDirectionOptions = {
+	deluge::vector<std::string_view> getOptions() override {
+		deluge::vector<std::string_view> sequenceDirectionOptions = {
 		    l10n::getView(l10n::String::STRING_FOR_FORWARD),
 		    l10n::getView(l10n::String::STRING_FOR_REVERSED),
 		    l10n::getView(l10n::String::STRING_FOR_PING_PONG),
@@ -87,9 +86,8 @@ public:
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
-		if (!(static_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
-		    && currentSong->currentClip->output->type == InstrumentType::KIT
-		    && ((static_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
+		if (!getCurrentInstrumentClip()->affectEntire && getCurrentOutputType() == OutputType::KIT
+		    && (getCurrentKit()->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
 		}
 		return MenuPermission::YES;

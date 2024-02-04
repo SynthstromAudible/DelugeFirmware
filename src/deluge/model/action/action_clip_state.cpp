@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/action/action_clip_state.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 
 ActionClipState::ActionClipState() {
 }
@@ -27,16 +27,16 @@ ActionClipState::~ActionClipState() {
 }
 
 void ActionClipState::grabFromClip(Clip* thisClip) {
-	//modKnobMode = thisClip->modKnobMode;
+	// modKnobMode = thisClip->modKnobMode;
 
-	if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (thisClip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)thisClip;
 		yScrollSessionView[BEFORE] = instrumentClip->yScroll;
 		affectEntire = instrumentClip->affectEntire;
 		wrapEditing = instrumentClip->wrapEditing;
 		wrapEditLevel = instrumentClip->wrapEditLevel;
 
-		if (thisClip->output->type != InstrumentType::KIT) {
+		if (thisClip->output->type != OutputType::KIT) {
 			selectedDrumIndex = -1;
 		}
 		else {

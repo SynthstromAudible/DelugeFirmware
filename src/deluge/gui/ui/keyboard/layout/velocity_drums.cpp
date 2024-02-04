@@ -13,13 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/layout/velocity_drums.h"
-#include "definitions.h"
-#include "gui/views/instrument_clip_view.h"
-#include "model/model_stack.h"
+#include "hid/display/display.h"
 #include "util/functions.h"
+#include <stdint.h>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -78,11 +77,11 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
 	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
-		getNoteColour(state.scrollOffset + i, noteColours[i]);
+		noteColours[i] = getNoteColour(state.scrollOffset + i);
 	}
 }
 
-void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t highestClipNote = getHighestClipNote();
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
@@ -92,19 +91,16 @@ void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSi
 				continue;
 			}
 
-			uint8_t noteColour[3];
-			memcpy(&noteColour, noteColours[note - getState().drums.scrollOffset], sizeof(noteColour));
+			RGB noteColour = noteColours[note - getState().drums.scrollOffset];
 
-			uint8_t colorIntensity = intensityFromCoords(x, y);
+			uint8_t colourIntensity = intensityFromCoords(x, y);
 
 			// Highlight active notes
 			uint8_t brightnessDivider = currentNotesState.noteEnabled(note) ? 1 : 3;
 
-			noteColour[0] = (char)((noteColour[0] * colorIntensity / 255) / brightnessDivider);
-			noteColour[1] = (char)((noteColour[1] * colorIntensity / 255) / brightnessDivider);
-			noteColour[2] = (char)((noteColour[2] * colorIntensity / 255) / brightnessDivider);
-
-			memcpy(image[y][x], noteColour, sizeof(noteColour));
+			image[y][x] = noteColour.transform([colourIntensity, brightnessDivider](uint8_t chan) {
+				return ((chan * colourIntensity / 255) / brightnessDivider);
+			});
 		}
 	}
 }

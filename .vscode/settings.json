@@ -4,16 +4,50 @@
     "files.encoding": "utf8",
     "cmake.generator": "Ninja Multi-Config",
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
     },
     "files.associations": {
+        "*.scons": "python",
         "compare": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "cmath": "cpp",
+        "filesystem": "cpp",
+        "memory_resource": "cpp",
+        "array": "cpp",
+        "span": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "cwchar": "cpp",
+        "initializer_list": "cpp",
+        "utility": "cpp"
     },
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.autocomplete": "disabled",
     "C_Cpp.errorSquiggles": "disabled",
+    "clangd.arguments": [
+        "-pretty",
+        "--background-index",
+        "--query-driver=*arm-none-eabi-*",
+    ],
     "cSpell.words": [
         "SDRAM",
         "Synthstrom"
     ],
-    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin",
+    "cmake.configureEnvironment": {
+        "DELUGE_FW_ROOT": "${workspaceRoot}"
+    },
+    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/v13/win32-x86_64/arm-none-eabi-gcc/bin",
+    "advancedLocalFormatters.formatters": [
+        {
+            "command": {
+                "win32": ["dbt.cmd", "format", "--stdio", "$absoluteFilePath"],
+                "*": ["./dbt", "format", "--stdio", "$absoluteFilePath"]
+            },
+            "languages": ["cpp"]
+        }
+    ]
 }

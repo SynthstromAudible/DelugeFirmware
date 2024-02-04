@@ -13,19 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "settings.h"
 #include "devSysexSetting.h"
+#include "emulated_display.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
-
-#include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
-#include <algorithm>
 #include <array>
-#include <cstdio>
-#include <iterator>
 
 extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
@@ -40,11 +35,6 @@ Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 Setting menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
-Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
-Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
-Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
-Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
-Setting menuAutomationDisableAuditionPadShortcuts(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
@@ -52,17 +42,7 @@ Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
-
-Submenu subMenuAutomation{
-    l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
-    {
-        &menuAutomationInterpolate,
-        &menuAutomationClearClip,
-        &menuAutomationNudgeNote,
-        &menuAutomationShiftClip,
-        &menuAutomationDisableAuditionPadShortcuts,
-    },
-};
+EmulatedDisplay menuEmulatedDisplay{};
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -73,14 +53,14 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
-    &subMenuAutomation,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-    &menuEnableGrainFX};
+    &menuEnableGrainFX,
+    &menuEmulatedDisplay};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

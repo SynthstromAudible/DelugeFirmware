@@ -13,9 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
 
 namespace deluge::gui::menu_item::patched_param {

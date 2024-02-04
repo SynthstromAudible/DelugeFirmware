@@ -13,13 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "gui/ui/keyboard/layout/in_key.h"
-#include "definitions.h"
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/colour/colour.h"
+#include "hid/display/display.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
@@ -79,11 +77,11 @@ void KeyboardLayoutInKey::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
-		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
+		noteColours[i] = getNoteColour(noteFromPadIndex(state.scrollOffset + i));
 	}
 }
 
-void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void KeyboardLayoutInKey::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
@@ -98,29 +96,29 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
 			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-			uint8_t* colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
+			RGB colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
-			// Full brightness and color for active root note
+			// Full brightness and colour for active root note
 			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
-				colorCopy(image[y][x], colourSource, 255, 1);
+				image[y][x] = colourSource.adjust(255, 1);
 			}
 			// If highlighting notes is active, do it
 			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			             == RuntimeFeatureStateToggle::On
 			         && getHighlightedNotes()[note] != 0) {
-				colorCopy(image[y][x], colourSource, getHighlightedNotes()[note], 1);
+				image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
 			}
-			// Full color but less brightness for inactive root note
+			// Full colour but less brightness for inactive root note
 			else if (noteWithinScale == 0) {
-				colorCopy(image[y][x], colourSource, 255, 2);
+				image[y][x] = colourSource.adjust(255, 2);
 			}
-			// Toned down color but high brightness for active scale note
+			// Toned down colour but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
-				colorCopy(image[y][x], colourSource, 127, 3);
+				image[y][x] = colourSource.adjust(127, 3);
 			}
 			// Dimly white for inactive scale notes
 			else {
-				memset(image[y][x], 1, 3);
+				image[y][x] = RGB::monochrome(1);
 			}
 		}
 	}

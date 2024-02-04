@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include <array>
 
@@ -30,9 +31,9 @@ class ParamManagerMIDI;
 class TimelineCounter;
 class ModelStackWithParamCollection;
 
-// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't need other info stored besides their index - like MIDI CC,
-// or patch cable details.
-// This differs from other inheriting classes of ParamCollection.
+// ParamSet specifies a lot of stuff about how the params will be stored - there's always a fixed number, and they don't
+// need other info stored besides their index - like MIDI CC, or patch cable details. This differs from other inheriting
+// classes of ParamCollection.
 
 class ParamSet : public ParamCollection {
 protected:
@@ -59,7 +60,7 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
@@ -72,7 +73,7 @@ public:
 	void shiftParamValues(int32_t p, int32_t offset);
 	void shiftParamVolumeByDB(int32_t p, float offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
-	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
+	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p);
 	void insertTime(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t lengthToInsert);
 	void deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete);
@@ -86,7 +87,7 @@ public:
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 
 	uint8_t topUintToRepParams;
 
@@ -98,53 +99,55 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
-	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
-	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
-	Param::Kind getParamKind() { return kind; }
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
+	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
+	deluge::modulation::params::Kind getParamKind() override { return kind; }
 
-	Param::Kind kind = Param::Kind::NONE;
+	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
 private:
-	std::array<AutoParam, kMaxNumUnpatchedParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kMaxNumUnpatchedParams> params_;
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
-	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
-	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
-	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
-	Param::Kind getParamKind() { return Param::Kind::PATCHED; }
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
+	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::PATCHED; }
 
 private:
-	std::array<AutoParam, kNumParams> params_;
+	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
-	bool mayParamInterpolate(int32_t paramId) { return false; }
-	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
-	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	bool mayParamInterpolate(int32_t paramId) override { return false; }
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	bool writeToFile(bool mustWriteOpeningTagEndFirst = false);
 	void readFromFile(ParamCollectionSummary* summary, int32_t readAutomationUpToPos);
 	void moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length, int32_t offset,
 	                            int32_t lengthBeforeLoop, Action* action);
 	void clearValues(ModelStackWithParamCollection const* modelStack);
 	void cancelAllOverriding();
-	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
-	Param::Kind getParamKind() { return Param::Kind::EXPRESSION; }
+	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::EXPRESSION; }
 
-	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
-	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,
-	// in which case they do move to the backedUpParamManager. This is exactly the persistence we want for bendRanges too.
+	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them
+	// in the ParamManager would make more sense, except for one thing
+	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't
+	// "stolen" or "backed up" - unless the last Clip is being deleted, in which case they do move to the
+	// backedUpParamManager. This is exactly the persistence we want for bendRanges too.
 	uint8_t bendRanges[2];
 
 private:

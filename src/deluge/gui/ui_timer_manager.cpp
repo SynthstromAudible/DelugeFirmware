@@ -19,25 +19,23 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "model/clip/clip_minder.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/song/song.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/uart/sio_char.h"
 }
 
 UITimerManager uiTimerManager{};
@@ -78,7 +76,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
@@ -129,14 +127,45 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if ((getCurrentUI() == &automationInstrumentClipView)
-					    && !automationInstrumentClipView.isOnAutomationOverview()) {
+					if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 
-						automationInstrumentClipView.displayAutomation();
+						automationView.displayAutomation();
 					}
 
 					else {
 						view.displayAutomation();
+					}
+					break;
+
+				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
+					// midi follow and midi feedback enabled
+					// re-send midi cc's because learned parameter values may have changed
+					// only send updates when playback is active
+					if (playbackHandler.isEitherClockActive()
+					    && (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED)) {
+						uint32_t sendRate = 0;
+						if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::LOW) {
+							sendRate = kLowFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::MEDIUM) {
+							sendRate = kMediumFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::HIGH) {
+							sendRate = kHighFeedbackAutomationRate;
+						}
+						// check time elapsed since previous automation update is greater than or equal to send rate
+						// if so, send another automation feedback message
+						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
+							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
+						}
+					}
+					// if automation feedback was previously sent and now playback is stopped,
+					// send one more update to sync controller with deluge's current values
+					// for automated params only
+					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
+						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+						midiFollow.timeAutomationFeedbackLastSent = 0;
 					}
 					break;
 
@@ -156,7 +185,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:
-					if (display->haveOLED()) {
+					if (deluge::hid::display::have_oled_screen) {
 						oledLowLevelTimerCallback();
 					}
 					break;

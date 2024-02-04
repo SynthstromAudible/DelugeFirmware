@@ -13,23 +13,22 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "devices.h"
 #include "device.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
-#include <array>
+#include "util/container/static_vector.hpp"
 #include <string_view>
 
 extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-static constexpr int32_t lowestDeviceNum = -3;
+static constexpr int32_t lowestDeviceNum = -4;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
@@ -57,6 +56,8 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Devices::selectEncoderAction(int32_t offset) {
+	offset = std::clamp<int32_t>(offset, -1, 1);
+
 	do {
 		int32_t newValue = this->getValue() + offset;
 
@@ -110,14 +111,17 @@ void Devices::selectEncoderAction(int32_t offset) {
 
 MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 	switch (deviceIndex) {
-	case -3: {
+	case -4: {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
-	case -2: {
+	case -3: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
 	}
-	case -1: {
+	case -2: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
+	}
+	case -1: {
+		return &MIDIDeviceManager::loopbackMidi;
 	}
 	default: {
 		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 #include "model/consequence/consequence.h"
@@ -27,7 +27,7 @@ class ConsequenceClipInstanceChange final : public Consequence {
 public:
 	ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter,
 	                              Clip* clipAfter);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
 	int32_t pos[2];

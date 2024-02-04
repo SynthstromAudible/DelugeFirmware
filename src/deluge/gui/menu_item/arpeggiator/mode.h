@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -24,7 +24,6 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class Mode final : public Selection {
@@ -36,13 +35,12 @@ public:
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (currentSong->currentClip->isActiveOnOutput()) {
+			if (getCurrentClip()->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 				if (soundEditor.editingCVOrMIDIClip()) {
-					(static_cast<InstrumentClip*>(currentSong->currentClip))
-					    ->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
+					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {
 					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
@@ -55,13 +53,14 @@ public:
 		}
 		soundEditor.currentArpSettings->mode = current_value;
 
-		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
+		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's
+		// clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
 			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
 
-	std::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED), //<

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -25,7 +25,7 @@
 #define MIDI_MESSAGE_CC 2
 
 class MIDIDevice;
-
+enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {
 public:
 	LearnedMIDI();
@@ -46,7 +46,7 @@ public:
 	bool equalsChannelAllowMPE(MIDIDevice* newDevice, int32_t newChannel);
 	bool equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel);
 
-	//Check that note or CC and channel match, does not check if channel in MPE zone
+	// Check that note or CC and channel match, does not check if channel in MPE zone
 	inline bool equalsNoteOrCCAllowMPE(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPE(newDevice, newChannel));
 	}
@@ -54,7 +54,7 @@ public:
 	inline bool equalsNoteOrCCAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPEMasterChannels(newDevice, newChannel));
 	}
-
+	MIDIMatchType checkMatch(MIDIDevice* fromDevice, int32_t channel);
 	inline bool containsSomething() { return (channelOrZone != MIDI_CHANNEL_NONE); }
 
 	// You must have determined that containsSomething() == true before calling this.
@@ -79,8 +79,9 @@ public:
 	void readMPEZone();
 
 	MIDIDevice* device;
-	uint8_t
-	    channelOrZone; // In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or MIDI_CHANNEL_MPE_UPPER_ZONE. C
-	                   // Channels 18-36 signify CCs on channels 1-16+MPE respectively. Check with the constant IS_A_CC
+	// In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or
+	// MIDI_CHANNEL_MPE_UPPER_ZONE. Channels 18-36 signify CCs on channels 1-16+MPE respectively. Check with the
+	// constant IS_A_CC
+	uint8_t channelOrZone;
 	uint8_t noteOrCC;
 };

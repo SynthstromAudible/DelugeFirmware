@@ -31,20 +31,22 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -60,6 +62,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <math.h>
 #include <new>
@@ -67,7 +70,6 @@
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/uart/sio_char.h"
-#include "util/cfunctions.h"
 }
 
 PlaybackHandler playbackHandler{};
@@ -80,7 +82,7 @@ GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 mean
 int32_t pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
 
-//FineTempoKnob variable
+// FineTempoKnob variable
 int32_t tempoKnobMode = 1;
 
 bool currentlyActioningSwungTickOrResettingPlayPos = false;
@@ -97,7 +99,7 @@ PlaybackHandler::PlaybackHandler() {
 	tempoMagnitudeMatchingEnabled = false;
 	posToNextContinuePlaybackFrom = 0;
 	stopOutputRecordingAtLoopEnd = false;
-	recording = RECORDING_OFF;
+	recording = RecordingMode::OFF;
 	countInEnabled = true;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
@@ -126,7 +128,8 @@ void PlaybackHandler::routine() {
 		analogClockRisingEdge(time);
 	}
 
-	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while, then stop
+	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while,
+	// then stop
 	if ((playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && usingAnalogClockInput && analogClockInputAutoStart
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (kSampleRate >> 1)) {
 		endPlayback();
@@ -137,7 +140,7 @@ void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
 	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
 
-		Debug::println("actioning pending command -----------------------------------------");
+		D_PRINTLN("actioning pending command -----------------------------------------");
 
 		if (actionLogger.allowedToDoReversion()) {
 
@@ -167,12 +170,12 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	// If not currently playing
 	if (!playbackState) {
 		setupPlaybackUsingInternalClock(buttonPressLatency);
-		Debug::println("Play");
+		D_PRINTLN("Play");
 	}
 
 	// Or if currently playing...
 	else {
-		Debug::println("~Play");
+		D_PRINTLN("~Play");
 		// If holding <> encoder down...
 		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
@@ -193,7 +196,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			else {
 
 				if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
-				    && recording != RECORDING_ARRANGEMENT) {
+				    && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
@@ -205,7 +208,8 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		// Or, normal
 		else {
 
-			// If playing synced to analog clock input and it's on auto-start mode, don't let them stop, because it'd just auto-start again
+			// If playing synced to analog clock input and it's on auto-start mode, don't let them stop, because it'd
+			// just auto-start again
 			if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
 				if (usingAnalogClockInput && analogClockInputAutoStart) {
 					return;
@@ -228,20 +232,25 @@ void PlaybackHandler::recordButtonPressed() {
 
 	if (isUIModeWithinRange(recordButtonUIModes)) {
 
-		if (!recording) {
-			actionLogger.closeAction(ACTION_RECORD);
+		if (recording == RecordingMode::OFF) {
+			actionLogger.closeAction(ActionType::RECORD);
 		}
 
 		// Disallow recording to begin if song pre-loaded
-		if (!recording && preLoadedSong) {
+		if (recording == RecordingMode::OFF && preLoadedSong) {
 			return;
 		}
 
-		bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
+		bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
-		recording = !recording;
+		if (recording == RecordingMode::OFF) {
+			recording = RecordingMode::NORMAL;
+		}
+		else {
+			recording = RecordingMode::OFF;
+		}
 
-		if (!recording) {
+		if (recording == RecordingMode::OFF) {
 
 			if (!wasRecordingArrangement && playbackState) {
 				if (currentPlaybackMode == &session) {
@@ -275,7 +284,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	// Allow playback to start from current scroll if holding down <> knob
 	int32_t newPos = 0;
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || (getRootUI() == &arrangerView && recording == RECORDING_NORMAL)) {
+	    || (getRootUI() == &arrangerView && recording == RecordingMode::NORMAL)) {
 
 		int32_t navSys;
 		if (getRootUI() && getRootUI()->isTimelineView()) {
@@ -296,7 +305,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 
 	// See if we want a count-in
-	if (allowCountIn && !doingTempolessRecord && recording == RECORDING_NORMAL && countInEnabled
+	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInEnabled
 	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	    && getCurrentUI() == getRootUI()) {
 
@@ -330,7 +339,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 
 	// The next timer tick will be 0, and we need to set this here because the call to setupPlayback(), below,
-	// may well do things which need to look at the current internal tick count (e.g. AudioClip::resume()), and that reads from this.
+	// may well do things which need to look at the current internal tick count (e.g. AudioClip::resume()), and that
+	// reads from this.
 	nextTimerTickScheduled = 0;
 
 	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
@@ -339,8 +349,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	    (uint64_t)AudioEngine::audioSampleTimer
 	    << 32; // Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
 
-	swungTicksTilNextEvent =
-	    0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some recent call to expectEvent()
+	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some recent
+	                            // call to expectEvent()
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
@@ -374,7 +384,7 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->isArrangementOnlyClip())) {
+	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -388,7 +398,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
 
-	actionLogger.closeAction(ACTION_RECORD);
+	actionLogger.closeAction(ActionType::RECORD);
 
 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
 		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
@@ -405,8 +415,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	triggerClockOutTickScheduled = false;
 	midiClockOutTickScheduled = false;
 
-	swungTicksTilNextEvent =
-	    0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember and insanely most stuff worked
+	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember and
+	                            // insanely most stuff worked
 
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
@@ -422,7 +432,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	setLedStates();
 
 	if (doOneLastAudioRoutineCall) {
-		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not happening so it doesn't do the first tick yet
+		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
+		// happening so it doesn't do the first tick yet
 		playbackState = 0;
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		playbackState = newPlaybackState;
@@ -443,7 +454,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	metronomeOffset = playFromPos;
 
 	// We can only set these to -1 after calling the stuff above
-	//lastSwungTickDone = -1;
+	// lastSwungTickDone = -1;
 }
 
 void PlaybackHandler::endPlayback() {
@@ -456,14 +467,17 @@ void PlaybackHandler::endPlayback() {
 		currentUIMode = UI_MODE_NONE;
 	}
 
-	bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
+	bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
 	bool shouldDoInstantSongSwap =
 	    currentPlaybackMode
-	        ->endPlayback(); // Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't remember why I wrote that, and now it needs to happen before so that Clip::beingRecordedFrom is still set when playback ends, so notes stop)
+	        ->endPlayback(); // Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't
+	                         // remember why I wrote that, and now it needs to happen before so that
+	                         // Clip::beingRecordedFrom is still set when playback ends, so notes stop)
 
 	playbackState =
-	    0; // Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current tick, which needs to refer to which clock is active, which is stored in playbackState.
+	    0; // Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
+	       // tick, which needs to refer to which clock is active, which is stored in playbackState.
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
 
@@ -476,7 +490,7 @@ void PlaybackHandler::endPlayback() {
 	else {
 		if (wasRecordingArrangement) {
 			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos(), true);
-			recording = RECORDING_OFF;
+			recording = RecordingMode::OFF;
 			view.setModLedStates();
 		}
 
@@ -566,7 +580,8 @@ void PlaybackHandler::actionTimerTick() {
 	currentlyActioningTimerTick = false;
 }
 
-// 2nd part of timer tick action. We need to be able to call just this part if a song swap has occurred *not* at the same time as a timer tick
+// 2nd part of timer tick action. We need to be able to call just this part if a song swap has occurred *not* at the
+// same time as a timer tick
 void PlaybackHandler::actionTimerTickPart2() {
 
 	// Schedule next timer tick. Normal case is two swing intervals away.
@@ -574,7 +589,8 @@ void PlaybackHandler::actionTimerTickPart2() {
 	leftShift = std::max(leftShift, 0_i32);
 	uint32_t timeTilNextTimerTick = 3 << (leftShift); // That's doubleSwingInterval
 
-	// But if count-in happening, limit it to one bar's length (or perhaps this should be one beat, to avoid slight screwiness with very long swing intervals?)
+	// But if count-in happening, limit it to one bar's length (or perhaps this should be one beat, to avoid slight
+	// screwiness with very long swing intervals?)
 	if (ticksLeftInCountIn) {
 		uint32_t limit = currentSong->getBarLength();
 		if (timeTilNextTimerTick > limit) {
@@ -773,8 +789,8 @@ void PlaybackHandler::actionSwungTick() {
 
 		if (isEitherClockActive()) { // Occasionally, doTickForward() will stop playback
 
-			// If we swapped song on just a swung tick that wasn't concurrent with a timer tick (unusual), we need to go do some stuff that would normally happen
-			// as part of the timer tick
+			// If we swapped song on just a swung tick that wasn't concurrent with a timer tick (unusual), we need to go
+			// do some stuff that would normally happen as part of the timer tick
 			if (swappedSong && (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) && !currentlyActioningTimerTick) {
 				actionTimerTickPart2();
 			}
@@ -858,7 +874,8 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 // This just uses the rounded timePerTimerTick. Should be adequate
 int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder) {
 
-	// If first timer tick not actioned yet (currently the only function that calls this function already separately deals with this though)...
+	// If first timer tick not actioned yet (currently the only function that calls this function already separately
+	// deals with this though)...
 	if (!nextTimerTickScheduled) {
 		if (timeRemainder) {
 			*timeRemainder = 0;
@@ -988,8 +1005,9 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 
 	else {
 		int64_t nextSwungTickToAction = lastSwungTickActioned + swungTicksTilNextEvent;
-		if (nextSwungTickToAction // Checking for special case when nextSwungTickToAction == 0, when playback first starts.
-		    // Unchecked, that would sometimes lead to us returning -1 when following external clock.
+		if (nextSwungTickToAction // Checking for special case when nextSwungTickToAction == 0, when playback first
+		                          // starts. Unchecked, that would sometimes lead to us returning -1 when following
+		                          // external clock.
 		    && actualSwungTick >= nextSwungTickToAction) {
 			actualSwungTick = nextSwungTickToAction - 1;
 			if (timeRemainder) {
@@ -1010,8 +1028,9 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 	// Internal clock
 	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 
-		// If no timer ticks have occurred yet, the answer is a resounding zero, and we have to have this as a special case because timeLastTimerTickBig
-		// won't have been set yet. This will happen all the time during playback setup, e.g. in AudioClip::resumePlayback()
+		// If no timer ticks have occurred yet, the answer is a resounding zero, and we have to have this as a special
+		// case because timeLastTimerTickBig won't have been set yet. This will happen all the time during playback
+		// setup, e.g. in AudioClip::resumePlayback()
 		if (!nextTimerTickScheduled) {
 			if (timeRemainder) {
 				*timeRemainder = 0;
@@ -1028,8 +1047,9 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 			}
 			internalTickCount = lastTimerTickActioned + ticksSinceLastTimerTick;
 
-			// Safety against rounding errors - make sure we don't give an internal tick count that's less than a swung tick we already actioned.
-			// I've seen this happen (or at least become apparent) when at 6144 resolution with very shortened audio clip.
+			// Safety against rounding errors - make sure we don't give an internal tick count that's less than a swung
+			// tick we already actioned. I've seen this happen (or at least become apparent) when at 6144 resolution
+			// with very shortened audio clip.
 			if (internalTickCount < lastSwungTickActioned) {
 				internalTickCount = lastSwungTickActioned;
 			}
@@ -1048,7 +1068,8 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
-		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
+		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback
+		// on!
 		FREEZE_WITH_ERROR("E429");
 	}
 #endif
@@ -1070,7 +1091,8 @@ float PlaybackHandler::getCurrentInternalTickFloatFollowingExternalClock() {
 
 	float currentInputTick;
 
-	// If that input tick hasn't "happened" yet and is currently just scheduled to happen soon, then the current internal tick is before it
+	// If that input tick hasn't "happened" yet and is currently just scheduled to happen soon, then the current
+	// internal tick is before it
 	if (timeSinceLastInputTick < 0) {
 
 goAgain:
@@ -1083,19 +1105,21 @@ goAgain:
 			if (t >= lastInputTickReceived) {
 				return 0; // If all the input ticks received so far have not yet "happened"
 			}
-			if (t >= NUM_INPUT_TICKS_FOR_MOVING_AVERAGE
-			             - 1) { // If we just didn't remember that far back - should never really happen
-				currentInputTick =
-				    lastInputTickReceived - NUM_INPUT_TICKS_FOR_MOVING_AVERAGE; // Gonna be inexact, sorry!
+			// If we just didn't remember that far back - should never really happen
+			if (t >= kNumInputTicksForMovingAverage - 1) {
+				// Gonna be inexact, sorry!
+				currentInputTick = lastInputTickReceived - kNumInputTicksForMovingAverage;
 				goto gotCurrentInputTick;
 			}
 			goto goAgain;
 		}
 
-		// Just see how far apart the last two received input ticks were (even though we haven't actually actioned the most recent one yet)
+		// Just see how far apart the last two received input ticks were (even though we haven't actually actioned the
+		// most recent one yet)
 		int32_t timeBetweenInputTicks = timeLastInputTicks[t] - timeLastInputTicks[t + 1];
 
-		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
+		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and
+		// one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
 			FREEZE_WITH_ERROR("E337");
 		}
@@ -1127,8 +1151,9 @@ int32_t PlaybackHandler::getInternalTickTime(int64_t internalTickCount) {
 	// Internal clock
 	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 
-		// If first timer tick hasn't even occurred yet, various values will not yet be valid. The time of the first tick will not even have been decided.
-		// So, use audioDriver.audioSampleTimer in its place, since that is what our returned value will be compared to.
+		// If first timer tick hasn't even occurred yet, various values will not yet be valid. The time of the first
+		// tick will not even have been decided. So, use audioDriver.audioSampleTimer in its place, since that is what
+		// our returned value will be compared to.
 		if (!nextTimerTickScheduled) {
 			return AudioEngine::audioSampleTimer
 			       + (((int64_t)currentSong->timePerTimerTickBig * internalTickCount) >> 32);
@@ -1168,8 +1193,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 				// Since we're currentlyPlaying, we know that there still is a currentSong
 
-				// We want to keep the old song's tempo. We need to account for the fact that the two songs might have different magnitudes though,
-				// before we do anything like copy the timePerTimerTick. So we apply any difference in magnitude to the timePerTimerTick before we copy / compare it.
+				// We want to keep the old song's tempo. We need to account for the fact that the two songs might have
+				// different magnitudes though, before we do anything like copy the timePerTimerTick. So we apply any
+				// difference in magnitude to the timePerTimerTick before we copy / compare it.
 				int32_t magnitudeDifference =
 				    preLoadedSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitude;
 
@@ -1180,7 +1206,8 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 					currentSong->timePerTimerTickBig <<= (0 - magnitudeDifference);
 				}
 
-				// If tempo magnitude matching, we now need to look at how similar the (potentially modified) timePerTimerTick's are, and shift magnitudes if they're really different
+				// If tempo magnitude matching, we now need to look at how similar the (potentially modified)
+				// timePerTimerTick's are, and shift magnitudes if they're really different
 				if (tempoMagnitudeMatchingEnabled) {
 					while (preLoadedSong->timePerTimerTickBig > currentSong->timePerTimerTickBig * 1.414) {
 						currentSong->timePerTimerTickBig <<= 1;
@@ -1209,12 +1236,13 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
-	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because resyncInternalTicksToInputTicks() references it
+	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because
+	// resyncInternalTicksToInputTicks() references it
 	if (isEitherClockActive()) {
 
-		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do this anyway)
+		// If beginning in arranger, not allowed to preserve play position (the caller never actually tries to do this
+		// anyway)
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			preservePlayPosition = false;
 		}
@@ -1237,14 +1265,16 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			    0; // Set it so the tick which we're gonna do right now, at the start of the new song, has 0 increment
 		}
 
-		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position), do that
+		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position), do
+		// that
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			currentPlaybackMode = &arrangement;
 			arrangement.setupPlayback();
 			arrangement.resetPlayPos(currentSong->lastClipInstanceEnteredStartPos);
 		}
 
-		// Or if we weren't switching to the arranger, the equivalent of that would get called from Session::considerLaunchEvent()
+		// Or if we weren't switching to the arranger, the equivalent of that would get called from
+		// Session::considerLaunchEvent()
 	}
 
 	AudioEngine::bypassCulling = true;
@@ -1294,15 +1324,16 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 		lastInputTickReceived = -1;
 	}
 
-	//internalTickScheduled = false;
+	// internalTickScheduled = false;
 
 	tempoMagnitudeMatchingActiveNow = (!switchingFromInternalClock && !fromContinueCommand
 	                                   && tempoMagnitudeMatchingEnabled && !usingAnalogClockInput);
-	// Tempo magnitude matching just wouldn't really make sense if playing from a "continue" command, because each time we realise the tempo is actually
-	// double or half, that'd mean we'd have to re-interpret the start-position at the new magnitude, so completely jump the play-cursor to a different place, whose
-	// first beat we already missed hearing.
-	// Also, Logic, and for that matter the Deluge itself, when outputting a "continue", will output several "clock" messages simultaneously to achieve a finer resolution
-	// start position, and when hearing these, well, this looks like infinite tempo.
+	// Tempo magnitude matching just wouldn't really make sense if playing from a "continue" command, because each time
+	// we realise the tempo is actually double or half, that'd mean we'd have to re-interpret the start-position at the
+	// new magnitude, so completely jump the play-cursor to a different place, whose first beat we already missed
+	// hearing. Also, Logic, and for that matter the Deluge itself, when outputting a "continue", will output several
+	// "clock" messages simultaneously to achieve a finer resolution start position, and when hearing these, well, this
+	// looks like infinite tempo.
 
 	numInputTickTimesCounted = 0;
 
@@ -1342,7 +1373,7 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 }
 
 void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
-	Debug::println("position");
+	D_PRINTLN("position");
 	uint32_t pos = (((uint32_t)data2 << 7) | data1) * 6;
 
 	if (currentSong->insideWorldTickMagnitude >= 0) {
@@ -1352,10 +1383,12 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 		pos >>= (0 - currentSong->insideWorldTickMagnitude);
 	}
 
-	// If following external clock right now, jump to the position (actually 1 tick before the position, so the next "clock" message will play that pos)
+	// If following external clock right now, jump to the position (actually 1 tick before the position, so the next
+	// "clock" message will play that pos)
 	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
 
-		// But, to get around a weird "bug" with Ableton and my Mbox, don't do this if pos is 0 and we've only done the first input tick
+		// But, to get around a weird "bug" with Ableton and my Mbox, don't do this if pos is 0 and we've only done the
+		// first input tick
 		if (pos == 0 && lastInputTickReceived == 0) {
 			return;
 		}
@@ -1373,11 +1406,12 @@ void PlaybackHandler::startMessageReceived() {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	Debug::println("start");
+	D_PRINTLN("start");
 	// If we already are playing
 	if (playbackState) {
 
-		// If we received this message only just after having started playback ourself, assume we're getting our output echoed back to us, and just ignore it
+		// If we received this message only just after having started playback ourself, assume we're getting our output
+		// echoed back to us, and just ignore it
 		if (startIgnoringMidiClockInputIfNecessary()) {
 			return;
 		}
@@ -1395,7 +1429,7 @@ bool PlaybackHandler::startIgnoringMidiClockInputIfNecessary() {
 
 	if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastMIDIStartOrContinueMessageSent) < 50 * 44) {
-		Debug::println("ignoring midi clock input");
+		D_PRINTLN("ignoring midi clock input");
 		ignoringMidiClockInput = true;
 		return true;
 	}
@@ -1410,16 +1444,18 @@ void PlaybackHandler::continueMessageReceived() {
 		return;
 	}
 
-	Debug::println("continue");
+	D_PRINTLN("continue");
 	// If we already are playing
 	if (playbackState) {
 
-		// If we received this message only just after having started playback ourself, assume we're getting our output echoed back to us, and just ignore it
+		// If we received this message only just after having started playback ourself, assume we're getting our output
+		// echoed back to us, and just ignore it
 		if (startIgnoringMidiClockInputIfNecessary()) {
 			return;
 		}
 
-		// If already following external clock, there's nothing to do: if we already received a song position pointer, that will have already taken effect
+		// If already following external clock, there's nothing to do: if we already received a song position pointer,
+		// that will have already taken effect
 		if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
 			return;
 		}
@@ -1445,7 +1481,7 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	//Debug::println("clock");
+	// D_PRINTLN("clock");
 
 	if (playbackState) {
 		inputTick(false, time);
@@ -1501,14 +1537,16 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 		uint64_t inputTickFractionTimes50TimesInternalTicksPer =
 		    inputTickPositionForNextSwungTickTimes50TimesInternalTicksPer
 		    - (lastInputTickReceivedTimes50 * internalTicksPer);
-		// TODO: if we're scheduling a swung tick which corresponds to a couple of input ticks back in time, which could happen if they haven't actually
-		// "happened" yet and only been "received", I feel like the current method would be quite inexact and we should be looking at timeLastInputTicks[some_higher_number].
-		// Though would that do less smoothing out of jitter?
+		// TODO: if we're scheduling a swung tick which corresponds to a couple of input ticks back in time, which could
+		// happen if they haven't actually "happened" yet and only been "received", I feel like the current method would
+		// be quite inexact and we should be looking at timeLastInputTicks[some_higher_number]. Though would that do
+		// less smoothing out of jitter?
 
-		// Another important note here: inputTickFractionTimes50TimesInternalTicksPer may be negative because the scheduled swung tick might be further back in time than
-		// the scheduled time of the most recently received input tick - I think particularly for very high resolution songs? This is fine, and even if we end up with a time which
-		// has already passed, the swung tick will still get actioned on the next audio routine call. The key point is just that the below calculation
-		// must correctly deal with negative numbers.
+		// Another important note here: inputTickFractionTimes50TimesInternalTicksPer may be negative because the
+		// scheduled swung tick might be further back in time than the scheduled time of the most recently received
+		// input tick - I think particularly for very high resolution songs? This is fine, and even if we end up with a
+		// time which has already passed, the swung tick will still get actioned on the next audio routine call. The key
+		// point is just that the below calculation must correctly deal with negative numbers.
 		scheduledSwungTickTime =
 		    timeLastInputTicks[0]
 		    + (int64_t)(inputTickFractionTimes50TimesInternalTicksPer * timePerInputTickMovingAverage)
@@ -1526,9 +1564,10 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// If we were using the internal clock, we want to start again using the external clock, kinda
 	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 
-		// If we're in our count-in, that's incompatible with following external clock, so we'll just have to ignore the incoming clock for now. This
-		// has the slightly weird effect that after the count-in is over, we'll switch to following external clock, so tempo might abruptly change.
-		// But that's probably better than just permanently ignoring incoming clock, which could create more unclearness.
+		// If we're in our count-in, that's incompatible with following external clock, so we'll just have to ignore the
+		// incoming clock for now. This has the slightly weird effect that after the count-in is over, we'll switch to
+		// following external clock, so tempo might abruptly change. But that's probably better than just permanently
+		// ignoring incoming clock, which could create more unclearness.
 		if (ticksLeftInCountIn) {
 			return;
 		}
@@ -1538,7 +1577,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 
 	uint32_t timeTilInputTick;
 
-	// The 40 here is a fine-tuned amount to stop everything wrapping wrong when CPU load heavy. 28 to 98 seemed to work correctly
+	// The 40 here is a fine-tuned amount to stop everything wrapping wrong when CPU load heavy. 28 to 98 seemed to work
+	// correctly
 	if (time) {
 		timeTilInputTick =
 		    (((uint32_t)(time - (uint32_t)AudioEngine::i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
@@ -1554,15 +1594,15 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// If we're doing tempo magnitude matching, do all that
 	if (tempoMagnitudeMatchingActiveNow) {
 		if (lastInputTickReceived == -1) {
-			timeVeryFirstInputTick =
-			    timeThisInputTick; // Remember, lastInputTickReceived hasn't been increased yet for the input-tick we're processing right now
+			timeVeryFirstInputTick = timeThisInputTick; // Remember, lastInputTickReceived hasn't been increased yet for
+			                                            // the input-tick we're processing right now
 		}
 		else {
 			uint32_t timeSinceVeryFirst = timeThisInputTick - timeVeryFirstInputTick;
 			uint32_t expectedTimeSinceVeryFirst =
 			    targetedTimePerInputTick
-			    * (lastInputTickReceived
-			       + 1); // Remember, lastInputTickReceived hasn't been increased yet for the input-tick we're processing right now
+			    * (lastInputTickReceived + 1); // Remember, lastInputTickReceived hasn't been increased yet for the
+			                                   // input-tick we're processing right now
 			if (expectedTimeSinceVeryFirst < 1) {
 				expectedTimeSinceVeryFirst = 1;
 			}
@@ -1585,8 +1625,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			// If we've done this enough times, don't do it again
 			if (lastInputTickReceived >= kNumInputTicksToAllowTempoTargeting) {
 				tempoMagnitudeMatchingActiveNow = false;
-				Debug::print("finished tempo magnitude matching. magnitude = ");
-				Debug::println(currentSong->insideWorldTickMagnitude);
+				D_PRINTLN("finished tempo magnitude matching. magnitude =  %d", currentSong->insideWorldTickMagnitude);
 			}
 		}
 	}
@@ -1597,8 +1636,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	if (lastInputTickReceived != 0) {
 		uint32_t timeLastInputTickTook = timeThisInputTick - timeLastInputTicks[0];
 
-		Debug::print("time since last: ");
-		Debug::println(timeLastInputTickTook);
+		D_PRINTLN("time since last:  %d", timeLastInputTickTook);
 
 		uint32_t internalTicksPer;
 		uint32_t inputTicksPer;
@@ -1629,8 +1667,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		// 5% = 1127428915
 		if ((lowpassedTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, stickyTimePerInternalTick)
 		    || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, lowpassedTimePerInternalTick)) {
-			//Debug::println("5% tempo jump");
-			//Debug::println(lowpassedTimePerInternalTick);
+			// D_PRINTLN("5% tempo jump");
+			// D_PRINTLN(lowpassedTimePerInternalTick);
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick;
 
@@ -1640,7 +1678,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		             > multiply_32x32_rshift32(1084479242, stickyTimePerInternalTick)
 		         || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(
 		                1084479242, slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness)) {
-			//Debug::println("1% tempo jump");
+			// D_PRINTLN("1% tempo jump");
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;
 
@@ -1648,14 +1686,15 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		}
 	}
 
-	// Calculating time per input tick for the purpose of scheduling internal ticks. TODO: this code largely mirrors what the tempo magnitude matching code above does - could be combined. Or not?
+	// Calculating time per input tick for the purpose of scheduling internal ticks. TODO: this code largely mirrors
+	// what the tempo magnitude matching code above does - could be combined. Or not?
 	if (numInputTickTimesCounted) {
 		timePerInputTickMovingAverage =
 		    (uint32_t)(timeThisInputTick - timeLastInputTicks[numInputTickTimesCounted - 1]) / numInputTickTimesCounted;
 		resetTimePerInternalTickMovingAverage();
 	}
 
-	if (numInputTickTimesCounted < NUM_INPUT_TICKS_FOR_MOVING_AVERAGE) {
+	if (numInputTickTimesCounted < kNumInputTicksForMovingAverage) {
 		numInputTickTimesCounted++;
 	}
 	for (int32_t i = numInputTickTimesCounted - 1; i >= 1; i--) {
@@ -1665,7 +1704,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	timeLastInputTicks[0] = timeThisInputTick;
 
 	// Schedule an upcoming swung tick. Can only do this after updating timeLastInputTicks[0], just above.
-	// TODO: would it be better, in the case where swungTickScheduled is already true, to go and adjust / re-schedule it now we have more information?
+	// TODO: would it be better, in the case where swungTickScheduled is already true, to go and adjust / re-schedule it
+	// now we have more information?
 	if (!swungTickScheduled) {
 		scheduleSwungTickFromExternalClock();
 	}
@@ -1739,8 +1779,8 @@ void PlaybackHandler::getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer,
 	}
 }
 
-// To be called if we need to skip the analog-out tick count to a different place, because some scaling stuff has changed.
-// At this point, whatever device is following our clock will cease to be correctly synced to us
+// To be called if we need to skip the analog-out tick count to a different place, because some scaling stuff has
+// changed. At this point, whatever device is following our clock will cease to be correctly synced to us
 void PlaybackHandler::resyncAnalogOutTicksToInternalTicks() {
 
 	if (!cvEngine.isTriggerClockOutputEnabled()) {
@@ -1860,8 +1900,9 @@ displayNudge:
 				currentSong->insideWorldTickMagnitude += offset;
 				resyncInternalTicksToInputTicks(currentSong);
 
-				// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has changed, but whatever effect this has on the scaling of
-				// input ticks to internal ticks, it has the opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
+				// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
+				// changed, but whatever effect this has on the scaling of input ticks to internal ticks, it has the
+				// opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
 			}
 		}
 
@@ -1891,9 +1932,9 @@ displayNudge:
 
 		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
-			//FimeTempoKnob logic
+			// FimeTempoKnob logic
 			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-			     == RuntimeFeatureStateToggle::On)) { //feature on
+			     == RuntimeFeatureStateToggle::On)) { // feature on
 				tempoKnobMode = 2;
 			}
 			else {
@@ -1902,7 +1943,7 @@ displayNudge:
 
 			if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-				     == RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
+				     == RuntimeFeatureStateToggle::On)) { // feature is on, tempo button push-turned
 					tempoKnobMode = 1;
 				}
 
@@ -1939,7 +1980,7 @@ displayNudge:
 			case 2:
 				// Fine tempo adjustment
 
-				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
 				tempoBPM += offset;
 				if (tempoBPM > 0) {
 					currentSong->setBPM(tempoBPM, true);
@@ -1983,13 +2024,14 @@ void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessa
 		}
 	}
 
-	surplusOutputTicks++; // Need one extra one to make the follower "play" the position the pointer points to, right now.
+	surplusOutputTicks++; // Need one extra one to make the follower "play" the position the pointer points to, right
+	                      // now.
 
 	midiEngine.sendPositionPointer(positionPointer);
 
 	// If we've just switched output clocks back on and they were off, we'd better send a continue message
-	// BUT this didn't work in Ableton! In Live 8, you could instead put a "start" message *before* sending the position pointer.
-	// But this doesn't work anymore in Live 9, so let's just do it the "proper" MIDI way always.
+	// BUT this didn't work in Ableton! In Live 8, you could instead put a "start" message *before* sending the position
+	// pointer. But this doesn't work anymore in Live 9, so let's just do it the "proper" MIDI way always.
 	if (sendContinueMessageToo) {
 		midiEngine.sendContinue();
 	}
@@ -2127,7 +2169,8 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		bool isPerfect = false;
 
-		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do display that as an integer
+		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do
+		// display that as an integer
 		if (roundedBigger != 0 && !(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
 
 			// Compare to current tempo to see if 100% accurate
@@ -2166,8 +2209,8 @@ void PlaybackHandler::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::PLAY, playbackState);
 
 	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
-	    && recording != RECORDING_ARRANGEMENT) {
-		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RECORDING_NORMAL);
+	    && recording != RecordingMode::ARRANGEMENT) {
+		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RecordingMode::NORMAL);
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
@@ -2189,7 +2232,8 @@ void PlaybackHandler::toggleMetronomeStatus() {
 	}
 }
 
-// Called when playing synced and sync scaling or magnitude have been changed - e.g. when user doubles or halves tempo, or sync scaling is activated
+// Called when playing synced and sync scaling or magnitude have been changed - e.g. when user doubles or halves tempo,
+// or sync scaling is activated
 void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
 		// This works. Although it doesn't do anything special to account for swing, no long-term out-of-sync-ness
@@ -2197,8 +2241,9 @@ void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 		lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();
 		currentPlaybackMode->resyncToSongTicks(song);
 
-		// In most cases, if we're here, we'll want to alter the "following" internal tick tempo to "remember" what time-scaling stuff we changed.
-		// This happens routinely every ~24 clocks anyway, but sometimes it makes sense to store this change instantly, e.g. if we just changed time-scaling like we probably just did
+		// In most cases, if we're here, we'll want to alter the "following" internal tick tempo to "remember" what
+		// time-scaling stuff we changed. This happens routinely every ~24 clocks anyway, but sometimes it makes sense
+		// to store this change instantly, e.g. if we just changed time-scaling like we probably just did
 		resetTimePerInternalTickMovingAverage();
 	}
 }
@@ -2221,16 +2266,16 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 
 void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
-	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
+	if (clip->type != ClipType::AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
 		return;
 	}
 
 	uint64_t loopLengthSamples = ((AudioClip*)clip)->sampleHolder.getLengthInSamplesAtSystemSampleRate(true);
-	Action* action = actionLogger.getNewAction(ACTION_TEMPO_CHANGE);
+	Action* action = actionLogger.getNewAction(ActionType::TEMPO_CHANGE);
 
-	//setTempoFromAudioClipLength(loopLengthSamples, action);
+	// setTempoFromAudioClipLength(loopLengthSamples, action);
 
 	double timePerTick = (double)loopLengthSamples / clip->loopLength;
 
@@ -2238,7 +2283,8 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	currentSong->setTempoFromNumSamples(timePerTick, false);
 
-	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
+	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other
+	// stuff
 	if (action) {
 
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
@@ -2272,7 +2318,8 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 
 	currentSong->setTempoFromNumSamples(timePerTick, false);
 
-	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
+	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other
+	// stuff
 	if (action) {
 
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
@@ -2308,9 +2355,9 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 			Clip* nextPendingOverdub = currentSong->getPendingOverdubWithOutput(clip->output);
 
-			clip->finishLinearRecording(
-			    modelStackWithTimelineCounter, NULL,
-			    buttonLatencyForTempolessRecord); // nextPendingOverdub doesn't actually get used in this call, for audioClips
+			clip->finishLinearRecording(modelStackWithTimelineCounter, NULL,
+			                            buttonLatencyForTempolessRecord); // nextPendingOverdub doesn't actually get
+			                                                              // used in this call, for audioClips
 
 			// If first one found, calculate tempo and everything
 			if (!foundAnyYet) {
@@ -2321,7 +2368,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
-				action = actionLogger.getNewAction(ACTION_RECORD, true);
+				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 				ticksLong = setTempoFromAudioClipLength(loopLengthSamples, action);
 			}
@@ -2349,15 +2396,17 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 		endPlayback();
 	}
 
-	if (shouldExitRecordMode && recording == RECORDING_NORMAL) {
-		recording = RECORDING_OFF;
+	if (shouldExitRecordMode && recording == RecordingMode::NORMAL) {
+		recording = RecordingMode::OFF;
 		setLedStates();
 	}
 
-	// Unless the user just hit the play button to stop playback, we probably just want it to start again - so they hear the loop they just recorded
+	// Unless the user just hit the play button to stop playback, we probably just want it to start again - so they hear
+	// the loop they just recorded
 	if (shouldStartPlaybackAgain) {
 
-		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later will stop and start playback respectively
+		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later
+		// will stop and start playback respectively
 		if (action) {
 			void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
 
@@ -2367,9 +2416,9 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 			}
 		}
 
-		setupPlaybackUsingInternalClock(
-		    0,
-		    false); // Send 0 for buttonPressLatency - cos we know that another tempoless record is not about to begin, cos we just finished one
+		setupPlaybackUsingInternalClock(0,
+		                                false); // Send 0 for buttonPressLatency - cos we know that another tempoless
+		                                        // record is not about to begin, cos we just finished one
 	}
 }
 
@@ -2377,11 +2426,11 @@ static const uint32_t noteRecordingUIModes[] = {UI_MODE_HORIZONTAL_ZOOM, UI_MODE
                                                 UI_MODE_RECORD_COUNT_IN, 0};
 
 bool PlaybackHandler::shouldRecordNotesNow() {
-	return (
-	    isEitherClockActive() && recording && isUIModeWithinRange(noteRecordingUIModes)
-	    && (!playbackHandler.ticksLeftInCountIn
-	        || getTimeLeftInCountIn()
-	               <= kLinearRecordingEarlyFirstNoteAllowance) // If doing a count-in, only allow notes to be recorded up to 100mS early
+	return (isEitherClockActive() && recording != RecordingMode::OFF && isUIModeWithinRange(noteRecordingUIModes)
+	        && (!playbackHandler.ticksLeftInCountIn
+	            || getTimeLeftInCountIn()
+	                   <= kLinearRecordingEarlyFirstNoteAllowance) // If doing a count-in, only allow notes to be
+	                                                               // recorded up to 100mS early
 	);
 }
 
@@ -2397,9 +2446,9 @@ int32_t PlaybackHandler::getTimeLeftInCountIn() {
 }
 
 void PlaybackHandler::stopAnyRecording() {
-	if (playbackState && recording) {
-		bool wasRecordingArrangement = (recording == RECORDING_ARRANGEMENT);
-		recording = RECORDING_OFF;
+	if (playbackState && recording != RecordingMode::OFF) {
+		bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
+		recording = RecordingMode::OFF;
 
 		setLedStates();
 		if (wasRecordingArrangement) {
@@ -2427,11 +2476,11 @@ void PlaybackHandler::tapTempoButtonPress() {
 		}
 		// timePerQuarterNote no longer represents quarter notes, but 3-ticks's
 
-		actionLogger.closeAction(ACTION_TEMPO_CHANGE); // Don't add to previous action
+		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't add to previous action
 		currentSong->setTimePerTimerTick(
 		    timePerQuarterNoteBig / 3,
 		    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
-		actionLogger.closeAction(ACTION_TEMPO_CHANGE); // Don't allow next action to add to this one
+		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
 		displayTempoByCalculation();
 	}
@@ -2458,7 +2507,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
-				if (recording != RECORDING_ARRANGEMENT) {
+				if (recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				break;
@@ -2474,8 +2523,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			case GlobalMIDICommand::LOOP:
 			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
 				if (actionLogger.allowedToDoReversion()
-				    || currentUIMode
-				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
+				    // Not quite sure if this describes exactly what we want but it'll do...
+				    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
 					                                ? OverDubType::Normal
 					                                : OverDubType::ContinuousLayering;
@@ -2487,8 +2536,9 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			case GlobalMIDICommand::UNDO:
 				if (actionLogger.allowedToDoReversion()) {
 					// We're going to "pend" it rather than do it right now in any case.
-					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a SampleRecorder.
-					// Secondly, reversion can take a lot of time, and may want to call the audio routine - which is locked cos we're in it!
+					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a
+					// SampleRecorder. Secondly, reversion can take a lot of time, and may want to call the audio
+					// routine - which is locked cos we're in it!
 					pendingGlobalMIDICommand = static_cast<GlobalMIDICommand>(c);
 					pendingGlobalMIDICommandNumClustersWritten = 0;
 				}
@@ -2497,7 +2547,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			case GlobalMIDICommand::FILL:
 				currentSong->changeFillMode(true);
 				break;
-			//case GlobalMIDICommand::TAP:
+
+			// case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
 					if (currentUIMode == UI_MODE_NONE) {
@@ -2520,7 +2571,8 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	bool foundAnything = false;
 
 	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+	                                                                                               note)) {
 		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
@@ -2528,35 +2580,20 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	return foundAnything;
 }
 
-void PlaybackHandler::programChangeReceived(int32_t channel, int32_t program) {
-
-	/*
-    // If user assigning MIDI commands, do that
-    if (subMode == UI_MODE_MIDI_LEARN) {
-    	if (getCurrentUI() == &soundEditor && soundEditor.noteOnReceivedForMidiLearn(channel + 16, program, 127)) {}
-    	return;
-    }
-
-
-    tryGlobalMIDICommands(channel + 16, program);
-    */
-}
-
-void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
-                                          int32_t velocity, bool* doingMidiThru) {
-	// If user assigning/learning MIDI commands, do that
-	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
-		// Checks velocity to let note-offs pass through,
-		// so no risk of stuck note if they pressed learn while holding a note
-		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-
-		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
-
+void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+	// If user assigning MIDI commands, do that
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+		if (getCurrentUI()->pcReceivedForMidiLearn(fromDevice, channel, program)) {}
 		else {
-			view.noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity);
+			view.pcReceivedForMIDILearn(fromDevice, channel, program);
 		}
-		return;
 	}
+	else {
+		// we build ontop of the CC hack
+		offerNoteToLearnedThings(fromDevice, true, channel + IS_A_PC, program);
+	}
+}
+bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note) {
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
 
@@ -2603,7 +2640,27 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 		}
 	}
 
-	if (foundAnything) {
+	return foundAnything;
+}
+
+void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+                                          int32_t velocity, bool* doingMidiThru) {
+	// If user assigning/learning MIDI commands, do that
+	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
+		// Checks velocity to let note-offs pass through,
+		// so no risk of stuck note if they pressed learn while holding a note
+		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+
+		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
+		else {
+			view.noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity);
+		}
+		return;
+	}
+
+	// Otherwise, enact the relevant MIDI command, if it can be found
+
+	if (offerNoteToLearnedThings(fromDevice, on, channel, note)) {
 		return;
 	}
 
@@ -2611,6 +2668,12 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// See if note message received should be processed by midi follow mode
+	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
+		midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+		                               modelStack);
+	}
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2620,8 +2683,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(thisOutput->activeClip);
-			//Output is a MIDI instrument, kit, or melodic instrument
-			//Midi instruments will hand control to NonAudioInstrument which inherits from melodic
+			// Output is a MIDI instrument, kit, or melodic instrument
+			// Midi instruments will hand control to NonAudioInstrument which inherits from melodic
 			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
 			                              shouldRecordNotesNowNow
 			                                  && currentSong->isOutputActiveInArrangement(
@@ -2647,16 +2710,17 @@ bool PlaybackHandler::subModeAllowsRecording() {
 }
 
 void PlaybackHandler::songSelectReceived(uint8_t songId) {
-	// I've disabled this, people won't need it. If I was going to do it, I'd have to have it check that the SD card isn't currently being accessed, and nothing else crucial was happening
+	// I've disabled this, people won't need it. If I was going to do it, I'd have to have it check that the SD card
+	// isn't currently being accessed, and nothing else crucial was happening
 	/*
-    if (storageManager.openXMLFile("SONGS", getThingFilename("SONG", songId, -1), "song")) {
-        storageManager.loadSong(songId, -1);
-    }
-    */
+	if (storageManager.openXMLFile("SONGS", getThingFilename("SONG", songId, -1), "song")) {
+	    storageManager.loadSong(songId, -1);
+	}
+	*/
 }
 
 bool PlaybackHandler::isCurrentlyRecording() {
-	return (playbackState && recording);
+	return (playbackState && recording != RecordingMode::OFF);
 }
 
 void PlaybackHandler::switchToArrangement() {
@@ -2682,7 +2746,7 @@ void PlaybackHandler::switchToArrangement() {
 }
 
 void PlaybackHandler::switchToSession() {
-	if (recording) {
+	if (recording != RecordingMode::OFF) {
 		arrangement.endAnyLinearRecording();
 	}
 	currentPlaybackMode = &session;
@@ -2725,6 +2789,11 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
+	// See if pitch bend received should be processed by midi follow mode
+	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
+		midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
+	}
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2737,7 +2806,8 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 			// See if it's learned to a parameter
 			usedForParam = thisOutput->offerReceivedPitchBendToLearnedParams(
 			    fromDevice, channel, data1, data2,
-			    modelStackWithTimelineCounter); // NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
+			    modelStackWithTimelineCounter); // NOTE: this call may change
+			                                    // modelStackWithTimelineCounter->timelineCounter etc!
 		}
 
 		if (!usedForParam) {
@@ -2751,49 +2821,46 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                      bool* doingMidiThru) {
-
+	// true only if it's an MPE member channel, and therefore only used for per note expression
 	bool isMPE = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
 
 	if (isMPE) {
 		fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][1] = (value - 64) << 9;
 	}
 	else {
-
+		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.midiCCReceived(fromDevice, channel, ccNumber, value)) {
+			if (soundEditor.midiCCReceived(fromDevice, channelOrZone, ccNumber, value)) {
 				return;
 			}
 		}
-
-		else {
-			if (currentUIMode == UI_MODE_MIDI_LEARN) {
-				view.ccReceivedForMIDILearn(fromDevice, channel, ccNumber, value);
-				return;
-			}
+		// then midi learn is second priority
+		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
+			view.ccReceivedForMIDILearn(fromDevice, channelOrZone, ccNumber, value);
+			// we don't want this learn to immediately trigger the thing it was learnt to so just return
+			return;
 		}
-
-		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-
-		if (value > 0) {
-			if (tryGlobalMIDICommands(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
-				return;
-			}
-		}
-		else {
-			if (tryGlobalMIDICommandsOff(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
-				return;
-			}
+		// check if it was learned to on/off commands (loop, drums, section launch etc.)
+		else if (offerNoteToLearnedThings(fromDevice, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
+			return;
 		}
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
+	// See if midi cc received should be processed by midi follow mode
+	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
+		midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
+	}
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
-		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip? Yeah this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but this seems restrictive for the user...)
+		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip? Yeah
+		// this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but this seems
+		// restrictive for the user...)
 		if (thisOutput->activeClip) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -2803,7 +2870,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 				// See if it's learned to a parameter
 				thisOutput->offerReceivedCCToLearnedParams(
 				    fromDevice, channel, ccNumber, value,
-				    modelStackWithTimelineCounter); // NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
+				    modelStackWithTimelineCounter); // NOTE: this call may change
+				                                    // modelStackWithTimelineCounter->timelineCounter etc!
 			}
 
 			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
@@ -2812,7 +2880,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	}
 }
 
-// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
+// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one
+// note).
 void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
                                          bool* doingMidiThru) {
 
@@ -2825,6 +2894,11 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// See if aftertouch received should be processed by midi follow mode
+	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
+		midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
+	}
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2852,8 +2926,8 @@ void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 
 	// If not playing yet, start
 	if (!playbackState) {
-		if (!recording) {
-			recording = RECORDING_NORMAL;
+		if (recording == RecordingMode::OFF) {
+			recording = RecordingMode::NORMAL;
 		}
 		playButtonPressed(kMIDIKeyInputLatency);
 	}
@@ -2864,8 +2938,8 @@ void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 
 probablyExitRecordMode:
 		// Exit RECORD mode, as indicated on LED
-		if (playbackHandler.recording == RECORDING_NORMAL) {
-			playbackHandler.recording = RECORDING_OFF;
+		if (playbackHandler.recording == RecordingMode::NORMAL) {
+			playbackHandler.recording = RecordingMode::OFF;
 			playbackHandler.setLedStates();
 		}
 	}
@@ -2874,7 +2948,7 @@ probablyExitRecordMode:
 	else if (currentPlaybackMode == &arrangement) {}
 
 	// Or if recording from session to arrangement, we're not allowed to do any loopy stuff during that
-	else if (playbackHandler.recording == RECORDING_ARRANGEMENT) {}
+	else if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {}
 
 	// Or if tempoless recording, close that
 	else if (!isEitherClockActive()) {
@@ -2888,9 +2962,8 @@ probablyExitRecordMode:
 	}
 
 	// If pending overdubs already exist, then delete those.
-	else if (
-	    currentSong
-	        ->deletePendingOverdubs()) { // TODO: this traverses all Clips. So does further down. This could be combined
+	else if (currentSong->deletePendingOverdubs()) { // TODO: this traverses all Clips. So does further down. This could
+		                                             // be combined
 		session.launchSchedulingMightNeedCancelling();
 		uiNeedsRendering(&sessionView);
 
@@ -2911,7 +2984,8 @@ probablyExitRecordMode:
 			}
 		}
 
-		// Or if none were recording, or if it was the LAYERING command, then create a new overdub (potentially in addition to having armed the old one to stop
+		// Or if none were recording, or if it was the LAYERING command, then create a new overdub (potentially in
+		// addition to having armed the old one to stop
 		if (!anyGotArmedToStop || overdubNature == OverDubType::ContinuousLayering) {
 
 doCreateNextOverdub:
@@ -2927,8 +3001,8 @@ doCreateNextOverdub:
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only
-			else if (currentSong->currentClip && !currentSong->currentClip->isArrangementOnlyClip()) {
-				clipToCreateOverdubFrom = currentSong->currentClip;
+			else if (getCurrentClip() && !getCurrentClip()->isArrangementOnlyClip()) {
+				clipToCreateOverdubFrom = getCurrentClip();
 				clipIndexToCreateOverdubFrom = currentSong->sessionClips.getIndexForClip(clipToCreateOverdubFrom);
 			}
 
@@ -2936,33 +3010,33 @@ doCreateNextOverdub:
 			if (clipToCreateOverdubFrom) {
 
 				// So long as it's got an input source...
-				if (clipToCreateOverdubFrom->type != CLIP_TYPE_AUDIO
+				if (clipToCreateOverdubFrom->type != ClipType::AUDIO
 				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel > AudioInputChannel::NONE) {
 
 					// If that Clip wasn't armed to record linearly...
 					if (!clipToCreateOverdubFrom->armedForRecording) {
 
 						// Ron's suggestion - just exit out of record mode.
-						if (recording) {
-							recording = RECORDING_OFF;
+						if (recording != RecordingMode::OFF) {
+							recording = RecordingMode::OFF;
 						}
 
 						// Or if we weren't in record mode... heck, who knows, maybe just switch it back on?
 						else {
-							recording = RECORDING_NORMAL;
+							recording = RecordingMode::NORMAL;
 						}
 						setLedStates();
 					}
 
 					// Or if that Clip was armed to record linearly...
 					else {
-						//ensure that audio clips will clone outputs to layer continuously
+						// ensure that audio clips will clone outputs to layer continuously
 						if (overdubNature == OverDubType::ContinuousLayering) {
 							clipToCreateOverdubFrom->overdubsShouldCloneOutput = true;
 						}
 
-						if (!recording) {
-							recording = RECORDING_NORMAL;
+						if (recording == RecordingMode::OFF) {
+							recording = RecordingMode::NORMAL;
 							setLedStates();
 						}
 

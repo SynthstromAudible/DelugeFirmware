@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -25,7 +25,7 @@ class ConsequenceClipBeginLinearRecord final : public Consequence {
 public:
 	ConsequenceClipBeginLinearRecord(Clip* newClip);
 
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	Clip* clip;
 };

@@ -18,7 +18,7 @@
 #include "model/sample/sample_holder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -148,7 +148,7 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 		FREEZE_WITH_ERROR("E368");
 	}
 
-	//unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
+	// unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
 
 	int32_t playDirection = reversed ? -1 : 1;
 	int32_t bytesPerSample = audioFile->numChannels * ((Sample*)audioFile)->byteDepth;
@@ -193,12 +193,12 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
 		if (l == NUM_SAMPLE_CLUSTERS_LOADED_AHEAD - 1) {
-			if (playDirection == 1) {
-				if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
-			}
-			else {
-				if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
-			}
+		    if (playDirection == 1) {
+		        if (posWithinCluster < (sampleManager.clusterSize >> 2)) break;
+		    }
+		    else {
+		        if (posWithinCluster > sampleManager.clusterSize - (sampleManager.clusterSize >> 2)) break;
+		    }
 		}
 		*/
 
@@ -207,10 +207,10 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
 		if (!newClusters[l]) {
-			Debug::println("NULL!!");
+			D_PRINTLN("NULL!!");
 		}
 		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			Debug::println("not loaded!!");
+			D_PRINTLN("not loaded!!");
 		}
 
 		clusterIndex += playDirection;

@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
@@ -40,7 +40,8 @@ public:
 	int8_t transpose;
 	int8_t cents;
 	int32_t
-	    pitchBend; // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different to the equivalent calculation in Voice, which needs to get things into a number of octaves.
+	    pitchBend; // (1 << 23) represents one semitone. So full 32-bit range can be +-256 semitones. This is different
+	               // to the equivalent calculation in Voice, which needs to get things into a number of octaves.
 };
 
 class GateChannel {
@@ -87,8 +88,8 @@ public:
 	bool clockOutputPending;
 
 	// When one or more note-on is pending, this is the latest time that one of them last switched off.
-	// But it seems I only use this very coarsely - more to see if we're still in the same audio frame than to measure time exactly.
-	// This could be improved.
+	// But it seems I only use this very coarsely - more to see if we're still in the same audio frame than to measure
+	// time exactly. This could be improved.
 	uint32_t mostRecentSwitchOffTimeOfPendingNoteOn;
 
 	void sendVoltageOut(uint8_t channel, uint16_t voltage);

@@ -13,10 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
@@ -25,10 +26,11 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "util/cfunctions.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -38,7 +40,6 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include "util/cfunctions.h"
 }
 
 void ramTestUart() {
@@ -48,8 +49,8 @@ void ramTestUart() {
 
 	while (1) {
 
-		//while (1) {
-		Debug::println("writing to ram");
+		// while (1) {
+		D_PRINTLN("writing to ram");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			*address = (uint32_t)address;
@@ -57,8 +58,8 @@ void ramTestUart() {
 		}
 		//}
 
-		//while (1) {
-		Debug::println("reading back from ram. Checking for errors every megabyte");
+		// while (1) {
+		D_PRINTLN("reading back from ram. Checking for errors every megabyte");
 		address = (uint32_t*)EXTERNAL_MEMORY_BEGIN;
 		while (address != (uint32_t*)EXTERNAL_MEMORY_END) {
 			if (*address != (uint32_t)address) {
@@ -68,18 +69,15 @@ void ramTestUart() {
 					while (uartGetTxBufferFullnessByItem(UART_ITEM_MIDI) > 100) {
 						;
 					}
-					Debug::print("error at ");
-					Debug::print((uint32_t)address);
-					Debug::print(". got ");
-					Debug::println(*address);
-					//while(1);
+					D_PRINTLN("error at  %d . got  %d", (uint32_t)address, *address);
+					// while(1);
 					lastErrorAt = errorAtBlockNow;
 				}
 			}
 			address++;
 		}
 		//}
-		Debug::println("finished checking ram");
+		D_PRINTLN("finished checking ram");
 	}
 }
 
@@ -93,10 +91,11 @@ void setupSquareWave() {
 	int32_t count = 0;
 	for (int32_t* address = getTxBufferStart(); address < getTxBufferEnd(); address++) {
 		if (count < SSI_TX_BUFFER_NUM_SAMPLES) {
-			*address = 2147483647;
+			*address = std::numeric_limits<int32_t>::max();
 		}
 		else {
-			*address = -2147483648;
+			*address = std::numeric_limits<int32_t>::min();
+			;
 		}
 
 		count++;
@@ -107,22 +106,27 @@ int32_t hardwareTestWhichColour = 0;
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 	for (int32_t x = 0; x < 9; x++) {
-		bufferPICUart(x + 1);
+
+		std::array<RGB, 16> colours{};
 		for (int32_t y = 0; y < 16; y++) {
+			std::array<uint8_t, 3> raw_colour{};
 			for (int32_t c = 0; c < 3; c++) {
-				int32_t value;
+				int32_t value = 0;
 				if (testButtonStates[x][y]) {
 					value = 255;
 				}
-				else {
-					value = (c == hardwareTestWhichColour) ? 64 : 0;
+				else if (c == hardwareTestWhichColour) {
+					value = 64;
 				}
-				bufferPICUart(value);
+				raw_colour[c] = value;
 			}
+			colours[y] = {raw_colour[0], raw_colour[1], raw_colour[2]};
 		}
+
+		PIC::setColourForTwoColumns(x, colours);
 	}
 
-	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
+	PIC::flush();
 }
 
 bool anythingProbablyPressed = false;
@@ -181,7 +185,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 			}
 		}
 		else if (value == oledWaitingForMessage && display->haveOLED()) {
-			//delayUS(2500); // TODO: fix
+			// delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
 			}
@@ -226,7 +230,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	if (display->haveOLED()) {
 		oledRoutine();
 	}
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	PIC::flush();
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
@@ -251,15 +255,10 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		setupSquareWave();
 	}
 
-	bufferPICUart(23); // Set flash length
-	bufferPICUart(100);
+	PIC::setFlashLength(100);
 
 	// Switch on numeric display
-	bufferPICUart(224);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
+	PIC::update7SEG({0xFF, 0xFF, 0xFF, 0xFF});
 
 	// Switch on level indicator LEDs
 	indicator_leds::setKnobIndicatorLevel(0, 128);
@@ -271,28 +270,28 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			continue; // Skip icecube LEDs
 		}
 		for (int32_t y = 0; y < 4; y++) {
-			bufferPICUart(152 + x + y * 9 + 36);
+			PIC::setLEDOn(x + y * 9);
 		}
 	}
 
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	PIC::flush();
 
 	// Codec
-	setPinAsOutput(6, 12);
-	setOutputState(6, 12, 1); // Switch it on
+	setPinAsOutput(CODEC.port, CODEC.pin);
+	setOutputState(CODEC.port, CODEC.pin, 1); // Switch it on
 
 	// Speaker / amp control
 	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 1); // Switch it on
 
 	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(6, 6);                                        // Line in detect
-	setPinAsInput(7, 9);                                        // Mic detect
+	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
+	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
 
 	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 
-	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
+	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
 
 	setPinAsInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin); // Gate input
 
@@ -323,7 +322,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		}
 
 		// Send MIDI
-		//midiEngine.sendNote(ledState, 50, 64, 0, true);
+		// midiEngine.sendNote(ledState, 50, 64, 0, true);
 
 		ledState = !ledState;
 
@@ -332,7 +331,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 			if (((uint32_t)address & 4095) == 0) {
 				readInputsForHardwareTest(testButtonStates);
-				//AudioEngine::routine(false);
+				// AudioEngine::routine(false);
 			}
 			*address = (uint32_t)address;
 			address++;
@@ -344,7 +343,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		while (address != (uint32_t*)0x10000000) {
 			if (((uint32_t)address & 4095) == 0) {
 				readInputsForHardwareTest(testButtonStates);
-				//AudioEngine::routine(false);
+				// AudioEngine::routine(false);
 			}
 
 			if (*address != (uint32_t)address) {
@@ -410,7 +409,7 @@ void autoPilotStuff() {
 
 	case 0:
 
-		if (true) { //getCurrentUI() == &instrumentClipView && currentSong->currentClip->output->type == InstrumentType::KIT) {
+		if (true) { // getCurrentUI() == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
 			if (!currentUIMode) {
 				randThing = getRandom255();
 
@@ -447,13 +446,13 @@ void autoPilotStuff() {
 				// Or save song
 				/*
 				else {
-					autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
-					Buttons::buttonAction(SAVE, true, false);
-					Buttons::buttonAction(SAVE, false, false);
+				    autoPilotMode = AUTOPILOT_IN_SONG_SAVER;
+				    Buttons::buttonAction(SAVE, true, false);
+				    Buttons::buttonAction(SAVE, false, false);
 
-					QwertyUI::enteredText.set("T001");
+				    QwertyUI::enteredText.set("T001");
 
-					//saveSongUI.performSave(true);
+				    //saveSongUI.performSave(true);
 				}
 				*/
 
@@ -557,8 +556,8 @@ void autoPilotStuff() {
 
 		// Maybe press load button
 		else {
-			//matrixDriver.buttonAction(LOAD, true, false);
-			//matrixDriver.buttonAction(LOAD, false, false);
+			// matrixDriver.buttonAction(LOAD, true, false);
+			// matrixDriver.buttonAction(LOAD, false, false);
 
 			loadSongUI.performLoad();
 		}

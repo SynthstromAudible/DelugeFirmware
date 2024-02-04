@@ -13,15 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
-#include "dsp/stereo_sample.h"
 #include <cstdint>
-#include <math.h>
 
 struct DelayWorkingState {
 	bool doDelay;
@@ -37,7 +35,8 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(DelayWorkingState* workingState, bool anySoundComingIn = true);
+	void setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+	                       bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(DelayWorkingState* workingState);
 	void hasWrapped();

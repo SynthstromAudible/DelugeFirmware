@@ -13,13 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::submenu {
@@ -31,7 +30,7 @@ public:
 
 		soundEditor.currentArpSettings = soundEditor.editingKit()
 		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
-		                                     : &(static_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
+		                                     : &getCurrentInstrumentClip()->arpSettings;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 };

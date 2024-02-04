@@ -23,6 +23,7 @@ class MIDIDevice;
 class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
+class MIDIDeviceLoopback;
 
 #else
 #include "definitions.h"
@@ -66,7 +67,7 @@ public:
 	bool hasBufferedSendData();
 	int sendBufferSpace();
 #else
-//warning - accessed as a C struct from usb driver
+// warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
 	struct MIDIDeviceUSB* device[4];
 #endif
@@ -78,7 +79,8 @@ struct ConnectedUSBMIDIDevice {
 
 	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
-	// This will show a value after the general flush function is called, throughout other Devices being sent to before this one, and until we've completed our send
+	// This will show a value after the general flush function is called, throughout other Devices being sent to before
+	// this one, and until we've completed our send
 	uint8_t numBytesSendingNow;
 
 	// This is a ring buffer for data waiting to be sent which doesn't fit the smaller buffer above.
@@ -99,6 +101,8 @@ void slowRoutine();
 MIDIDevice* readDeviceReferenceFromFile();
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
+void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile();
@@ -108,6 +112,7 @@ extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
 extern MIDIDeviceDINPorts dinMIDIPorts;
+extern MIDIDeviceLoopback loopbackMidi;
 
 extern bool differentiatingInputsByDevice;
 

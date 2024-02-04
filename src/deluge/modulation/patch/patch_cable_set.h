@@ -55,43 +55,43 @@ public:
 	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
 	bool doesParamHaveSomethingPatchedToIt(int32_t p);
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack);
-	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
-	void playbackHasEnded(ModelStackWithParamCollection* modelStack);
-	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack);
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
+	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
+	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override;
+	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) override;
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
-	                     bool shouldPingpong);
+	                     bool shouldPingpong) override;
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
-	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
+	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) override;
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
-	                  bool maySetupPatching);
-	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength);
+	                  bool maySetupPatching) override;
+	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
-	                       bool didPingpong, bool mayInterpolate);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
+	                       bool didPingpong, bool mayInterpolate) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(bool writeAutomation);
 	void readPatchCablesFromFile(int32_t readAutomationUpToPos);
-	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
+	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
-	                                     ModelStackWithParamCollection* modelStack);
+	                                     ModelStackWithParamCollection* modelStack) override;
 
-	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
+	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) override;
 	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
-	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false);
+	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
 	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
 	AutoParam* getParam(int32_t paramId);
 
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
-	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
+	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
+	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) override;
 
-	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
-	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
 	                                                            ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
@@ -101,7 +101,7 @@ public:
 
 	Destination* getDestinationForParam(int32_t p);
 
-	Param::Kind getParamKind() { return Param::Kind::PATCH_CABLE; }
+	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 

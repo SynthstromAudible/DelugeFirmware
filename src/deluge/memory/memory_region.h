@@ -13,14 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "memory/cache_manager.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "util/container/list/bidirectional_linked_list.h"
 
 struct EmptySpaceRecord {
 	uint32_t length;

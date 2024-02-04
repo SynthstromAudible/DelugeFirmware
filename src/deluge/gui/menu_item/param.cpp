@@ -13,20 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "param.h"
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
-#include "modulation/params/param_set.h"
-#include "processing/engines/audio_engine.h"
+#include "modulation/automation/auto_param.h"
 
 namespace deluge::gui::menu_item {
 
@@ -36,7 +32,7 @@ MenuItem* Param::selectButtonPress() {
 	}
 
 	// If shift button pressed, delete automation
-	Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);

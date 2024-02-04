@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/midi/preset.h"
 
@@ -21,9 +21,9 @@ namespace deluge::gui::menu_item::midi {
 class Sub final : public Preset {
 public:
 	using Preset::Preset;
-	void readCurrentValue() { this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->midiSub); }
+	void readCurrentValue() { this->setValue(getCurrentInstrumentClip()->midiSub); }
 	void writeCurrentValue() {
-		auto& currentClip = *(static_cast<InstrumentClip*>(currentSong->currentClip));
+		auto& currentClip = *getCurrentInstrumentClip();
 		currentClip.midiSub = this->getValue();
 		if (currentClip.isActiveOnOutput()) {
 			currentClip.sendMIDIPGM();

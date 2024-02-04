@@ -13,22 +13,19 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
-#include "io/debug/print.h"
-#include "model/action/action_logger.h"
-#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
+#include <cmath>
 #include <string.h>
 
 extern "C" {
@@ -36,7 +33,10 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
+namespace params = deluge::modulation::params;
 using namespace deluge;
+using params::kNumParams;
+
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
@@ -48,24 +48,25 @@ int32_t paramNeutralValues[kNumParams];
 // This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
 int32_t getParamRange(int32_t p) {
 	switch (p) {
-	case Param::Local::ENV_0_ATTACK:
-	case Param::Local::ENV_1_ATTACK:
+	case params::LOCAL_ENV_0_ATTACK:
+	case params::LOCAL_ENV_1_ATTACK:
 		return 536870912 * 1.5;
 
-	case Param::Global::DELAY_RATE:
+	case params::GLOBAL_DELAY_RATE:
 		return 536870912;
 
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
 		return 536870912;
 
-	case Param::Local::LPF_FREQ:
+	case params::LOCAL_LPF_FREQ:
 		return 536870912 * 1.4;
 
-		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
+		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that
+		// with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
 		// - which would take us to the max user "preset value", which is what we want for phase width
 	default:
 		return 1073741824;
@@ -74,74 +75,75 @@ int32_t getParamRange(int32_t p) {
 
 int32_t getParamNeutralValue(int32_t p) {
 	switch (p) {
-	case Param::Local::OSC_A_VOLUME:
-	case Param::Local::OSC_B_VOLUME:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-	case Param::Local::NOISE_VOLUME:
-	case Param::Global::REVERB_AMOUNT:
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Local::VOLUME:
+	case params::LOCAL_OSC_A_VOLUME:
+	case params::LOCAL_OSC_B_VOLUME:
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
+	case params::LOCAL_NOISE_VOLUME:
+	case params::GLOBAL_REVERB_AMOUNT:
+	case params::GLOBAL_VOLUME_POST_FX:
+	case params::LOCAL_VOLUME:
 		return 134217728;
 
-	case Param::Local::MODULATOR_0_VOLUME:
-	case Param::Local::MODULATOR_1_VOLUME:
+	case params::LOCAL_MODULATOR_0_VOLUME:
+	case params::LOCAL_MODULATOR_1_VOLUME:
 		return 33554432;
 
-	case Param::Local::LPF_FREQ:
+	case params::LOCAL_LPF_FREQ:
 		return 2000000;
-	case Param::Local::HPF_FREQ:
+	case params::LOCAL_HPF_FREQ:
 		return 2672947;
 
-	case Param::Global::LFO_FREQ:
-	case Param::Local::LFO_LOCAL_FREQ:
-	case Param::Global::MOD_FX_RATE:
-		return 121739; //lfoRateTable[userValue];
+	case params::GLOBAL_LFO_FREQ:
+	case params::LOCAL_LFO_LOCAL_FREQ:
+	case params::GLOBAL_MOD_FX_RATE:
+		return 121739; // lfoRateTable[userValue];
 
-	case Param::Local::LPF_RESONANCE:
-	case Param::Local::HPF_RESONANCE:
-	case Param::Local::LPF_MORPH:
-	case Param::Local::HPF_MORPH:
-	case Param::Local::FOLD:
+	case params::LOCAL_LPF_RESONANCE:
+	case params::LOCAL_HPF_RESONANCE:
+	case params::LOCAL_LPF_MORPH:
+	case params::LOCAL_HPF_MORPH:
+	case params::LOCAL_FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
-	case Param::Local::PAN:
-	case Param::Local::OSC_A_PHASE_WIDTH:
-	case Param::Local::OSC_B_PHASE_WIDTH:
+	case params::LOCAL_PAN:
+	case params::LOCAL_OSC_A_PHASE_WIDTH:
+	case params::LOCAL_OSC_B_PHASE_WIDTH:
 		return 0;
 
-	case Param::Local::ENV_0_ATTACK:
-	case Param::Local::ENV_1_ATTACK:
-		return 4096; //attackRateTable[userValue];
+	case params::LOCAL_ENV_0_ATTACK:
+	case params::LOCAL_ENV_1_ATTACK:
+		return 4096; // attackRateTable[userValue];
 
-	case Param::Local::ENV_0_RELEASE:
-	case Param::Local::ENV_1_RELEASE:
-		return 140 << 9; //releaseRateTable[userValue];
+	case params::LOCAL_ENV_0_RELEASE:
+	case params::LOCAL_ENV_1_RELEASE:
+		return 140 << 9; // releaseRateTable[userValue];
 
-	case Param::Local::ENV_0_DECAY:
-	case Param::Local::ENV_1_DECAY:
-		return 70 << 9; //releaseRateTable[userValue] >> 1;
+	case params::LOCAL_ENV_0_DECAY:
+	case params::LOCAL_ENV_1_DECAY:
+		return 70 << 9; // releaseRateTable[userValue] >> 1;
 
-	case Param::Local::ENV_0_SUSTAIN:
-	case Param::Local::ENV_1_SUSTAIN:
-	case Param::Global::DELAY_FEEDBACK:
-		return 1073741824; //536870912;
+	case params::LOCAL_ENV_0_SUSTAIN:
+	case params::LOCAL_ENV_1_SUSTAIN:
+	case params::GLOBAL_DELAY_FEEDBACK:
+		return 1073741824; // 536870912;
 
-	case Param::Local::MODULATOR_0_FEEDBACK:
-	case Param::Local::MODULATOR_1_FEEDBACK:
-	case Param::Local::CARRIER_0_FEEDBACK:
-	case Param::Local::CARRIER_1_FEEDBACK:
+	case params::LOCAL_MODULATOR_0_FEEDBACK:
+	case params::LOCAL_MODULATOR_1_FEEDBACK:
+	case params::LOCAL_CARRIER_0_FEEDBACK:
+	case params::LOCAL_CARRIER_1_FEEDBACK:
 		return 5931642;
 
-	case Param::Global::DELAY_RATE:
-	case Param::Global::ARP_RATE:
-	case Param::Local::PITCH_ADJUST:
-	case Param::Local::OSC_A_PITCH_ADJUST:
-	case Param::Local::OSC_B_PITCH_ADJUST:
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it 16x smaller)
+	case params::GLOBAL_DELAY_RATE:
+	case params::GLOBAL_ARP_RATE:
+	case params::LOCAL_PITCH_ADJUST:
+	case params::LOCAL_OSC_A_PITCH_ADJUST:
+	case params::LOCAL_OSC_B_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
+		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
+		                 // 16x smaller)
 
-	case Param::Global::MOD_FX_DEPTH:
+	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
 	default:
@@ -161,41 +163,44 @@ void functionsInit() {
 }
 
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue) {
-	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to right
+	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to
+	// right
 	int32_t preLimits = (paramNeutralValue >> 2) + (patchedValue >> 1);
 	return signed_saturate<32 - 3>(preLimits) << 2;
 }
 
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having been multiplied
+	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
+	// been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
 	int32_t positivePatchedValue = patchedValue + 536870912;
 
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
+	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
+	// 536870912 represents "1".
 
 	// If this parameter is a volume one, then apply a parabola curve to the patched value, at this late stage
 	/*
 	if (isVolumeParam) {
-		// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at 1073741824 ("2")
-		if (positivePatchedValue >= 1073741824) positivePatchedValue = 2147483647;
-		else {
-			//int32_t madeSmaller = positivePatchedValue >> 15;
-			//positivePatchedValue = (madeSmaller * madeSmaller) << 1;
-			positivePatchedValue = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
-		}
+	    // But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
+	1073741824 ("2") if (positivePatchedValue >= 1073741824) positivePatchedValue = 2147483647; else {
+	        //int32_t madeSmaller = positivePatchedValue >> 15;
+	        //positivePatchedValue = (madeSmaller * madeSmaller) << 1;
+	        positivePatchedValue = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
+	    }
 	}
 	*/
 
-	// This is a temporary (?) fix I've done to allow FM modulator amounts to get past where I clipped off volume params.
-	// So now volumes can get higher too. Problem? Not sure.
+	// This is a temporary (?) fix I've done to allow FM modulator amounts to get past where I clipped off volume
+	// params. So now volumes can get higher too. Problem? Not sure.
 
-	// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at 1073741824 ("2")
+	// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
+	// 1073741824 ("2")
 	positivePatchedValue = (positivePatchedValue >> 16) * (positivePatchedValue >> 15);
 
-	//return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
+	// return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
 
 	// Must saturate, otherwise mod fx depth can easily overflow
 	return lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
@@ -203,13 +208,15 @@ int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedV
 
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
 
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having been multiplied
+	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
+	// been multiplied
 
 	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
 	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
 	int32_t positivePatchedValue = patchedValue + 536870912;
 
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4"). 536870912 represents "1".
+	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
+	// 536870912 represents "1".
 
 	// Must saturate, otherwise sustain level can easily overflow
 	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
@@ -221,10 +228,10 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= Param::Local::ENV_0_DECAY && p <= Param::Local::ENV_1_RELEASE) {
+	if (p >= params::LOCAL_ENV_0_DECAY && p <= params::LOCAL_ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == Param::Local::ENV_0_ATTACK || p == Param::Local::ENV_1_ATTACK) {
+	if (p == params::LOCAL_ENV_0_ATTACK || p == params::LOCAL_ENV_1_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
@@ -336,280 +343,6 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	}
 }
 
-char const* getPatchedParamDisplayName(int32_t p) {
-	using enum l10n::String;
-	auto lang = l10n::chosenLanguage;
-
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
-
-	//Master Level, Pitch, Pan
-	case Param::Local::VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
-
-	case Param::Global::VOLUME_POST_FX:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
-
-	case Param::Local::PAN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
-
-	case Param::Local::PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
-
-	//LPF Frequency, Resonance, Morph
-	case Param::Local::LPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
-
-	case Param::Local::LPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
-
-	case Param::Local::LPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
-
-	//HPF Frequency, Resonance, Morph
-	case Param::Local::HPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
-
-	case Param::Local::HPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
-
-	case Param::Local::HPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
-
-	//Reverb Amount
-	case Param::Global::REVERB_AMOUNT:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
-
-	//Delay Rate, Amount
-	case Param::Global::DELAY_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
-
-	case Param::Global::DELAY_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
-
-	//Sidechain Level
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
-
-	//Wavefolder
-	case Param::Local::FOLD:
-		return l10n::get(STRING_FOR_WAVEFOLDER);
-
-	//OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Index
-	case Param::Local::OSC_A_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
-
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
-
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
-
-	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-	case Param::Local::OSC_B_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
-
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
-
-	//FM Mod 1 Volume, Pitch, Feedback
-	case Param::Local::MODULATOR_0_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
-
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
-
-	//FM Mod 2 Volume, Pitch, Feedback
-	case Param::Local::MODULATOR_1_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
-
-	//Env 1 ADSR
-	case Param::Local::ENV_0_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
-
-	case Param::Local::ENV_0_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
-
-	case Param::Local::ENV_0_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
-
-	case Param::Local::ENV_0_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
-
-	//Env 2 ADSR
-	case Param::Local::ENV_1_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
-
-	case Param::Local::ENV_1_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
-
-	case Param::Local::ENV_1_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
-
-	case Param::Local::ENV_1_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
-
-	//LFO 1 Freq
-	case Param::Global::LFO_FREQ:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
-
-	//LFO 2 Freq
-	case Param::Local::LFO_LOCAL_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
-
-	//Mod FX Depth, Rate
-	case Param::Global::MOD_FX_DEPTH:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
-
-	case Param::Global::MOD_FX_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
-
-	//Arp Rate
-	case Param::Global::ARP_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
-
-	//Noise
-	case Param::Local::NOISE_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
-
-	default:
-		return l10n::get(STRING_FOR_NONE);
-	}
-}
-
-char const* getParamDisplayName(Param::Kind kind, int32_t p) {
-	using enum l10n::String;
-	if (kind == Param::Kind::PATCHED) {
-		return getPatchedParamDisplayName(p);
-	}
-
-	if (kind == Param::Kind::UNPATCHED_SOUND || kind == Param::Kind::UNPATCHED_GLOBAL) {
-		// These can basically be 13 chars long, or 14 if the last one is a dot.
-		switch (p) {
-
-		//Bass, Bass Freq
-		case Param::Unpatched::BASS:
-			return l10n::get(STRING_FOR_BASS);
-
-		case Param::Unpatched::BASS_FREQ:
-			return l10n::get(STRING_FOR_BASS_FREQUENCY);
-
-		//Treble, Treble Freq
-		case Param::Unpatched::TREBLE:
-			return l10n::get(STRING_FOR_TREBLE);
-
-		case Param::Unpatched::TREBLE_FREQ:
-			return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
-
-		//Sidechain Shape
-		case Param::Unpatched::COMPRESSOR_SHAPE:
-			return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
-
-		//Decimation, Bitcrush
-		case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-			return l10n::get(STRING_FOR_DECIMATION);
-
-		case Param::Unpatched::BITCRUSHING:
-			return l10n::get(STRING_FOR_BITCRUSH);
-
-		//Mod FX Offset, Feedback
-		case Param::Unpatched::MOD_FX_OFFSET:
-			return l10n::get(STRING_FOR_MODFX_OFFSET);
-
-		case Param::Unpatched::MOD_FX_FEEDBACK:
-			return l10n::get(STRING_FOR_MODFX_FEEDBACK);
-
-		case Param::Unpatched::STUTTER_RATE:
-			return l10n::get(STRING_FOR_STUTTER_RATE);
-		}
-	}
-
-	if (kind == Param::Kind::UNPATCHED_SOUND) {
-		switch (p) {
-		case Param::Unpatched::Sound::ARP_GATE:
-			return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
-		case Param::Unpatched::Sound::PORTAMENTO:
-			return l10n::get(STRING_FOR_PORTAMENTO);
-		}
-	}
-
-	if (kind == Param::Kind::UNPATCHED_GLOBAL) {
-		// These can basically be 13 chars long, or 14 if the last one is a dot.
-		switch (p) {
-		//Master Volume, Pitch, Pan
-		case Param::Unpatched::GlobalEffectable::VOLUME:
-			return l10n::get(STRING_FOR_MASTER_LEVEL);
-
-		case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
-			return l10n::get(STRING_FOR_MASTER_PITCH);
-
-		case Param::Unpatched::GlobalEffectable::PAN:
-			return l10n::get(STRING_FOR_MASTER_PAN);
-
-		//LPF Cutoff, Resonance
-		case Param::Unpatched::GlobalEffectable::LPF_FREQ:
-			return l10n::get(STRING_FOR_LPF_FREQUENCY);
-
-		case Param::Unpatched::GlobalEffectable::LPF_RES:
-			return l10n::get(STRING_FOR_LPF_RESONANCE);
-
-		//HPF Cutoff, Resonance
-		case Param::Unpatched::GlobalEffectable::HPF_FREQ:
-			return l10n::get(STRING_FOR_HPF_FREQUENCY);
-
-		case Param::Unpatched::GlobalEffectable::HPF_RES:
-			return l10n::get(STRING_FOR_HPF_RESONANCE);
-
-		//Reverb Amount
-		case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-			return l10n::get(STRING_FOR_REVERB_AMOUNT);
-
-		//Delay Rate, Amount
-		case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-			return l10n::get(STRING_FOR_DELAY_RATE);
-
-		case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-			return l10n::get(STRING_FOR_DELAY_AMOUNT);
-
-		//Sidechain Send
-		case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-			return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
-
-		//Mod FX Depth, Rate
-		case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-			return l10n::get(STRING_FOR_MODFX_DEPTH);
-
-		case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-			return l10n::get(STRING_FOR_MODFX_RATE);
-		}
-	}
-	return l10n::get(STRING_FOR_NONE);
-}
-
 PatchSource stringToSource(char const* string) {
 	for (int32_t s = 0; s < kNumPatchSources; s++) {
 		auto patchSource = static_cast<PatchSource>(s);
@@ -659,223 +392,6 @@ char const* sourceToStringShort(PatchSource source) {
 	default:
 		return "----";
 	}
-}
-
-// all should be max 10 chars, to fit a fixed column layout
-char const* patchedParamToStringShort(int32_t p) {
-	switch (p) {
-
-	case Param::Local::OSC_A_VOLUME:
-		return "Osc1 level";
-
-	case Param::Local::OSC_B_VOLUME:
-		return "Osc2 level";
-
-	case Param::Local::VOLUME:
-		return "Level";
-
-	case Param::Local::NOISE_VOLUME:
-		return "Noise";
-
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "Osc1 PW";
-
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "Osc2 PW";
-
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return "Osc1 wave";
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return "Osc2 wave";
-
-	case Param::Local::LPF_RESONANCE:
-		return "LPF reso";
-
-	case Param::Local::HPF_RESONANCE:
-		return "HPF reso";
-
-	case Param::Local::PAN:
-		return "Pan";
-
-	case Param::Local::MODULATOR_0_VOLUME:
-		return "Mod1 level";
-
-	case Param::Local::MODULATOR_1_VOLUME:
-		return "Mod2 level";
-
-	case Param::Local::LPF_FREQ:
-		return "LPf freq";
-
-	case Param::Local::PITCH_ADJUST:
-		return "Pitch";
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "Osc1 pitch";
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "Osc2 pitch";
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "Mod1 pitch";
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "Mod1 pitch";
-
-	case Param::Local::HPF_FREQ:
-		return "HPF freq";
-
-	case Param::Local::LFO_LOCAL_FREQ:
-		return "LFO2 rate";
-
-	case Param::Local::ENV_0_ATTACK:
-		return "Env1attack";
-
-	case Param::Local::ENV_0_DECAY:
-		return "Env1 decay";
-
-	case Param::Local::ENV_0_SUSTAIN:
-		return "Env1 sus";
-
-	case Param::Local::ENV_0_RELEASE:
-		return "Env1 rel";
-
-	case Param::Local::ENV_1_ATTACK:
-		return "Env2attack";
-
-	case Param::Local::ENV_1_DECAY:
-		return "Env2 decay";
-
-	case Param::Local::ENV_1_SUSTAIN:
-		return "Env2 sus";
-
-	case Param::Local::ENV_1_RELEASE:
-		return "Env2 rel";
-
-	case Param::Global::LFO_FREQ:
-		return "LFO1 rate";
-
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Level";
-
-	case Param::Global::DELAY_RATE:
-		return "Delay rate";
-
-	case Param::Global::DELAY_FEEDBACK:
-		return "Delay feed";
-
-	case Param::Global::REVERB_AMOUNT:
-		return "Reverb amt";
-
-	case Param::Global::MOD_FX_RATE:
-		return "ModFX rate";
-
-	case Param::Global::MOD_FX_DEPTH:
-		return "ModFXdepth";
-
-	case Param::Global::ARP_RATE:
-		return "Arp. rate";
-
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "Mod1 feed";
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "Mod2 feed";
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Osc1 feed";
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Osc2 feed";
-
-	default:
-		__builtin_unreachable();
-		return NULL;
-	}
-}
-
-bool paramNeedsLPF(int32_t p, bool fromAutomation) {
-	switch (p) {
-
-	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
-	// so we don't get stepping, but if it's from step automation, we do want it to adjust instantly,
-	// so the new step is instantly at the right volume
-	case Param::Global::VOLUME_POST_FX:
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-	case Param::Global::REVERB_AMOUNT:
-	case Param::Local::VOLUME:
-	case Param::Local::PAN:
-	case Param::Local::LPF_FREQ:
-	case Param::Local::HPF_FREQ:
-	case Param::Local::OSC_A_VOLUME:
-	case Param::Local::OSC_B_VOLUME:
-	case Param::Local::OSC_A_WAVE_INDEX:
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return !fromAutomation;
-
-	case Param::Local::MODULATOR_0_VOLUME:
-	case Param::Local::MODULATOR_1_VOLUME:
-	case Param::Local::MODULATOR_0_FEEDBACK:
-	case Param::Local::MODULATOR_1_FEEDBACK:
-	case Param::Local::CARRIER_0_FEEDBACK:
-	case Param::Local::CARRIER_1_FEEDBACK:
-	case Param::Global::MOD_FX_DEPTH:
-	case Param::Global::DELAY_FEEDBACK:
-		return true;
-
-	default:
-		return false;
-	}
-}
-
-char halfByteToHexChar(uint8_t thisHalfByte) {
-	if (thisHalfByte < 10) {
-		return 48 + thisHalfByte;
-	}
-	else {
-		return 55 + thisHalfByte;
-	}
-}
-
-char hexCharToHalfByte(unsigned char hexChar) {
-	if (hexChar >= 65) {
-		return hexChar - 55;
-	}
-	else {
-		return hexChar - 48;
-	}
-}
-
-void intToHex(uint32_t number, char* output, int32_t numChars) {
-	output[numChars] = 0;
-	for (int32_t i = numChars - 1; i >= 0; i--) {
-		output[i] = halfByteToHexChar(number & 15);
-		number >>= 4;
-	}
-}
-
-uint32_t hexToInt(char const* string) {
-	int32_t output = 0;
-	while (*string) {
-		output <<= 4;
-		output |= hexCharToHalfByte(*string);
-		string++;
-	}
-	return output;
-}
-
-// length must be >0
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) {
-	uint32_t output = 0;
-	char const* const endChar = hexChars + length;
-	do {
-		output <<= 4;
-		output |= hexCharToHalfByte(*hexChars);
-		hexChars++;
-	} while (hexChars != endChar);
-
-	return output;
 }
 
 const float dbIntervals[] = {
@@ -1029,11 +545,11 @@ bool stringIsNumericChars(char const* str) {
 	return memIsNumericChars(str, strlen(str));
 }
 
-char const* getThingName(InstrumentType instrumentType) {
-	if (instrumentType == InstrumentType::SYNTH) {
+char const* getThingName(OutputType outputType) {
+	if (outputType == OutputType::SYNTH) {
 		return "SYNT";
 	}
-	else if (instrumentType == InstrumentType::KIT) {
+	else if (outputType == OutputType::KIT) {
 		return "KIT";
 	}
 	else {
@@ -1296,7 +812,7 @@ char const* polyphonyModeToString(PolyphonyMode synthMode) {
 	case PolyphonyMode::CHOKE:
 		return "choke";
 
-	default: //case PolyphonyMode::POLY:
+	default: // case PolyphonyMode::POLY:
 		return "poly";
 	}
 }
@@ -1478,7 +994,7 @@ ArpMode stringToArpMode(char const* string) {
 		return ArpMode::OFF;
 	}
 }
-//converts lpf/hpf mode to string for saving
+// converts lpf/hpf mode to string for saving
 char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -1508,7 +1024,7 @@ FilterMode stringToLPFType(char const* string) {
 		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "SVF")) {
-		//for compatibility with community pre release
+		// for compatibility with community pre release
 		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
@@ -1606,13 +1122,16 @@ SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	}
 }
 
-char const* launchStyleToString(int launchStyle) {
+char const* launchStyleToString(LaunchStyle launchStyle) {
 	switch (launchStyle) {
-	case LAUNCH_STYLE_DEFAULT:
+	case LaunchStyle::DEFAULT:
 		return "default";
 
-	case LAUNCH_STYLE_FILL:
+	case LaunchStyle::FILL:
 		return "fill";
+
+	case LaunchStyle::ONCE:
+		return "once";
 
 	default:
 		__builtin_unreachable();
@@ -1620,20 +1139,23 @@ char const* launchStyleToString(int launchStyle) {
 	}
 }
 
-int stringToLaunchStyle(char const* string) {
+LaunchStyle stringToLaunchStyle(char const* string) {
 	if (!strcmp(string, "fill")) {
-		return LAUNCH_STYLE_FILL;
+		return LaunchStyle::FILL;
+	}
+	else if (!strcmp(string, "once")) {
+		return LaunchStyle::ONCE;
 	}
 	else {
-		return LAUNCH_STYLE_DEFAULT;
+		return LaunchStyle::DEFAULT;
 	}
 }
 
-char const* getInstrumentFolder(InstrumentType instrumentType) {
-	if (instrumentType == InstrumentType::SYNTH) {
+char const* getInstrumentFolder(OutputType outputType) {
+	if (outputType == OutputType::SYNTH) {
 		return "SYNTHS";
 	}
-	else if (instrumentType == InstrumentType::KIT) {
+	else if (outputType == OutputType::KIT) {
 		return "KITS";
 	}
 	else {
@@ -1686,22 +1208,22 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case Param::Static::COMPRESSOR_ATTACK:
+	case params::STATIC_COMPRESSOR_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case Param::Static::COMPRESSOR_RELEASE:
+	case params::STATIC_COMPRESSOR_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
-	case Param::Local::OSC_A_PHASE_WIDTH:
-	case Param::Local::OSC_B_PHASE_WIDTH:
+	case params::LOCAL_OSC_A_PHASE_WIDTH:
+	case params::LOCAL_OSC_B_PHASE_WIDTH:
 		return (uint32_t)userValue * (85899345 >> 1);
 
-	case Param::Static::PATCH_CABLE:
-	case Param::Static::COMPRESSOR_VOLUME:
+	case params::PATCH_CABLE:
+	case params::STATIC_COMPRESSOR_VOLUME:
 		return userValue * 21474836;
 
-	case Param::Unpatched::START + Param::Unpatched::BASS:
-	case Param::Unpatched::START + Param::Unpatched::TREBLE:
+	case params::UNPATCHED_START + params::UNPATCHED_BASS:
+	case params::UNPATCHED_START + params::UNPATCHED_TREBLE:
 		if (userValue == -50) {
 			return -2147483648;
 		}
@@ -1732,14 +1254,6 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 	return closestIndex;
 }
 
-uint32_t rshift_round(uint32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
-int32_t rshift_round_signed(int32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
-}
-
 int32_t instantTan(int32_t input) {
 	int32_t whichValue = input >> 25;                   // 25
 	int32_t howMuchFurther = (input << 6) & 2147483647; // 6
@@ -1751,7 +1265,8 @@ int32_t instantTan(int32_t input) {
 }
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
-	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest one and the sum
+	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest
+	// one and the sum
 	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
 	sum = std::min(sum, (uint32_t)2147483647);
 	int32_t maxOne = std::max(strength1, strength2);
@@ -1775,64 +1290,6 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
-}
-
-void hueToRGB(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
-		}
-		else {
-			rgb[c] = 0;
-		}
-	}
-}
-
-#define PASTEL_RANGE 230
-
-void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
-	hue = (uint16_t)(hue + 1920) % 192;
-
-	for (int32_t c = 0; c < 3; c++) {
-		int32_t channelDarkness;
-		if (c == 0) {
-			if (hue < 64) {
-				channelDarkness = hue;
-			}
-			else {
-				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
-			}
-		}
-		else {
-			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
-		}
-
-		if (channelDarkness < 64) {
-			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10)
-			                      + 2147483648u; // Goes all the way up to 4294967295
-			uint32_t flipped = 4294967295 - basicValue;
-			uint32_t flippedScaled = (flipped >> 8) * PASTEL_RANGE;
-			rgb[c] = (4294967295 - flippedScaled) >> 24;
-		}
-		else {
-			rgb[c] = 256 - PASTEL_RANGE;
-		}
-	}
 }
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
@@ -1970,7 +1427,8 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t mem
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[pos + 1 + i]);
 	}
 
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and actually we'd probably get some overflows if we did...
+	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
+	// actually we'd probably get some overflows if we did...
 
 	return value;
 }
@@ -1994,7 +1452,8 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[(pos + 1 + i) & (memoryNumElements - 1)]);
 	}
 
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and actually we'd probably get some overflows if we did...
+	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
+	// actually we'd probably get some overflows if we did...
 
 	return value;
 }
@@ -2038,9 +1497,8 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 		string++;
 	}
 
-	if (*string < '1'
-	    || *string
-	           > '9') { // There has to be at least some number there if we're to consider this a note name. And it can't start with 0.
+	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note
+		                                  // name. And it can't start with 0.
 		toReturn.noteNumber = 100000;
 		toReturn.stringLength = 0;
 		return toReturn;
@@ -2113,8 +1571,9 @@ int32_t strcmpspecial(char const* first, char const* second) {
 						continue;
 					}
 
-					//else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not zeros, we're done.
-					// Actually, the same end result is achieved without that line.
+					// else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not
+					// zeros, we're done.
+					//  Actually, the same end result is achieved without that line.
 
 					// If we're still here, one is a leading zero and the other isn't.
 					resultIfGetToEndOfBothStrings =
@@ -2653,101 +2112,72 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 	return count;
 }
 
-void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion) {
-	int32_t totalColour;
-	totalColour = (int32_t)input[0] + input[1] + input[2]; // max 765
-
-	for (int32_t colour = 0; colour < 3; colour++) {
-
-		int32_t colourValue = input[colour];
-
-		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
-		                               + ((int32_t)totalColour * (greyProportion >> 5)),
-		                           23);
-		if (colourValue >= 256) {
-			colourValue = 255;
-		}
-
-		output[colour] = colourValue;
-	}
-}
-
-void dimColour(uint8_t colour[3]) {
-	for (int32_t c = 0; c < 3; c++) {
-		if (colour[c] >= 64) {
-			colour[c] = 50;
-		}
-		else {
-			colour[c] = 5;
-		}
-	}
-}
-
 bool shouldAbortLoading() {
 	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
 	        && (Encoders::encoders[ENCODER_SELECT].detentPos || QwertyUI::predictionInterrupted));
 }
 
-// Must supply a char[5] buffer. Or char[30] for OLED.
-void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
+void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
+                                    bool clarifyPerColumn) {
+	uint32_t division = (uint32_t)1 << (0 - magnitude);
+
 	if (display->haveOLED()) {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
-			intToString(division, text);
-			char* writePos = strchr(text, 0);
-			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
-			strcpy(writePos, suffix);
-			strcpy(writePos + 2, "-notes");
+			noteLengthBuf.appendInt(division);
+			// this is not fully general but since division are always a power of 2, it works out in practice (no need
+			// for "rd")
+			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
+			noteLengthBuf.append(suffix);
+			noteLengthBuf.append(notesString);
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
-			intToString(numBars, text);
+			noteLengthBuf.appendInt(numBars);
 			if (clarifyPerColumn) {
 				if (numBars == 1) {
-					strcat(text, " bar (per column)");
+					noteLengthBuf.append(" bar (per column)");
 				}
 				else {
-					strcat(text, " bars (per column)");
+					noteLengthBuf.append(" bars (per column)");
 				}
 			}
 			else {
-				strcat(text, "-bar");
+				noteLengthBuf.append("-bar");
 			}
 		}
 	}
 	else {
 		if (magnitude < 0) {
-			uint32_t division = (uint32_t)1 << (0 - magnitude);
 			if (division <= 9999) {
-				intToString(division, text);
+				noteLengthBuf.appendInt(division);
 				if (division == 2 || division == 32) {
-					strcat(text, "ND");
+					noteLengthBuf.append("ND");
 				}
 				else if (division <= 99) {
-					strcat(text, "TH");
+					noteLengthBuf.append("TH");
 				}
 				else if (division <= 999) {
-					strcat(text, "T");
+					noteLengthBuf.append("T");
 				}
 			}
 			else {
-				strcpy(text, "TINY");
+				noteLengthBuf.append("TINY");
 			}
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
 			if (numBars <= 9999) {
-				intToString(numBars, text);
-				uint8_t length = strlen(text);
-				if (length == 1) {
-					strcat(text, "BAR");
+				noteLengthBuf.appendInt(numBars);
+				auto size = noteLengthBuf.size();
+				if (size == 1) {
+					noteLengthBuf.append("BAR");
 				}
-				else if (length <= 3) {
-					strcat(text, "B");
+				else if (size <= 3) {
+					noteLengthBuf.append("B");
 				}
 			}
 			else {
-				strcpy(text, "BIG");
+				noteLengthBuf.append("BIG");
 			}
 		}
 	}
@@ -2810,4 +2240,4 @@ int32_t fresultToDelugeErrorCode(FRESULT result) {
 }
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
-char shortStringBuffer[64] __attribute__((aligned(CACHE_LINE_SIZE)));
+char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));

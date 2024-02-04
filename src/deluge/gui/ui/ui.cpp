@@ -16,18 +16,12 @@
  */
 
 #include "gui/ui/root_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include <utility>
 
 UI::UI() {
 	oledShowsUIUnderneath = false;
@@ -55,23 +49,28 @@ void UI::close() {
 	closeUI(this);
 }
 
-#define UI_NAVIGATION_HISTORY_LENGTH 16
-UI* uiNavigationHierarchy[UI_NAVIGATION_HISTORY_LENGTH];
+constexpr size_t kUiNavigationHistoryLength = 16;
+static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
 
-int8_t numUIsOpen = 0; // Will be 0 again during song load / swap
+int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
-UI* lastUIBeforeNullifying = NULL;
+UI* lastUIBeforeNullifying = nullptr;
 
-void getUIGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	*cols = 0;
-	*rows = 0;
-
+/**
+ * @brief Get the greyout rows and columns for the current UI
+ *
+ * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
+ */
+std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols() {
+	uint32_t cols = 0;
+	uint32_t rows = 0;
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(cols, rows);
+		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(&cols, &rows);
 		if (useThis) {
-			return;
+			return std::make_pair(rows, cols);
 		}
 	}
+	return std::make_pair(0, 0);
 }
 
 bool changeUIAtLevel(UI* newUI, int32_t level) {
@@ -94,7 +93,8 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	return success;
 }
 
-// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView, performanceView, etc.
+// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView,
+// performanceView, etc.
 void changeRootUI(UI* newUI) {
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
@@ -132,7 +132,8 @@ UI* getCurrentUI() {
 	return uiNavigationHierarchy[numUIsOpen - 1];
 }
 
-// This will be NULL while waiting to swap songs, so you'd better check for this anytime you're gonna call a function on the result!
+// This will be NULL while waiting to swap songs, so you'd better check for this anytime you're gonna call a function on
+// the result!
 RootUI* getRootUI() {
 	if (numUIsOpen == 0) {
 		return NULL;
@@ -228,8 +229,8 @@ bool openUI(UI* newUI) {
 	if (!success) {
 		numUIsOpen--;
 		PadLEDs::reassessGreyout();
-		oldUI
-		    ->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
+		oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if
+		                        // they wish?
 	}
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -281,7 +282,8 @@ void renderingNeededRegardlessOfUI(uint32_t whichMainRows, uint32_t whichSideRow
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 
-	// We might be in the middle of an audio routine or something, so just see whether the selected bit of the UI is visible
+	// We might be in the middle of an audio routine or something, so just see whether the selected bit of the UI is
+	// visible
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 		UI* thisUI = uiNavigationHierarchy[u];
@@ -381,8 +383,8 @@ bool isUIModeActiveExclusively(uint32_t uiMode) {
 	return (currentUIMode == uiMode);
 }
 
-// Checks that all of the currently active UI modes are within the list of modes provided. As well as making things tidy, the main point of this is to still return true
-// when more than one of the modes on the list provided is active.
+// Checks that all of the currently active UI modes are within the list of modes provided. As well as making things
+// tidy, the main point of this is to still return true when more than one of the modes on the list provided is active.
 // Terminate the list with a 0.
 bool isUIModeWithinRange(const uint32_t* modes) {
 	uint32_t exclusivesOnly = currentUIMode & EXCLUSIVE_UI_MODES_MASK;

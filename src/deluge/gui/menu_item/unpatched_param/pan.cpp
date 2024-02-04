@@ -13,23 +13,20 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #include "pan.h"
 
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "util/cfunctions.h"
 #include <cmath>
 #include <cstring>
-
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 namespace deluge::gui::menu_item::unpatched_param {
 
 void Pan::drawValue() {    // TODO: should really combine this with the "patched" version
-	uint8_t drawDot = 255; //soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
+	uint8_t drawDot = 255; // soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
 	char buffer[5];
 	intToString(std::abs(this->getValue()), buffer, 1);
 	if (this->getValue() < 0) {
@@ -42,22 +39,22 @@ void Pan::drawValue() {    // TODO: should really combine this with the "patched
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->getValue() == kMaxMenuPanValue) {
+	if (this->getValue() == kMaxMenuRelativeValue) {
 		return 2147483647;
 	}
-	else if (this->getValue() == kMinMenuPanValue) {
+	else if (this->getValue() == kMinMenuRelativeValue) {
 		return -2147483648;
 	}
 	else {
-		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuPanValue * 2)) * 2);
+		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuRelativeValue * 2)) * 2);
 	}
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(
-	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * (kMaxMenuPanValue * 2)
-	     + 2147483648)
-	    >> 32);
+	this->setValue(((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())
+	                    * (kMaxMenuRelativeValue * 2)
+	                + 2147483648)
+	               >> 32);
 }
 
 } // namespace deluge::gui::menu_item::unpatched_param

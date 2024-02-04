@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "hid/encoders.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
@@ -119,8 +119,9 @@ bool interpretEncoders(bool inCardRoutine) {
 
 			case ENCODER_SCROLL_X:
 				result = getCurrentUI()->horizontalEncoderAction(limitedDetentPos);
-				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even getting here during the SD routine. Ok so we'll leave it that way,
-				// in addition to me having made all the horizontalEncoderAction() calls SD-routine-safe
+				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even
+				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
+				// the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
 				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
@@ -178,7 +179,8 @@ checkResult:
 				// If it was turned recently...
 				if (turnedRecently) {
 
-					// Mark as turned recently again. Must do this before the encoder-action gets invoked below, because that might want to reset this
+					// Mark as turned recently again. Must do this before the encoder-action gets invoked below, because
+					// that might want to reset this
 					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
 
 					// Do it, only if
@@ -193,15 +195,16 @@ checkResult:
 					}
 				}
 
-				// Or if it wasn't turned recently, it's going to get marked as turned recently now, but remember what direction we came, so that if we go back that direction again
-				// we can write it off as an accidental wiggle
+				// Or if it wasn't turned recently, it's going to get marked as turned recently now, but remember what
+				// direction we came, so that if we go back that direction again we can write it off as an accidental
+				// wiggle
 				else {
 
 					// If the other one also hasn't been turned for a while...
 					bool otherTurnedRecently =
 					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
 					if (!otherTurnedRecently) {
-						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}
 
 					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;

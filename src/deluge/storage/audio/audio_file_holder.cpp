@@ -13,13 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "storage/audio/audio_file_holder.h"
-#include "storage/audio/audio_file_manager.h"
-
-#include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
+#include "storage/audio/audio_file_manager.h"
 
 AudioFileHolder::AudioFileHolder() {
 	audioFile = NULL;
@@ -29,7 +27,9 @@ AudioFileHolder::~AudioFileHolder() {
 }
 
 // Loads file from filePath, which would already be set.
-// Returns error, but NO_ERROR doesn't necessarily mean there's now a file loaded - it might be that filePath was NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that (!mayActuallyReadFile).
+// Returns error, but NO_ERROR doesn't necessarily mean there's now a file loaded - it might be that filePath was NULL,
+// but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
+// (!mayActuallyReadFile).
 int32_t AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
                                   int32_t clusterLoadInstruction, FilePointer* filePointer,
                                   bool makeWaveTableWorkAtAllCosts) {
@@ -50,8 +50,8 @@ int32_t AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool may
 	// If we found it...
 	if (newAudioFile) {
 
-		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of the audio routine trying to
-		// sound it before it's all set up.
+		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
+		// the audio routine trying to sound it before it's all set up.
 		setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 	}
 

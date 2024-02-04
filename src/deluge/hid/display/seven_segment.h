@@ -62,10 +62,10 @@ public:
 
 	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
 	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
-		SevenSegment::displayPopup(text, type);
+		SevenSegment::displayPopup(text, 0, false, 255, 1, type);
 	}
 	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
-		SevenSegment::displayPopup(text, type);
+		SevenSegment::displayPopup(text, 3, false, 255, 1, type);
 	}
 
 	void removeWorkingAnimation() override {}
@@ -75,6 +75,9 @@ public:
 		SevenSegment::displayLoadingAnimation(delayed, transparent);
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
+
+	void enableLowercase() { use_lowercase = true; }
+	void disableLowercase() { use_lowercase = false; }
 
 private:
 	NumericLayerBasicText popup;
@@ -92,5 +95,6 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
+	bool use_lowercase = false;
 };
 } // namespace deluge::hid::display

@@ -16,14 +16,13 @@
  */
 
 #include "processing/sound/sound_drum.h"
-#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
+#include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
@@ -31,7 +30,6 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
-#include <string.h>
 
 SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;
@@ -40,13 +38,13 @@ SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 /*
 // Started but didn't finish this - it's hard!
 Drum* SoundDrum::clone() {
-	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
-	if (!drumMemory) return NULL;
-	SoundDrum* newDrum = new (drumMemory) SoundDrum();
+    void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
+    if (!drumMemory) return NULL;
+    SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 
 
-	return newDrum;
+    return newDrum;
 }
 */
 
@@ -97,7 +95,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensi
 
 	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
-	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
+	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
 	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -111,14 +109,17 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensi
 		}
 	}
 
-	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
+	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
+	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
+	// values.
 	arpeggiator.arpNote.mpeValues[whichExpressionDimension] = newValue >> 16;
 }
 
 void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
                                                          int32_t channelOrNoteNumber,
                                                          MIDICharacteristic whichCharacteristic) {
-	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
+	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
+	// yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }
 
@@ -167,7 +168,7 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
-		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationInstrumentClipView)
+		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationView)
 		    && instrumentClipView.isDrumAuditioned(this)) {
 			return;
 		}

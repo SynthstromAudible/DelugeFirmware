@@ -13,12 +13,13 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 #include "gui/menu_item/enumeration.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "storage/flash_storage.h"
+#include "util/d_string.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Magnitude final : public Enumeration {
@@ -30,7 +31,7 @@ public:
 	void drawPixelsForOled() override {
 		char buffer[12];
 		intToString(96 << this->getValue(), buffer);
-		deluge::hid::display::OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL,
+		deluge::hid::display::OLED::drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL,
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}

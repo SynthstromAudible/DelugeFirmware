@@ -13,12 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -35,7 +35,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <new>
 
-Instrument::Instrument(InstrumentType newType) : Output(newType) {
+Instrument::Instrument(OutputType newType) : Output(newType) {
 	editedByUser = false;
 	existsOnCard = true;
 	defaultVelocity = FlashStorage::defaultVelocity;
@@ -43,8 +43,8 @@ Instrument::Instrument(InstrumentType newType) : Output(newType) {
 
 /*
 Instrument::~Instrument() {
-	// Arrangement-only Clips won't get deallocated here - that'll happen from the Song.
-	// ClipInstances will all get deallocated by the vector destructor
+    // Arrangement-only Clips won't get deallocated here - that'll happen from the Song.
+    // ClipInstances will all get deallocated by the vector destructor
 }
 */
 
@@ -75,7 +75,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 		else {
 			char const* slotXMLTag = getSlotXMLTag();
-			if (type == InstrumentType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
+			if (type == OutputType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
 				storageManager.writeAttribute(
 				    slotXMLTag,
 				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
@@ -88,7 +88,7 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
 			}
 		}
-		if (!dirPath.isEmpty() && (type == InstrumentType::SYNTH || type == InstrumentType::KIT)) {
+		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
 		}
 		storageManager.writeAttribute("defaultVelocity", defaultVelocity);
@@ -149,10 +149,10 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	ParamManager newParamManager;
 
-	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might not be, and we don't want to clone it.
-	// Instead, the call to setInstrument will create one.
+	// For synths and kits, there'll be an existing ParamManager, and we can clone it. But for MIDI and CV, there might
+	// not be, and we don't want to clone it. Instead, the call to setInstrument will create one.
 
-	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
+	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
 		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
@@ -161,7 +161,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 			return NULL;
 		}
 	}
-	else if (type == InstrumentType::CV) {
+	else if (type == OutputType::CV) {
 		if (activeClip) {
 			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false,
 			                                          true); // Because we want the bend ranges
@@ -174,7 +174,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	newInstrumentClip->setInstrument(this, modelStackWithTimelineCounter->song, &newParamManager);
 	newInstrumentClip->setupAsNewKitClipIfNecessary(
-	    modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger. Michael B discovered. Also could cause E314
+	    modelStackWithTimelineCounter); // Fix added Sept 2020 to stop Kits from screwing up when recording in Arranger.
+	                                    // Michael B discovered. Also could cause E314
 
 	return newInstrumentClip;
 }
@@ -187,7 +188,7 @@ int32_t Instrument::setupDefaultAudioFileDir() {
 		return error;
 	}
 
-	// TODO: (Kate) Why is InstrumentType getting converted to ThingType here???
+	// TODO: (Kate) Why is OutputType getting converted to ThingType here???
 	audioFileManager.thingBeginningLoading(static_cast<ThingType>(type));
 	return NO_ERROR;
 }
