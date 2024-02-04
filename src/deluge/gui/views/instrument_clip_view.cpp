@@ -744,6 +744,12 @@ doCancelPopup:
 				goto doCancelPopup;
 			}
 		}
+
+		if (on && (currentUIMode == UI_MODE_NONE)) {
+			if (getCurrentInstrumentClip()->isScaleModeClip()) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
+		}
 	}
 
 	else {

@@ -197,7 +197,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	// end initialize of automation arranger view variables
 
 	masterTransposeOffset = 0;
-	totalSemitonesTransposed = 0;
 
 	dirPath.set("SONGS");
 }
@@ -490,6 +489,8 @@ traverseClips:
 	}
 
 	rootNote += offset;
+
+	displayCurrentRootNoteAndScaleName();
 }
 
 bool Song::anyScaleModeClips() {
@@ -2772,6 +2773,17 @@ traverseClips:
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
+	}
+}
+
+const char* Song::getScaleName(int32_t scale) {
+	if (scale >= NUM_PRESET_SCALES) {
+		// Other scale
+		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE);
+	}
+	else {
+		// Preset scale
+		return presetScaleNames[scale];
 	}
 }
 
@@ -5738,6 +5750,32 @@ doHibernatingInstruments:
 	return NO_ERROR;
 }
 
+void Song::displayCurrentRootNoteAndScaleName() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	char noteName[5];
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(currentSong->rootNote, noteName, &isNatural);
+
+	popupMsg.append(noteName);
+	if (display->haveOLED()) {
+		popupMsg.append(" ");
+		popupMsg.append(getScaleName(getCurrentPresetScale()));
+	}
+	display->displayPopup(popupMsg.c_str());
+}
+
+void Song::transpose(int32_t offset) {
+	if (anyScaleModeClips()) {
+		if (masterTransposeOffset != 0) {
+			offset *= currentSong->masterTransposeOffset;
+		}
+		transposeAllScaleModeClips(offset);
+	}
+	else {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));
+	}
+}
+
 void Song::adjustMasterTransposeOffset(int32_t offset) {
 	masterTransposeOffset += offset;
 	if (masterTransposeOffset < 0) {
@@ -5766,28 +5804,6 @@ void Song::displayMasterTransposeOffset() {
 		else {
 			popupMsg.appendInt(masterTransposeOffset);
 		}
-	}
-	display->displayPopup(popupMsg.c_str());
-}
-
-void Song::transpose(int32_t offset) {
-	if (masterTransposeOffset != 0) {
-		offset *= currentSong->masterTransposeOffset;
-	}
-	transposeAllScaleModeClips(offset);
-	totalSemitonesTransposed += offset;
-	displayTotalSemitonesTransposed();
-}
-
-void Song::displayTotalSemitonesTransposed() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
-
-	if (display->haveOLED()) {
-		popupMsg.append("Semitones Transposed: \n");
-		popupMsg.appendInt(totalSemitonesTransposed);
-	}
-	else {
-		popupMsg.appendInt(totalSemitonesTransposed);
 	}
 	display->displayPopup(popupMsg.c_str());
 }

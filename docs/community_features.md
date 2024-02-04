@@ -155,7 +155,7 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 - ([#1159]) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all scale mode clips up or down by 1 semitone.
 	- You can customize the amount of semitones that clips are transposed by, by holding Shift and turning `▼︎▲︎`. The display will show the number of semitones.
-	- The display will show the total number of semitones that clips have been transposed by.
+	- After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
 	- Does not affect audio clips or kit clips.
 	- Works in Song Row/Grid View, Arranger View, Arranger Automation View and Performance View.
 

@@ -346,6 +346,12 @@ doActualSimpleChange:
 		}
 	}
 
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
+
 	else {
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}

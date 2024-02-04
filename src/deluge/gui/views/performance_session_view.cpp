@@ -821,9 +821,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// disable button presses for Vertical encoder
 	else if (b == Y_ENC) {
-		return ActionResult::DEALT_WITH;
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
 	}
 
 	else {
