@@ -2283,6 +2283,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	                           postReverbVolume, reverbSendAmount, 0, true);
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
+	compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postReverbVolume);
+
 	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;

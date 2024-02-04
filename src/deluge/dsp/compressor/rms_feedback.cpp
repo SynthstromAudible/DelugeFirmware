@@ -16,6 +16,7 @@
  */
 
 #include "dsp/compressor/rms_feedback.h"
+#include "util/fixedpoint.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setAttack(10 << 24);
@@ -38,6 +39,9 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	er = std::max<float>((songVolumedB - threshdb - 1) * ratio, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
+}
+void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume){
+	render(buffer, numSamples, 2 << 28, 2 << 28, finalVolume);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,

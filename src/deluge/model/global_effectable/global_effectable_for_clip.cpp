@@ -36,6 +36,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
+#include "util/fixedpoint.h"
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
@@ -182,6 +183,7 @@ doNormal:
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
 		                           postReverbVolume, reverbSendAmount, pan, true);
+		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, postReverbVolume);
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 

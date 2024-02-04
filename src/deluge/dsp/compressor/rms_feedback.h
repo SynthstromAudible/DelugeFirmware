@@ -35,6 +35,7 @@ public:
 		setRatio(rat);
 		setSidechain(fc);
 	}
+	void renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume);
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
 	float runEnvelope(float current, float desired, float numSamples);
 	// attack/release in range 0 to 2^31
