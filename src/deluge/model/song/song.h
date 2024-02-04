@@ -84,7 +84,6 @@ public:
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t offset);
-	void transposeAllClips(int32_t offset, bool onlyScaleModeClips = false);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
