@@ -59,8 +59,10 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/d_string.h"
 #include "util/misc.h"
 #include "util/pack.h"
+#include <cstdint>
 #include <stdlib.h>
 
 #if AUTOMATED_TESTER_ENABLED
@@ -606,17 +608,16 @@ extern "C" int32_t deluge_main(void) {
 
 	// Check if the user is holding down the select knob to do a factory reset
 	bool readingFirmwareVersion = false;
-	bool looksOk = true;
+	bool otherButtonsOrEvents = false;
 
-	PIC::read(0x8000, [&readingFirmwareVersion, &looksOk](auto response) {
+	PIC::read(0x8000, [&readingFirmwareVersion, &otherButtonsOrEvents](auto response) {
 		if (readingFirmwareVersion) {
 			readingFirmwareVersion = false;
 			uint8_t value = util::to_underlying(response);
-
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
 			D_PRINTLN("PIC firmware version reported: %s", value);
-			return 0; // continue
+			return 0;
 		}
 
 		using enum PIC::Response;
@@ -625,15 +626,19 @@ extern "C" int32_t deluge_main(void) {
 			readingFirmwareVersion = true;
 			return 0;
 
-		case UNKNOWN_BREAK:
-			return 1;
-
 		case RESET_SETTINGS:
-			if (looksOk) {
-				display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+			if (!otherButtonsOrEvents) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
 				FlashStorage::resetSettings();
 				FlashStorage::writeSettings();
 			}
+			return 0;
+
+		case UNKNOWN_BREAK:
+			return 1;
+
+		case WHATEVER_THIS_IS: // response value 129. Happens at every boot. If you find out what this is, please
+		                       // rename!
 			return 0;
 
 		default:
@@ -642,8 +647,7 @@ extern "C" int32_t deluge_main(void) {
 				return 0;
 			}
 			// If any hint of another button being held, don't do anything.
-			// (Unless we already did in which case, well it's probably ok.)
-			looksOk = false;
+			otherButtonsOrEvents = true;
 			return 0;
 		}
 	});
