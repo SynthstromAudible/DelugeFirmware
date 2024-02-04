@@ -61,6 +61,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/pack.h"
+#include <stdlib.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
