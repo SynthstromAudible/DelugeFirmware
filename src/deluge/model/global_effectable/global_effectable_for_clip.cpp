@@ -180,12 +180,8 @@ doNormal:
 		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-		int32_t postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
-
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-		                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
-		                           postReverbSendVolumeIncrement);
+		                           postReverbVolumeLastTime, reverbSendAmount, pan, true);
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 

@@ -904,12 +904,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
-                                                      int32_t amplitudeIncrement) {
+                                                      int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement) {
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
+
 
 	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
 	postFXAndReverbVolumeL = postFXAndReverbVolumeR = (multiply_32x32_rshift32(postReverbVolume, postFXVolume) << 5);
@@ -917,7 +917,9 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
-		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, amplitudeIncrement) << 5);
+			auto postReverbSendVolumeIncrement =
+	    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
 
 	if (pan != 0 && AudioEngine::renderInStereo) {

@@ -2279,11 +2279,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	          &postFXVolume, paramManager, 8);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
-	int32_t postReverbSendVolumeIncrement =
-	    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
-
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume,
-	                           postReverbVolumeLastTime, reverbSendAmount, 0, true, postReverbSendVolumeIncrement);
+	                           postReverbVolumeLastTime, reverbSendAmount, 0, true);
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
