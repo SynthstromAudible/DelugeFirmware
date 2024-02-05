@@ -2291,7 +2291,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
 	compressor.setThreshold(compThreshold);
-	compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postFXVolume);
+	if (compThreshold > 0) {
+		compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postFXVolume);
+	}
+	else {
+		compressor.reset();
+	}
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
