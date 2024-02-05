@@ -498,7 +498,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FILTER_ROUTE, "Filter route"},
 
         {STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, "Drum Randomizer"},
-        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Master Compressor"},
+        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Compressor"},
         {STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "Quantize"},
         {STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, "Fine Tempo Knob"},
         {STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "Mod. Depth Decimals"},
@@ -603,6 +603,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_VOLUME_DUCKING, "Volume ducking"},
         {STRING_FOR_SIDECHAIN_COMPRESSOR, "Sidechain compressor"},
         {STRING_FOR_THRESHOLD, "Threshold"},
+        {STRING_FOR_RATIO, "Ratio"},
         {STRING_FOR_ATTACK, "ATTACK"},
         {STRING_FOR_FX, "FX"},
         {STRING_FOR_VOLTS_PER_OCTAVE, "Volts per octave"},
