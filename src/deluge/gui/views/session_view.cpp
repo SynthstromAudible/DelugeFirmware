@@ -3222,7 +3222,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	if (targetOutput == nullptr && !newClip->output->activeClip) {
 		newClip->output->setActiveClip(modelStack);
 	}
-
+	// set it active in the song
+	currentSong->setCurrentClip(newClip);
 	return newClip;
 }
 
