@@ -27,7 +27,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() final;
 	PatchSource getS() final;
 	ParamDescriptor getLearningThing() final;
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 	MenuItem* selectButtonPress() final;

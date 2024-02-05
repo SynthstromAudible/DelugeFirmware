@@ -18,6 +18,7 @@
 #pragma once
 #include "decimal.h"
 #include "menu_item_with_cc_learning.h"
+class MultiRange;
 
 namespace deluge::gui::menu_item {
 
@@ -31,7 +32,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxMenuPatchCableValue; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 	virtual int32_t getDefaultEditPos() { return 2; }
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
