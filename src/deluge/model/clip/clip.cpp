@@ -80,6 +80,9 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
+	if (getCurrentClip() == this) {
+		currentSong->setCurrentClip(nullptr);
+	}
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
