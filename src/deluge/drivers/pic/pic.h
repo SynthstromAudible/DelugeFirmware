@@ -78,7 +78,7 @@ public:
 	enum class Response : uint8_t { // Technically matches Message except in some spots????
 		NONE = 0,
 
-		WHATEVER_THIS_IS = 129,
+		UNKNOWN_BOOT_RESPONSE = 129,
 
 		RESET_SETTINGS = 175,
 		FIRMWARE_VERSION_NEXT = 245,
