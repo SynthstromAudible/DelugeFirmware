@@ -3423,11 +3423,10 @@ int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* mo
 
 	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
 		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
-		totalKnobPos =
-		    totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack) + kKnobPosOffset;
+		totalKnobPos = totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
 	}
 
-	int32_t averageKnobPos = totalKnobPos / numNodesWithinSquare;
+	int32_t averageKnobPos = (totalKnobPos / numNodesWithinSquare) + kKnobPosOffset;
 
 	return averageKnobPos;
 }
