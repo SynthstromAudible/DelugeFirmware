@@ -3412,7 +3412,6 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 }
 
 // calculates value of all nodes within a square for automation editor rendering
-// and for display of square value in pad selection mode
 int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
                                                      int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
