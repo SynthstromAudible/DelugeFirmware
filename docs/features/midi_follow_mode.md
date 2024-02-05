@@ -65,7 +65,7 @@ If you unlearn the MIDI Feedback channel, MIDI Feedback will be disabled.
 You can also unlearn a channel using the Select encoder by scrolling between MPE Upper Zone and Channel 1.
 
 ### **Notes:**
-Notes received on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
+Notes and note associated performance data received (e.g. CC1, MPE CC74) on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
 - Note 1: You can play a synth, kit, MIDI or cv clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send notes from your MIDI controller.
 
