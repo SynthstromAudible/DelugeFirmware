@@ -405,7 +405,7 @@ This is largely on the development side and created the start of a system of mod
 
 ### 4.8.1 Lumi Keys Studio Edition
 
-- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave.
+- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave (compatible Deluge scales that will match Lumi scales are Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Harmonic Minor, Arabian, Whole Tone, Blues, and Pentatonic Minor).
 	- The lit and darkened keys will be aligned with the selected root and scale, so long as the selected scale is one of the builtin scales supported by the Lumi.
 	- While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range defined on the Deluge (upper or lower dominant).
 
