@@ -602,6 +602,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_REVERB, "REVERB"},
         {STRING_FOR_VOLUME_DUCKING, "Volume ducking"},
         {STRING_FOR_SIDECHAIN_COMPRESSOR, "Sidechain compressor"},
+        {STRING_FOR_THRESHOLD, "Threshold"},
         {STRING_FOR_ATTACK, "ATTACK"},
         {STRING_FOR_FX, "FX"},
         {STRING_FOR_VOLTS_PER_OCTAVE, "Volts per octave"},

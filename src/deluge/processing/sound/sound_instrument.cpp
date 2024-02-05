@@ -99,6 +99,9 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
 		              reverbAmountAdjust, shouldLimitDelayFeedback);
 	}
+	else {
+		compressor.gainReduction = 0;
+	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {
 

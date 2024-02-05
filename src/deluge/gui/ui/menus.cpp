@@ -10,6 +10,7 @@
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
+#include "gui/menu_item/audio_compressor/threshold.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -140,6 +141,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include <new>
@@ -205,6 +207,10 @@ Submenu soundFiltersMenu{
         &filterRoutingMenu,
     },
 };
+
+// Compressor Menu
+audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD,
+                                      params::UNPATCHED_COMPRESSOR_THRESHOLD};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
@@ -1091,6 +1097,7 @@ menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &soundMasterMenu,
+        &threshold,
         &soundFiltersMenu,
         &soundFXMenu,
         &compressorMenu,
@@ -1129,6 +1136,7 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
         &audioClipMasterMenu,
+        &threshold,
         &globalFiltersMenu,
         &audioClipFXMenu,
         &globalCompressorMenu,
@@ -1173,6 +1181,7 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
         &kitClipMasterMenu,
+        &threshold,
         &globalFiltersMenu,
         &globalFXMenu,
         &globalCompressorMenu,
