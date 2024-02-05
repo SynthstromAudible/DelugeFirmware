@@ -635,7 +635,7 @@ extern "C" int32_t deluge_main(void) {
 		case UNKNOWN_BREAK:
 			return 1;
 
-		case UNKNOWN_BOOT_RESPONSE: // response value 129. Happens every boot. If you find out what this is, please rename!
+		case UNKNOWN_BOOT_RESPONSE: // value 129. Happens every boot. If you know what this is, please rename!
 			return 0;
 
 		default:
