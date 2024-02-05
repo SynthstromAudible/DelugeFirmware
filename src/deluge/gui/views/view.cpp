@@ -1145,15 +1145,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	if (modelStackWithParam->autoParam && modelStackWithParam->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD) {
-		uint8_t gr = ((ModControllableAudio*)modelStackWithParam->modControllable)->compressor.gainReduction;
-
-		indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
-	}
-	else {
-
-		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
-	}
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,

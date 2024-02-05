@@ -40,8 +40,11 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
 }
+/// This renders at a 'neutral' volume, so that at threshold zero the volume in unchanged
 void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume) {
-	// this is gross - in a nutshell we need more dynamic range for
+	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
+	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
+	// I couldn't extract correct volume levels from it.
 	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
 }
 

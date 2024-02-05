@@ -1916,6 +1916,7 @@ doCutModFXTail:
 					int32_t waitSamplesModfx = 0;
 					switch (modFXType) {
 					case ModFXType::CHORUS:
+						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
 						waitSamplesModfx = 20 * 44;
 						break;
