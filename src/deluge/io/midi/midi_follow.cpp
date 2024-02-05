@@ -109,6 +109,10 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 /// 2) pressing and holding the audition pad of a row in arranger view
 /// 3) entering a clip
 Clip* getSelectedClip(bool useActiveClip) {
+	// special case for note and performance data where you want to let notes and MPE through to the active clip
+	if (useActiveClip) {
+		return getCurrentClip();
+	}
 	Clip* clip = nullptr;
 
 	RootUI* rootUI = getRootUI();
@@ -146,10 +150,7 @@ Clip* getSelectedClip(bool useActiveClip) {
 		clip = getCurrentClip();
 		break;
 	}
-	// special case for instruments where you want to let notes and MPE through to the active clip
-	if (!clip && useActiveClip) {
-		clip = getCurrentClip();
-	}
+
 	return clip;
 }
 
