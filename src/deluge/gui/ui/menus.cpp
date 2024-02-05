@@ -10,7 +10,8 @@
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
-#include "gui/menu_item/audio_compressor/threshold.h"
+#include "gui/menu_item/audio_compressor/compressor_params.h"
+#include "gui/menu_item/audio_compressor/compressor_values.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -211,7 +212,16 @@ Submenu soundFiltersMenu{
 // Compressor Menu
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD,
                                       params::UNPATCHED_COMPRESSOR_THRESHOLD};
+audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
+audio_compressor::Release compRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
+audio_compressor::Ratio compRatio{STRING_FOR_RATE, STRING_FOR_RATE};
+audio_compressor::SideHPF compHPF{STRING_FOR_HPF, STRING_FOR_HPF};
 
+std::array<MenuItem*, 5> compMenuItems = {
+    &threshold, &compRatio, &compAttack, &compRelease, &compHPF,
+
+};
+Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, compMenuItems};
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
 envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
@@ -1097,7 +1107,7 @@ menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &soundMasterMenu,
-        &threshold,
+        &audioCompMenu,
         &soundFiltersMenu,
         &soundFXMenu,
         &compressorMenu,
@@ -1136,7 +1146,7 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
         &audioClipMasterMenu,
-        &threshold,
+        &audioCompMenu,
         &globalFiltersMenu,
         &audioClipFXMenu,
         &globalCompressorMenu,
@@ -1181,7 +1191,7 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
         &kitClipMasterMenu,
-        &threshold,
+        &audioCompMenu,
         &globalFiltersMenu,
         &globalFXMenu,
         &globalCompressorMenu,
