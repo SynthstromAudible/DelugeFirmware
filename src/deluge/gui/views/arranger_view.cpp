@@ -1687,8 +1687,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	Clip* clip = clipInstance->clip;
+	currentSong->setCurrentClip(clip);
 
-	currentSong->currentClip = clip;
 	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];

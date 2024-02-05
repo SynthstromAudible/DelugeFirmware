@@ -2433,7 +2433,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		}
 	}
 
-	currentSong->currentClip = clip;
+	currentSong->setCurrentClip(clip);
 
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 

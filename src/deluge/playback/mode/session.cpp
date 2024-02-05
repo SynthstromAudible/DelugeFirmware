@@ -158,7 +158,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 		// If currently looking at the old clip, teleport us to the new one
 		else if (currentClipHasSameOutput && getCurrentUI()->toClipMinder()) {
 
-			currentSong->currentClip = clip;
+			currentSong->setCurrentClip(clip);
 			getCurrentUI()->focusRegained(); // A bit shifty...
 
 			uiNeedsRendering(getCurrentUI());

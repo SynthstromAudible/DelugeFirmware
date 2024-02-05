@@ -730,14 +730,14 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "beingEdited")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = false;
 		}
 	}
@@ -1023,7 +1023,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
-		modelStack->song->currentClip = this;
+		modelStack->song->setCurrentClip(this);
 	}
 	return NO_ERROR;
 }
