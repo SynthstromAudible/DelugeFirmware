@@ -650,6 +650,10 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 	}
 }
 
+ModFXType GlobalEffectable::getModFXType() {
+	return modFXType;
+}
+
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {

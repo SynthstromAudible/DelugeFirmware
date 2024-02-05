@@ -140,6 +140,7 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
+	ModFXType getModFXType();
 	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,

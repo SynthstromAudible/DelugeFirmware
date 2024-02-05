@@ -348,6 +348,10 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 	doneReadingFromFile();
 }
 
+ModFXType Sound::getModFXType() {
+	return modFXType;
+}
+
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
 	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
