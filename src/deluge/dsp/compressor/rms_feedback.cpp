@@ -42,7 +42,7 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 }
 void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume) {
 	// this is gross - in a nutshell we need more dynamic range for
-	render(buffer, numSamples, 2 << 28, 2 << 28, finalVolume);
+	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
@@ -57,7 +57,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * ratio;
 
 	// this is the most gain available without overflow
-	float dbGain = 0.85f + er + reduction;
+	float dbGain = 2.f + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
