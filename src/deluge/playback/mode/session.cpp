@@ -155,7 +155,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			sessionView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
 		}
 
-		// If currently looking at the old clip, teleport us to the new one
+		// if we're creating a new recording based on a previous clip on the same
+		// output, set current clip to the new one
 		else if (currentClipHasSameOutput && getCurrentUI()->toClipMinder()) {
 
 			currentSong->setCurrentClip(clip);

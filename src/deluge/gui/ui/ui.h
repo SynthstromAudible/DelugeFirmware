@@ -109,6 +109,8 @@ public:
 	// the `display` and/or `chosenLanguage` object changed. redraw accordingly.
 	virtual void displayOrLanguageChanged() {}
 	virtual bool canSeeViewUnderneath() { return false; }
+	/// Convert this clip to a clip minder. Returns true for views which manage a single clip,
+	/// false for song level views
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}
 	virtual const char* getName() { return "UI"; }

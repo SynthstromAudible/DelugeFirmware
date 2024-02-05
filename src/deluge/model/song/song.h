@@ -367,8 +367,8 @@ public:
 
 private:
 	bool fillModeActive;
-	Clip* currentClip;
-	Clip* previousClip; // for future use, maybe finding an instrument clip or something
+	Clip* currentClip = nullptr;
+	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);

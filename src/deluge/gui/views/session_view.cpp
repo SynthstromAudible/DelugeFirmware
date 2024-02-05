@@ -734,6 +734,8 @@ removePendingOverdub:
 						clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
 startHoldingDown:
 						selectedClipPressYDisplay = yDisplay;
+						// we've either created or selected a clip, so set it to be current
+						currentSong->setCurrentClip(clip);
 						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 						selectedClipPressXDisplay = xDisplay;
 						performActionOnPadRelease = true;
@@ -2432,7 +2434,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			return;
 		}
 	}
-
+	// it should already be this clip, but if it ever isn't it would be a disaster
 	currentSong->setCurrentClip(clip);
 
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
@@ -3428,6 +3430,8 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip == nullptr) {
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
+			// we've either created or selected a clip, so set it to be current
+			currentSong->setCurrentClip(clip);
 
 			// Allow clip control (selection)
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;

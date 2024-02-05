@@ -1025,6 +1025,9 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 }
 
 int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+
+	// if we're not in a clip level view, set to the clip that's starting linear recording
+	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
 		modelStack->song->setCurrentClip(this);
 	}
