@@ -1921,6 +1921,7 @@ doCutModFXTail:
 						break;
 					case ModFXType::GRAIN:
 						waitSamplesModfx = 350 * 441;
+						break;
 					default:
 						waitSamplesModfx = (90 * 441);
 					}
