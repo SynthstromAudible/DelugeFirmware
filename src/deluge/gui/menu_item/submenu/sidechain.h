@@ -15,25 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::compressor {
-class Attack final : public Integer {
+namespace deluge::gui::menu_item::submenu {
+class Sidechain final : public Submenu {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		this->setValue(getLookupIndexFromValue(soundEditor.currentCompressor->attack >> 2, attackRateTable, 50));
+	Sidechain(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
+	          bool newForReverbSidechain)
+	    : Submenu(newName, title, newItems), forReverbSidechain(newForReverbSidechain) {}
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		soundEditor.currentSidechain =
+		    forReverbSidechain ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
-	void writeCurrentValue() override {
-		soundEditor.currentCompressor->attack = attackRateTable[this->getValue()] << 2;
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return !soundEditor.editingReverbCompressor() || AudioEngine::reverbCompressorVolume >= 0;
-	}
+
+	bool forReverbSidechain;
 };
-} // namespace deluge::gui::menu_item::compressor
+
+} // namespace deluge::gui::menu_item::submenu

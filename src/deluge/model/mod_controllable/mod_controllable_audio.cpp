@@ -1292,7 +1292,7 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	storageManager.closeTag();
 
-	// Sidechain compressor
+	// Sidechain
 	storageManager.writeOpeningTagBeginning("sidechain");
 	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);

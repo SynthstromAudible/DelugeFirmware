@@ -183,9 +183,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbDamp = (float)36 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
-	reverbCompressorVolume = getParamFromUserValue(params::STATIC_COMPRESSOR_VOLUME, -1);
-	reverbCompressorShape = -601295438;
-	reverbCompressorSync = SYNC_LEVEL_8TH;
+	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
+	reverbSidechainShape = -601295438;
+	reverbSidechainSync = SYNC_LEVEL_8TH;
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
 
 	// initialize automation arranger view variables
@@ -1240,11 +1240,11 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeOpeningTagEnd();
 
 	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeAttribute("attack", AudioEngine::reverbCompressor.attack);
-	storageManager.writeAttribute("release", AudioEngine::reverbCompressor.release);
-	storageManager.writeAttribute("volume", AudioEngine::reverbCompressorVolume);
-	storageManager.writeAttribute("shape", AudioEngine::reverbCompressorShape);
-	storageManager.writeAttribute("syncLevel", AudioEngine::reverbCompressor.syncLevel);
+	storageManager.writeAttribute("attack", AudioEngine::reverbSidechain.attack);
+	storageManager.writeAttribute("release", AudioEngine::reverbSidechain.release);
+	storageManager.writeAttribute("volume", AudioEngine::reverbSidechainVolume);
+	storageManager.writeAttribute("shape", AudioEngine::reverbSidechainShape);
+	storageManager.writeAttribute("syncLevel", AudioEngine::reverbSidechain.syncLevel);
 	storageManager.closeTag();
 
 	storageManager.writeClosingTag("reverb");
@@ -1379,24 +1379,24 @@ int32_t Song::readFromFile() {
 				else if (!strcmp(tagName, "compressor")) {
 					while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 						if (!strcmp(tagName, "attack")) {
-							reverbCompressorAttack = storageManager.readTagOrAttributeValueInt();
+							reverbSidechainAttack = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("attack");
 						}
 						else if (!strcmp(tagName, "release")) {
-							reverbCompressorRelease = storageManager.readTagOrAttributeValueInt();
+							reverbSidechainRelease = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("release");
 						}
 						else if (!strcmp(tagName, "volume")) {
-							reverbCompressorVolume = storageManager.readTagOrAttributeValueInt();
+							reverbSidechainVolume = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("volume");
 						}
 						else if (!strcmp(tagName, "shape")) {
-							reverbCompressorShape = storageManager.readTagOrAttributeValueInt();
+							reverbSidechainShape = storageManager.readTagOrAttributeValueInt();
 							storageManager.exitTag("shape");
 						}
 						else if (!strcmp(tagName, "syncLevel")) {
-							reverbCompressorSync = storageManager.readAbsoluteSyncLevelFromFile(this);
-							reverbCompressorSync = (SyncLevel)std::min((uint8_t)reverbCompressorSync, (uint8_t)9);
+							reverbSidechainSync = storageManager.readAbsoluteSyncLevelFromFile(this);
+							reverbSidechainSync = (SyncLevel)std::min((uint8_t)reverbSidechainSync, (uint8_t)9);
 							storageManager.exitTag("syncLevel");
 						}
 						else {
