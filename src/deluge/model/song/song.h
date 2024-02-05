@@ -351,12 +351,6 @@ public:
 	int32_t reverbCompressorRelease;
 	SyncLevel reverbCompressorSync;
 
-	int32_t masterCompressorAttack;
-	int32_t masterCompressorRelease;
-	int32_t masterCompressorThresh;
-	int32_t masterCompressorRatio;
-	int32_t masterCompressorSidechain;
-
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
 	deluge::modulation::params::Kind

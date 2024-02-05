@@ -2955,7 +2955,7 @@ void ArrangerView::graphicsRoutine() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
 				// uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
 				indicator_leds::setKnobIndicatorLevel(1, gr); // Gain Reduction LED
 				// indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED

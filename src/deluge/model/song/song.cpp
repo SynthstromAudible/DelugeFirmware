@@ -188,13 +188,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
 
-	masterCompressorAttack = 10 << 24;
-	masterCompressorRelease = 20 << 24;
-	masterCompressorThresh = 0;
-	masterCompressorRatio = 0;
-	masterCompressorSidechain = ONE_Q31 >> 1;
-	AudioEngine::mastercompressor.gainReduction = 0.0;
-
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
 	lastSelectedParamKind = params::Kind::NONE;
@@ -1256,19 +1249,6 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	storageManager.writeOpeningTagBeginning("songCompressor");
-	int32_t attack = AudioEngine::mastercompressor.getAttack();
-	int32_t release = AudioEngine::mastercompressor.getRelease();
-	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
-	int32_t ratio = AudioEngine::mastercompressor.getRatio();
-	int32_t hpf = AudioEngine::mastercompressor.getSidechain();
-	storageManager.writeAttribute("attack", attack);
-	storageManager.writeAttribute("release", release);
-	storageManager.writeAttribute("thresh", thresh);
-	storageManager.writeAttribute("ratio", ratio);
-	storageManager.writeAttribute("compHPF", hpf);
-	storageManager.closeTag();
-
 	globalEffectable.writeTagsToFile(NULL, false);
 
 	int32_t* valuesForOverride = paramsInAutomationMode ? unautomatedParamValues : NULL;
@@ -1667,27 +1647,32 @@ unknownTag:
 				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
-
+			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) {
-						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+						q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+						globalEffectable.compressor.setAttack(masterCompressorAttack);
 						storageManager.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) {
-						masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+						q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+						globalEffectable.compressor.setRelease(masterCompressorRelease);
 						storageManager.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) {
-						masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+						q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+						globalEffectable.compressor.setThreshold(masterCompressorThresh);
 						storageManager.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) {
-						masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+						q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+						globalEffectable.compressor.setRatio(masterCompressorRatio);
 						storageManager.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "compHPF")) {
-						masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+						q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+						globalEffectable.compressor.setSidechain(masterCompressorSidechain);
 						storageManager.exitTag("compHPF");
 					}
 					else {

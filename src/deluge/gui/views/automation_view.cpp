@@ -135,7 +135,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},    // Delay Rate, Amount
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
     {params::Kind::PATCHED, params::LOCAL_FOLD},
@@ -196,7 +196,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},         // Delay Rate, Amount
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET}, // Mod FX Offset, Feedback, Depth, Rate
@@ -623,7 +623,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 			if (onArrangerView) {
 				// don't make pitch adjust or sidechain available for automation in arranger
-				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE)
+				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 					continue;
 				}
@@ -685,8 +685,15 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
-		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		int32_t knobPos = 0;
+
+		if (isAutomated) {
+			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
+		}
+		else {
+			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		}
 
 		RGB& pixel = image[xDisplay];
 
@@ -2993,7 +3000,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
-			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_COMPRESSOR_SHAPE
+			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 
 				if (offset < 0) {
@@ -3278,6 +3285,25 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 	return squareStart;
 }
 
+// calculates value of all nodes within a square for automation editor rendering
+int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
+                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+	int32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
+	int32_t numNodesWithinSquare = squareWidth / kParamNodeWidth;
+
+	int32_t totalKnobPos = 0;
+
+	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
+		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
+		totalKnobPos = totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
+	}
+
+	int32_t averageKnobPos = (totalKnobPos / numNodesWithinSquare) + kKnobPosOffset;
+
+	return averageKnobPos;
+}
+
 // this function obtains a parameters value and converts it to a knobPos
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
@@ -3493,7 +3519,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 			return true;
 		}
 
