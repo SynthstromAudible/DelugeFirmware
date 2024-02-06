@@ -95,18 +95,18 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 
 	int32_t pan = unpatchedParams->getValue(params::UNPATCHED_PAN) >> 1;
 
-	// Render compressor
+	// Render sidechain
 	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	if (sidechainVolumeParam != -2147483648) {
 		if (sideChainHitPending != 0) {
 			sidechain.registerHit(sideChainHitPending);
 		}
-		int32_t compressorOutput =
+		int32_t sidechainOutput =
 		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(compressorOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
+		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
 		    + 536870912;
 		postReverbVolume = (positivePatchedValue >> 15)
 		                   * (positivePatchedValue

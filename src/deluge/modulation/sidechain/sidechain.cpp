@@ -26,8 +26,8 @@ SideChain::SideChain() {
 	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
-	attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_COMPRESSOR_ATTACK), 7);
-	release = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_COMPRESSOR_RELEASE), 28);
+	attack = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_ATTACK), 7);
+	release = getParamFromUserValue(util::to_underlying(deluge::modulation::params::STATIC_SIDECHAIN_RELEASE), 28);
 	pendingHitStrength = 0;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the

@@ -2246,8 +2246,8 @@ pitchTooHigh:
 
 							// TODO: probably need to check for X and Y modulation sources here too...
 
-							else if (cable->from == PatchSource::COMPRESSOR) {
-								if (sound->globalSourceValues[util::to_underlying(PatchSource::COMPRESSOR)]) {
+							else if (cable->from == PatchSource::SIDECHAIN) {
+								if (sound->globalSourceValues[util::to_underlying(PatchSource::SIDECHAIN)]) {
 									goto dontUseCache;
 								}
 							}

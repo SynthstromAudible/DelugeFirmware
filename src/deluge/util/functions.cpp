@@ -280,7 +280,7 @@ char const* sourceToString(PatchSource source) {
 	case PatchSource::NOTE:
 		return "note";
 
-	case PatchSource::COMPRESSOR:
+	case PatchSource::SIDECHAIN:
 		return "compressor";
 
 	case PatchSource::RANDOM:
@@ -323,8 +323,8 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	case PatchSource::NOTE:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_NOTE);
 
-	case PatchSource::COMPRESSOR:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_COMPRESSOR);
+	case PatchSource::SIDECHAIN:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_SIDECHAIN);
 
 	case PatchSource::RANDOM:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_RANDOM);
@@ -374,7 +374,7 @@ char const* sourceToStringShort(PatchSource source) {
 	case PatchSource::NOTE:
 		return "note";
 
-	case PatchSource::COMPRESSOR:
+	case PatchSource::SIDECHAIN:
 		return "comp";
 
 	case PatchSource::RANDOM:
@@ -1208,10 +1208,10 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case params::STATIC_COMPRESSOR_ATTACK:
+	case params::STATIC_SIDECHAIN_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case params::STATIC_COMPRESSOR_RELEASE:
+	case params::STATIC_SIDECHAIN_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
 	case params::LOCAL_OSC_A_PHASE_WIDTH:
@@ -1219,7 +1219,7 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 		return (uint32_t)userValue * (85899345 >> 1);
 
 	case params::PATCH_CABLE:
-	case params::STATIC_COMPRESSOR_VOLUME:
+	case params::STATIC_SIDECHAIN_VOLUME:
 		return userValue * 21474836;
 
 	case params::UNPATCHED_START + params::UNPATCHED_BASS:
