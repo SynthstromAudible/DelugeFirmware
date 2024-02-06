@@ -91,7 +91,7 @@
 #include "gui/menu_item/patched_param/pan.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/menu_item/record/quantize.h"
-#include "gui/menu_item/reverb/dampening.h"
+#include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/menu_item/reverb/pan.h"
 #include "gui/menu_item/reverb/room_size.h"
@@ -450,7 +450,7 @@ submenu::Sidechain reverbSidechainMenu{
 // Reverb ----------------------------------------------------------------------------------
 patched_param::Integer reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
 reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
-reverb::Dampening reverbDampeningMenu{STRING_FOR_DAMPENING};
+reverb::Damping reverbDampingMenu{STRING_FOR_DAMPING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
 reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
 reverb::Model reverbModelMenu{STRING_FOR_MODEL};
@@ -461,7 +461,7 @@ Submenu reverbMenu{
         &reverbAmountMenu,
         &reverbModelMenu,
         &reverbRoomSizeMenu,
-        &reverbDampeningMenu,
+        &reverbDampingMenu,
         &reverbWidthMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
@@ -602,7 +602,7 @@ Submenu globalReverbMenu{
         &globalReverbSendAmountMenu,
         &reverbModelMenu,
         &reverbRoomSizeMenu,
-        &reverbDampeningMenu,
+        &reverbDampingMenu,
         &reverbWidthMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
@@ -1235,7 +1235,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &sidechainVolumeShortcutMenu,  &sidechainAttackMenu,          &sidechainShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
-    {&lfo2RateMenu,           comingSoonMenu,          &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {&lfo2RateMenu,           comingSoonMenu,          &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,     &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
@@ -1253,7 +1253,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,  nullptr,                &bassMenu,                &bassFreqMenu                      },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,           	   &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu            	  },
-    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
@@ -1271,7 +1271,7 @@ MenuItem* paramShortcutsForSongView[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &bassMenu,                &bassFreqMenu                      },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
-    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
@@ -1289,7 +1289,7 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,  nullptr,                &bassMenu,                &bassFreqMenu                      },
     {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		   nullptr,         	 nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
-    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 //clang-format on

@@ -1232,16 +1232,16 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeOpeningTagBeginning("reverb");
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
 	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
-	uint32_t dampening = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
+	uint32_t damping = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
 	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
 
 	roomSize = std::min(roomSize, (uint32_t)2147483647);
-	dampening = std::min(dampening, (uint32_t)2147483647);
+	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
 	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeAttribute("roomSize", roomSize);
-	storageManager.writeAttribute("dampening", dampening);
+	storageManager.writeAttribute("dampening", damping);
 	storageManager.writeAttribute("width", width);
 	storageManager.writeAttribute("pan", AudioEngine::reverbPan);
 	storageManager.writeOpeningTagEnd();
