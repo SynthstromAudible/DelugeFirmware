@@ -857,8 +857,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODEL, "Model"},
         {STRING_FOR_FREEVERB, "Freeverb"},
         {STRING_FOR_MUTABLE, "Mutable"},
-		{STRING_FOR_DIFFUSION, "Diffusion"},
-		{STRING_FOR_TIME, "Time"},
+        {STRING_FOR_DIFFUSION, "Diffusion"},
+        {STRING_FOR_TIME, "Time"},
 
         {STRING_FOR_MASTER, "Master"},
         {STRING_FOR_FILTERS, "Filters"},

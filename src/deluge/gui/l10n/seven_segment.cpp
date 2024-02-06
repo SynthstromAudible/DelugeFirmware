@@ -421,8 +421,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MODEL, "MODE"},
         {STRING_FOR_FREEVERB, "FVRB"},
         {STRING_FOR_MUTABLE, "MTBL"},
-		{STRING_FOR_DIFFUSION, "DIFF"},
-		{STRING_FOR_TIME, "TIME"},
+        {STRING_FOR_DIFFUSION, "DIFF"},
+        {STRING_FOR_TIME, "TIME"},
 
         {STRING_FOR_MASTER, "MSTR"},
         {STRING_FOR_FILTERS, "FLTR"},
