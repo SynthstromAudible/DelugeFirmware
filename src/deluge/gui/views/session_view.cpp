@@ -3596,6 +3596,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			performActionOnPadRelease = true;
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
 			view.setActiveModControllableTimelineCounter(clip);
+			currentSong->setCurrentClip(clip);
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
