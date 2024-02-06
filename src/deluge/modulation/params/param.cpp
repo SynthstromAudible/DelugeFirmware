@@ -17,6 +17,7 @@
 
 #include "modulation/params/param.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <cstring>
 
@@ -192,6 +193,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_OFFSET] = STRING_FOR_MODFX_OFFSET,
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
+			[UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD
 		};
 		return l10n::get(NAMES[p]);
 	}
@@ -322,7 +324,6 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 
 		case UNPATCHED_PITCH_ADJUST:
 			return "pitchAdjust";
-
 		case UNPATCHED_GLOBAL_MAX_NUM:
 		    // Intentional fallthrough, not handled
 		    ;
@@ -360,6 +361,9 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 
 		case UNPATCHED_SIDECHAIN_SHAPE:
 			return "compressorShape";
+
+		case UNPATCHED_COMPRESSOR_THRESHOLD:
+			return "compressorThreshold";
 
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled
