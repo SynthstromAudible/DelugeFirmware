@@ -148,6 +148,7 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
 
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
@@ -904,8 +905,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
-                                                      int32_t amplitudeIncrement) {
+                                                      int32_t reverbSendAmount, int32_t pan,
+                                                      bool doAmplitudeIncrement) {
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
@@ -917,7 +918,10 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
-		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, amplitudeIncrement) << 5);
+		auto postReverbSendVolumeIncrement =
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		amplitudeIncrementL = amplitudeIncrementR =
+		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
 
 	if (pan != 0 && AudioEngine::renderInStereo) {
@@ -959,6 +963,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	if (reverbSendAmount != 0) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
+	postReverbVolumeLastTime = postReverbVolume;
 }
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
@@ -1355,6 +1360,8 @@ void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
+	                                       writeAutomation, false, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
@@ -1424,6 +1431,11 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 	else if (!strcmp(tagName, "modFXFeedback")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modFXFeedback");
+	}
+	else if (!strcmp(tagName, "compressorThreshold")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("compressorThreshold");
 	}
 
 	else {

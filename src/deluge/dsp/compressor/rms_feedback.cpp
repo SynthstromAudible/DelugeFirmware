@@ -16,20 +16,21 @@
  */
 
 #include "dsp/compressor/rms_feedback.h"
+#include "util/fixedpoint.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
-	setAttack(10 << 24);
-	setRelease(20 << 24);
+	setAttack(5 << 24);
+	setRelease(5 << 24);
 	setThreshold(0);
-	setRatio(0);
-	setSidechain(ONE_Q31 >> 1);
+	setRatio(64 << 24);
+	setSidechain(0);
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolumedB = logf(finalVolume) - 2;
+	float songVolumedB = logf(finalVolume);
 
 	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
@@ -38,6 +39,13 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	er = std::max<float>((songVolumedB - threshdb - 1) * ratio, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
+}
+/// This renders at a 'neutral' volume, so that at threshold zero the volume in unchanged
+void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume) {
+	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
+	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
+	// I couldn't extract correct volume levels from it.
+	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
@@ -52,7 +60,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * ratio;
 
 	// this is the most gain available without overflow
-	float dbGain = 0.85f + er + reduction;
+	float dbGain = 3.f + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
