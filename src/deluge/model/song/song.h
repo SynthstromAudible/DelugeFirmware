@@ -83,7 +83,8 @@ public:
 	~Song();
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
-	void transposeAllScaleModeClips(int32_t offset);
+	void transposeAllScaleModeClips(int32_t semitones);
+	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -91,6 +92,8 @@ public:
 	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
 	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
+	void rotateMusicalMode(int8_t change);
+	void replaceMusicalMode(int8_t changes[]);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);

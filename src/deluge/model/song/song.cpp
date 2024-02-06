@@ -458,7 +458,31 @@ gotError2:
 	return false;
 }
 
-void Song::transposeAllScaleModeClips(int32_t offset) {
+/* Chromatic or in-key transposition.
+   If chromatic == true, offset is measured in semitones.
+   if not, offset is measured in steps in the current modeNotes array.*/
+void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
+	int32_t semitones;
+	if (!chromatic) {
+		int8_t octaves;
+		int8_t rootIndex;
+		if (offset < 0) {
+			octaves = ((offset+1) / numModeNotes)-1;
+			rootIndex = ((offset+1) % numModeNotes) + numModeNotes - 1;
+		} else {
+			octaves = (offset / numModeNotes);
+			rootIndex = offset % numModeNotes;
+		}
+		int8_t newModeRoot = modeNotes[rootIndex];
+		rotateMusicalMode(offset);
+		semitones = 12*octaves + newModeRoot;
+	} else {
+		semitones = offset;
+	}
+	transposeAllScaleModeClips(semitones);
+}
+
+void Song::transposeAllScaleModeClips(int32_t semitones) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -475,7 +499,7 @@ traverseClips:
 		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
-			instrumentClip->transpose(offset, modelStackWithTimelineCounter);
+			instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
 		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
@@ -483,7 +507,7 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	rootNote += offset;
+	rootNote += semitones;
 }
 
 bool Song::anyScaleModeClips() {
@@ -739,8 +763,34 @@ uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
 	return 255;
 }
 
-// Flattens or sharpens a given note-within-octave in the current scale
-void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
+/* Moves the intervals in the current modeNotes by some number of steps
+	in a circular way. For example, starting in major
+	and going up one step (change == 1) results in Dorian:
+	major =             [0,2,4,5,7,9,11](12)
+    intervals            [2 2 1 2 2 2  1]
+	intervals rotated    [2 1 2 2 2 1  2]
+	new mode (Dorian)=  [0,2,3,5,7,9,10](12)
+	*/
+void Song::rotateMusicalMode(int8_t change) {
+	int8_t j;
+	int16_t newRoot;
+	int8_t changes[12] = {0};
+
+    int8_t steps = (change % numModeNotes + numModeNotes)%numModeNotes;
+	newRoot = modeNotes[steps];
+	for (int8_t i = 0; i<numModeNotes; i++) {
+		changes[i] = (modeNotes[(i+steps)%numModeNotes] - newRoot) - modeNotes[i];
+		if (i >= numModeNotes - steps) {
+			changes[i]+=12;
+		}
+	}
+
+	replaceMusicalMode(changes);
+}
+
+/* Changes the musical mode of all scale mode clips, by
+   supplying an array of deltas in semitones */
+void Song::replaceMusicalMode(int8_t changes[]) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -757,7 +807,7 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		instrumentClip->musicalModeChanged(yVisualWithinOctave, change, modelStackWithTimelineCounter);
+		instrumentClip->replaceMusicalMode(numModeNotes, changes, modelStackWithTimelineCounter);
 	}
 
 	if (clipArray != &arrangementOnlyClips) {
@@ -765,18 +815,20 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	// If we were shifting the root note, then we actually want to shift all the other scale-notes
-	if (yVisualWithinOctave == 0) {
-		for (int32_t i = 1; i < numModeNotes; i++) {
-			modeNotes[i] -= change;
-		}
-		rootNote += change;
+	for (int32_t n = 1; n < 12; n++) {
+		modeNotes[n] = modeNotes[n]+changes[n]-changes[0];
 	}
+	rootNote += changes[0];
+	modeNotes[0] = 0;
+}
 
-	// Or if just shifting a non-root note, just shift its scale-note
-	else {
-		modeNotes[yVisualWithinOctave] += change;
-	}
+// Flattens or sharpens a given note-within-octave in the current scale
+void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
+
+	int8_t changes[12] = {0};
+	changes[yVisualWithinOctave] += change;
+
+	replaceMusicalMode(changes);
 }
 
 bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
@@ -2866,84 +2918,28 @@ traverseClips3:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-	bool modeNoteNeedsTransposition[7];
-	for (int32_t i = 0; i < 7; i++) {
-		modeNoteNeedsTransposition[i] = false;
-	}
-
-	// Firstly, make all current mode notes as high as they can possibly go, so there'll be no crossing over when we go
-	// to actually do it, below For each InstrumentClip in session and arranger
-	ClipArray* clipArray = &sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != ClipType::INSTRUMENT) {
-			continue;
-		}
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-
-		if (instrumentClip->isScaleModeClip()) {
-			for (int32_t n = 6; n >= 1; n--) {
-				if (notesWithinOctavePresent[modeNotes[n]] && modeNotes[n] != 0) {
-					// If the note is present in the sequencer, we set it to be transposed
-					modeNoteNeedsTransposition[n] = true;
-					int32_t newNote = 5 + n;
-					int32_t oldNote = modeNotes[n];
-					if (oldNote != newNote) {
-						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-						    modelStack->addTimelineCounter(clip);
-						instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
-					}
-				}
-			}
-		}
-	}
-
-	if (clipArray != &arrangementOnlyClips) {
-		clipArray = &arrangementOnlyClips;
-		goto traverseClips;
-	}
-
-	for (int32_t n = 1; n < 7; n++) {
-		if (modeNoteNeedsTransposition[n]) {
-			modeNotes[n] = 5 + n;
-		}
-	}
-
+	bool modeNoteNeedsTransposition;
+	int8_t changes[12] = {0};
 	int32_t noteNumDiff = numNotesInCurrentScale - numNotesInNewScale;
 
-	// And now, set the mode notes to what they're actually supposed to be
-	// For each InstrumentClip in session and arranger
-	clipArray = &sessionClips;
-traverseClips2:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* clip = clipArray->getClipAtIndex(c);
-		if (clip->type != ClipType::INSTRUMENT) {
+	int32_t offset = 0;
+	for (int32_t n = 1; n < 7; n++) {
+		modeNoteNeedsTransposition = (notesWithinOctavePresent[modeNotes[n]] && modeNotes[n] != 0);
+
+		if (!modeNoteNeedsTransposition && offset < noteNumDiff) {
+			offset++;
 			continue;
 		}
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-
-		if (instrumentClip->isScaleModeClip()) {
-			int32_t offset = 0;
-			for (int32_t n = 1; n < 7; n++) {
-				if (!modeNoteNeedsTransposition[n] && offset < noteNumDiff) {
-					offset++;
-					continue;
-				}
-				int32_t newNote = presetScaleNotes[newScale][n - offset];
-				int32_t oldNote = modeNotes[n];
-				if (modeNoteNeedsTransposition[n] && oldNote != newNote) {
-					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-					instrumentClip->musicalModeChanged(n, newNote - oldNote, modelStackWithTimelineCounter);
-				}
-			}
+		int32_t newNote = presetScaleNotes[newScale][n - offset];
+		int32_t oldNote = modeNotes[n];
+		if (modeNoteNeedsTransposition && oldNote != newNote) {
+			changes[n] = newNote - oldNote;
 		}
 	}
-	if (clipArray != &arrangementOnlyClips) {
-		clipArray = &arrangementOnlyClips;
-		goto traverseClips2;
-	}
 
+	replaceMusicalMode(changes);
+
+	// Set modeNotes to match the current preset scale
 	int32_t newNumModeNotes = 1;
 	for (int32_t n = 1; n < 7; n++) {
 		int32_t newNote = presetScaleNotes[newScale][n];

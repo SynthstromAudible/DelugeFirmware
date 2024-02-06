@@ -72,7 +72,7 @@ public:
 	void stopAllNotesPlaying(ModelStackWithTimelineCounter* modelStack, bool actuallySoundChange = true);
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers = true);
-	void musicalModeChanged(uint8_t, int32_t, ModelStackWithTimelineCounter* modelStack);
+	void replaceMusicalMode(uint8_t numModeNotes, int8_t changes[], ModelStackWithTimelineCounter* modelStack);
 	void seeWhatNotesWithinOctaveArePresent(bool[], int32_t, Song* song, bool deleteEmptyNoteRows = true);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
