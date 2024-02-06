@@ -381,11 +381,3 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
-
-inline Instrument* getCurrentInstrumentOrNull() {
-	Output* out = currentSong->getCurrentClip()->output;
-	if (out->type != OutputType::AUDIO) {
-		return (Instrument*)out;
-	}
-	return nullptr;
-}

@@ -472,7 +472,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		}
 		// for these cc's, check if there's an active clip if the clip returned above is NULL
 		if (!clip) {
-			clip = currentSong->getCurrentClip();
+			clip = modelStack->song->getCurrentClip();
 		}
 		if (clip && (clip->output->type != OutputType::AUDIO)) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);

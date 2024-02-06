@@ -387,7 +387,7 @@ bool readButtonsAndPads() {
 void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
-	Clip* currentClip = currentSong->getCurrentClip();
+	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
 	if (currentClip && song->inClipMinderViewOnLoad) {
 		if (currentClip->onAutomationClipView) {

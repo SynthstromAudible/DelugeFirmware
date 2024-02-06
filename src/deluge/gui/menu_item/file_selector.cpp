@@ -43,7 +43,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
-	if (currentSong->getCurrentClip()->type == ClipType::AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}
 	Source* source = &sound->sources[whichThing];
@@ -57,7 +57,7 @@ bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
 
-	if (currentSong->getCurrentClip()->type == ClipType::AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return MenuPermission::YES;
 	}
 
