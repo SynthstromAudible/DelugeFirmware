@@ -1259,9 +1259,10 @@ void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12]
 		for (int32_t yVisualWithinOctave = 0; yVisualWithinOctave < numModeNotes; yVisualWithinOctave++) {
 			if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-					modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
-				thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+				thisNoteRow->stopCurrentlyPlayingNote(
+				    modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
 				thisNoteRow->y += changes[yVisualWithinOctave];
 				break;
 			}

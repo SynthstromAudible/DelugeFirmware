@@ -564,11 +564,10 @@ void readSettings() {
 
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[154] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[155] - 1;
-    MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
 	/* buffer[157]  \
 	   buffer[158]   device reference above occupies 4 bytes
 	   buffer[159] */
-
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -768,8 +767,8 @@ void writeSettings() {
 
 	buffer[154] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
 	buffer[155] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
-    MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
-    /* buffer[157]  \
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
+	/* buffer[157]  \
 	   buffer[158]   device reference above occupies 4 bytes
 	   buffer[159] */
 

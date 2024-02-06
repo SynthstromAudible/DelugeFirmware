@@ -2498,8 +2498,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
 
-		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel) &&
-			static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
+		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel)
+		    && static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
 			foundAnything = true;
 			MIDITranspose::doTranspose(device, channel, note);
 		}

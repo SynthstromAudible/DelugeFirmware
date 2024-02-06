@@ -844,18 +844,8 @@ midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRAN
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
-    {
-        &playMidiCommand,
-        &playbackRestartMidiCommand,
-        &recordMidiCommand,
-        &tapMidiCommand,
-        &undoMidiCommand,
-        &redoMidiCommand,
-        &loopMidiCommand,
-        &loopContinuousLayeringMidiCommand,
-        &fillMidiCommand,
-		&transposeMidiCommand
-    },
+    {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
+     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for

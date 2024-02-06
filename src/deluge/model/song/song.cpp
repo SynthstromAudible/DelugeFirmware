@@ -467,16 +467,18 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		int8_t octaves;
 		int8_t rootIndex;
 		if (offset < 0) {
-			octaves = ((offset+1) / numModeNotes)-1;
-			rootIndex = ((offset+1) % numModeNotes) + numModeNotes - 1;
-		} else {
+			octaves = ((offset + 1) / numModeNotes) - 1;
+			rootIndex = ((offset + 1) % numModeNotes) + numModeNotes - 1;
+		}
+		else {
 			octaves = (offset / numModeNotes);
 			rootIndex = offset % numModeNotes;
 		}
 		int8_t newModeRoot = modeNotes[rootIndex];
 		rotateMusicalMode(offset);
-		semitones = 12*octaves + newModeRoot;
-	} else {
+		semitones = 12 * octaves + newModeRoot;
+	}
+	else {
 		semitones = offset;
 	}
 	transposeAllScaleModeClips(semitones);
@@ -764,24 +766,24 @@ uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
 }
 
 /* Moves the intervals in the current modeNotes by some number of steps
-	in a circular way. For example, starting in major
-	and going up one step (change == 1) results in Dorian:
-	major =             [0,2,4,5,7,9,11](12)
+    in a circular way. For example, starting in major
+    and going up one step (change == 1) results in Dorian:
+    major =             [0,2,4,5,7,9,11](12)
     intervals            [2 2 1 2 2 2  1]
-	intervals rotated    [2 1 2 2 2 1  2]
-	new mode (Dorian)=  [0,2,3,5,7,9,10](12)
-	*/
+    intervals rotated    [2 1 2 2 2 1  2]
+    new mode (Dorian)=  [0,2,3,5,7,9,10](12)
+    */
 void Song::rotateMusicalMode(int8_t change) {
 	int8_t j;
 	int16_t newRoot;
 	int8_t changes[12] = {0};
 
-    int8_t steps = (change % numModeNotes + numModeNotes)%numModeNotes;
+	int8_t steps = (change % numModeNotes + numModeNotes) % numModeNotes;
 	newRoot = modeNotes[steps];
-	for (int8_t i = 0; i<numModeNotes; i++) {
-		changes[i] = (modeNotes[(i+steps)%numModeNotes] - newRoot) - modeNotes[i];
+	for (int8_t i = 0; i < numModeNotes; i++) {
+		changes[i] = (modeNotes[(i + steps) % numModeNotes] - newRoot) - modeNotes[i];
 		if (i >= numModeNotes - steps) {
-			changes[i]+=12;
+			changes[i] += 12;
 		}
 	}
 
@@ -816,7 +818,7 @@ traverseClips:
 	}
 
 	for (int32_t n = 1; n < 12; n++) {
-		modeNotes[n] = modeNotes[n]+changes[n]-changes[0];
+		modeNotes[n] = modeNotes[n] + changes[n] - changes[0];
 	}
 	rootNote += changes[0];
 	modeNotes[0] = 0;
