@@ -1234,7 +1234,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeAttribute("roomSize", roomSize);
-	storageManager.writeAttribute("damping", damping);
+	storageManager.writeAttribute("dampening", damping);
 	storageManager.writeAttribute("width", width);
 	storageManager.writeAttribute("pan", AudioEngine::reverbPan);
 	storageManager.writeOpeningTagEnd();
@@ -1359,9 +1359,9 @@ int32_t Song::readFromFile() {
 					reverbRoomSize = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
 					storageManager.exitTag("roomSize");
 				}
-				else if (!strcmp(tagName, "damping")) {
+				else if (!strcmp(tagName, "dampening")) {
 					reverbDamp = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
-					storageManager.exitTag("damping");
+					storageManager.exitTag("dampening");
 				}
 				else if (!strcmp(tagName, "width")) {
 					int32_t widthInt = storageManager.readTagOrAttributeValueInt();
