@@ -61,7 +61,7 @@ public:
 	int8_t currentSourceIndex;
 	Source* currentSource;
 	ParamManagerForTimeline* currentParamManager;
-	SideChain* currentCompressor;
+	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
 	MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
@@ -113,7 +113,7 @@ public:
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
-	bool editingReverbCompressor();
+	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
 	bool inSongMenu();
