@@ -21,7 +21,7 @@
 #include <cmath>
 
 namespace deluge::gui::menu_item::reverb {
-class Dampening final : public Integer {
+class Damping final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getDamping() * kMaxMenuValue)); }

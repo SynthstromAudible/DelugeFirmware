@@ -143,7 +143,7 @@ private:
 	// width
 	float diffusion_{0.625f};
 
-	// dampening
+	// damping
 	float lp_{0.7f};
 
 	// These are the state variables for the low-pass filters
