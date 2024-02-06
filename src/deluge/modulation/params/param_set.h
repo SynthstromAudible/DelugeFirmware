@@ -102,6 +102,8 @@ public:
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return kind; }
 
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;

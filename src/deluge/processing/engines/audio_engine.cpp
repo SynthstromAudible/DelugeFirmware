@@ -788,9 +788,11 @@ startAgain:
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       deluge::modulation::params::UNPATCHED_VOLUME)))
 		    >> 1;
-
-		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL,
-		                                                masterVolumeAdjustmentR, songVolume);
+		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
+		// equivalent
+		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples,
+		                                                masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
+		                                                songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");

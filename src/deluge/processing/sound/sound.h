@@ -130,8 +130,6 @@ public:
 	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
 	uint32_t modulatorRetriggerPhase[kNumModulators];
 
-	int32_t postReverbVolumeLastTime;
-
 	uint32_t numSamplesSkippedRenderingForGlobalLFO;
 	uint32_t timeStartedSkippingRenderingModFX;
 	uint32_t timeStartedSkippingRenderingLFO;

@@ -70,7 +70,7 @@ public:
 	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager);
 	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
 	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
-	                                int32_t pan = 0, bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
+	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile();
 	void writeTagsToFile();
 	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
@@ -165,6 +165,7 @@ public:
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
+	int32_t postReverbVolumeLastTime;
 
 private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,

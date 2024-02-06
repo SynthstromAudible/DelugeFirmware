@@ -5097,7 +5097,6 @@ abandonModRegion:
 	}
 }
 #pragma GCC pop
-
 void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
@@ -5155,7 +5154,6 @@ void InstrumentClipView::graphicsRoutine() {
 			}
 		}
 	}
-
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 

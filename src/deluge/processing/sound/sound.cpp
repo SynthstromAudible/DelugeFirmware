@@ -1901,7 +1901,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if (modFXType != ModFXType::NONE) {
+			if ((modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1913,12 +1913,20 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
-					int32_t waitSamples = (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
-					                          ? (20 * 44)
-					                          : (90 * 441); // 20 and 900 mS respectively. Lots is required for
-					                                        // feeding-back flanger or phaser
-					if (modFXType == ModFXType::GRAIN)
-						waitSamples = 350 * 441;
+					int32_t waitSamplesModfx = 0;
+					switch (modFXType) {
+					case ModFXType::CHORUS:
+						[[fallthrough]];
+					case ModFXType::CHORUS_STEREO:
+						waitSamplesModfx = 20 * 44;
+						break;
+					case ModFXType::GRAIN:
+						waitSamplesModfx = 350 * 441;
+						break;
+					default:
+						waitSamplesModfx = (90 * 441);
+					}
+					int32_t waitSamples = std::max(waitSamplesModfx, compressor.getReleaseMS() * 44);
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -2064,6 +2072,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
                    bool shouldLimitDelayFeedback, int32_t pitchAdjust) {
 
 	if (skippingRendering) {
+		compressor.gainReduction = 0;
 		return;
 	}
 
@@ -2279,11 +2288,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	          &postFXVolume, paramManager, 8);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
-	int32_t postReverbSendVolumeIncrement =
-	    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
+	                           reverbSendAmount, 0, true);
 
-	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume,
-	                           postReverbVolumeLastTime, reverbSendAmount, 0, true, postReverbSendVolumeIncrement);
+	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
+	if (compThreshold > 0) {
+		compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postFXVolume);
+	}
+	else {
+		compressor.reset();
+	}
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
