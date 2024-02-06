@@ -68,6 +68,7 @@
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -1144,7 +1145,6 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	// Quantized Stutter FX
 	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 

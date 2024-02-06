@@ -76,7 +76,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 ### 4.1 - Song View Features
 
-#### 4.1.1 - Master Compressor
+#### 4.1.1 - Compressors
 - ([#630]) In Song view, select `AFFECT ENTIRE` and the `SIDECHAIN`-related parameter button. Adjust the `UPPER` gold encoder for a single knob compressor with auto makeup gain (`ONE` mode). For detailed editing, press the `SIDECHAIN`-related gold encoder (`FULL` mode). The top LED will become a compression meter.  Clicking the `REVERB`-related lower gold encoder will cycle through additional params: `RATIO` (displays ratio), `ATTACK` & `RELEASE` (shown in milliseconds) and Sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor level detection, which sounds like an increase in bass allowed through the compression.
  
 	- `ATTACK`: 0ms - 63ms
@@ -88,7 +88,7 @@ Here is a list of features that have been added to the firmware as a list, group
 	- `RATIO`: 2:1 - 256:1
 
 	- `THRESHOLD`: 0 - 50
-
+- ([#1173]) In clip view, the settings  are available under the COMPRESSOR menu entry. The same parameters exist there. In kits there is both a per row compressor, accessed through the menu when affect entire is off, and a kit compressor accessed while it is on. 
 
 #### 4.1.2 - Change Row Colour
 
@@ -542,6 +542,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
+[#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

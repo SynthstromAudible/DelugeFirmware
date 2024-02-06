@@ -26,6 +26,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
@@ -390,6 +391,27 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		return true;
 	default:
 		return false;
+	}
+}
+int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		return (paramValue >> 24) - 64;
+	}
+	else {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
+}
+
+int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		int32_t paramValue = 2147483647;
+		if (knobPos < 64) {
+			paramValue = (knobPos + 64) << 24;
+		}
+		return paramValue;
+	}
+	else {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 }
 

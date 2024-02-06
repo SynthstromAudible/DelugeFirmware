@@ -95,7 +95,11 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
-	if (!skippingRendering) {
+	if (skippingRendering) {
+		compressor.reset();
+		compressor.gainReduction = 0;
+	}
+	else {
 		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
 		              reverbAmountAdjust, shouldLimitDelayFeedback);
 	}
