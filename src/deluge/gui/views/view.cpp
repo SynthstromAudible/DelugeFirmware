@@ -1495,21 +1495,21 @@ void View::cycleThroughReverbPresets() {
 	}
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
+	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
 
 	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
 	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
-	int32_t currentDampening = AudioEngine::reverb.getDamping() * 50;
+	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;
 	int32_t currentPreset;
 	for (int32_t p = 0; p < NUM_PRESET_REVERBS; p++) {
 		int32_t differentness =
-		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDampening - presetReverbDampening[p]);
+		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDamping - presetReverbDamping[p]);
 		if (differentness < lowestDifferentness) {
 			lowestDifferentness = differentness;
 			currentPreset = p;
