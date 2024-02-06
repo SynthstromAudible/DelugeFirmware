@@ -78,7 +78,7 @@ PatchSource modSourceShortcuts[2][8] = {
         PatchSource::VELOCITY,
         PatchSource::RANDOM,
         PatchSource::NOTE,
-        PatchSource::COMPRESSOR,
+        PatchSource::SIDECHAIN,
         PatchSource::LFO_LOCAL,
         PatchSource::ENVELOPE_1,
         PatchSource::Y,
@@ -555,7 +555,7 @@ doSetupBlinkingForKitGlobalFX:
 			for (x = 0; x < 15; x++) {
 				for (y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForAudioClips[x][y] == currentItem) {
-						// if (x == 10 && y < 6 && editingReverbCompressor()) goto stopThat;
+						// if (x == 10 && y < 6 && editingReverbSidechain()) goto stopThat;
 						// if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
 						goto doSetupBlinkingForAudioClip;
 					}
@@ -590,7 +590,7 @@ doSetupBlinkingForAudioClip:
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
-						if (x == 10 && y < 6 && editingReverbCompressor()) {
+						if (x == 10 && y < 6 && editingReverbSidechain()) {
 							goto stopThat;
 						}
 
@@ -696,8 +696,8 @@ void SoundEditor::blinkShortcut() {
 	shortcutBlinkCounter++;
 }
 
-bool SoundEditor::editingReverbCompressor() {
-	return (getCurrentUI() == &soundEditor && currentCompressor == &AudioEngine::reverbCompressor);
+bool SoundEditor::editingReverbSidechain() {
+	return (getCurrentUI() == &soundEditor && currentSidechain == &AudioEngine::reverbSidechain);
 }
 
 ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
@@ -743,7 +743,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
-				markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
+				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
 			// If envelope param preset values were changed, there's a chance that there could have been a change to
@@ -1322,7 +1322,7 @@ doMIDIOrCV:
 	currentModControllable = newModControllable;
 
 	if (currentModControllable) {
-		currentCompressor = &currentModControllable->sidechain;
+		currentSidechain = &currentModControllable->sidechain;
 	}
 
 	if (currentSound) {

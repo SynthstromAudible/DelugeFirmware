@@ -360,7 +360,7 @@ constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) 
 
 enum class PatchSource : uint8_t {
 	LFO_GLOBAL,
-	COMPRESSOR,
+	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
 	LFO_LOCAL,

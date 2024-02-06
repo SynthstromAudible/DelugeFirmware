@@ -15,24 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Compressor final : public Submenu {
+namespace deluge::gui::menu_item::reverb::sidechain {
+
+class Shape final : public Integer {
 public:
-	Compressor(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
-	           bool newForReverbCompressor)
-	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentCompressor =
-		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->sidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
+	using Integer::Integer;
+	void readCurrentValue() override {
+		this->setValue((((int64_t)AudioEngine::reverbSidechainShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
-
-	bool forReverbCompressor;
+	void writeCurrentValue() override {
+		AudioEngine::reverbSidechainShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbSidechainVolume >= 0); }
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::reverb::sidechain

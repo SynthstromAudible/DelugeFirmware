@@ -142,7 +142,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_LFO_FREQ);
 
 	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(params::GLOBAL_VOLUME_POST_REVERB_SEND,
-	                                                       PatchSource::COMPRESSOR);
+	                                                       PatchSource::SIDECHAIN);
 	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
 
 	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
@@ -1215,7 +1215,7 @@ void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 		if (knob->paramDescriptor.isJustAParam()) {
 			knob->paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
+		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
 			knob->paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 		}
 		else {
@@ -1245,8 +1245,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return (s != PatchSource::ENVELOPE_0
 		        // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
 		        && s != PatchSource::ENVELOPE_1
-		        // Don't let the compressor patch to local volume - it's supposed to go to global volume
-		        && s != PatchSource::COMPRESSOR)
+		        // Don't let the sidechain patch to local volume - it's supposed to go to global volume
+		        && s != PatchSource::SIDECHAIN)
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::DISALLOWED;
 
@@ -1364,7 +1364,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
 		                                               : PatchCableAcceptance::DISALLOWED;
 
-		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb
+		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
 	case params::GLOBAL_VOLUME_POST_FX:
 		return PatchCableAcceptance::DISALLOWED;
@@ -1375,8 +1375,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		}
 		break;
 
-	case params::GLOBAL_VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
-		if (s != PatchSource::COMPRESSOR) {
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND: // Only the sidechain can patch to here
+		if (s != PatchSource::SIDECHAIN) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -2089,19 +2089,19 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
-	// Do compressor
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
+	// Do sidechain
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
 			sidechain.registerHit(sideChainHitPending);
 		}
 
-		const auto patchSourceCompressorUnderlying = util::to_underlying(PatchSource::COMPRESSOR);
+		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
-		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
-		globalSourceValues[patchSourceCompressorUnderlying] = sidechain.render(
+		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
+		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
 		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
-		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
+		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
+		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
 
 	// Perform the actual patching
@@ -2354,8 +2354,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
 
-			// Do sidechain compressor
-			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
+			// Do sidechain
+			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
 				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
@@ -3980,10 +3980,10 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 			displayDelaySettings(on);
 		}
 	}
-	// Compressor/Reverb
+	// Sidechain/Reverb
 	else if (whichModButton == 4) {
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
-		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
+		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)) {
 			displaySidechainAndReverbSettings(on);
 		}
 	}
@@ -4152,7 +4152,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	// Switch sidechain sync level
 	else if (ourModKnob->paramDescriptor.hasJustOneSource()
-	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
+	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
 		if (on) {
 			int32_t insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...

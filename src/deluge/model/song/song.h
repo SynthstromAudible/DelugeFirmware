@@ -345,11 +345,11 @@ public:
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;
-	int32_t reverbCompressorVolume;
-	int32_t reverbCompressorShape;
-	int32_t reverbCompressorAttack;
-	int32_t reverbCompressorRelease;
-	SyncLevel reverbCompressorSync;
+	int32_t reverbSidechainVolume;
+	int32_t reverbSidechainShape;
+	int32_t reverbSidechainAttack;
+	int32_t reverbSidechainRelease;
+	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
