@@ -1279,7 +1279,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		currentSong->transpose(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
-		currentSong->adjustMasterTransposeOffset(offset);
+		currentSong->adjustMasterTransposeInterval(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {

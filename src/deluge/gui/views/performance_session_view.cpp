@@ -1371,7 +1371,7 @@ ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool 
 		currentSong->transpose(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
-		currentSong->adjustMasterTransposeOffset(offset);
+		currentSong->adjustMasterTransposeInterval(offset);
 	}
 	return ActionResult::DEALT_WITH;
 }

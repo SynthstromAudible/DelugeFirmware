@@ -2927,7 +2927,7 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 	}
 	else if (Buttons::isShiftButtonPressed()) {
 		if (currentUIMode == UI_MODE_NONE) {
-			currentSong->adjustMasterTransposeOffset(offset);
+			currentSong->adjustMasterTransposeInterval(offset);
 		}
 		return ActionResult::DEALT_WITH;
 	}

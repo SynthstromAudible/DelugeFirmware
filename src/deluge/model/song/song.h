@@ -83,7 +83,7 @@ public:
 	~Song();
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
-	void transposeAllScaleModeClips(int32_t offset);
+	void transposeAllScaleModeClips(int32_t interval);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -362,10 +362,10 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
-	int32_t masterTransposeOffset;
-	void transpose(int32_t offset);
-	void adjustMasterTransposeOffset(int32_t offset);
-	void displayMasterTransposeOffset();
+	int32_t masterTransposeInterval;
+	void transpose(int32_t interval);
+	void adjustMasterTransposeInterval(int32_t interval);
+	void displayMasterTransposeInterval();
 
 private:
 	bool fillModeActive;
