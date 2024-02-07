@@ -49,6 +49,7 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for "gentle paste" of notes which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
+- The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without unexpectedly changing the scale and root note of the whole song.
 
 ### Audio Clips
 
