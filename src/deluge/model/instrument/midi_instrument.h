@@ -18,6 +18,7 @@
 #pragma once
 
 #include "model/instrument/non_audio_instrument.h"
+#include <array>
 
 class ParamManagerMIDI;
 class ModelStack;
@@ -75,7 +76,7 @@ public:
 	bool collapseMPE{true};
 	float ratio; // for combining per finger and global bend
 
-	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
+	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];

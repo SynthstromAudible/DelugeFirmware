@@ -1963,8 +1963,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (outputType == OutputType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
-					memcpy(newMIDIInstrument->modKnobCCAssignments, oldMIDIInstrument->modKnobCCAssignments,
-					       sizeof(oldMIDIInstrument->modKnobCCAssignments));
+					newMIDIInstrument->modKnobCCAssignments = oldMIDIInstrument->modKnobCCAssignments;
 					newInstrument->editedByUser =
 					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
 					                                         // assignments", so must be copied across

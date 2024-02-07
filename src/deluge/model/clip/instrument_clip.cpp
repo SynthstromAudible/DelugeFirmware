@@ -2927,9 +2927,10 @@ expressionParam:
 					else {
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
-							if (paramId == 74) {
-								if (storageManager.firmwareVersionOfFileBeingRead
-								    < FirmwareVersion::FIRMWARE_3P2P0_ALPHA) {
+							if (paramId == 1) {
+								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
+								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
+								if (storageManager.firmwareVersionOfFileBeingRead < FirmwareVersion::COMMUNITY_1P1) {
 									paramId = 1;
 									goto expressionParam;
 								}

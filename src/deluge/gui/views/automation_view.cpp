@@ -299,7 +299,7 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
 	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_MOD_WHEEL;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 // called everytime you open up the automation view
@@ -1041,7 +1041,7 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL) {
+		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
@@ -3055,17 +3055,21 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (isOnAutomationOverview()) {
-		clip->lastSelectedParamID = 0;
+		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	else if ((clip->lastSelectedParamID + offset) < 0) {
-		clip->lastSelectedParamID = kLastMidiCCForAutomation;
+	auto newCC = clip->lastSelectedParamID;
+	newCC += offset;
+	if (newCC < 0) {
+		newCC += kNumCCExpression;
 	}
-	else if ((clip->lastSelectedParamID + offset) > kLastMidiCCForAutomation) {
-		clip->lastSelectedParamID = 0;
+	else if (newCC >= kNumCCExpression) {
+		newCC -= kNumCCExpression;
 	}
-	else {
-		clip->lastSelectedParamID += offset;
+	if (newCC == 1) {
+		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+		newCC += offset;
 	}
+	clip->lastSelectedParamID = newCC;
 }
 
 // used with SelectEncoderAction to get the next parameter in the list of parameters

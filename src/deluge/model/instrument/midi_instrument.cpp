@@ -45,8 +45,8 @@ MIDIInstrument::MIDIInstrument()
     : NonAudioInstrument(OutputType::MIDI_OUT), mpeOutputMemberChannels(),
       ratio(float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])),
       modKnobCCAssignments() {
-
 	modKnobMode = 0;
+	modKnobCCAssignments.fill(CC_NUMBER_NONE);
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -417,6 +417,10 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 	}
 	else if (newCC >= kNumCCNumbersIncludingFake) {
 		newCC -= kNumCCNumbersIncludingFake;
+	}
+	if (newCC == 1) {
+		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+		newCC += offset;
 	}
 
 	*cc = newCC;
