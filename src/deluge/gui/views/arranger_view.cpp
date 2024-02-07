@@ -346,6 +346,12 @@ doActualSimpleChange:
 		}
 	}
 
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
+
 	else {
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
@@ -2916,7 +2922,16 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->transpose(offset);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	else if (Buttons::isShiftButtonPressed()) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->adjustMasterTransposeInterval(offset);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 

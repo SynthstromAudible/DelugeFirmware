@@ -821,9 +821,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// disable button presses for Vertical encoder
 	else if (b == Y_ENC) {
-		return ActionResult::DEALT_WITH;
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
 	}
 
 	else {
@@ -1366,6 +1367,12 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		currentSong->transpose(offset);
+	}
+	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+		currentSong->adjustMasterTransposeInterval(offset);
+	}
 	return ActionResult::DEALT_WITH;
 }
 

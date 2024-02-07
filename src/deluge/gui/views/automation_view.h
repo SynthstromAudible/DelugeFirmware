@@ -140,6 +140,7 @@ private:
 	void handleCVButtonAction(OutputType outputType, bool on);
 	bool handleHorizontalEncoderButtonAction(bool on, bool isAudioClip);
 	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
+	void handleVerticalEncoderButtonAction(bool on);
 	void handleSelectEncoderButtonAction(bool on);
 
 	// audition pad action

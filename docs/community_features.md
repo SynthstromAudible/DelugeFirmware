@@ -152,6 +152,13 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
 		- Load defaults from PerformanceView.xml file
 
+### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
+- ([#1159]) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all scale mode clips up or down by 1 semitone.
+	- You can customize the amount of semitones that clips are transposed by, by holding Shift and turning `▼︎▲︎`. The display will show the number of semitones.
+	- After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
+	- Does not affect audio clips or kit clips.
+	- Works in Song Row/Grid View, Arranger View, Arranger Automation View and Performance View.
+
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
@@ -549,6 +556,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
+[#1159]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1159
 [#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
 [#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
