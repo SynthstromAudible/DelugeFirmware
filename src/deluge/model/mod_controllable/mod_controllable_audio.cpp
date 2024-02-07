@@ -2411,7 +2411,7 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	lpfMode = deluge::dsp::filter::SpecificFilter(lpfMode).incrementMode().toMode();
 	display->displayPopup(getLPFModeDisplayName());
 }
 
@@ -2436,7 +2436,7 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+	hpfMode = deluge::dsp::filter::SpecificFilter(hpfMode).incrementMode().toMode();
 	display->displayPopup(getHPFModeDisplayName());
 }
 

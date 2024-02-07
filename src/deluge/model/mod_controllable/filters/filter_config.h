@@ -38,13 +38,12 @@ using specificFilterType = uint8_t;
 // must match order of filter family declaration for indexing to work
 constexpr uint8_t numForVariant[kNumFamilies] = {kNumLadders, kNumSVF, kNumHPLadders};
 
-struct FilterType {
-	FilterFamily family;
-	specificFilterType type;
-	FilterMode mode;
-
-	FilterType() = default;
-	FilterType(FilterMode mode) : mode(mode) {
+/// A filters family (types which can all share an implementation for toggling) and specific type within that family
+class SpecificFilter {
+public:
+	SpecificFilter() = default;
+	/// Construct a filtertype from a mode
+	SpecificFilter(FilterMode mode) {
 		switch (mode) {
 		case FilterMode::OFF:
 			family = FilterFamily::NONE;
@@ -76,6 +75,11 @@ struct FilterType {
 			break;
 		}
 	}
+
+	FilterFamily getFamily() { return family; }
+
+	specificFilterType getType() { return type; }
+
 	[[nodiscard]] l10n::String getMorphName() const {
 
 		switch (family) {
@@ -89,10 +93,12 @@ struct FilterType {
 			return l10n::String::STRING_FOR_NONE;
 		};
 	};
-	FilterType& incrementMode() {
+
+	SpecificFilter& incrementMode() {
 		type = (type + 1) % numForVariant[util::to_underlying(family)];
 		return *this;
 	} // namespace deluge::dsp::filter
+
 	FilterMode toMode() {
 		int32_t baseNum = util::to_underlying(family);
 		int32_t base = 0;
@@ -102,6 +108,10 @@ struct FilterType {
 		}
 		return static_cast<FilterMode>(base + type);
 	}
+
+private:
+	FilterFamily family;
+	specificFilterType type;
 };
 
 } // namespace deluge::dsp::filter

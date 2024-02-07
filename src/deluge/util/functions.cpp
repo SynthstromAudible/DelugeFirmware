@@ -994,49 +994,6 @@ ArpMode stringToArpMode(char const* string) {
 		return ArpMode::OFF;
 	}
 }
-// converts lpf/hpf mode to string for saving
-char const* lpfTypeToString(FilterMode lpfType) {
-	switch (lpfType) {
-	case FilterMode::TRANSISTOR_12DB:
-		return "12dB";
-
-	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		return "24dBDrive";
-	case FilterMode::SVF_BAND:
-		return "SVF_Band";
-	case FilterMode::HPLADDER:
-		return "HPLadder";
-	case FilterMode::SVF_NOTCH:
-		return "SVF_Notch";
-	default:
-		return "24dB";
-	}
-}
-
-FilterMode stringToLPFType(char const* string) {
-	if (!strcmp(string, "24dB")) {
-		return FilterMode::TRANSISTOR_24DB;
-	}
-	else if (!strcmp(string, "24dBDrive")) {
-		return FilterMode::TRANSISTOR_24DB_DRIVE;
-	}
-	else if (!strcmp(string, "SVF_Band")) {
-		return FilterMode::SVF_BAND;
-	}
-	else if (!strcmp(string, "SVF")) {
-		// for compatibility with community pre release
-		return FilterMode::SVF_BAND;
-	}
-	else if (!strcmp(string, "HPLadder")) {
-		return FilterMode::HPLADDER;
-	}
-	else if (!strcmp(string, "SVF_Notch")) {
-		return FilterMode::SVF_NOTCH;
-	}
-	else {
-		return FilterMode::TRANSISTOR_12DB;
-	}
-}
 
 char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
