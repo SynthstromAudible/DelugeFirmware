@@ -33,7 +33,7 @@ int32_t ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelS
 	}
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(modelStack->song->currentClip);
+	    modelStack->addTimelineCounter(modelStack->song->getCurrentClip());
 
 	((Clip*)modelStackWithTimelineCounter->getTimelineCounter())
 	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);

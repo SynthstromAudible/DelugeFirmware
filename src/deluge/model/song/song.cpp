@@ -77,35 +77,40 @@ extern "C" {
 }
 
 namespace params = deluge::modulation::params;
-
 Clip* getCurrentClip() {
-	return currentSong->currentClip;
+	return currentSong->getCurrentClip();
 }
 
 InstrumentClip* getCurrentInstrumentClip() {
-	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-		return (InstrumentClip*)getCurrentClip();
+	Clip* currentClip = currentSong->getCurrentClip();
+	if (currentClip->type == ClipType::INSTRUMENT) {
+		return (InstrumentClip*)currentClip;
 	}
 	return nullptr;
 }
 
 AudioClip* getCurrentAudioClip() {
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return (AudioClip*)getCurrentClip();
+	Clip* currentClip = currentSong->getCurrentClip();
+	if (currentClip->type == ClipType::AUDIO) {
+		return (AudioClip*)currentClip;
 	}
 	return nullptr;
 }
 
 Output* getCurrentOutput() {
-	return getCurrentClip()->output;
+	return currentSong->getCurrentClip()->output;
 }
 
 Kit* getCurrentKit() {
-	return (Kit*)getCurrentClip()->output;
+	Clip* currentClip = currentSong->getCurrentClip();
+	if (currentClip->output->type == OutputType::KIT) {
+		return (Kit*)currentClip;
+	}
+	return nullptr;
 }
 
 Instrument* getCurrentInstrument() {
-	auto output = getCurrentClip()->output;
+	auto output = currentSong->getCurrentClip()->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
@@ -118,7 +123,7 @@ Instrument* getCurrentInstrument() {
 }
 
 OutputType getCurrentOutputType() {
-	return getCurrentClip()->output->type;
+	return currentSong->getCurrentClip()->output->type;
 }
 
 using namespace deluge;
@@ -239,6 +244,10 @@ extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
+Clip* Song::getCurrentClip() {
+	return currentClip;
+}
+
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;
 
@@ -327,11 +336,12 @@ keepSearchingForward:
 
 		// If still here, this is the first one with a Clip for this ModControllable. Find the end of this
 		// ModControllable's ones
-		int32_t endIThisModControllable = backedUpParamManagers.search(
-		    (uint32_t)modControllable + 4, GREATER_OR_EQUAL, searchedUpToAndIncluding + 1); // Search just by first word
+		int32_t endIThisModControllable =
+		    backedUpParamManagers.search((uint32_t)modControllable + 4, GREATER_OR_EQUAL,
+		                                 searchedUpToAndIncluding + 1); // Search just by first word
 
-		// But if that next one, for the next ModControllable, also has a Clip, we can just keep looking forwards til we
-		// find one with no Clip
+		// But if that next one, for the next ModControllable, also has a Clip, we can just keep looking forwards
+		// til we find one with no Clip
 		if (endIThisModControllable < backedUpParamManagers.getNumElements()) {
 			BackedUpParamManager* thisNextBackedUp =
 			    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(endIThisModControllable);
@@ -355,8 +365,8 @@ keepSearchingForward:
 
 		backedUpParamManagers.deleteAtIndex(i, numToDelete);
 
-		// i will increment, which is fine, cos we've already determined that the next element (if there is one) has no
-		// Clip, so we can skip it
+		// i will increment, which is fine, cos we've already determined that the next element (if there is one) has
+		// no Clip, so we can skip it
 	}
 }
 
@@ -637,8 +647,8 @@ traverseClips:
 		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 	}
 
-	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in
-	// enterScaleMode();
+	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
+	// in enterScaleMode();
 	int32_t numMoreNotes = (int32_t)numModeNotes - oldNumModeNotes;
 
 	// Compensation for the change in root note itself
@@ -676,8 +686,8 @@ void Song::addModeNote(uint8_t modeNote) {
 	numModeNotes++;
 }
 
-// Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden by
-// what actual note is present
+// Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden
+// by what actual note is present
 void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, bool notesWithinOctavePresent[]) {
 	// If lower one present...
 	if (notesWithinOctavePresent[i]) {
@@ -913,8 +923,8 @@ void Song::setInputTickScaleClip(Clip* clip) {
 void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 	uint32_t newScale = getInputTickScale();
 
-	// Chances are we'll have to change the input tick magnitude to account for the magnitudinal difference between say
-	// a 1-based and 9-based time
+	// Chances are we'll have to change the input tick magnitude to account for the magnitudinal difference between
+	// say a 1-based and 9-based time
 	if ((float)newScale * 1.41 < oldScale) {
 		do {
 			newScale *= 2;
@@ -931,8 +941,8 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 		}
 	}
 
-	// We then do a very similar process again, to calculate insideWorldTickMagnitudeOffsetFromBPM in such a way that,
-	// say, 8th-notes will always appear about the same length to the user
+	// We then do a very similar process again, to calculate insideWorldTickMagnitudeOffsetFromBPM in such a way
+	// that, say, 8th-notes will always appear about the same length to the user
 
 	oldScale = 3;
 	newScale = getInputTickScale();
@@ -984,7 +994,8 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 	}
 
 	if (action) {
-		action->recordClipLengthChange(clip, oldLength); // Records just the simple fact that clip->length has changed
+		action->recordClipLengthChange(clip,
+		                               oldLength); // Records just the simple fact that clip->length has changed
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1274,8 +1285,8 @@ weAreInArrangementEditorOrInClipInstance:
 				storageManager.writeAttribute("numRepeats", sections[s].numRepetitions, false);
 			}
 			if (sections[s].launchMIDICommand.containsSomething()) {
-				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class
-				// now uses.
+				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
+				// class now uses.
 				storageManager.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
 				storageManager.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
 				if (sections[s].launchMIDICommand.device) {
@@ -1303,8 +1314,8 @@ weAreInArrangementEditorOrInClipInstance:
 		for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 			Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
 			if (!clip->output->clipHasInstance(clip)) {
-				continue; // Get rid of any redundant Clips. There shouldn't be any, but occasionally they somehow get
-				          // left over.
+				continue; // Get rid of any redundant Clips. There shouldn't be any, but occasionally they somehow
+				          // get left over.
 			}
 			clip->writeToFile(this);
 		}
@@ -1366,8 +1377,8 @@ int32_t Song::readFromFile() {
 				else if (!strcmp(tagName, "width")) {
 					int32_t widthInt = storageManager.readTagOrAttributeValueInt();
 					if (widthInt == -2147483648) {
-						widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix it
-						                       // on read here!
+						widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix
+						                       // it on read here!
 					}
 					reverbWidth = (float)widthInt / 2147483648u;
 					storageManager.exitTag("width");
@@ -1544,9 +1555,9 @@ unknownTag:
 				storageManager.exitTag("xZoomArrangementView");
 			}
 
-			else if (!strcmp(
-			             tagName,
-			             "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect this...
+			else if (!strcmp(tagName,
+			                 "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect
+				                                     // this...
 				lastClipInstanceEnteredStartPos = 0;
 				storageManager.exitTag("inArrangementView");
 			}
@@ -1592,10 +1603,10 @@ unknownTag:
 
 			else if (!strcmp(tagName, "swingInterval")) {
 				// swingInterval, unlike other "sync" type params, we're going to read as just its plain old int32_t
-				// value, and only shift it by insideWorldTickMagnitude after reading the whole song. This is because
-				// these two attributes could easily be stored in either order in the file, so we won't know both until
-				// the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain old ints, to be
-				// read irrespective of insideWorldTickMagnitude
+				// value, and only shift it by insideWorldTickMagnitude after reading the whole song. This is
+				// because these two attributes could easily be stored in either order in the file, so we won't know
+				// both until the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain
+				// old ints, to be read irrespective of insideWorldTickMagnitude
 				swingInterval = storageManager.readTagOrAttributeValueInt();
 				swingInterval = std::min(swingInterval, (uint8_t)9);
 				storageManager.exitTag("swingInterval");
@@ -1884,8 +1895,8 @@ loadOutput:
 
 	if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_3P1P0_ALPHA2) {
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
-		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we know we
-		// have enough info to do the conversion
+		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
+		// know we have enough info to do the conversion
 		swingInterval = convertSyncLevelFromFileValueToInternalValue(swingInterval);
 	}
 
@@ -1948,7 +1959,8 @@ traverseClips:
 
 	D_PRINTLN("aaa1");
 
-	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in arranger
+	// Match all ClipInstances up with their Clip. And while we're at it, check if any Outputs are soloing in
+	// arranger
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->soloingInArrangementMode) {
 			anyOutputsSoloingInArrangement = true;
@@ -2139,8 +2151,8 @@ readClip:
 	return NO_ERROR;
 }
 
-// Needs to be in a separate function than the above because the main song XML file needs to be closed first before this
-// is called, because this will open other (sample) files
+// Needs to be in a separate function than the above because the main song XML file needs to be closed first before
+// this is called, because this will open other (sample) files
 void Song::loadAllSamples(bool mayActuallyReadFiles) {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2256,8 +2268,8 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
 	    >> 1;
 
-	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really because
-	// that's where filters are happening
+	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
+	// because that's where filters are happening
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2327,8 +2339,8 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 		uint32_t timeSinceLastTimerTick =
 		    AudioEngine::audioSampleTimer - (uint32_t)(playbackHandler.timeLastTimerTickBig >> 32);
 
-		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not that
-		// low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
+		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
+		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
 		timeSinceLastTimerTick = (float)timeSinceLastTimerTick * newTimeBig / timePerTimerTickBig;
 
 		playbackHandler.timeLastTimerTickBig =
@@ -2337,8 +2349,8 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 		uint32_t timeTilNextTimerTick =
 		    (uint32_t)(playbackHandler.timeNextTimerTickBig >> 32) - AudioEngine::audioSampleTimer;
 
-		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not that
-		// low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
+		// Using intermediary float here is best: newTimeBig might be a huge number, and below about 2bpm (so not
+		// that low), multiplying it by timeSinceLastTimerTick can overflow a uint64_t
 		timeTilNextTimerTick = (float)timeTilNextTimerTick * newTimeBig / timePerTimerTickBig;
 
 		playbackHandler.timeNextTimerTickBig = (uint64_t)(AudioEngine::audioSampleTimer + timeTilNextTimerTick) << 32;
@@ -2376,11 +2388,11 @@ void Song::resyncLFOsAndArpeggiators() {
 
 NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip) {
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
-	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master list
-	// for arranger Clips
+	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
+	// list for arranger Clips
 	ClipArray* clipArray = &sessionClips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
@@ -2439,8 +2451,8 @@ ParamManagerForTimeline* Song::findParamManagerForDrum(Kit* kit, Drum* drum, Cli
 
 void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2448,8 +2460,8 @@ void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 	// We don't know the Kit / Instrument. That's unfortunate. We'll work it out if we can
 	Output* output = NULL;
 
-	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master list
-	// for arranger Clips
+	// For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
+	// list for arranger Clips
 	ClipArray* clipArray = &sessionClips;
 	bool doingClipsProvidedByOutput = false;
 decideNumElements:
@@ -2509,15 +2521,15 @@ traverseClips:
 
 	// If we just finished iterating the sessionClips, we next want to do the arrangementOnlyClips.
 	if (!doingClipsProvidedByOutput && clipArray == &sessionClips) {
-		// If Instrument is currently being "swapped", or if we still don't actually know the Output, then we have to do
-		// things the slow way and search every arrangementOnlyClip
+		// If Instrument is currently being "swapped", or if we still don't actually know the Output, then we have
+		// to do things the slow way and search every arrangementOnlyClip
 		if (outputClipInstanceListIsCurrentlyInvalid || !output) {
 			clipArray = &arrangementOnlyClips;
 			goto decideNumElements;
 		}
 
-		// Or more ideally, we would have found the Output along the way, so we can just grab its arrangement-only Clips
-		// directly from it
+		// Or more ideally, we would have found the Output along the way, so we can just grab its arrangement-only
+		// Clips directly from it
 		else {
 			doingClipsProvidedByOutput = true;
 			numElements = output->clipInstances.getNumElements();
@@ -2528,8 +2540,8 @@ traverseClips:
 
 void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound) {
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)
@@ -2582,8 +2594,8 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersF
 
 	// TODO: backed up ParamManagers?
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)
@@ -2640,8 +2652,8 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersF
 
 	// TODO: backed up ParamManagers?
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2701,8 +2713,8 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 	// TODO: backed up ParamManagers?
 
-	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are in
-	// its clipInstances, which otherwise is a nice time-saver
+	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
+	// in its clipInstances, which otherwise is a nice time-saver
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -2808,8 +2820,8 @@ int32_t Song::cycleThroughScales() {
 	if (numNotesInCurrentScale > numNotesInNewScale) {
 		// We are trying to pass from 7-note scale to 6-note scale, or 6-note scale to 5-note scale
 		// First we need to check if, among all the clips, there are only 6 or 5 notes being used from the scale
-		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list (Major
-		// scale)
+		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list
+		// (Major scale)
 
 		// All InstrumentClips in session and arranger
 		ClipArray* clipArray = &sessionClips;
@@ -2838,7 +2850,8 @@ traverseClips3:
 		}
 	}
 
-	// If the new scale cannot fit the notes from the old one, we need to cycle back to the beginning of the scales list
+	// If the new scale cannot fit the notes from the old one, we need to cycle back to the beginning of the scales
+	// list
 	if ((newScale == FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
 	    || (newScale == FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
 		newScale = 0;
@@ -2861,8 +2874,8 @@ traverseClips3:
 		modeNoteNeedsTransposition[i] = false;
 	}
 
-	// Firstly, make all current mode notes as high as they can possibly go, so there'll be no crossing over when we go
-	// to actually do it, below For each InstrumentClip in session and arranger
+	// Firstly, make all current mode notes as high as they can possibly go, so there'll be no crossing over when we
+	// go to actually do it, below For each InstrumentClip in session and arranger
 	ClipArray* clipArray = &sessionClips;
 traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
@@ -3252,8 +3265,8 @@ int32_t Song::removeOutputFromMainList(
 		arrangementYScroll--;
 	}
 
-	// If the removed Output was soloing, and we haven't yet seen any other soloing Outputs, we'd better check out the
-	// rest
+	// If the removed Output was soloing, and we haven't yet seen any other soloing Outputs, we'd better check out
+	// the rest
 	if (wasSoloing && !seenAnyOtherSoloing) {
 		anyOutputsSoloingInArrangement = false;
 		for (; *prevPointer; prevPointer = &(*prevPointer)->next) {
@@ -3280,8 +3293,8 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	}
 
 	// We don't detach the Instrument's activeClip here anymore. This happens in InstrumentClip::changeInstrument(),
-	// called below. If we changed it here, near-future calls to the audio routine could cause new voices to be sounded,
-	// with no later unassignment.
+	// called below. If we changed it here, near-future calls to the audio routine could cause new voices to be
+	// sounded, with no later unassignment.
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -3296,9 +3309,9 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	Clip* favourClipForCloningParamManager = NULL;
 
-	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good, because
-	// then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager during that
-	// call.
+	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
+	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
+	// during that call.
 	if (newOutput->type != OutputType::KIT && oldOutput->type != OutputType::KIT) {
 		((MelodicInstrument*)newOutput)->midiInput = ((MelodicInstrument*)oldOutput)->midiInput;
 		((MelodicInstrument*)oldOutput)->midiInput.clear();
@@ -3342,8 +3355,8 @@ traverseClips:
 			           // TODO: deal with errors!
 		}
 
-		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one (if
-		// there isn't already a ParamManager backed up in memory for them)
+		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one
+		// (if there isn't already a ParamManager backed up in memory for them)
 		if (!favourClipForCloningParamManager) {
 			favourClipForCloningParamManager = clip;
 		}
@@ -3727,8 +3740,8 @@ returnFirstForModControllableEvenIfNotRightClip:
 }
 
 // Steals stuff.
-// shouldStealExpressionParamsToo should only be true to save expression params from being destructed (e.g. if the Clip
-// is being destructed).
+// shouldStealExpressionParamsToo should only be true to save expression params from being destructed (e.g. if the
+// Clip is being destructed).
 void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
                               bool shouldStealExpressionParamsToo) {
 
@@ -3795,8 +3808,8 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
-			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have the
-			// same ModControllable
+			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
+			// the same ModControllable
 			if (i == 0
 			    || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable
 			           != backedUp->modControllable) {
@@ -3913,7 +3926,8 @@ void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* m
 	}
 }
 
-// TODO: should we also check whether any arranger clips active and playing in session mode? For next function too...
+// TODO: should we also check whether any arranger clips active and playing in session mode? For next function
+// too...
 bool Song::doesOutputHaveActiveClipInSession(Output* output) {
 
 	// For each Clip in session
@@ -4089,19 +4103,19 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 	if (playbackWillStartInArrangerAtPos != -1) {
 		anyClipsSoloing = false;
 
-		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active". First,
-		// try arranger-only Clips.
+		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
+		// First, try arranger-only Clips.
 		for (Output* output = firstOutput; output; output = output->next) {
 
-			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all session
-			// Clips for each Output
+			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all
+			// session Clips for each Output
 			output->pickAnActiveClipForArrangementPos(modelStack, playbackWillStartInArrangerAtPos,
 			                                          PgmChangeSend::NEVER);
 		}
 	}
 
-	// If not about to start playback in arranger, we give the active session Clips first dibs on being active on their
-	// Output
+	// If not about to start playback in arranger, we give the active session Clips first dibs on being active on
+	// their Output
 	else {
 
 		int32_t count = 0;
@@ -4137,12 +4151,12 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 
 		AudioEngine::logAction("aaa5.115");
 
-		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active". First,
-		// try arranger-only Clips
+		// We still want as many Outputs as possible to have activeClips, even if those Clips are not "active".
+		// First, try arranger-only Clips
 		for (Output* output = firstOutput; output; output = output->next) {
 
-			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all session
-			// Clips for each Instrument
+			// Don't do any additional searching of session Clips, cos it'd be really inefficient searching all
+			// session Clips for each Instrument
 			output->pickAnActiveClipIfPossible(modelStack, false, PgmChangeSend::NEVER, false);
 		}
 	}
@@ -4198,8 +4212,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 					display->displayPopup("E044");
 #endif
 					deleteOutputThatIsInMainList(output,
-					                             false); // Do *not* try to stop any auditioning first. There is none,
-					                                     // and doing so would/did cause an E170.
+					                             false); // Do *not* try to stop any auditioning first. There is
+					                                     // none, and doing so would/did cause an E170.
 					goto getOut;
 				}
 			}
@@ -4214,7 +4228,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
+					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum,
+					                                               NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 							FREEZE_WITH_ERROR("E102");
@@ -4515,10 +4530,11 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		int32_t i = thisOutput->clipInstances.search(pos, GREATER_OR_EQUAL);
 
-		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated to
-		// improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes the
-		// calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't exist at
-		// any instant in time, or else it'll look at those to pick the new activeClip, which might not exist anymore.
+		// We go through deleting the ClipInstances one by one. This is actually quite inefficient, but complicated
+		// to improve on because the deletion of the Clips themselves, where there are arrangement-only ones, causes
+		// the calling of output->pickAnActiveClipIfPossible. So we have to ensure that extra ClipInstances don't
+		// exist at any instant in time, or else it'll look at those to pick the new activeClip, which might not
+		// exist anymore.
 		for (int32_t j = thisOutput->clipInstances.getNumElements() - 1; j >= i; j--) {
 			ClipInstance* clipInstance = thisOutput->clipInstances.getElement(j);
 			if (action) {
@@ -4528,8 +4544,8 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 			thisOutput->clipInstances.deleteAtIndex(j);
 
 			deletingClipInstanceForClip(thisOutput, clip, action,
-			                            true); // Could be bad that this calls the audio routine before we've actually
-			                                   // deleted the ClipInstances...
+			                            true); // Could be bad that this calls the audio routine before we've
+			                                   // actually deleted the ClipInstances...
 		}
 
 		// Shorten the previous one if need be
@@ -4545,8 +4561,8 @@ void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 }
 
 // Will call audio routine!!
-// Note: in most cases (when action supplied), will try to pick a new activeClip even if told not to. But this should be
-// ok
+// Note: in most cases (when action supplied), will try to pick a new activeClip even if told not to. But this
+// should be ok
 void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip) {
 
 	// If clipInstance had a Clip, and it's a (white) arrangement-only Clip, then the whole Clip needs deleting.
@@ -4625,12 +4641,12 @@ void Song::setParamsInAutomationMode(bool newState) {
 }
 
 // returns true if the whole instrument should be replaced, and not just the instrument for the given clip
-// returns false iff in clip view for a clip that does not have an instance in arranger. Or if called with no clip which
-// could happen from the arranger audition pad availability will be unused in session or arranger view, available in
-// session for active clips in clip view, and any for inactive clips
+// returns false iff in clip view for a clip that does not have an instance in arranger. Or if called with no clip
+// which could happen from the arranger audition pad availability will be unused in session or arranger view,
+// available in session for active clips in clip view, and any for inactive clips
 bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
-	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different
-	// Output If in session view, change the whole instrument
+	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a
+	// different Output If in session view, change the whole instrument
 	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
@@ -4737,8 +4753,8 @@ cantDoIt:
 			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
 		}
 
-		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the
-		// existing Instrument object!
+		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
+		// the existing Instrument object!
 		oldNonAudioInstrument->channel = newChannel;
 		if (outputType == OutputType::MIDI_OUT) {
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
@@ -4827,8 +4843,8 @@ tryAgain:
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-			// Assert that thisClip is the active Clip with this Instrument - make any other Clips inactive (activity
-			// status could have changed while we were loading...)
+			// Assert that thisClip is the active Clip with this Instrument - make any other Clips inactive
+			// (activity status could have changed while we were loading...)
 			assertActiveness(modelStackWithTimelineCounter);
 
 			if (playbackHandler.isEitherClockActive()) {
@@ -5317,8 +5333,8 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIndex,
                                  bool createConsequencesForOtherLinearlyRecordingClips) {
 
-	// You'd kind of think that we'd want to just not bother with this if playback isn't active, but we're not allowed
-	// to apply that logic, cos this will get called as playback ends, but after playbackState is set to 0
+	// You'd kind of think that we'd want to just not bother with this if playback isn't active, but we're not
+	// allowed to apply that logic, cos this will get called as playback ends, but after playbackState is set to 0
 
 	// But, we're still allowed to do this check
 	if (playbackHandler.isEitherClockActive() && currentPlaybackMode != &session) {
@@ -5612,8 +5628,8 @@ uint32_t Song::getLivePos() {
 	}
 }
 
-// I think I created this function to be called during the actioning of a swung tick, when we know that no further swung
-// ticks have passed since the last actioned one
+// I think I created this function to be called during the actioning of a swung tick, when we know that no further
+// swung ticks have passed since the last actioned one
 int32_t Song::getLastProcessedPos() {
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -5646,8 +5662,8 @@ void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
 
 int32_t Song::convertSyncLevelFromFileValueToInternalValue(int32_t fileValue) {
 
-	// The file value is relative to insideWorldTickMagnitude etc, though if insideWorldTickMagnitude is 1 (which used
-	// to be the default), it comes out as the same value anyway (kind of a side point)
+	// The file value is relative to insideWorldTickMagnitude etc, though if insideWorldTickMagnitude is 1 (which
+	// used to be the default), it comes out as the same value anyway (kind of a side point)
 
 	if (fileValue == 0) {
 		return 0; // 0 means "off"
@@ -5812,22 +5828,18 @@ traverseClips:
         }
 
     }
-    if (!doingArrangementClips) { doingArrangementClips = true; numElements = output->clipInstances.getNumElements();
-goto traverseClips; }
+    if (!doingArrangementClips) { doingArrangementClips = true; numElements =
+output->clipInstances.getNumElements(); goto traverseClips; }
 
 
 
 
 
-    // For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master list
-for arranger Clips ClipArray* clipArray = &sessionClips; bool doingClipsProvidedByOutput = false; decideNumElements:
-    int32_t numElements = clipArray->getNumElements();
-traverseClips:
-    for (int32_t c = 0; c < numElements; c++) {
-        Clip* clip;
-        if (!doingClipsProvidedByOutput) {
-            clip = clipArray->getClipAtIndex(c);
-            if (clip->output != output) continue;
+    // For each Clip in session and arranger for specific Output - but if currentlySwappingInstrument, use master
+list for arranger Clips ClipArray* clipArray = &sessionClips; bool doingClipsProvidedByOutput = false;
+decideNumElements: int32_t numElements = clipArray->getNumElements(); traverseClips: for (int32_t c = 0; c <
+numElements; c++) { Clip* clip; if (!doingClipsProvidedByOutput) { clip = clipArray->getClipAtIndex(c); if
+(clip->output != output) continue;
         }
         else {
             ClipInstance* clipInstance = output->clipInstances.getElement(c);

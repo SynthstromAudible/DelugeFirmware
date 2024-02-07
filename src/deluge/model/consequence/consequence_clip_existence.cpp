@@ -102,8 +102,8 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 
 		// Make sure the currentClip isn't left pointing to this Clip. Most of the time, ActionLogger::revertAction()
 		// reverts currentClip so we don't have to worry about it - but not if action->currentClip is NULL!
-		if (modelStackWithTimelineCounter->song->currentClip == clip) {
-			modelStackWithTimelineCounter->song->currentClip = NULL;
+		if (modelStackWithTimelineCounter->song->getCurrentClip() == clip) {
+			modelStackWithTimelineCounter->song->setCurrentClip(nullptr);
 		}
 
 		clip->stopAllNotesPlaying(

@@ -3626,7 +3626,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	soundName.set(prefix);
 
-	Kit* kit = (Kit*)modelStack->song->currentClip->output;
+	// safe since we can't get here without being in a kit
+	Kit* kit = getCurrentKit();
 
 	int32_t error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error) {
@@ -3652,7 +3653,7 @@ doDisplayError:
 	SoundDrum* newDrum = new (memory) SoundDrum();
 	newDrum->setupAsSample(&paramManager);
 
-	modelStack->song->backUpParamManager(newDrum, modelStack->song->currentClip, &paramManager, true);
+	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
 	newDrum->name.set(&soundName);
 	newDrum->nameIsDiscardable = true;
@@ -4674,9 +4675,9 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	uiNeedsRendering(this, rowUpdateMask, 0);
 
-	if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
-		modelStack->song->currentClip->expectEvent();
-		modelStack->song->currentClip->reGetParameterAutomation(modelStack);
+	if (playbackHandler.isEitherClockActive() && currentClip->isActiveOnOutput()) {
+		currentClip->expectEvent();
+		currentClip->reGetParameterAutomation(modelStack);
 	}
 
 	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
@@ -4789,9 +4790,10 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	bool didAnySuccessfulNudging = false;
 
-	InstrumentClip* currentClip = getCurrentInstrumentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	// safe since we can't be in instrument clip view if it's not an instrument clip
+	auto currentClip = (InstrumentClip*)modelStack->song->getCurrentClip();
 
 	// If the user is nudging back in the direction they just nudged, we can do a (possibly partial) undo, getting back
 	// the proper length of any notes that got trimmed etc.
@@ -4804,8 +4806,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 		actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// Still have to work out resultingTotalOffset, to display for the user
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4858,8 +4859,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 			}
 		}
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// For each note / pad held down...
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4988,9 +4988,9 @@ doCompareNote:
 	char const* message;
 	bool alignRight = false;
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(
-	    modelStack->song
-	        ->currentClip); // Can finally do this since we're not going to use the bare ModelStack for anything else
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	    modelStack->addTimelineCounter(currentClip); // Can finally do this since we're not going to use the bare
+	                                                 // ModelStack for anything else
 
 	if (numEditPadPresses > 1) {
 		if (!didAnySuccessfulNudging) {
