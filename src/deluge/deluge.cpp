@@ -387,14 +387,14 @@ bool readButtonsAndPads() {
 void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
-
+	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
-	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
-		if (getCurrentClip()->onAutomationClipView) {
+	if (currentClip && song->inClipMinderViewOnLoad) {
+		if (currentClip->onAutomationClipView) {
 			newUI = &automationView;
 		}
-		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
+		else if (currentClip->type == ClipType::INSTRUMENT) {
+			if (((InstrumentClip*)currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
 			else {

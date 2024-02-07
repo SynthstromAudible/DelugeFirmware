@@ -36,7 +36,7 @@ int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* mod
 		amountNow = -amountNow;
 	}
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->getCurrentClip())
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();
 
