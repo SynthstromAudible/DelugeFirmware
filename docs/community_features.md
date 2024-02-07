@@ -298,6 +298,13 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 - ([#368]) Extends the probability system to set a row at a time. Hold an `AUDITION` pad and turn `SELECT` to change the whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
 
+#### 4.3.7 - Shorcut for "Transpose clip" is now "Nudge notes vertically for clip"
+
+- ([#1183]) The command `SHIFT` + hold and turn `▼︎▲︎` inside a clip was causing an unexpected behavior in which all other clips in the song were also transposed. This has been fixed by changing this command to a "Vertical nudge" command, based on current clip display (either in scale or non-scale mode). This saves user from the need to "zoom out, copy all notes, scroll up or down, and paste all notes" to nudge notes vertically.
+	- If the clip is in scale mode, all the notes are shifted up or down by one step in the scale.
+	- If the clip is not in scale mode, all the notes are shifted up or down by one semitone.
+	- Note: the other command for octave transposition, that is, hold and turn `▼︎▲︎`, keeps working in the same way, by nudging notes by one octave, regardless of the clip scale mode.
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -543,6 +550,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
 [#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
+[#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md
