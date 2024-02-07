@@ -41,24 +41,12 @@
 
 int16_t lastNoteOffOrder = 1;
 
-MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
-	channelSuffix = -1;
-	modKnobMode = 0;
-	memset(modKnobCCAssignments, CC_NUMBER_NONE, sizeof(modKnobCCAssignments));
+MIDIInstrument::MIDIInstrument()
+    : NonAudioInstrument(OutputType::MIDI_OUT), mpeOutputMemberChannels(),
+      ratio(float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])),
+      modKnobCCAssignments() {
 
-	for (int32_t c = 0; c <= 15; c++) {
-		mpeOutputMemberChannels[c].lastNoteCode = 32767;
-		mpeOutputMemberChannels[c].noteOffOrder = 0;
-	}
-	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-		lastMonoExpression[i] = 0;
-		lastCombinedPolyExpression[i] = 0;
-	}
-	// set to max negative so that it works as 0 when combined to mono mod
-	lastCombinedPolyExpression[Y_SLIDE_TIMBRE] = NEGATIVE_ONE_Q31;
-	collapseAftertouch = false;
-	collapseMPE = true;
-	ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+	modKnobMode = 0;
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -168,7 +156,6 @@ noParam:
 	case CC_NUMBER_PITCH_BEND:
 		paramId = 0;
 		goto expressionParam;
-
 	case CC_NUMBER_Y_AXIS:
 		paramId = 1;
 		goto expressionParam;
@@ -240,11 +227,15 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 	}
 
 	case 1: {
-		// mono y expression is limited to positive values, double it to match range
-		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 25) + 64;
+		// mono y expression is limited to positive values
+		// this means that without sending CC1 on the master channel poly expression below 64 will
+		// send as mod wheel 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Y as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
 		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
+
 		midiEngine.sendCC(masterChannel, 1, newValue, channel);
 		break;
 	}
@@ -788,7 +779,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		if (collapseMPE) {
 			combineMPEtoMono(0, X_PITCH_BEND);
 			// This is CC74 value of 0
-			combineMPEtoMono(NEGATIVE_ONE_Q31, Y_SLIDE_TIMBRE);
+			combineMPEtoMono(0, Y_SLIDE_TIMBRE);
 		}
 	}
 
