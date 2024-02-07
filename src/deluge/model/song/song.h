@@ -144,8 +144,6 @@ public:
 	Instrument*
 	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
 
-	Clip* currentClip;
-
 	OrderedResizeableArrayWithMultiWordKey backedUpParamManagers;
 
 	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
@@ -213,6 +211,13 @@ public:
 	String dirPath;
 
 	bool getAnyClipsSoloing();
+	Clip* getCurrentClip();
+	void setCurrentClip(Clip* clip) {
+		if (currentClip != nullptr) {
+			previousClip = currentClip;
+		}
+		currentClip = clip;
+	}
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
@@ -362,6 +367,8 @@ public:
 
 private:
 	bool fillModeActive;
+	Clip* currentClip = nullptr;
+	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
@@ -374,11 +381,3 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
-
-inline Instrument* getCurrentInstrumentOrNull() {
-	Output* out = currentSong->currentClip->output;
-	if (out->type != OutputType::AUDIO) {
-		return (Instrument*)out;
-	}
-	return nullptr;
-}

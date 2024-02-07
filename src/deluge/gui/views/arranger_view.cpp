@@ -1418,6 +1418,8 @@ getItFromSection:
 
 				if (clipInstance->clip) {
 					originallyPressedClipActualLength = clipInstance->clip->loopLength;
+					// we've either created or selected a clip, so set it to be current
+					currentSong->setCurrentClip(clipInstance->clip);
 				}
 				else {
 					originallyPressedClipActualLength = clipInstance->length;
@@ -1687,8 +1689,9 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	Clip* clip = clipInstance->clip;
+	// it should already be this clip, but if it ever isn't it would be a disaster
+	currentSong->setCurrentClip(clip);
 
-	currentSong->currentClip = clip;
 	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];

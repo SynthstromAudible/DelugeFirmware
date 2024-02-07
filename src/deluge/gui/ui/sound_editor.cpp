@@ -770,7 +770,7 @@ ActionResult SoundEditor::timerCallback() {
 
 void SoundEditor::markInstrumentAsEdited() {
 	if (!inSettingsMenu()) {
-		Instrument* inst = getCurrentInstrumentOrNull();
+		Instrument* inst = getCurrentInstrument();
 		if (inst) {
 			getCurrentInstrument()->beenEdited();
 		}

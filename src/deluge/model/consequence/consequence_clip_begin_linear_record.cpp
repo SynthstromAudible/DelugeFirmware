@@ -53,7 +53,7 @@ int32_t ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* mode
 
 			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to
 			// go out and reactivate it
-			if (modelStack->song->currentClip == clip && getCurrentUI()->toClipMinder()) {
+			if (modelStack->song->getCurrentClip() == clip && getCurrentUI()->toClipMinder()) {
 				return NO_ERROR;
 			}
 

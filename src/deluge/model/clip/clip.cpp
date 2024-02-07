@@ -80,6 +80,9 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
+	if (getCurrentClip() == this) {
+		currentSong->setCurrentClip(nullptr);
+	}
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
@@ -730,14 +733,14 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "beingEdited")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = false;
 		}
 	}
@@ -1022,8 +1025,11 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 }
 
 int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+
+	// if we're not in a clip level view, set to the clip that's starting linear recording
+	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
-		modelStack->song->currentClip = this;
+		modelStack->song->setCurrentClip(this);
 	}
 	return NO_ERROR;
 }
