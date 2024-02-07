@@ -1,3 +1,4 @@
+#include "definitions.h"
 #include "mem_functions.h"
 #include <array>
 #include <cstddef>
@@ -23,6 +24,9 @@ public:
 				return static_cast<Enum>(i);
 			}
 		}
+#if ALPHA_OR_BETA_VERSION
+		freezeWithError("no match");
+#endif
 		return static_cast<Enum>(N);
 	}
 };

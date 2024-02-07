@@ -933,31 +933,6 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
-char const* filterRouteToString(FilterRoute route) {
-	switch (route) {
-	case FilterRoute::LOW_TO_HIGH:
-		return "L2H";
-
-	case FilterRoute::PARALLEL:
-		return "PARA";
-
-	default:
-		return "H2L";
-	}
-}
-
-FilterRoute stringToFilterRoute(char const* string) {
-	if (!strcmp(string, "L2H")) {
-		return FilterRoute::LOW_TO_HIGH;
-	}
-	else if (!strcmp(string, "PARA")) {
-		return FilterRoute::PARALLEL;
-	}
-	else {
-		return FilterRoute::HIGH_TO_LOW;
-	}
-}
-
 char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
 	case ArpMode::UP:

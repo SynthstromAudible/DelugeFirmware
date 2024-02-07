@@ -1,5 +1,4 @@
 #include "filter_config.h"
-#include "definitions_cxx.hpp"
 #include "mem_functions.h"
 #include "util/container/enum_to_string_map.hpp"
 
@@ -13,7 +12,21 @@ EnumStringMap<FilterMode, kNumFilterModes> filterMap({{{FilterMode::TRANSISTOR_1
                                                        {FilterMode::SVF_NOTCH, "SVF_Notch"},
                                                        {FilterMode::HPLADDER, "HPLadder"}}});
 
+EnumStringMap<FilterRoute, kNumFilterRoutes> routeMap({{
+    {FilterRoute::LOW_TO_HIGH, "L2H"},
+    {FilterRoute::PARALLEL, "PARA"},
+    {FilterRoute::HIGH_TO_LOW, "H2L"},
+}});
+
 } // namespace deluge::dsp::filter
+
+char const* filterRouteToString(FilterRoute route) {
+	return deluge::dsp::filter::routeMap(route);
+}
+
+FilterRoute stringToFilterRoute(char const* string) {
+	return deluge::dsp::filter::routeMap(string);
+}
 
 FilterMode stringToLPFType(char const* string) {
 	return deluge::dsp::filter::filterMap(string);
