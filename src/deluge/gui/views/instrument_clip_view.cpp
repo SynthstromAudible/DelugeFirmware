@@ -4360,7 +4360,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 				// it's the next note in the scale)¬
 				instrumentClip->nudgeNotesVertically(offset, modelStack);
 			}
-			instrumentClipView.recalculateColours();
+			recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 	}
