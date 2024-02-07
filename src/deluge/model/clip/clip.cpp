@@ -19,9 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
-#include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -29,17 +27,12 @@
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
-#include "model/model_stack.h"
 #include "model/output.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "playback/mode/playback_mode.h"
-#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
 #include <new>
 
 namespace params = deluge::modulation::params;

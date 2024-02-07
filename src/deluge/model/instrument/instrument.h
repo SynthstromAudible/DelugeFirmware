@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
-#include "util/d_string.h"
 
 class StereoSample;
 class ModControllable;

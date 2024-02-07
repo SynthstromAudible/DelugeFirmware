@@ -17,7 +17,6 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -27,54 +26,33 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
-#include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
-#include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/model_stack.h"
-#include "model/note/note_row.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "modulation/params/param_manager.h"
-#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
-#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/file_item.h"
-#include "storage/flash_storage.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+extern "C" {}
 
 namespace params = deluge::modulation::params;
 Clip* getCurrentClip() {

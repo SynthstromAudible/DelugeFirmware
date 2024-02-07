@@ -19,29 +19,23 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/root_ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
-#include <new>
-#include <string.h>
+#include <cstring>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);

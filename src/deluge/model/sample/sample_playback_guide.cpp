@@ -21,7 +21,6 @@
 #include "model/sample/sample_holder.h"
 #include "model/voice/voice_sample.h"
 #include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 
 SamplePlaybackGuide::SamplePlaybackGuide() {

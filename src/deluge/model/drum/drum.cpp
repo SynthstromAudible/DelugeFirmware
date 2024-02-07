@@ -22,14 +22,10 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
-#include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include <cstdint>
-#include <new>
 #include <string.h>
 
 Drum::Drum(DrumType newType) : type(newType) {
