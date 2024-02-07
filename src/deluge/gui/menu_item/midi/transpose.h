@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,17 +14,25 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
-
-#include <cstdint>
 #include "definitions_cxx.hpp"
-class MIDIDevice;
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
+#include "io/midi/midi_transpose.h"
 
-
-namespace MIDITranspose {
-extern MIDITransposeControlMethod controlMethod;
-void doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC);
+namespace deluge::gui::menu_item::midi {
+class Transpose final : public Selection {
+public:
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(MIDITranspose::controlMethod); }
+	void writeCurrentValue() override { MIDITranspose::controlMethod = this->getValue<MIDITransposeControlMethod>(); }
+	deluge::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_TRANSPOSE_INKEY),
+		    l10n::getView(STRING_FOR_TRANSPOSE_CHROMATIC),
+		    l10n::getView(STRING_FOR_TRANSPOSE_CHORD),
+		};
+	}
 };
-
-// extern MIDITranspose midiTranspose;
+} // namespace deluge::gui::menu_item::midi

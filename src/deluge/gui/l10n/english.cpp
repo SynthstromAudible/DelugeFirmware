@@ -859,6 +859,11 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_MASTER, "Master"},
         {STRING_FOR_FILTERS, "Filters"},
+
+		// MIDI transpose string
+		{STRING_FOR_TRANSPOSE_INKEY, "In Key"},
+		{STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
+		{STRING_FOR_TRANSPOSE_CHORD, "Chord"},
     },
 };
 } // namespace deluge::l10n::built_in

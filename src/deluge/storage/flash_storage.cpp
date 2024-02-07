@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -139,6 +140,10 @@ namespace FlashStorage {
 151: automationShift;
 152: automationNudgeNote;
 153: automationDisableAuditionPadShortcuts;
+154: MIDI Transpose ChannelOrZone
+155: MIDI Transpose NoteOrCC
+156-159: MIDI Transpose device / vendor ID
+160: MIDI Traspose Control method.
 */
 
 uint8_t defaultScale;
@@ -568,6 +573,13 @@ void readSettings() {
 	/* buffer[157]  \
 	   buffer[158]   device reference above occupies 4 bytes
 	   buffer[159] */
+
+	if (buffer[160] >= kNumMIDITransposeControlMethods) {
+		MIDITranspose::controlMethod = MIDITransposeControlMethod::INKEY;
+	}
+	else {
+		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[160]);
+	}
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -771,6 +783,7 @@ void writeSettings() {
 	/* buffer[157]  \
 	   buffer[158]   device reference above occupies 4 bytes
 	   buffer[159] */
+	buffer[160]	= util::to_underlying(MIDITranspose::controlMethod);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

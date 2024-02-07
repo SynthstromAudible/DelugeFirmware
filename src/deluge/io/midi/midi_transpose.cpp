@@ -7,6 +7,8 @@
 
 namespace MIDITranspose {
 
+MIDITransposeControlMethod controlMethod;
+
 void doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
 
 	if (!currentSong->hasBeenTransposed) {
@@ -24,22 +26,30 @@ void doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC)
 	int32_t semitones;
 	semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->rootNote;
 
-	uint8_t indexInMode = currentSong->getYNoteIndexInMode(newNoteOrCC);
+	if (controlMethod == MIDITransposeControlMethod::INKEY) {
 
-	if (indexInMode < 255) {
-		int8_t octaves;
-		if (semitones < 0) {
-			octaves = ((semitones + 1) / 12) - 1;
-		}
-		else {
-			octaves = (semitones / 12);
-		}
-		int32_t steps = octaves * currentSong->numModeNotes + indexInMode;
+		uint8_t indexInMode = currentSong->getYNoteIndexInMode(newNoteOrCC);
+		if (indexInMode < 255) {
+			int8_t octaves;
+			if (semitones < 0) {
+				octaves = ((semitones + 1) / 12) - 1;
+			}
+			else {
+				octaves = (semitones / 12);
+			}
+			int32_t steps = octaves * currentSong->numModeNotes + indexInMode;
 
-		currentSong->transposeAllScaleModeClips(steps, false);
+			currentSong->transposeAllScaleModeClips(steps, false);
+
+			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+			uiNeedsRendering(&instrumentClipView);
+		}
+	} else {
+		currentSong->transposeAllScaleModeClips(semitones, true);
 
 		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 		uiNeedsRendering(&instrumentClipView);
+
 	}
 }
 } // namespace MIDITranspose

@@ -69,6 +69,7 @@
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
+#include "gui/menu_item/midi/transpose.h"
 #include "gui/menu_item/mod_fx/depth.h"
 #include "gui/menu_item/mod_fx/feedback.h"
 #include "gui/menu_item/mod_fx/offset.h"
@@ -829,6 +830,19 @@ Submenu midiFollowSubmenu{
 // MIDI select kit row
 ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, midiEngine.midiSelectKitRow};
 
+// MIDI transpose menu
+
+midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
+
+Submenu midiTransposeSubmenu{
+    STRING_FOR_TRANSPOSE,
+    STRING_FOR_TRANSPOSE,
+    {
+        &midiTransposeMenu,
+    },
+};
+
+
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -892,6 +906,7 @@ Submenu midiMenu{
         &midiFollowSubmenu,
         &midiSelectKitRowMenu,
         &midiThruMenu,
+		&midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,
