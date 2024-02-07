@@ -28,6 +28,7 @@
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
 - Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger, Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and turn `▼︎▲︎` to transpose the clips by +/- 1 semitone). The number of semitones transposed is customizable (Press shift and turn `▼︎▲︎`). After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

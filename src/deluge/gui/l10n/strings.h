@@ -787,6 +787,8 @@ enum class String : size_t {
 	STRING_FOR_MASTER,
 	STRING_FOR_FILTERS,
 
+	STRING_FOR_CANT_TRANSPOSE,
+
 	STRING_LAST
 };
 

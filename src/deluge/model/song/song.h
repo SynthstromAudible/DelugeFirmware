@@ -83,7 +83,7 @@ public:
 	~Song();
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
-	void transposeAllScaleModeClips(int32_t offset);
+	void transposeAllScaleModeClips(int32_t interval);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -103,6 +103,8 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void displayCurrentRootNoteAndScaleName();
+	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
@@ -364,6 +366,11 @@ public:
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
+
+	int32_t masterTransposeInterval;
+	void transpose(int32_t interval);
+	void adjustMasterTransposeInterval(int32_t interval);
+	void displayMasterTransposeInterval();
 
 private:
 	bool fillModeActive;
