@@ -2286,36 +2286,20 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-				clip->transpose(offset * 12, modelStack);
-				if (clip->isScaleModeClip()) {
-					clip->yScroll += offset * (currentSong->numModeNotes - 12);
-				}
-				// display->displayPopup("OCTAVE");
+				clip->transpose(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
 			}
-
-			// Otherwise, transpose single semitone
+			// Otherwise, transpose single row position
 			else {
-				// If current Clip not in scale-mode, just do it
-				if (!clip->isScaleModeClip()) {
-					clip->transpose(offset, modelStack);
-
-					// If there are no scale-mode Clips at all, move the root note along as well - just in case the user
-					// wants to go back to scale mode (in which case the "previous" root note would be used to help
-					// guess what root note to go with)
-					if (!currentSong->anyScaleModeClips()) {
-						currentSong->rootNote += offset;
-					}
-				}
-
-				// Otherwise, got to do all key-mode Clips
-				else {
-					currentSong->transposeAllScaleModeClips(offset);
-				}
-				// display->displayPopup("SEMITONE");
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
+				// it's the next note in the scale)¬
+				clip->transpose(offset, modelStack);
 			}
+			instrumentClipView.recalculateColours();
+			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 	}
 

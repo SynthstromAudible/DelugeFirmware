@@ -1307,12 +1307,70 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		thisNoteRow->y += change;
+	if (!this->isScaleModeClip()) {
+		// Non scale clip, transpose directly by semitone jumps
+		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			// transpose by semitones or by octave
+			thisNoteRow->y += change;
+		}
+	}
+	else {
+		// Scale clip, transpose by scale note jumps
+
+		// wanting to change a full octave
+		if (std::abs(change) == modelStack->song->numModeNotes) {
+			int32_t changeInSemitones = (change > 0) ? 12 : -12;
+			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+				NoteRow* thisNoteRow = noteRows.getElement(i);
+				// transpose by semitones or by octave
+				thisNoteRow->y += changeInSemitones;
+			}
+		}
+
+		// wanting to change less than an octave
+		else {
+			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+				NoteRow* thisNoteRow = noteRows.getElement(i);
+				int32_t changeInSemitones = 0;
+				int32_t yNoteWithinOctave = modelStack->song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode());
+				int32_t oldModeNoteIndex = 0;
+				for (; oldModeNoteIndex < modelStack->song->numModeNotes; oldModeNoteIndex++) {
+					if (modelStack->song->modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
+						break;
+					}
+				}
+				int32_t newModeNoteIndex =
+				    (oldModeNoteIndex + change + modelStack->song->numModeNotes) % modelStack->song->numModeNotes;
+
+				int32_t s = 0;
+				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
+				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
+					// within the same octave
+					changeInSemitones =
+					    modelStack->song->modeNotes[newModeNoteIndex] - modelStack->song->modeNotes[oldModeNoteIndex];
+					s = 1;
+				}
+				else {
+					if (change > 0) {
+						// go up an octave
+						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
+						                    - modelStack->song->modeNotes[oldModeNoteIndex] + 12;
+						s = 2;
+					}
+					else {
+						// go down an octave
+						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
+						                    - modelStack->song->modeNotes[oldModeNoteIndex] - 12;
+						s = 3;
+					}
+				}
+				// transpose by semitones
+				thisNoteRow->y += changeInSemitones;
+			}
+		}
 	}
 	yScroll += change;
-	colourOffset -= change;
 }
 
 // Lock rendering before calling this!
@@ -3040,7 +3098,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 				chosenNoteRowIndex = i;
 				break;
 			}
-noteRowFailed: {}
+noteRowFailed : {}
 		}
 	}
 
