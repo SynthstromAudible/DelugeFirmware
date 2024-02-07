@@ -1316,6 +1316,10 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 }
 
 void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
+	// Note: the usage of this method is limited to no more than an octave of "change"
+	//  ideally used by the "hold and turn vertical encoder"
+	//  and "shift + hold and turn vertical encoder" shorcuts within clip
+
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
