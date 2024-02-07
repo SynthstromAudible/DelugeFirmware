@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "io/debug/log.h"
 #include "mem_functions.h"
 #include <array>
 #include <cstddef>
@@ -25,7 +26,9 @@ public:
 			}
 		}
 #if ALPHA_OR_BETA_VERSION
-		freezeWithError("no match");
+		char popup[25];
+		sprintf(popup, "no match for:%s", str);
+		freezeWithError(popup);
 #endif
 		return static_cast<Enum>(N);
 	}
