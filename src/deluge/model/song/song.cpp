@@ -201,6 +201,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	lastSelectedParamArrayPosition = 0;
 	// end initialize of automation arranger view variables
 
+	masterTransposeInterval = 0;
+
 	dirPath.set("SONGS");
 }
 
@@ -468,7 +470,7 @@ gotError2:
 	return false;
 }
 
-void Song::transposeAllScaleModeClips(int32_t offset) {
+void Song::transposeAllScaleModeClips(int32_t interval) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -480,12 +482,15 @@ traverseClips:
 		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
+		if (clip->output->type == OutputType::KIT) {
+			continue;
+		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
-			instrumentClip->transpose(offset, modelStackWithTimelineCounter);
+			instrumentClip->transpose(interval, modelStackWithTimelineCounter);
 		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
@@ -493,7 +498,9 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	rootNote += offset;
+	rootNote += interval;
+
+	displayCurrentRootNoteAndScaleName();
 }
 
 bool Song::anyScaleModeClips() {
@@ -2778,6 +2785,17 @@ traverseClips:
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
+	}
+}
+
+const char* Song::getScaleName(int32_t scale) {
+	if (scale >= NUM_PRESET_SCALES) {
+		// Other scale
+		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE);
+	}
+	else {
+		// Preset scale
+		return presetScaleNames[scale];
 	}
 }
 
@@ -5746,6 +5764,64 @@ doHibernatingInstruments:
 	}
 
 	return NO_ERROR;
+}
+
+void Song::displayCurrentRootNoteAndScaleName() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	char noteName[5];
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(currentSong->rootNote, noteName, &isNatural);
+
+	popupMsg.append(noteName);
+	if (display->haveOLED()) {
+		popupMsg.append(" ");
+		popupMsg.append(getScaleName(getCurrentPresetScale()));
+	}
+	display->displayPopup(popupMsg.c_str());
+}
+
+void Song::transpose(int32_t interval) {
+	if (anyScaleModeClips()) {
+		if (masterTransposeInterval != 0) {
+			interval *= currentSong->masterTransposeInterval;
+		}
+		transposeAllScaleModeClips(interval);
+	}
+	else {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));
+	}
+}
+
+void Song::adjustMasterTransposeInterval(int32_t interval) {
+	masterTransposeInterval += interval;
+	if (masterTransposeInterval < 0) {
+		masterTransposeInterval = 0;
+	}
+	displayMasterTransposeInterval();
+}
+
+void Song::displayMasterTransposeInterval() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+
+	if (display->haveOLED()) {
+		popupMsg.append("Transpose Interval: \n");
+		if (masterTransposeInterval == 0) {
+			popupMsg.append("Encoder");
+		}
+		else {
+			popupMsg.appendInt(masterTransposeInterval);
+			popupMsg.append(" Semitones");
+		}
+	}
+	else {
+		if (masterTransposeInterval == 0) {
+			popupMsg.append("ENC");
+		}
+		else {
+			popupMsg.appendInt(masterTransposeInterval);
+		}
+	}
+	display->displayPopup(popupMsg.c_str());
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {

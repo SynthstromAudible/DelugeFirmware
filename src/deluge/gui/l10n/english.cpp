@@ -862,6 +862,8 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_MASTER, "Master"},
         {STRING_FOR_FILTERS, "Filters"},
+
+        {STRING_FOR_CANT_TRANSPOSE, "Can't Transpose: No Scale Mode Clips"},
     },
 };
 } // namespace deluge::l10n::built_in
