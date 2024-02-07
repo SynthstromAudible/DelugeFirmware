@@ -1307,6 +1307,18 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
+	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		thisNoteRow->y += change;
+	}
+	yScroll += change;
+	colourOffset -= change;
+}
+
+void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
+	// Make sure no notes sounding
+	stopAllNotesPlaying(modelStack);
+
 	if (!this->isScaleModeClip()) {
 		// Non scale clip, transpose directly by semitone jumps
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {

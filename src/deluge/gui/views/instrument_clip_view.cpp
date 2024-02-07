@@ -4350,16 +4350,17 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				instrumentClip->transpose(
-				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				instrumentClip->nudgeNotesVertically(offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
+				                           modelStack);
 			}
 			// Otherwise, transpose single row position
 			else {
 				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
 				// it's the next note in the scale)¬
-				instrumentClip->transpose(offset, modelStack);
+				instrumentClip->nudgeNotesVertically(offset, modelStack);
 			}
-			recalculateColours();
+			instrumentClipView.recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 	}
