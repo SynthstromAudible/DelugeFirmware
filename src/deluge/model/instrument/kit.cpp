@@ -443,10 +443,11 @@ Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
 
 int32_t Kit::getDrumIndex(Drum* drum) {
 	int32_t index = 0;
-	for (Drum* thisDrum = firstDrum; thisDrum && thisDrum != drum; thisDrum = thisDrum->next) {
+	Drum* thisDrum;
+	for (thisDrum = firstDrum; thisDrum && thisDrum != drum; thisDrum = thisDrum->next) {
 		index++;
 	}
-	return index;
+	return thisDrum ? index : -1;
 }
 
 Drum* Kit::getDrumFromIndex(int32_t index) {
