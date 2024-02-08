@@ -108,8 +108,8 @@ public:
 	// called by playback_handler.cpp
 	void notifyPlaybackBegun();
 
-	// not sure how this is used
-	ClipMinder* toClipMinder() { return this; }
+	// used to identify the UI as a clip UI or not.
+	ClipMinder* toClipMinder() { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
 
 	bool isOnAutomationOverview();
 
