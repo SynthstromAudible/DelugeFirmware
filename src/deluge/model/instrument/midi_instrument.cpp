@@ -20,24 +20,17 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include "util/functions.h"
-#include <string.h>
+#include <cstring>
 
 int16_t lastNoteOffOrder = 1;
 

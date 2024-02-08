@@ -24,8 +24,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
-#include "util/functions.h"
-#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"

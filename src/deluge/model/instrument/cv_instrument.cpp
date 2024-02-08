@@ -18,13 +18,10 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/cv_engine.h"
-#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
-#include <string.h>
+#include <cstring>
 
 CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;

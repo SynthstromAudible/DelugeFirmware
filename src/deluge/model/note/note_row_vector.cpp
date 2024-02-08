@@ -18,7 +18,6 @@
 #include "model/note/note_row_vector.h"
 #include "model/note/note_row.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include <new>
 
 NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {

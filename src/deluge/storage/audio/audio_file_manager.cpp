@@ -26,15 +26,12 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader.h"
-#include "model/sample/sample_recorder.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_reader.h"
-#include "util/functions.h"
-#include "util/misc.h"
 #include <new>
 #include <string.h>
 

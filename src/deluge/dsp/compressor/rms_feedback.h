@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
-#include "util/fixedpoint.h"
 #include <cmath>
 
 class RMSFeedbackCompressor {
