@@ -376,15 +376,10 @@ void PlaybackHandler::tapTempoAutoSwitchOff() {
 }
 
 void PlaybackHandler::decideOnCurrentPlaybackMode() {
-	// If in arranger...
-	if (getRootUI() == &arrangerView
-	    || (!getRootUI() && currentSong && currentSong->lastClipInstanceEnteredStartPos != -1)) {
-		goto useArranger;
+	if (currentSong && currentSong->lastClipInstanceEnteredStartPos != -1) {
+		currentPlaybackMode = &arrangement;
 	}
-
-	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
-useArranger:
+	else if (rootUIIsClipMinderScreen() && getCurrentClip()->isArrangementOnlyClip()) {
 		currentPlaybackMode = &arrangement;
 	}
 	else {
