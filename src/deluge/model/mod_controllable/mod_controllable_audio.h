@@ -20,12 +20,10 @@
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
-#include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
-#include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/sidechain/sidechain.h"
 
@@ -105,8 +103,6 @@ public:
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation);
 
 	// Phaser
 	StereoSample phaserMemory;
