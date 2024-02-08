@@ -256,10 +256,6 @@ void PerformanceSessionView::focusRegained() {
 
 	updateLayoutChangeStatus();
 
-	if (defaultEditingMode) {
-		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
-	}
-
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
@@ -299,6 +295,12 @@ void PerformanceSessionView::graphicsRoutine() {
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.timerCallback();
+	}
+	else {
+		arrangerView.timerCallback();
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -421,10 +423,11 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 		return true;
 	}
 
-	if (gridModeActive) {
-		for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
-			sessionView.gridRenderActionModes(y, image, occupancyMask);
-		}
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.renderSidebar(whichRows, image, occupancyMask);
+	}
+	else {
+		arrangerView.renderSidebar(whichRows, image, occupancyMask);
 	}
 
 	return true;
@@ -612,19 +615,18 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
+	sessionView.renderOLED(image);
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
 	renderViewDisplay();
+	sessionView.redrawNumericDisplay();
 }
 
 void PerformanceSessionView::setLedStates() {
-	setCentralLEDStates();  // inherited from session view
+	setCentralLEDStates();
 	view.setLedStates();    // inherited from session view
 	view.setModLedStates(); // inherited from session view
-
-	// performanceView specific LED settings
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 }
 
 void PerformanceSessionView::setCentralLEDStates() {
@@ -635,6 +637,20 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+
+	if (defaultEditingMode) {
+		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		if (anyChangesToSave) {
+			indicator_leds::blinkLed(IndicatorLED::SAVE);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
+		}
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	}
 }
 
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -881,18 +897,40 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
+		// pressing the first column in sidebar to trigger sections / clips
+		else if (xDisplay == kDisplayWidth) {
+			if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+				sessionView.padAction(xDisplay, yDisplay, on);
+			}
+			else {
+				arrangerView.handleStatusPadAction(yDisplay, on, this);
+			}
+		}
 		// if you're using grid song view and you pressed / released a pad in the grid mode launcher column
-		else if (gridModeActive && (xDisplay == (kDisplayWidth + 1))) {
-			if (yDisplay == 0) {
-				if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+		else if (xDisplay == (kDisplayWidth + 1)) {
+			if (gridModeActive) {
+				if (yDisplay == 0) {
+					if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+						gridModeActive = false;
+						changeRootUI(&sessionView);
+					}
+				}
+				else if ((yDisplay == 7) || (yDisplay == 6)) {
 					gridModeActive = false;
 					changeRootUI(&sessionView);
+					return sessionView.gridHandlePads(xDisplay, yDisplay, on);
 				}
 			}
-			else if ((yDisplay == 7) || (yDisplay == 6)) {
-				gridModeActive = false;
-				changeRootUI(&sessionView);
-				return sessionView.gridHandlePads(xDisplay, yDisplay, on);
+			else {
+				if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+					sessionView.padAction(xDisplay, yDisplay, on);
+				}
+				else {
+					arrangerView.handleAuditionPadAction(yDisplay, on, this);
+					if (!on) {
+						setCentralLEDStates();
+					}
+				}
 			}
 		}
 	}
@@ -1326,6 +1364,14 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
 	}
+	else {
+		if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+			sessionView.selectEncoderAction(offset);
+		}
+		else {
+			arrangerView.selectEncoderAction(offset);
+		}
+	}
 exit:
 	return;
 }
@@ -1367,11 +1413,11 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		currentSong->transpose(offset);
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.verticalEncoderAction(offset, inCardRoutine);
 	}
-	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
-		currentSong->adjustMasterTransposeInterval(offset);
+	else {
+		arrangerView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	return ActionResult::DEALT_WITH;
 }

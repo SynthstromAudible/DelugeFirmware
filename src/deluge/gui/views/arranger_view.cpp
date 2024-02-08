@@ -503,7 +503,8 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	mustRedrawTickSquares = true;
 
 	if (doRender) {
-		uiNeedsRendering(this);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI());
 	}
 }
 
@@ -2318,7 +2319,8 @@ ActionResult ArrangerView::timerCallback() {
 		if (!pressedClipInstanceIsInValidPosition) {
 			blinkOn = !blinkOn;
 
-			uiNeedsRendering(this, 1 << yPressedEffective, 0);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2329,7 +2331,8 @@ ActionResult ArrangerView::timerCallback() {
 			currentUIMode = UI_MODE_VIEWING_RECORD_ARMING;
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2402,7 +2405,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-		uiNeedsRendering(this, 1 << yPressedEffective, 0);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 	}
 
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
