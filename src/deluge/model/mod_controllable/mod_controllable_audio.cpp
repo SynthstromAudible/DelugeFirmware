@@ -2571,20 +2571,6 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	return anythingFound;
 }
 
-ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t whichModEncoder,
-                                                                      ModelStackWithThreeMainThings* modelStack,
-                                                                      bool allowCreation) {
-
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-
-	int32_t paramId;
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	ParamCollection* paramCollection = summary->paramCollection;
-
-	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
-	return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
-}
-
 char const* ModControllableAudio::getSidechainDisplayName() {
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
