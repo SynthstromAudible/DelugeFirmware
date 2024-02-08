@@ -16,7 +16,6 @@
  */
 
 #include "runtime_feature_settings.h"
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "storage/storage_manager.h"

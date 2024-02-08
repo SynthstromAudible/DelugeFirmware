@@ -27,19 +27,15 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
-#include "util/functions.h"
 #include <string.h>
 
 extern "C" {

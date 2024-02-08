@@ -17,9 +17,6 @@
 
 #include "model/clip/clip_minder.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/view.h"
-#include "model/clip/clip.h"
-#include "model/song/song.h"
 
 ActionResult ClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 	return ActionResult::NOT_DEALT_WITH;

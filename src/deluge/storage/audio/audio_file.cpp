@@ -24,7 +24,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_file_reader.h"
 #include "storage/wave_table/wave_table.h"
-#include "util/functions.h"
 #include <string.h>
 
 #define MAX_NUM_MARKERS 8

@@ -21,22 +21,15 @@
 #include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/misc.h"
-#include <new>
 
 using namespace deluge;
 namespace params = deluge::modulation::params;

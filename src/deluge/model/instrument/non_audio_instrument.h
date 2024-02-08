@@ -19,7 +19,6 @@
 
 #include "model/instrument/melodic_instrument.h"
 #include "model/mod_controllable/mod_controllable.h"
-#include "modulation/arpeggiator.h"
 #include "storage/flash_storage.h"
 
 class ModelStack;

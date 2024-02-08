@@ -18,8 +18,6 @@
 #include "model/drum/gate_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include "util/functions.h"
 #include <string.h>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {

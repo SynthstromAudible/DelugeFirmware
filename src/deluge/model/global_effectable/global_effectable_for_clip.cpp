@@ -19,12 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <string.h>
 // #include <algorithm>
@@ -32,12 +28,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
-#include "util/fixedpoint.h"
 
 extern "C" {
 #include "drivers/ssi/ssi.h"

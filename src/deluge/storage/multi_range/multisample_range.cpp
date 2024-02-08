@@ -18,8 +18,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "model/sample/sample.h"
 
-MultisampleRange::MultisampleRange() {
-}
+MultisampleRange::MultisampleRange() = default;
 
 AudioFileHolder* MultisampleRange::getAudioFileHolder() {
 	return static_cast<AudioFileHolder*>(&sampleHolder);

@@ -19,8 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-#include "util/d_string.h"
-#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"

@@ -17,14 +17,12 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
-#include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
-#include "modulation/params/param_manager.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include <string.h>
+#include <cstring>
 
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
                                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,

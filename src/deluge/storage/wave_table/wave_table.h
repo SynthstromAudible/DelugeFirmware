@@ -20,7 +20,6 @@
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
 #include "util/container/array/ordered_resizeable_array.h"
-#include <cstdint>
 
 class Sample;
 class WaveTableReader;

@@ -47,8 +47,8 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/misc.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"

@@ -16,7 +16,6 @@
  */
 
 #include "model/sample/sample_cluster_array.h"
-#include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
 #include <new>
 
