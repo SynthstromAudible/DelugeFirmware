@@ -21,22 +21,16 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/display.h"
-#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
-#include "util/misc.h"
 #include <new>
 
 extern "C" {
 #include "drivers/ssi/ssi.h"
-#include "drivers/uart/uart.h"
 #include "fatfs/diskio.h"
 
 LBA_t clst2sect(           /* !=0:Sector number, 0:Failed (invalid cluster#) */

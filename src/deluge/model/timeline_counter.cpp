@@ -17,9 +17,6 @@
 
 #include "model/timeline_counter.h"
 
-TimelineCounter::TimelineCounter() {
-}
+TimelineCounter::TimelineCounter() = default;
 
-TimelineCounter::~TimelineCounter() {
-	// TODO Auto-generated destructor stub
-}
+TimelineCounter::~TimelineCounter() = default;

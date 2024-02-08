@@ -85,7 +85,7 @@ public:
 	                                bool setupWithoutActiveClipIfNeeded = true);
 	void detachActiveClip(Song* currentSong);
 
-	virtual ModControllable* toModControllable() { return NULL; }
+	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);

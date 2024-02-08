@@ -19,7 +19,6 @@
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
-#include "util/functions.h"
 
 ModControllable::ModControllable() {
 }
