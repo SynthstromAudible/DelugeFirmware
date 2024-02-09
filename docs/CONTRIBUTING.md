@@ -112,3 +112,32 @@ In addition to this workflow it is not a requirement but would be nice if develo
 * Doing housekeeping of the Pull request including processing community feedback.
 * Tagging the pull request appropriately where possible.
 * Trying to keep some sense of ownership over the touched areas of the codebase and provide support in case of problems, questions or future developments.
+
+## Tools
+
+To help you to speed up your development you have two command line tools that can help you streamline the process of loading a firmware and then debugging it.
+
+### Flashing the firmware via USB (loadfw)
+
+You can load the firmware over USB. As this could be a security risk, it must be enabled in community feature settings on the Deluge. There you will see a key that you need to use in the command to authenticate with the Deluge.
+`./dbt loadfw <port_number> <hex_key> <firmware_file_path>`
+
+You can check which port number was assigned to each port by executing:
+`./dbt loadfw -h`
+
+The only port that accepts firmware files is "Deluge Port 3" so make sure you select its port number when loading the firmware.
+
+### Printing debug log messages on the console
+
+While the Deluge is connected over USB, you can print the messages it produces to the console. In order to do that execute this command:
+`./dbt sysex-logging <port_number>`
+
+You can check which port number was assigned to each port by executing:
+`./dbt sysex-logging -h`
+
+The only build able to send debug messages via sysex is the "debug" build, so you will need to flash that one.
+
+To make debug log prints in your code, which will be sent to the console, here is a code example:
+`D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
+
+
