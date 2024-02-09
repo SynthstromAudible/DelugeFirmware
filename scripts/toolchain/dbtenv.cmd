@@ -24,21 +24,27 @@ set "DBT_TOOLCHAIN_ROOT=%DBT_TOOLCHAIN_PATH%\toolchain\v%DBT_TOOLCHAIN_VERSION%\
 
 set "DBT_TOOLCHAIN_VERSION_FILE=%DBT_TOOLCHAIN_ROOT%\VERSION"
 
+set "DBT_NEEDS_INSTALL=0"
 set "DBT_TOOLCHAIN_INSTALLED=0"
 
 if not exist "%DBT_TOOLCHAIN_ROOT%" (
-    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
-    set "DBT_TOOLCHAIN_INSTALLED=1"
+	echo %DBT_TOOLCHAIN_ROOT% missing, will install...
+	set "DBT_NEEDS_INSTALL=1"
 )
 
-if not exist "%DBT_TOOLCHAIN_VERSION_FILE%" (
-    powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
-    set "DBT_TOOLCHAIN_INSTALLED=1"
+if exist "%DBT_TOOLCHAIN_VERSION_FILE%" (
+	set /p REAL_TOOLCHAIN_VERSION=<"%DBT_TOOLCHAIN_VERSION_FILE%"
+) else (
+	echo %DBT_TOOLCHAIN_VERSION_FILE% missing, will install...
+	set "REAL_TOOLCHAIN_VERSION=0"
 )
 
-set /p REAL_TOOLCHAIN_VERSION=<"%DBT_TOOLCHAIN_VERSION_FILE%"
 if not "%REAL_TOOLCHAIN_VERSION%" == "%DBT_TOOLCHAIN_VERSION%" (
-    echo DBT: starting toolchain upgrade process..
+	echo DBT: starting toolchain upgrade process from %REAL_TOOLCHAIN_VERSION% to %DBT_TOOLCHAIN_VERSION%
+	set "DBT_NEEDS_INSTALL=1"
+)
+
+if "%DBT_NEEDS_INSTALL%" == "1" (
     powershell -ExecutionPolicy Bypass -File "%DBT_ROOT%\scripts\toolchain\windows-toolchain-download.ps1" %DBT_TOOLCHAIN_VERSION% "%DBT_TOOLCHAIN_ROOT%"
     set /p REAL_TOOLCHAIN_VERSION=<"%DBT_TOOLCHAIN_VERSION_FILE%"
     set "DBT_TOOLCHAIN_INSTALLED=1"
@@ -56,23 +62,13 @@ set "PYTHONNOUSERSITE=1"
 set "PATH=%DBT_TOOLCHAIN_ROOT%\python;%DBT_TOOLCHAIN_ROOT%\python\Scripts;%DBT_TOOLCHAIN_ROOT%\arm-none-eabi-gcc\bin;%DBT_TOOLCHAIN_ROOT%\openocd\bin;%DBT_TOOLCHAIN_ROOT%\cmake\bin;%DBT_TOOLCHAIN_ROOT%\ninja-build\bin;%PATH%"
 set "PROMPT=(dbt) %PROMPT%"
 
+set "DBT_TOOLCHAIN_INSTALLED=1"
+set "PIP_REQUIREMENTS_PATH=%DBT_ROOT%\scripts\toolchain\requirements.txt"
+
 if "%DBT_TOOLCHAIN_INSTALLED%" == "1" (
-    if [%DBT_NO_PYTHON_UPGRADE%] == [] (
-        echo DBT: Toolchain freshly installed, running python setup
-        set "PIP_CMD=python -m pip"
-        set "PIP_REQUIREMENTS_PATH=%SCRIPT_PATH%\scripts\toolchain\requirements.txt"
-        python -c "import wheel"
-        if %ERRORLEVEL% NEQ 0 (
-            set "PIP_WHEEL_PATH=%DBT_TOOLCHAIN_ROOT%\python\wheel"
-            for /R %PIP_WHEEL_PATH% %%G in (
-                certifi*.whl
-            ) do (
-                %PIP_CMD% install -q "%%G"
-            )
-        )
-        %PIP_CMD% install -q --upgrade pip | find /V "already satisfied"
-        %PIP_CMD% install -q -f "%PIP_WHEEL_PATH%" -r "%PIP_REQUIREMENTS_PATH%" | find /V "already satisfied"
-    )
+	python -m pip install -q --upgrade pip
+	python -m pip install -q -r "%PIP_REQUIREMENTS_PATH%"
+	cd
 )
 
 :already_set
