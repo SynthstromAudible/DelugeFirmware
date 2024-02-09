@@ -1933,6 +1933,9 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString) {
 	else if (!strcmp(firmwareVersionString, "4.1.4")) {
 		return FIRMWARE_4P1P4;
 	}
+	else if (!strcmp(firmwareVersionString, "c1.1.0")) {
+		return COMMUNITY_1P1;
+	}
 
 	else {
 		return FIRMWARE_TOO_NEW;
