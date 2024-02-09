@@ -478,10 +478,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 
     Allow loading firmware over sysex as described above
 
-* ENABLE_SYSEX_LOGGING
-
-    Allow listening to log messages over sysex
-
 * FEATURE_...
 
     Description of said feature, first new feature please replace this

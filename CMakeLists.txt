@@ -83,9 +83,6 @@ option(ENABLE_RTT "Enable RTT output" ON)
 # SYSEX Load option
 option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
-# SYSEX Console option
-option(ENABLE_SYSEX_LOGGING "Enable listening to log messages over midi sysex" OFF)
-
 # Colored output
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 add_compile_options($<$<CXX_COMPILER_ID:Clang>:-fansi-escape-codes>)

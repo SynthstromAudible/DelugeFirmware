@@ -110,7 +110,7 @@ void prependTimeStamp(bool isNewLine) {
 		lutHexString(Debug::readCycleCounter(), buffer);
 		buffer[8] = ' ';
 		buffer[9] = 0;
-		if (midiDebugDevice && ENABLE_SYSEX_LOGGING) {
+		if (midiDebugDevice) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
@@ -124,7 +124,7 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugDevice && ENABLE_SYSEX_LOGGING) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, output, true);
 	}
 	else {
@@ -144,7 +144,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugDevice && ENABLE_SYSEX_LOGGING) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, output, false);
 	}
 	else {
@@ -208,7 +208,7 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugDevice && ENABLE_SYSEX_LOGGING) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -233,7 +233,7 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugDevice && ENABLE_SYSEX_LOGGING) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {

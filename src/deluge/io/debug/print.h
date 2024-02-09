@@ -19,10 +19,6 @@
 
 #include <cstdint>
 
-#ifndef ENABLE_SYSEX_LOGGING
-#define ENABLE_SYSEX_LOGGING false
-#endif
-
 class MIDIDevice;
 
 namespace Debug {

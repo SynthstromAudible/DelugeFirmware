@@ -60,8 +60,8 @@ def sysex_console(port):
         data[0] = 0xF0  # sysex message
         data[1] = 0x7D  # deluge (midi_engine.cpp midiSysexReceived)
         data[2] = 0x03  # debug namespace
-        data[3] = 0x00  # sysex.cpp, sysexReceived
-        data[4] = 0x01  # sysex.cpp, sysexReceived
+        data[3] = 0x00  # 0x00 is the command for sysex logging configuration
+        data[4] = 0x01  # 0x01 = enable, 0x00 = disable
         data[5] = 0xF7
         midiout.send_message(data)
 
