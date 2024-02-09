@@ -3060,10 +3060,10 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	auto newCC = clip->lastSelectedParamID;
 	newCC += offset;
 	if (newCC < 0) {
-		newCC += kNumCCExpression;
+		newCC = CC_NUMBER_Y_AXIS;
 	}
 	else if (newCC >= kNumCCExpression) {
-		newCC -= kNumCCExpression;
+		newCC = 0;
 	}
 	if (newCC == 1) {
 		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
