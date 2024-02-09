@@ -2219,7 +2219,10 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
-			uiNeedsRendering(&sessionView, 0, 1 << yDisplayIfInSessionView);
+			RootUI* rootUI = getRootUI();
+			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
+			}
 		}
 		break;
 
@@ -2293,8 +2296,9 @@ void View::flashPlayDisable() {
 	clipArmFlashOn = false;
 	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
-	if (getRootUI() == &sessionView) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+	RootUI* rootUI = getRootUI();
+	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
 	else if (getRootUI()->toClipMinder()) {
