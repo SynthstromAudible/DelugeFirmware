@@ -1654,7 +1654,7 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 				cc = stringToInt(contents);
 			}
 			// will be sent as mod wheel and also map to internal mono expression
-			if (cc == 1) {
+			if (cc == CC_NUMBER_MOD_WHEEL) {
 				cc = CC_NUMBER_Y_AXIS;
 			}
 

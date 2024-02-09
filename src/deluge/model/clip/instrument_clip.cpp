@@ -2905,7 +2905,7 @@ int32_t InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
 				if (!strcmp(tagName, "cc")) {
 					char const* contents = storageManager.readTagOrAttributeValue();
 					if (!strcasecmp(contents, "bend")) {
-						paramId = 0;
+						paramId = X_PITCH_BEND;
 expressionParam:
 						// If we're here, we're reading a pre-V3.2 file, and need to read what we're now regarding as
 						// "expression".
@@ -2917,21 +2917,21 @@ expressionParam:
 						param = &expressionParams->params[paramId];
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
-						paramId = 2;
+						paramId = Z_PRESSURE;
 						goto expressionParam;
 					}
-					else if (!strcasecmp(contents, "none")
-					         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
+					else if (!strcasecmp(contents, "none")) {
+						// We used to write 120 for "none", pre V2.0, but that's now bend
 						paramId = CC_NUMBER_NONE;
 					}
 					else {
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
-							if (paramId == 1) {
+							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
 								if (storageManager.firmwareVersionOfFileBeingRead < FirmwareVersion::COMMUNITY_1P1) {
-									paramId = 1;
+									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
 							}

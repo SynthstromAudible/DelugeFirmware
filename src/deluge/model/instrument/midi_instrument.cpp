@@ -218,7 +218,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 	int32_t masterChannel = getOutputMasterChannel();
 
 	switch (whichExpressionDimension) {
-	case 0: {
+	case X_PITCH_BEND: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
@@ -226,7 +226,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		break;
 	}
 
-	case 1: {
+	case Y_SLIDE_TIMBRE: {
 		// mono y expression is limited to positive values
 		// this means that without sending CC1 on the master channel poly expression below 64 will
 		// send as mod wheel 0. However this is better than the alternative of sending erroneous values
@@ -236,10 +236,10 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(masterChannel, 1, newValue, channel);
+		midiEngine.sendCC(masterChannel, CC_NUMBER_MOD_WHEEL, newValue, channel);
 		break;
 	}
-	case 2: {
+	case Z_PRESSURE: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension])
 		                   >> 24;
