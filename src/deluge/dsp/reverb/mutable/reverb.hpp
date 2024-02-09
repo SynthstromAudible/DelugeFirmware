@@ -137,7 +137,8 @@ public:
 
 	void setHPF(float value) {
 		hp_cutoff_val_ = value;
-		hp_cutoff_ = value == 0.f ? 0.f : std::clamp(1.f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
+		hp_cutoff_ =
+		    value == 0.f ? 0.f : std::clamp(1.f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
 	}
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 

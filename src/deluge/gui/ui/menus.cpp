@@ -465,7 +465,7 @@ Submenu reverbMenu{
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
-		&reverbHPFMenu,
+        &reverbHPFMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
     },
