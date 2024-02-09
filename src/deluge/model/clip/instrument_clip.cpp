@@ -2367,8 +2367,10 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			if (output->type == OutputType::KIT && thisNoteRow->drum) {
 				drumIndex = ((Kit*)output)->getDrumIndex(thisNoteRow->drum);
 			}
-
-			thisNoteRow->writeToFile(drumIndex, this);
+			// no matching drum found
+			if (drumIndex != -1) {
+				thisNoteRow->writeToFile(drumIndex, this);
+			}
 		}
 
 		storageManager.writeClosingTag("noteRows");

@@ -1334,76 +1334,78 @@ int32_t Song::readFromFile() {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
 
-		// "reverb"
+		// "reve" -> reverb
 		case 0x65766572:
-			if (*(((uint32_t*)tagName) + 1) & 0x00FFFFFFFF != 0x00007262) {
-				goto unknownTag;
+			if (!strcmp(tagName, "reverb")) {
+				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "model")) {
+						deluge::dsp::Reverb::Model model =
+						    static_cast<deluge::dsp::Reverb::Model>(storageManager.readTagOrAttributeValueInt());
+						if (model == deluge::dsp::Reverb::Model::FREEVERB) {
+							AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+						}
+						else if (model == deluge::dsp::Reverb::Model::MUTABLE) {
+							AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+						}
+						storageManager.exitTag("model");
+					}
+					else if (!strcmp(tagName, "roomSize")) {
+						reverbRoomSize = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
+						storageManager.exitTag("roomSize");
+					}
+					else if (!strcmp(tagName, "dampening")) {
+						reverbDamp = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
+						storageManager.exitTag("dampening");
+					}
+					else if (!strcmp(tagName, "width")) {
+						int32_t widthInt = storageManager.readTagOrAttributeValueInt();
+						if (widthInt == -2147483648) {
+							widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix
+							                       // it on read here!
+						}
+						reverbWidth = (float)widthInt / 2147483648u;
+						storageManager.exitTag("width");
+					}
+					else if (!strcmp(tagName, "pan")) {
+						reverbPan = storageManager.readTagOrAttributeValueInt();
+						storageManager.exitTag("pan");
+					}
+					else if (!strcmp(tagName, "compressor")) {
+						while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+							if (!strcmp(tagName, "attack")) {
+								reverbSidechainAttack = storageManager.readTagOrAttributeValueInt();
+								storageManager.exitTag("attack");
+							}
+							else if (!strcmp(tagName, "release")) {
+								reverbSidechainRelease = storageManager.readTagOrAttributeValueInt();
+								storageManager.exitTag("release");
+							}
+							else if (!strcmp(tagName, "volume")) {
+								reverbSidechainVolume = storageManager.readTagOrAttributeValueInt();
+								storageManager.exitTag("volume");
+							}
+							else if (!strcmp(tagName, "shape")) {
+								reverbSidechainShape = storageManager.readTagOrAttributeValueInt();
+								storageManager.exitTag("shape");
+							}
+							else if (!strcmp(tagName, "syncLevel")) {
+								reverbSidechainSync = storageManager.readAbsoluteSyncLevelFromFile(this);
+								reverbSidechainSync = (SyncLevel)std::min((uint8_t)reverbSidechainSync, (uint8_t)9);
+								storageManager.exitTag("syncLevel");
+							}
+							else {
+								storageManager.exitTag(tagName);
+							}
+						}
+						storageManager.exitTag("compressor");
+					}
+					else {
+						storageManager.exitTag(tagName);
+					}
+				}
 			}
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "model")) {
-					deluge::dsp::Reverb::Model model =
-					    static_cast<deluge::dsp::Reverb::Model>(storageManager.readTagOrAttributeValueInt());
-					if (model == deluge::dsp::Reverb::Model::FREEVERB) {
-						AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
-					}
-					else if (model == deluge::dsp::Reverb::Model::MUTABLE) {
-						AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
-					}
-					storageManager.exitTag("model");
-				}
-				else if (!strcmp(tagName, "roomSize")) {
-					reverbRoomSize = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
-					storageManager.exitTag("roomSize");
-				}
-				else if (!strcmp(tagName, "dampening")) {
-					reverbDamp = (float)storageManager.readTagOrAttributeValueInt() / 2147483648u;
-					storageManager.exitTag("dampening");
-				}
-				else if (!strcmp(tagName, "width")) {
-					int32_t widthInt = storageManager.readTagOrAttributeValueInt();
-					if (widthInt == -2147483648) {
-						widthInt = 2147483647; // Was being saved incorrectly in V2.1.0-beta1 and alphas, so we fix
-						                       // it on read here!
-					}
-					reverbWidth = (float)widthInt / 2147483648u;
-					storageManager.exitTag("width");
-				}
-				else if (!strcmp(tagName, "pan")) {
-					reverbPan = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("pan");
-				}
-				else if (!strcmp(tagName, "compressor")) {
-					while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-						if (!strcmp(tagName, "attack")) {
-							reverbSidechainAttack = storageManager.readTagOrAttributeValueInt();
-							storageManager.exitTag("attack");
-						}
-						else if (!strcmp(tagName, "release")) {
-							reverbSidechainRelease = storageManager.readTagOrAttributeValueInt();
-							storageManager.exitTag("release");
-						}
-						else if (!strcmp(tagName, "volume")) {
-							reverbSidechainVolume = storageManager.readTagOrAttributeValueInt();
-							storageManager.exitTag("volume");
-						}
-						else if (!strcmp(tagName, "shape")) {
-							reverbSidechainShape = storageManager.readTagOrAttributeValueInt();
-							storageManager.exitTag("shape");
-						}
-						else if (!strcmp(tagName, "syncLevel")) {
-							reverbSidechainSync = storageManager.readAbsoluteSyncLevelFromFile(this);
-							reverbSidechainSync = (SyncLevel)std::min((uint8_t)reverbSidechainSync, (uint8_t)9);
-							storageManager.exitTag("syncLevel");
-						}
-						else {
-							storageManager.exitTag(tagName);
-						}
-					}
-					storageManager.exitTag("compressor");
-				}
-				else {
-					storageManager.exitTag(tagName);
-				}
+			else {
+				goto unknownTag;
 			}
 			storageManager.exitTag();
 			break;
@@ -1412,15 +1414,15 @@ int32_t Song::readFromFile() {
 
 			switch (*(((uint32_t*)tagName) + 1)) {
 
-			// "xScroll"
+			// "oll\x00" ->xScroll
 			case 0x006c6c6f:
 				xScroll[NAVIGATION_CLIP] = storageManager.readTagOrAttributeValueInt();
 				xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, xScroll[NAVIGATION_CLIP]);
 				break;
 
-			// "xScrollSongView"
+			// "ollS" -> xScrollSongView
 			case 0x536c6c6f:
-				if (*(((uint32_t*)tagName) + 2) == 0x56676e6f && *(((uint32_t*)tagName) + 3) == 0x00776965) {
+				if (!strcmp(tagName, "xScrollSongView")) {
 					xScrollForReturnToSongView = storageManager.readTagOrAttributeValueInt();
 					xScrollForReturnToSongView = std::max((int32_t)0, xScrollForReturnToSongView);
 					break;
@@ -1429,11 +1431,9 @@ int32_t Song::readFromFile() {
 					goto unknownTag;
 				}
 
-			// "xScrollArrangementView"
+			// "ollA" -> xScrollArrangementView"
 			case 0x416c6c6f:
-				if (*(((uint32_t*)tagName) + 2) == 0x6e617272 && *(((uint32_t*)tagName) + 3) == 0x656d6567
-				    && *(((uint32_t*)tagName) + 4) == 0x6956746e
-				    && (*(((uint32_t*)tagName) + 5) & 0x00FFFFFF) == 0x00007765) {
+				if (!strcmp(tagName, "xScrollArrangementView")) {
 					xScroll[NAVIGATION_ARRANGEMENT] = storageManager.readTagOrAttributeValueInt();
 					break;
 				}
@@ -1452,19 +1452,13 @@ int32_t Song::readFromFile() {
 		case 0x6f6f5a78:
 
 			// "xZoomSongView"
-			if (*(((uint32_t*)tagName) + 1) == 0x6e6f536d) {
-				if (*(((uint32_t*)tagName) + 2) == 0x65695667
-				    && (*(((uint32_t*)tagName) + 3) & 0x0000FFFF) == 0x00000077) {
-					xZoomForReturnToSongView = storageManager.readTagOrAttributeValueInt();
-					xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
-				}
-				else {
-					goto unknownTag;
-				}
+			if (!strcmp(tagName, "xZoomSongView")) {
+				xZoomForReturnToSongView = storageManager.readTagOrAttributeValueInt();
+				xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
 			}
 
 			// "xZoom"
-			else if ((*(((uint32_t*)tagName) + 1) & 0x0000FFFF) == 0x0000006d) {
+			else if (!strcmp(tagName, "xZoom")) {
 				xZoom[NAVIGATION_CLIP] = storageManager.readTagOrAttributeValueInt();
 				xZoom[NAVIGATION_CLIP] = std::max((uint32_t)1, xZoom[NAVIGATION_CLIP]);
 			}
@@ -1480,9 +1474,9 @@ int32_t Song::readFromFile() {
 
 			switch (*(((uint32_t*)tagName) + 1)) {
 
-			// "yScrollSongView"
+			// "ollS" -> yScrollSongView"
 			case 0x536c6c6f:
-				if (*(((uint32_t*)tagName) + 2) == 0x56676e6f && *(((uint32_t*)tagName) + 3) == 0x00776569) {
+				if (!strcmp(tagName, "yScrollSongView")) {
 					songViewYScroll = storageManager.readTagOrAttributeValueInt();
 					songViewYScroll = std::max(1 - kDisplayHeight, songViewYScroll);
 					break;
@@ -1493,9 +1487,7 @@ int32_t Song::readFromFile() {
 
 			// "yScrollArrangementView"
 			case 0x416c6c6f:
-				if (*(((uint32_t*)tagName) + 2) == 0x6e617272 && *(((uint32_t*)tagName) + 3) == 0x656d6567
-				    && *(((uint32_t*)tagName) + 4) == 0x6956746e
-				    && (*(((uint32_t*)tagName) + 5) & 0x00FFFFFF) == 0x00007765) {
+				if (!strcmp(tagName, "yScrollArrangementView")) {
 					arrangementYScroll = storageManager.readTagOrAttributeValueInt();
 					arrangementYScroll = std::max(1 - kDisplayHeight, arrangementYScroll);
 					break;

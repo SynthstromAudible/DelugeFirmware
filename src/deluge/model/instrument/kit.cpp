@@ -443,10 +443,11 @@ Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
 
 int32_t Kit::getDrumIndex(Drum* drum) {
 	int32_t index = 0;
-	for (Drum* thisDrum = firstDrum; thisDrum != drum; thisDrum = thisDrum->next) {
+	Drum* thisDrum;
+	for (thisDrum = firstDrum; thisDrum && thisDrum != drum; thisDrum = thisDrum->next) {
 		index++;
 	}
-	return index;
+	return thisDrum ? index : -1;
 }
 
 Drum* Kit::getDrumFromIndex(int32_t index) {
@@ -1497,19 +1498,17 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
 
-			if (modelStackWithNoteRow) {
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
-				if (modelStackWithThreeMainThings) {
-					if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-						modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-					}
+				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+				}
 
-					else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-						modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-					}
+				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
+					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 				}
 			}
 		}
