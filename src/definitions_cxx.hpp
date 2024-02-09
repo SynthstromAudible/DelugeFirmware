@@ -131,9 +131,10 @@ enum FirmwareVersion : uint8_t {
 	FIRMWARE_4P1P4_ALPHA = 68,
 	FIRMWARE_4P1P4_BETA = 69,
 	FIRMWARE_4P1P4 = 70,
+	COMMUNITY_1P1 = 71,
 	FIRMWARE_TOO_NEW = 255,
 };
-constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
+constexpr FirmwareVersion kCurrentFirmwareVersion = COMMUNITY_1P1;
 
 constexpr uint8_t kOctaveSize = 12;
 
@@ -406,7 +407,6 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonGlobalParamsForAutomation = 56;
 constexpr int32_t kNumGlobalParamsForAutomation = 23;
-constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
@@ -724,6 +724,7 @@ enum class ExistenceChangeType {
 };
 
 enum CCNumber {
+	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
 	CC_NUMBER_MOD_WHEEL = 1,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
@@ -731,6 +732,7 @@ enum CCNumber {
 	CC_NUMBER_NONE = 123,
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
+constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
 constexpr int32_t kNumRealCCNumbers = 120;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;

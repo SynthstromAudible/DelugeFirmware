@@ -531,7 +531,6 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 }
 
 // ExpressionParamSet --------------------------------------------------------------------------------------------
-
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
 	params = params_.data();
@@ -575,11 +574,11 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 	}
 }
 
-// Displays text number. This will only actually end up getting used/seen on MIDI Clips, at channel/Clip level - not
-// MPE/polyphonic.
+/// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
+/// this, the expression set needs to be made MPE aware to treat Y_SLIDE_TIMBRE as bipolar
 int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	// Everything but aftertouch gets handled by parent from here
-	if (modelStack->paramId != 2) {
+	// mono pitch bend is still bipolar and gets handled by parent from here
+	if (modelStack->paramId == X_PITCH_BEND) {
 		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 
@@ -589,10 +588,11 @@ int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithA
 	return (knobPos + 64) << 24;
 }
 
+/// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
+/// this, the expression set needs to be made MPE aware to treat Y_SLIDE_TIMBRE as bipolar
 int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-
-	// Everything but aftertouch gets handled by parent
-	if (modelStack->paramId != 2) {
+	// mono pitch bend is still bipolar and gets handled by parent from here
+	if (modelStack->paramId == X_PITCH_BEND) {
 		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
 	}
 
