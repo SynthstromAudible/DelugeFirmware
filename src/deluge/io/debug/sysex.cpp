@@ -70,23 +70,22 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	// memcpy(reply, reply_hdr, 5);
 	memcpy(reply, reply_hdr, sizeof(reply_hdr));
 	size_t len = strlen(msg);
-//	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
+	//	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
 	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - (sizeof(reply_hdr) + 2));
-//	memcpy(reply + 5, msg, len);
+	//	memcpy(reply + 5, msg, len);
 	memcpy(reply + sizeof(reply_hdr), msg, len);
 	for (int32_t i = 0; i < len; i++) {
-//		reply[5 + i] &= 0x7F; // only ascii debug messages
+		//		reply[5 + i] &= 0x7F; // only ascii debug messages
 		reply[sizeof(reply_hdr) + i] &= 0x7F; // only ascii debug messages
-
 	}
 	if (nl) {
-	//	reply[5 + len] = '\n';
-	 	reply[sizeof(reply_hdr) + len] = '\n';
+		//	reply[5 + len] = '\n';
+		reply[sizeof(reply_hdr) + len] = '\n';
 		len++;
 	}
-//	reply[5 + len] = 0xf7;
+	//	reply[5 + len] = 0xf7;
 	reply[sizeof(reply_hdr) + len] = 0xf7;
-//	device->sendSysex(reply, len + 6);
+	//	device->sendSysex(reply, len + 6);
 	device->sendSysex(reply, len + sizeof(reply_hdr) + 1);
 }
 #ifdef ENABLE_SYSEX_LOAD
@@ -102,7 +101,7 @@ static size_t load_codesize;
 
 static void firstPacket(uint8_t* data, int32_t len) {
 	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
-//	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
+	//	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
 	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a); // was 11, now 9
 	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
 	uint32_t user_code_end = *(uint32_t*)(tmpbuf + OFF_USER_CODE_END);
@@ -132,7 +131,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	const int size = 512;
 	const int packed_size = 586; // ceil(512+512/7)
-	//if (len < packed_size + 12) {
+	// if (len < packed_size + 12) {
 	if (len < packed_size + 10) {
 		return;
 	}
@@ -143,7 +142,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	if (handshake != handshake_received) {
 		return;
 	}
-//  int pos = 512 * (data[9] + 0x80 * data[10]);
+	//  int pos = 512 * (data[9] + 0x80 * data[10]);
 	int pos = 512 * (data[7] + 0x80 * data[8]); // 9, 10, now 7, 8
 
 	if (pos == 0) {
@@ -154,7 +153,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 		return;
 	}
 
-// unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
+	// unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size); // was 11, now 9
 
 	uint32_t pad = (18 * 8 * pos) / load_bufsize;
@@ -180,7 +179,7 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	}
 
 	uint32_t fields[3];
-//	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14); // Is this offset correct now?
+	//	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14); // Is this offset correct now?
 
 	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14); // Is this offset correct now?
 
