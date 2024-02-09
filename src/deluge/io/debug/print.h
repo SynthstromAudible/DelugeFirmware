@@ -19,8 +19,8 @@
 
 #include <cstdint>
 
-#ifndef SYSEX_LOGGING_ENABLED
-#define SYSEX_LOGGING_ENABLED false
+#ifndef ENABLE_SYSEX_LOGGING
+#define ENABLE_SYSEX_LOGGING false
 #endif
 
 class MIDIDevice;

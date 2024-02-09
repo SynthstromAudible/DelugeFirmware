@@ -46,3 +46,8 @@ if(ENABLE_SYSEX_LOAD)
     message(STATUS "Sysex firmware loading enabled for deluge")
     target_compile_definitions(deluge PUBLIC ENABLE_SYSEX_LOAD=1)
 endif(ENABLE_SYSEX_LOAD)
+
+if(ENABLE_SYSEX_LOGGING)
+    message(STATUS "Sysex console logging enabled for deluge")
+    target_compile_definitions(deluge PUBLIC ENABLE_SYSEX_LOGGING=1)
+endif(ENABLE_SYSEX_LOGGING)
