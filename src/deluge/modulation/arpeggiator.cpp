@@ -23,6 +23,8 @@
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 
+// TODO: Start of implementation of arpeggiator improvements
+
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;
 	mode = ArpMode::OFF;
