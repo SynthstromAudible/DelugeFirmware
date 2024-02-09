@@ -128,7 +128,7 @@ public:
 
 	void setDamping(float value) override {
 		lp_val_ = value;
-		lp_ = (value == 0.f) ? 1.f : std::clamp(1.f - (dsp::log2fast((lp_val_ * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
+		lp_ = (value == 0.f) ? 1.f : 1.f - std::clamp((dsp::log2fast(((1.f - lp_val_) * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
 	}
 	[[nodiscard]] float getDamping() const override { return lp_val_; }
 
@@ -138,7 +138,7 @@ public:
 	void setHPF(float value) {
 		hp_cutoff_val_ = value;
 		hp_cutoff_ =
-		    value == 0.f ? 0.f : std::clamp(1.f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 16, 0.f, 1.f);
+		    value == 0.f ? 0.f : std::clamp(0.35f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 16, 0.f, 1.f);
 	}
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 
