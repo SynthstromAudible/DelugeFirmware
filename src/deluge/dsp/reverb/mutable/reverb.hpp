@@ -4,6 +4,7 @@
 
 #pragma once
 #include "dsp/reverb/base.hpp"
+#include "dsp/util.hpp"
 #include "fx_engine.hpp"
 #include <array>
 #include <limits>
@@ -82,6 +83,8 @@ public:
 			dap1b.Process(c, kap);
 			del1.Write(c, 2.0f);
 			wet = c.Get();
+			dsp::OnePole(hp_r_, wet, hp_cutoff_);
+			wet = wet - hp_r_;
 
 			auto output_right =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -93,6 +96,8 @@ public:
 			dap2b.Process(c, kap);
 			del2.Write(c, 2.0f);
 			wet = c.Get();
+			dsp::OnePole(hp_l_, wet, hp_cutoff_);
+			wet = wet - hp_l_;
 
 			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -110,8 +115,6 @@ public:
 
 	static constexpr float kReverbTimeMin = 0.01f;
 	static constexpr float kReverbTimeMax = 0.98f;
-	static constexpr float kLpMin = 0.1f;
-	static constexpr float kLpMax = 0.9f;
 	static constexpr float kWidthMin = 0.01f;
 	static constexpr float kWidthMax = 0.98f;
 
@@ -123,11 +126,20 @@ public:
 		return util::map(reverb_time_, kReverbTimeMin, kReverbTimeMax, 0.f, 1.f);
 	};
 
-	void setDamping(float value) override { lp_ = util::map(1.f - value, 0.f, 1.f, kLpMin, kLpMax); }
-	[[nodiscard]] float getDamping() const override { return 1.f - util::map(lp_, kLpMin, kLpMax, 0.f, 1.f); }
+	void setDamping(float value) override {
+		lp_val_ = value;
+		lp_ = (value == 0.f) ? 1.f : std::clamp(1.f - (dsp::log2fast((lp_val_ * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
+	}
+	[[nodiscard]] float getDamping() const override { return lp_val_; }
 
 	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
 	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
+
+	void setHPF(float value) {
+		hp_cutoff_val_ = value;
+		hp_cutoff_ = value == 0.f ? 0.f : std::clamp(1.f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 5.7f, 0.f, 1.f);
+	}
+	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 
 private:
 	static constexpr float sample_rate = 44100.f;
@@ -145,10 +157,17 @@ private:
 
 	// damping
 	float lp_{0.7f};
+	float lp_val_{0.7f};
 
 	// These are the state variables for the low-pass filters
 	float lp_decay_1_{0};
 	float lp_decay_2_{0};
+
+	// High-pass
+	float hp_cutoff_val_{0.f};
+	float hp_cutoff_{0.f};
+	float hp_l_{0.0}; // HP state variable
+	float hp_r_{0.0}; // HP state variable
 };
 
 } // namespace deluge::dsp::reverb
