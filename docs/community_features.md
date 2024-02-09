@@ -418,7 +418,7 @@ This is largely on the development side and created the start of a system of mod
 
 ### 4.8.1 Lumi Keys Studio Edition
 
-- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave.
+- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave (compatible Deluge scales that will match Lumi scales are Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Harmonic Minor, Arabian, Whole Tone, Blues, and Pentatonic Minor).
 	- The lit and darkened keys will be aligned with the selected root and scale, so long as the selected scale is one of the builtin scales supported by the Lumi.
 	- While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range defined on the Deluge (upper or lower dominant).
 
@@ -467,8 +467,8 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
 
 - ([#174] and [#192]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
-- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
-- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
+- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging. (`./dbt sysex-logging <port_number>`)
+- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings. (`./dbt loadfw <port_number> <hex_key> <firmware_file_path>`)
 
 ## 7. Compiletime settings
 
