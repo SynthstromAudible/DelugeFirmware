@@ -27,6 +27,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
+#include "io/debug/sysex.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/cfunctions.h"

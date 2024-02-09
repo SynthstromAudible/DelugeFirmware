@@ -26,17 +26,17 @@
 #include "util/pack.h"
 
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
-	if (len < 6) {
+	if (len < 3) {
 		return;
 	}
 
-	// first three bytes are already used, next is command
-	switch (data[3]) {
+	// Subcommand is second byte of payload
+	switch (data[1]) {
 	case 0:
-		if (data[4] == 1) {
+		if (data[2] == 1) {
 			midiDebugDevice = device;
 		}
-		else if (data[4] == 0) {
+		else if (data[2] == 0) {
 			midiDebugDevice = nullptr;
 		}
 		break;
@@ -64,23 +64,30 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	}
 	// data[4]: reserved, could serve as a message identifier to filter messages
 	// per category
-	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
+	// 	uint8_t reply_hdr[] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
+	uint8_t reply_hdr[] = {0xF0, 0x00, 0x21, 0x7B, 0x01, 0x03, 0x40, 0x00};
 	uint8_t* reply = midiEngine.sysex_fmt_buffer;
-	memcpy(reply, reply_hdr, 5);
+	// memcpy(reply, reply_hdr, 5);
+	memcpy(reply, reply_hdr, sizeof(reply_hdr));
 	size_t len = strlen(msg);
-	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
-	memcpy(reply + 5, msg, len);
+//	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
+	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - (sizeof(reply_hdr) + 2));
+//	memcpy(reply + 5, msg, len);
+	memcpy(reply + sizeof(reply_hdr), msg, len);
 	for (int32_t i = 0; i < len; i++) {
-		reply[5 + i] &= 0x7F; // only ascii debug messages
+//		reply[5 + i] &= 0x7F; // only ascii debug messages
+		reply[sizeof(reply_hdr) + i] &= 0x7F; // only ascii debug messages
+
 	}
 	if (nl) {
-		reply[5 + len] = '\n';
+	//	reply[5 + len] = '\n';
+	 	reply[sizeof(reply_hdr) + len] = '\n';
 		len++;
 	}
-
-	reply[5 + len] = 0xf7;
-
-	device->sendSysex(reply, len + 6);
+//	reply[5 + len] = 0xf7;
+	reply[sizeof(reply_hdr) + len] = 0xf7;
+//	device->sendSysex(reply, len + 6);
+	device->sendSysex(reply, len + sizeof(reply_hdr) + 1);
 }
 #ifdef ENABLE_SYSEX_LOAD
 #include "gui/l10n/l10n.h"
@@ -95,7 +102,8 @@ static size_t load_codesize;
 
 static void firstPacket(uint8_t* data, int32_t len) {
 	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
-	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
+//	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
+	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a); // was 11, now 9
 	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
 	uint32_t user_code_end = *(uint32_t*)(tmpbuf + OFF_USER_CODE_END);
 	load_codesize = (int32_t)(user_code_end - user_code_start);
@@ -124,17 +132,19 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	const int size = 512;
 	const int packed_size = 586; // ceil(512+512/7)
-	if (len < packed_size + 12) {
+	//if (len < packed_size + 12) {
+	if (len < packed_size + 10) {
 		return;
 	}
 
 	uint32_t handshake_received;
-	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 4, 5);
+	// unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 4, 5);
+	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5); // was 4, now 2
 	if (handshake != handshake_received) {
 		return;
 	}
-
-	int pos = 512 * (data[9] + 0x80 * data[10]);
+//  int pos = 512 * (data[9] + 0x80 * data[10]);
+	int pos = 512 * (data[7] + 0x80 * data[8]); // 9, 10, now 7, 8
 
 	if (pos == 0) {
 		firstPacket(data, len);
@@ -144,7 +154,8 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 		return;
 	}
 
-	unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
+// unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
+	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size); // was 11, now 9
 
 	uint32_t pad = (18 * 8 * pos) / load_bufsize;
 	uint8_t col = pad % 18;
@@ -169,7 +180,9 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	}
 
 	uint32_t fields[3];
-	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14);
+//	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14); // Is this offset correct now?
+
+	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14); // Is this offset correct now?
 
 	if (handshake != fields[0]) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BAD_KEY));
