@@ -638,6 +638,12 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
+	// if you're in the default editing mode (editing param values, or param layout)
+	// blink keyboard button to show that you're in editing mode
+	// if there are changes to save while in editing mode, blink save button
+	// if you're not in editing mode, light up keyboard button to show that you're
+	// in performance view but not editing mode. also turn off save button led
+	// as we only blink save button when we're in editing mode
 	if (defaultEditingMode) {
 		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 		if (anyChangesToSave) {
@@ -897,38 +903,55 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
-		// pressing the first column in sidebar to trigger sections / clips
-		else if (xDisplay == kDisplayWidth) {
-			if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-				sessionView.padAction(xDisplay, yDisplay, on);
-			}
-			else {
-				arrangerView.handleStatusPadAction(yDisplay, on, this);
-			}
-		}
-		// if you're using grid song view and you pressed / released a pad in the grid mode launcher column
-		else if (xDisplay == (kDisplayWidth + 1)) {
-			if (gridModeActive) {
-				if (yDisplay == 0) {
-					if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
-						gridModeActive = false;
-						changeRootUI(&sessionView);
-					}
+		else if (xDisplay >= kDisplayWidth) {
+			// if in arranger view
+			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				// pressing the first column in sidebar to trigger sections / clips
+				if (xDisplay == kDisplayWidth) {
+					arrangerView.handleStatusPadAction(yDisplay, on, this);
 				}
-				else if ((yDisplay == 7) || (yDisplay == 6)) {
-					gridModeActive = false;
-					changeRootUI(&sessionView);
-					return sessionView.gridHandlePads(xDisplay, yDisplay, on);
-				}
-			}
-			else {
-				if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-					sessionView.padAction(xDisplay, yDisplay, on);
-				}
+				// pressing the second column in sidebar to audition / edit instrument
 				else {
 					arrangerView.handleAuditionPadAction(yDisplay, on, this);
+					// when you let go of audition pad action, you need to reset led states
 					if (!on) {
 						setCentralLEDStates();
+					}
+				}
+			}
+			// if in session view
+			else {
+				// if in row mode
+				if (!gridModeActive) {
+					sessionView.padAction(xDisplay, yDisplay, on);
+				}
+				// if in grid mode
+				else {
+					// if you're in grid song view and you pressed / release a pad in the section launcher column
+					if (xDisplay == kDisplayWidth) {
+						sessionView.gridHandlePads(xDisplay, yDisplay, on);
+					}
+					else {
+						// if you're using grid song view and you pressed / released a pad in the grid mode launcher
+						// column
+						if (xDisplay > kDisplayWidth) {
+							// pressing the pink mode pad
+							if (yDisplay == 0) {
+								// if you released the pink pad and it was held for longer than hold time
+								// switch back to session view (this happens if you enter performance view with a
+								// long press from grid mode - it just peeks performance view)
+								if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+									gridModeActive = false;
+									changeRootUI(&sessionView);
+								}
+							}
+							// if you pressed the green or blue mode pads, go back to grid view and change mode
+							else if ((yDisplay == 7) || (yDisplay == 6)) {
+								gridModeActive = false;
+								changeRootUI(&sessionView);
+								sessionView.gridHandlePads(xDisplay, yDisplay, on);
+							}
+						}
 					}
 				}
 			}
