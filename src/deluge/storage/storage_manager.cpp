@@ -1292,7 +1292,7 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", "4.1.4-alpha");
+	writeAttribute("firmwareVersion", "c1.1.0");
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -1643,14 +1643,17 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 			else if (!strcasecmp(contents, "aftertouch")) {
 				cc = CC_NUMBER_AFTERTOUCH;
 			}
-			else if (!strcasecmp(contents, "none")
-			         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
+			else if (!strcasecmp(contents, "none")) {
 				cc = CC_NUMBER_NONE;
 			}
 			else {
 				cc = stringToInt(contents);
 			}
-			// TODO: Pre-V2.0 files could still have CC74, so ideally I'd move that to "expression" params here...
+			// will be sent as mod wheel and also map to internal mono expression
+			if (cc == CC_NUMBER_MOD_WHEEL) {
+				cc = CC_NUMBER_Y_AXIS;
+			}
+
 			exitTag("cc");
 		}
 		else if (!strcmp(tagName, "value")) {
