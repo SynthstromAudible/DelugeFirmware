@@ -3065,7 +3065,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	else if (newCC >= kNumCCExpression) {
 		newCC = 0;
 	}
-	if (newCC == 1) {
+	if (newCC == CC_NUMBER_MOD_WHEEL) {
 		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
 		newCC += offset;
 	}
