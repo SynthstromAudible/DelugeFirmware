@@ -7,29 +7,31 @@
 #include <utility>
 template <class Enum, std::size_t N>
 class EnumStringMap {
-	const char* stringList[N];
 
 public:
-	constexpr EnumStringMap(const std::array<std::pair<Enum, const char*>, N>& init) : stringList() {
+	constexpr EnumStringMap(const std::array<std::pair<Enum, const char*>, N>& init) : stringList_() {
 		for (std::size_t i = 0; i < N; ++i) {
 			const auto& p = init[i];
-			stringList[static_cast<std::underlying_type_t<Enum>>(p.first)] = p.second;
+			stringList_[static_cast<std::underlying_type_t<Enum>>(p.first)] = p.second;
 		}
 	}
 
-	constexpr const char* operator()(Enum a) { return stringList[static_cast<std::underlying_type_t<Enum>>(a)]; }
+	constexpr const char* operator()(Enum a) { return stringList_[static_cast<std::underlying_type_t<Enum>>(a)]; }
 
+	/// Convert string to enum, returning enum variant N on failure
 	constexpr Enum operator()(const char* str) {
 		for (int i = 0; i < N; i++) {
-			if (!strcmp(str, stringList[i])) {
+			if (!strcmp(str, stringList_[i])) {
 				return static_cast<Enum>(i);
 			}
 		}
-#if ALPHA_OR_BETA_VERSION
+
 		char popup[25];
-		sprintf(popup, "no match for:%s", str);
-		freezeWithError(popup);
-#endif
+		D_PRINTLN(popup, "no match for:%s", str);
+
 		return static_cast<Enum>(N);
 	}
+
+private:
+	const char* stringList_[N];
 };
