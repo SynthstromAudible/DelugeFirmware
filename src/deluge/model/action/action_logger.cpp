@@ -86,7 +86,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 	// If not on a View, not allowed!
 	// Exception for performanceView where the view can interact with soundEditor UI
-	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceSessionView)) {
+	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceView)) {
 		return NULL;
 	}
 

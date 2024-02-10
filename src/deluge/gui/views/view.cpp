@@ -36,7 +36,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -223,7 +223,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -273,7 +273,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -906,10 +906,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				// this checks that the param displayed on the screen in performance view
 				// is the same param currently being edited with mod encoder
 				bool editingParamInPerformanceView = false;
-				if (getRootUI() == &performanceSessionView) {
-					if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
-						if ((kind == performanceSessionView.lastPadPress.paramKind)
-						    && (modelStackWithParam->paramId == performanceSessionView.lastPadPress.paramID)) {
+				if (getRootUI() == &performanceView) {
+					if (!performanceView.defaultEditingMode && performanceView.lastPadPress.isActive) {
+						if ((kind == performanceView.lastPadPress.paramKind)
+						    && (modelStackWithParam->paramId == performanceView.lastPadPress.paramID)) {
 							editingParamInPerformanceView = true;
 						}
 					}
@@ -1095,7 +1095,7 @@ void View::setKnobIndicatorLevels() {
 	// don't update knob indicator levels when you're in performance view morph mode
 	UI* currentUI = getCurrentUI();
 	if (((currentUI == &automationView) && !automationView.isOnAutomationOverview())
-	    || ((currentUI == &performanceSessionView) && performanceSessionView.morphMode
+	    || ((currentUI == &performanceView) && performanceView.morphMode
 	        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 		return;
 	}
@@ -1177,7 +1177,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	// ignore modButtonAction when in the Performance View Morph Mode
 	RootUI* rootUI = getRootUI();
 	if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
-	    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode
+	    || ((rootUI == &performanceView) && performanceView.morphMode
 	        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 		return;
 	}
@@ -1187,7 +1187,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
 
-			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
+			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceView)) {
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
 				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
@@ -1381,7 +1381,7 @@ void View::setModLedStates() {
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
 		// if you're in the Performance View Morph Mode, turn off Mod LED's
 		if (((rootUI == &automationView) && !automationView.isOnAutomationOverview())
-		    || ((rootUI == &performanceSessionView) && performanceSessionView.morphMode
+		    || ((rootUI == &performanceView) && performanceView.morphMode
 		        && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION))) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
@@ -2239,7 +2239,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+			if (rootUI == &sessionView || rootUI == &performanceView) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2316,7 +2316,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+	if (rootUI == &sessionView || rootUI == &performanceView) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX

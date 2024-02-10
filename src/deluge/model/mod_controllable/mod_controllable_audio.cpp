@@ -20,7 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -1885,7 +1885,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 								// performance view
 								bool editingParamInAutomationOrPerformanceView = false;
 								RootUI* rootUI = getRootUI();
-								if (rootUI == &automationView || rootUI == &performanceSessionView) {
+								if (rootUI == &automationView || rootUI == &performanceView) {
 									int32_t id = modelStackWithParam->paramId;
 									params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
@@ -2186,17 +2186,16 @@ bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, param
 bool ModControllableAudio::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
 	// check if you're not in editing mode
 	// and a param hold press is currently active
-	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
-		if ((kind == performanceSessionView.lastPadPress.paramKind)
-		    && (id == performanceSessionView.lastPadPress.paramID)) {
+	if (!performanceView.defaultEditingMode && performanceView.lastPadPress.isActive) {
+		if ((kind == performanceView.lastPadPress.paramKind) && (id == performanceView.lastPadPress.paramID)) {
 			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
-			performanceSessionView.renderFXDisplay(kind, id, valueForDisplay);
+			performanceView.renderFXDisplay(kind, id, valueForDisplay);
 			return true;
 		}
 	}
 	// if a specific param is not active, reset display
-	else if (performanceSessionView.onFXDisplay) {
-		performanceSessionView.renderViewDisplay();
+	else if (performanceView.onFXDisplay) {
+		performanceView.renderViewDisplay();
 	}
 	return false;
 }

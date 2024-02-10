@@ -24,7 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -2552,7 +2552,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, bool on, int32_t
 				break;
 
 			case GlobalMIDICommand::MORPH:
-				performanceSessionView.receivedMorphCC(velocity);
+				performanceView.receivedMorphCC(velocity);
 				break;
 
 			// case GlobalMIDICommand::TAP:
