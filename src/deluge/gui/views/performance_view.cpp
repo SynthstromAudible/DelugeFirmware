@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "gui/colour/colour.h"
@@ -160,10 +160,10 @@ constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHei
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
 };
 
-PerformanceSessionView performanceSessionView{};
+PerformanceView performanceView{};
 
 // initialize variables
-PerformanceSessionView::PerformanceSessionView() {
+PerformanceView::PerformanceView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -207,7 +207,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	tempFilePath.clear();
 }
 
-void PerformanceSessionView::initPadPress(PadPress& padPress) {
+void PerformanceView::initPadPress(PadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
@@ -215,7 +215,7 @@ void PerformanceSessionView::initPadPress(PadPress& padPress) {
 	padPress.paramID = kNoSelection;
 }
 
-void PerformanceSessionView::initFXPress(FXColumnPress& columnPress) {
+void PerformanceView::initFXPress(FXColumnPress& columnPress) {
 	columnPress.previousKnobPosition = kNoSelection;
 	columnPress.currentKnobPosition = kNoSelection;
 	columnPress.yDisplay = kNoSelection;
@@ -223,7 +223,7 @@ void PerformanceSessionView::initFXPress(FXColumnPress& columnPress) {
 	columnPress.padPressHeld = false;
 }
 
-void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
+void PerformanceView::initLayout(ParamsForPerformance& layout) {
 	layout.paramKind = params::Kind::NONE;
 	layout.paramID = kNoSelection;
 	layout.xDisplay = kNoSelection;
@@ -236,7 +236,7 @@ void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
 	layout.rowTailColour[2] = 0;
 }
 
-void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
+void PerformanceView::initDefaultFXValues(int32_t xDisplay) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		int32_t defaultFXValue = calculateKnobPosForSinglePadPress(xDisplay, yDisplay);
 		defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
@@ -246,7 +246,7 @@ void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
 	}
 }
 
-bool PerformanceSessionView::opened() {
+bool PerformanceView::opened() {
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
 	}
@@ -256,7 +256,7 @@ bool PerformanceSessionView::opened() {
 	return true;
 }
 
-void PerformanceSessionView::focusRegained() {
+void PerformanceView::focusRegained() {
 	currentSong->onPerformanceView = true;
 	currentSong->affectEntire = true;
 
@@ -284,7 +284,7 @@ void PerformanceSessionView::focusRegained() {
 	uiNeedsRendering(this);
 }
 
-void PerformanceSessionView::graphicsRoutine() {
+void PerformanceView::graphicsRoutine() {
 	static int counter = 0;
 	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
@@ -315,7 +315,7 @@ void PerformanceSessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-ActionResult PerformanceSessionView::timerCallback() {
+ActionResult PerformanceView::timerCallback() {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
 		sessionView.timerCallback();
 	}
@@ -325,9 +325,8 @@ ActionResult PerformanceSessionView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                            bool drawUndefinedArea) {
+bool PerformanceView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -359,7 +358,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 }
 
 /// render every column, one row at a time
-void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void PerformanceView::renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		RGB& pixel = image[xDisplay];
@@ -423,7 +422,7 @@ void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int3
 }
 
 /// check if a param has been assigned to any of the FX columns
-bool PerformanceSessionView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
+bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
 		    && (layoutForPerformance[xDisplay].paramID == paramID)) {
@@ -436,8 +435,8 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(params::Kind paramKind, i
 /// depending on if you entered performance view from arranger or song:
 /// renders the sidebar from song view (grid mode or row mode)
 /// renders the sidebar from arranger view
-bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+bool PerformanceView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -457,7 +456,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 }
 
 /// render performance view display on opening
-void PerformanceSessionView::renderViewDisplay() {
+void PerformanceView::renderViewDisplay() {
 	if (getCurrentUI() == this) {
 		if (defaultEditingMode) {
 			if (display->haveOLED()) {
@@ -532,7 +531,7 @@ void PerformanceSessionView::renderViewDisplay() {
 }
 
 /// Render Parameter Name and Value set when using Performance Pads
-void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
+void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, int32_t knobPos) {
 	if (getCurrentUI() == this) {
 		if (editingParam) {
 			// display parameter name
@@ -642,7 +641,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 	}
 }
 
-void PerformanceSessionView::renderMorphDisplay() {
+void PerformanceView::renderMorphDisplay() {
 	if (getCurrentUI() == this) {
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::clearMainImage();
@@ -725,7 +724,7 @@ void PerformanceSessionView::renderMorphDisplay() {
 	}
 }
 
-int32_t PerformanceSessionView::calculateMorphPositionForDisplay() {
+int32_t PerformanceView::calculateMorphPositionForDisplay() {
 	float knobPosFloat = static_cast<float>(morphPosition);
 	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
 	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
@@ -739,7 +738,7 @@ int32_t PerformanceSessionView::calculateMorphPositionForDisplay() {
 	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
-void PerformanceSessionView::drawMorphBar(int32_t yTop) {
+void PerformanceView::drawMorphBar(int32_t yTop) {
 	int32_t marginL = 20;
 	int32_t marginR = marginL;
 
@@ -777,7 +776,7 @@ void PerformanceSessionView::drawMorphBar(int32_t yTop) {
 	                                          deluge::hid::display::OLED::oledMainImage);
 }
 
-void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void PerformanceView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	if (morphMode) {
 		renderMorphDisplay();
 	}
@@ -787,7 +786,7 @@ void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS])
 	sessionView.renderOLED(image);
 }
 
-void PerformanceSessionView::redrawNumericDisplay() {
+void PerformanceView::redrawNumericDisplay() {
 	if (morphMode) {
 		renderMorphDisplay();
 	}
@@ -797,13 +796,13 @@ void PerformanceSessionView::redrawNumericDisplay() {
 	sessionView.redrawNumericDisplay();
 }
 
-void PerformanceSessionView::setLedStates() {
+void PerformanceView::setLedStates() {
 	setCentralLEDStates();
 	view.setLedStates();
 	view.setModLedStates();
 }
 
-void PerformanceSessionView::setCentralLEDStates() {
+void PerformanceView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -850,7 +849,7 @@ void PerformanceSessionView::setCentralLEDStates() {
 	}
 }
 
-ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -986,7 +985,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 }
 
 /// called by button action if b == KEYBOARD
-void PerformanceSessionView::handleKeyboardButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleKeyboardButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (defaultEditingMode && editingParam) {
@@ -1025,14 +1024,14 @@ void PerformanceSessionView::handleKeyboardButtonAction(bool on, ModelStackWithT
 }
 
 /// called by button action if b == Y_ENC
-void PerformanceSessionView::handleVerticalEncoderButtonAction(bool on) {
+void PerformanceView::handleVerticalEncoderButtonAction(bool on) {
 	if (on) {
 		currentSong->displayCurrentRootNoteAndScaleName();
 	}
 }
 
 /// called by button action if b == X_ENC
-void PerformanceSessionView::handleHorizontalEncoderButtonAction(bool on) {
+void PerformanceView::handleHorizontalEncoderButtonAction(bool on) {
 	if (on) {
 		enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 	}
@@ -1044,8 +1043,8 @@ void PerformanceSessionView::handleHorizontalEncoderButtonAction(bool on) {
 }
 
 /// called by button action if b == back and UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
-void PerformanceSessionView::handleBackAndHorizontalEncoderButtonComboAction(
-    bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleBackAndHorizontalEncoderButtonComboAction(bool on,
+                                                                      ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		resetPerformanceView(modelStack);
 	}
@@ -1053,7 +1052,7 @@ void PerformanceSessionView::handleBackAndHorizontalEncoderButtonComboAction(
 
 /// called by button action if scale and cross-screen buttons are both held
 /// enters or exits morph mode
-void PerformanceSessionView::handleScaleAndCrossButtonComboAction(bool on) {
+void PerformanceView::handleScaleAndCrossButtonComboAction(bool on) {
 	if (on) {
 		if (morphMode) {
 			exitMorphMode();
@@ -1066,7 +1065,7 @@ void PerformanceSessionView::handleScaleAndCrossButtonComboAction(bool on) {
 
 /// called by button action if you're not in morph mode and you press the scale button
 /// selects layout bank 1
-void PerformanceSessionView::handleScaleButtonAction(bool on, int32_t variant) {
+void PerformanceView::handleScaleButtonAction(bool on, int32_t variant) {
 	if (on) {
 		layoutBank = 1;
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
@@ -1095,7 +1094,7 @@ void PerformanceSessionView::handleScaleButtonAction(bool on, int32_t variant) {
 
 /// called by button action if you're not in morph mode and you press the cross screen button
 /// select layout bank 2
-void PerformanceSessionView::handleCrossButtonAction(bool on, int32_t variant) {
+void PerformanceView::handleCrossButtonAction(bool on, int32_t variant) {
 	if (on) {
 		layoutBank = 2;
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
@@ -1124,7 +1123,7 @@ void PerformanceSessionView::handleCrossButtonAction(bool on, int32_t variant) {
 
 /// called by button action if keyboard button is pressed while UI_MODE_HOLDING_SAVE_BUTTON
 /// saves default layout, unselects bank and displays saved variant popup
-void PerformanceSessionView::handleKeyboardAndSaveButtonComboAction(bool on) {
+void PerformanceView::handleKeyboardAndSaveButtonComboAction(bool on) {
 	if (on) {
 		layoutBank = 0;
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
@@ -1137,7 +1136,7 @@ void PerformanceSessionView::handleKeyboardAndSaveButtonComboAction(bool on) {
 }
 
 /// called by button combo functions below to save bank variant based on current bank selection
-void PerformanceSessionView::handleSavingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant) {
+void PerformanceView::handleSavingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant) {
 	if (layoutBank == 1) {
 		currentSong->performanceLayoutVariant = bank1Variant;
 	}
@@ -1154,7 +1153,7 @@ void PerformanceSessionView::handleSavingBankVariantSelection(int32_t bank1Varia
 
 /// called by button action if synth button is pressed while UI_MODE_HOLDING_SAVE_BUTTON
 /// saves layout 1 or 5 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleSynthAndSaveButtonComboAction(bool on) {
+void PerformanceView::handleSynthAndSaveButtonComboAction(bool on) {
 	if (on) {
 		handleSavingBankVariantSelection(1, 5);
 	}
@@ -1162,7 +1161,7 @@ void PerformanceSessionView::handleSynthAndSaveButtonComboAction(bool on) {
 
 /// called by button action if kit button is pressed while UI_MODE_HOLDING_SAVE_BUTTON
 /// saves layout 2 or 6 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleKitAndSaveButtonComboAction(bool on) {
+void PerformanceView::handleKitAndSaveButtonComboAction(bool on) {
 	if (on) {
 		handleSavingBankVariantSelection(2, 6);
 	}
@@ -1170,7 +1169,7 @@ void PerformanceSessionView::handleKitAndSaveButtonComboAction(bool on) {
 
 /// called by button action if midi button is pressed while UI_MODE_HOLDING_SAVE_BUTTON
 /// saves layout 3 or 7 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleMidiAndSaveButtonComboAction(bool on) {
+void PerformanceView::handleMidiAndSaveButtonComboAction(bool on) {
 	if (on) {
 		handleSavingBankVariantSelection(3, 7);
 	}
@@ -1178,7 +1177,7 @@ void PerformanceSessionView::handleMidiAndSaveButtonComboAction(bool on) {
 
 /// called by button action if CV button is pressed while UI_MODE_HOLDING_SAVE_BUTTON
 /// saves layout 4 or 8 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleCVAndSaveButtonComboAction(bool on) {
+void PerformanceView::handleCVAndSaveButtonComboAction(bool on) {
 	if (on) {
 		handleSavingBankVariantSelection(4, 8);
 	}
@@ -1186,8 +1185,7 @@ void PerformanceSessionView::handleCVAndSaveButtonComboAction(bool on) {
 
 /// called by button action if keyboard button is pressed while UI_MODE_HOLDING_LOAD_BUTTON
 /// loads default layout, unselects bank and displays loaded variant popup
-void PerformanceSessionView::handleKeyboardAndLoadButtonComboAction(bool on,
-                                                                    ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleKeyboardAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		if (currentSong->performanceLayoutVariant != 0) {
 			successfullyReadDefaultsFromFile = false;
@@ -1204,8 +1202,8 @@ void PerformanceSessionView::handleKeyboardAndLoadButtonComboAction(bool on,
 }
 
 /// called by button combo functions below to load bank variant based on current bank selection
-void PerformanceSessionView::handleLoadingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant,
-                                                               ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleLoadingBankVariantSelection(int32_t bank1Variant, int32_t bank2Variant,
+                                                        ModelStackWithThreeMainThings* modelStack) {
 	if (layoutBank == 1) {
 		if (currentSong->performanceLayoutVariant != bank1Variant) {
 			successfullyReadDefaultsFromFile = false;
@@ -1229,7 +1227,7 @@ void PerformanceSessionView::handleLoadingBankVariantSelection(int32_t bank1Vari
 
 /// called by button action if synth button is pressed while UI_MODE_HOLDING_LOAD_BUTTON
 /// loads layout 1 or 5 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleSynthAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleSynthAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		handleLoadingBankVariantSelection(1, 5, modelStack);
 	}
@@ -1237,7 +1235,7 @@ void PerformanceSessionView::handleSynthAndLoadButtonComboAction(bool on, ModelS
 
 /// called by button action if kit button is pressed while UI_MODE_HOLDING_LOAD_BUTTON
 /// loads layout 2 or 6 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleKitAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleKitAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		handleLoadingBankVariantSelection(2, 6, modelStack);
 	}
@@ -1245,7 +1243,7 @@ void PerformanceSessionView::handleKitAndLoadButtonComboAction(bool on, ModelSta
 
 /// called by button action if midi button is pressed while UI_MODE_HOLDING_LOAD_BUTTON
 /// loads layout 3 or 7 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleMidiAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleMidiAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		handleLoadingBankVariantSelection(3, 7, modelStack);
 	}
@@ -1253,14 +1251,14 @@ void PerformanceSessionView::handleMidiAndLoadButtonComboAction(bool on, ModelSt
 
 /// called by button action if CV button is pressed while UI_MODE_HOLDING_LOAD_BUTTON
 /// loads layout 4 or 8 if bank 1 or 2 is selected and displays saved variant popup
-void PerformanceSessionView::handleCVAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleCVAndLoadButtonComboAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		handleLoadingBankVariantSelection(4, 8, modelStack);
 	}
 }
 
 /// called by button action if b == Synth while you're in Morph Mode and CV button isn't also pressed
-void PerformanceSessionView::handleSynthMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleSynthMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		loadMorphALayout(modelStack);
 		if (display->have7SEG()) {
@@ -1277,7 +1275,7 @@ void PerformanceSessionView::handleSynthMorphButtonAction(bool on, ModelStackWit
 }
 
 /// called by button action if b == CV while you're in Morph Mode and Synth button isn't also pressed
-void PerformanceSessionView::handleCVMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::handleCVMorphButtonAction(bool on, ModelStackWithThreeMainThings* modelStack) {
 	if (on) {
 		loadMorphBLayout(modelStack);
 		if (display->have7SEG()) {
@@ -1294,7 +1292,7 @@ void PerformanceSessionView::handleCVMorphButtonAction(bool on, ModelStackWithTh
 }
 
 /// called by button action if b == SELECT_ENC and shift button is not also pressed
-void PerformanceSessionView::handleSelectEncoderButtonAction(bool on) {
+void PerformanceView::handleSelectEncoderButtonAction(bool on) {
 	if (on) {
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
@@ -1307,7 +1305,7 @@ void PerformanceSessionView::handleSelectEncoderButtonAction(bool on) {
 	}
 }
 
-ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	if (!justExitedSoundEditor) {
 		// if pad was pressed in main deluge grid (not sidebar)
 		if (xDisplay < kDisplayWidth) {
@@ -1401,8 +1399,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 }
 
 /// process pad actions in the normal performance view or value editor
-void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
-                                             int32_t yDisplay, int32_t on) {
+void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
+                                      int32_t on) {
 	// obtain Kind, ParamID corresponding to the column pressed on performance grid
 	Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
 	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
@@ -1481,8 +1479,8 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	}
 }
 
-void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
-                                            int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
+void PerformanceView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind, int32_t paramID,
+                                     int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
 	                      renderDisplay)) {
 		// if pressing a new pad in a column, reset held status
@@ -1506,8 +1504,8 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 	}
 }
 
-void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
-                                              int32_t paramID, int32_t xDisplay, bool renderDisplay) {
+void PerformanceView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
+                                       int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
 	                      renderDisplay)) {
 		initFXPress(fxPress[xDisplay]);
@@ -1516,8 +1514,8 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
 }
 
 /// process pad actions in the param editor
-void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
-                                                  int32_t yDisplay, int32_t on) {
+void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
+                                           int32_t yDisplay, int32_t on) {
 	// pressing a pad
 	if (on) {
 		// if you haven't yet pressed and are holding a param shortcut pad on the param overview
@@ -1579,7 +1577,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 }
 
 /// check if pad press corresponds to a shortcut pad on the grid
-bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
+bool PerformanceView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != params::Kind::NONE)
 	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != kNoParamID)) {
 		return true;
@@ -1588,7 +1586,7 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 }
 
 /// backup performance layout so changes can be undone / redone later
-void PerformanceSessionView::backupPerformanceLayout(bool onlyMorph) {
+void PerformanceView::backupPerformanceLayout(bool onlyMorph) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (successfullyReadDefaultsFromFile) {
 			if (!onlyMorph) {
@@ -1609,7 +1607,7 @@ void PerformanceSessionView::backupPerformanceLayout(bool onlyMorph) {
 
 /// used in conjunction with backupPerformanceLayout to log changes
 /// while in Performance View so that you can undo/redo them afters
-void PerformanceSessionView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
+void PerformanceView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
 		if (closeAction) {
@@ -1619,7 +1617,7 @@ void PerformanceSessionView::logPerformanceViewPress(int32_t xDisplay, bool clos
 }
 
 /// check if there are any changes that needed to be logged in action logger for undo/redo mechanism to work
-bool PerformanceSessionView::anyChangesToLog() {
+bool PerformanceView::anyChangesToLog() {
 	if (performanceLayoutBackedUp) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			if (backupFXPress[xDisplay].previousKnobPosition != fxPress[xDisplay].previousKnobPosition) {
@@ -1645,7 +1643,7 @@ bool PerformanceSessionView::anyChangesToLog() {
 /// called when you press <> + back
 /// in param editor, it will clear existing param mappings
 /// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
-void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		// this could get called if you're loading a new song
 		// don't need to reset performance view if you're loading a new song
@@ -1689,7 +1687,7 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 
 /// resets a single FX column to remove held status
 /// and reset the param value assigned to that FX column to pre-held state
-void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
+void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// obtain Kind and ParamID corresponding to the column in focus (xDisplay)
 		params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
@@ -1703,7 +1701,7 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 }
 
 /// check if stutter is active and release it if it is
-void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
 		padReleaseAction(modelStack, params::Kind::UNPATCHED_GLOBAL, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
 		                 lastPadPress.xDisplay, false);
@@ -1716,8 +1714,8 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 /// if you're in the value editor, pressing a column and changing the value will also open the sound editor
 /// menu for the parameter to show you the current value in the menu
 /// in regular performance view, this function will also update the parameter value shown on the display
-bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
-                                               int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
+bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
+                                        int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1773,8 +1771,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 /// get the current value for a parameter and update display if value is different than currently shown
 /// update current value stored
-void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
-                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
+void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
+                                        int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1800,7 +1798,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 
 /// converts grid pad press yDisplay into a knobPosition value default
 /// this will likely need to be customized based on the parameter to create some more param appropriate ranges
-int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+int32_t PerformanceView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	params::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
@@ -1831,7 +1829,7 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDispl
 /// Used to edit a pad's value in editing mode
 /// Also used to select morph layouts in morph mode
 /// and used to edit sidebar actions such as loops remaining / repeats, etc.
-void PerformanceSessionView::selectEncoderAction(int8_t offset) {
+void PerformanceView::selectEncoderAction(int8_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -1889,7 +1887,7 @@ exit:
 }
 
 /// used to calculate new knobPos when you turn the select encoder
-int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
+int32_t PerformanceView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
 
 	// adjust the current knob so that it is within the range of 0-128 for calculation purposes
 	knobPos = knobPos + kKnobPosOffset;
@@ -1915,16 +1913,16 @@ int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t kno
 	return newKnobPos;
 }
 
-int32_t PerformanceSessionView::adjustKnobPosForQuantizedStutter(int32_t yDisplay) {
+int32_t PerformanceView::adjustKnobPosForQuantizedStutter(int32_t yDisplay) {
 	int32_t knobPos = -kMinKnobPosForQuantizedStutter + (yDisplay * kParamValueIncrementForQuantizedStutter);
 	return knobPos;
 }
 
-ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
+ActionResult PerformanceView::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
 		sessionView.verticalEncoderAction(offset, inCardRoutine);
 	}
@@ -1935,18 +1933,18 @@ ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool 
 }
 
 /// why do I need this? (code won't compile without it)
-uint32_t PerformanceSessionView::getMaxZoom() {
+uint32_t PerformanceView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
 
 /// why do I need this? (code won't compile without it)
-uint32_t PerformanceSessionView::getMaxLength() {
+uint32_t PerformanceView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
 /// updates the display if the mod encoder has just updated the same parameter currently being held / last held
 /// if no param is currently being held, it will reset the display to just show "Performance View"
-void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (morphMode && !defaultEditingMode) {
 		morph(offset);
 		renderMorphDisplay();
@@ -1970,7 +1968,7 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 }
 
 /// used to reset stutter if it's already active
-void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	if (morphMode) {
 		return;
 	}
@@ -2008,13 +2006,13 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 	}
 }
 
-void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
+void PerformanceView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
 /// this compares the last loaded XML file defaults to the current layout in performance view
 /// to determine if there are any unsaved changes
-void PerformanceSessionView::updateLayoutChangeStatus() {
+void PerformanceView::updateLayoutChangeStatus() {
 	anyChangesToSave = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -2070,7 +2068,7 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 /// determine the layout file name
 /// append layout file name to folder path
 /// append .XML to end of file name
-void PerformanceSessionView::setLayoutFilePath() {
+void PerformanceView::setLayoutFilePath() {
 	tempFilePath.set(PERFORM_DEFAULTS_FOLDER);
 	tempFilePath.concatenate("/");
 	if (currentSong->performanceLayoutVariant == 0) {
@@ -2085,14 +2083,14 @@ void PerformanceSessionView::setLayoutFilePath() {
 }
 
 /// update saved performance view layout and update saved changes status
-void PerformanceSessionView::savePerformanceViewLayout() {
+void PerformanceView::savePerformanceViewLayout() {
 	setLayoutFilePath();
 	writeDefaultsToFile();
 	updateLayoutChangeStatus();
 }
 
 /// create default XML file and write defaults
-void PerformanceSessionView::writeDefaultsToFile() {
+void PerformanceView::writeDefaultsToFile() {
 	// Default.xml / 1.xml, 2.xml ... 8.xml
 	// if the file already exists, this will overwrite it.
 	int32_t error = storageManager.createXMLFile(tempFilePath.get(), true);
@@ -2123,7 +2121,7 @@ void PerformanceSessionView::writeDefaultsToFile() {
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own
 /// FX
-void PerformanceSessionView::writeDefaultFXValuesToFile() {
+void PerformanceView::writeDefaultFXValuesToFile() {
 	char tagName[10];
 	tagName[0] = 'F';
 	tagName[1] = 'X';
@@ -2139,7 +2137,7 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 }
 
 /// convert paramID to a paramName to write to XML
-void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
+void PerformanceView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
 
 	auto kind = layoutForPerformance[xDisplay].paramKind;
@@ -2158,7 +2156,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 
 /// creates "8 - 1 row # tags within a "row" tag"
 /// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
-void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
+void PerformanceView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 	//<row>
 	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
 	storageManager.writeOpeningTagEnd();
@@ -2175,7 +2173,7 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 
 /// for each FX column, write the held status, what row is being held, and what previous value was
 /// (previous value is used to reset param after you remove the held status)
-void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
+void PerformanceView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	//<hold>
 	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
 	storageManager.writeOpeningTagEnd();
@@ -2206,7 +2204,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 }
 
 /// backup current layout, load saved layout, log layout change, update change status
-void PerformanceSessionView::loadPerformanceViewLayout(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::loadPerformanceViewLayout(ModelStackWithThreeMainThings* modelStack) {
 	resetPerformanceView(modelStack);
 	if (successfullyReadDefaultsFromFile) {
 		readDefaultsFromBackedUpFile(modelStack);
@@ -2220,7 +2218,7 @@ void PerformanceSessionView::loadPerformanceViewLayout(ModelStackWithThreeMainTh
 /// after a layout has been loaded, we want to back it up so we can re-load it more quickly next time
 /// and also be able to do comparisons of changes to the backed up layout
 /// we also delete all action logs so that you can't undo after loading a layout
-void PerformanceSessionView::layoutUpdated() {
+void PerformanceView::layoutUpdated() {
 	actionLogger.deleteAllLogs();
 	backupPerformanceLayout();
 	updateLayoutChangeStatus();
@@ -2231,7 +2229,7 @@ void PerformanceSessionView::layoutUpdated() {
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
-void PerformanceSessionView::readDefaultsFromBackedUpFile(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::readDefaultsFromBackedUpFile(ModelStackWithThreeMainThings* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &backupXMLDefaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
@@ -2247,7 +2245,7 @@ void PerformanceSessionView::readDefaultsFromBackedUpFile(ModelStackWithThreeMai
 }
 
 /// read defaults from XML
-void PerformanceSessionView::readDefaultsFromFile(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::readDefaultsFromFile(ModelStackWithThreeMainThings* modelStack) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -2256,7 +2254,7 @@ void PerformanceSessionView::readDefaultsFromFile(ModelStackWithThreeMainThings*
 	setLayoutFilePath();
 
 	FilePointer fp;
-	// performanceSessionView.XML
+	// performanceView.XML
 	bool success = storageManager.fileExists(tempFilePath.get(), &fp);
 	if (!success) {
 		loadDefaultLayout();
@@ -2286,7 +2284,7 @@ void PerformanceSessionView::readDefaultsFromFile(ModelStackWithThreeMainThings*
 
 /// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour,
 /// rowTailColour)
-void PerformanceSessionView::loadDefaultLayout() {
+void PerformanceView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeof(ParamsForPerformance));
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
@@ -2305,7 +2303,7 @@ void PerformanceSessionView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceSessionView::readDefaultFXValuesFromFile(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::readDefaultFXValuesFromFile(ModelStackWithThreeMainThings* modelStack) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
@@ -2327,8 +2325,8 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(ModelStackWithThreeMain
 	}
 }
 
-void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay,
-                                                                    ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay,
+                                                             ModelStackWithThreeMainThings* modelStack) {
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//<param>
@@ -2350,7 +2348,7 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay,
 /// yDisplay, rowColour, rowTailColour)
-void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	char const* tagName = storageManager.readTagOrAttributeValue();
 
@@ -2376,7 +2374,7 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 }
 
 /// this will load the values corresponding to each pad in each column in performance view
-void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
+void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
 	// loop through all row <#> number tags
@@ -2417,8 +2415,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 
 /// this function reads layout data relating to held pads
 /// this includes, held status, held value and previous value to reset back to if hold is removed
-void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay,
-                                                             ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack) {
 	char const* tagName;
 	// loop through the hold tags
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -2491,7 +2488,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay,
 
 /// if there are any held pads in a layout, this function will initialize them by
 /// changing parameter values to the held value
-void PerformanceSessionView::initializeHeldFX(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::initializeHeldFX(int32_t xDisplay, ModelStackWithThreeMainThings* modelStack) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// set the value associated with the held pad
 		if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
@@ -2517,7 +2514,7 @@ void PerformanceSessionView::initializeHeldFX(int32_t xDisplay, ModelStackWithTh
 }
 
 /// when a song is loaded, we want to load the layout settings that were saved with the song
-void PerformanceSessionView::initializeLayoutVariantsFromSong() {
+void PerformanceView::initializeLayoutVariantsFromSong() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -2538,7 +2535,7 @@ void PerformanceSessionView::initializeLayoutVariantsFromSong() {
 }
 
 /// used in morph mode with the select encoder to select morph layout variant assigned to A and B
-void PerformanceSessionView::selectLayoutVariant(int32_t offset, int32_t& variant) {
+void PerformanceView::selectLayoutVariant(int32_t offset, int32_t& variant) {
 	if (variant == kNoSelection) {
 		if (offset > 0) {
 			variant = -1;
@@ -2558,7 +2555,7 @@ void PerformanceSessionView::selectLayoutVariant(int32_t offset, int32_t& varian
 }
 
 /// displays if no layout has been loaded, the default layout has been loaded or layouts 1 to 8
-void PerformanceSessionView::displayLayoutVariant(int32_t variant) {
+void PerformanceView::displayLayoutVariant(int32_t variant) {
 	if (variant == kNoSelection) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NONE));
 	}
@@ -2573,8 +2570,7 @@ void PerformanceSessionView::displayLayoutVariant(int32_t variant) {
 }
 
 /// here we load a layout variant from its XML file
-void PerformanceSessionView::loadSelectedLayoutVariantFromFile(int32_t variant,
-                                                               ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::loadSelectedLayoutVariantFromFile(int32_t variant, ModelStackWithThreeMainThings* modelStack) {
 	if (variant != kNoSelection) {
 		currentSong->performanceLayoutVariant = variant;
 		successfullyReadDefaultsFromFile = false;
@@ -2589,7 +2585,7 @@ void PerformanceSessionView::loadSelectedLayoutVariantFromFile(int32_t variant,
 }
 
 /// enter morph mode, set the led states and render display
-void PerformanceSessionView::enterMorphMode() {
+void PerformanceView::enterMorphMode() {
 	morphMode = true;
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, true);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
@@ -2599,7 +2595,7 @@ void PerformanceSessionView::enterMorphMode() {
 }
 
 /// exit morph mode, set the led states and render display
-void PerformanceSessionView::exitMorphMode() {
+void PerformanceView::exitMorphMode() {
 	morphMode = false;
 	setCentralLEDStates();
 	view.setKnobIndicatorLevels();
@@ -2608,7 +2604,7 @@ void PerformanceSessionView::exitMorphMode() {
 }
 
 /// received morph cc from global midi command MORPH
-void PerformanceSessionView::receivedMorphCC(int32_t value) {
+void PerformanceView::receivedMorphCC(int32_t value) {
 	if (value == kMaxMIDIValue) {
 		value = kMaxKnobPos;
 	}
@@ -2619,7 +2615,7 @@ void PerformanceSessionView::receivedMorphCC(int32_t value) {
 /// this function determines if morphing is possible
 /// if it is possible, it adjusts the morph position and obtains current morph values
 /// and morphs towards the target morph layout (A or B) based on the direction (is offset pos. or neg.)
-void PerformanceSessionView::morph(int32_t offset, bool isMIDICommand) {
+void PerformanceView::morph(int32_t offset, bool isMIDICommand) {
 	if (offset != 0 && (isMIDICommand || isMorphingPossible())) {
 		int32_t currentMorphPosition = morphPosition;
 		adjustMorphPosition(offset);
@@ -2728,7 +2724,7 @@ void PerformanceSessionView::morph(int32_t offset, bool isMIDICommand) {
 /// 2) a parameter has been assigned to every column in both layouts
 /// 3) the parameters assigned to each column in both layouts are the same
 /// 4) you haven't assigned stutter to every column
-bool PerformanceSessionView::isMorphingPossible() {
+bool PerformanceView::isMorphingPossible() {
 	if ((currentSong->performanceMorphLayoutAVariant != kNoSelection)
 	    && (currentSong->performanceMorphLayoutBVariant != kNoSelection)) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -2761,7 +2757,7 @@ bool PerformanceSessionView::isMorphingPossible() {
 	return false;
 }
 
-void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
+void PerformanceView::adjustMorphPosition(int32_t offset) {
 	morphPosition += offset;
 	if (morphPosition < 0) {
 		morphPosition = 0;
@@ -2774,8 +2770,8 @@ void PerformanceSessionView::adjustMorphPosition(int32_t offset) {
 
 /// linearly interpolates and sets the current value to the next value in the direction of the
 /// target value in the layout variant we are morphing towards
-void PerformanceSessionView::morphTowardsTarget(params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
-                                                int32_t targetKnobPosition, int32_t offset) {
+void PerformanceView::morphTowardsTarget(params::Kind paramKind, int32_t paramID, int32_t sourceKnobPosition,
+                                         int32_t targetKnobPosition, int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -2814,7 +2810,7 @@ void PerformanceSessionView::morphTowardsTarget(params::Kind paramKind, int32_t 
 /// note to self: I'm not sure this is entirely necessary, could probably just copy the fxPress info
 /// and the default values info over from the morph layout to the current layout
 /// e.g. no need to reset the view, initialize held pads or update the layout
-void PerformanceSessionView::loadMorphALayout(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::loadMorphALayout(ModelStackWithThreeMainThings* modelStack) {
 	if (currentSong->performanceMorphLayoutAVariant != kNoSelection) {
 		resetPerformanceView(modelStack);
 
@@ -2844,7 +2840,7 @@ void PerformanceSessionView::loadMorphALayout(ModelStackWithThreeMainThings* mod
 /// note to self: I'm not sure this is entirely necessary, could probably just copy the fxPress info
 /// and the default values info over from the morph layout to the current layout
 /// e.g. no need to reset the view, initialize held pads or update the layout
-void PerformanceSessionView::loadMorphBLayout(ModelStackWithThreeMainThings* modelStack) {
+void PerformanceView::loadMorphBLayout(ModelStackWithThreeMainThings* modelStack) {
 	if (currentSong->performanceMorphLayoutBVariant != kNoSelection) {
 		resetPerformanceView(modelStack);
 
@@ -2870,7 +2866,7 @@ void PerformanceSessionView::loadMorphBLayout(ModelStackWithThreeMainThings* mod
 }
 
 /// set led states for morph mode and for exiting morph mode
-void PerformanceSessionView::setMorphLEDStates() {
+void PerformanceView::setMorphLEDStates() {
 	if (getCurrentUI() == this) {
 		// this could get called by the morph midi command, so only refresh if we're in performance view
 		if (morphMode && isMorphingPossible()) {
@@ -2928,7 +2924,7 @@ void PerformanceSessionView::setMorphLEDStates() {
 }
 
 /// set knob indicator levels for morph mode and for exiting morph mode
-void PerformanceSessionView::setKnobIndicatorLevels() {
+void PerformanceView::setKnobIndicatorLevels() {
 	if (morphMode) {
 		if (isMorphingPossible()) {
 			indicator_leds::setKnobIndicatorLevel(0, morphPosition);

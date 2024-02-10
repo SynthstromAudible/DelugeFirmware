@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -87,7 +87,7 @@ void UITimerManager::routine() {
 
 				case TIMER_PLAY_ENABLE_FLASH: {
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+					if (rootUI == &sessionView || rootUI == &performanceView) {
 						sessionView.flashPlayRoutine();
 					}
 					break;

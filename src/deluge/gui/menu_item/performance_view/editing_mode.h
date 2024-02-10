@@ -17,7 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -28,10 +28,10 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override {
 		PerformanceEditingMode currentMode;
-		if (!performanceSessionView.defaultEditingMode) {
+		if (!performanceView.defaultEditingMode) {
 			currentMode = PerformanceEditingMode::DISABLED;
 		}
-		else if (!performanceSessionView.editingParam) {
+		else if (!performanceView.editingParam) {
 			currentMode = PerformanceEditingMode::VALUE;
 		}
 		else {
@@ -42,21 +42,21 @@ public:
 	void writeCurrentValue() override {
 		PerformanceEditingMode currentMode = this->getValue<PerformanceEditingMode>();
 		if (currentMode == PerformanceEditingMode::DISABLED) {
-			performanceSessionView.defaultEditingMode = false;
-			performanceSessionView.editingParam = false;
+			performanceView.defaultEditingMode = false;
+			performanceView.editingParam = false;
 		}
 		else if (currentMode == PerformanceEditingMode::VALUE) {
-			performanceSessionView.defaultEditingMode = true;
-			performanceSessionView.editingParam = false;
+			performanceView.defaultEditingMode = true;
+			performanceView.editingParam = false;
 		}
 		else { // PerformanceEditingMode::PARAM
-			performanceSessionView.defaultEditingMode = true;
-			performanceSessionView.editingParam = true;
+			performanceView.defaultEditingMode = true;
+			performanceView.editingParam = true;
 		}
 
-		if (performanceSessionView.defaultEditingMode) {
-			if (performanceSessionView.morphMode) {
-				performanceSessionView.exitMorphMode();
+		if (performanceView.defaultEditingMode) {
+			if (performanceView.morphMode) {
+				performanceView.exitMorphMode();
 			}
 			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 		}
@@ -64,13 +64,13 @@ public:
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		}
 
-		if (performanceSessionView.defaultEditingMode && !performanceSessionView.editingParam) {
+		if (performanceView.defaultEditingMode && !performanceView.editingParam) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			performanceSessionView.resetPerformanceView(modelStack);
+			performanceView.resetPerformanceView(modelStack);
 		}
-		uiNeedsRendering(&performanceSessionView);
+		uiNeedsRendering(&performanceView);
 	}
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;

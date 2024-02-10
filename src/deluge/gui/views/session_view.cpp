@@ -34,7 +34,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -592,7 +592,7 @@ doActualSimpleChange:
 	else if (b == KEYBOARD) {
 		if (on && (currentUIMode == UI_MODE_NONE)
 		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
-			changeRootUI(&performanceSessionView);
+			changeRootUI(&performanceView);
 		}
 	}
 	else if (b == Y_ENC) {
@@ -1813,7 +1813,7 @@ extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
+	if (currentUI != &performanceView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
 		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 	}
@@ -1840,7 +1840,7 @@ yesDoIt:
 
 void SessionView::redrawNumericDisplay() {
 	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
+	if (currentUI != &performanceView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
 		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 	}
@@ -2875,7 +2875,7 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		break;
 	}
 	case GridMode::PINK: {
-		modeActive = performanceSessionView.gridModeActive;
+		modeActive = performanceView.gridModeActive;
 		modeColour = colours::magenta; // Pink
 	}
 
@@ -3327,10 +3327,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				break;
 			}
 			case GridMode::PINK: {
-				performanceSessionView.gridModeActive = true;
-				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
-				changeRootUI(&performanceSessionView);
-				uiNeedsRendering(&performanceSessionView);
+				performanceView.gridModeActive = true;
+				performanceView.timeGridModePress = AudioEngine::audioSampleTimer;
+				changeRootUI(&performanceView);
+				uiNeedsRendering(&performanceView);
 				return ActionResult::DEALT_WITH;
 			}
 			}

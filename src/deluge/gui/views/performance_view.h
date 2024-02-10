@@ -55,9 +55,9 @@ struct ParamsForPerformance {
 	RGB rowTailColour = deluge::gui::colours::black;
 };
 
-class PerformanceSessionView final : public ClipNavigationTimelineView {
+class PerformanceView final : public ClipNavigationTimelineView {
 public:
-	PerformanceSessionView();
+	PerformanceView();
 
 	bool opened() override;
 	void focusRegained() override;
@@ -271,4 +271,4 @@ private:
 	FXColumnPress backupFXPress[kDisplayWidth];
 };
 
-extern PerformanceSessionView performanceSessionView;
+extern PerformanceView performanceView;

@@ -341,7 +341,7 @@ doActualSimpleChange:
 
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeRootUI(&performanceSessionView);
+			changeRootUI(&performanceView);
 		}
 	}
 

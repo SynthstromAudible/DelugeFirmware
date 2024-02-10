@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "model/action/action.h"
 #include <cstdint>
 

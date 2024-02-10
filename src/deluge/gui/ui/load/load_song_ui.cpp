@@ -449,7 +449,7 @@ swapDone:
 	display->removeWorkingAnimation();
 
 	// initialize performance view layouts
-	performanceSessionView.initializeLayoutVariantsFromSong();
+	performanceView.initializeLayoutVariantsFromSong();
 }
 
 ActionResult LoadSongUI::timerCallback() {

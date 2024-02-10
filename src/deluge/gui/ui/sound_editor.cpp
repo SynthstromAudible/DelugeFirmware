@@ -18,7 +18,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -166,8 +166,8 @@ bool SoundEditor::opened() {
 	setLedStates();
 
 	// update save button blinking status when in performance view
-	if (getRootUI() == &performanceSessionView) {
-		performanceSessionView.updateLayoutChangeStatus();
+	if (getRootUI() == &performanceView) {
+		performanceView.updateLayoutChangeStatus();
 	}
 
 	return true;
@@ -194,8 +194,8 @@ void SoundEditor::focusRegained() {
 	setLedStates();
 
 	// update save button blinking status when in performance view
-	if (getRootUI() == &performanceSessionView) {
-		performanceSessionView.updateLayoutChangeStatus();
+	if (getRootUI() == &performanceView) {
+		performanceView.updateLayoutChangeStatus();
 	}
 }
 
@@ -225,8 +225,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -262,8 +261,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -385,7 +383,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 			}
 
-			if (getRootUI() != &performanceSessionView) {
+			if (getRootUI() != &performanceView) {
 				PadLEDs::reassessGreyout(true);
 
 				indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
@@ -440,7 +438,7 @@ void SoundEditor::exitCompletely() {
 
 	// don't save any of the logs created while using the sound editor to edit param values
 	// in performance view value editing mode
-	if ((getRootUI() == &performanceSessionView) && (performanceSessionView.defaultEditingMode)) {
+	if ((getRootUI() == &performanceView) && (performanceView.defaultEditingMode)) {
 		actionLogger.deleteAllLogs();
 	}
 
@@ -506,7 +504,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// Find param shortcut
 		currentParamShorcutX = 255;
 		bool isUISessionView =
-		    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+		    (getRootUI() == &performanceView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
 		if (isUISessionView) {
 			int32_t x, y;
@@ -718,8 +716,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	}
 
 	// if you're in the performance view, let it handle the select encoder action
-	if (getRootUI() == &performanceSessionView) {
-		performanceSessionView.selectEncoderAction(offset);
+	if (getRootUI() == &performanceView) {
+		performanceView.selectEncoderAction(offset);
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
@@ -783,9 +781,9 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 	bool ignoreAction = false;
 	// if in Performance View
-	if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
+	if ((getRootUI() == &performanceView) || (getCurrentUI() == &performanceView)) {
 		// ignore if you're not in editing mode or if you're in editing mode but editing a param
-		ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
+		ignoreAction = (!performanceView.defaultEditingMode || performanceView.editingParam);
 	}
 	else {
 		// ignore if you're not auditioning and in instrument clip view
@@ -800,7 +798,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	bool isUIPerformanceView = (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUIPerformanceView = (getRootUI() == &performanceView) || (getCurrentUI() == &performanceView);
 
 	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceView)) {
 
@@ -1001,13 +999,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	bool isUIPerformanceView = (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUIPerformanceView = (getRootUI() == &performanceView) || (getCurrentUI() == &performanceView);
 
 	// used to convert column press to a shortcut to change Perform FX menu displayed
-	if (isUIPerformanceView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
-	    && !performanceSessionView.editingParam) {
+	if (isUIPerformanceView && !Buttons::isShiftButtonPressed() && performanceView.defaultEditingMode
+	    && !performanceView.editingParam) {
 		if (x < kDisplayWidth) {
-			performanceSessionView.padAction(x, y, on);
+			performanceView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1070,8 +1068,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 		// used in performanceView to ignore pad presses when you just exited soundEditor
 		// with a padAction
-		if (getRootUI() == &performanceSessionView) {
-			performanceSessionView.justExitedSoundEditor = true;
+		if (getRootUI() == &performanceView) {
+			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();
@@ -1149,7 +1147,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ModControllableAudio* newModControllable = nullptr;
 
 	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	    (getRootUI() == &performanceView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
 	// getParamManager and ModControllable for Performance View (and Session View)
 	if (isUISessionView) {
@@ -1270,7 +1268,7 @@ doMIDIOrCV:
 			if (getCurrentUI() == &automationView) {
 				newItem = &defaultAutomationMenu;
 			}
-			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			else if ((getCurrentUI() == &performanceView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else if (((getCurrentUI() == &sessionView) || (getCurrentUI() == &arrangerView))
@@ -1419,7 +1417,7 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	    (getRootUI() == &performanceView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
