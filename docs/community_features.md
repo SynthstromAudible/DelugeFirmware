@@ -25,6 +25,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.3 - MIDI
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
+- ([#837]) MIDI control over transpose / scale.
+    - Accessed via external MIDI via a new learnable global MIDI command in `SETTINGS > MIDI > CMD > TRAN`. It learns the entire channel, not just a single note.
+	- Accessed internally from a MIDI clip. Turn the channel to the end of the list past the MPE zones to 'Transpose'. Notes in this clip now alter the transposition of the song.
+	- Configureable in `SETTINGS > MIDI > TRANSPOSE` between chromatic and in-scale transposition.
 - ([#889]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 	- For a detailed description of this feature, please refer to the feature documentation: [MIDI Follow Mode Documentation]
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
@@ -34,6 +38,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
 - ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
 - ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
+
 
 #### 3.4 - Tempo
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO` encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed in the official firmware).
@@ -527,6 +532,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [#805]: https://github.com/SynthstromAudible/DelugeFirmware/pull/805
 [#812]: https://github.com/SynthstromAudible/DelugeFirmware/pull/812
+[#837]: https://github.com/SynthstromAudible/DelugeFirmware/pull/837
 [#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
 [#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
 [#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
