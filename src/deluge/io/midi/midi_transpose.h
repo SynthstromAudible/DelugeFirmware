@@ -17,14 +17,12 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
-class MIDIDevice;
-
+#include <cstdint>
 
 namespace MIDITranspose {
 extern MIDITransposeControlMethod controlMethod;
-void doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC);
-};
+void doTranspose(bool on, int32_t newNoteOrCC);
+}; // namespace MIDITranspose
 
 // extern MIDITranspose midiTranspose;

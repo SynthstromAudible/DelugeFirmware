@@ -842,7 +842,6 @@ Submenu midiTransposeSubmenu{
     },
 };
 
-
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -906,7 +905,7 @@ Submenu midiMenu{
         &midiFollowSubmenu,
         &midiSelectKitRowMenu,
         &midiThruMenu,
-		&midiTransposeMenu,
+        &midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,

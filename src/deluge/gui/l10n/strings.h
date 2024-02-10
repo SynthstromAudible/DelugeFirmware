@@ -784,7 +784,7 @@ enum class String : size_t {
 	STRING_FOR_MASTER,
 	STRING_FOR_FILTERS,
 
-	//strings for MIDI transpose
+	// strings for MIDI transpose
 	STRING_FOR_TRANSPOSE_CHORD,
 	STRING_FOR_TRANSPOSE_INKEY,
 	STRING_FOR_TRANSPOSE_CHROMATIC,

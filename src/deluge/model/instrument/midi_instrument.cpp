@@ -24,6 +24,7 @@
 #include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -359,6 +360,12 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 			}
 			else
 				break;
+		}
+	}
+	else if (!strcmp(tagName, "internalDest")) {
+		char const* text = storageManager.readTagOrAttributeValue();
+		if (!strcmp(text, "transpose")) {
+			channel = MIDI_CHANNEL_TRANSPOSE;
 		}
 	}
 	else if (!strcmp(tagName, "zone")) {
@@ -745,7 +752,12 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		outputAllMPEValuesOnMemberChannel(mpeValuesToUse, outputMemberChannel);
 	}
 
-	midiEngine.sendNote(true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+	if (sendsToInternal()) {
+		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
+	}
+	else {
+		midiEngine.sendNote(true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+	}
 }
 
 // Will store them too. Only for when we definitely want to send all three.
@@ -774,7 +786,10 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
 
 	// If no MPE, nice and simple
-	if (!sendsToMPE()) {
+	if (sendsToInternal()) {
+		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
+	}
+	else if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
 		if (!collapseAftertouch) {
@@ -863,7 +878,10 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
                                                               int32_t whichExpressionDimension, ArpNote* arpNote) {
 
 	// If we don't have MPE output...
-	if (!sendsToMPE()) {
+	if (sendsToInternal()) {
+		// Do nothing
+	}
+	else if (!sendsToMPE()) {
 		if (whichExpressionDimension == 2) {
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
@@ -1017,4 +1035,12 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 	}
 
 	return modelStackWithParam;
+}
+
+void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel) {
+
+	switch (channel) {
+	case 18:
+		MIDITranspose::doTranspose(on, note);
+	}
 }

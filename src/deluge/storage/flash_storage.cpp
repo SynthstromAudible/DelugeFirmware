@@ -783,7 +783,7 @@ void writeSettings() {
 	/* buffer[157]  \
 	   buffer[158]   device reference above occupies 4 bytes
 	   buffer[159] */
-	buffer[160]	= util::to_underlying(MIDITranspose::controlMethod);
+	buffer[160] = util::to_underlying(MIDITranspose::controlMethod);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -2501,7 +2501,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel)
 		    && static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
 			foundAnything = true;
-			MIDITranspose::doTranspose(device, channel, note);
+			MIDITranspose::doTranspose(true, note);
 		}
 
 		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
@@ -2570,11 +2570,18 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 
 	bool foundAnything = false;
 
-	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
-	                                                                                               note)) {
-		currentSong->changeFillMode(false);
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(device,
+	                                                                                                         channel)) {
 		foundAnything = true;
+		MIDITranspose::doTranspose(false, note);
+	}
+	else {
+		// Check for FILL command at index [8]
+		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+		                                                                                               note)) {
+			currentSong->changeFillMode(false);
+			foundAnything = true;
+		}
 	}
 
 	return foundAnything;
