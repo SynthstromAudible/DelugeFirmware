@@ -37,6 +37,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "model/note/note_row.h"
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
@@ -424,7 +425,7 @@ void MidiFollow::offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStac
                                         int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                         bool* doingMidiThru, Clip* clip) {
 	Kit* kit = (Kit*)clip->output;
-	Drum* thisDrum = getDrumFromNoteCode(kit, note);
+	Drum* thisDrum = getDrumFromNoteCode(clip, kit, note);
 
 	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
 	                         thisDrum);
@@ -593,7 +594,7 @@ void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* mod
 	}
 	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 	else {
-		Drum* thisDrum = getDrumFromNoteCode(kit, noteCode);
+		Drum* thisDrum = getDrumFromNoteCode(clip, kit, noteCode);
 		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
 			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
 			                               value);
@@ -628,7 +629,7 @@ bool MidiFollow::isFeedbackEnabled() {
 /// it calculates what the drum note row index should be
 /// and then attempts to get a valid drum from the index
 /// nullptr is returned if no drum is found
-Drum* MidiFollow::getDrumFromNoteCode(Kit* kit, int32_t noteCode) {
+Drum* MidiFollow::getDrumFromNoteCode(Clip* clip, Kit* kit, int32_t noteCode) {
 	Drum* thisDrum = nullptr;
 	// bottom kit noteRowId = 0
 	// default middle C1 note number = 36
@@ -636,7 +637,12 @@ Drum* MidiFollow::getDrumFromNoteCode(Kit* kit, int32_t noteCode) {
 	// this is configurable through the default menu
 	if (noteCode >= midiEngine.midiFollowKitRootNote) {
 		int32_t index = noteCode - midiEngine.midiFollowKitRootNote;
-		thisDrum = kit->getDrumFromIndexAllowNull(index);
+		if (index < ((InstrumentClip*)clip)->noteRows.getNumElements()) {
+			NoteRow* noteRow = ((InstrumentClip*)clip)->noteRows.getElement(index);
+			if (noteRow) {
+				thisDrum = noteRow->drum;
+			}
+		}
 	}
 	return thisDrum;
 }

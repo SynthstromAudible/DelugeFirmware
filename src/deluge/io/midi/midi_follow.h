@@ -102,7 +102,7 @@ private:
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
-	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
+	Drum* getDrumFromNoteCode(Clip* clip, Kit* kit, int32_t noteCode);
 
 	// saving
 	void writeDefaultsToFile();
