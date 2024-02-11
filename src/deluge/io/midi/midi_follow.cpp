@@ -499,8 +499,9 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
-					                            doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1,
+					                                 data2, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -509,19 +510,6 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 				}
 			}
 		}
-	}
-}
-
-// todo: this should be a kit function to avoid accessing kit internals directly
-void MidiFollow::offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
-                                             uint8_t data1, uint8_t data2, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel,
-		                              doingMidiThru);
 	}
 }
 

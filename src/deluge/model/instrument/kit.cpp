@@ -1320,6 +1320,16 @@ Drum* Kit::getDrumFromNoteCode(Clip* clip, int32_t noteCode) {
 	return thisDrum;
 }
 
+// for pitch bend received on a channel learnt to a whole clip
+void Kit::offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                      MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
+                                      uint8_t data2, bool* doingMidiThru) {
+
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
+	}
+}
+
 /// maps a note received on kit input channel to a drum. Note is zero indexed to first drum
 void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                              int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,

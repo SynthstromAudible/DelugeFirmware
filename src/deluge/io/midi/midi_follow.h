@@ -81,11 +81,7 @@ private:
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
-
-	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
-	                                 uint8_t data2, bool* doingMidiThru, Clip* clip);
-
+	
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
 

@@ -134,6 +134,10 @@ public:
 	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
 	                              bool* doingMidiThru);
 
+	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
+	                                 uint8_t data2, bool* doingMidiThru);
+
 protected:
 	bool isKit() { return true; }
 
