@@ -1301,6 +1301,35 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		}
 	}
 }
+/// find the drum matching the noteCode, counting up from 0
+Drum* Kit::getDrumFromNoteCode(Clip* clip, int32_t noteCode) {
+	Drum* thisDrum = nullptr;
+	// bottom kit noteRowId = 0
+	// default middle C1 note number = 36
+	// noteRowId + 36 = C1 up for kit sounds
+	// this is configurable through the default menu
+	if (noteCode >= 0) {
+		int32_t index = noteCode;
+		if (index < ((InstrumentClip*)clip)->noteRows.getNumElements()) {
+			NoteRow* noteRow = ((InstrumentClip*)clip)->noteRows.getElement(index);
+			if (noteRow) {
+				thisDrum = noteRow->drum;
+			}
+		}
+	}
+	return thisDrum;
+}
+
+/// maps a note received on kit input channel to a drum. Note is zero indexed to first drum
+void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                             int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+                             bool* doingMidiThru, Clip* clip) {
+	Kit* kit = (Kit*)clip->output;
+	Drum* thisDrum = getDrumFromNoteCode(clip, note);
+
+	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+	                         thisDrum);
+}
 /// for learning a whole kit to a single channel, offer cc to all drums
 void Kit::receivedCCForInputChannel(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                     MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,

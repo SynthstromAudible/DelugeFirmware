@@ -82,11 +82,6 @@ private:
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
-	// handle midi received for midi follow
-	void offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-	                            int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                            bool* doingMidiThru, Clip* clip);
-
 	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
 	                                 uint8_t data2, bool* doingMidiThru, Clip* clip);
@@ -97,7 +92,6 @@ private:
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
-	Drum* getDrumFromNoteCode(Clip* clip, Kit* kit, int32_t noteCode);
 
 	// saving
 	void writeDefaultsToFile();

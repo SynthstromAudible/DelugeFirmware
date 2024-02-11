@@ -401,8 +401,10 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
 			if (clip->output->type == OutputType::KIT) {
-				offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-				                       shouldRecordNotes, doingMidiThru, clip);
+				auto kit = (Kit*)clip->output;
+				kit->receivedNoteForKit(modelStackWithTimelineCounter, fromDevice, on, channel,
+				                        note - midiEngine.midiFollowKitRootNote, velocity, shouldRecordNotes,
+				                        doingMidiThru, clip);
 			}
 			else {
 				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -419,16 +421,6 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			}
 		}
 	}
-}
-
-void MidiFollow::offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                                        int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                                        bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* thisDrum = getDrumFromNoteCode(clip, kit, note);
-
-	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-	                         thisDrum);
 }
 
 /// called from playback handler
@@ -574,7 +566,7 @@ void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* mod
 	}
 	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 	else {
-		Drum* thisDrum = getDrumFromNoteCode(clip, kit, noteCode);
+		Drum* thisDrum = kit->getDrumFromNoteCode(clip, noteCode);
 		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
 			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
 			                               value);
@@ -603,28 +595,6 @@ bool MidiFollow::isFeedbackEnabled() {
 		return true;
 	}
 	return false;
-}
-
-/// based on the midi follow root kit note and note received
-/// it calculates what the drum note row index should be
-/// and then attempts to get a valid drum from the index
-/// nullptr is returned if no drum is found
-Drum* MidiFollow::getDrumFromNoteCode(Clip* clip, Kit* kit, int32_t noteCode) {
-	Drum* thisDrum = nullptr;
-	// bottom kit noteRowId = 0
-	// default middle C1 note number = 36
-	// noteRowId + 36 = C1 up for kit sounds
-	// this is configurable through the default menu
-	if (noteCode >= midiEngine.midiFollowKitRootNote) {
-		int32_t index = noteCode - midiEngine.midiFollowKitRootNote;
-		if (index < ((InstrumentClip*)clip)->noteRows.getNumElements()) {
-			NoteRow* noteRow = ((InstrumentClip*)clip)->noteRows.getElement(index);
-			if (noteRow) {
-				thisDrum = noteRow->drum;
-			}
-		}
-	}
-	return thisDrum;
 }
 
 /// create default XML file and write defaults

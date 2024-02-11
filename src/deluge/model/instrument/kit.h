@@ -125,6 +125,11 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
+	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru, Clip* clip);
+
+	Drum* getDrumFromNoteCode(Clip* clip, int32_t noteCode);
+
 protected:
 	bool isKit() { return true; }
 
@@ -132,7 +137,6 @@ private:
 	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
 	                     int32_t* drumIndex, Song* song);
-
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
