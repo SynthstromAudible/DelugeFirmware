@@ -45,8 +45,8 @@
 namespace params = deluge::modulation::params;
 
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
-	firstDrum = NULL;
-	selectedDrum = NULL;
+	firstDrum = nullptr;
+	selectedDrum = nullptr;
 }
 
 Kit::~Kit() {
