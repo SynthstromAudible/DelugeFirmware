@@ -479,8 +479,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
-					                     doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedCCForInputChannel(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber,
+					                               value, doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -489,27 +490,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
-	}
-}
-// todo: should be a kit function
-void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
-                                      uint8_t value, bool* doingMidiThru, Clip* clip) {
-	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
-		return;
-	}
-	if (ccNumber != 74) {
-		return;
-	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-		return;
-	}
-
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 	}
 }
 
