@@ -32,12 +32,12 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
-#include "model/note/note_row.h"
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::kNoParamID;
