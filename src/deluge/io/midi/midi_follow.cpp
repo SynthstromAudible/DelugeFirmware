@@ -539,8 +539,9 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
-					                             noteCode, doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
+					                              noteCode, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -548,28 +549,6 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 					                                      value, noteCode, doingMidiThru);
 				}
 			}
-		}
-	}
-}
-
-void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                              MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
-                                              int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	// Channel pressure message...
-	if (noteCode == -1) {
-		Drum* firstDrum = kit->getDrumFromIndex(0);
-		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			int32_t level = BEND_RANGE_FINGER_LEVEL;
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
-		}
-	}
-	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
-	else {
-		Drum* thisDrum = kit->getDrumFromNoteCode(clip, noteCode);
-		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
-			                               value);
 		}
 	}
 }

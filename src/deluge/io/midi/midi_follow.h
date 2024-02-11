@@ -86,10 +86,6 @@ private:
 	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
 	                                 uint8_t data2, bool* doingMidiThru, Clip* clip);
 
-	void offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                  MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
-	                                  int32_t noteCode, bool* doingMidiThru, Clip* clip);
-
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
 

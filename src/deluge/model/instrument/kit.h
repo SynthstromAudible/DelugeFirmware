@@ -130,6 +130,10 @@ public:
 
 	Drum* getDrumFromNoteCode(Clip* clip, int32_t noteCode);
 
+	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
+	                              bool* doingMidiThru);
+
 protected:
 	bool isKit() { return true; }
 

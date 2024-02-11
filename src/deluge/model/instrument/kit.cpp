@@ -1330,6 +1330,7 @@ void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevi
 	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
 	                         thisDrum);
 }
+
 /// for learning a whole kit to a single channel, offer cc to all drums
 void Kit::receivedCCForInputChannel(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                     MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
@@ -1349,6 +1350,26 @@ void Kit::receivedCCForInputChannel(ModelStackWithTimelineCounter* modelStackWit
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+	}
+}
+
+void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                   MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
+                                   bool* doingMidiThru) {
+	// Channel pressure message...
+	if (noteCode == -1) {
+		Drum* firstDrum = getDrumFromIndex(0);
+		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			int32_t level = BEND_RANGE_FINGER_LEVEL;
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+	}
+	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
+	else {
+		Drum* thisDrum = getDrumFromNoteCode(activeClip, noteCode);
+		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel, value);
+		}
 	}
 }
 
