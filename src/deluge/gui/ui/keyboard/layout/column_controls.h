@@ -104,8 +104,7 @@ private:
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, ColumnControlFunction func,
 	               PressedPad pad);
 
-	bool verticalEncoderMinHandledByFunc(ColumnControlFunction func, int32_t offset);
-	bool verticalEncoderMaxHandledByFunc(ColumnControlFunction func, int32_t offset);
+	bool verticalEncoderHandledByFunc(ColumnControlFunction func, int8_t pad, int32_t offset);
 
 	void setActiveChord(ChordModeChord chord);
 
@@ -142,15 +141,14 @@ private:
 	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
 	uint8_t activeChordMem = 0xFF;
 
-	int32_t previousScaleMode = currentSong->getCurrentPresetScale();
+	int32_t currentScalePad = currentSong->getCurrentPresetScale();
+	int32_t previousScalePad = currentSong->getCurrentPresetScale();
+	uint8_t scaleModes[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 	bool horizontalScrollingLeftCol = false;
 	bool horizontalScrollingRightCol = false;
-	bool leftColMinHeld = false;
-	bool leftColMaxHeld = false;
-
-	bool rightColMinHeld = false;
-	bool rightColMaxHeld = false;
+	int8_t leftColHeld = -1;
+	int8_t rightColHeld = -1;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

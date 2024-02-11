@@ -86,12 +86,6 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return soundEditorResult;
 	}
 
-	// Exit if pad is enabled but UI in wrong mode, this was removed as it prevented from changing root note
-	// if (!isUIModeWithinRange(padActionUIModes)
-	//     && velocity) {
-	// 	return ActionResult::DEALT_WITH;
-	// }
-
 	int32_t markDead = -1;
 
 	// Pad pressed down, add to list if not full

@@ -34,36 +34,36 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 uint8_t chordTypeSemitoneOffsets[][MAX_CHORD_NOTES] = {
-    /* NO_CHORD  */ {0, 0, 0, 0},
-    /* FIFTH     */ {7, 0, 0, 0},
-    /* SUS2      */ {2, 7, 0, 0},
-    /* MINOR     */ {3, 7, 0, 0},
-    /* MAJOR     */ {4, 7, 0, 0},
-    /* SUS4      */ {5, 7, 0, 0},
-    /* MINOR7    */ {3, 7, 10, 0},
-    /* DOMINANT7 */ {4, 7, 10, 0},
-    /* MAJOR7    */ {4, 7, 11, 0},
+	/* NO_CHORD  */ {0, 0, 0, 0},
+	/* FIFTH     */ {7, 0, 0, 0},
+	/* SUS2      */ {2, 7, 0, 0},
+	/* MINOR     */ {3, 7, 0, 0},
+	/* MAJOR     */ {4, 7, 0, 0},
+	/* SUS4      */ {5, 7, 0, 0},
+	/* MINOR7    */ {3, 7, 10, 0},
+	/* DOMINANT7 */ {4, 7, 10, 0},
+	/* MAJOR7    */ {4, 7, 11, 0},
 };
 
 const char* chordNames[] = {
-    /* NO_CHORD  */ "NONE",
-    /* FIFTH     */ "5TH",
-    /* SUS2      */ "SUS2",
-    /* MINOR     */ "MIN",
-    /* MAJOR     */ "MAJ",
-    /* SUS4      */ "SUS4",
-    /* MINOR7    */ "MIN7",
-    /* DOMINANT7 */ "DOM7",
-    /* MAJOR7    */ "MAJ7",
+	/* NO_CHORD  */ "NONE",
+	/* FIFTH     */ "5TH",
+	/* SUS2      */ "SUS2",
+	/* MINOR     */ "MIN",
+	/* MAJOR     */ "MAJ",
+	/* SUS4      */ "SUS4",
+	/* MINOR7    */ "MIN7",
+	/* DOMINANT7 */ "DOM7",
+	/* MAJOR7    */ "MAJ7",
 };
 
-const char* functionNames[] = {
-    /* VELOCITY    */ "VEL",
-    /* MOD         */ "MOD",
-    /* CHORD       */ "CHRD",
-    /* CHORD_MEM   */ "CMEM",
-    /* SCALE_MODE  */ "SMOD",
-    /* BEAT_REPEAT */ "BEAT",
+const char* functionNames[][2] = {
+	/* VELOCITY    */ {"VEL", "Velocity"},
+	/* MOD         */ {"MOD", "Modwheel"},
+	/* CHORD       */ {"CHRD", "Chords"},
+	/* CHORD_MEM   */ {"CMEM", "Chord Memory"},
+	/* SCALE_MODE  */ {"SMOD", "Scales"},
+	/* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
 void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
@@ -81,50 +81,38 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(currentSong->currentClip);
+		modelStack->addTimelineCounter(currentSong->currentClip);
 
-	leftColMinHeld = false;
-	leftColMaxHeld = false;
+	leftColHeld = -1;
 
-	rightColMinHeld = false;
-	rightColMaxHeld = false;
+	rightColHeld = -1;
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		// in note columns
 		if (pressed.x == LEFT_COL) {
 			if (pressed.active) {
-				if (pressed.y == 0) {
-					leftColMinHeld = true;
-				}
-				else if (pressed.y == 7) {
-					leftColMaxHeld = true;
-				}
+				leftColHeld = pressed.y;
 			}
 			else if (horizontalScrollingLeftCol && pressed.y == 7) {
 				handlePad(modelStackWithTimelineCounter, leftColPrev, pressed);
 				horizontalScrollingLeftCol = false;
 				continue;
 			}
-			if (!horizontalScrollingLeftCol) {
+			if (!horizontalScrollingLeftCol && !pressed.dead) {
 				handlePad(modelStackWithTimelineCounter, leftCol, pressed);
 			}
 		}
 		else if (pressed.x == RIGHT_COL) {
 			if (pressed.active) {
-				if (pressed.y == 0) {
-					rightColMinHeld = true;
-				}
-				else if (pressed.y == 7) {
-					rightColMaxHeld = true;
-				}
+				rightColHeld = pressed.y;
 			}
 			else if (horizontalScrollingRightCol && pressed.y == 7) {
 				handlePad(modelStackWithTimelineCounter, rightColPrev, pressed);
 				horizontalScrollingRightCol = false;
 				continue;
 			}
-			if (!horizontalScrollingRightCol) {
+			if (!horizontalScrollingRightCol && !pressed.dead) {
 				handlePad(modelStackWithTimelineCounter, rightCol, pressed);
 			}
 		}
@@ -132,7 +120,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 }
 
 void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                       ColumnControlFunction func, PressedPad pad) {
+									   ColumnControlFunction func, PressedPad pad) {
 	switch (func) {
 	case VELOCITY:
 		if (pad.active) {
@@ -142,6 +130,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		}
 		else if (!pad.padPressHeld) {
 			velocity32 = velocityMin + pad.y * velocityStep;
+			vDisplay = velocity32;
 			velocity = (velocity32 + kHalfStep) >> kVelModShift;
 		}
 		else {
@@ -153,18 +142,18 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		if (pad.active) {
 			modDisplay = modMin + pad.y * modStep;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, modDisplay,
-			                                                         modelStackWithTimelineCounter);
+																	 modelStackWithTimelineCounter);
 			display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 		}
 		else if (!pad.padPressHeld) {
 			mod32 = modMin + pad.y * modStep;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
-			                                                         modelStackWithTimelineCounter);
+																	 modelStackWithTimelineCounter);
 		}
 		else {
 			modDisplay = mod32;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
-			                                                         modelStackWithTimelineCounter);
+																	 modelStackWithTimelineCounter);
 		}
 		break;
 	case CHORD:
@@ -195,9 +184,10 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			}
 			chordMemNoteCount[pad.y] = noteCount;
 		}
-		else if (!pad.dead && !pad.padPressHeld) {
+		else {
 			activeChordMem = 0xFF;
-			if (currentNotesState.count) {
+			if((!chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) 
+				&& currentNotesState.count) {
 				auto noteCount = currentNotesState.count;
 				for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
 					chordMem[pad.y][i] = currentNotesState.notes[i].note;
@@ -211,13 +201,16 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		break;
 	case SCALE_MODE:
 		if (pad.active) {
-			keyboardScreen.setScale(pad.y);
+			  currentScalePad = pad.y;
+			keyboardScreen.setScale(scaleModes[pad.y]);
 		}
 		else if (!pad.padPressHeld) {
-			previousScaleMode = pad.y;
+			previousScalePad = pad.y;
+			  currentScalePad = pad.y;
 		}
 		else {
-			keyboardScreen.setScale(previousScaleMode);
+			keyboardScreen.setScale(scaleModes[previousScalePad]);
+			  currentScalePad = previousScalePad;
 		}
 		break;
 		// case BEAT_REPEAT:
@@ -239,53 +232,48 @@ void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
 }
 
 bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
-	if (leftColMinHeld) {
-		return verticalEncoderMinHandledByFunc(leftCol, offset);
+	if(leftColHeld != -1) {
+		return verticalEncoderHandledByFunc(leftCol, leftColHeld, offset);
 	}
-	if (leftColMaxHeld) {
-		return verticalEncoderMaxHandledByFunc(leftCol, offset);
-	}
-	if (rightColMinHeld) {
-		return verticalEncoderMinHandledByFunc(rightCol, offset);
-	}
-	if (rightColMaxHeld) {
-		return verticalEncoderMaxHandledByFunc(rightCol, offset);
+	if (rightColHeld != -1) {
+		return verticalEncoderHandledByFunc(rightCol, rightColHeld, offset);
 	}
 	return false;
 }
 
-bool ColumnControlsKeyboard::verticalEncoderMinHandledByFunc(ColumnControlFunction func, int32_t offset) {
+bool ColumnControlsKeyboard::verticalEncoderHandledByFunc(ColumnControlFunction func, int8_t pad, int32_t offset) {
 	switch (func) {
 	case VELOCITY:
-		velocityMin += offset << kVelModShift;
-		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
-		display->displayPopup(velocityMin >> kVelModShift);
-		velocityStep = (velocityMax - velocityMin) / 7;
+		if(pad == 7) {
+			velocityMax += offset << kVelModShift;
+			velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
+			display->displayPopup(velocityMax >> kVelModShift);
+			velocityStep = (velocityMax - velocityMin) / 7;
+			return true;
+		} else if(pad == 0) {
+			velocityMin += offset << kVelModShift;
+			velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
+			display->displayPopup(velocityMin >> kVelModShift);
+			velocityStep = (velocityMax - velocityMin) / 7;
+			return true;
+		}
+	case SCALE_MODE:
+		scaleModes[pad] = (scaleModes[pad] + offset) %  NUM_PRESET_SCALES;
 		return true;
 	case MOD:
-		modMin += offset << kVelModShift;
-		modMin = std::clamp((int32_t)modMin, (int32_t)0, (int32_t)modMax);
-		display->displayPopup(modMin >> kVelModShift);
-		modStep = (modMax - modMin) / 7;
-		return true;
-	}
-	return false;
-}
-
-bool ColumnControlsKeyboard::verticalEncoderMaxHandledByFunc(ColumnControlFunction func, int32_t offset) {
-	switch (func) {
-	case VELOCITY:
-		velocityMax += offset << kVelModShift;
-		velocityMax = std::clamp(velocityMax, velocityMin, (uint32_t)127 << kVelModShift);
-		display->displayPopup(velocityMax >> kVelModShift);
-		velocityStep = (velocityMax - velocityMin) / 7;
-		return true;
-	case MOD:
-		modMax += offset << kVelModShift;
-		modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
-		display->displayPopup(modMax >> kVelModShift);
-		modStep = (modMax - modMin) / 7;
-		return true;
+		if(pad == 7) {
+			modMax += offset << kVelModShift;
+			modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
+			display->displayPopup(modMax >> kVelModShift);
+			modStep = (modMax - modMin) / 7;
+			return true;
+		} else if(pad == 0) {
+			modMin += offset << kVelModShift;
+			modMin = std::clamp((int32_t)modMin, (int32_t)0, (int32_t)modMax);
+			display->displayPopup(modMin >> kVelModShift);
+			modStep = (modMax - modMin) / 7;
+			return true;
+		}
 	}
 	return false;
 }
@@ -317,7 +305,7 @@ ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnContr
 }
 
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
-	if (leftColMaxHeld) {
+	if (leftColHeld == 7) {
 		if (!horizontalScrollingLeftCol) {
 			leftColPrev = leftCol;
 		}
@@ -326,7 +314,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		display->displayPopup(functionNames[leftCol]);
 		return true;
 	}
-	if (rightColMaxHeld) {
+	if (rightColHeld == 7) {
 		if (!horizontalScrollingRightCol) {
 			rightColPrev = rightCol;
 		}
@@ -390,7 +378,7 @@ void ColumnControlsKeyboard::renderColumnVelocity(RGB image[][kDisplayWidth + kS
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool velocity_selected =
-		    vDisplay >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && vDisplay <= velocityVal + kHalfStep;
+			vDisplay >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && vDisplay <= velocityVal + kHalfStep;
 		otherChannels = velocity_selected ? 0xf0 : 0;
 		uint8_t base = velocity_selected ? 0xff : brightness + 0x04;
 		image[y][column] = {base, otherChannels, otherChannels};
@@ -448,9 +436,8 @@ void ColumnControlsKeyboard::renderColumnChordMem(RGB image[][kDisplayWidth + kS
 
 void ColumnControlsKeyboard::renderColumnScaleMode(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
 	uint8_t otherChannels = 0;
-	int32_t currentScale = currentSong->getCurrentPresetScale();
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		bool mode_selected = y == currentScale;
+		bool mode_selected = y == currentScalePad;
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
