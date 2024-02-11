@@ -107,6 +107,7 @@ public:
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
 	int32_t arpeggiatorRate;
+	int32_t arpeggiatorRatchetsChance;
 	int32_t arpeggiatorGate;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;

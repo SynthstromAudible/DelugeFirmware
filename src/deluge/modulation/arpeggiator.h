@@ -32,6 +32,7 @@ public:
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
 		mode = other->mode;
+		numRatchets = other->numRatchets;
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
@@ -41,6 +42,7 @@ public:
 	SyncLevel syncLevel;
 	SyncType syncType;
 	ArpMode mode;
+	uint8_t numRatchets;
 };
 
 struct ArpNote {
@@ -74,11 +76,13 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
-	            ArpReturnInstruction* instruction);
+	            uint32_t chance, ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
+	void resetRatchet();
 
 	bool gateCurrentlyActive;
 	uint32_t gatePos;
@@ -88,6 +92,11 @@ public:
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
 	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp;
+	uint8_t ratchetNotesIndex = 0;
+	uint8_t ratchetNotesMultiplier = 0;
+	uint8_t ratchetNotesNumber = 0;
+	bool isRatcheting = false;
+	uint16_t ratchetsChance = 0;
 
 protected:
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) = 0;

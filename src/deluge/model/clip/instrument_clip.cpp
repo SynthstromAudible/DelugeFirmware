@@ -50,6 +50,7 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
+	arpeggiatorRatchetsChance = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -137,6 +138,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
+	arpeggiatorRatchetsChance = otherInstrumentClip->arpeggiatorRatchetsChance;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2321,11 +2323,13 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeOpeningTagBeginning("arpeggiator");
 			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+			storageManager.writeAttribute("numRatchets", arpSettings.numRatchets);
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				storageManager.writeAttribute("gate", arpeggiatorGate);
 				storageManager.writeAttribute("rate", arpeggiatorRate);
+				storageManager.writeAttribute("ratchetsChance", arpeggiatorRatchetsChance);
 			}
 			storageManager.closeTag();
 		}
@@ -2590,9 +2594,17 @@ someError:
 					arpeggiatorRate = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("rate");
 				}
+				else if (!strcmp(tagName, "ratchetsChance")) {
+					arpeggiatorRatchetsChance = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("ratchetsChance");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
+				}
+				else if (!strcmp(tagName, "numRatchets")) {
+					arpSettings.numRatchets = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("numRatchets");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();

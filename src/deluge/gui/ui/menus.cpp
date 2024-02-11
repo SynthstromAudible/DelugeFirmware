@@ -1,9 +1,12 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/ratchets_chance.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
+#include "gui/menu_item/arpeggiator/ratchets.h"
+#include "gui/menu_item/arpeggiator/ratchets_chance.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
@@ -295,6 +298,11 @@ arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, p
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+arpeggiator::Ratchets arpRatchetsMenu{STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE};
+arpeggiator::RatchetsChance arpRatchetsChanceMenu{STRING_FOR_RATCHETS_CHANCE, STRING_FOR_ARP_RATCHETS_CHANCE_MENU_TITLE,
+                                                  params::UNPATCHED_ARP_RATCHETS_CHANCE};
+arpeggiator::midi_cv::RatchetsChance arpRatchetsChanceMenuMIDIOrCV{STRING_FOR_RATCHETS_CHANCE,
+                                                                   STRING_FOR_ARP_RATCHETS_CHANCE_MENU_TITLE};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
@@ -306,6 +314,9 @@ submenu::Arpeggiator arpMenu{
         &arpGateMenuMIDIOrCV,
         &arpRateMenu,
         &arpRateMenuMIDIOrCV,
+        &arpRatchetsMenu,
+        &arpRatchetsChanceMenu,
+        &arpRatchetsChanceMenuMIDIOrCV,
     },
 };
 

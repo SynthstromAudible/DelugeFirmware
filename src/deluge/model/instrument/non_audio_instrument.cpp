@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -34,6 +35,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
+			uint32_t ratchetsChance = activeInstrumentClip->arpeggiatorRatchetsChance + 2147483648;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
@@ -42,7 +44,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			ArpReturnInstruction instruction;
 
 			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
-			                   &instruction);
+			                   ratchetsChance, &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
