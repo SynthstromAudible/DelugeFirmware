@@ -38,6 +38,7 @@
 #include "gui/menu_item/filter/hpf_mode.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
+#include "gui/menu_item/filter/morph.h"
 #include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
@@ -167,7 +168,7 @@ dev_var::GMenu devVarGMenu{STRING_FOR_DEV_MENU_G};
 
 filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ};
 patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
-patched_param::IntegerNonFM lpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::LOCAL_LPF_MORPH};
+filter::FilterMorph lpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_LPF_MORPH, false};
 filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
 
 submenu::Filter lpfMenu{
@@ -184,7 +185,7 @@ submenu::Filter lpfMenu{
 
 filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
-patched_param::IntegerNonFM hpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, params::LOCAL_HPF_MORPH};
+filter::FilterMorph hpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_HPF_MORPH, true};
 filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
 
 submenu::Filter hpfMenu{
