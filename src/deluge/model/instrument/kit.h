@@ -69,9 +69,9 @@ public:
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                               MIDIMatchType match, uint8_t channel, uint8_t value);
-	void receivedCCForInputChannel(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                               MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                               bool* doingMidiThru, Clip* clip);
+	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                      MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+	                      Clip* clip);
 	void choke();
 	void resyncLFOs();
 	void removeDrum(Drum* drum);
@@ -126,17 +126,16 @@ public:
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
 	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
-	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru, Clip* clip);
-
-	Drum* getDrumFromNoteCode(Clip* clip, int32_t noteCode);
+	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+	                        InstrumentClip* clip);
 
 	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
 	                              bool* doingMidiThru);
 
-	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
-	                                 uint8_t data2, bool* doingMidiThru);
+	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                             MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
+	                             bool* doingMidiThru);
 
 protected:
 	bool isKit() { return true; }
@@ -148,4 +147,5 @@ private:
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
+	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 };

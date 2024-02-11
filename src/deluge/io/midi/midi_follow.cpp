@@ -404,7 +404,7 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 				auto kit = (Kit*)clip->output;
 				kit->receivedNoteForKit(modelStackWithTimelineCounter, fromDevice, on, channel,
 				                        note - midiEngine.midiFollowKitRootNote, velocity, shouldRecordNotes,
-				                        doingMidiThru, clip);
+				                        doingMidiThru, (InstrumentClip*)clip);
 			}
 			else {
 				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -472,8 +472,8 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
-					kit->receivedCCForInputChannel(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber,
-					                               value, doingMidiThru, clip);
+					kit->receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
+					                      doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -500,8 +500,8 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
-					kit->offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1,
-					                                 data2, doingMidiThru);
+					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1,
+					                             data2, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
