@@ -125,7 +125,7 @@ public:
 	SpecificFilter& incrementMode() {
 		type = (type + 1) % numForVariant[util::to_underlying(family)];
 		return *this;
-	} // namespace deluge::dsp::filter
+	}
 
 	FilterMode toMode() {
 		int32_t baseNum = util::to_underlying(family);
