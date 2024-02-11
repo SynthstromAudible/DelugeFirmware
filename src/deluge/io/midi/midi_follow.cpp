@@ -401,8 +401,10 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
 			if (clip->output->type == OutputType::KIT) {
-				offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-				                       shouldRecordNotes, doingMidiThru, clip);
+				auto kit = (Kit*)clip->output;
+				kit->receivedNoteForKit(modelStackWithTimelineCounter, fromDevice, on, channel,
+				                        note - midiEngine.midiFollowKitRootNote, velocity, shouldRecordNotes,
+				                        doingMidiThru, (InstrumentClip*)clip);
 			}
 			else {
 				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -419,16 +421,6 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			}
 		}
 	}
-}
-
-void MidiFollow::offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                                        int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                                        bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* thisDrum = getDrumFromNoteCode(clip, kit, note);
-
-	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-	                         thisDrum);
 }
 
 /// called from playback handler
@@ -479,8 +471,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
-					                     doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
+					                      doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -489,27 +482,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
-	}
-}
-// todo: should be a kit function
-void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
-                                      uint8_t value, bool* doingMidiThru, Clip* clip) {
-	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
-		return;
-	}
-	if (ccNumber != 74) {
-		return;
-	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-		return;
-	}
-
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 	}
 }
 
@@ -527,8 +499,9 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
-					                            doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1,
+					                             data2, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -537,19 +510,6 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 				}
 			}
 		}
-	}
-}
-
-// todo: this should be a kit function to avoid accessing kit internals directly
-void MidiFollow::offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
-                                             uint8_t data1, uint8_t data2, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel,
-		                              doingMidiThru);
 	}
 }
 
@@ -567,8 +527,9 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
-					                             noteCode, doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
+					                              noteCode, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -576,28 +537,6 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 					                                      value, noteCode, doingMidiThru);
 				}
 			}
-		}
-	}
-}
-
-void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                              MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
-                                              int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	// Channel pressure message...
-	if (noteCode == -1) {
-		Drum* firstDrum = kit->getDrumFromIndex(0);
-		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			int32_t level = BEND_RANGE_FINGER_LEVEL;
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
-		}
-	}
-	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
-	else {
-		Drum* thisDrum = getDrumFromNoteCode(clip, kit, noteCode);
-		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
-			                               value);
 		}
 	}
 }
@@ -623,28 +562,6 @@ bool MidiFollow::isFeedbackEnabled() {
 		return true;
 	}
 	return false;
-}
-
-/// based on the midi follow root kit note and note received
-/// it calculates what the drum note row index should be
-/// and then attempts to get a valid drum from the index
-/// nullptr is returned if no drum is found
-Drum* MidiFollow::getDrumFromNoteCode(Clip* clip, Kit* kit, int32_t noteCode) {
-	Drum* thisDrum = nullptr;
-	// bottom kit noteRowId = 0
-	// default middle C1 note number = 36
-	// noteRowId + 36 = C1 up for kit sounds
-	// this is configurable through the default menu
-	if (noteCode >= midiEngine.midiFollowKitRootNote) {
-		int32_t index = noteCode - midiEngine.midiFollowKitRootNote;
-		if (index < ((InstrumentClip*)clip)->noteRows.getNumElements()) {
-			NoteRow* noteRow = ((InstrumentClip*)clip)->noteRows.getElement(index);
-			if (noteRow) {
-				thisDrum = noteRow->drum;
-			}
-		}
-	}
-	return thisDrum;
 }
 
 /// create default XML file and write defaults

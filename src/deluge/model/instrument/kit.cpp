@@ -1297,7 +1297,89 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
 		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
+			// this will make sure that the channel matches the drums last received one
 			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+	}
+}
+/// find the drum matching the noteCode, counting up from 0
+Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
+	Drum* thisDrum = nullptr;
+	// bottom kit noteRowId = 0
+	// default middle C1 note number = 36
+	// noteRowId + 36 = C1 up for kit sounds
+	// this is configurable through the default menu
+	if (noteCode >= 0) {
+		int32_t index = noteCode;
+		if (index < clip->noteRows.getNumElements()) {
+			NoteRow* noteRow = clip->noteRows.getElement(index);
+			if (noteRow) {
+				thisDrum = noteRow->drum;
+			}
+		}
+	}
+	return thisDrum;
+}
+
+/// for pitch bend received on a channel learnt to a whole clip
+void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                  MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
+                                  bool* doingMidiThru) {
+
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
+	}
+}
+
+/// maps a note received on kit input channel to a drum. Note is zero indexed to first drum
+void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                             int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+                             bool* doingMidiThru, InstrumentClip* clip) {
+	Kit* kit = (Kit*)clip->output;
+	Drum* thisDrum = getDrumFromNoteCode(clip, note);
+
+	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+	                         thisDrum);
+}
+
+/// for learning a whole kit to a single channel, offer cc to all drums
+void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                           MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+                           Clip* clip) {
+	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
+		return;
+	}
+	if (ccNumber != 74) {
+		return;
+	}
+	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+		return;
+	}
+
+	Kit* kit = (Kit*)clip->output;
+	Drum* firstDrum = kit->getDrumFromIndex(0);
+
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+	}
+}
+
+void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                   MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
+                                   bool* doingMidiThru) {
+	// Channel pressure message...
+	if (noteCode == -1) {
+		Drum* firstDrum = getDrumFromIndex(0);
+		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			int32_t level = BEND_RANGE_FINGER_LEVEL;
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+	}
+	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
+	else {
+		Drum* thisDrum = getDrumFromNoteCode((InstrumentClip*)activeClip, noteCode);
+		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel, value);
 		}
 	}
 }
