@@ -531,28 +531,6 @@ constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
-enum class FilterMode {
-	TRANSISTOR_12DB,
-	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
-	SVF_BAND,              // first HPF mode
-	SVF_NOTCH,             // last LPF mode
-	HPLADDER,
-	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
-};
-constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-// Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
-constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
-enum class FilterRoute {
-	HIGH_TO_LOW,
-	LOW_TO_HIGH,
-	PARALLEL,
-};
-
-constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
-
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
 enum ErrorType {

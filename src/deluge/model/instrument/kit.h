@@ -69,7 +69,9 @@ public:
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                               MIDIMatchType match, uint8_t channel, uint8_t value);
-
+	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                      MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+	                      Clip* clip);
 	void choke();
 	void resyncLFOs();
 	void removeDrum(Drum* drum);
@@ -123,6 +125,18 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
+	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+	                        InstrumentClip* clip);
+
+	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
+	                              bool* doingMidiThru);
+
+	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                             MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
+	                             bool* doingMidiThru);
+
 protected:
 	bool isKit() { return true; }
 
@@ -130,8 +144,8 @@ private:
 	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
 	                     int32_t* drumIndex, Song* song);
-
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
+	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 };
