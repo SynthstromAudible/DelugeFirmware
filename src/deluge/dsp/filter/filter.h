@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <cstdint>

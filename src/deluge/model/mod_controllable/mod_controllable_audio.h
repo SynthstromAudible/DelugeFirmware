@@ -21,6 +21,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "hid/button.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"

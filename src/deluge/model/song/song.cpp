@@ -82,7 +82,7 @@ Output* getCurrentOutput() {
 Kit* getCurrentKit() {
 	Clip* currentClip = currentSong->getCurrentClip();
 	if (currentClip->output->type == OutputType::KIT) {
-		return (Kit*)currentClip;
+		return static_cast<Kit*>(currentClip->output);
 	}
 	return nullptr;
 }
