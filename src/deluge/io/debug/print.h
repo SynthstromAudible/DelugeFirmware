@@ -19,13 +19,10 @@
 
 #include <cstdint>
 
-<<<<<<< HEAD
 #ifndef SYSEX_LOGGING_ENABLED
 #define SYSEX_LOGGING_ENABLED true
 #endif
 
-=======
->>>>>>> 4b02e18e3a7cf5a7e9e04f9ed8396dcf7b75a0a7
 class MIDIDevice;
 
 namespace Debug {

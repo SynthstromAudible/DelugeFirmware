@@ -35,12 +35,13 @@ void loadCheckAndRun(uint8_t* data, int32_t len);
 
 namespace SysEx {
 
-#define DELUGE_SYSEX_ID_BYTES 0x00, 0x21, 0x7B, 0x01
-// #define DELUGE_SYSEX_HEADER 0xF0, 0x00, 0x21, 0x7B, 0x01
+const uint8_t SYSEX_START = 0xF0;
+const uint8_t DELUGE_SYSEX_ID_BYTE0 = 0x00;
+const uint8_t DELUGE_SYSEX_ID_BYTE1 = 0x21;
+const uint8_t DELUGE_SYSEX_ID_BYTE2 = 0x7B;
+const uint8_t DELUGE_SYSEX_ID_BYTE3 = 0x01;
 
-#define SYSEX_END 0xD7
-
-const static uint8_t DELUGE_SYSEX_ID[] = {DELUGE_SYSEX_ID_BYTES};
+const uint8_t SYSEX_END = 0xF7;
 
 enum SysexCommands : uint8_t {
 	Ping,       // reply with pong
