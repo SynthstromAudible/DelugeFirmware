@@ -109,12 +109,12 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 		if (rle) {
 			packed =
 			    //				pack_8to7_rle(reply + 6, max_packed_size,
-			    //deluge::hid::display::OLED::oledCurrentImage[0], data_size);
+			    // deluge::hid::display::OLED::oledCurrentImage[0], data_size);
 			    pack_8to7_rle(reply + 9, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0], data_size);
 		}
 		else {
 			//			packed = pack_8bit_to_7bit(reply + 6, max_packed_size,
-			//deluge::hid::display::OLED::oledCurrentImage[0], 			                           data_size);
+			// deluge::hid::display::OLED::oledCurrentImage[0], 			                           data_size);
 			packed = pack_8bit_to_7bit(reply + 9, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0],
 			                           data_size); //
 		}
