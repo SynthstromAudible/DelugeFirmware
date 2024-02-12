@@ -628,12 +628,6 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				patchedParams->readParam(patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "ratchetProbability")) {
-				ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-				                           readAutomationUpToPos);
-				storageManager.exitTag("ratchetProbability");
-			}
 			else if (!strcmp(tagName, "numRatchets")) {
 				if (arpSettings) {
 					arpSettings->numRatchets = storageManager.readTagOrAttributeValueInt();
@@ -3495,7 +3489,7 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		storageManager.exitTag("arpeggiatorGate");
 	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
-		patchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY, readAutomationUpToPos);
 		storageManager.exitTag("ratchetProbability");
 	}
 	else if (!strcmp(tagName, "portamento")) {
