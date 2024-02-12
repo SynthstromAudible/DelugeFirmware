@@ -231,10 +231,7 @@ Morph Mode is a new sub-mode in Performance View that lets you load two layouts 
 
 The control for morphing between Bank A and Bank B in Morph Mode has been made MIDI Learnable so that you can Morph between Bank A and Bank B from anywhere in the Deluge (e.g. whether you're in a Song View or Clip View).
 
-You can MIDI control the Morph Mode cross-fader by learning your MIDI controller to the Deluge using one two methods:
-
-1. Global MIDI Commands
-2. MIDI Follow Mode
+You can MIDI control the Morph Mode cross-fader by learning your MIDI controller to the Deluge through the global MIDI commands menu.
 
 ### Global MIDI Command :: MORPH
 
