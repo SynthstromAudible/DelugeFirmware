@@ -3494,9 +3494,9 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorGate");
 	}
-	else if (!strcmp(tagName, "arpeggiatorRatchetProbability")) {
+	else if (!strcmp(tagName, "ratchetProbability")) {
 		patchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY, readAutomationUpToPos);
-		storageManager.exitTag("arpeggiatorRatchetProbability");
+		storageManager.exitTag("ratchetProbability");
 	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
@@ -3709,7 +3709,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("arpeggiatorRatchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);

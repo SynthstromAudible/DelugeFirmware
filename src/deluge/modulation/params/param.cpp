@@ -276,7 +276,7 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 			return "arpGate";
 
 		case UNPATCHED_ARP_RATCHET_PROBABILITY:
-			return "arpRatchetProbability";
+			return "ratchetProbability";
 
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
