@@ -5,8 +5,8 @@
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
-#include "gui/menu_item/arpeggiator/ratchets.h"
 #include "gui/menu_item/arpeggiator/ratchet_probability.h"
+#include "gui/menu_item/arpeggiator/ratchets.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
@@ -300,10 +300,11 @@ arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_G
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
 arpeggiator::Ratchets arpRatchetsMenu{STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE};
-arpeggiator::RatchetProbability arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-                                                  params::UNPATCHED_ARP_RATCHET_PROBABILITY};
-arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{STRING_FOR_RATCHET_PROBABILITY,
-                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
+arpeggiator::RatchetProbability arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
+                                                          STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
+                                                          params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
+    STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,

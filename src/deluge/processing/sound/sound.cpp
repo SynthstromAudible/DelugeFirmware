@@ -3489,7 +3489,8 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		storageManager.exitTag("arpeggiatorGate");
 	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		                           readAutomationUpToPos);
 		storageManager.exitTag("ratchetProbability");
 	}
 	else if (!strcmp(tagName, "portamento")) {
