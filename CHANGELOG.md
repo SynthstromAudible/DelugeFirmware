@@ -13,7 +13,6 @@
 - Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
-
 ### User Interface
 
 - Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
@@ -50,7 +49,7 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for "gentle paste" of notes which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
-- The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without unexpectedly changing the scale and root note of the whole song.
+- The shortcuts, press and turn `▼︎▲︎` and `SHIFT` + press and turn `▼︎▲︎`, while inside an instrument clip, have been changed to "Nudge Notes Vertically" without unexpectedly changing the scale and root note of the whole song. The number of semitones nudged vertically since you began pressing down on the vertical encoder (`▼︎▲︎`) is displayed as a pop-up on the display. The number resets when you stop pressing the vertical encoder (`▼︎▲︎`).
 
 ### Audio Clips
 

@@ -88,6 +88,8 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	}
 
 	outputTypeWhileLoading = OutputType::SYNTH; // NOTE: (Kate) was 0, should probably be NONE
+
+	semitonesNudged = 0;
 }
 
 // You must call prepareForDestruction() before this, preferably by calling Song::deleteClipObject()
@@ -1306,6 +1308,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimeline
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 			// transpose by semitones or by octave
 			thisNoteRow->y += change;
+			semitonesNudged += change;
 		}
 	}
 	else {
@@ -1318,6 +1321,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimeline
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				// transpose by semitones or by octave
 				thisNoteRow->y += changeInSemitones;
+				semitonesNudged += changeInSemitones;
 			}
 		}
 
@@ -1360,10 +1364,26 @@ void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimeline
 				}
 				// transpose by semitones
 				thisNoteRow->y += changeInSemitones;
+				semitonesNudged += changeInSemitones;
 			}
 		}
 	}
 	yScroll += change;
+
+	displayChangeInSemitones();
+}
+
+void InstrumentClip::displayChangeInSemitones() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+
+	if (display->haveOLED()) {
+		popupMsg.appendInt(semitonesNudged);
+		popupMsg.append(" Semitones");
+	}
+	else {
+		popupMsg.appendInt(semitonesNudged);
+	}
+	display->displayPopup(popupMsg.c_str());
 }
 
 // Lock rendering before calling this!

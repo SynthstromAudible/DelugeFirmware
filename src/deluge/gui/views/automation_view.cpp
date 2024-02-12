@@ -1536,10 +1536,22 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 }
 
 // handle by button action if b == Y_ENC
+// if holding vertical encoder down to potentially transpose clip
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
-	if (on && currentUIMode == UI_MODE_NONE) {
-		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
-			currentSong->displayCurrentRootNoteAndScaleName();
+	if (currentUIMode == UI_MODE_NONE) {
+		// if you press down and you're in arranger view or in a scale mode instrument clip
+		// display current root note and scale
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (on) {
+			if (onArrangerView || (clip && clip->isScaleModeClip())) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
+		}
+		// if you let go, reset semitonesNudged to 0.
+		else {
+			if (!onArrangerView && clip) {
+				clip->semitonesNudged = 0;
+			}
 		}
 	}
 }

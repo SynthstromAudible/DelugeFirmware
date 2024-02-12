@@ -745,9 +745,18 @@ doCancelPopup:
 			}
 		}
 
-		if (on && (currentUIMode == UI_MODE_NONE)) {
-			if (getCurrentInstrumentClip()->isScaleModeClip()) {
-				currentSong->displayCurrentRootNoteAndScaleName();
+		// if holding vertical encoder down to potentially transpose clip
+		if (currentUIMode == UI_MODE_NONE) {
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			// if you press down and it's a scale mode clip, display current root note and scale
+			if (on) {
+				if (clip->isScaleModeClip()) {
+					currentSong->displayCurrentRootNoteAndScaleName();
+				}
+			}
+			// if you let go, reset semitonesNudged to 0.
+			else {
+				clip->semitonesNudged = 0;
 			}
 		}
 	}
