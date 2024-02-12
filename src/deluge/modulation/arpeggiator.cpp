@@ -57,19 +57,23 @@ Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8) {
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
 	arpNote.velocity = 0;
+
+	D_PRINTLN("ArpeggiatorForDrum::reset");
+	resetRatchet();
 }
 
 void ArpeggiatorBase::resetRatchet() {
-	D_PRINTLN("RATCHET RESET");
 	ratchetNotesIndex = 0;
 	ratchetNotesMultiplier = 0;
 	ratchetNotesNumber = 0;
 	isRatcheting = false;
+	D_PRINTLN("i %d m %d n %d b %d -> resetRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
 }
 
 void Arpeggiator::reset() {
 	notes.empty();
 
+	D_PRINTLN("Arpeggiator::reset");
 	resetRatchet();
 }
 
@@ -247,7 +251,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	}
 
 	if (notes.getNumElements() == 0) {
-		D_PRINTLN("NOTE OFF ALL");
+		D_PRINTLN("noteOff");
 		resetRatchet();
 	}
 }
@@ -262,9 +266,8 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 		if (isRatcheting && (ratchetNotesIndex >= ratchetNotesNumber || !playbackHandler.isEitherClockActive())) {
 			// If it was ratcheting but it reached the last note in the ratchet or play was stopped
 			// then we can reset the ratchet temp values.
+			D_PRINTLN("switchAnyNoteOff");
 			resetRatchet();
-			D_PRINTLN("switchAnyNoteOff resetRatchet due to %d %d", (bool)(ratchetNotesIndex >= ratchetNotesNumber),
-			          (bool)(!playbackHandler.isEitherClockActive()));
 		}
 	}
 }
@@ -273,16 +276,15 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
 	isRatcheting = ratchetsChance > randomChance && settings->numRatchets > 0;
 	if (isRatcheting) {
-		ratchetNotesMultiplier = 1 + (getNoise() % settings->numRatchets);
+		ratchetNotesMultiplier = 1 + (random(65535) % settings->numRatchets);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
 	}
 	else {
 		ratchetNotesMultiplier = 0;
-		ratchetNotesNumber = 1;
+		ratchetNotesNumber = 0;
 	}
 	ratchetNotesIndex = 0;
-
-	D_PRINTLN("maybeSetupNewRatchet ratchetNotesNumber %d ", ratchetNotesNumber);
+	D_PRINTLN("i %d m %d n %d b %d -> maybeSetupNewRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
 }
 
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
@@ -358,11 +360,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	gateCurrentlyActive = true;
 
 	if (ratchetNotesIndex > 0) {
-		D_PRINTLN("switchNoteOn RATCHET");
 		goto finishSwithNoteOn;
 	}
-
-	D_PRINTLN("switchNoteOn normal");
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
 	if (settings->mode == ArpMode::RANDOM) {
@@ -477,6 +476,9 @@ finishSwithNoteOn:
 	// Increment ratchet note index if we are ratcheting
 	if (isRatcheting) {
 		ratchetNotesIndex++;
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn RATCHETING", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
+	} else {
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn NORMAL", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
 	}
 }
 
@@ -499,7 +501,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
 	// Update ratchetsChance with the most up to date value from automation
-	ratchetsChance = chance >> 16;
+	ratchetsChance = chance >> 16; // just 16 bits is enough resolution for probability
 
 	if (isRatcheting) {
 		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
@@ -529,9 +531,6 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 // May switch notes on and/or off.
 int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
                                        uint32_t clipCurrentPos, bool currentlyPlayingReversed) {
-
-	D_PRINTLN("doTickForward IS RATCHETING %d", isRatcheting);
-
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
@@ -554,10 +553,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	// If in previous step we set up ratcheting, we need to recalculate ticksPerPeriod
 	if (isRatcheting) {
 		ticksPerPeriod = ticksPerPeriod >> ratchetNotesMultiplier;
-		D_PRINTLN("doTickForward RATCHET %d", ticksPerPeriod);
-	}
-	else {
-		D_PRINTLN("doTickForward normal %d", ticksPerPeriod);
 	}
 
 	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
@@ -577,7 +572,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 			howFarIntoPeriod = ticksPerPeriod - howFarIntoPeriod;
 		}
 	}
-	D_PRINTLN("------ doTickForward howFarIntoPeriod %d", howFarIntoPeriod);
 	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its
 	                         // name says.
 }
