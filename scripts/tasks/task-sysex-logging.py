@@ -64,6 +64,7 @@ def sysex_console(port):
         data[4] = 0x01  # 0x01 = enable, 0x00 = disable
         data[5] = 0xF7
         midiout.send_message(data)
+    del midiout
 
     midiin = rtmidi.MidiIn()
     midiin.open_port(port)
@@ -91,7 +92,7 @@ def sysex_console(port):
                 print(decoded)
         else:
             # add a short sleep so the while loop doesn't hammer your cpu
-            time.sleep(0.001)
+            time.sleep(0.01)
 
 
 def main():
