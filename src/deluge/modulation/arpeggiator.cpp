@@ -23,6 +23,7 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
+#include <stdint.h>
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;
@@ -47,6 +48,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 }
 
 ArpeggiatorForDrum::ArpeggiatorForDrum() {
+	ratchetingIsAvailable = false;
 	arpNote.velocity = 0;
 }
 
@@ -57,9 +59,6 @@ Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8) {
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
 	arpNote.velocity = 0;
-
-	D_PRINTLN("ArpeggiatorForDrum::reset");
-	resetRatchet();
 }
 
 void ArpeggiatorBase::resetRatchet() {
@@ -67,7 +66,8 @@ void ArpeggiatorBase::resetRatchet() {
 	ratchetNotesMultiplier = 0;
 	ratchetNotesNumber = 0;
 	isRatcheting = false;
-	D_PRINTLN("i %d m %d n %d b %d -> resetRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
+	D_PRINTLN("i %d m %d n %d b %d -> resetRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber,
+	          isRatcheting);
 }
 
 void Arpeggiator::reset() {
@@ -247,11 +247,18 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 					whichNoteCurrentlyOnPostArp = 0;
 				}
 			}
+
+			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesNumber || !playbackHandler.isEitherClockActive())) {
+				// If it was ratcheting but it reached the last note in the ratchet or play was stopped
+				// then we can reset the ratchet temp values.
+				D_PRINTLN("noteOff 1");
+				resetRatchet();
+			}
 		}
 	}
 
 	if (notes.getNumElements() == 0) {
-		D_PRINTLN("noteOff");
+		D_PRINTLN("noteOff 2");
 		resetRatchet();
 	}
 }
@@ -278,13 +285,24 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	if (isRatcheting) {
 		ratchetNotesMultiplier = 1 + (random(65535) % settings->numRatchets);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
+		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH) {
+			// If the sync level is 256th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
+			ratchetNotesMultiplier = 1;
+			ratchetNotesNumber = 2;
+		}
+		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
+			// If the sync level is 128th, the maximum ratchet can be of 4 notes (8 not allowed)
+			ratchetNotesMultiplier = std::max((uint8_t)2, ratchetNotesMultiplier);
+			ratchetNotesNumber = std::max((uint8_t)4, ratchetNotesNumber);
+		}
 	}
 	else {
 		ratchetNotesMultiplier = 0;
 		ratchetNotesNumber = 0;
 	}
 	ratchetNotesIndex = 0;
-	D_PRINTLN("i %d m %d n %d b %d -> maybeSetupNewRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
+	D_PRINTLN("i %d m %d n %d b %d -> maybeSetupNewRatchet", ratchetNotesIndex, ratchetNotesMultiplier,
+	          ratchetNotesNumber, isRatcheting);
 }
 
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
@@ -476,9 +494,12 @@ finishSwithNoteOn:
 	// Increment ratchet note index if we are ratcheting
 	if (isRatcheting) {
 		ratchetNotesIndex++;
-		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn RATCHETING", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
-	} else {
-		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn NORMAL", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber, isRatcheting);
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn RATCHETING", ratchetNotesIndex, ratchetNotesMultiplier,
+		          ratchetNotesNumber, isRatcheting);
+	}
+	else {
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn NORMAL", ratchetNotesIndex, ratchetNotesMultiplier,
+		          ratchetNotesNumber, isRatcheting);
 	}
 }
 
@@ -545,7 +566,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		ticksPerPeriod = ticksPerPeriod * 3 / 2;
 	}
 
-	if (!isRatcheting) {
+	if (!isRatcheting && ratchetingIsAvailable) {
 		// If we are not ratcheting yet, check if we should and set it up (based on ratchet chance)
 		maybeSetupNewRatchet(settings);
 	}

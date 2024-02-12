@@ -84,6 +84,7 @@ public:
 	virtual void reset() = 0;
 	void resetRatchet();
 
+	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
 	uint32_t gatePos;
 	int8_t currentOctave;

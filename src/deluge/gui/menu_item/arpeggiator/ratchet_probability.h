@@ -22,7 +22,9 @@ namespace deluge::gui::menu_item::arpeggiator {
 class RatchetProbability : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return !soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return !soundEditor.editingKit() && !soundEditor.editingCVOrMIDIClip();
+	}
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

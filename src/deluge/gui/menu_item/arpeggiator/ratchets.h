@@ -28,6 +28,7 @@ public:
 	void writeCurrentValue() override { soundEditor.currentArpSettings->numRatchets = this->getValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 3; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return !soundEditor.editingKit(); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 		if (this->getValue() == 0) {
