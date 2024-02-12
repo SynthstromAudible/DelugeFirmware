@@ -203,7 +203,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		using enum UnpatchedSound;
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
 		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
-		    [UNPATCHED_ARP_RATCHETS_CHANCE - unc] = STRING_FOR_ARP_RATCHETS_CHANCE_MENU_TITLE,
+		    [UNPATCHED_ARP_RATCHET_PROBABILITY - unc] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
 		return l10n::get(NAMES[p - unc]);
@@ -275,8 +275,8 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		case UNPATCHED_ARP_GATE:
 			return "arpGate";
 
-		case UNPATCHED_ARP_RATCHETS_CHANCE:
-			return "arpRatchetsChance";
+		case UNPATCHED_ARP_RATCHET_PROBABILITY:
+			return "arpRatchetProbability";
 
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";

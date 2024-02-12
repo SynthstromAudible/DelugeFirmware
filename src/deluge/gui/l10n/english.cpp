@@ -132,7 +132,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE, "Mod-FX rate"},
 
         // Arp Rate
-        {STRING_FOR_PARAM_GLOBAL_ARP_RATE, "Arp. rate"},
+        {STRING_FOR_PARAM_GLOBAL_ARP_RATE, "Arp rate"},
 
         // Noise
         {STRING_FOR_PARAM_LOCAL_NOISE_VOLUME, "Noise level"},
@@ -453,7 +453,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_UNISON_STEREO_SPREAD, "Unison stereo spread"},
         {STRING_FOR_NUMBER_OF_OCTAVES, "Number of octaves"},
         {STRING_FOR_NUMBER_OF_RATCHETS, "Ratchets"},
-        {STRING_FOR_RATCHETS_CHANCE, "Ratchet Probability"},
+        {STRING_FOR_RATCHET_PROBABILITY, "Ratchet Probability"},
         {STRING_FOR_SHAPE, "SHAPE"},
         {STRING_FOR_MOD_FX, "Mod-fx"},
         {STRING_FOR_POLY_FINGER_MPE, "Poly / finger / MPE"},
@@ -677,12 +677,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SAMP_INTERP_MENU_TITLE, "Samp* interp."},
         {STRING_FOR_OSC_P_WIDTH_MENU_TITLE, "Osc* p. width"},
         {STRING_FOR_OSC_R_PHASE_MENU_TITLE, "Osc* r. phase"},
-        {STRING_FOR_ARP_MODE_MENU_TITLE, "Arp. mode"},
-        {STRING_FOR_ARP_SYNC_MENU_TITLE, "Arp. sync"},
-        {STRING_FOR_ARP_OCTAVES_MENU_TITLE, "Arp. octaves"},
-        {STRING_FOR_ARP_RATCHETS_MENU_TITLE, "Arp. ratchets"},
-        {STRING_FOR_ARP_RATCHETS_CHANCE_MENU_TITLE, "Arp. ratc. prob."},
-        {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp. rate"},
+        {STRING_FOR_ARP_MODE_MENU_TITLE, "Arp mode"},
+        {STRING_FOR_ARP_SYNC_MENU_TITLE, "Arp sync"},
+        {STRING_FOR_ARP_OCTAVES_MENU_TITLE, "Arp octaves"},
+        {STRING_FOR_ARP_RATCHETS_MENU_TITLE, "Arp ratchets"},
+        {STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "Arp ratch prob"},
+        {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp rate"},
         {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, "FM Mod* tran."},
         {STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "FM Mod* level"},
         {STRING_FOR_FM_MOD_FBACK_MENU_TITLE, "FM Mod* f.back"},

@@ -173,7 +173,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE}, // Arp Rate, Gate, Chance
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHETS_CHANCE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},             // Noise
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},   // Portamento
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate

@@ -170,7 +170,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHETS_CHANCE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -628,11 +628,11 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				patchedParams->readParam(patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
 				storageManager.exitTag("rate");
 			}
-			else if (!strcmp(tagName, "ratchetsChance")) {
+			else if (!strcmp(tagName, "ratchetProbability")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHETS_CHANCE,
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 				                           readAutomationUpToPos);
-				storageManager.exitTag("ratchetsChance");
+				storageManager.exitTag("ratchetProbability");
 			}
 			else if (!strcmp(tagName, "numRatchets")) {
 				if (arpSettings) {
@@ -2138,12 +2138,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
-		uint32_t ratchetsChance =
-		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHETS_CHANCE) + 2147483648;
+		uint32_t ratchetProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, ratchetsChance, &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3494,9 +3494,9 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorGate");
 	}
-	else if (!strcmp(tagName, "arpeggiatorRatchetsChance")) {
-		patchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHETS_CHANCE, readAutomationUpToPos);
-		storageManager.exitTag("arpeggiatorRatchetsChance");
+	else if (!strcmp(tagName, "arpeggiatorRatchetProbability")) {
+		patchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY, readAutomationUpToPos);
+		storageManager.exitTag("arpeggiatorRatchetProbability");
 	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
@@ -3709,7 +3709,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("arpeggiatorRatchetsChance", params::UNPATCHED_ARP_RATCHETS_CHANCE,
+	unpatchedParams->writeParamAsAttribute("arpeggiatorRatchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);

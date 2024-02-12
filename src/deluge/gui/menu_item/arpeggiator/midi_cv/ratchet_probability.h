@@ -21,16 +21,16 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class RatchetsChance final : public Integer {
+class RatchetProbability final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		auto* current_clip = getCurrentInstrumentClip();
-		int64_t arp_gate = (int64_t)current_clip->arpeggiatorRatchetsChance + 2147483648;
+		int64_t arp_gate = (int64_t)current_clip->arpeggiatorRatchetProbability + 2147483648;
 		this->setValue((arp_gate * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetsChance = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		getCurrentInstrumentClip()->arpeggiatorRatchetProbability = (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }

@@ -50,7 +50,7 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
-	arpeggiatorRatchetsChance = 0;
+	arpeggiatorRatchetProbability = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -138,7 +138,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
-	arpeggiatorRatchetsChance = otherInstrumentClip->arpeggiatorRatchetsChance;
+	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2329,7 +2329,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				storageManager.writeAttribute("gate", arpeggiatorGate);
 				storageManager.writeAttribute("rate", arpeggiatorRate);
-				storageManager.writeAttribute("ratchetsChance", arpeggiatorRatchetsChance);
+				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 			}
 			storageManager.closeTag();
 		}
@@ -2594,9 +2594,9 @@ someError:
 					arpeggiatorRate = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("rate");
 				}
-				else if (!strcmp(tagName, "ratchetsChance")) {
-					arpeggiatorRatchetsChance = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("ratchetsChance");
+				else if (!strcmp(tagName, "ratchetProbability")) {
+					arpeggiatorRatchetProbability = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("ratchetProbability");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();

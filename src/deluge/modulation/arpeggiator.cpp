@@ -274,7 +274,7 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
-	isRatcheting = ratchetsChance > randomChance && settings->numRatchets > 0;
+	isRatcheting = ratchetProbability > randomChance && settings->numRatchets > 0;
 	if (isRatcheting) {
 		ratchetNotesMultiplier = 1 + (random(65535) % settings->numRatchets);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
@@ -500,8 +500,8 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
-	// Update ratchetsChance with the most up to date value from automation
-	ratchetsChance = chance >> 16; // just 16 bits is enough resolution for probability
+	// Update ratchetProbability with the most up to date value from automation
+	ratchetProbability = chance >> 16; // just 16 bits is enough resolution for probability
 
 	if (isRatcheting) {
 		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)

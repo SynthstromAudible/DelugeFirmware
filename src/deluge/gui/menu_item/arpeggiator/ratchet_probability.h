@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class RatchetsChance : public UnpatchedParam {
+class RatchetProbability : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return !soundEditor.editingCVOrMIDIClip(); }

@@ -96,7 +96,7 @@ public:
 	uint8_t ratchetNotesMultiplier = 0;
 	uint8_t ratchetNotesNumber = 0;
 	bool isRatcheting = false;
-	uint16_t ratchetsChance = 0;
+	uint16_t ratchetProbability = 0;
 
 protected:
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) = 0;

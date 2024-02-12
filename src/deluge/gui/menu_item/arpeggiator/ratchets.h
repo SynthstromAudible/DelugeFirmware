@@ -30,13 +30,27 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 3; }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
-		char buffer[12];
-		intToString(1 << this->getValue(), buffer, 1);
-		deluge::hid::display::OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		if (this->getValue() == 0) {
+			deluge::hid::display::OLED::drawStringCentred(
+			    l10n::get(l10n::String::STRING_FOR_OFF), yPixel + OLED_MAIN_TOPMOST_PIXEL,
+			    deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		}
+		else {
+			char buffer[12];
+			intToString(1 << this->getValue(), buffer, 1);
+			deluge::hid::display::OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		}
 	}
 
-	void drawValue() { display->setTextAsNumber(1 << this->getValue()); }
+	void drawValue() {
+		if (this->getValue() == 0) {
+			display->setText(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			display->setTextAsNumber(1 << this->getValue());
+		}
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator
