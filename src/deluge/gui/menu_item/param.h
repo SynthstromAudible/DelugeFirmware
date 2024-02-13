@@ -34,6 +34,7 @@ public:
 	MenuItem* selectButtonPress();
 	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
+	void selectAutomationViewParameter(bool clipMinder);
 
 	uint8_t p;
 

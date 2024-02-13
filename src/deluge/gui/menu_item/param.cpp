@@ -51,38 +51,54 @@ MenuItem* Param::selectButtonPress() {
 ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
+	bool clipMinder = rootUIIsClipMinderScreen();
+	bool arrangerView = !clipMinder && (currentSong->lastClipInstanceEnteredStartPos != -1);
+	RootUI* rootUI = getRootUI();
+
 	// Clip or Song button
 	// Used to enter automation view from sound editor
-
-	bool clipMinder = rootUIIsClipMinderScreen();
-
-	if ((b == CLIP_VIEW && clipMinder)
-	    || (b == SESSION_VIEW && !clipMinder && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+	if ((b == CLIP_VIEW && clipMinder) || (b == SESSION_VIEW && arrangerView)) {
 		if (on) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
-
-			int32_t p = getP();
-			modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
-
-			if (clipMinder) {
-				Clip* clip = getCurrentClip();
-				clip->lastSelectedParamID = p;
-				clip->lastSelectedParamKind = kind;
+			if (rootUI != &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				swapOutRootUILowLevel(&automationView);
+				automationView.openedInBackground();
 			}
-			else {
-				currentSong->lastSelectedParamID = p;
-				currentSong->lastSelectedParamKind = kind;
-				automationView.onArrangerView = true;
-			}
-
-			swapOutRootUILowLevel(&automationView);
-			automationView.openedInBackground();
 			soundEditor.exitCompletely();
 		}
 		return ActionResult::DEALT_WITH;
 	}
+	// Select encoder button, used to change current parameter selection in automation view
+	// if you are already in automation view and entered an automatable parameter menu
+	else if (b == SELECT_ENC && (clipMinder || arrangerView)) {
+		if (on) {
+			if (rootUI == &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				uiNeedsRendering(&automationView);
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
 	return ActionResult::NOT_DEALT_WITH;
+}
+
+void Param::selectAutomationViewParameter(bool clipMinder) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
+
+	int32_t p = getP();
+	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+
+	if (clipMinder) {
+		Clip* clip = getCurrentClip();
+		clip->lastSelectedParamID = p;
+		clip->lastSelectedParamKind = kind;
+	}
+	else {
+		currentSong->lastSelectedParamID = p;
+		currentSong->lastSelectedParamKind = kind;
+		automationView.onArrangerView = true;
+	}
 }
 
 } // namespace deluge::gui::menu_item

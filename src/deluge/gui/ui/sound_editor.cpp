@@ -261,6 +261,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				else {
 					goUpOneLevel();
 				}
+				getCurrentMenuItem()->buttonAction(b, on);
 			}
 		}
 	}
