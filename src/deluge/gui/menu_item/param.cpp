@@ -53,8 +53,11 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 
 	// Clip or Song button
 	// Used to enter automation view from sound editor
-	if ((b == CLIP_VIEW && rootUIIsClipMinderScreen())
-	    || (b == SESSION_VIEW && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+
+	bool clipMinder = rootUIIsClipMinderScreen();
+
+	if ((b == CLIP_VIEW && clipMinder)
+	    || (b == SESSION_VIEW && !clipMinder && currentSong->lastClipInstanceEnteredStartPos != -1)) {
 		if (on) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
@@ -62,16 +65,17 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 			int32_t p = getP();
 			modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
 
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-				currentSong->lastSelectedParamID = p;
-				currentSong->lastSelectedParamKind = kind;
-				automationView.onArrangerView = true;
-			}
-			else {
+			if (clipMinder) {
 				Clip* clip = getCurrentClip();
 				clip->lastSelectedParamID = p;
 				clip->lastSelectedParamKind = kind;
 			}
+			else {
+				currentSong->lastSelectedParamID = p;
+				currentSong->lastSelectedParamKind = kind;
+				automationView.onArrangerView = true;
+			}
+
 			swapOutRootUILowLevel(&automationView);
 			automationView.openedInBackground();
 			soundEditor.exitCompletely();
