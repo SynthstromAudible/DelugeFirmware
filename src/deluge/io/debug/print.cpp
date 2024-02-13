@@ -16,8 +16,8 @@
  */
 
 #include "io/debug/print.h"
-#include "io/midi/sysex.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/sysex.h"
 
 extern "C" {
 #include "deluge/drivers/uart/uart.h"
