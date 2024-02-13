@@ -48,7 +48,7 @@ public:
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
 	                          DisplayPopupType type = DisplayPopupType::GENERAL) {
 		displayPopup(have7SEG() ? shortLong[0] : shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
-    }
+	}
 
 	virtual void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
 	virtual void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
