@@ -16,7 +16,7 @@
  */
 
 #include "io/debug/print.h"
-#include "io/debug/sysex.h"
+#include "io/midi/sysex.h"
 #include "io/midi/midi_engine.h"
 
 extern "C" {

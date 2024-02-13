@@ -22,7 +22,7 @@
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
-#include "io/debug/sysex.h"
+#include "io/midi/sysex.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "mem_functions.h"
