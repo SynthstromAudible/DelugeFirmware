@@ -70,13 +70,7 @@ enum BeatRepeat {
 // keyboard classes
 class ColumnControlsKeyboard : public KeyboardLayout {
 public:
-	ColumnControlsKeyboard() {
-		auto instrument = getCurrentInstrument();
-		if (instrument && instrument->defaultVelocity) {
-			velocity = instrument->defaultVelocity;
-			velocity32 = velocity << kVelModShift;
-		}
-	}
+	ColumnControlsKeyboard() = default;
 
 	// call this instead of on notestate directly as chord and beat repeat helper
 	void enableNote(uint8_t note, uint8_t velocity);
