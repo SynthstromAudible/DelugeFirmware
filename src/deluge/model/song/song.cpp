@@ -55,10 +55,13 @@
 extern "C" {}
 
 namespace params = deluge::modulation::params;
+
+/// Do not call in static/global constructors, song won't exist yet
 Clip* getCurrentClip() {
 	return currentSong->getCurrentClip();
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 InstrumentClip* getCurrentInstrumentClip() {
 	Clip* currentClip = currentSong->getCurrentClip();
 	if (currentClip->type == ClipType::INSTRUMENT) {
@@ -67,6 +70,7 @@ InstrumentClip* getCurrentInstrumentClip() {
 	return nullptr;
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 AudioClip* getCurrentAudioClip() {
 	Clip* currentClip = currentSong->getCurrentClip();
 	if (currentClip->type == ClipType::AUDIO) {
@@ -75,10 +79,12 @@ AudioClip* getCurrentAudioClip() {
 	return nullptr;
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 Output* getCurrentOutput() {
 	return currentSong->getCurrentClip()->output;
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 Kit* getCurrentKit() {
 	Clip* currentClip = currentSong->getCurrentClip();
 	if (currentClip->output->type == OutputType::KIT) {
@@ -87,6 +93,7 @@ Kit* getCurrentKit() {
 	return nullptr;
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
 	auto output = currentSong->getCurrentClip()->output;
 	if (output == nullptr) {
@@ -100,6 +107,7 @@ Instrument* getCurrentInstrument() {
 	return static_cast<Instrument*>(output);
 }
 
+/// Do not call in static/global constructors, song won't exist yet
 OutputType getCurrentOutputType() {
 	return currentSong->getCurrentClip()->output->type;
 }
