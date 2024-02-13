@@ -16,11 +16,10 @@
  */
 #pragma once
 #include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-#include "io/midi/midi_device_manager.h"
 #include "model/instrument/midi_instrument.h"
 
 extern Output* getCurrentOutput();
+extern Instrument* getCurrentInstrument();
 
 namespace deluge::gui::menu_item::midi {
 class MPEToMono final : public Toggle {

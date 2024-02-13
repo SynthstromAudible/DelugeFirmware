@@ -67,53 +67,23 @@ private:
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
 	// get model stack with auto param for midi follow cc-param control
+	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+	                                                       int32_t xDisplay, int32_t yDisplay);
+	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                                       Clip* clip, int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings, int32_t xDisplay,
-	                                  int32_t yDisplay);
+	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+	                                   int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                               int32_t xDisplay, int32_t yDisplay);
+	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+	                                 int32_t xDisplay, int32_t yDisplay);
 	ModelStackWithAutoParam*
-	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                   AudioClip* audioClip, int32_t xDisplay, int32_t yDisplay);
+	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
-
-	// handle midi received for midi follow
-	void offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-	                            int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                            bool* doingMidiThru, Clip* clip);
-	void offerReceivedNoteToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                          MIDIDevice* fromDevice, MIDIMatchType match, bool on, int32_t channel,
-	                                          int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                                          bool* doingMidiThru, Clip* clip);
-	void offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                          MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                          bool* doingMidiThru, Clip* clip);
-	void offerReceivedCCToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                        MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
-	                                        uint8_t ccNumber, uint8_t value, bool* doingMidiThru, Clip* clip);
-	void offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
-	                                 uint8_t data2, bool* doingMidiThru, Clip* clip);
-	void offerReceivedPitchBendToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                               MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
-	                                               uint8_t data1, uint8_t data2, bool* doingMidiThru, Clip* clip);
-	void offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                  MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
-	                                  int32_t noteCode, bool* doingMidiThru, Clip* clip);
-	void offerReceivedAftertouchToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
-	                                                int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip);
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
-	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
 
 	// saving
 	void writeDefaultsToFile();

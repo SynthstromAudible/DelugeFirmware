@@ -17,12 +17,11 @@
 #pragma once
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 
 namespace deluge::gui::menu_item::reverb {
-class Dampening final : public Integer {
+class Damping final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getDamping() * kMaxMenuValue)); }

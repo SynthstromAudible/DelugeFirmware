@@ -1,4 +1,4 @@
-#include "definitions_cxx.hpp"
+#include "definitions.h"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
@@ -39,7 +39,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PATCH_SOURCE_ENVELOPE_1, "Envelope 2"},
         {STRING_FOR_PATCH_SOURCE_VELOCITY, "Velocity"},
         {STRING_FOR_PATCH_SOURCE_NOTE, "Note"},
-        {STRING_FOR_PATCH_SOURCE_COMPRESSOR, "Sidechain"},
+        {STRING_FOR_PATCH_SOURCE_SIDECHAIN, "Sidechain"},
         {STRING_FOR_PATCH_SOURCE_RANDOM, "Random"},
         {STRING_FOR_PATCH_SOURCE_AFTERTOUCH, "Aftertouch"},
         {STRING_FOR_PATCH_SOURCE_X, "MPE X"},
@@ -420,8 +420,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP, "Can't grab tempo from clip"},
         {STRING_FOR_SYNC_NUDGED, "Sync nudged"},
         {STRING_FOR_FOLLOWING_EXTERNAL_CLOCK, "Following external clock"},
-        {STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR, "Slow sidechain compressor"},
-        {STRING_FOR_FAST_SIDECHAIN_COMPRESSOR, "Fast sidechain compressor"},
         {STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD, "Reboot to use this SD card"},
         {STRING_FOR_LARGE_ROOM_REVERB, "Large room reverb"},
         {STRING_FOR_MEDIUM_ROOM_REVERB, "Medium room reverb"},
@@ -500,7 +498,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FILTER_ROUTE, "Filter route"},
 
         {STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, "Drum Randomizer"},
-        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Master Compressor"},
+        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Compressor"},
         {STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "Quantize"},
         {STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, "Fine Tempo Knob"},
         {STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "Mod. Depth Decimals"},
@@ -578,7 +576,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SYNC, "SYNC"},
         {STRING_FOR_SIDECHAIN_SYNC, "Sidechain sync"},
         {STRING_FOR_RELEASE, "RELEASE"},
-        {STRING_FOR_DAMPENING, "DAMPENING"},
+        {STRING_FOR_DAMPING, "DAMPING"},
         {STRING_FOR_WIDTH, "WIDTH"},
         {STRING_FOR_REVERB_WIDTH, "Reverb width"},
         {STRING_FOR_REVERB_PAN, "Reverb pan"},
@@ -603,7 +601,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_AMOUNT, "AMOUNT"},
         {STRING_FOR_REVERB, "REVERB"},
         {STRING_FOR_VOLUME_DUCKING, "Volume ducking"},
-        {STRING_FOR_SIDECHAIN_COMPRESSOR, "Sidechain compressor"},
+        {STRING_FOR_SIDECHAIN, "Sidechain"},
+        {STRING_FOR_THRESHOLD, "Threshold"},
+        {STRING_FOR_RATIO, "Ratio"},
         {STRING_FOR_ATTACK, "ATTACK"},
         {STRING_FOR_FX, "FX"},
         {STRING_FOR_VOLTS_PER_OCTAVE, "Volts per octave"},
@@ -702,7 +702,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIDI_INST_MENU_TITLE, "MIDI inst."},
         {STRING_FOR_SEND_TO_SIDECH_MENU_TITLE, "Send to sidech"},
         {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, "Sidech release"},
-        {STRING_FOR_SIDECHAIN_COMP_MENU_TITLE, "Sidechain comp"},
         {STRING_FOR_NUM_MEMBER_CH_MENU_TITLE, "Num member ch."},
         {STRING_FOR_METRONOME, "METRONOME"},
         {STRING_FOR_DEFAULT_METRO_MENU_TITLE, "Default metro."},
@@ -858,6 +857,13 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODEL, "Model"},
         {STRING_FOR_FREEVERB, "Freeverb"},
         {STRING_FOR_MUTABLE, "Mutable"},
+        {STRING_FOR_DIFFUSION, "Diffusion"},
+        {STRING_FOR_TIME, "Time"},
+
+        {STRING_FOR_MASTER, "Master"},
+        {STRING_FOR_FILTERS, "Filters"},
+
+        {STRING_FOR_CANT_TRANSPOSE, "Can't Transpose: No Scale Mode Clips"},
     },
 };
 } // namespace deluge::l10n::built_in

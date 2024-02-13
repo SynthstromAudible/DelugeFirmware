@@ -27,6 +27,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -39,9 +40,10 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -592,6 +594,11 @@ doActualSimpleChange:
 			changeRootUI(&performanceSessionView);
 		}
 	}
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
@@ -732,6 +739,8 @@ removePendingOverdub:
 						clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
 startHoldingDown:
 						selectedClipPressYDisplay = yDisplay;
+						// we've either created or selected a clip, so set it to be current
+						currentSong->setCurrentClip(clip);
 						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 						selectedClipPressXDisplay = xDisplay;
 						performActionOnPadRelease = true;
@@ -990,7 +999,10 @@ void SessionView::clipPressEnded() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
 		renderUIsForOled();
-		setCentralLEDStates();
+		// check UI in case this code is called from performance view
+		if (getCurrentUI() == &sessionView) {
+			setCentralLEDStates();
+		}
 	}
 	else {
 		redrawNumericDisplay();
@@ -1048,7 +1060,8 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				clip->section = oldSection;
 
-				requestRendering(this, 0, 1 << y);
+				// use root UI in case this is called from performanceView
+				requestRendering(getRootUI(), 0, 1 << y);
 			}
 
 			else {
@@ -1268,8 +1281,14 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-	    || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		currentSong->transpose(offset);
+	}
+	else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+		currentSong->adjustMasterTransposeInterval(offset);
+	}
+	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -1284,7 +1303,8 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
-			requestRendering(this, 1 << selectedClipYDisplay, 0);
+			// use root UI in case this is called from performance view
+			requestRendering(getRootUI(), 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
 		}
@@ -1771,7 +1791,8 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 
 void SessionView::redrawClipsOnScreen(bool doRender) {
 	if (doRender) {
-		requestRendering(this);
+		// use root UI in case this is called from performance view
+		requestRendering(getRootUI());
 	}
 	view.flashPlayEnable();
 }
@@ -1790,8 +1811,11 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	UI* currentUI = getCurrentUI();
+	if (currentUI != &performanceSessionView) {
+		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	}
 
 	if (playbackHandler.isEitherClockActive()) {
 		// Session playback
@@ -1814,8 +1838,11 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	UI* currentUI = getCurrentUI();
+	if (currentUI != &performanceSessionView) {
+		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	}
 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
@@ -1997,7 +2024,7 @@ void SessionView::graphicsRoutine() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
@@ -2261,7 +2288,8 @@ void SessionView::flashPlayRoutine() {
 
 		if (whichRowsNeedReRendering) {
 			view.flashPlayEnable();
-			requestRendering(this, 0, whichRowsNeedReRendering);
+			// use root UI in case this is called from performanceView
+			requestRendering(getRootUI(), 0, whichRowsNeedReRendering);
 		}
 		break;
 	}
@@ -2430,8 +2458,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			return;
 		}
 	}
-
-	currentSong->currentClip = clip;
+	// it should already be this clip, but if it ever isn't it would be a disaster
+	currentSong->setCurrentClip(clip);
 
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 
@@ -3218,7 +3246,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	if (targetOutput == nullptr && !newClip->output->activeClip) {
 		newClip->output->setActiveClip(modelStack);
 	}
-
+	// set it active in the song
+	currentSong->setCurrentClip(newClip);
 	return newClip;
 }
 
@@ -3426,6 +3455,8 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip == nullptr) {
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
+			// we've either created or selected a clip, so set it to be current
+			currentSong->setCurrentClip(clip);
 
 			// Allow clip control (selection)
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
@@ -3589,6 +3620,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			performActionOnPadRelease = true;
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
 			view.setActiveModControllableTimelineCounter(clip);
+			currentSong->setCurrentClip(clip);
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
@@ -3656,7 +3688,8 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 			else {
 				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
 			}
-			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			// use root UI in case this is called from performance view
+			requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 
 		return ActionResult::DEALT_WITH;
@@ -3673,7 +3706,8 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 
 	// This is the right place to add new features like moving clips or tracks :)
 
-	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	// use root UI in case this is called from performance view
+	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
 	return ActionResult::DEALT_WITH;
 }

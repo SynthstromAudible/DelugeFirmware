@@ -23,8 +23,9 @@
 
 #pragma once
 
-#include "util/functions.h"
+#include "util/fixedpoint.h"
 #include <cstdint>
+#include <limits>
 #include <span>
 
 namespace freeverb {

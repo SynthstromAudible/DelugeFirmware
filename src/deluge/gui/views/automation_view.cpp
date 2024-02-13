@@ -43,7 +43,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
@@ -135,7 +135,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},    // Delay Rate, Amount
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
     {params::Kind::PATCHED, params::LOCAL_FOLD},
@@ -196,7 +196,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},         // Delay Rate, Amount
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME}, // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_SHAPE},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET}, // Mod FX Offset, Feedback, Depth, Rate
@@ -299,7 +299,7 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
 	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_MOD_WHEEL;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 // called everytime you open up the automation view
@@ -538,12 +538,12 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -600,8 +600,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				modelStackWithParam =
-				    getModelStackWithParam(modelStackWithTimelineCounter, clip,
-				                           patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
+				    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+				                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
 			}
 
 			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
@@ -611,9 +611,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					continue;
 				}
 
-				modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip,
-				                                             unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
-				                                             params::Kind::UNPATCHED_SOUND);
+				modelStackWithParam = getModelStackWithParamForClip(
+				    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
+				    params::Kind::UNPATCHED_SOUND);
 			}
 		}
 
@@ -623,21 +623,20 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 			if (onArrangerView) {
 				// don't make pitch adjust or sidechain available for automation in arranger
-				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE)
+				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 					continue;
 				}
-				modelStackWithParam =
-				    performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
 			}
 			else {
-				modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID);
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 			}
 		}
 
 		else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-			modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip,
-			                                             midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+			                                                    midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -686,8 +685,15 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
-		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		int32_t knobPos = 0;
+
+		if (isAutomated) {
+			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
+		}
+		else {
+			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		}
 
 		RGB& pixel = image[xDisplay];
 
@@ -884,13 +890,13 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			modelStackWithParam = getModelStackWithParam(modelStack, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 		}
 
 		char const* isAutomated;
@@ -1035,7 +1041,7 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL) {
+		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
@@ -1075,15 +1081,15 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			Clip* clip = getCurrentClip();
 
-			modelStackWithParam = getModelStackWithParam(modelStack, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1207,6 +1213,12 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		if (handleBackAndHorizontalEncoderButtonComboAction(clip, on)) {
 			goto passToOthers;
 		}
+	}
+
+	// Vertical encoder button
+	// Not relevant for audio clip
+	else if (b == Y_ENC && !isAudioClip) {
+		handleVerticalEncoderButtonAction(on);
 	}
 
 	// Select encoder
@@ -1503,12 +1515,12 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		if (onArrangerView) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			modelStackWithParam = getModelStackWithParam(modelStack, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1521,6 +1533,15 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	return false;
+}
+
+// handle by button action if b == Y_ENC
+void AutomationView::handleVerticalEncoderButtonAction(bool on) {
+	if (on && currentUIMode == UI_MODE_NONE) {
+		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
 }
 
 // called by button action if b == SELECT_ENC and shift button is not pressed
@@ -1608,12 +1629,12 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -2183,12 +2204,12 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		int32_t shiftAmount = offset * squareSize;
 
 		if (onArrangerView) {
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			Clip* clip = getCurrentClip();
-			modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		}
 
 		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
@@ -2257,10 +2278,20 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 
 // vertical encoder action
 // no change compared to instrument clip view version
-// not used with Audio Clip Automation View or Arranger Automation View
+// not used with Audio Clip Automation View
 ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (onArrangerView) {
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			currentSong->transpose(offset);
+		}
+		else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+			currentSong->adjustMasterTransposeInterval(offset);
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
@@ -2280,36 +2311,22 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-				clip->transpose(offset * 12, modelStack);
-				if (clip->isScaleModeClip()) {
-					clip->yScroll += offset * (currentSong->numModeNotes - 12);
-				}
-				// display->displayPopup("OCTAVE");
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				clip->nudgeNotesVertically(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
+				                           modelStack);
 			}
-
-			// Otherwise, transpose single semitone
+			// Otherwise, transpose single row position
 			else {
-				// If current Clip not in scale-mode, just do it
-				if (!clip->isScaleModeClip()) {
-					clip->transpose(offset, modelStack);
-
-					// If there are no scale-mode Clips at all, move the root note along as well - just in case the user
-					// wants to go back to scale mode (in which case the "previous" root note would be used to help
-					// guess what root note to go with)
-					if (!currentSong->anyScaleModeClips()) {
-						currentSong->rootNote += offset;
-					}
-				}
-
-				// Otherwise, got to do all key-mode Clips
-				else {
-					currentSong->transposeAllScaleModeClips(offset);
-				}
-				// display->displayPopup("SEMITONE");
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
+				// it's the next note in the scale)¬
+				clip->nudgeNotesVertically(offset, modelStack);
 			}
+			instrumentClipView.recalculateColours();
+			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 	}
 
@@ -2430,18 +2447,15 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		if (instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] != 255
-		    && (instrumentClipView.lastAuditionedYDisplay != yDisplay)) {
-			instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
+		instrumentClipView.sendAuditionNote(false, yDisplay, 127, 0);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-			if (noteRow) {
-				// If recording, record a note-off for this NoteRow, if one exists
-				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-					clip->recordNoteOff(modelStackWithNoteRow);
-				}
+		if (noteRow) {
+			// If recording, record a note-off for this NoteRow, if one exists
+			if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+				clip->recordNoteOff(modelStackWithNoteRow);
 			}
 		}
 	}
@@ -2537,13 +2551,13 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		Clip* clip = getCurrentClip();
-		modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -2729,12 +2743,12 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	if (onArrangerView) {
 		modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-		                                                                    currentSong->lastSelectedParamID);
+		modelStackWithParam =
+		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 	}
 	else {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
@@ -2970,12 +2984,12 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 
 		if (onArrangerView) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings,
-			                                                                    currentSong->lastSelectedParamID);
+			modelStackWithParam =
+			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
 		}
 		else {
 			modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			modelStackWithParam = getModelStackWithParam(modelStackWithTimelineCounter, clip);
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 		}
 		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 		int32_t xScroll = currentSong->xScroll[navSysId];
@@ -2997,7 +3011,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
-			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_COMPRESSOR_SHAPE
+			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 
 				if (offset < 0) {
@@ -3052,17 +3066,21 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (isOnAutomationOverview()) {
-		clip->lastSelectedParamID = 0;
+		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	else if ((clip->lastSelectedParamID + offset) < 0) {
-		clip->lastSelectedParamID = kLastMidiCCForAutomation;
+	auto newCC = clip->lastSelectedParamID;
+	newCC += offset;
+	if (newCC < 0) {
+		newCC = CC_NUMBER_Y_AXIS;
 	}
-	else if ((clip->lastSelectedParamID + offset) > kLastMidiCCForAutomation) {
-		clip->lastSelectedParamID = 0;
+	else if (newCC >= kNumCCExpression) {
+		newCC = 0;
 	}
-	else {
-		clip->lastSelectedParamID += offset;
+	if (newCC == CC_NUMBER_MOD_WHEEL) {
+		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+		newCC += offset;
 	}
+	clip->lastSelectedParamID = newCC;
 }
 
 // used with SelectEncoderAction to get the next parameter in the list of parameters
@@ -3197,139 +3215,17 @@ void AutomationView::initInterpolation() {
 
 // get's the modelstack for the parameters that are being edited
 // the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
-ModelStackWithAutoParam* AutomationView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                                int32_t paramID, params::Kind paramKind) {
+ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
+                                                                       Clip* clip, int32_t paramID,
+                                                                       params::Kind paramKind) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	OutputType outputType = clip->output->type;
 
 	if (paramID == kNoParamID) {
 		paramID = clip->lastSelectedParamID;
 		paramKind = clip->lastSelectedParamKind;
 	}
 
-	if (outputType == OutputType::SYNTH) {
-		modelStackWithParam = getModelStackWithParamForSynthClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
-	}
-
-	else if (outputType == OutputType::KIT) {
-		modelStackWithParam = getModelStackWithParamForKitClip(modelStack, (InstrumentClip*)clip, paramID, paramKind);
-	}
-
-	else if (outputType == OutputType::MIDI_OUT) {
-		modelStackWithParam = getModelStackWithParamForMIDIClip(modelStack, (InstrumentClip*)clip, paramID);
-	}
-
-	else if (outputType == OutputType::AUDIO) {
-		modelStackWithParam = getModelStackWithParamForAudioClip(modelStack, (AudioClip*)clip, paramID);
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam* AutomationView::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStack,
-                                                                            InstrumentClip* clip, int32_t paramID,
-                                                                            params::Kind paramKind) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(clip->output->toModControllable(), &clip->paramManager);
-
-	if (modelStackWithThreeMainThings) {
-		if (paramKind == params::Kind::PATCHED) {
-			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
-			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-		}
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam* AutomationView::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStack,
-                                                                          InstrumentClip* clip, int32_t paramID,
-                                                                          params::Kind paramKind) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	Output* output = clip->output;
-
-	// for a kit we have two types of automation: with Affect Entire and without Affect Entire
-	// for a kit with affect entire off, we are automating information at the noterow level
-	if (!instrumentClipView.getAffectEntire()) {
-		Drum* drum = ((Kit*)output)->selectedDrum;
-
-		if (drum) {
-			if (drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
-
-				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-				if (modelStackWithNoteRow) {
-
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-
-					if (modelStackWithThreeMainThings) {
-						if (paramKind == params::Kind::PATCHED) {
-							modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-						}
-
-						else if (paramKind == params::Kind::UNPATCHED_SOUND) {
-							modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	else { // model stack for automating kit params when "affect entire" is enabled
-
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &clip->paramManager);
-
-		if (modelStackWithThreeMainThings) {
-			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-		}
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam* AutomationView::getModelStackWithParamForMIDIClip(ModelStackWithTimelineCounter* modelStack,
-                                                                           InstrumentClip* clip, int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	Output* output = clip->output;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &clip->paramManager);
-
-	if (modelStackWithThreeMainThings) {
-		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;
-
-		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
-
-			modelStackWithParam =
-			    midiInstrument->getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
-		}
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam* AutomationView::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStack,
-                                                                            AudioClip* clip, int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(clip->output->toModControllable(), &clip->paramManager);
-
-	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-	}
+	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind);
 
 	return modelStackWithParam;
 }
@@ -3402,6 +3298,25 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 	}
 
 	return squareStart;
+}
+
+// calculates value of all nodes within a square for automation editor rendering
+int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
+                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+	int32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
+	int32_t numNodesWithinSquare = squareWidth / kParamNodeWidth;
+
+	int32_t totalKnobPos = 0;
+
+	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
+		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
+		totalKnobPos = totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
+	}
+
+	int32_t averageKnobPos = (totalKnobPos / numNodesWithinSquare) + kKnobPosOffset;
+
+	return averageKnobPos;
 }
 
 // this function obtains a parameters value and converts it to a knobPos
@@ -3619,7 +3534,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_COMPRESSOR_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
 			return true;
 		}
 

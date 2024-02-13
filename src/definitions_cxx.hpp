@@ -19,9 +19,6 @@
 #include "definitions.h"
 #include "util/misc.h"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -134,9 +131,10 @@ enum FirmwareVersion : uint8_t {
 	FIRMWARE_4P1P4_ALPHA = 68,
 	FIRMWARE_4P1P4_BETA = 69,
 	FIRMWARE_4P1P4 = 70,
+	COMMUNITY_1P1 = 71,
 	FIRMWARE_TOO_NEW = 255,
 };
-constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
+constexpr FirmwareVersion kCurrentFirmwareVersion = COMMUNITY_1P1;
 
 constexpr uint8_t kOctaveSize = 12;
 
@@ -363,7 +361,7 @@ constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) 
 
 enum class PatchSource : uint8_t {
 	LFO_GLOBAL,
-	COMPRESSOR,
+	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
 	LFO_LOCAL,
@@ -409,7 +407,6 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonGlobalParamsForAutomation = 56;
 constexpr int32_t kNumGlobalParamsForAutomation = 23;
-constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
@@ -533,28 +530,6 @@ constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
-
-enum class FilterMode {
-	TRANSISTOR_12DB,
-	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
-	SVF_BAND,              // first HPF mode
-	SVF_NOTCH,             // last LPF mode
-	HPLADDER,
-	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
-};
-constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-// Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
-constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
-enum class FilterRoute {
-	HIGH_TO_LOW,
-	LOW_TO_HIGH,
-	PARALLEL,
-};
-
-constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
@@ -727,6 +702,7 @@ enum class ExistenceChangeType {
 };
 
 enum CCNumber {
+	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
 	CC_NUMBER_MOD_WHEEL = 1,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
@@ -734,6 +710,7 @@ enum CCNumber {
 	CC_NUMBER_NONE = 123,
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
+constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
 constexpr int32_t kNumRealCCNumbers = 120;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;

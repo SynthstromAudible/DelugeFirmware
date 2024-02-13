@@ -114,8 +114,6 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
-	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
-	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 
 	// ui
@@ -146,6 +144,8 @@ private:
 private:
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 

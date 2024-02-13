@@ -3,34 +3,27 @@
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
- * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation,
- * either version 3 of the License, or (at your option) any later version.
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute
+ * it and/or modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "io/debug/sysex.h"
-#include "gui/l10n/l10n.h"
-#include "hid/display/oled.h"
-#include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "memory/general_memory_allocator.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "util/chainload.h"
-#include "util/functions.h"
-#include "util/pack.h"
 
-extern "C" {
-#include "RZA1/oled/oled_low_level.h"
-}
+#include "util/pack.h"
 
 void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
@@ -69,7 +62,8 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	if (!msg) {
 		return; // Do not do that
 	}
-	// data[4]: reserved, could serve as a message identifier to filter messages per category
+	// data[4]: reserved, could serve as a message identifier to filter messages
+	// per category
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
 	uint8_t* reply = midiEngine.sysex_fmt_buffer;
 	memcpy(reply, reply_hdr, 5);
@@ -88,8 +82,13 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 
 	device->sendSysex(reply, len + 6);
 }
-
 #ifdef ENABLE_SYSEX_LOAD
+#include "gui/l10n/l10n.h"
+#include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
+#include "memory/general_memory_allocator.h"
+#include "model/settings/runtime_feature_settings.h"
+
 static uint8_t* load_buf;
 static size_t load_bufsize;
 static size_t load_codesize;
@@ -147,13 +146,13 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
 
+	uint32_t pad = (18 * 8 * pos) / load_bufsize;
+	uint8_t col = pad % 18;
+	uint8_t row = pad / 18;
+	PadLEDs::image[row][col][0] = (255 / 7) * row;
+	PadLEDs::image[row][col][1] = 0;
+	PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
 	if ((pos / 512) % 16 == 0) {
-		uint32_t pad = (18 * 8 * pos) / load_bufsize;
-		uint8_t col = pad % 18;
-		uint8_t row = pad / 18;
-		PadLEDs::image[row][col][0] = (255 / 7) * row;
-		PadLEDs::image[row][col][1] = 0;
-		PadLEDs::image[row][col][2] = 255 - (255 / 7) * row;
 		PadLEDs::sendOutMainPadColours();
 		PadLEDs::sendOutSidebarColours();
 	}

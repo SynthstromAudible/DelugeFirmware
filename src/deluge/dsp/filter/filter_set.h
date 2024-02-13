@@ -18,11 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter.h"
 #include "dsp/filter/hpladder.h"
-#include "dsp/filter/ladder_components.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
 #include <cstdint>
 

@@ -71,7 +71,7 @@ enum BeatRepeat {
 class ColumnControlsKeyboard : public KeyboardLayout {
 public:
 	ColumnControlsKeyboard() {
-		auto instrument = getCurrentInstrumentOrNull();
+		auto instrument = getCurrentInstrument();
 		if (instrument && instrument->defaultVelocity) {
 			velocity = instrument->defaultVelocity;
 			velocity32 = velocity << kVelModShift;

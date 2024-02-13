@@ -19,7 +19,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
-#include "model/timeline_counter.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"

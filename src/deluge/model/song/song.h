@@ -83,7 +83,7 @@ public:
 	~Song();
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
-	void transposeAllScaleModeClips(int32_t offset);
+	void transposeAllScaleModeClips(int32_t interval);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -103,6 +103,8 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void displayCurrentRootNoteAndScaleName();
+	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
 	int32_t setPresetScale(int32_t newScale);
@@ -144,8 +146,6 @@ public:
 	Output* firstOutput;
 	Instrument*
 	    firstHibernatingInstrument; // All Instruments have inValidState set to false when they're added to this list
-
-	Clip* currentClip;
 
 	OrderedResizeableArrayWithMultiWordKey backedUpParamManagers;
 
@@ -214,6 +214,13 @@ public:
 	String dirPath;
 
 	bool getAnyClipsSoloing();
+	Clip* getCurrentClip();
+	void setCurrentClip(Clip* clip) {
+		if (currentClip != nullptr) {
+			previousClip = currentClip;
+		}
+		currentClip = clip;
+	}
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
@@ -334,6 +341,9 @@ public:
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
+	/// Gets a modelstack with the song-global unpatched param paramID.
+	/// used in performance view and in automation arranger view
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
 	// Whether this song wants notes/cc/etc from delly midi clips looped back
 	bool midiLoopback = false;
@@ -343,17 +353,11 @@ public:
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;
-	int32_t reverbCompressorVolume;
-	int32_t reverbCompressorShape;
-	int32_t reverbCompressorAttack;
-	int32_t reverbCompressorRelease;
-	SyncLevel reverbCompressorSync;
-
-	int32_t masterCompressorAttack;
-	int32_t masterCompressorRelease;
-	int32_t masterCompressorThresh;
-	int32_t masterCompressorRatio;
-	int32_t masterCompressorSidechain;
+	int32_t reverbSidechainVolume;
+	int32_t reverbSidechainShape;
+	int32_t reverbSidechainAttack;
+	int32_t reverbSidechainRelease;
+	SyncLevel reverbSidechainSync;
 
 	// START ~ new Automation Arranger View Variables
 	int32_t lastSelectedParamID; // last selected Parameter to be edited in Automation Arranger View
@@ -364,8 +368,15 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
+	int32_t masterTransposeInterval;
+	void transpose(int32_t interval);
+	void adjustMasterTransposeInterval(int32_t interval);
+	void displayMasterTransposeInterval();
+
 private:
 	bool fillModeActive;
+	Clip* currentClip = nullptr;
+	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
@@ -378,11 +389,3 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
-
-inline Instrument* getCurrentInstrumentOrNull() {
-	Output* out = currentSong->currentClip->output;
-	if (out->type != OutputType::AUDIO) {
-		return (Instrument*)out;
-	}
-	return nullptr;
-}

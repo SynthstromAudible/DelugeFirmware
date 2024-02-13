@@ -17,12 +17,10 @@
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <string.h>
 // #include <algorithm>
@@ -30,10 +28,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
-#include "modulation/sidechain/sidechain.h"
 #include "playback/playback_handler.h"
 
 extern "C" {
@@ -92,32 +88,34 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 
 	int32_t pan = unpatchedParams->getValue(params::UNPATCHED_PAN) >> 1;
 
-	// Render compressor
+	// Render sidechain
 	int32_t sidechainVolumeParam = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	if (sidechainVolumeParam != -2147483648) {
 		if (sideChainHitPending != 0) {
-			compressor.registerHit(sideChainHitPending);
+			sidechain.registerHit(sideChainHitPending);
 		}
-		int32_t compressorOutput =
-		    compressor.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
+		int32_t sidechainOutput =
+		    sidechain.render(numSamples, unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
 
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(compressorOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
+		    multiply_32x32_rshift32(sidechainOutput, getSidechainVolumeAmountAsPatchCableDepth(paramManagerForClip))
 		    + 536870912;
 		postReverbVolume = (positivePatchedValue >> 15)
 		                   * (positivePatchedValue
 		                      >> 16); // This is tied to getParamNeutralValue(params::GLOBAL_VOLUME_POST_REVERB_SEND)
 		                              // returning 134217728
 	}
-
+	q31_t compThreshold = unpatchedParams->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSet.isOn() && !delayWorkingState.doDelay && (!pan || !AudioEngine::renderInStereo)
-	    && !clippingAmount && !hasBassAdjusted(paramManagerForClip) && !hasTrebleAdjusted(paramManagerForClip)
-	    && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip) && !isSRREnabled(paramManagerForClip)
-	    && getActiveModFXType(paramManagerForClip) == ModFXType::NONE && stutterer.status == STUTTERER_STATUS_OFF;
+	    !isKit() && !filterSet.isOn() && compThreshold == 0 && !delayWorkingState.doDelay
+	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
+	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
+	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
+	    && stutterer.status == STUTTERER_STATUS_OFF;
 
 	if (canRenderDirectlyIntoSongBuffer) {
 
@@ -179,12 +177,9 @@ doNormal:
 		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-		int32_t postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
-
-		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-		                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
-		                           postReverbSendVolumeIncrement);
+		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
+		                           reverbSendAmount, pan, true);
+		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 
@@ -223,23 +218,63 @@ int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 	return GlobalEffectable::getParameterFromKnob(whichModEncoder);
 }
 
+void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
+	if (whichModButton == 4) {
+		displaySidechainAndReverbSettings(on);
+		return;
+	}
+
+	return GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
+}
+
+void GlobalEffectableForClip::displaySidechainAndReverbSettings(bool on) {
+	if (display->haveOLED()) {
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
+			popupMsg.append("\n");
+
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		if (on) {
+			display->displayPopup(getSidechainDisplayName());
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                                      ModelStackWithThreeMainThings* modelStack) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
 		if (*getModKnobMode() == 4) {
 			if (whichModEncoder == 1) { // Sidechain
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					compressor.syncLevel = SYNC_LEVEL_128TH;
+				int32_t insideWorldTickMagnitude;
+				if (currentSong) { // Bit of a hack just referring to currentSong in here...
+					insideWorldTickMagnitude =
+					    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 				}
 				else {
-					compressor.syncLevel = SYNC_LEVEL_32ND;
+					insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 				}
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					display->displayPopup("SLOW");
+				if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+					sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
+					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 				}
 				else {
-					display->displayPopup("FAST");
+					sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
+					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 				}
 				return true;
 			}

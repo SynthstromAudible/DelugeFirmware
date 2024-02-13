@@ -18,6 +18,7 @@
 // Was I going to expand this file to have more stuff?
 #pragma once
 
+#include <cstdint>
 extern bool sdRoutineLock;
 extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;

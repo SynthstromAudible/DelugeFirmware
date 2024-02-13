@@ -18,7 +18,6 @@
 
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 
@@ -29,5 +28,16 @@ public:
 	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getRoomSize() * kMaxMenuValue)); }
 	void writeCurrentValue() override { AudioEngine::reverb.setRoomSize((float)this->getValue() / kMaxMenuValue); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+
+	[[nodiscard]] std::string_view getName() const override {
+		using enum l10n::String;
+		switch (AudioEngine::reverb.getModel()) {
+		case dsp::Reverb::Model::MUTABLE:
+			return l10n::getView(STRING_FOR_TIME);
+		default:
+			return l10n::getView(this->name);
+		}
+	}
+	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
 };
 } // namespace deluge::gui::menu_item::reverb

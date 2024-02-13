@@ -27,16 +27,16 @@ public:
 
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
-		                                            soundEditor.currentCompressor->syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSidechain->syncType,
+		                                            soundEditor.currentSidechain->syncLevel));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentCompressor->syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentSidechain->syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentSidechain->syncLevel = menuOptionToSyncLevel(this->getValue());
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return !soundEditor.editingReverbCompressor() || AudioEngine::reverbCompressorVolume >= 0;
+		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain

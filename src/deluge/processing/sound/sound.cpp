@@ -25,7 +25,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -142,7 +142,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_LFO_FREQ);
 
 	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(params::GLOBAL_VOLUME_POST_REVERB_SEND,
-	                                                       PatchSource::COMPRESSOR);
+	                                                       PatchSource::SIDECHAIN);
 	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
 
 	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
@@ -1215,7 +1215,7 @@ void Sound::ensureKnobReferencesCorrectVolume(Knob* knob) {
 		if (knob->paramDescriptor.isJustAParam()) {
 			knob->paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
+		else if (knob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
 			knob->paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 		}
 		else {
@@ -1245,8 +1245,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return (s != PatchSource::ENVELOPE_0
 		        // No envelopes allowed to be patched to volume - this is hardcoded elsewhere
 		        && s != PatchSource::ENVELOPE_1
-		        // Don't let the compressor patch to local volume - it's supposed to go to global volume
-		        && s != PatchSource::COMPRESSOR)
+		        // Don't let the sidechain patch to local volume - it's supposed to go to global volume
+		        && s != PatchSource::SIDECHAIN)
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::DISALLOWED;
 
@@ -1364,7 +1364,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		return (lfoGlobalSyncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
 		                                               : PatchCableAcceptance::DISALLOWED;
 
-		// Nothing may patch to post-fx volume. This is for manual control only. The compressor patches to post-reverb
+		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
 	case params::GLOBAL_VOLUME_POST_FX:
 		return PatchCableAcceptance::DISALLOWED;
@@ -1375,8 +1375,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		}
 		break;
 
-	case params::GLOBAL_VOLUME_POST_REVERB_SEND: // Only the compressor can patch to here
-		if (s != PatchSource::COMPRESSOR) {
+	case params::GLOBAL_VOLUME_POST_REVERB_SEND: // Only the sidechain can patch to here
+		if (s != PatchSource::SIDECHAIN) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -1901,7 +1901,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if (modFXType != ModFXType::NONE) {
+			if ((modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -1913,12 +1913,20 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
-					int32_t waitSamples = (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO)
-					                          ? (20 * 44)
-					                          : (90 * 441); // 20 and 900 mS respectively. Lots is required for
-					                                        // feeding-back flanger or phaser
-					if (modFXType == ModFXType::GRAIN)
-						waitSamples = 350 * 441;
+					int32_t waitSamplesModfx = 0;
+					switch (modFXType) {
+					case ModFXType::CHORUS:
+						[[fallthrough]];
+					case ModFXType::CHORUS_STEREO:
+						waitSamplesModfx = 20 * 44;
+						break;
+					case ModFXType::GRAIN:
+						waitSamplesModfx = 350 * 441;
+						break;
+					default:
+						waitSamplesModfx = (90 * 441);
+					}
+					int32_t waitSamples = std::max(waitSamplesModfx, compressor.getReleaseMS() * 44);
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -2064,6 +2072,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
                    bool shouldLimitDelayFeedback, int32_t pitchAdjust) {
 
 	if (skippingRendering) {
+		compressor.gainReduction = 0;
 		return;
 	}
 
@@ -2080,19 +2089,19 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
-	// Do compressor
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
+	// Do sidechain
+	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
-			compressor.registerHit(sideChainHitPending);
+			sidechain.registerHit(sideChainHitPending);
 		}
 
-		const auto patchSourceCompressorUnderlying = util::to_underlying(PatchSource::COMPRESSOR);
+		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
-		int32_t old = globalSourceValues[patchSourceCompressorUnderlying];
-		globalSourceValues[patchSourceCompressorUnderlying] = compressor.render(
-		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceCompressorUnderlying]);
-		sourcesChanged |= anyChange << patchSourceCompressorUnderlying;
+		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
+		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
+		    numSamples, paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
+		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
+		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
 
 	// Perform the actual patching
@@ -2279,11 +2288,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	          &postFXVolume, paramManager, 8);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
-	int32_t postReverbSendVolumeIncrement =
-	    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
+	                           reverbSendAmount, 0, true);
 
-	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume,
-	                           postReverbVolumeLastTime, reverbSendAmount, 0, true, postReverbSendVolumeIncrement);
+	q31_t compThreshold = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD);
+	compressor.setThreshold(compThreshold);
+	if (compThreshold > 0) {
+		compressor.renderVolNeutral((StereoSample*)soundBuffer, numSamples, postFXVolume);
+	}
+	else {
+		compressor.reset();
+	}
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
@@ -2339,12 +2354,11 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
 
-			// Do sidechain compressor
-			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
+			// Do sidechain
+			// if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
 			if (AudioEngine::sizeLastSideChainHit) {
-				compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-				                                      AudioEngine::audioSampleTimer
-				                                          - AudioEngine::timeLastSideChainHit);
+				sidechain.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
+				                                     AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
@@ -3020,7 +3034,7 @@ int32_t Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManage
 
 	initParams(paramManager);
 
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(
+	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
 	return NO_ERROR;
 }
@@ -3470,7 +3484,7 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		storageManager.exitTag("portamento");
 	}
 	else if (!strcmp(tagName, "compressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
 		storageManager.exitTag("compressorShape");
 	}
 
@@ -3677,7 +3691,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_COMPRESSOR_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
 	patchedParams->writeParamAsAttribute("oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute("oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
@@ -3936,11 +3950,12 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	endStutter(paramManager);
 
-	if ((!on && display->haveOLED()) || display->have7SEG()) {
-		int32_t modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
-		ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
 
+	// LPF/HPF/EQ
+	if (whichModButton == 1) {
 		if (getSynthMode() != SynthMode::FM) {
 			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
 				displayLPFMode(on);
@@ -3950,16 +3965,25 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
 			                                                              + params::UNPATCHED_TREBLE)) {
-				display->displayPopup("EQ");
+				if (on) {
+					display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
+				}
+				else {
+					display->cancelPopup();
+				}
 			}
 		}
-
+	}
+	// Delay
+	else if (whichModButton == 3) {
 		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
 			displayDelaySettings(on);
 		}
-
+	}
+	// Sidechain/Reverb
+	else if (whichModButton == 4) {
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
-		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
+		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)) {
 			displaySidechainAndReverbSettings(on);
 		}
 	}
@@ -3967,44 +3991,31 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 void Sound::displaySidechainAndReverbSettings(bool on) {
 	// Sidechain
-	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-	}
-	else {
-		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	}
-
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		// Sidechain
-		popupMsg.append(getSidechainDisplayName(insideWorldTickMagnitude));
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			// Sidechain
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
 
-		popupMsg.append("\n");
+			popupMsg.append("\n");
 
-		// Reverb
-		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
-		display->displayPopup(popupMsg.c_str());
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
-			display->displayPopup(getSidechainDisplayName(insideWorldTickMagnitude));
+			display->displayPopup(getSidechainDisplayName());
 		}
 		else {
 			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 		}
-	}
-}
-
-char const* Sound::getSidechainDisplayName(int32_t insideWorldTickMagnitude) {
-	using enum deluge::l10n::String;
-	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-		return l10n::get(STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR);
-	}
-	else {
-		return l10n::get(STRING_FOR_FAST_SIDECHAIN_COMPRESSOR);
 	}
 }
 
@@ -4141,7 +4152,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 	// Switch sidechain sync level
 	else if (ourModKnob->paramDescriptor.hasJustOneSource()
-	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR) {
+	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
 		if (on) {
 			int32_t insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...
@@ -4152,13 +4163,13 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 			}
 
-			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
+			if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+				sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 			}
 			else {
-				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
+				sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
 			}
 			return true;
 		}
@@ -4247,9 +4258,10 @@ void Sound::wontBeRenderedForAWhile() {
 	                     // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	compressor.status = EnvelopeStage::OFF;
+	sidechain.status = EnvelopeStage::OFF;
 
-	reassessRenderSkippingStatus(NULL, true); // Tell it to just cut the MODFX tail - we needa change status urgently!
+	// Tell it to just cut the MODFX tail - we needa change status urgently!
+	reassessRenderSkippingStatus(NULL, true);
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
@@ -4264,8 +4276,8 @@ void Sound::detachSourcesFromAudioFiles() {
 }
 
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
-	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned during
-	// memory allocation
+	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
+	// during memory allocation
 	unassignAllVoices();
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.getElement(r)->~MultiRange();
@@ -4330,8 +4342,8 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		}
 	}
 
-	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to investigate
-	// each Voice
+	// Ok, if that determined that either source has multiple samples (multisample ranges), we now have to
+	// investigate each Voice
 	if (mustExamineSourceInEachVoice) {
 
 		int32_t ends[2];

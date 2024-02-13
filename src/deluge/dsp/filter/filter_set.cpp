@@ -17,7 +17,6 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
 #include "util/fixedpoint.h"

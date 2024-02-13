@@ -20,8 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_perc_cache_zone.h"
@@ -29,13 +28,9 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
-#include <cstdint>
-#include <math.h>
+#include <cmath>
+#include <cstring>
 #include <new>
-#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

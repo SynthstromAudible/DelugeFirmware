@@ -20,10 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_low_level_reader.h"
 
-#define LATE_START_ATTEMPT_SUCCESS 0
-#define LATE_START_ATTEMPT_FAILURE 1
-#define LATE_START_ATTEMPT_WAIT 2
-
+enum { LATE_START_ATTEMPT_SUCCESS = 0, LATE_START_ATTEMPT_FAILURE = 1, LATE_START_ATTEMPT_WAIT = 2 };
 class TimeStretcher;
 class SampleCache;
 class Sample;

@@ -15,24 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::submenu {
-class Compressor final : public Submenu {
+using namespace deluge::dsp::filter;
+namespace deluge::gui::menu_item::filter {
+
+class FilterMorph final : public patched_param::IntegerNonFM {
 public:
-	Compressor(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
-	           bool newForReverbCompressor)
-	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentCompressor =
-		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
-		Submenu::beginSession(navigatedBackwardFrom);
+	using patched_param::IntegerNonFM::IntegerNonFM;
+	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : IntegerNonFM{newName, newP}, hpf{hpf} {}
+	[[nodiscard]] std::string_view getName() const override {
+		using enum l10n::String;
+		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode
+		                               : soundEditor.currentModControllable->lpfMode);
+		return l10n::getView(filt.getMorphName());
 	}
+	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
 
-	bool forReverbCompressor;
+private:
+	bool hpf;
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::filter

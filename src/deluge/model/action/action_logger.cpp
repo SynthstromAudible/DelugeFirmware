@@ -26,7 +26,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_clip_state.h"
@@ -592,7 +592,7 @@ otherOption:
 		// earlier, causing a crash. Hopefully moving it later here is ok...
 		if (action->currentClip) { // If song just loaded and we hadn't been into ClipMinder yet, this would be NULL,
 			                       // and we don't want to set currentSong->currentClip back to this
-			currentSong->currentClip = action->currentClip;
+			currentSong->setCurrentClip(action->currentClip);
 		}
 	}
 

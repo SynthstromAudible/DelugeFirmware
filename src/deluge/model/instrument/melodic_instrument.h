@@ -92,6 +92,9 @@ public:
 
 	LearnedMIDI midiInput;
 
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);
 };

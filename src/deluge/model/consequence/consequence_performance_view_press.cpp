@@ -17,6 +17,7 @@
 
 #include "model/consequence/consequence_performance_view_press.h"
 #include "model/model_stack.h"
+#include <cstring>
 
 ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
                                                                  FXColumnPress fxPressAfter[kDisplayWidth],

@@ -21,7 +21,7 @@
 #include "model/sample/sample_low_level_reader.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"

@@ -28,7 +28,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/menus.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -41,11 +40,11 @@
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -69,6 +68,7 @@
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -81,10 +81,6 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
@@ -1149,7 +1145,6 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	// Quantized Stutter FX
 	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 
@@ -1176,10 +1171,12 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		if (on) {
 
 			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
+				// change the button selection before calling mod button action so that mod button action
+				// knows the mod button parameter context
+				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
+
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
-
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
 
 				setKnobIndicatorLevels();
 				setModLedStates();
@@ -1498,21 +1495,21 @@ void View::cycleThroughReverbPresets() {
 	}
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
+	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
 
 	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
 	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
-	int32_t currentDampening = AudioEngine::reverb.getDamping() * 50;
+	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;
 	int32_t currentPreset;
 	for (int32_t p = 0; p < NUM_PRESET_REVERBS; p++) {
 		int32_t differentness =
-		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDampening - presetReverbDampening[p]);
+		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDamping - presetReverbDamping[p]);
 		if (differentness < lowestDifferentness) {
 			lowestDifferentness = differentness;
 			currentPreset = p;
@@ -1966,8 +1963,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (outputType == OutputType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
-					memcpy(newMIDIInstrument->modKnobCCAssignments, oldMIDIInstrument->modKnobCCAssignments,
-					       sizeof(oldMIDIInstrument->modKnobCCAssignments));
+					newMIDIInstrument->modKnobCCAssignments = oldMIDIInstrument->modKnobCCAssignments;
 					newInstrument->editedByUser =
 					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
 					                                         // assignments", so must be copied across
@@ -2222,7 +2218,10 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
-			uiNeedsRendering(&sessionView, 0, 1 << yDisplayIfInSessionView);
+			RootUI* rootUI = getRootUI();
+			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
+			}
 		}
 		break;
 
@@ -2296,8 +2295,9 @@ void View::flashPlayDisable() {
 	clipArmFlashOn = false;
 	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
-	if (getRootUI() == &sessionView) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+	RootUI* rootUI = getRootUI();
+	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
 	else if (getRootUI()->toClipMinder()) {

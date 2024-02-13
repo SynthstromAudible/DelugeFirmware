@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
@@ -47,6 +46,6 @@ public:
 		return multiply_32x32_rshift32_rounded(memory, feedbackAmount);
 	}
 
-	q31_t memory;
+	q31_t memory = 0;
 };
 } // namespace deluge::dsp::filter

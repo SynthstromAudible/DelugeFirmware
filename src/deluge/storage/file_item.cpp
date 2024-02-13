@@ -16,9 +16,9 @@
  */
 #include "storage/file_item.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "model/instrument/instrument.h"
-#include <string.h>
+#include <cstring>
 
 FileItem::FileItem() {
 	filePointer = {0};

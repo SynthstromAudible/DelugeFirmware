@@ -16,23 +16,22 @@
  */
 
 #include "patch_cable_strength.h"
-#include "gui/l10n/l10n.h"
-#include "gui/menu_item/menu_item.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
-#include "source_selection.h"
-
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/matrix/matrix_driver.h"
+#include "hid/display/oled.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "source_selection.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {

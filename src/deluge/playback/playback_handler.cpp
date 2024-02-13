@@ -31,7 +31,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -379,6 +379,10 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	// If in arranger...
 	if (getRootUI() == &arrangerView
 	    || (!getRootUI() && currentSong && currentSong->lastClipInstanceEnteredStartPos != -1)) {
+		goto useArranger;
+	}
+
+	if (!rootUIIsClipMinderScreen() && currentSong->lastClipInstanceEnteredStartPos != -1) {
 		goto useArranger;
 	}
 
@@ -1235,7 +1239,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	// Some more "if we're playing" stuff - this needs to happen after currentSong is swapped over, because
 	// resyncInternalTicksToInputTicks() references it

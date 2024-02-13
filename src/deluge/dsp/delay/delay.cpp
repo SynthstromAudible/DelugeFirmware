@@ -17,11 +17,8 @@
 
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "io/debug/log.h"
 #include <stdlib.h>
-// #include <algorithm>
-#include "io/debug/print.h"
-#include "util/functions.h"
 
 Delay::Delay() {
 	pingPong = true;

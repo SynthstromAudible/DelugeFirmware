@@ -19,7 +19,6 @@
 
 #include "dsp/stereo_sample.h"
 #include <cstdint>
-#include <math.h>
 
 class StereoSample;
 
@@ -43,7 +42,7 @@ public:
 	uint8_t init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
 	void makeNativeRatePrecise();
 	void makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherBuffer);
-	void discard(bool beingDestructed = false);
+	void discard();
 	void setupForRender(int32_t rate, DelayBufferSetup* setup);
 	int32_t getIdealBufferSizeFromRate(uint32_t newRate);
 	void empty();

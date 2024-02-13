@@ -17,7 +17,6 @@
 
 #include "processing/live/live_input_buffer.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <string.h>

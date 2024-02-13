@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2023-2024 Mark Adams
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,35 +16,36 @@
  */
 
 #include "dsp/compressor/rms_feedback.h"
+#include "util/fixedpoint.h"
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
-
-	// an appropriate range is 0-50*one q 15
-
-	thresholdKnobPos = 0;
-	sideChainKnobPos = ONE_Q31 >> 1;
-	// this is 2:1
-	ratioKnobPos = 0;
-
-	currentVolumeL = 0;
-	currentVolumeR = 0;
-	er = 0;
-	setSidechain(sideChainKnobPos);
+	setAttack(5 << 24);
+	setRelease(5 << 24);
+	setThreshold(0);
+	setRatio(64 << 24);
+	setSidechain(0);
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 
 	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolume = std::log(finalVolume) - 2;
+	float songVolumedB = logf(finalVolume);
 
-	threshdb = songVolume * threshold;
+	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
 	// reduce clicking
 	float lastER = er;
-	er = std::max<float>((songVolume - threshdb - 1) * ratio, 0);
+	er = std::max<float>((songVolumedB - threshdb - 1) * ratio, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
+}
+/// This renders at a 'neutral' volume, so that at threshold zero the volume in unchanged
+void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numSamples, q31_t finalVolume) {
+	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
+	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
+	// I couldn't extract correct volume levels from it.
+	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
@@ -59,9 +60,9 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * ratio;
 
 	// this is the most gain available without overflow
-	float dbGain = 0.85 + er + reduction;
+	float dbGain = 3.f + er + reduction;
 
-	float gain = exp((dbGain));
+	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
 
 	float finalVolumeL = gain * float(volAdjustL >> 9);
@@ -86,23 +87,23 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
 	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
-	rms = calc_rms(buffer, numSamples);
+	rms = calcRMS(buffer, numSamples);
 }
 
 float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) {
-	float s;
+	float s{0};
 	if (desired > current) {
-		s = desired + exp(a_ * numSamples) * (current - desired);
+		s = desired + std::exp(a_ * numSamples) * (current - desired);
 	}
 	else {
-		s = desired + exp(r_ * numSamples) * (current - desired);
+		s = desired + std::exp(r_ * numSamples) * (current - desired);
 	}
 	return s;
 }
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-float RMSFeedbackCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
+float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
@@ -123,17 +124,9 @@ float RMSFeedbackCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples)
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
 	// at high cpu loads
 	mean = (mean * ns + lastMean) / (1 + ns);
-	float rms = ONE_Q31 * sqrt(mean);
+	float rms = ONE_Q31 * std::sqrt(mean);
 
 	float logmean = std::log(std::max(rms, 1.0f));
 
 	return logmean;
-}
-// takes in knob positions in the range 0-ONE_Q31
-void RMSFeedbackCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
-	setAttack(a);
-	setRelease(r);
-	setThreshold(t);
-	setRatio(rat);
-	setSidechain(fc);
 }

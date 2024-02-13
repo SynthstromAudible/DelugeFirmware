@@ -20,9 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
-#include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
-#include "storage/flash_storage.h"
 
 class Editor;
 class InstrumentClip;
@@ -114,9 +112,6 @@ public:
 
 	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
-
-	// public so midi follow can access it
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
 	// public so view.modEncoderAction and midi follow can access it
 	PadPress lastPadPress;

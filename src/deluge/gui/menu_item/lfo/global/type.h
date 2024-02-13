@@ -19,7 +19,6 @@
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::lfo::global {
 

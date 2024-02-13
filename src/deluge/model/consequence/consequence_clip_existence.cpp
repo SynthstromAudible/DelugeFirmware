@@ -18,7 +18,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_array.h"
@@ -102,8 +102,8 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 
 		// Make sure the currentClip isn't left pointing to this Clip. Most of the time, ActionLogger::revertAction()
 		// reverts currentClip so we don't have to worry about it - but not if action->currentClip is NULL!
-		if (modelStackWithTimelineCounter->song->currentClip == clip) {
-			modelStackWithTimelineCounter->song->currentClip = NULL;
+		if (modelStackWithTimelineCounter->song->getCurrentClip() == clip) {
+			modelStackWithTimelineCounter->song->setCurrentClip(nullptr);
 		}
 
 		clip->stopAllNotesPlaying(

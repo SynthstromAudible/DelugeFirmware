@@ -18,21 +18,13 @@
 #include "gui/views/performance_session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
-#include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
-#include "gui/menu_item/colour.h"
 #include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/ui.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
@@ -42,26 +34,19 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
+#include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/consequence/consequence_performance_view_press.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <new>
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+extern "C" {}
 
 namespace params = deluge::modulation::params;
 using deluge::modulation::params::Kind;
@@ -271,10 +256,6 @@ void PerformanceSessionView::focusRegained() {
 
 	updateLayoutChangeStatus();
 
-	if (defaultEditingMode) {
-		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
-	}
-
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
@@ -297,7 +278,7 @@ void PerformanceSessionView::graphicsRoutine() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
@@ -314,6 +295,12 @@ void PerformanceSessionView::graphicsRoutine() {
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.timerCallback();
+	}
+	else {
+		arrangerView.timerCallback();
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -436,10 +423,11 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 		return true;
 	}
 
-	if (gridModeActive) {
-		for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
-			sessionView.gridRenderActionModes(y, image, occupancyMask);
-		}
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.renderSidebar(whichRows, image, occupancyMask);
+	}
+	else {
+		arrangerView.renderSidebar(whichRows, image, occupancyMask);
 	}
 
 	return true;
@@ -605,13 +593,13 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 					buffer = "8ths";
 				}
 				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16ths";
+					buffer = "16th";
 				}
 				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nds";
+					buffer = "32nd";
 				}
 				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64ths";
+					buffer = "64th";
 				}
 				display->displayPopup(buffer, 3, true);
 			}
@@ -627,19 +615,18 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
+	sessionView.renderOLED(image);
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
 	renderViewDisplay();
+	sessionView.redrawNumericDisplay();
 }
 
 void PerformanceSessionView::setLedStates() {
-	setCentralLEDStates();  // inherited from session view
+	setCentralLEDStates();
 	view.setLedStates();    // inherited from session view
 	view.setModLedStates(); // inherited from session view
-
-	// performanceView specific LED settings
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 }
 
 void PerformanceSessionView::setCentralLEDStates() {
@@ -650,6 +637,26 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+
+	// if you're in the default editing mode (editing param values, or param layout)
+	// blink keyboard button to show that you're in editing mode
+	// if there are changes to save while in editing mode, blink save button
+	// if you're not in editing mode, light up keyboard button to show that you're
+	// in performance view but not editing mode. also turn off save button led
+	// as we only blink save button when we're in editing mode
+	if (defaultEditingMode) {
+		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		if (anyChangesToSave) {
+			indicator_leds::blinkLed(IndicatorLED::SAVE);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
+		}
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	}
 }
 
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -836,9 +843,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// disable button presses for Vertical encoder
 	else if (b == Y_ENC) {
-		return ActionResult::DEALT_WITH;
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
 	}
 
 	else {
@@ -895,18 +903,57 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
-		// if you're using grid song view and you pressed / released a pad in the grid mode launcher column
-		else if (gridModeActive && (xDisplay == (kDisplayWidth + 1))) {
-			if (yDisplay == 0) {
-				if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
-					gridModeActive = false;
-					changeRootUI(&sessionView);
+		else if (xDisplay >= kDisplayWidth) {
+			// if in arranger view
+			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+				// pressing the first column in sidebar to trigger sections / clips
+				if (xDisplay == kDisplayWidth) {
+					arrangerView.handleStatusPadAction(yDisplay, on, this);
+				}
+				// pressing the second column in sidebar to audition / edit instrument
+				else {
+					arrangerView.handleAuditionPadAction(yDisplay, on, this);
+					// when you let go of audition pad action, you need to reset led states
+					if (!on) {
+						setCentralLEDStates();
+					}
 				}
 			}
-			else if ((yDisplay == 7) || (yDisplay == 6)) {
-				gridModeActive = false;
-				changeRootUI(&sessionView);
-				return sessionView.gridHandlePads(xDisplay, yDisplay, on);
+			// if in session view
+			else {
+				// if in row mode
+				if (!gridModeActive) {
+					sessionView.padAction(xDisplay, yDisplay, on);
+				}
+				// if in grid mode
+				else {
+					// if you're in grid song view and you pressed / release a pad in the section launcher column
+					if (xDisplay == kDisplayWidth) {
+						sessionView.gridHandlePads(xDisplay, yDisplay, on);
+					}
+					else {
+						// if you're using grid song view and you pressed / released a pad in the grid mode launcher
+						// column
+						if (xDisplay > kDisplayWidth) {
+							// pressing the pink mode pad
+							if (yDisplay == 0) {
+								// if you released the pink pad and it was held for longer than hold time
+								// switch back to session view (this happens if you enter performance view with a
+								// long press from grid mode - it just peeks performance view)
+								if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+									gridModeActive = false;
+									changeRootUI(&sessionView);
+								}
+							}
+							// if you pressed the green or blue mode pads, go back to grid view and change mode
+							else if ((yDisplay == 7) || (yDisplay == 6)) {
+								gridModeActive = false;
+								changeRootUI(&sessionView);
+								sessionView.gridHandlePads(xDisplay, yDisplay, on);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1192,7 +1239,7 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 /// in regular performance view, this function will also update the parameter value shown on the display
 bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1253,7 +1300,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 /// update current value stored
 void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1280,18 +1327,6 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			}
 		}
 	}
-}
-
-/// get's the modelstack for the parameters that are being edited
-ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
-                                                                        int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
 }
 
 /// converts grid pad press yDisplay into a knobPosition value default
@@ -1352,6 +1387,14 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
 	}
+	else {
+		if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+			sessionView.selectEncoderAction(offset);
+		}
+		else {
+			arrangerView.selectEncoderAction(offset);
+		}
+	}
 exit:
 	return;
 }
@@ -1393,6 +1436,12 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.verticalEncoderAction(offset, inCardRoutine);
+	}
+	else {
+		arrangerView.verticalEncoderAction(offset, inCardRoutine);
+	}
 	return ActionResult::DEALT_WITH;
 }
 

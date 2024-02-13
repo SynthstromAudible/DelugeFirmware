@@ -17,9 +17,8 @@
 
 #pragma once
 
-#include "RZA1/cpu_specific.h"
 #include "RZA1/system/iobitmasks/dmac_iobitmask.h"
-#include "RZA1/system/iodefines/dmac_iodefine.h"
+#include "stdint.h"
 
 #define DMA_INTERRUPT_0 INTC_ID_DMAINT0
 

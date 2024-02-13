@@ -16,45 +16,30 @@
  */
 
 #include "storage/storage_manager.h"
-#include "RZA1/gpio/gpio.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/colour.h"
-#include "gui/ui/load/load_song_ui.h"
+#include "drivers/pic/pic.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
-#include "io/midi/midi_engine.h"
-#include "lib/printf.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
-#include "util/functions.h"
-#include <new>
 #include <string.h>
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/uart/sio_char.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 
@@ -527,7 +512,6 @@ void StorageManager::xmlReadDone() {
 void StorageManager::skipUntilChar(char endChar) {
 
 	readXMLFileClusterIfNecessary(); // Does this need to be here? Originally I didn't have it...
-
 	do {
 		while (fileBufferCurrentPos < currentReadBufferEndPos && fileClusterBuffer[fileBufferCurrentPos] != endChar) {
 			fileBufferCurrentPos++;
@@ -880,7 +864,7 @@ uint32_t StorageManager::readCharXML(char* thisChar) {
 }
 
 void StorageManager::exitTag(char const* exitTagName) {
-
+	// back out the file depth to one less than the caller depth
 	while (tagDepthFile >= tagDepthCaller) {
 
 		if (xmlReachedEnd) {
@@ -920,8 +904,11 @@ void StorageManager::exitTag(char const* exitTagName) {
 			__builtin_unreachable();
 		}
 	}
-
-	tagDepthCaller--;
+	// It is possible for caller and file tag depths to get out of sync due to faulty error handling
+	// On exit reset the caller depth to match tag depth. File depth represents the parsers view of
+	// where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
+	// as the file will open past empty or unused tags, but should never be deeper.
+	tagDepthCaller = tagDepthFile;
 }
 
 void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
@@ -1305,7 +1292,7 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", "4.1.4-alpha");
+	writeAttribute("firmwareVersion", "c1.1.0");
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -1511,7 +1498,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 	if (error || !fileSuccess) {
 
 		void* toDealloc = static_cast<void*>(newDrum);
-		newDrum->~Drum();
+		newDrum->~SoundDrum();
 		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		return error;
 
@@ -1525,7 +1512,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
 		(*getInstrument)->wontBeRenderedForAWhile();
 		void* toDealloc = static_cast<void*>(*getInstrument);
-		(*getInstrument)->~Drum();
+		(*getInstrument)->~SoundDrum();
 		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 
@@ -1656,14 +1643,17 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 			else if (!strcasecmp(contents, "aftertouch")) {
 				cc = CC_NUMBER_AFTERTOUCH;
 			}
-			else if (!strcasecmp(contents, "none")
-			         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
+			else if (!strcasecmp(contents, "none")) {
 				cc = CC_NUMBER_NONE;
 			}
 			else {
 				cc = stringToInt(contents);
 			}
-			// TODO: Pre-V2.0 files could still have CC74, so ideally I'd move that to "expression" params here...
+			// will be sent as mod wheel and also map to internal mono expression
+			if (cc == CC_NUMBER_MOD_WHEEL) {
+				cc = CC_NUMBER_Y_AXIS;
+			}
+
 			exitTag("cc");
 		}
 		else if (!strcmp(tagName, "value")) {

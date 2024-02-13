@@ -14,10 +14,7 @@
  */
 
 #include "emulated_display.h"
-#include "hid/buttons.h"
 #include "model/settings/runtime_feature_settings.h"
-
-#include <cstdint>
 
 namespace deluge::gui::menu_item::runtime_feature {
 

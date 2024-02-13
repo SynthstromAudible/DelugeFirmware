@@ -16,18 +16,17 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::reverb::compressor {
+namespace deluge::gui::menu_item::reverb::sidechain {
 
 class Volume final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(AudioEngine::reverbCompressorVolume / 21474836); }
+	void readCurrentValue() override { this->setValue(AudioEngine::reverbSidechainVolume / 21474836); }
 	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorVolume = this->getValue() * 21474836;
+		AudioEngine::reverbSidechainVolume = this->getValue() * 21474836;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
@@ -55,4 +54,4 @@ public:
 	}
 };
 
-} // namespace deluge::gui::menu_item::reverb::compressor
+} // namespace deluge::gui::menu_item::reverb::sidechain

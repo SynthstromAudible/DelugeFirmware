@@ -18,7 +18,7 @@
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
-#include "dsp/filter/filter.h"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/context_menu/sample_browser/kit.h"
@@ -30,10 +30,11 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
@@ -45,6 +46,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
+#include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -55,10 +57,6 @@
 #include <cstring>
 #include <new>
 
-extern "C" {
-#include "RZA1/compiler/asm/inc/asm.h"
-}
-
 namespace params = deluge::modulation::params;
 
 #if AUTOMATED_TESTER_ENABLED
@@ -66,9 +64,7 @@ namespace params = deluge::modulation::params;
 #endif
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
-#include "drivers/mtu/mtu.h"
+#include "RZA1/mtu/mtu.h"
 #include "drivers/ssi/ssi.h"
 
 #include "RZA1/intc/devdrv_intc.h"
@@ -112,13 +108,13 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 
 dsp::Reverb reverb{};
-PLACE_INTERNAL_FRUNK SideChain reverbCompressor{};
-int32_t reverbCompressorVolume;
-int32_t reverbCompressorShape;
+PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
+int32_t reverbSidechainVolume;
+int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
 
-int32_t reverbCompressorVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
-int32_t reverbCompressorShapeInEffect;
+int32_t reverbSidechainVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
+int32_t reverbSidechainShapeInEffect;
 
 bool mustUpdateReverbParamsBeforeNextRender = false;
 
@@ -128,7 +124,9 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-RMSFeedbackCompressor mastercompressor{};
+float rmsLevel{0};
+AbsValueFollower envelopeFollower{};
+int32_t timeLastPopup{0};
 
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
@@ -684,17 +682,17 @@ startAgain:
 		mustUpdateReverbParamsBeforeNextRender = false;
 	}
 
-	// Render the reverb compressor
-	int32_t compressorOutput = 0;
-	if (reverbCompressorVolumeInEffect != 0) {
+	// Render the reverb sidechain
+	int32_t sidechainOutput = 0;
+	if (reverbSidechainVolumeInEffect != 0) {
 		if (sideChainHitPending != 0) {
-			reverbCompressor.registerHit(sideChainHitPending);
+			reverbSidechain.registerHit(sideChainHitPending);
 		}
 #if JFTRACE
 		rvb.begin();
 #endif
 
-		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
 #if JFTRACE
 		rvb.note();
 #endif
@@ -705,11 +703,13 @@ startAgain:
 
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
+	// around the mutable noise floor, ~70dB from peak
+	reverbOn |= (rmsLevel > 9);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(compressorOutput, reverbCompressorVolumeInEffect) + 0x20000000;
+		    multiply_32x32_rshift32(sidechainOutput, reverbSidechainVolumeInEffect) + 0x20000000;
 		int32_t reverbOutputVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
 
 		// Reverb panning
@@ -781,26 +781,26 @@ startAgain:
 				masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, amplitudeR) << 2;
 			}
 		}
-	}
-	logAction("mastercomp start");
-	int32_t songVolume;
-	if (currentSong) {
-		songVolume =
+		logAction("mastercomp start");
+
+		int32_t songVolume =
 		    getFinalParameterValueVolume(
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       deluge::modulation::params::UNPATCHED_VOLUME)))
 		    >> 1;
-	}
-	else {
-		songVolume = 1 << 26;
+		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
+		// equivalent
+		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples,
+		                                                masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
+		                                                songVolume >> 3);
+		masterVolumeAdjustmentL = ONE_Q31;
+		masterVolumeAdjustmentR = ONE_Q31;
+		logAction("mastercomp end");
 	}
 
-	mastercompressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR,
-	                        songVolume);
-	masterVolumeAdjustmentL = ONE_Q31;
-	masterVolumeAdjustmentR = ONE_Q31;
-	logAction("mastercomp end");
 	metronome.render(renderingBuffer.data(), numSamples);
+
+	rmsLevel = envelopeFollower.calcRMS(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
@@ -1125,8 +1125,8 @@ void logAction(int32_t number) {
 
 void updateReverbParams() {
 
-	// If reverb compressor on "auto" settings...
-	if (reverbCompressorVolume < 0) {
+	// If reverb sidechain on "auto" settings...
+	if (reverbSidechainVolume < 0) {
 
 		// Just leave everything as is if parts deleted cos loading new song
 		if (getCurrentUI() == &loadSongUI && loadSongUI.deletedPartsOfOldSong) {
@@ -1157,41 +1157,41 @@ void updateReverbParams() {
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
-			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
+			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
-				reverbCompressorVolumeInEffect =
+				reverbSidechainVolumeInEffect =
 				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
-				reverbCompressorVolumeInEffect = 0;
+				reverbSidechainVolumeInEffect = 0;
 			}
-			goto compressorFound;
+			goto sidechainFound;
 		}
 		else if (globalEffectableWithMostReverb) {
 			modControllable = globalEffectableWithMostReverb;
 
-			reverbCompressorVolumeInEffect =
+			reverbSidechainVolumeInEffect =
 			    globalEffectableWithMostReverb->getSidechainVolumeAmountAsPatchCableDepth(paramManagerWithMostReverb);
 
-compressorFound:
-			reverbCompressorShapeInEffect =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_COMPRESSOR_SHAPE);
-			reverbCompressor.attack = modControllable->compressor.attack;
-			reverbCompressor.release = modControllable->compressor.release;
-			reverbCompressor.syncLevel = modControllable->compressor.syncLevel;
+sidechainFound:
+			reverbSidechainShapeInEffect =
+			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
+			reverbSidechain.attack = modControllable->sidechain.attack;
+			reverbSidechain.release = modControllable->sidechain.release;
+			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;
 			return;
 		}
 
 		// Or if no thing has more reverb than the Song itself...
 		else {
-			reverbCompressorVolumeInEffect = 0;
+			reverbSidechainVolumeInEffect = 0;
 			return;
 		}
 	}
 
-	// Otherwise, use manually set params for reverb compressor
-	reverbCompressorVolumeInEffect = reverbCompressorVolume;
-	reverbCompressorShapeInEffect = reverbCompressorShape;
+	// Otherwise, use manually set params for reverb sidechain
+	reverbSidechainVolumeInEffect = reverbSidechainVolume;
+	reverbSidechainShapeInEffect = reverbSidechainShape;
 }
 
 void registerSideChainHit(int32_t strength) {
@@ -1234,20 +1234,11 @@ void getReverbParamsFromSong(Song* song) {
 	reverb.setDamping(song->reverbDamp);
 	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
-	reverbCompressorVolume = song->reverbCompressorVolume;
-	reverbCompressorShape = song->reverbCompressorShape;
-	reverbCompressor.attack = song->reverbCompressorAttack;
-	reverbCompressor.release = song->reverbCompressorRelease;
-	reverbCompressor.syncLevel = song->reverbCompressorSync;
-}
-
-void getMasterCompressorParamsFromSong(Song* song) {
-	q31_t a = song->masterCompressorAttack;
-	q31_t r = song->masterCompressorRelease;
-	q31_t t = song->masterCompressorThresh;
-	q31_t rat = song->masterCompressorRatio;
-	q31_t fc = song->masterCompressorSidechain;
-	mastercompressor.setup(a, r, t, rat, fc);
+	reverbSidechainVolume = song->reverbSidechainVolume;
+	reverbSidechainShape = song->reverbSidechainShape;
+	reverbSidechain.attack = song->reverbSidechainAttack;
+	reverbSidechain.release = song->reverbSidechainRelease;
+	reverbSidechain.syncLevel = song->reverbSidechainSync;
 }
 
 Voice* solicitVoice(Sound* forSound) {

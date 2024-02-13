@@ -20,18 +20,14 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour/colour.h"
+#include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
+#include "util/cfunctions.h"   // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/d_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <bit>
-#include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <stdint.h>
-extern "C" {
-#include "util/cfunctions.h"
-}
 
 class UI;
 
@@ -155,14 +151,8 @@ ModFXParam stringToModFXParam(char const* string);
 char const* filterTypeToString(FilterType fxType);
 FilterType stringToFilterType(char const* string);
 
-FilterRoute stringToFilterRoute(char const* string);
-char const* filterRouteToString(FilterRoute route);
-
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
-
-char const* lpfTypeToString(FilterMode lpfType);
-FilterMode stringToLPFType(char const* string);
 
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);

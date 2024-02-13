@@ -1,9 +1,7 @@
 #pragma once
 #include "util/const_functions.h"
 #include "util/fixedpoint.h"
-#include "util/misc.h"
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -57,6 +55,20 @@ public:
 	 * @return RGB A pastel colour
 	 */
 	static RGB fromHuePastel(int32_t hue);
+
+	/**
+	 * @brief Create a new colour by transforming each channel of a colour
+	 *
+	 * @tparam UnaryOp The function type (should be equivalent to std::function<channel_type(channel_type)>)
+	 * @param transformFn The function to apply to each channel, taking a channel_type value and returning a
+	 * channel_type value
+	 * @return RGB The new colour
+	 */
+	template <typename UnaryOp> // std::function<channel_type(channel_type)>
+	requires std::convertible_to<UnaryOp, std::function<channel_type(channel_type)>>
+	[[nodiscard]] constexpr RGB transform(UnaryOp transformFn) const {
+		return RGB(transformFn(r), transformFn(g), transformFn(b));
+	}
 
 	/**
 	 * @brief Create a derived colour for tails (used by views)
@@ -211,20 +223,6 @@ public:
 	constexpr channel_type* end() { return (&this->b + 1); }
 
 	/**
-	 * @brief Create a new colour by transforming each channel of a colour
-	 *
-	 * @tparam UnaryOp The function type (should be equivalent to std::function<channel_type(channel_type)>)
-	 * @param transformFn The function to apply to each channel, taking a channel_type value and returning a
-	 * channel_type value
-	 * @return RGB The new colour
-	 */
-	template <typename UnaryOp> // std::function<channel_type(channel_type)>
-	requires std::convertible_to<UnaryOp, std::function<channel_type(channel_type)>>
-	[[nodiscard]] constexpr RGB transform(UnaryOp transformFn) const {
-		return RGB(transformFn(r), transformFn(g), transformFn(b));
-	}
-
-	/**
 	 * @brief Create a new colour by transforming the channels of two colours
 	 *
 	 * @tparam BinaryOp The function type (should be equivalent to std::function<channel_type(channel_type,
@@ -264,8 +262,8 @@ private:
 	    {0, 0, ONE_Q15, 0},
 	    {0, 0, 0, ONE_Q15},
 	};
-	static constexpr float c = std::cos(1.0f);
-	static constexpr float s = std::sin(1.0f);
+	static constexpr float c = 0.5403f;
+	static constexpr float s = 0.8414f;
 	static constexpr uint32_t RMat[4][4] = {
 	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s* ONE_Q15), 0},
 	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c* ONE_Q15), 0, 0},

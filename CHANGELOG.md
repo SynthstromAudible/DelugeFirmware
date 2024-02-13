@@ -2,11 +2,17 @@
 
 ## c1.1.0 Beethoven
 
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+
 ### Sound Engine
 
 - Added an adapted version of the reverb found in Émilie Gillet's Mutable Instruments Rings module. Can be enabled via a new `REVERB MODEL` sub-menu under the existing Reverb menu. 
     - The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb model used with those songs.
+- Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their respective menus.
+- Fixed a bug in compressor makeup gain that was causing lower volume than official with low compression amounts. For songs made with community release 1.0.x, you can compensate by slightly lowering the song master level. This is done via affect entire in song/arranger mode, or by using the song menu (press select) -> Master -> Volume
+- Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
+
 
 ### User Interface
 
@@ -22,13 +28,14 @@
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
 - Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger, Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and turn `▼︎▲︎` to transpose the clips by +/- 1 semitone). The number of semitones transposed is customizable (Press shift and turn `▼︎▲︎`). After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
 - Added parameter name to Mod (Gold) Encoder popups.
 - `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
-- Added a new community setting which allows emulating the old 7SEG style on the OLED display.
+- Added a new community setting which allows emulating the 7SEG style on the OLED display.
 - Fixed several cases where popups could get stuck open.
 - Fixed a number of minor rendering bugs.
 
@@ -43,6 +50,7 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for "gentle paste" of notes which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
+- The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without unexpectedly changing the scale and root note of the whole song.
 
 ### Audio Clips
 

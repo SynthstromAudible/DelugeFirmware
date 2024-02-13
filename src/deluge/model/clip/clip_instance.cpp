@@ -22,7 +22,6 @@
 #include "model/consequence/consequence_clip_instance_change.h"
 #include "util/functions.h"
 #include <new>
-#include <string.h>
 
 ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub

@@ -16,10 +16,8 @@
  */
 
 #include "model/note/note_vector.h"
-#include "io/debug/print.h"
 #include "model/note/note.h"
-#include <cstdint>
-#include <string.h>
+#include <cstring>
 
 NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
 }

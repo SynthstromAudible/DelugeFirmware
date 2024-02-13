@@ -20,15 +20,13 @@
 #include "gui/menu_item/menu_item.h"
 
 namespace deluge::gui::menu_item {
-class MultiRange;
 
 class FileSelector final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool isRelevant(Sound* sound, int32_t whichThing) override;
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
-	                                             ::MultiRange** currentRange) override;
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
 };
 
 extern FileSelector fileSelectorMenu;

@@ -16,30 +16,13 @@
  */
 
 #include "deluge.h"
-#include "NE10.h"
-#include "RZA1/system/iodefine.h"
+
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
-#include "dsp/stereo_sample.h"
-#include "gui/context_menu/audio_input_selector.h"
-#include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/delete_file.h"
-#include "gui/context_menu/load_instrument_preset.h"
-#include "gui/context_menu/overwrite_file.h"
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
-#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/rename/rename_drum_ui.h"
-#include "gui/ui/rename/rename_output_ui.h"
-#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
-#include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -49,27 +32,22 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "gui/waveform/waveform_basic_navigator.h"
-#include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
-#include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "lib/printf.h"
+#include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "memory/general_memory_allocator.h"
-#include "model/action/action_logger.h"
-#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/note/note.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -79,16 +57,11 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "testing/hardware_testing.h"
-#include "util/container/hashtable/open_addressing_hash_table.h"
 #include "util/misc.h"
 #include "util/pack.h"
-#include <new>
 #include <stdlib.h>
-#include <string.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -97,21 +70,13 @@
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/system/rza_io_regrw.h"
-#include "RZA1/uart/sio_char.h"
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "drivers/mtu/mtu.h"
 #include "drivers/oled/oled.h"
 #include "drivers/ssi/ssi.h"
 #include "drivers/uart/uart.h"
-#include "fatfs/diskio.h"
 #include "fatfs/ff.h"
 
-#include "RZA1/bsc/bsc_userdef.h"
 #include "RZA1/rspi/rspi.h"
 #include "RZA1/spibsc/spibsc_Deluge_setup.h"
-#include "RZA1/ssi/ssi.h"
-#include "drivers/usb/userdef/r_usb_pmidi_config.h"
 }
 
 extern uint8_t currentlyAccessingCard;
@@ -422,14 +387,14 @@ bool readButtonsAndPads() {
 void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
-
+	Clip* currentClip = song->getCurrentClip();
 	// If in a Clip-minder view
-	if (getCurrentClip() && song->inClipMinderViewOnLoad) {
-		if (getCurrentClip()->onAutomationClipView) {
+	if (currentClip && song->inClipMinderViewOnLoad) {
+		if (currentClip->onAutomationClipView) {
 			newUI = &automationView;
 		}
-		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-			if (getCurrentInstrumentClip()->onKeyboardScreen) {
+		else if (currentClip->type == ClipType::INSTRUMENT) {
+			if (((InstrumentClip*)currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
 			else {
@@ -474,7 +439,6 @@ void setupBlankSong() {
 	preLoadedSong = NULL;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
-	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
@@ -641,17 +605,16 @@ extern "C" int32_t deluge_main(void) {
 
 	// Check if the user is holding down the select knob to do a factory reset
 	bool readingFirmwareVersion = false;
-	bool looksOk = true;
+	bool otherButtonsOrEvents = false;
 
-	PIC::read(0x8000, [&readingFirmwareVersion, &looksOk](auto response) {
+	PIC::read(0x8000, [&readingFirmwareVersion, &otherButtonsOrEvents](auto response) {
 		if (readingFirmwareVersion) {
 			readingFirmwareVersion = false;
 			uint8_t value = util::to_underlying(response);
-
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
 			D_PRINTLN("PIC firmware version reported: %s", value);
-			return 0; // continue
+			return 0;
 		}
 
 		using enum PIC::Response;
@@ -660,15 +623,18 @@ extern "C" int32_t deluge_main(void) {
 			readingFirmwareVersion = true;
 			return 0;
 
-		case UNKNOWN_BREAK:
-			return 1;
-
 		case RESET_SETTINGS:
-			if (looksOk) {
-				display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+			if (!otherButtonsOrEvents) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
 				FlashStorage::resetSettings();
 				FlashStorage::writeSettings();
 			}
+			return 0;
+
+		case UNKNOWN_BREAK:
+			return 1;
+
+		case UNKNOWN_BOOT_RESPONSE: // value 129. Happens every boot. If you know what this is, please rename!
 			return 0;
 
 		default:
@@ -677,8 +643,7 @@ extern "C" int32_t deluge_main(void) {
 				return 0;
 			}
 			// If any hint of another button being held, don't do anything.
-			// (Unless we already did in which case, well it's probably ok.)
-			looksOk = false;
+			otherButtonsOrEvents = true;
 			return 0;
 		}
 	});
@@ -843,43 +808,6 @@ bool inSpamMode = false;
 extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if ENABLE_TEXT_OUTPUT
-// only called from the D_PRINT macros
-void logDebug(enum DebugPrintMode mode, const char* file, int line, size_t bufsize, const char* format, ...) {
-	static char buffer[512];
-	va_list args;
-
-	// Start variadic argument processing
-	va_start(args, format);
-	// Compose the log message into the buffer
-	const char* baseFile = getFileNameFromEndOfPath(file);
-	if (mode == kDebugPrintModeRaw) {
-		vsnprintf(buffer, bufsize, format, args);
-	}
-	else {
-		snprintf(buffer, sizeof(buffer), "%s:%d: ", baseFile, line);
-		vsnprintf(buffer + strlen(buffer), bufsize - strlen(buffer), format, args);
-	}
-	// End variadic argument processing
-	va_end(args);
-
-	// Pass the buffer to another logging library
-	if (mode == kDebugPrintModeNewlined) {
-		Debug::println(buffer);
-	}
-	else {
-		Debug::print(buffer);
-	}
-}
-#endif
-
-#ifdef __cplusplus
-}
-#endif
 
 extern "C" void routineForSD(void) {
 

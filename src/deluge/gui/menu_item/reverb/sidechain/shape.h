@@ -15,18 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patch_cable_strength/fixed.h"
+#include "gui/menu_item/integer.h"
+#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::compressor {
+namespace deluge::gui::menu_item::reverb::sidechain {
 
-class VolumeShortcut final : public patch_cable_strength::Fixed {
+class Shape final : public Integer {
 public:
-	using Fixed::Fixed;
+	using Integer::Integer;
+	void readCurrentValue() override {
+		this->setValue((((int64_t)AudioEngine::reverbSidechainShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
+	}
 	void writeCurrentValue() override {
-		Fixed::writeCurrentValue();
+		AudioEngine::reverbSidechainShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbSidechainVolume >= 0); }
 };
-
-} // namespace deluge::gui::menu_item::compressor
+} // namespace deluge::gui::menu_item::reverb::sidechain

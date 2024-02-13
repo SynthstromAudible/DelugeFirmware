@@ -20,44 +20,26 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include "util/functions.h"
-#include <string.h>
+#include <cstring>
 
 int16_t lastNoteOffOrder = 1;
 
-MIDIInstrument::MIDIInstrument() : NonAudioInstrument(OutputType::MIDI_OUT) {
-	channelSuffix = -1;
+MIDIInstrument::MIDIInstrument()
+    : NonAudioInstrument(OutputType::MIDI_OUT), mpeOutputMemberChannels(),
+      ratio(float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN])),
+      modKnobCCAssignments() {
 	modKnobMode = 0;
-	memset(modKnobCCAssignments, CC_NUMBER_NONE, sizeof(modKnobCCAssignments));
-
-	for (int32_t c = 0; c <= 15; c++) {
-		mpeOutputMemberChannels[c].lastNoteCode = 32767;
-		mpeOutputMemberChannels[c].noteOffOrder = 0;
-	}
-	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-		lastMonoExpression[i] = 0;
-		lastCombinedPolyExpression[i] = 0;
-	}
-
-	collapseAftertouch = false;
-	collapseMPE = true;
-	ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+	modKnobCCAssignments.fill(CC_NUMBER_NONE);
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -167,7 +149,6 @@ noParam:
 	case CC_NUMBER_PITCH_BEND:
 		paramId = 0;
 		goto expressionParam;
-
 	case CC_NUMBER_Y_AXIS:
 		paramId = 1;
 		goto expressionParam;
@@ -230,7 +211,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 	int32_t masterChannel = getOutputMasterChannel();
 
 	switch (whichExpressionDimension) {
-	case 0: {
+	case X_PITCH_BEND: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
@@ -238,16 +219,20 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		break;
 	}
 
-	case 1: {
-		// mono y expression is limited to positive values, double it to match range
-		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 25) + 64;
+	case Y_SLIDE_TIMBRE: {
+		// mono y expression is limited to positive values
+		// this means that without sending CC1 on the master channel poly expression below 64 will
+		// send as mod wheel 0. However this is better than the alternative of sending erroneous values
+		// because the sound engine initializes MPE-Y as 0 (e.g. a CC value of 64)
+		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
 		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
-		midiEngine.sendCC(masterChannel, 1, newValue, channel);
+
+		midiEngine.sendCC(masterChannel, CC_NUMBER_MOD_WHEEL, newValue, channel);
 		break;
 	}
-	case 2: {
+	case Z_PRESSURE: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension])
 		                   >> 24;
@@ -425,6 +410,10 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 	}
 	else if (newCC >= kNumCCNumbersIncludingFake) {
 		newCC -= kNumCCNumbersIncludingFake;
+	}
+	if (newCC == 1) {
+		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+		newCC += offset;
 	}
 
 	*cc = newCC;
@@ -787,7 +776,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		if (collapseMPE) {
 			combineMPEtoMono(0, X_PITCH_BEND);
 			// This is CC74 value of 0
-			combineMPEtoMono(NEGATIVE_ONE_Q31, Y_SLIDE_TIMBRE);
+			combineMPEtoMono(0, Y_SLIDE_TIMBRE);
 		}
 	}
 
@@ -996,4 +985,24 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 		lastCombinedPolyExpression[whichExpressionDimension] = value32;
 		sendMonophonicExpressionEvent(whichExpressionDimension);
 	}
+}
+
+ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                                int32_t paramID,
+                                                                deluge::modulation::params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;
+
+		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+
+			modelStackWithParam = getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
+		}
+	}
+
+	return modelStackWithParam;
 }

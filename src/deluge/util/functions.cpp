@@ -22,14 +22,10 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
-#include "io/debug/print.h"
-#include "model/action/action_logger.h"
-#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
+#include <cmath>
 #include <string.h>
 
 extern "C" {
@@ -284,7 +280,7 @@ char const* sourceToString(PatchSource source) {
 	case PatchSource::NOTE:
 		return "note";
 
-	case PatchSource::COMPRESSOR:
+	case PatchSource::SIDECHAIN:
 		return "compressor";
 
 	case PatchSource::RANDOM:
@@ -327,8 +323,8 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	case PatchSource::NOTE:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_NOTE);
 
-	case PatchSource::COMPRESSOR:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_COMPRESSOR);
+	case PatchSource::SIDECHAIN:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_SIDECHAIN);
 
 	case PatchSource::RANDOM:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_RANDOM);
@@ -378,7 +374,7 @@ char const* sourceToStringShort(PatchSource source) {
 	case PatchSource::NOTE:
 		return "note";
 
-	case PatchSource::COMPRESSOR:
+	case PatchSource::SIDECHAIN:
 		return "comp";
 
 	case PatchSource::RANDOM:
@@ -937,31 +933,6 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
-char const* filterRouteToString(FilterRoute route) {
-	switch (route) {
-	case FilterRoute::LOW_TO_HIGH:
-		return "L2H";
-
-	case FilterRoute::PARALLEL:
-		return "PARA";
-
-	default:
-		return "H2L";
-	}
-}
-
-FilterRoute stringToFilterRoute(char const* string) {
-	if (!strcmp(string, "L2H")) {
-		return FilterRoute::LOW_TO_HIGH;
-	}
-	else if (!strcmp(string, "PARA")) {
-		return FilterRoute::PARALLEL;
-	}
-	else {
-		return FilterRoute::HIGH_TO_LOW;
-	}
-}
-
 char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
 	case ArpMode::UP:
@@ -996,49 +967,6 @@ ArpMode stringToArpMode(char const* string) {
 	}
 	else {
 		return ArpMode::OFF;
-	}
-}
-// converts lpf/hpf mode to string for saving
-char const* lpfTypeToString(FilterMode lpfType) {
-	switch (lpfType) {
-	case FilterMode::TRANSISTOR_12DB:
-		return "12dB";
-
-	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		return "24dBDrive";
-	case FilterMode::SVF_BAND:
-		return "SVF_Band";
-	case FilterMode::HPLADDER:
-		return "HPLadder";
-	case FilterMode::SVF_NOTCH:
-		return "SVF_Notch";
-	default:
-		return "24dB";
-	}
-}
-
-FilterMode stringToLPFType(char const* string) {
-	if (!strcmp(string, "24dB")) {
-		return FilterMode::TRANSISTOR_24DB;
-	}
-	else if (!strcmp(string, "24dBDrive")) {
-		return FilterMode::TRANSISTOR_24DB_DRIVE;
-	}
-	else if (!strcmp(string, "SVF_Band")) {
-		return FilterMode::SVF_BAND;
-	}
-	else if (!strcmp(string, "SVF")) {
-		// for compatibility with community pre release
-		return FilterMode::SVF_BAND;
-	}
-	else if (!strcmp(string, "HPLadder")) {
-		return FilterMode::HPLADDER;
-	}
-	else if (!strcmp(string, "SVF_Notch")) {
-		return FilterMode::SVF_NOTCH;
-	}
-	else {
-		return FilterMode::TRANSISTOR_12DB;
 	}
 }
 
@@ -1212,10 +1140,10 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case params::STATIC_COMPRESSOR_ATTACK:
+	case params::STATIC_SIDECHAIN_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case params::STATIC_COMPRESSOR_RELEASE:
+	case params::STATIC_SIDECHAIN_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
 	case params::LOCAL_OSC_A_PHASE_WIDTH:
@@ -1223,7 +1151,7 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 		return (uint32_t)userValue * (85899345 >> 1);
 
 	case params::PATCH_CABLE:
-	case params::STATIC_COMPRESSOR_VOLUME:
+	case params::STATIC_SIDECHAIN_VOLUME:
 		return userValue * 21474836;
 
 	case params::UNPATCHED_START + params::UNPATCHED_BASS:
@@ -1936,6 +1864,9 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString) {
 	}
 	else if (!strcmp(firmwareVersionString, "4.1.4")) {
 		return FIRMWARE_4P1P4;
+	}
+	else if (!strcmp(firmwareVersionString, "c1.1.0")) {
+		return COMMUNITY_1P1;
 	}
 
 	else {

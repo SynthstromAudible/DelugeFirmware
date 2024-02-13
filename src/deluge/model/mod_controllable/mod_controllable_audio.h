@@ -18,13 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
-#include "dsp/stereo_sample.h"
 #include "hid/button.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
-#include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/sidechain/sidechain.h"
 
@@ -69,7 +69,7 @@ public:
 	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager);
 	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
 	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
-	                                int32_t pan = 0, bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
+	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile();
 	void writeTagsToFile();
 	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
@@ -104,8 +104,6 @@ public:
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation);
 
 	// Phaser
 	StereoSample phaserMemory;
@@ -135,6 +133,8 @@ public:
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
 
+	RMSFeedbackCompressor compressor;
+
 	// Grain
 	int32_t wrapsToShutdown;
 	void setWrapsToShutdown();
@@ -159,9 +159,10 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	SideChain compressor; // Song doesn't use this, despite extending this class
+	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
+	int32_t postReverbVolumeLastTime;
 
 private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
@@ -196,6 +197,7 @@ protected:
 	char const* getDelaySyncTypeDisplayName();
 	void getDelaySyncLevelDisplayName(char* displayName);
 
+	char const* getSidechainDisplayName();
 	void displayLPFMode(bool on);
 	void displayHPFMode(bool on);
 	void displayDelaySettings(bool on);

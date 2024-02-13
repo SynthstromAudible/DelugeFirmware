@@ -17,7 +17,7 @@
 
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
                                                                                int32_t newNumWordsInKey)
     : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {

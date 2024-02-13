@@ -19,11 +19,8 @@
 #include <cstring>
 
 #include "gui/menu_item/integer.h"
-
-#include "gui/ui/sound_editor.h"
-#include "util/cfunctions.h"
-
 #include "processing/engines/audio_engine.h"
+#include "util/cfunctions.h"
 
 namespace deluge::gui::menu_item::reverb {
 class Pan final : public Integer {

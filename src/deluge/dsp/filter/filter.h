@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "deluge/dsp/stereo_sample.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "util/fixedpoint.h"
+#include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
 constexpr uint32_t ONE_Q31U = 2147483648u;

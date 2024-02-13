@@ -26,7 +26,7 @@
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/cfunctions.h"
@@ -620,7 +620,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 	PIC::update7SEG(segments);
 }
 
-// Highest error code used, main branch: E451
+// Highest error code used, main branch: E452
 // Highest error code used, fix branch: i041
 
 void SevenSegment::freezeWithError(char const* text) {

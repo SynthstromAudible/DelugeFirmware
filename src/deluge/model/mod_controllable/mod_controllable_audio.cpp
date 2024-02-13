@@ -23,28 +23,19 @@
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "memory/general_memory_allocator.h"
+#include "mem_functions.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "model/timeline_counter.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
-#include "util/fast_fixed_math.h"
-#include "util/misc.h"
-#include <string.h>
 
 namespace params = deluge::modulation::params;
 
@@ -53,11 +44,11 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 ModControllableAudio::ModControllableAudio() {
 
 	// Mod FX
-	modFXBuffer = NULL;
+	modFXBuffer = nullptr;
 	modFXBufferWriteIndex = 0;
 
 	// Grain
-	modFXGrainBuffer = NULL;
+	modFXGrainBuffer = nullptr;
 	wrapsToShutdown = 0;
 	modFXGrainBufferWriteIndex = 0;
 	grainShift = 13230; // 300ms
@@ -126,7 +117,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
 	filterRoute = other->filterRoute;
-	compressor.cloneFrom(&other->compressor);
+	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
 	delay.cloneFrom(&other->delay);
 }
@@ -148,7 +139,8 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
@@ -905,8 +897,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
-                                                      int32_t amplitudeIncrement) {
+                                                      int32_t reverbSendAmount, int32_t pan,
+                                                      bool doAmplitudeIncrement) {
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
@@ -918,7 +910,10 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
-		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, amplitudeIncrement) << 5);
+		auto postReverbSendVolumeIncrement =
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		amplitudeIncrementL = amplitudeIncrementR =
+		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
 
 	if (pan != 0 && AudioEngine::renderInStereo) {
@@ -960,6 +955,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	if (reverbSendAmount != 0) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
+	postReverbVolumeLastTime = postReverbVolume;
 }
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
@@ -1192,12 +1188,12 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
-	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
 	// a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
 	// Convert back to value range
-	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
+	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
 	int32_t rate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
@@ -1288,12 +1284,21 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	storageManager.closeTag();
 
-	// Sidechain compressor
-	storageManager.writeOpeningTagBeginning("compressor");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", compressor.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", compressor.syncLevel);
-	storageManager.writeAttribute("attack", compressor.attack);
-	storageManager.writeAttribute("release", compressor.release);
+	// Sidechain
+	storageManager.writeOpeningTagBeginning("sidechain");
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	storageManager.writeAttribute("attack", sidechain.attack);
+	storageManager.writeAttribute("release", sidechain.release);
+	storageManager.closeTag();
+
+	// Audio compressor
+	storageManager.writeOpeningTagBeginning("audioCompressor");
+	storageManager.writeAttribute("attack", compressor.getAttack());
+	storageManager.writeAttribute("release", compressor.getRelease());
+	storageManager.writeAttribute("thresh", compressor.getThreshold());
+	storageManager.writeAttribute("ratio", compressor.getRatio());
+	storageManager.writeAttribute("compHPF", compressor.getSidechain());
 	storageManager.closeTag();
 
 	// MIDI knobs
@@ -1347,6 +1352,8 @@ void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
+	                                       writeAutomation, false, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
@@ -1416,6 +1423,11 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 	else if (!strcmp(tagName, "modFXFeedback")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modFXFeedback");
+	}
+	else if (!strcmp(tagName, "compressorThreshold")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("compressorThreshold");
 	}
 
 	else {
@@ -1504,33 +1516,68 @@ doReadPatchedParam:
 		storageManager.exitTag("delay");
 	}
 
-	else if (!strcmp(tagName, "compressor")) { // Remember, Song doesn't use this
-		// Set default values in case they are not configured
-		compressor.syncType = SYNC_TYPE_EVEN;
-		compressor.syncLevel = SYNC_LEVEL_NONE;
-
+	else if (!strcmp(tagName, "audioCompressor")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				compressor.attack = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+				compressor.setAttack(masterCompressorAttack);
 				storageManager.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				compressor.release = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+				compressor.setRelease(masterCompressorRelease);
+				storageManager.exitTag("release");
+			}
+			else if (!strcmp(tagName, "thresh")) {
+				q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+				compressor.setThreshold(masterCompressorThresh);
+				storageManager.exitTag("thresh");
+			}
+			else if (!strcmp(tagName, "ratio")) {
+				q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+				compressor.setRatio(masterCompressorRatio);
+				storageManager.exitTag("ratio");
+			}
+			else if (!strcmp(tagName, "compHPF")) {
+				q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+				compressor.setSidechain(masterCompressorSidechain);
+				storageManager.exitTag("compHPF");
+			}
+			else {
+				storageManager.exitTag(tagName);
+			}
+		}
+		storageManager.exitTag("AudioCompressor");
+	}
+	// this is actually the sidechain but pre c1.1 songs save it as compressor
+	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
+		// Set default values in case they are not configured
+		const char* name = tagName;
+		sidechain.syncType = SYNC_TYPE_EVEN;
+		sidechain.syncLevel = SYNC_LEVEL_NONE;
+
+		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "attack")) {
+				sidechain.attack = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("attack");
+			}
+			else if (!strcmp(tagName, "release")) {
+				sidechain.release = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				compressor.syncType = storageManager.readSyncTypeFromFile(song);
+				sidechain.syncType = storageManager.readSyncTypeFromFile(song);
 				storageManager.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				compressor.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
+				sidechain.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
 				storageManager.exitTag("syncLevel");
 			}
 			else {
 				storageManager.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("compressor");
+		storageManager.exitTag(name);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
@@ -1538,7 +1585,7 @@ doReadPatchedParam:
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "midiKnob")) {
 
-				MIDIDevice* device = NULL;
+				MIDIDevice* device = nullptr;
 				uint8_t channel;
 				uint8_t ccNumber;
 				bool relative;
@@ -1621,7 +1668,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* kn
 
 ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
                                                                              int32_t noteRowIndex) {
-	NoteRow* noteRow = NULL;
+	NoteRow* noteRow = nullptr;
 	int32_t noteRowId = 0;
 	ParamManager* paramManager;
 
@@ -1643,8 +1690,8 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		else {
 			paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
 			    this,
-			    NULL); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they even
-			           // have them).
+			    nullptr); // Could be NULL if a NonAudioInstrument - those don't back up any paramManagers (when they
+			              // even have them).
 		}
 	}
 
@@ -2221,7 +2268,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
-		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
 		}
@@ -2411,7 +2458,7 @@ char const* ModControllableAudio::getHPFModeDisplayName() {
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	delay.discardBuffers();
-	endStutter(NULL);
+	endStutter(nullptr);
 }
 
 void ModControllableAudio::clearModFXMemory() {
@@ -2524,26 +2571,36 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	return anythingFound;
 }
 
-ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t whichModEncoder,
-                                                                      ModelStackWithThreeMainThings* modelStack,
-                                                                      bool allowCreation) {
-
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-
-	int32_t paramId;
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	ParamCollection* paramCollection = summary->paramCollection;
-
-	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
-	return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
+char const* ModControllableAudio::getSidechainDisplayName() {
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+	using enum deluge::l10n::String;
+	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST);
+	}
 }
 
 void ModControllableAudio::displayLPFMode(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
-		popupMsg.append("LPF: ");
-		popupMsg.append(getLPFModeDisplayName());
-		display->displayPopup(popupMsg.c_str());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+			popupMsg.append("LPF: ");
+			popupMsg.append(getLPFModeDisplayName());
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
@@ -2557,10 +2614,16 @@ void ModControllableAudio::displayLPFMode(bool on) {
 
 void ModControllableAudio::displayHPFMode(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
-		popupMsg.append("HPF: ");
-		popupMsg.append(getHPFModeDisplayName());
-		display->displayPopup(popupMsg.c_str());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+			popupMsg.append("HPF: ");
+			popupMsg.append(getHPFModeDisplayName());
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
 	}
 	else {
 		if (on) {
@@ -2574,25 +2637,30 @@ void ModControllableAudio::displayHPFMode(bool on) {
 
 void ModControllableAudio::displayDelaySettings(bool on) {
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 100);
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-		    == RuntimeFeatureStateToggle::On) {
-			popupMsg.append("Sync Type: ");
-			popupMsg.append(getDelaySyncTypeDisplayName());
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+			    == RuntimeFeatureStateToggle::On) {
+				popupMsg.append("Type: ");
+				popupMsg.append(getDelaySyncTypeDisplayName());
 
-			popupMsg.append("\n Sync Level: ");
-			char displayName[30];
-			getDelaySyncLevelDisplayName(displayName);
-			popupMsg.append(displayName);
+				popupMsg.append("\nLevel: ");
+				char displayName[30];
+				getDelaySyncLevelDisplayName(displayName);
+				popupMsg.append(displayName);
+			}
+			else {
+				popupMsg.append(getDelayTypeDisplayName());
+
+				popupMsg.append("\nPing pong: ");
+				popupMsg.append(getDelayPingPongStatusDisplayName());
+			}
+
+			display->popupText(popupMsg.c_str());
 		}
 		else {
-			popupMsg.append(getDelayTypeDisplayName());
-
-			popupMsg.append("\n Ping pong: ");
-			popupMsg.append(getDelayPingPongStatusDisplayName());
+			display->cancelPopup();
 		}
-
-		display->displayPopup(popupMsg.c_str());
 	}
 	else {
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)

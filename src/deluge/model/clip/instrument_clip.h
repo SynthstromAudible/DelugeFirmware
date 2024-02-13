@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/colour/colour.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
@@ -76,6 +75,7 @@ public:
 	void musicalModeChanged(uint8_t, int32_t, ModelStackWithTimelineCounter* modelStack);
 	void seeWhatNotesWithinOctaveArePresent(bool[], int32_t, Song* song, bool deleteEmptyNoteRows = true);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
+	void nudgeNotesVertically(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
 	int32_t clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false);
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);

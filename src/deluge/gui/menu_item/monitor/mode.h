@@ -18,9 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
-#include "util/misc.h"
 
 namespace deluge::gui::menu_item::monitor {
 class Mode final : public Selection {

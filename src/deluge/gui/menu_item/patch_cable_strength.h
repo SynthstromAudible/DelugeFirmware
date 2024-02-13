@@ -18,6 +18,7 @@
 #pragma once
 #include "decimal.h"
 #include "menu_item_with_cc_learning.h"
+class MultiRange;
 
 namespace deluge::gui::menu_item {
 

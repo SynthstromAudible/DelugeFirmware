@@ -19,9 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -29,10 +26,8 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
-#include <cmath>
 #include <cstring>
 
 Source::Source() {

@@ -20,7 +20,7 @@
 #include "processing/engines/audio_engine.h"
 // #include <algorithm>
 #include "hid/display/display.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>

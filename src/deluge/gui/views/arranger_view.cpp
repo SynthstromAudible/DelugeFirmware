@@ -25,6 +25,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
@@ -35,12 +36,13 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -344,6 +346,12 @@ doActualSimpleChange:
 		}
 	}
 
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
+
 	else {
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
@@ -495,7 +503,8 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	mustRedrawTickSquares = true;
 
 	if (doRender) {
-		uiNeedsRendering(this);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI());
 	}
 }
 
@@ -1416,6 +1425,8 @@ getItFromSection:
 
 				if (clipInstance->clip) {
 					originallyPressedClipActualLength = clipInstance->clip->loopLength;
+					// we've either created or selected a clip, so set it to be current
+					currentSong->setCurrentClip(clipInstance->clip);
 				}
 				else {
 					originallyPressedClipActualLength = clipInstance->length;
@@ -1685,8 +1696,9 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	Clip* clip = clipInstance->clip;
+	// it should already be this clip, but if it ever isn't it would be a disaster
+	currentSong->setCurrentClip(clip);
 
-	currentSong->currentClip = clip;
 	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
@@ -2307,7 +2319,8 @@ ActionResult ArrangerView::timerCallback() {
 		if (!pressedClipInstanceIsInValidPosition) {
 			blinkOn = !blinkOn;
 
-			uiNeedsRendering(this, 1 << yPressedEffective, 0);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2318,7 +2331,8 @@ ActionResult ArrangerView::timerCallback() {
 			currentUIMode = UI_MODE_VIEWING_RECORD_ARMING;
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2391,7 +2405,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-		uiNeedsRendering(this, 1 << yPressedEffective, 0);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 	}
 
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
@@ -2911,7 +2926,16 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->transpose(offset);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	else if (Buttons::isShiftButtonPressed()) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->adjustMasterTransposeInterval(offset);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -2953,7 +2977,7 @@ void ArrangerView::graphicsRoutine() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				uint8_t gr = currentSong->globalEffectable.compressor.gainReduction;
 				// uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
 				indicator_leds::setKnobIndicatorLevel(1, gr); // Gain Reduction LED
 				// indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED

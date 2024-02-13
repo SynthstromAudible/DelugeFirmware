@@ -141,7 +141,6 @@ void logAction(char const* string);
 void logAction(int32_t number);
 
 void getReverbParamsFromSong(Song* song);
-void getMasterCompressorParamsFromSong(Song* song);
 
 VoiceSample* solicitVoiceSample();
 void voiceSampleUnassigned(VoiceSample* voiceSample);
@@ -190,14 +189,14 @@ extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;
-extern SideChain reverbCompressor;
+extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
 extern VoiceVector activeVoices;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
-extern int32_t reverbCompressorVolume;
-extern int32_t reverbCompressorShape;
+extern int32_t reverbSidechainVolume;
+extern int32_t reverbSidechainShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;

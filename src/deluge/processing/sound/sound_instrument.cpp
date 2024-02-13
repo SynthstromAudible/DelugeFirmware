@@ -18,8 +18,6 @@
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
-#include "io/debug/print.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -97,7 +95,11 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
-	if (!skippingRendering) {
+	if (skippingRendering) {
+		compressor.reset();
+		compressor.gainReduction = 0;
+	}
+	else {
 		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
 		              reverbAmountAdjust, shouldLimitDelayFeedback);
 	}

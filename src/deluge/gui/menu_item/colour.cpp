@@ -18,8 +18,6 @@
 #include "colour.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui/ui.h"
 
 namespace deluge::gui::menu_item {
 

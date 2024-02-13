@@ -17,8 +17,8 @@
 
 #include "sync_level.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item {

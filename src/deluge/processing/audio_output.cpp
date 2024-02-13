@@ -21,14 +21,13 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
-#include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <new>
@@ -416,4 +415,18 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
                                          int32_t* highestReverbAmountFound) {
 	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
 	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
+}
+
+ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                             int32_t paramID, params::Kind paramKind) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+
+	if (modelStackWithThreeMainThings) {
+		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+	}
+
+	return modelStackWithParam;
 }

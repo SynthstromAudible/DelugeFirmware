@@ -20,19 +20,20 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::reverb::compressor {
-
-class Shape final : public Integer {
+namespace deluge::gui::menu_item::sidechain {
+class Attack final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue((((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
+		this->setValue(getLookupIndexFromValue(soundEditor.currentSidechain->attack >> 2, attackRateTable, 50));
 	}
 	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		soundEditor.currentSidechain->attack = attackRateTable[this->getValue()] << 2;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbCompressorVolume >= 0); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+	}
 };
-} // namespace deluge::gui::menu_item::reverb::compressor
+} // namespace deluge::gui::menu_item::sidechain

@@ -1,4 +1,4 @@
-#include "definitions_cxx.hpp"
+#include "definitions.h"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
@@ -38,7 +38,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PATCH_SOURCE_ENVELOPE_1, "ENV2"},
         {STRING_FOR_PATCH_SOURCE_VELOCITY, "VELOCITY"},
         {STRING_FOR_PATCH_SOURCE_NOTE, "NOTE"},
-        {STRING_FOR_PATCH_SOURCE_COMPRESSOR, "SIDE"},
+        {STRING_FOR_PATCH_SOURCE_SIDECHAIN, "SIDE"},
         {STRING_FOR_PATCH_SOURCE_RANDOM, "RANDOM"},
         {STRING_FOR_PATCH_SOURCE_AFTERTOUCH, "AFTERTOUCH"},
         {STRING_FOR_PATCH_SOURCE_X, "X"},
@@ -254,8 +254,6 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP, "CANT"},
         {STRING_FOR_SYNC_NUDGED, "NUDGE"},
         {STRING_FOR_FOLLOWING_EXTERNAL_CLOCK, "CANT"},
-        {STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR, "SLOW"},
-        {STRING_FOR_FAST_SIDECHAIN_COMPRESSOR, "FAST"},
         {STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD, "DIFF"},
         {STRING_FOR_LARGE_ROOM_REVERB, "LARG"},
         {STRING_FOR_MEDIUM_ROOM_REVERB, "MEDI"},
@@ -408,6 +406,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_TITLE, "FOLO"},
         {STRING_FOR_FOLLOW, "FOLO"},
         {STRING_FOR_CHANNEL, "CHAN"},
+        {STRING_FOR_FOLLOW_CHANNEL_A, "A"},
+        {STRING_FOR_FOLLOW_CHANNEL_B, "B"},
+        {STRING_FOR_FOLLOW_CHANNEL_C, "C"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "KIT"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "DISP"},
         {STRING_FOR_FOLLOW_FEEDBACK, "FEED"},
@@ -420,7 +421,13 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MODEL, "MODE"},
         {STRING_FOR_FREEVERB, "FVRB"},
         {STRING_FOR_MUTABLE, "MTBL"},
+        {STRING_FOR_DIFFUSION, "DIFF"},
+        {STRING_FOR_TIME, "TIME"},
 
+        {STRING_FOR_MASTER, "MSTR"},
+        {STRING_FOR_FILTERS, "FLTR"},
+
+        {STRING_FOR_CANT_TRANSPOSE, "CANT"},
     },
     &built_in::english,
 };

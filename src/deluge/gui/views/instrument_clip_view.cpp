@@ -38,10 +38,11 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "lib/printf.h"
@@ -741,6 +742,12 @@ doCancelPopup:
 			}
 			else {
 				goto doCancelPopup;
+			}
+		}
+
+		if (on && (currentUIMode == UI_MODE_NONE)) {
+			if (getCurrentInstrumentClip()->isScaleModeClip()) {
+				currentSong->displayCurrentRootNoteAndScaleName();
 			}
 		}
 	}
@@ -3625,7 +3632,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	soundName.set(prefix);
 
-	Kit* kit = (Kit*)modelStack->song->currentClip->output;
+	// safe since we can't get here without being in a kit
+	Kit* kit = getCurrentKit();
 
 	int32_t error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error) {
@@ -3651,7 +3659,7 @@ doDisplayError:
 	SoundDrum* newDrum = new (memory) SoundDrum();
 	newDrum->setupAsSample(&paramManager);
 
-	modelStack->song->backUpParamManager(newDrum, modelStack->song->currentClip, &paramManager, true);
+	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
 	newDrum->name.set(&soundName);
 	newDrum->nameIsDiscardable = true;
@@ -4343,36 +4351,24 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-				getCurrentInstrumentClip()->transpose(offset * 12, modelStack);
-				if (getCurrentInstrumentClip()->isScaleModeClip()) {
-					getCurrentInstrumentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
-				}
-				// display->displayPopup("OCTAVE");
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				instrumentClip->nudgeNotesVertically(
+				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
 			}
-
-			// Otherwise, transpose single semitone
+			// Otherwise, transpose single row position
 			else {
-				// If current Clip not in scale-mode, just do it
-				if (!getCurrentInstrumentClip()->isScaleModeClip()) {
-					getCurrentInstrumentClip()->transpose(offset, modelStack);
-
-					// If there are no scale-mode Clips at all, move the root note along as well - just in case the user
-					// wants to go back to scale mode (in which case the "previous" root note would be used to help
-					// guess what root note to go with)
-					if (!currentSong->anyScaleModeClips()) {
-						currentSong->rootNote += offset;
-					}
-				}
-
-				// Otherwise, got to do all key-mode Clips
-				else {
-					currentSong->transposeAllScaleModeClips(offset);
-				}
-				// display->displayPopup("SEMITONE");
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
+				// it's the next note in the scale)¬
+				instrumentClip->nudgeNotesVertically(offset, modelStack);
 			}
+			recalculateColours();
+			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 	}
 
@@ -4556,174 +4552,129 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	}
 
 	int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-	int32_t halfsquareSize = (int32_t)(squareSize / 2);
-	int32_t quatersquareSize = (int32_t)(squareSize / 4);
 
-	if (quantizeAmount >= 10 && offset > 0) {
+	if (quantizeAmount >= kQuantizationPrecision && offset > 0) {
 		return;
 	}
-	if (quantizeAmount <= -10 && offset < 0) {
+	if (quantizeAmount <= -kQuantizationPrecision && offset < 0) {
 		return;
 	}
 	quantizeAmount += offset;
-	if (quantizeAmount >= 10) {
-		quantizeAmount = 10;
+	if (quantizeAmount >= kQuantizationPrecision) {
+		quantizeAmount = kQuantizationPrecision;
 	}
-	if (quantizeAmount <= -10) {
-		quantizeAmount = -10;
+	if (quantizeAmount <= -kQuantizationPrecision) {
+		quantizeAmount = -kQuantizationPrecision;
 	}
 
 	if (display->haveOLED()) {
 		char buffer[24];
-		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
-		}
-		else {
-			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize All " : "Humanize All ");
-		}
-		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
-		strcpy(buffer + strlen(buffer), "%");
+		snprintf(buffer, sizeof(buffer), "%s %s%d%%",             //<
+		         (quantizeAmount >= 0) ? "Quantize" : "Humanize", //<
+		         (nudgeMode == NUDGEMODE_QUANTIZE) ? "" : "All ", //<
+		         abs(quantizeAmount * 10));
 		display->popupTextTemporary(buffer);
 	}
 	else {
 		char buffer[5];
-		strcpy(buffer, "");
-		intToString(quantizeAmount * 10, buffer + strlen(buffer)); // Negative means humanize
+		snprintf(buffer, sizeof(buffer), "%d", quantizeAmount * 10); // Negative means humanize
 		display->displayPopup(buffer, 0, true);
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	InstrumentClip* currentClip = getCurrentInstrumentClip();
 
-	if (nudgeMode == NUDGEMODE_QUANTIZE) { // Only the row(s) being pressed
+	// If the previous action was a note nudge, it was probably a previous quantization iteration. Replace it with this
+	// quantization operation by first reverting it and then re-quantizing.
+	Action* lastAction = actionLogger.firstAction[BEFORE];
+	if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions) {
+		actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
+	}
 
-		// reset
-		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
+	// Get the action in to which we should back up the current state
+	Action* action = action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
+	if (action) {
+		// XXX(sapphire): the old QUANTIZE_ALL code used quantizeAmount here instead, but I don't think anything
+		// reads this so it's probably fine?
+		action->offset = offset;
+	}
 
-		Action* action = NULL;
-		if (offset) {
-			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-			if (action)
-				action->offset = quantizeAmount;
-		}
+	bool quantizeAll{false};
+	uint32_t nRows{0};
 
-		for (int32_t i = 0; i < kDisplayHeight; i++) {
-			if (auditionPadIsPressed[i]) {
+	switch (nudgeMode) {
+	case NUDGEMODE_QUANTIZE:
+		nRows = kDisplayHeight;
+		quantizeAll = false;
+		break;
+	case NUDGEMODE_QUANTIZE_ALL:
+		nRows = currentClip->noteRows.getNumElements();
+		quantizeAll = true;
+		break;
+	default:
+		break;
+	}
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, i);
-				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
-				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
+	uint32_t rowUpdateMask = 0;
 
-				if (offset) { // store
-					action->recordNoteArrayChangeDefinitely(
-					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
-					    &(thisNoteRow->notes), false);
-				}
+	for (auto i = 0; i < nRows; ++i) {
+		ModelStackWithNoteRow* modelStackWithNoteRow;
+		NoteRow* thisNoteRow{nullptr};
+		if (quantizeAll) {
+			thisNoteRow = currentClip->noteRows.getElement(i);
+			if (thisNoteRow == nullptr) {
+				// Note row missing
+				continue;
+			}
+			uint32_t noteRowId = currentClip->getNoteRowId(thisNoteRow, i);
+			modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 
-				NoteVector tmpNotes;
-				tmpNotes.cloneFrom(&thisNoteRow->notes); // backup
-				for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
-
-					Note* note = tmpNotes.getElement(j);
-
-					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
-					if (quantizeAmount < 0) { // Humanize
-						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
-						destination = note->pos + hmAmout;
-					}
-					int32_t distance = destination - note->pos;
-					distance = trunc((distance * abs(quantizeAmount)) / 10);
-
-					if (distance != 0) {
-						for (int32_t k = 0; k < abs(distance); k++) {
-							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
-							                 % noteRowEffectiveLength;
-							int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
-							    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
-							if (error) {
-								display->displayError(error);
-								return;
-							}
-						}
-					}
-				}
+			// If the note row being quantized is on screen, mark the row as dirty
+			if (currentClip->yScroll <= thisNoteRow->y && thisNoteRow->y <= currentClip->yScroll + kDisplayHeight) {
+				rowUpdateMask |= 1 << (thisNoteRow->y - currentClip->yScroll);
 			}
 		}
-	}
-	else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) { // All Row
-
-		// reset
-		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
-
-		Action* action = NULL;
-		if (offset) {
-			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-			if (action)
-				action->offset = offset;
-		}
-
-		for (int32_t i = 0; i < getCurrentInstrumentClip()->noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = getCurrentInstrumentClip()->noteRows.getElement(i);
-
-			int32_t noteRowId;
-			int32_t noteRowIndex;
-			noteRowId = getCurrentInstrumentClip()->getNoteRowId(thisNoteRow, i);
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
-			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
-
-			// If this NoteRow has any notes...
-			if (!thisNoteRow->hasNoNotes()) {
-
-				if (offset) { // store
-					action->recordNoteArrayChangeDefinitely(
-					    (InstrumentClip*)modelStackWithNoteRow->getTimelineCounter(), modelStackWithNoteRow->noteRowId,
-					    &(thisNoteRow->notes), false);
-				}
-
-				NoteVector tmpNotes;
-				tmpNotes.cloneFrom(&thisNoteRow->notes); // backup
-				for (int32_t j = 0; j < tmpNotes.getNumElements(); j++) {
-					Note* note = tmpNotes.getElement(j);
-
-					int32_t destination = (trunc((note->pos - 1 + halfsquareSize) / squareSize)) * squareSize;
-					if (quantizeAmount < 0) { // Humanize
-						int32_t hmAmout = trunc(random(quatersquareSize) - (quatersquareSize / 2.5));
-						destination = note->pos + hmAmout;
-					}
-					int32_t distance = destination - note->pos;
-					distance = trunc((distance * abs(quantizeAmount)) / 10);
-
-					if (distance != 0) {
-						for (int32_t k = 0; k < abs(distance); k++) {
-							int32_t nowPos = (note->pos + ((distance > 0) ? k : -k) + noteRowEffectiveLength)
-							                 % noteRowEffectiveLength;
-							int32_t error = thisNoteRow->nudgeNotesAcrossAllScreens(
-							    nowPos, modelStackWithNoteRow, NULL, kMaxSequenceLength, ((distance > 0) ? 1 : -1));
-							if (error) {
-								display->displayError(error);
-								return;
-							}
-						}
-					}
-				}
+		else {
+			if (!auditionPadIsPressed[i]) {
+				// Do not quantize rows the user hasn't asked for
+				continue;
 			}
+			modelStackWithNoteRow = currentClip->getNoteRowOnScreen(i, modelStack);
+			if (modelStackWithNoteRow == nullptr) {
+				// No note row here, no need to quantize
+				continue;
+			}
+			thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			if (thisNoteRow == nullptr) {
+				continue;
+			}
+
+			// We're going to quanitize this row, so mark it dirty
+			rowUpdateMask |= 1 << i;
 		}
+
+		if (thisNoteRow->hasNoNotes()) {
+			// Nothing to do, no notes in this row
+			continue;
+		}
+
+		if (action != nullptr) {
+			action->recordNoteArrayChangeDefinitely(currentClip, modelStackWithNoteRow->noteRowId, &thisNoteRow->notes,
+			                                        false);
+		}
+
+		thisNoteRow->quantize(modelStackWithNoteRow, squareSize, quantizeAmount);
 	}
 
-	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	{
-		if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
-			modelStack->song->currentClip->expectEvent();
-			modelStack->song->currentClip->reGetParameterAutomation(modelStack);
-		}
+	uiNeedsRendering(this, rowUpdateMask, 0);
+
+	if (playbackHandler.isEitherClockActive() && currentClip->isActiveOnOutput()) {
+		currentClip->expectEvent();
+		currentClip->reGetParameterAutomation(modelStack);
 	}
+
 	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-	return;
 }
 
 // Supply offset as 0 to just popup number, not change anything
@@ -4833,9 +4784,10 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	bool didAnySuccessfulNudging = false;
 
-	InstrumentClip* currentClip = getCurrentInstrumentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	// safe since we can't be in instrument clip view if it's not an instrument clip
+	auto currentClip = (InstrumentClip*)modelStack->song->getCurrentClip();
 
 	// If the user is nudging back in the direction they just nudged, we can do a (possibly partial) undo, getting back
 	// the proper length of any notes that got trimmed etc.
@@ -4848,8 +4800,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 		actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// Still have to work out resultingTotalOffset, to display for the user
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4902,8 +4853,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 			}
 		}
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// For each note / pad held down...
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -5032,9 +4982,9 @@ doCompareNote:
 	char const* message;
 	bool alignRight = false;
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(
-	    modelStack->song
-	        ->currentClip); // Can finally do this since we're not going to use the bare ModelStack for anything else
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	    modelStack->addTimelineCounter(currentClip); // Can finally do this since we're not going to use the bare
+	                                                 // ModelStack for anything else
 
 	if (numEditPadPresses > 1) {
 		if (!didAnySuccessfulNudging) {
@@ -5141,7 +5091,6 @@ abandonModRegion:
 	}
 }
 #pragma GCC pop
-
 void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
@@ -5199,7 +5148,6 @@ void InstrumentClipView::graphicsRoutine() {
 			}
 		}
 	}
-
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 

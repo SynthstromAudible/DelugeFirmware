@@ -21,25 +21,22 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "model/clip/clip_minder.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
-#include "RZA1/uart/sio_char.h"
 }
 
 UITimerManager uiTimerManager{};
@@ -88,12 +85,13 @@ void UITimerManager::routine() {
 					}
 					break;
 
-				case TIMER_PLAY_ENABLE_FLASH:
-					if (getRootUI() == &sessionView) {
+				case TIMER_PLAY_ENABLE_FLASH: {
+					RootUI* rootUI = getRootUI();
+					if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
 						sessionView.flashPlayRoutine();
 					}
 					break;
-
+				}
 				case TIMER_DISPLAY:
 					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);

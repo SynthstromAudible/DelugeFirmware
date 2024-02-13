@@ -1,7 +1,9 @@
 #pragma once
 #include "memory/general_memory_allocator.h"
 #include <cstddef>
-
+extern "C" {
+void abort(void); // this is defined in reset_handler.S
+}
 namespace deluge::memory {
 
 /**

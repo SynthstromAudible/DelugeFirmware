@@ -19,7 +19,6 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
-#include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -27,8 +26,8 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
-#include "modulation/params/param_node.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -394,6 +393,27 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		return false;
 	}
 }
+int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		return (paramValue >> 24) - 64;
+	}
+	else {
+		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
+	}
+}
+
+int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
+		int32_t paramValue = 2147483647;
+		if (knobPos < 64) {
+			paramValue = (knobPos + 64) << 24;
+		}
+		return paramValue;
+	}
+	else {
+		return ParamSet::knobPosToParamValue(knobPos, modelStack);
+	}
+}
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
 	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
@@ -511,7 +531,6 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 }
 
 // ExpressionParamSet --------------------------------------------------------------------------------------------
-
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
 	params = params_.data();
@@ -555,11 +574,11 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 	}
 }
 
-// Displays text number. This will only actually end up getting used/seen on MIDI Clips, at channel/Clip level - not
-// MPE/polyphonic.
+/// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
+/// this, the expression set needs to be made MPE aware to treat Y_SLIDE_TIMBRE as bipolar
 int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	// Everything but aftertouch gets handled by parent from here
-	if (modelStack->paramId != 2) {
+	// mono pitch bend is still bipolar and gets handled by parent from here
+	if (modelStack->paramId == X_PITCH_BEND) {
 		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 
@@ -569,10 +588,11 @@ int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithA
 	return (knobPos + 64) << 24;
 }
 
+/// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
+/// this, the expression set needs to be made MPE aware to treat Y_SLIDE_TIMBRE as bipolar
 int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-
-	// Everything but aftertouch gets handled by parent
-	if (modelStack->paramId != 2) {
+	// mono pitch bend is still bipolar and gets handled by parent from here
+	if (modelStack->paramId == X_PITCH_BEND) {
 		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
 	}
 

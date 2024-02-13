@@ -20,8 +20,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include "util/functions.h"
 #include <string.h>
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {

@@ -16,12 +16,10 @@
  */
 
 #include "definitions_cxx.hpp"
-#define _GNU_SOURCE // Wait why?
+#include "model/sample/sample.h"
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
-
 #include "extern.h"
-#include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/l10n/l10n.h"
@@ -39,12 +37,11 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
-#include "hid/encoders.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "io/debug/print.h"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -71,12 +68,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <new>
-#include <string.h>
-
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
+#include <cstring>
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
@@ -601,17 +593,15 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				// Or if want instant snap render
 				else {
 					if (qwertyVisible) {
-						// drawKeysOverWaveform();
-						PadLEDs::clearMainPadsWithoutSending();
 						drawKeys();
 					}
 					else {
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);
+						PadLEDs::sendOutMainPadColours();
 					}
 					qwertyCurrentlyDrawnOnscreen = qwertyVisible;
-					PadLEDs::sendOutMainPadColours();
 				}
 				PadLEDs::sendOutSidebarColours(); // For greyout (wait what?)
 
@@ -691,17 +681,9 @@ possiblyExit:
 				uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
 
-				if (false && currentlyShowingSamplePreview) {
-					drawKeysOverWaveform();
-				}
-				else {
-					PadLEDs::clearMainPadsWithoutSending();
-					drawKeys();
-				}
+				drawKeys();
 
 				qwertyCurrentlyDrawnOnscreen = true;
-
-				PadLEDs::sendOutMainPadColours();
 
 				enteredTextEditPos = 0;
 				displayText(false);
@@ -717,18 +699,6 @@ possiblyExit:
 	}
 
 	return ActionResult::DEALT_WITH;
-}
-
-void SampleBrowser::drawKeysOverWaveform() {
-
-	// Do manual greyout on all main pads
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			PadLEDs::image[y][x] = PadLEDs::image[y][x].greyOut(6500000);
-		}
-	}
-
-	drawKeys();
 }
 
 int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
@@ -1931,7 +1901,7 @@ getOut:
 
 				range = source->getOrCreateFirstRange();
 				if (!range) {
-					drum->~Drum();
+					drum->~SoundDrum();
 					delugeDealloc(drumMemory);
 					goto getOut;
 				}
@@ -2004,64 +1974,46 @@ skipNameStuff:
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
+	// Or, maybe we want to scroll or zoom around the waveform...
+	if (currentlyShowingSamplePreview
+	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
 
-	if (qwertyVisible) {
-doNormal:
-		return Browser::horizontalEncoderAction(offset);
-	}
-	else {
+		// We're quite likely going to need to read the SD card to do either scrolling or zooming
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
 
-		// Or, maybe we want to scroll or zoom around the waveform...
-		if (currentlyShowingSamplePreview
-		    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
-
-			// We're quite likely going to need to read the SD card to do either scrolling or zooming
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			// Zoom
-			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				if (isUIModeWithinRange(zoomUIModes)) {
-					waveformBasicNavigator.zoom(offset);
-				}
-			}
-
-			// Scroll
-			else if (isUIModeWithinRange(&zoomUIModes[1])) { // Allow during auditioning only
-				bool success = waveformBasicNavigator.scroll(offset);
-
-				if (success) {
-					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-					                                  waveformBasicNavigator.xZoom, PadLEDs::image,
-					                                  &waveformBasicNavigator.renderData);
-					PadLEDs::sendOutMainPadColours();
-				}
+		// Zoom
+		if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+			if (isUIModeWithinRange(zoomUIModes)) {
+				waveformBasicNavigator.zoom(offset);
 			}
 		}
 
-		// TODO: I don't think we want this anymore...
-		/*
-		else {
-		    if (scrollingText && display->isLayerCurrentlyOnTop(scrollingText)) {
-		        uiTimerManager.unsetTimer(TIMER_DISPLAY);
-		        scrollingText->currentPos += offset;
+		// Scroll
+		else if (isUIModeWithinRange(&zoomUIModes[1])) { // Allow during auditioning only
+			bool success = waveformBasicNavigator.scroll(offset);
 
-		        int32_t maxScroll = scrollingText->length - kNumericDisplayLength;
-
-		        if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
-		        if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
-
-		        display->render();
-		    }
-		}
-		*/
-
-		else {
-			qwertyVisible = true;
-			goto doNormal;
+			if (success) {
+				waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
+				                                  waveformBasicNavigator.xZoom, PadLEDs::image,
+				                                  &waveformBasicNavigator.renderData);
+				PadLEDs::sendOutMainPadColours();
+			}
 		}
 		return ActionResult::DEALT_WITH;
+	}
+	else {
+		qwertyVisible = true;
+
+		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		PadLEDs::reassessGreyout(true);
+
+		drawKeys();
+
+		qwertyCurrentlyDrawnOnscreen = true;
+
+		return Browser::horizontalEncoderAction(offset);
 	}
 }
 
