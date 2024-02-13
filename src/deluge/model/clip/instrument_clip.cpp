@@ -2271,7 +2271,6 @@ void InstrumentClip::writeDataToFile(Song* song) {
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
 	}
 	if (wrapEditing) {
@@ -2538,10 +2537,6 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
 			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
