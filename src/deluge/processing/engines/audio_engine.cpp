@@ -17,7 +17,6 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -40,7 +39,6 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_vector.h"
-#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -140,8 +138,8 @@ SampleRecorder* firstRecorder = NULL;
 int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;
 uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
-int32_t numSamplesLastTime;
-int32_t smoothedSamples;
+int32_t numSamplesLastTime = 0;
+uint32_t smoothedSamples = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
@@ -326,11 +324,11 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
 #define AUDIO_LOG_SIZE 64
-
-#if DO_AUDIO_LOG
 bool definitelyLog = false;
+#if DO_AUDIO_LOG
+
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
@@ -352,6 +350,7 @@ void routine() {
 	aeCtr.note();
 #endif
 	logAction("AudioDriver::routine");
+
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called
@@ -379,6 +378,7 @@ void routine() {
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	numSamplesLastTime = numSamples;
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
@@ -419,9 +419,14 @@ void routine() {
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
-#define MINSAMPLES 16
-
-	smoothedSamples = numSamples;
+	constexpr int MINSAMPLES = 16;
+	// two step FIR
+	if (numSamples > numSamplesLastTime) {
+		smoothedSamples = (numSamples + numSamplesLastTime) / 2;
+	}
+	else {
+		smoothedSamples = numSamples;
+	}
 	// this is sometimes good for debugging but super spammy
 	// audiolog doesn't work because the render that notices the failure
 	// is one after the render with the problem
@@ -435,7 +440,7 @@ void routine() {
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; // storageManager.devVarC;
 	int32_t direnessThreshold = numSamplesLimit - 17;
-
+	int32_t numToCull = 0;
 	if (smoothedSamples >= direnessThreshold) { // 20
 
 		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
@@ -454,20 +459,21 @@ void routine() {
 			// If it's real dire, do a proper immediate cull
 			if (numSamplesOverLimit >= 10) {
 
-				int32_t numToCull = (numSamplesOverLimit >> 3) + 1;
+				numToCull = (numSamplesOverLimit >> 3) + 1;
 
 				for (int32_t i = 0; i < numToCull; i++) {
 					cullVoice();
 				}
 
 #if ALPHA_OR_BETA_VERSION
-#if DO_AUDIO_LOG
+
 				definitelyLog = true;
-#endif
+				logAction("hard cull");
+
 				D_PRINTLN("culled  %d  voices. numSamples:  %d", numToCull, numSamples);
 
 				D_PRINTLN(". voices left:  %d", getNumVoices());
-				logAction("hard cull");
+
 #endif
 			}
 
@@ -908,11 +914,11 @@ startAgain:
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINT(timePassedUS);
-			D_PRINTLN(":  %d", audioLogStrings[i]);
+			D_PRINT("%d", timePassedUS);
+			D_PRINTLN(":  %s", audioLogStrings[i]);
 		}
 
-		D_PRINT(timePassedUSA);
+		D_PRINT("%d", timePassedUSA);
 		D_PRINTLN(": end");
 	}
 	definitelyLog = false;
@@ -927,13 +933,14 @@ startAgain:
 	// this is basically so that we don't click at normal tempos and still
 	// let Ron go to 10 000 BPM and then play wildly with the tempo knob for
 	// whatever reason
-	if (shortenedWindow) {
-		if (numRoutines < 5) {
-			numRoutines += 1;
-			// this seems to get tail call optimized
-			routine();
-		}
+	// just always render again - this will immediately return once there aren't samples to render
+
+	if (numRoutines < 5) {
+		numRoutines += 1;
+		// this seems to get tail call optimized
+		routine();
 	}
+
 	numRoutines = 0;
 	bypassCulling = false;
 	audioRoutineLocked = false;
