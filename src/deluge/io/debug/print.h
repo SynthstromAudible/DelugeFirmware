@@ -20,7 +20,7 @@
 #include <cstdint>
 
 #ifndef SYSEX_LOGGING_ENABLED
-#define SYSEX_LOGGING_ENABLED true
+#define SYSEX_LOGGING_ENABLED false
 #endif
 
 class MIDIDevice;
