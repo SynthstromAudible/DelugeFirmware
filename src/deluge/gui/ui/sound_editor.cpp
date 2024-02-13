@@ -218,6 +218,11 @@ void SoundEditor::setLedStates() {
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	playbackHandler.setLedStates();
+
+	if (!inSettingsMenu()) {
+		view.setKnobIndicatorLevels();
+		view.setModLedStates();
+	}
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -256,6 +261,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				else {
 					goUpOneLevel();
 				}
+				getCurrentMenuItem()->buttonAction(b, on);
 			}
 		}
 	}
@@ -394,7 +400,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		return ActionResult::NOT_DEALT_WITH;
+		return getCurrentMenuItem()->buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -717,8 +723,10 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		offset = offset * 5;
 	}
 
+	RootUI* rootUI = getRootUI();
+
 	// if you're in the performance view, let it handle the select encoder action
-	if (getRootUI() == &performanceSessionView) {
+	if (rootUI == &performanceSessionView) {
 		performanceSessionView.selectEncoderAction(offset);
 	}
 	else {
@@ -746,19 +754,17 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
-			// If envelope param preset values were changed, there's a chance that there could have been a change to
-			// whether notes have tails
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			if (rootUI != &automationView) {
+				// If envelope param preset values were changed, there's a chance that there could have been a change to
+				// whether notes have tails
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-			if (hadNoteTails != hasNoteTailsNow) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+				if (hadNoteTails != hasNoteTailsNow) {
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
-		}
-
-		if (currentModControllable) {
-			view.setKnobIndicatorLevels(); // Is this really necessary every time?
 		}
 	}
 }
@@ -1150,8 +1156,14 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ArpeggiatorSettings* newArpSettings = nullptr;
 	ModControllableAudio* newModControllable = nullptr;
 
-	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	UI* currentUI = getCurrentUI();
+	AutomationSubType automationSubType = AutomationSubType::NONE;
+	if (currentUI == &automationView) {
+		automationSubType = automationView.getAutomationSubType();
+	}
+
+	bool isUISessionView = (currentUI == &performanceSessionView) || (currentUI == &sessionView)
+	                       || (currentUI == &arrangerView) || (automationSubType == AutomationSubType::ARRANGER);
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (isUISessionView) {
@@ -1269,13 +1281,10 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if (getCurrentUI() == &automationView) {
-				newItem = &defaultAutomationMenu;
-			}
-			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if (((getCurrentUI() == &sessionView) || (getCurrentUI() == &arrangerView))
+			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
@@ -1287,8 +1296,7 @@ doMIDIOrCV:
 
 	::MultiRange* newRange = currentMultiRange;
 
-	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor)
-	    || sourceIndex != currentSourceIndex) {
+	if ((currentUI != &soundEditor && currentUI != &sampleMarkerEditor) || sourceIndex != currentSourceIndex) {
 		newRange = nullptr;
 	}
 
@@ -1420,8 +1428,14 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	RootUI* rootUI = getRootUI();
+	AutomationSubType automationSubType = AutomationSubType::NONE;
+	if (rootUI == &automationView) {
+		automationSubType = automationView.getAutomationSubType();
+	}
+
+	bool isUISessionView = (rootUI == &performanceSessionView) || (rootUI == &sessionView) || (rootUI == &arrangerView)
+	                       || (automationSubType == AutomationSubType::ARRANGER);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();

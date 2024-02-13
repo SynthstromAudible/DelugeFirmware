@@ -1036,7 +1036,6 @@ void AudioClip::writeDataToFile(Song* song) {
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
 	Clip::writeDataToFile(song);
@@ -1141,10 +1140,6 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
 			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else {
