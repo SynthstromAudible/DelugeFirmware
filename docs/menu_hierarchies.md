@@ -12,176 +12,176 @@ The Settings menu is accessible from anywhere on the Deluge by pressing `SHIFT +
 The Settings menu contains the following menu hierarchy:
 
 - CV
-	- CV Output 1
-		- Volts per Octave
-		- Transpose
-	- CV Output 2
-		- Volts per Octave
-		- Transpose
+	- CV Output 1 (OUT1)
+		- Volts per Octave (VOLT)
+		- Transpose (TRAN)
+	- CV Output 2 (OUT2)
+		- Volts per Octave (VOLT)
+		- Transpose (TRAN)
 - Gate
-	- Gate Output 1
-		- V-Trig
-		- S-Trig
-	- Gate Output 2
-		- V-Trig
-		- S-Trig
-	- Gate Output 3
-		- V-Trig
-		- S-Trig
-	- Gate Output 4
-		- V-Trig
-		- S-Trig
-	- Minimum Off-Time
-- Trigger Clock
-	- Input
-		- PPQN
-		- Auto-Start
-			- Disabled
-			- Enabled
-	- Output
+	- Gate Output 1 (OUT1)
+		- V-Trig (VTRI)
+		- S-Trig (STRI)
+	- Gate Output 2 (OUT2)
+		- V-Trig (VTRI)
+		- S-Trig (STRI)
+	- Gate Output 3 (OUT3)
+		- V-Trig (VTRI)
+		- S-Trig (STRI)
+	- Gate Output 4 (OUT4)
+		- V-Trig (VTRI)
+		- S-Trig (STRI)
+	- Minimum Off-Time (OFFT)
+- Trigger Clock (TCLO)
+	- Input (IN)
+		- PPQN 
+		- Auto-Start (AUTO)
+			- Disabled (ON)
+			- Enabled (OFF)
+	- Output (OUT)
 		- PPQN
 - MIDI
-	- Clock
-		- Input
+	- Clock (CLK)
+		- Input (IN)
+			- Disabled (ON)
+			- Enabled (OFF)
+		- Output (OUT)
+			- Disabled (ON)
+			- Enabled (OFF)
+		- Tempo Magnitude Matching (MAGN)
 			- Disabled
 			- Enabled
-		- Output
-			- Disabled
-			- Enabled
-		- Tempo Magnitude Matching
-			- Disabled
-			- Enabled
-	- MIDI-Follow
-		- Channel
-			- Channel A
-			- Channel B
-			- Channel C
-		- Kit Root Note
-		- Feedback
-			- Channel
-			- Automation Feedback
-				- Disabled
+	- MIDI-Follow (FOLO)
+		- Channel (CHAN)
+			- Channel A (A)
+			- Channel B (B)
+			- Channel C (C)
+		- Kit Root Note (KIT)
+		- Feedback (FEED)
+			- Channel (CHAN)
+			- Automation Feedback (AUTO)
+				- Disabled (OFF)
 				- Low
-				- Medium
+				- Medium (MEDI)
 				- High
-			- Filter Responses
-				- Disabled
-				- Enabled
-		- Display Param
-			- Disabled
-			- Enabled
-	- Select Kit Row
-		- Disabled
-		- Enabled
-	- MIDI-Thru
-		- Disabled
-		- Enabled
-	- Takeover
+			- Filter Responses (FLTR)
+				- Disabled (OFF)
+				- Enabled (ON)
+		- Display Param (DISP)
+			- Disabled (ON)
+			- Enabled (OFF)
+	- Select Kit Row (KROW)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- MIDI-Thru (THRU)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- Takeover (TOVR)
 		- Jump
-		- Pickup
-		- Scale
-	- Commands
+		- Pickup (PICK)
+		- Scale (SCAL)
+	- Commands (CMD)
 		- Play
-		- Restart
-		- Record
-		- Tap Tempo
+		- Restart (REST)
+		- Record (REC)
+		- Tap Tempo (TAP)
 		- Undo
 		- Redo
 		- Loop
-		- Layering Loop
+		- Layering Loop (LAYE)
 		- Fill
-	- Differentiate Inputs
-		- Disabled
-		- Enabled
-	- Devices
-		- DIN Ports
+	- Differentiate Inputs (DIFF)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- Devices (DEVI)
+		- DIN Ports (DIN)
 			- MPE
 				- In
-					- Lower Zone
-					- Upper Zone
+					- Lower Zone (LOWE)
+					- Upper Zone (UPPE)
 				- Out
-					- Lower Zone
-					- Upper Zone					
-			- Velocity
-			- Clock
-				- Disabled
-				- Enabled
+					- Lower Zone (LOWE)
+					- Upper Zone (UPPE)				
+			- Velocity (VELO)
+			- Clock (CLK)
+				- Disabled (OFF)
+				- Enabled (ON)
 		- Loopback
 			- MPE
 				- In
-					- Lower Zone
-					- Upper Zone
+					- Lower Zone (LOWE)
+					- Upper Zone (UPPE)
 				- Out
-					- Lower Zone
-					- Upper Zone					
-			- Velocity
-			- Clock
-				- Disabled
-				- Enabled
-- Defaults
+					- Lower Zone (LOWE)
+					- Upper Zone (UPPE)				
+			- Velocity (VELO)
+			- Clock (CLK)
+				- Disabled (OFF)
+				- Enabled (ON)
+- Defaults (DEFA)
 	- UI
 		- Song
-			- Layout
+			- Layout (LAYT)
 				- Rows
 				- Grid
 			- Grid
-				- Default Active Mode
-					- Selection
-					- Green
+				- Default Active Mode (DEFM)
+					- Selection (SELE)
+					- Green (GREE)
 					- Blue
-				- Select In Green Mode
-					- Disabled
-					- Enabled
-				- Empty Pads
-					- Unarm
-					- Create + Record
-		- Keyboard
-			- Layout
-				- Isomorphic
-				- In-Key
-	- Automation
-		- Interpolation
-			- Disabled
-			- Enabled
-		- Clear
-			- Disabled
-			- Enabled
-		- Shift
-			- Disabled
-			- Enabled
-		- Nudge Note
-			- Disabled
-			- Enabled
-		- Disable Audition Pad Shortcuts
-			- Disabled
-			- Enabled
-	- Tempo
-	- Swing
+				- Select In Green Mode (GREE)
+					- Disabled (OFF)
+					- Enabled (ON)
+				- Empty Pads (EMPT)
+					- Unarm (UNAR)
+					- Create + Record (CREA)
+		- Keyboard (KEY)
+			- Layout (LAYT)
+				- Isomorphic (ISO)
+				- In-Key (INKY)
+	- Automation (AUTO)
+		- Interpolation (INTE)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Clear (CLEA)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Shift (SHIF)
+			- Disabled (Off)
+			- Enabled (ON)
+		- Nudge Note (NUDG)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Disable Audition Pad Shortcuts (SCUT)
+			- Disabled (OFF)
+			- Enabled (ON)
+	- Tempo (TEMP)
+	- Swing (SWIN)
 	- Key
-	- Scale
-		- Major
-		- Minor
-		- Dorian
-		- Phrygian
-		- Lydian
-		- Mixolydian
-		- Locrian
-		- Melodic Minor
-		- Harmonic Minor
-		- Hungarian Minor
-		- Marva
-		- Arabian
-		- Whole Tone
-		- Blues
-		- Pentatonic Minor
-		- Hirajoshi
-		- Random
+	- Scale (SCAL)
+		- Major (MAJO)
+		- Minor (MINO)
+		- Dorian (DORI)
+		- Phrygian (PHRY)
+		- Lydian (LYDI)
+		- Mixolydian (MIXO)
+		- Locrian (LOCR)
+		- Melodic Minor (MELO)
+		- Harmonic Minor (HARM)
+		- Hungarian Minor (HUNG)
+		- Marva (MARV)
+		- Arabian (ARAB)
+		- Whole Tone (WHOL)
+		- Blues (BLUE)
+		- Pentatonic Minor (PENT)
+		- Hirajoshi (HIRA)
+		- Random (RAND)
 		- None
-	- Velocity
-	- Resolution
-	- Bend Range
-	- Metronome
-- Swing Interval
+	- Velocity (VELO)
+	- Resolution (RESO)
+	- Bend Range (BEND)
+	- Metronome (METR)
+- Swing Interval (SWIN) - NOTE: These options can change depending on how your default resolution is set
 	- 2-Bar
 	- 1-Bar
 	- 2nd-Notes
@@ -210,153 +210,153 @@ The Settings menu contains the following menu hierarchy:
 	- 64th-DTTED
 	- 128th-DTTED
 - Pads
-	- Shortcut Version
+	- Shortcut Version (SHOR)
 		- 1.0
 		- 3.0
-	- Keyboard for Text
-		- QWERTY
-		- AZERTY
-		- QWERTZ
-	- Colours
-		- Active
+	- Keyboard for Text (KEYB)
+		- QWERTY (QWER)
+		- AZERTY (AZER)
+		- QWERTZ (QRTZ)
+	- Colours (COLO)
+		- Active (ACTI)
 			- Red
-			- Green
+			- Green (GREEN)
 			- Blue
-			- Yellow
+			- Yellow (YELL)
 			- Cyan
-			- Purple
-			- Amber
-			- White
+			- Purple (PURP)
+			- Amber (AMBE)
+			- White (WHIT)
 			- Pink
-		- Stopped
+		- Stopped (STOP)
 			- Red
-			- Green
+			- Green (GREE)
 			- Blue
-			- Yellow
+			- Yellow (YELL)
 			- Cyan
-			- Purple
-			- Amber
-			- White
+			- Purple (PURP)
+			- Amber (AMBE)
+			- White (WHIT)
 			- Pink
-		- Muted
+		- Muted (MUTE)
 			- Red
-			- Green
+			- Green (GREE)
 			- Blue
-			- Yellow
+			- Yellow (YELL)
 			- Cyan
-			- Purple
-			- Amber
-			- White
+			- Purple (PURP)
+			- Amber (AMBE)
+			- White (WHIT)
 			- Pink
 		- Soloed 
 			- Red
-			- Green
+			- Green (GREE)
 			- Blue
-			- Yellow
+			- Yellow (YELL)
 			- Cyan
-			- Purple
-			- Amber
-			- White
-			- Pink	
-- Sample Preview
-	- Disabled
-	- Conditional
-	- Enabled
-- Play-Cursor
+			- Purple (PURP)
+			- Amber (AMBE)
+			- White (WHIT)
+			- Pink
+- Sample Preview (PREV)
+	- Disabled (OFF)
+	- Conditional (COND)
+	- Enabled (ON)
+- Play-Cursor (CURS)
 	- Fast
-	- Disabled
+	- Disabled (OFF)
 	- Slow
-- Recording
-	- Count-in
-		- Disabled
-		- Enabled
-	- Quantization
+- Recording (RECO)
+	- Count-in (COUN)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- Quantization (QUAN)
 		- Off
-		- 4-Bar
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 256th-Notes
-		- 512nd-Notes
-		- 1024th-Notes
-		- 2048th-Notes
-		- 4096th-Notes
-		- 8192nd-Notes
-		- 16834th-Notes
-		- 32768th-Notes
-		- 65536th-Notes
-		- 131072nd-Notes
-		- 262144th-Notes
-		- 524288th-Notes
-		- 1048576th-Nptes
-		- 2097152nd-Notes
-		- 4194304th-Notes
-		- 8388608th-Notes
-		- 16777216th-Notes
-	- Loop Margins
-		- Disabled
-		- Enabled
-	- Sampling Monitoring
-		- Conditional
-		- Enabled
-		- Disabled
-- Community Features
-	- Drum Randomizer
+		- 4-Bar (4BAR)
+		- 2-Bar (2BAR)
+		- 1-Bar (1BAR)
+		- 2nd-Notes (2ND)
+		- 4th-Notes (4TH)
+		- 8th-Notes (8TH)
+		- 16th-Notes (16TH)
+		- 32nd-Notes (32ND)
+		- 64th-Notes (64th)
+		- 128th-Notes (128T)
+		- 256th-Notes (256T)
+		- 512nd-Notes (512T)
+		- 1024th-Notes (1024)
+		- 2048th-Notes (2048)
+		- 4096th-Notes (4096)
+		- 8192nd-Notes (8192)
+		- 16834th-Notes (TINY)
+		- 32768th-Notes (TINY)
+		- 65536th-Notes (TINY)
+		- 131072nd-Notes (TINY)
+		- 262144th-Notes (TINY)
+		- 524288th-Notes (TINY)
+		- 1048576th-Nptes (TINY)
+		- 2097152nd-Notes (TINY)
+		- 4194304th-Notes (TINY)
+		- 8388608th-Notes (TINY)
+		- 16777216th-Notes (TINY)
+	- Loop Margins (MARG)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- Sampling Monitoring (MONI)
+		- Conditional (COND)
+		- Enabled (ON)
+		- Disabled (OFF)
+- Community Features (FEAT)
+	- Drum Randomizer (DRUM)
 		- OFF
 		- ON
-	- Fine Tempo Knob
+	- Fine Tempo Knob (TEMP)
 		- OFF
 		- ON
-	- Quantize
+	- Quantize (QUAN)
 		- OFF
 		- ON
-	- Mod. Depth Decimals
+	- Mod. Depth Decimals (MOD.)
 		- OFF
 		- ON
-	- Catch Notes
+	- Catch Notes (CATC)
 		- OFF
 		- ON
-	- Delete Unused Kit Rows
+	- Delete Unused Kit Rows (UNUS)
 		- OFF
 		- ON
-	- Alternative Golden Knob Delay Params
+	- Alternative Golden Knob Delay Params (DELA)
 		- OFF
 		- ON
-	- Stutter Rate Quantize
+	- Stutter Rate Quantize (STUT)
 		- OFF
 		- ON
-	- Allow Insecure Develop Sysex Messages
+	- Allow Insecure Develop Sysex Messages (SYSX)
 		- OFF
 		- ON
-	- Sync Scaling Action
-		- Sync Scaling
-		- Fill Mode
-	- Highlight Incoming Notes
+	- Sync Scaling Action (SCAL)
+		- Sync Scaling (SCAL)
+		- Fill Mode (FILL)
+	- Highlight Incoming Notes (HIGH)
 		- OFF
 		- ON
-	- Display Norns Layout
+	- Display Norns Layout (NORN)
 		- OFF
 		- ON
-	- Sticky Shift
+	- Sticky Shift (STIC)
 		- OFF
 		- ON
-	- Light Shift
+	- Light Shift (LIGH)
 		- OFF
 		- ON
-	- Enable Grain FX
+	- Enable Grain FX (GRFX)
 		- OFF
 		- ON
-	- Emulated Display
-		- OLED
-		- Toggle
-		- 7SEG 
-- Firmware Version
+	- Emulated Display (EMUL)
+		- OLED (OLED)
+		- Toggle (TOGL)
+		- 7SEG (7SEG)
+- Firmware Version (FIRM)
 </details>
 
 <details>
