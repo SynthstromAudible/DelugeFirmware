@@ -28,6 +28,7 @@
 #include "source_selection.h"
 
 namespace deluge::gui::menu_item {
+
 MenuItem* PatchedParam::selectButtonPress() {
 
 	// If shift held down, user wants to delete automation

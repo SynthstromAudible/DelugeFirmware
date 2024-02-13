@@ -59,9 +59,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
 	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold `SHIFT` while turning the Select Encoder.
 
-#### 3.9 - Enable Stutter Automation
-- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
-  	- This feature is not present in the v1.0.0 release.
+#### 3.9 - Enable Stutter Rate Automation
+- ([#653]) Enabled ability to record stutter rate automation with mod (gold) encoder. 
+	- Note: This feature does not enable you to automate the triggering of stutter
 
 #### 3.10 - Adjust Metronome Volume
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
@@ -134,7 +134,7 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes to the color press `▼︎▲︎` while turning it.
 			- Section pads (left sidebar column) will allow changing repeat count while held
 
-#### 4.1.6 - New Performance View
+#### 4.1.6 - Performance View
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Performance View Documentation]
 - ([#711]) Adds a new performance view, accessible from Song Row View and Arranger View's using the Keyboard button or the Song Grid View using the Pink Grid Mode pad in the bottom right hand corner of the sidebar.
 	- Each column on the grid represents a different "FX" and each pad/row in the column corresponds to a different FX value.
@@ -262,7 +262,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
-	- ([#658]) Added Stutter Rate Parameter to Automation View.
+	- ([#658]) Added Stutter Rate Parameter to Automation View. Note: this does not allow you to automate the triggering of stutter.
 	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Clip View.
 		- Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
 		- By default in the Automation Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
@@ -283,7 +283,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 			* Automation (AUTO)
 				* Interpolation (INTE)
 					* When On, Interpolation is on by default in the Automation View.
-					* Note: This is just a default setting and can be overriden in the Automation View using the Select encoder button.
+					* Note: This is just a default setting and can be overriden in the Automation View using the Shift + Interpolation grid button shortcut combo.
 				* Clear (CLEA)
 					* When On, clearing the arrangement in arranger view / a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
 					* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
@@ -300,6 +300,12 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 						2) use the shift + shortcut pad combo; or
 						3) go back to the automation overview;		
 	- ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+	- ([#1156]) Change interpolation shortcut + Provide better integration with Deluge menu system and consistency with Select encoder usage.
+		- Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
+		- Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
+		- Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
+		- Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
+		- Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter the `AUTOMATION VIEW EDITOR`.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -580,6 +586,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
+[#1156]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1156
 [#1159]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1159
 [#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
 [#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183

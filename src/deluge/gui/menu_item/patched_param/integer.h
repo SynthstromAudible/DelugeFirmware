@@ -37,6 +37,10 @@ public:
 
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
+	// this button action function definition should not be required as it should be inherited
+	// from the param class, however it does not work if the definition is removed, so there
+	// is likely a multi-inheritance issue that needs to be resolved
+	ActionResult buttonAction(deluge::hid::Button b, bool on) final { return PatchedParam::buttonAction(b, on); }
 
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
