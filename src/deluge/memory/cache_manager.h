@@ -16,8 +16,14 @@ public:
 
 	uint32_t& longest_runs(size_t idx) { return longest_runs_.at(idx); }
 
-	void QueueForReclamation(size_t q, Stealable* stealable) {
+	void PutAtEndOfQueue(size_t q, Stealable* stealable) {
 		reclamation_queue_[q].addToEnd(stealable);
+		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+	}
+
+	/// adds to start of queue - logic is that a recently freed sample is unlikely to be immediately needed again
+	void QueueForReclamation(size_t q, Stealable* stealable) {
+		reclamation_queue_[q].addToStart(stealable);
 		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
