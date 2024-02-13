@@ -11,14 +11,18 @@ The Settings menu is accessible from anywhere on the Deluge by pressing `SHIFT +
 
 The Settings menu contains the following menu hierarchy:
 
-- CV
+<blockquote>
+<details><summary>CV</summary>
+
 	- CV Output 1 (OUT1)
 		- Volts per Octave (VOLT)
 		- Transpose (TRAN)
 	- CV Output 2 (OUT2)
 		- Volts per Octave (VOLT)
 		- Transpose (TRAN)
-- Gate
+</details>		
+<details><summary>Gate</summary>
+
 	- Gate Output 1 (OUT1)
 		- V-Trig (VTRI)
 		- S-Trig (STRI)
@@ -32,7 +36,10 @@ The Settings menu contains the following menu hierarchy:
 		- V-Trig (VTRI)
 		- S-Trig (STRI)
 	- Minimum Off-Time (OFFT)
-- Trigger Clock (TCLO)
+</details>
+
+<details><summary>Trigger Clock (TCLO)</summary>
+
 	- Input (IN)
 		- PPQN 
 		- Auto-Start (AUTO)
@@ -40,7 +47,10 @@ The Settings menu contains the following menu hierarchy:
 			- Enabled (OFF)
 	- Output (OUT)
 		- PPQN
-- MIDI
+</details>
+
+<details><summary>MIDI</summary>
+
 	- Clock (CLK)
 		- Input (IN)
 			- Disabled (ON)
@@ -118,7 +128,10 @@ The Settings menu contains the following menu hierarchy:
 			- Clock (CLK)
 				- Disabled (OFF)
 				- Enabled (ON)
-- Defaults (DEFA)
+</details>
+				
+<details><summary>Defaults (DEFA)</summary>
+
 	- UI
 		- Song
 			- Layout (LAYT)
@@ -181,7 +194,11 @@ The Settings menu contains the following menu hierarchy:
 	- Resolution (RESO)
 	- Bend Range (BEND)
 	- Metronome (METR)
-- Swing Interval (SWIN) - NOTE: These options can change depending on how your default resolution is set
+</details>
+
+<details><summary>Swing Interval (SWIN)</summary>
+NOTE: These options can change depending on how your default resolution is set
+
 	- 2-Bar
 	- 1-Bar
 	- 2nd-Notes
@@ -209,7 +226,10 @@ The Settings menu contains the following menu hierarchy:
 	- 32nd-DTTED
 	- 64th-DTTED
 	- 128th-DTTED
-- Pads
+</details>
+
+<details><summary>Pads</summary>
+
 	- Shortcut Version (SHOR)
 		- 1.0
 		- 3.0
@@ -258,15 +278,24 @@ The Settings menu contains the following menu hierarchy:
 			- Amber (AMBE)
 			- White (WHIT)
 			- Pink
-- Sample Preview (PREV)
+</details>
+
+<details><summary>Sample Preview (PREV)</summary>
+
 	- Disabled (OFF)
 	- Conditional (COND)
 	- Enabled (ON)
-- Play-Cursor (CURS)
+</details>	
+	
+<details><summary>Play-Cursor (CURS)</summary>
+
 	- Fast
 	- Disabled (OFF)
 	- Slow
-- Recording (RECO)
+</details>	
+	
+<details><summary>Recording (RECO)</summary>
+
 	- Count-in (COUN)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -306,7 +335,10 @@ The Settings menu contains the following menu hierarchy:
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
-- Community Features (FEAT)
+</details>
+
+<details><summary>Community Features (FEAT)</summary>
+
 	- Drum Randomizer (DRUM)
 		- OFF
 		- ON
@@ -356,7 +388,10 @@ The Settings menu contains the following menu hierarchy:
 		- OLED (OLED)
 		- Toggle (TOGL)
 		- 7SEG (7SEG)
-- Firmware Version (FIRM)
+</details>
+
+Firmware Version (FIRM)
+
 </details>
 
 <details>
@@ -414,5 +449,3 @@ The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT EN
 
 ** Menu hierarchy to be added **
 </details>
-
-
