@@ -116,6 +116,10 @@ void UITimerManager::routine() {
 					soundEditor.blinkShortcut();
 					break;
 
+				case TIMER_INTERPOLATION_SHORTCUT_BLINK:
+					automationView.blinkInterpolationShortcut();
+					break;
+
 				case TIMER_MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;

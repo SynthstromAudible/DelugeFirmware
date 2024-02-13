@@ -2,7 +2,9 @@
 
 Automation View is a new view that complements the existing Arranger and Clip Views. 
 - The Automation Arranger View is accessed from within Arranger View by pressing the Shift + Song buttons
+    - Note: the automation arranger view editor for a specific parameter can be accessed directly from the arranger song menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Song button while in the parameter value.
 - In Automation Clip View is accessed from within the Clip View by pressing the Clip button
+    - Note: the automation clip view editor for a specific parameter can be accessed directly from the clip sound menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Clip button while in the parameter value.
 
 It allows you to edit automatable parameters on a per step basis at any zoom level.
 
@@ -125,21 +127,18 @@ The Automation Overview **will:**
 
 > **Note 3:** In a Kit clip, if you press and hold an audition pad and turn the vertical encoder, you can quickly scroll through all automation overview's for kit clip's rows
 
-- enable you to quickly access the Automation Editor for any automatable parameter by pressing any of the pads that are illuminated or by turning select
+- enable you to quickly access the Automation Editor for any automatable parameter by pressing any of the pads that are illuminated
 - enable you to clear all automations using the current combo of pressing down on Horizontal Encoder at the same time as pressing the Back button (note: for kit clip the behaviour will operate differently than usual: with affect entire enabled you will only clear all kit level automations. with affect entire disabled it will clear all kit row level automations).
 
 > **Note:** When automations are cleared, Parameters are reset to the current value in the Sound Editor. E.g. if an automation playing back and you deleted it mid playback, the parameter value would be set to the last played back value. Or if you just edited the automation by pressing on the grid, the last value would be the value corresponding to the last pad you pressed.
 
-- enable you to quickly turn interpolation on/off by pressing down on the select encoder
-- enable you to quickly access the Automation Default Settings sub-menu by using holding shift and pressing down on the select encoder
+- enable you to quickly turn interpolation on/off by using the shift + interpolation shortcut (the interpolation shortcut pad is the interpolation pad in the first column of the grid, second from the top). The interpolation shortcut pad will blink every few seconds to remind you that interpolation is on.
 - enable you to copy paste automations and the overview grid will show you the movement of pasted automations by illuminating the pads of the params that automation was copied to white
 - allow you to use the keyboard screen
 - allow you to mute/audition sounds using the sidebar
 
 The Automation Overview **will not allow you to:**
 
-- access the regular settings menu
-- access the sound editor
 - access the sample browser
 - use regular grid shortcuts (except for shift + param)
 - view/change the clip length / row length settings (go into the automation editor or back to the regular instrument clip view if you want to view/edit those settings)
@@ -154,9 +153,9 @@ The Automation Overview **will not allow you to:**
 You can select the Parameter that you want to edit in three ways:
 
 1. From the Automation Overview by pressing any of the illuminated pads
-2. By turning select
-5. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
-9. Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
+2. From the menu by selecting a parameter for editing and then pressing song (if you're in arranger) or clip (if you're in a clip)
+3. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
+4. Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
 
 > **Note:** This information is saved with the song.
 
@@ -174,8 +173,8 @@ The Automation Editor **will:**
 
 - show you visually whether automation is enabled on a parameter by dimming the pads when automation is off, and increasing the brightness when automation is on
 - display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for MIDI clips)
-- enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
-- enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
+- enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn). You can also use the select encoder to change the value of the parameter in focus.
+- enable you to quickly change parameters in focus for editing by using shift + shortcut pad or going back to automation overview using affect entire or shift/audition pad + clip
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
@@ -255,7 +254,7 @@ The Automation Editor **will:**
 - enable you to copy / paste automations from one parameter to another based on the parameter editor in view using the current combo (learn + press on either of the Mod Encoders (Gold Knobs) to copy and learn + shift + press on either of the Mod Encoders (Gold Knobs) to paste)
 - enable you to record in automations live with either of the Mod Encoders (Gold Knobs) so that you can see your automations displayed on the grid
 - display the current parameter being edited on the grid by flashing the parameter shortcut pad white. you can also see the name of the parameter you are editing by holding shift + pressing the flashing shortcut pad to see the parameter name on the screen. Note: for 7seg, you will only cc the MIDI CC # on the screen, not the parameter names in a Synth or Kit as the names are too complicated to abbreviate for a 7seg display and they are not currently shown in the sound editor).
-- quickly change the interpolation on/off setting by pressing down on the settings encoder
+- enable you to quickly turn interpolation on/off by using the shift + interpolation shortcut (the interpolation shortcut pad is the interpolation pad in the first column of the grid, second from the top). The interpolation shortcut pad will blink every few seconds to remind you that interpolation is on.
 - delete automation for the current parameter being edited using shift + press on either of the Mod Encoders (Gold Knobs)
 
 > **Note:** When automation is deleted, the Parameter's value is reset to the current value in the Sound Editor. E.g. if an automation playing back and you deleted it mid playback, the parameter value would be set to the last played back value. Or if you just edited the automation by pressing on the grid, the last value would be the value corresponding to the last pad you pressed.
@@ -271,8 +270,7 @@ The Automation Editor **will:**
 > **Note 2:** For Kit Clips with Affect Entire disabled, the Automation Editor grid will display the shortened clip row size (e.g. you cannot edit automation past the clip row length boundary).
 
 - in automation clip view, double clip length using the current combo (shift + press down on horizontal encoder)
-- enable you to quickly turn interpolation on/off by pressing down on the select encoder
-- enable you to quickly access the Automation Default Settings sub-menu by using holding shift and pressing down on the select encoder
+- enable you to quickly turn interpolation on/off by using the shift + interpolation shortcut (the interpolation shortcut pad is the interpolation pad in the first column of the grid, second from the top). The interpolation shortcut pad will blink every few seconds to remind you that interpolation is on.
 - in automation clip view, enable you to mute/audition sounds using the sidebar
 - in automation arranger view, enable you to change clip statuses using the sidebar
 
@@ -280,8 +278,6 @@ The Automation Editor **will:**
 
 The Automation Editor **will not allow you to:**
 
-- access the regular settings menu
-- access the sound editor
 - access the sample browser
 - use regular grid shortcuts (except for shift + param)
 - edit MPE parameter values
@@ -306,7 +302,7 @@ This sets the default value for the Interpolation setting in the Automation View
 
 > **Note:** This default value is loaded every time you enter the Automation View.
 
-Interpolation itself can be toggled on/off by pressing down on the Setting button however that does not change the default setting.
+Interpolation itself can be toggled on/off by using the shift + interpolation shortcut (the interpolation shortcut pad is the interpolation pad in the first column of the grid, second from the top). The interpolation shortcut pad will blink every few seconds to remind you that interpolation is on.
 
 Interpolation is only applied when you are physically entering a long automation pad press (e.g. when you hold one pad and press a second pad to connect the pads together). If you turn interpolation on and do not edit any parameter values, it will not have any effect.
 
@@ -412,7 +408,6 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 - Key Frames + Parameter value for each frame
 - Automation Shapes
-- Jump from Sound Editor Menu to Automation View
 - Zoom in Vertically
 - Shading of lower node changes when viewing higher node level
 - How can we reset automation to default preset levels
@@ -439,6 +434,11 @@ These are the main button shortcuts/combos that will be used in the Automation C
 - Press `SONG` while in Automation Arranger View to exit back to Arranger View
 - Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
 - Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during playback
+
+## Additional Shortcut Combos for Entering the Automation Editor from the Sound Menu's
+
+- While in the Arranger Song Menu for a specific parameter, press `SONG` to enter the Automation Editor for that parameter
+- While in the Clip Sound Menu for a specific parameter, press `CLIP` to enter the Automation Editor for that parameter
 
 ## Automation Overview of Grid Shortcuts mappings to MIDI CC's for MIDI Clips
 
