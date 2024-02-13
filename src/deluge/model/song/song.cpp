@@ -176,7 +176,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
-	lastSelectedParamArrayPosition = 0;
 	// end initialize of automation arranger view variables
 
 	masterTransposeInterval = 0;
@@ -1204,7 +1203,6 @@ weAreInArrangementEditorOrInClipInstance:
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
 	globalEffectable.writeAttributesToFile(false);
@@ -1631,10 +1629,6 @@ unknownTag:
 				storageManager.exitTag("lastSelectedParamShortcutY");
 			}
 
-			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("lastSelectedParamArrayPosition");
-			}
 			// legacy section, read as part of global effectable (songParams tag) post c1.1
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -2770,6 +2764,12 @@ const char* Song::getScaleName(int32_t scale) {
 }
 
 int32_t Song::cycleThroughScales() {
+	int32_t currentScale = getCurrentPresetScale();
+	int32_t newScale = currentScale + 1;
+	return setPresetScale(newScale);
+}
+
+int32_t Song::setPresetScale(int32_t newScale) {
 	// Can only do it if there are between 5 and 7 notes in current scale
 	if (numModeNotes < 5 || numModeNotes > 7) {
 		return 255;
@@ -2778,7 +2778,7 @@ int32_t Song::cycleThroughScales() {
 	int32_t numNotesInCurrentScale = 7;
 	int32_t numNotesInNewScale = 7;
 
-	// Get num of notes of new scale
+	// Get num of notes of old scale
 	int32_t currentScale = getCurrentPresetScale();
 	if (currentScale >= FIRST_5_NOTE_SCALE_INDEX) {
 		numNotesInCurrentScale = 5;
@@ -2787,7 +2787,6 @@ int32_t Song::cycleThroughScales() {
 		numNotesInCurrentScale = 6;
 	}
 
-	int32_t newScale = currentScale + 1;
 	if (newScale >= NUM_PRESET_SCALES) {
 		newScale = 0;
 	}

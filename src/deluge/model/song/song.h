@@ -107,6 +107,7 @@ public:
 	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
+	int32_t setPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
@@ -364,7 +365,6 @@ public:
 	    lastSelectedParamKind; // 0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
-	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
 	int32_t masterTransposeInterval;
