@@ -4,7 +4,8 @@ This document will document the menu structure hierarchy currently in place in t
 
 The hierarchy's illustrated below will follow the format of OLED (7SEG) in order to show the Menu name on OLED and the Menu name on 7SEG in brackets.
 
-# Settings menu
+<details>
+<summary>Settings menu</summary>
 
 The Settings menu is accessible from anywhere on the Deluge by pressing `SHIFT + SELECT ENCODER`
 
@@ -356,45 +357,62 @@ The Settings menu contains the following menu hierarchy:
 		- Toggle
 		- 7SEG 
 - Firmware Version
+</details>
 
-# Song Menu
+<details>
+<summary>Song Menu</summary>
 
 The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# Perform FX Menu
+<details>
+<summary>Perform FX Menu</summary>
 
 The Perform FX menu is accessible from Performance View by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# Sound Menu
+<details>
+<summary>Sound Menu</summary>
 
 The Sound menu is accessible from Synth Clips and Kit clips when affect entire is disabled and a kit row is selected by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# Kit FX Menu
+<details>
+<summary>Kit FX Menu</summary>
 
 The Kit FX menu is accessible from Kit clips when affect entire is enabled by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# MIDI Instrument Menu
+<details>
+<summary>MIDI Instrument Menu</summary>
 
 The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# CV Instrument Menu
+<details>
+<summary>CV Instrument Menu</summary>
 
 The CV Instrument menu is accessible from CV clips by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
 
-# Audio Clip Menu
+<details>
+<summary>Audio Clip Menu</summary>
 
 The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT ENCODER`
 
 ** Menu hierarchy to be added **
+</details>
+
+
