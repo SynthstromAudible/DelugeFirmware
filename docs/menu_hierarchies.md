@@ -5,7 +5,7 @@ This document will document the menu structure hierarchy currently in place in t
 The hierarchy's illustrated below will follow the format of OLED (7SEG) in order to show the Menu name on OLED and the Menu name on 7SEG in brackets.
 
 <details>
-<summary>Settings menu</summary>
+<summary>Settings Menu</summary>
 
 The Settings menu is accessible from anywhere on the Deluge by pressing `SHIFT + SELECT ENCODER`
 
