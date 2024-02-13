@@ -24,23 +24,30 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	uint8_t noteIdx = 0;
-
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
-			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getDefaultVelocity());
+		auto pressed = presses[idxPress];
+		if (pressed.active && pressed.x < kDisplayWidth) {
+			enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 		}
 	}
+
+	// Should be called last so currentNotesState can be read
+	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
 void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
+	if (verticalEncoderHandledByColumns(offset)) {
+		return;
+	}
 	handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
 }
 
 void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
 	KeyboardStateInKey& state = getState().inKey;
 
 	if (shiftEnabled) {

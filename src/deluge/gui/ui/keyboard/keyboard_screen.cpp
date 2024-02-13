@@ -83,11 +83,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return soundEditorResult;
 	}
 
-	// Exit if pad is enabled but UI in wrong mode, this was removed as it prevented from changing root note
-	// if (!isUIModeWithinRange(padActionUIModes)
-	//     && velocity) {
-	// 	return ActionResult::DEALT_WITH;
-	// }
+	int32_t markDead = -1;
 
 	// Pad pressed down, add to list if not full
 	if (velocity) {
@@ -108,6 +104,9 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				freeSlotIdx = -1; // If a free slot was found previously, reset it so we don't write a second entry
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+					pressedPads[idx].padPressHeld = true;
+				}
 				break;
 			}
 		}
@@ -117,6 +116,9 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			pressedPads[freeSlotIdx].x = x;
 			pressedPads[freeSlotIdx].y = y;
 			pressedPads[freeSlotIdx].active = true;
+			pressedPads[freeSlotIdx].dead = false;
+			pressedPads[freeSlotIdx].padPressHeld = false;
+			pressedPads[freeSlotIdx].timeLastPadPress = AudioEngine::audioSampleTimer;
 		}
 	}
 
@@ -126,12 +128,20 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
+				markDead = idx;
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+					pressedPads[idx].padPressHeld = true;
+				}
 				break;
 			}
 		}
 	}
 
 	evaluateActiveNotes();
+
+	if (markDead != -1) {
+		pressedPads[markDead].dead = true;
+	}
 
 	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {

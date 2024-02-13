@@ -2770,6 +2770,12 @@ const char* Song::getScaleName(int32_t scale) {
 }
 
 int32_t Song::cycleThroughScales() {
+	int32_t currentScale = getCurrentPresetScale();
+	int32_t newScale = currentScale + 1;
+	return setPresetScale(newScale);
+}
+
+int32_t Song::setPresetScale(int32_t newScale) {
 	// Can only do it if there are between 5 and 7 notes in current scale
 	if (numModeNotes < 5 || numModeNotes > 7) {
 		return 255;
@@ -2778,7 +2784,7 @@ int32_t Song::cycleThroughScales() {
 	int32_t numNotesInCurrentScale = 7;
 	int32_t numNotesInNewScale = 7;
 
-	// Get num of notes of new scale
+	// Get num of notes of old scale
 	int32_t currentScale = getCurrentPresetScale();
 	if (currentScale >= FIRST_5_NOTE_SCALE_INDEX) {
 		numNotesInCurrentScale = 5;
@@ -2787,7 +2793,6 @@ int32_t Song::cycleThroughScales() {
 		numNotesInCurrentScale = 6;
 	}
 
-	int32_t newScale = currentScale + 1;
 	if (newScale >= NUM_PRESET_SCALES) {
 		newScale = 0;
 	}
