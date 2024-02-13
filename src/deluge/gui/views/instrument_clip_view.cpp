@@ -823,7 +823,7 @@ someError:
 		loadInstrumentPresetUI.instrumentToReplace = nullptr;
 
 		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
-		if (noteRow->drum->type == drumType) {
+		if (noteRow->drum && noteRow->drum->type == drumType) {
 			loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)noteRow->drum;
 		}
 		else {
