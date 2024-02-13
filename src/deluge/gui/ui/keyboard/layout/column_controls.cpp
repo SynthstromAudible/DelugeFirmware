@@ -80,8 +80,7 @@ void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(getCurrentClip());
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
 	leftColHeld = -1;
 
