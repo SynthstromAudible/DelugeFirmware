@@ -389,12 +389,11 @@ void routine() {
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
-	numSamplesLastTime = numSamples;
+
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
 	}
-
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
@@ -464,16 +463,18 @@ void routine() {
 		}
 
 		if (!bypassCulling) {
-			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
-
+			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 			// If it's real dire, do a proper immediate cull
-			if (numSamplesOverLimit >= 10) {
+			if (smoothedSamplesOverLimit >= 10) {
 
-				numToCull = (numSamplesOverLimit >> 3) + 1;
+				numToCull = (numSamplesOverLimit >> 3);
 
 				for (int32_t i = 0; i < numToCull; i++) {
-					// Hard cull, potentially including one audio clip if numSamples is increasing
-					cullVoice(false, false, i == 0 && numSamples > numSamplesLastTime);
+					// Hard cull the first one, potentially including one audio clip
+					// soft cull remainder
+					bool justDoFastRelease = i > 0;
+					cullVoice(false, justDoFastRelease, true);
 				}
 
 #if ALPHA_OR_BETA_VERSION
@@ -496,8 +497,9 @@ void routine() {
 			// increasing
 			else if (numSamplesOverLimit >= -6) {
 
-				// if the numSamples is increasing, start fast release on a clip even if one's already there
-				cullVoice(false, true, numSamples > numSamplesLastTime);
+				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
+				// first routine call this is inaccurate, so just release another voice since things are probably bad
+				cullVoice(false, true, numRoutines > 0 || numSamples > numSamplesLastTime);
 				logAction("soft cull");
 			}
 		}
