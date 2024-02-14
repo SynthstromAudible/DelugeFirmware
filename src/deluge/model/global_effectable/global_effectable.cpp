@@ -856,6 +856,10 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 
 	else if (!strcmp(tagName, "volume")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_4P1P4_ALPHA
+		    && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
+		}
 		storageManager.exitTag("volume");
 	}
 
