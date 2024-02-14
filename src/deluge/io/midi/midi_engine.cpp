@@ -22,9 +22,9 @@
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
-#include "io/debug/sysex.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
+#include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
@@ -747,41 +747,54 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 	}
 }
 
+bool developerSysexCodeReceived = false;
+
 void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 4) {
 		return;
 	}
-
-	// placeholder until we get a real manufacturer id.
-	if (data[1] == 0x7D) {
-		switch (data[2]) {
-		case 0: // PING test message, reply
-		{
-			uint8_t pong[] = {0xf0, data[1], 0x7f, 0x00, 0xf7};
-			if (len >= 5) {
-				pong[3] = data[3];
-			}
-			device->sendSysex(pong, sizeof pong);
-		} break;
-
-		case 1:
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
-			break;
-
-		case 2:
-			HIDSysex::sysexReceived(device, data, len);
-			break;
-
-		case 3:
-			// debug namespace: for sysex calls useful for debugging purposes
-			// and/or might require a debug build to function.
-			Debug::sysexReceived(device, data, len);
-			break;
-
-		case 0x7f: // PONG, reserved
-		default:
-			break;
+	unsigned payloadOffset = 2;
+	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1
+	    && data[3] == SysEx::DELUGE_SYSEX_ID_BYTE2 && data[4] == SysEx::DELUGE_SYSEX_ID_BYTE3) {
+		payloadOffset = 5;
+		developerSysexCodeReceived = false;
+	}
+	else {
+		if (data[1] != 0x7D)
+			return;
+		developerSysexCodeReceived = true;
+	}
+	// The payload includes the msgID and the ending 0F0
+	unsigned payloadLength = len - payloadOffset;
+	uint8_t* payloadStart = data + payloadOffset;
+	switch (data[payloadOffset]) {
+	case SysEx::SysexCommands::Ping: // PING test message, reply
+	{
+		uint8_t longPong[] = {0xf0, 0x00, 0x21, 0x7B, 0x01, 0x7f, 0x00, 0xf7};
+		if (len >= 8) {
+			longPong[6] = data[6];
 		}
+		device->sendSysex(longPong, sizeof longPong);
+	} break;
+
+	case SysEx::SysexCommands::Popup:
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
+		break;
+
+	case SysEx::SysexCommands::HID:
+		HIDSysex::sysexReceived(device, payloadStart, payloadLength);
+		break;
+
+	case SysEx::SysexCommands::Debug:
+		// debug namespace: for sysex calls useful for debugging purposes
+		// and/or might require a debug build to function.
+		Debug::sysexReceived(device, payloadStart, payloadLength);
+		break;
+
+	case SysEx::SysexCommands::Pong: // PONG, reserved
+		D_PRINTLN("Pong");
+	default:
+		break;
 	}
 }
 
