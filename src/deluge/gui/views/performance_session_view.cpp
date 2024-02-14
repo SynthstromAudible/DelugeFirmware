@@ -287,11 +287,36 @@ void PerformanceSessionView::graphicsRoutine() {
 
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
-
-	// Nothing to do here but clear since we don't render playhead
 	memset(&tickSquares, 255, sizeof(tickSquares));
-	memset(&colours, 255, sizeof(colours));
-	PadLEDs::setTickSquares(tickSquares, colours);
+
+	// don't render play cursor in arranger view
+	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		// Nothing to do here but clear since we don't render playhead
+		memset(&colours, 255, sizeof(colours));
+		PadLEDs::setTickSquares(tickSquares, colours);
+	}
+	// render play cursor in song view
+	else {
+		int32_t newTickSquare;
+
+		bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || playbackHandler.ticksLeftInCountIn
+		                           || currentUIMode == UI_MODE_EXPLODE_ANIMATION);
+
+		if (reallyNoTickSquare) {
+			newTickSquare = 255;
+		}
+		else {
+			newTickSquare = getSquareFromPos(currentSong->getLivePos());
+			if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+				newTickSquare = 255;
+			}
+		}
+
+		// only render in the top row
+		tickSquares[kDisplayHeight - 1] = newTickSquare;
+		memset(&colours, 0, sizeof(colours));
+		PadLEDs::setTickSquares(tickSquares, colours);
+	}
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
