@@ -168,7 +168,8 @@ void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, 
 void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercLookahead();
 	unassignAllReasonsForPercCacheClusters();
-	olderPartReader.unassignAllReasons();
+	// we might sometimes want to dealloc the clusters but I'm not sure
+	olderPartReader.unassignAllReasons(false);
 	if (buffer) {
 		delugeDealloc(buffer);
 	}
@@ -984,7 +985,7 @@ bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, S
                                      int32_t newHeadBytePos, int32_t additionalOscPos, int32_t priorityRating,
                                      LoopType loopingType) {
 	// clear the current reasons since setting up the clusters will add new ones
-	voiceSample->unassignAllReasons();
+	voiceSample->unassignAllReasons(false);
 	bool success = voiceSample->setupClustersForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
 	if (!success) {
 		return false;

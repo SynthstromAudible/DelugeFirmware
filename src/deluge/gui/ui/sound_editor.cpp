@@ -1409,7 +1409,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 
 void SoundEditor::cutSound() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
-		getCurrentAudioClip()->unassignVoiceSample();
+		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 	else {
 		soundEditor.currentSound->unassignAllVoices();

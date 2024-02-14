@@ -59,7 +59,7 @@ public:
 	                                           int32_t alternativeLongerLength);
 	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
 	int64_t getSamplesFromTicks(int32_t ticks);
-	void unassignVoiceSample();
+	void unassignVoiceSample(bool wontBeUsedAgain);
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
 	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
