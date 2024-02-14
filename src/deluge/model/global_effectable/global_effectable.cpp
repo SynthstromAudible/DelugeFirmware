@@ -856,6 +856,7 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 
 	else if (!strcmp(tagName, "volume")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
 		if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_4P1P4_ALPHA
 		    && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
 			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
