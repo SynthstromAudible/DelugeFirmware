@@ -1261,7 +1261,7 @@ Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
 	// if we're probably gonna cull, just do it now instead of allocating
-	if (cpuDireness > 13 && numSamplesLastTime > direnessThreshold && activeVoices.getNumElements()) {
+	if (cpuDireness >= 13 && numSamplesLastTime > direnessThreshold && activeVoices.getNumElements()) {
 
 		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
 		                  // up to the ones being culled
