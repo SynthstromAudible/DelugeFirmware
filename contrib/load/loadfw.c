@@ -115,32 +115,52 @@ int main(int argc, char **argv)
 		unsigned char *bytes = (unsigned char*)(buffer+buf_pos);
 
 		data[0] = 0xf0;
-		data[1] = 0x7d;
-		data[2] = 3;  // debug
-		data[3] = 1;  // send packet
-		pack_8bit_to_7bit(data+4, 5, &handshake, 4);
-		data[9] = pos_low;
-		data[10] = pos_high;
+// 		data[1] = 0x7d;
+		data[1] = 0x00;
+		data[2] = 0x21;
+		data[3] = 0x7B;
+		data[4] = 0x01;
+//		data[2] = 3;  // debug
+		data[5] = 3;  // debug
+// 		data[3] = 1;  // send packet
+		data[6] = 1;  // send packet
+//		pack_8bit_to_7bit(data+4, 5, &handshake, 4);
+		pack_8bit_to_7bit(data+7, 5, &handshake, 4);
+//		data[9] = pos_low;
+		data[12] = pos_low;
+//		data[10] = pos_high;
+		data[13] = pos_high;
 
 		const int packed_size = 586; // ceil(512+512/7)
-		pack_8bit_to_7bit(data+11, packed_size, bytes, 512);
+//		pack_8bit_to_7bit(data+11, packed_size, bytes, 512);
+		pack_8bit_to_7bit(data+14, packed_size, bytes, 512);
+//		data[11+packed_size] = 0xf7;
 		data[11+packed_size] = 0xf7;
-		int len = packed_size+12;
+//		int len = packed_size+12;
+		int len = packed_size+15;
 
 		send(data, len);
 	}
 
 	data[0] = 0xf0;
-	data[1] = 0x7d;
-	data[2] = 3; // debug
-	data[3] = 2; // run
+	// data[1] = 0x7d;
+	data[1] = 0x00;
+	data[2] = 0x21;
+	data[3] = 0x7B;
+	data[4] = 0x01;
+// 	data[2] = 3; // debug
+	data[5] = 3; // debug
+//	data[3] = 2; // run
+	data[6] = 2; // run
 
 	uint32_t fields[3] = {handshake, size, crc};
 	// TODO: Litle-endian mandated
-	pack_8bit_to_7bit(data+4, 14, fields, 12);
-
-	data[14+4] = 0xf7;
-	send(data, 19);
+//	pack_8bit_to_7bit(data+4, 14, fields, 12);
+	pack_8bit_to_7bit(data+7, 14, fields, 12);
+// 	data[14+4] = 0xf7;
+	data[14+7] = 0xf7;
+// 	send(data, 19);
+	send(data, 22);
 
 	if (use_alsa) {
 #ifdef USE_ALSA

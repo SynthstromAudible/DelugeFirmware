@@ -74,25 +74,41 @@ def load_fw(port, handshake, file, delay_ms=2):
             "Firmware Upload ",
         ):
             data[0] = 0xF0  # Sysex Start
-            data[1] = 0x7D  # Deluge
-            data[2] = 3  # Debug
-            data[3] = 1  # Send Firmware
-            data[4:9] = pack87(handshake.to_bytes(4, byteorder="little"), 5)
-            data[9] = i & 0x7F  # Position Low
-            data[10] = (i >> 7) & 0x7F  # Position High
-            data[11:-1] = pack87(segment, 586)
+            #            data[1] = 0x7D  # Deluge
+            data[1] = 0x00
+            data[2] = 0x21
+            data[3] = 0x7B
+            data[4] = 0x01
+
+            #           data[2] = 3  # Debug
+            data[5] = 3  # Debug
+            #           data[3] = 1  # Send Firmware
+            data[6] = 1  # Send Firmware
+            #           data[4:9] = pack87(handshake.to_bytes(4, byteorder="little"), 5)
+            data[7:12] = pack87(handshake.to_bytes(4, byteorder="little"), 5)
+            #           data[9] = i & 0x7F  # Position Low
+            data[12] = i & 0x7F  # Position Low
+            #           data[10] = (i >> 7) & 0x7F  # Position High
+            data[13] = (i >> 7) & 0x7F  # Position High
+            #           data[11:-1] = pack87(segment, 586)
+            data[14:-1] = pack87(segment, 586)
+            #           data[-1] = 0xF7  # Sysex End
             data[-1] = 0xF7  # Sysex End
             midiout.send_message(data)
             time.sleep(0.001 * delay_ms)
-        data = data[:19]
-        data[3] = 2  # Load Firmware
-        data[4:18] = pack87(
+        #         data = data[:19]
+        data = data[:22]
+        #       data[3] = 2  # Load Firmware
+        data[6] = 2  # Load Firmware
+        #        data[4:18] = pack87(
+        data[7:21] = pack87(
             handshake.to_bytes(4, byteorder="little")
             + len(binary).to_bytes(4, byteorder="little")
             + checksum.to_bytes(4, byteorder="little"),
             14,
         )
-        data[18] = 0xF7
+        #       data[18] = 0xF7
+        data[21] = 0xF7
         midiout.send_message(data)
 
 

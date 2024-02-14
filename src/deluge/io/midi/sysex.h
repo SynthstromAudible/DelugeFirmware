@@ -20,8 +20,8 @@
 #include <cstdint>
 
 class MIDIDevice;
-
 #include "definitions_cxx.hpp"
+
 namespace Debug {
 
 void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
@@ -32,3 +32,23 @@ void loadCheckAndRun(uint8_t* data, int32_t len);
 #endif
 
 } // namespace Debug
+
+namespace SysEx {
+
+const uint8_t SYSEX_START = 0xF0;
+const uint8_t DELUGE_SYSEX_ID_BYTE0 = 0x00;
+const uint8_t DELUGE_SYSEX_ID_BYTE1 = 0x21;
+const uint8_t DELUGE_SYSEX_ID_BYTE2 = 0x7B;
+const uint8_t DELUGE_SYSEX_ID_BYTE3 = 0x01;
+
+const uint8_t SYSEX_END = 0xF7;
+
+enum SysexCommands : uint8_t {
+	Ping,       // reply with pong
+	Popup,      // display info in popup
+	HID,        // HID access
+	Debug,      // Debugging
+	Pong = 0x7F // Pong reply
+};
+
+} // namespace SysEx
