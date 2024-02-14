@@ -320,6 +320,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
+constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
+constexpr int32_t direnessThreshold = numSamplesLimit - 17;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
@@ -395,7 +397,7 @@ void routine() {
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
-
+	int32_t numToCull = 0;
 	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered output
 	// and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and also want
 	// to give them a head-start being sent and out of the way so the clock messages can be sent on-time
@@ -446,9 +448,7 @@ void routine() {
 	//  }
 
 	// Consider direness and culling - before increasing the number of samples
-	int32_t numSamplesLimit = 40; // storageManager.devVarC;
-	int32_t direnessThreshold = numSamplesLimit - 17;
-	int32_t numToCull = 0;
+
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) { // 23
 
@@ -1260,11 +1260,11 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
+	// if we're probably gonna cull, just do it now instead of allocating
+	if (cpuDireness > 13 && numSamplesLastTime > direnessThreshold && activeVoices.getNumElements()) {
 
-	if (numSamplesLastTime >= 100 && activeVoices.getNumElements()) {
-
-		numSamplesLastTime -= 10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
-		                          // up to the ones being culled
+		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
+		                  // up to the ones being culled
 		D_PRINTLN("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);
