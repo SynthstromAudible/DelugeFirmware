@@ -16,14 +16,15 @@ public:
 
 	uint32_t& longest_runs(size_t idx) { return longest_runs_.at(idx); }
 
-	void PutAtEndOfQueue(size_t q, Stealable* stealable) {
-		reclamation_queue_[q].addToEnd(stealable);
-		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
-	}
-
-	/// adds to start of queue - logic is that a recently freed sample is unlikely to be immediately needed again
+	/// add a stealable to end of given queue
 	void QueueForReclamation(size_t q, Stealable* stealable) {
-		reclamation_queue_[q].addToStart(stealable);
+		/// Alternatively we could add to start of queue - logic is that a recently freed sample is unlikely
+		/// to be immediately needed again. This increases average and max voice counts, but has a problem with medium
+		/// memory pressure songs where it tends to prioritize earlier sounds in the song and makes it possible for
+		/// later songs to break in. This occurs since there's no mechanism to determine if a sample is going to be used
+		/// in the remainder of the song, so if there's not enough memory pressure for all stealable clusters to get
+		/// reclaimed the same few just get put on and off the list repeatedly
+		reclamation_queue_[q].addToEnd(stealable);
 		longest_runs_[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
 	}
 
