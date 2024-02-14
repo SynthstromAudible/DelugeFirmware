@@ -256,6 +256,7 @@ void songSwapAboutToHappen() {
 // To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
 // or if none, the voice playing longest.
 Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
+	bool includeAudio = true;
 
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
@@ -265,8 +266,13 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
 
 		if (ratingThisVoice > bestRating) {
-			bestRating = ratingThisVoice;
-			bestVoice = thisVoice;
+			if (!justDoFastRelease || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+				bestRating = ratingThisVoice;
+				bestVoice = thisVoice;
+			}
+			else {
+				includeAudio = false;
+			}
 		}
 	}
 
@@ -285,11 +291,13 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d", smoothedSamples);
-				D_PRINTLN(". voices left: %d ", getNumVoices());
+				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d", smoothedSamples, getNumVoices());
 #endif
 			}
-			// Otherwise, it's already fast-releasing, so just leave it
+			else {
+				// Otherwise, it's already fast-releasing, so just leave it
+				D_PRINTLN("Didn't cull - best voice already releasing", smoothedSamples);
+			}
 
 			bestVoice = NULL; // We don't want to return it
 		}
@@ -300,7 +308,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 	}
 
 	// Or if no Voices to cull, try culling an AudioClip...
-	else {
+	else if (includeAudio) {
 		if (currentSong && !justDoFastRelease) {
 			currentSong->cullAudioClipVoice();
 		}
@@ -422,7 +430,7 @@ void routine() {
 	constexpr int MINSAMPLES = 16;
 	// two step FIR
 	if (numSamples > numSamplesLastTime) {
-		smoothedSamples = (numSamples + numSamplesLastTime) / 2;
+		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
 	}
 	else {
 		smoothedSamples = numSamples;
@@ -441,7 +449,8 @@ void routine() {
 	int32_t numSamplesLimit = 40; // storageManager.devVarC;
 	int32_t direnessThreshold = numSamplesLimit - 17;
 	int32_t numToCull = 0;
-	if (smoothedSamples >= direnessThreshold) { // 20
+	// don't smooth this - used for other decisions as well
+	if (numSamples >= direnessThreshold) { // 23
 
 		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
