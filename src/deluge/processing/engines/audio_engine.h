@@ -171,7 +171,7 @@ void printLog();
 #endif
 
 int32_t getNumVoices();
-Voice* cullVoice(bool saveVoice = false, bool justDoFastRelease = false);
+Voice* cullVoice(bool saveVoice = false, bool justDoFastRelease = false, bool definitelyCull = false);
 
 bool doSomeOutputting();
 void updateReverbParams();

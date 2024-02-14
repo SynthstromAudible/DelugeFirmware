@@ -255,9 +255,11 @@ void songSwapAboutToHappen() {
 
 // To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
 // or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
-	bool includeAudio = true;
-
+Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
+	// Only include audio if doing a hard cull and not saving the voice
+	bool includeAudio = !saveVoice && !justDoFastRelease && definitelyCull;
+	// Skip releasing voices if doing a soft cull and definitely culling
+	bool skipReleasing = justDoFastRelease && definitelyCull;
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -266,12 +268,10 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
 
 		if (ratingThisVoice > bestRating) {
-			if (!justDoFastRelease || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
+			if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
 				bestRating = ratingThisVoice;
 				bestVoice = thisVoice;
-			}
-			else {
-				includeAudio = false;
 			}
 		}
 	}
@@ -296,7 +296,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 			}
 			else {
 				// Otherwise, it's already fast-releasing, so just leave it
-				D_PRINTLN("Didn't cull - best voice already releasing", smoothedSamples);
+				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d",
+				          smoothedSamples, getNumVoices());
 			}
 
 			bestVoice = NULL; // We don't want to return it
@@ -307,7 +308,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		}
 	}
 
-	// Or if no Voices to cull, try culling an AudioClip...
+	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
 	else if (includeAudio) {
 		if (currentSong && !justDoFastRelease) {
 			currentSong->cullAudioClipVoice();
@@ -471,7 +472,8 @@ void routine() {
 				numToCull = (numSamplesOverLimit >> 3) + 1;
 
 				for (int32_t i = 0; i < numToCull; i++) {
-					cullVoice();
+					// Hard cull, potentially including one audio clip if numSamples is increasing
+					cullVoice(false, false, i == 0 && numSamples > numSamplesLastTime);
 				}
 
 #if ALPHA_OR_BETA_VERSION
@@ -479,19 +481,23 @@ void routine() {
 				definitelyLog = true;
 				logAction("hard cull");
 
-				D_PRINTLN("culled  %d  voices. numSamples:  %d", numToCull, numSamples);
-
-				D_PRINTLN(". voices left:  %d", getNumVoices());
+				D_PRINTLN("culled  %d  voices. numSamples:  %d. voices left:  %d", numToCull, numSamples,
+				          getNumVoices());
 
 #endif
 			}
+			else if (numSamplesOverLimit >= 0) {
 
-			// Or if it's just a little bit dire, do a soft cull with fade-out
+				// definitely do a soft cull (won't include audio clips)
+				cullVoice(false, true, true);
+				logAction("soft cull");
+			}
+			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
+			// increasing
 			else if (numSamplesOverLimit >= -6) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				cullVoice(false, true);
+
+				// if the numSamples is increasing, start fast release on a clip even if one's already there
+				cullVoice(false, true, numSamples > numSamplesLastTime);
 				logAction("soft cull");
 			}
 		}
@@ -625,16 +631,6 @@ startAgain:
 		}
 	}
 
-	// //this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
-	// //output when cutting rendering short for clock at critical times
-	// //the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
-	// //this works out to a 1% error in the absolute worse case of alternating
-	// //no extension and max extension, approximately 10x better than average usb midi accuracy.
-	// int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	// if (currentSong) {
-	// 	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
-	// }
-	// numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
