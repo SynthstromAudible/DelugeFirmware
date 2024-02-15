@@ -955,6 +955,14 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				else {
 					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
 				}
+
+				// if you're updating a param's value while in the sound editor menu
+				// and it's the same param displayed in the automation editor open underneath
+				// then refresh the automation editor grid
+				if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
+					automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind,
+					                                                   modelStackWithParam->paramId);
+				}
 			}
 		}
 
@@ -1161,7 +1169,7 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1362,7 +1370,7 @@ void View::setModLedStates() {
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+		if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {
