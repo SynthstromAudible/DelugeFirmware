@@ -2572,7 +2572,7 @@ void ModControllableAudio::displayLPFMode(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
 			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("LPF: ");
+			popupMsg.append("LPF\n");
 			popupMsg.append(getLPFModeDisplayName());
 
 			display->popupText(popupMsg.c_str());
@@ -2595,7 +2595,7 @@ void ModControllableAudio::displayHPFMode(bool on) {
 	if (display->haveOLED()) {
 		if (on) {
 			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("HPF: ");
+			popupMsg.append("HPF\n");
 			popupMsg.append(getHPFModeDisplayName());
 
 			display->popupText(popupMsg.c_str());
@@ -2629,10 +2629,10 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				popupMsg.append(displayName);
 			}
 			else {
-				popupMsg.append(getDelayTypeDisplayName());
-
-				popupMsg.append("\nPing pong: ");
+				popupMsg.append("Ping pong: ");
 				popupMsg.append(getDelayPingPongStatusDisplayName());
+				popupMsg.append("\n");
+				popupMsg.append(getDelayTypeDisplayName());
 			}
 
 			display->popupText(popupMsg.c_str());
@@ -2655,10 +2655,10 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		}
 		else {
 			if (on) {
-				display->displayPopup(getDelayTypeDisplayName());
+				display->displayPopup(getDelayPingPongStatusDisplayName());
 			}
 			else {
-				display->displayPopup(getDelayPingPongStatusDisplayName());
+				display->displayPopup(getDelayTypeDisplayName());
 			}
 		}
 	}
