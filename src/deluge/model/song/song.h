@@ -84,7 +84,7 @@ public:
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);
-	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
+	void transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromFrontPanel);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -93,9 +93,11 @@ public:
 	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
-	void replaceMusicalMode(int8_t changes[]);
+	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
+	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
+	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
@@ -110,7 +112,6 @@ public:
 	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
-	void setCurrentPresetScale(int32_t newScale);
 	int32_t setPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
