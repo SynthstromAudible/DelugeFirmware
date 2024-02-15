@@ -970,6 +970,31 @@ ArpMode stringToArpMode(char const* string) {
 	}
 }
 
+char const* octaveModeToString(ArpOctaveMode mode) {
+	switch (mode) {
+	case ArpOctaveMode::DOWN:
+		return "down";
+
+	case ArpOctaveMode::RANDOM:
+		return "random";
+
+	default:
+		return "up";
+	}
+}
+
+ArpOctaveMode stringToOctaveMode(char const* string) {
+	if (!strcmp(string, "down")) {
+		return ArpOctaveMode::DOWN;
+	}
+	else if (!strcmp(string, "random")) {
+		return ArpOctaveMode::RANDOM;
+	}
+	else {
+		return ArpOctaveMode::UP;
+	}
+}
+
 char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
 	case AudioInputChannel::LEFT:

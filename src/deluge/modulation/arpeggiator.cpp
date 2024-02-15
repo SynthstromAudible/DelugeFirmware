@@ -305,6 +305,20 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	          ratchetNotesNumber, isRatcheting);
 }
 
+int32_t ArpeggiatorBase::getOctaveDirection(ArpeggiatorSettings* settings) {
+	switch (settings->octaveMode) {
+	case ArpOctaveMode::RANDOM:
+		// Random (can be up or down)
+		return getRandom255() % 2 == 0 ? 1 : -1;
+	case ArpOctaveMode::DOWN:
+		// Down
+		return -1;
+	default:
+		// Up
+		return 1;
+	}
+}
+
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
 
 	gateCurrentlyActive = true;
@@ -365,9 +379,12 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 	}
 
+	// For drums as it is just one note, the octave change happens on every note
+	currentOctaveDirection = getOctaveDirection(settings);
+
 	playedFirstArpeggiatedNoteYet = true;
 
-	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12 * currentOctaveDirection;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
@@ -378,7 +395,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	gateCurrentlyActive = true;
 
 	if (ratchetNotesIndex > 0) {
-		goto finishSwithNoteOn;
+		goto finishSwitchNoteOn;
 	}
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
@@ -387,6 +404,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		currentOctave = getRandom255() % settings->numOctaves;
 		currentDirection = 1; // Must set a currentDirection here, even though RANDOM doesn't use it, in case user
 		                      // changes arp mode.
+		currentOctaveDirection = getOctaveDirection(settings);
 	}
 
 	// Or not RANDOM
@@ -394,7 +412,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
-
 			if (settings->mode == ArpMode::DOWN) {
 				whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
 				currentOctave = settings->numOctaves - 1;
@@ -405,6 +422,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				currentOctave = 0;
 				currentDirection = 1;
 			}
+			currentOctaveDirection = getOctaveDirection(settings);
 		}
 
 		// Otherwise, just carry on the sequence of arpeggiated notes
@@ -421,6 +439,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 					if (settings->mode == ArpMode::UP) {
 						whichNoteCurrentlyOnPostArp -= notes.getNumElements();
 						currentOctave = 0;
+						currentOctaveDirection = getOctaveDirection(settings);
 					}
 
 					else { // Up+down
@@ -430,6 +449,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 							whichNoteCurrentlyOnPostArp = 0;
 							if (currentOctave > 0) {
 								currentOctave--;
+								currentOctaveDirection = getOctaveDirection(settings);
 							}
 						}
 					}
@@ -439,6 +459,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				else {
 					whichNoteCurrentlyOnPostArp -= notes.getNumElements();
 					currentOctave++;
+					currentOctaveDirection = getOctaveDirection(settings);
 				}
 			}
 
@@ -451,6 +472,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 					if (settings->mode == ArpMode::DOWN) {
 						whichNoteCurrentlyOnPostArp += notes.getNumElements();
 						currentOctave = settings->numOctaves - 1;
+						currentOctaveDirection = getOctaveDirection(settings);
 					}
 
 					else { // Up+down
@@ -460,6 +482,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 							whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
 							if (currentOctave < settings->numOctaves - 1) {
 								currentOctave++;
+								currentOctaveDirection = getOctaveDirection(settings);
 							}
 						}
 					}
@@ -469,12 +492,13 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 				else {
 					whichNoteCurrentlyOnPostArp += notes.getNumElements();
 					currentOctave--;
+					currentOctaveDirection = getOctaveDirection(settings);
 				}
 			}
 		}
 	}
 
-finishSwithNoteOn:
+finishSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
 
 #if ALPHA_OR_BETA_VERSION
@@ -485,8 +509,8 @@ finishSwithNoteOn:
 
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 
-	noteCodeCurrentlyOnPostArp =
-	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]
+	                             + (int32_t)currentOctave * 12 * currentOctaveDirection;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;
@@ -566,14 +590,16 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		ticksPerPeriod = ticksPerPeriod * 3 / 2;
 	}
 
-	if (!isRatcheting && ratchetingIsAvailable) {
-		// If we are not ratcheting yet, check if we should and set it up (based on ratchet chance)
-		maybeSetupNewRatchet(settings);
-	}
+	if (ratchetingIsAvailable) {
+		if (!isRatcheting) {
+			// If we are not ratcheting yet, check if we should and set it up (based on ratchet chance)
+			maybeSetupNewRatchet(settings);
+		}
 
-	// If in previous step we set up ratcheting, we need to recalculate ticksPerPeriod
-	if (isRatcheting) {
-		ticksPerPeriod = ticksPerPeriod >> ratchetNotesMultiplier;
+		// If in previous step we set up ratcheting, we need to recalculate ticksPerPeriod
+		if (isRatcheting) {
+			ticksPerPeriod = ticksPerPeriod >> ratchetNotesMultiplier;
+		}
 	}
 
 	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;

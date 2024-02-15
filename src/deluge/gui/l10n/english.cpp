@@ -681,6 +681,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ARP_MODE_MENU_TITLE, "Arp mode"},
         {STRING_FOR_ARP_SYNC_MENU_TITLE, "Arp sync"},
         {STRING_FOR_ARP_OCTAVES_MENU_TITLE, "Arp octaves"},
+        {STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, "Arp octave mode"},
         {STRING_FOR_ARP_RATCHETS_MENU_TITLE, "Arp ratchets"},
         {STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "Arp ratch prob"},
         {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp rate"},

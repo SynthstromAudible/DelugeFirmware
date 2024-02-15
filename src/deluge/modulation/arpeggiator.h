@@ -39,6 +39,7 @@ public:
 
 	// Settings
 	uint8_t numOctaves;
+	ArpOctaveMode octaveMode;
 	SyncLevel syncLevel;
 	SyncType syncType;
 	ArpMode mode;
@@ -89,6 +90,7 @@ public:
 	uint32_t gatePos;
 	int8_t currentOctave;
 	int8_t currentDirection;
+	int8_t currentOctaveDirection; // This is updated every time we change the currentOctave
 	bool playedFirstArpeggiatedNoteYet;
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
@@ -100,6 +102,7 @@ public:
 	uint16_t ratchetProbability = 0;
 
 protected:
+	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
 };

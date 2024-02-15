@@ -4,6 +4,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/mode.h"
+#include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/ratchets.h"
@@ -295,6 +296,7 @@ Submenu unisonMenu{
 arpeggiator::Mode arpModeMenu{STRING_FOR_MODE, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
+arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
@@ -312,6 +314,7 @@ submenu::Arpeggiator arpMenu{
         &arpModeMenu,
         &arpSyncMenu,
         &arpOctavesMenu,
+        &arpOctaveModeMenu,
         &arpGateMenu,
         &arpGateMenuMIDIOrCV,
         &arpRateMenu,

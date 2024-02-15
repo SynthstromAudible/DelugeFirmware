@@ -154,6 +154,9 @@ FilterType stringToFilterType(char const* string);
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
 
+char const* octaveModeToString(ArpOctaveMode mode);
+ArpOctaveMode stringToOctaveMode(char const* string);
+
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
 

@@ -2321,6 +2321,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 		if (arpSettings.mode != ArpMode::OFF) {
 			storageManager.writeOpeningTagBeginning("arpeggiator");
 			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
+			storageManager.writeAttribute("octaveMode", (char*)octaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 			storageManager.writeAttribute("numRatchets", arpSettings.numRatchets);
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
@@ -2608,6 +2609,10 @@ someError:
 				else if (!strcmp(tagName, "mode")) {
 					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
 					storageManager.exitTag("mode");
+				}
+				else if (!strcmp(tagName, "octaveMode")) {
+					arpSettings.octaveMode = stringToOctaveMode(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("octaveMode");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();

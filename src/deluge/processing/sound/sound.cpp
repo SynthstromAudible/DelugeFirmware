@@ -652,6 +652,12 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				}
 				storageManager.exitTag("syncLevel");
 			}
+			else if (!strcmp(tagName, "octaveMode")) {
+				if (arpSettings) {
+					arpSettings->octaveMode = stringToOctaveMode(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("octaveMode");
+			}
 			else if (!strcmp(tagName, "mode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
@@ -3848,6 +3854,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	if (arpSettings) {
 		storageManager.writeOpeningTagBeginning("arpeggiator");
 		storageManager.writeAttribute("mode", arpModeToString(arpSettings->mode));
+		storageManager.writeAttribute("octaveMode", octaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
 		storageManager.writeAttribute("numRatchets", arpSettings->numRatchets);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);

@@ -591,6 +591,12 @@ enum class ArpMode {
 };
 constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
 
+enum class ArpOctaveMode {
+	UP,
+	DOWN,
+	RANDOM,
+};
+
 enum class ModFXParam {
 	DEPTH,
 	FEEDBACK,
