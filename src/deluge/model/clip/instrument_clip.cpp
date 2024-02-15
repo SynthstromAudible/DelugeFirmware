@@ -1289,10 +1289,16 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
-	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = noteRows.getElement(i);
-		thisNoteRow->y += semitones;
-	}
+	/*if (!(output->type == OutputType::MIDI_OUT &&
+			((NonAudioInstrument*)output)->channel == MIDI_CHANNEL_TRANSPOSE)) {*/
+			// Must not transpose MIDI clips that are routed to transpose.
+
+
+		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			thisNoteRow->y += semitones;
+		}
+	/*}*/
 	yScroll += semitones;
 	colourOffset -= semitones;
 }

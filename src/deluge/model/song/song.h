@@ -83,7 +83,7 @@ public:
 	~Song();
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
-	void transposeAllScaleModeClips(int32_t semitones);
+	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
@@ -372,11 +372,13 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
+	// Song level transpose control (encoder actions)
 	int32_t masterTransposeInterval;
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
 
+	// MIDI controlled song transpose
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 

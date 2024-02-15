@@ -453,6 +453,7 @@ gotError2:
    if not, offset is measured in steps in the current modeNotes array.*/
 void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 	int32_t semitones;
+	int32_t ys, ys2;
 	if (!chromatic) {
 		int8_t octaves;
 		int8_t rootIndex;
@@ -467,14 +468,65 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		int8_t newModeRoot = modeNotes[rootIndex];
 		rotateMusicalMode(offset);
 		semitones = 12 * octaves + newModeRoot;
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+
+		ClipArray* clipArray = &sessionClips;
+	traverseClips:
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* clip = clipArray->getClipAtIndex(c);
+			if (clip->type != ClipType::INSTRUMENT) {
+				continue;
+			}
+			if (clip->output->type == OutputType::KIT) {
+				continue;
+			}
+
+			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+			ys = 0;
+			if (clip->output->type == OutputType::MIDI_OUT &&
+				((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+				// Must not transpose MIDI clips that are routed to transpose.
+				instrumentClip->yScroll += offset;
+				ys = instrumentClip->getYNoteFromYDisplay(0, this);
+
+			} else {
+				if (instrumentClip->isScaleModeClip()) {
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						modelStack->addTimelineCounter(instrumentClip);
+					instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
+				}
+			}
+
+			if (ys > 0) {
+				instrumentClip->yScroll += offset;
+				ys2 = ys = instrumentClip->getYNoteFromYDisplay(0, this);
+
+				D_PRINTLN("scroll : %d ys: %d  ys2: %d",instrumentClip->yScroll, ys, ys2);
+
+
+			}
+
+		}
+		if (clipArray != &arrangementOnlyClips) {
+			clipArray = &arrangementOnlyClips;
+			goto traverseClips;
+		}
+
+		rootNote += semitones;
+
+		displayCurrentRootNoteAndScaleName();
+
 	}
 	else {
 		semitones = offset;
+		transposeAllScaleModeClips(semitones);
 	}
-	transposeAllScaleModeClips(semitones);
+
 }
 
-void Song::transposeAllScaleModeClips(int32_t semitones) {
+void Song::transposeAllScaleModeClips(int32_t interval) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -489,13 +541,29 @@ traverseClips:
 		if (clip->output->type == OutputType::KIT) {
 			continue;
 		}
+
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+
+		if (clip->output->type == OutputType::MIDI_OUT &&
+			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			// Must not transpose MIDI clips that are routed to transpose.
+			D_PRINTLN("tclip b4  %d", instrumentClip->yScroll);
+
+		}
 
 		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
 			instrumentClip->transpose(interval, modelStackWithTimelineCounter);
 		}
+
+		if (clip->output->type == OutputType::MIDI_OUT &&
+			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			// Must not transpose MIDI clips that are routed to transpose.
+			D_PRINTLN("tclip after  %d", instrumentClip->yScroll);
+
+		}
+
 	}
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
@@ -798,6 +866,11 @@ traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* clip = clipArray->getClipAtIndex(c);
 		if (clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		if (clip->output->type == OutputType::MIDI_OUT &&
+			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			// Must not transpose MIDI clips that are routed to transpose.
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;

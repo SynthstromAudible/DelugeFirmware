@@ -1028,7 +1028,7 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel) {
 
 	switch (channel) {
-	case 18:
+	case MIDI_CHANNEL_TRANSPOSE:
 		MIDITranspose::doTranspose(on, note);
 	}
 }
