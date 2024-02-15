@@ -23,9 +23,11 @@
         "string_view": "cpp",
         "cwchar": "cpp",
         "initializer_list": "cpp",
-        "utility": "cpp",
-        "cstdint": "cpp"
+        "utility": "cpp"
     },
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
     "clangd.arguments": [
         "-pretty",
         "--background-index",

@@ -26,7 +26,7 @@
                 "HAVE_OLED=1",
                 "${default}"
             ],
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+            //"compileCommands": "${workspaceFolder}/build/compile_commands.json"
         },
         {
             "name": "Linux",
@@ -51,7 +51,7 @@
                 "HAVE_OLED=1",
                 "${default}"
             ],
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+            //"compileCommands": "${workspaceFolder}/build/compile_commands.json"
         }
     ],
     "version": 4
