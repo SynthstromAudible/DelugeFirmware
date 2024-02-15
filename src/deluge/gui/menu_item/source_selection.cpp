@@ -28,7 +28,7 @@
 namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
     PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
-    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::COMPRESSOR, PatchSource::RANDOM,
+    PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::SIDECHAIN,  PatchSource::RANDOM,
     PatchSource::X,          PatchSource::Y,          PatchSource::AFTERTOUCH,
 };
 
@@ -96,8 +96,8 @@ void SourceSelection::drawValue() {
 		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
 		break;
 
-	case PatchSource::COMPRESSOR:
-		text = STRING_FOR_PATCH_SOURCE_COMPRESSOR;
+	case PatchSource::SIDECHAIN:
+		text = STRING_FOR_PATCH_SOURCE_SIDECHAIN;
 		break;
 
 	case PatchSource::VELOCITY:

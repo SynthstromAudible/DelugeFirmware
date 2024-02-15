@@ -27,19 +27,15 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
-#include "util/functions.h"
 #include <string.h>
 
 extern "C" {
@@ -1296,7 +1292,7 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", "4.1.4-alpha");
+	writeAttribute("firmwareVersion", "c1.1.0");
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -1647,14 +1643,17 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 			else if (!strcasecmp(contents, "aftertouch")) {
 				cc = CC_NUMBER_AFTERTOUCH;
 			}
-			else if (!strcasecmp(contents, "none")
-			         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
+			else if (!strcasecmp(contents, "none")) {
 				cc = CC_NUMBER_NONE;
 			}
 			else {
 				cc = stringToInt(contents);
 			}
-			// TODO: Pre-V2.0 files could still have CC74, so ideally I'd move that to "expression" params here...
+			// will be sent as mod wheel and also map to internal mono expression
+			if (cc == CC_NUMBER_MOD_WHEEL) {
+				cc = CC_NUMBER_Y_AXIS;
+			}
+
 			exitTag("cc");
 		}
 		else if (!strcmp(tagName, "value")) {

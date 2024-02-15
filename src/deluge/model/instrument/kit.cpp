@@ -21,40 +21,32 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
-#include <new>
-#include <string.h>
+#include <cstring>
 
 namespace params = deluge::modulation::params;
 
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
-	firstDrum = NULL;
-	selectedDrum = NULL;
+	firstDrum = nullptr;
+	selectedDrum = nullptr;
 }
 
 Kit::~Kit() {
@@ -451,10 +443,11 @@ Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
 
 int32_t Kit::getDrumIndex(Drum* drum) {
 	int32_t index = 0;
-	for (Drum* thisDrum = firstDrum; thisDrum != drum; thisDrum = thisDrum->next) {
+	Drum* thisDrum;
+	for (thisDrum = firstDrum; thisDrum && thisDrum != drum; thisDrum = thisDrum->next) {
 		index++;
 	}
-	return index;
+	return thisDrum ? index : -1;
 }
 
 Drum* Kit::getDrumFromIndex(int32_t index) {
@@ -1505,19 +1498,17 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
 
-			if (modelStackWithNoteRow) {
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
-				if (modelStackWithThreeMainThings) {
-					if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-						modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-					}
+				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
+				}
 
-					else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-						modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-					}
+				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
+					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 				}
 			}
 		}

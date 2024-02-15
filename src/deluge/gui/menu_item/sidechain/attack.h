@@ -15,17 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
+#include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
-#include <cmath>
+#include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::reverb {
-class Dampening final : public Integer {
+namespace deluge::gui::menu_item::sidechain {
+class Attack final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getDamping() * kMaxMenuValue)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setDamping((float)this->getValue() / kMaxMenuValue); }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	void readCurrentValue() override {
+		this->setValue(getLookupIndexFromValue(soundEditor.currentSidechain->attack >> 2, attackRateTable, 50));
+	}
+	void writeCurrentValue() override {
+		soundEditor.currentSidechain->attack = attackRateTable[this->getValue()] << 2;
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+	}
 };
-} // namespace deluge::gui::menu_item::reverb
+} // namespace deluge::gui::menu_item::sidechain

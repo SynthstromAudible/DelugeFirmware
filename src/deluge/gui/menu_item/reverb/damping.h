@@ -15,24 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "gui/ui/sound_editor.h"
+#include "dsp/reverb/reverb.hpp"
+#include "gui/menu_item/integer.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
+#include <cmath>
 
-namespace deluge::gui::menu_item::submenu {
-class Compressor final : public Submenu {
+namespace deluge::gui::menu_item::reverb {
+class Damping final : public Integer {
 public:
-	Compressor(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
-	           bool newForReverbCompressor)
-	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		soundEditor.currentCompressor =
-		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->sidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
-	}
-
-	bool forReverbCompressor;
+	using Integer::Integer;
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getDamping() * kMaxMenuValue)); }
+	void writeCurrentValue() override { AudioEngine::reverb.setDamping((float)this->getValue() / kMaxMenuValue); }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::reverb

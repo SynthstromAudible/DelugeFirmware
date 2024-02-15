@@ -19,9 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/session_view.h"
-#include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -29,17 +27,12 @@
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
-#include "model/model_stack.h"
 #include "model/output.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "playback/mode/playback_mode.h"
-#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -80,6 +73,9 @@ Clip::Clip(ClipType newType) : type(newType) {
 }
 
 Clip::~Clip() {
+	if (getCurrentClip() == this) {
+		currentSong->setCurrentClip(nullptr);
+	}
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
@@ -730,14 +726,14 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "beingEdited")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
 		if (storageManager.readTagOrAttributeValueInt()) {
-			song->currentClip = this;
+			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = false;
 		}
 	}
@@ -1022,8 +1018,11 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 }
 
 int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+
+	// if we're not in a clip level view, set to the clip that's starting linear recording
+	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
-		modelStack->song->currentClip = this;
+		modelStack->song->setCurrentClip(this);
 	}
 	return NO_ERROR;
 }

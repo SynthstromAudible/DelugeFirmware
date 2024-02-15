@@ -299,7 +299,7 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
 	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_MOD_WHEEL;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 // called everytime you open up the automation view
@@ -685,8 +685,15 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
-		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		int32_t knobPos = 0;
+
+		if (isAutomated) {
+			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
+		}
+		else {
+			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+		}
 
 		RGB& pixel = image[xDisplay];
 
@@ -1034,7 +1041,7 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL) {
+		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
@@ -1206,6 +1213,12 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		if (handleBackAndHorizontalEncoderButtonComboAction(clip, on)) {
 			goto passToOthers;
 		}
+	}
+
+	// Vertical encoder button
+	// Not relevant for audio clip
+	else if (b == Y_ENC && !isAudioClip) {
+		handleVerticalEncoderButtonAction(on);
 	}
 
 	// Select encoder
@@ -1520,6 +1533,15 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	return false;
+}
+
+// handle by button action if b == Y_ENC
+void AutomationView::handleVerticalEncoderButtonAction(bool on) {
+	if (on && currentUIMode == UI_MODE_NONE) {
+		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
 }
 
 // called by button action if b == SELECT_ENC and shift button is not pressed
@@ -2256,10 +2278,20 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 
 // vertical encoder action
 // no change compared to instrument clip view version
-// not used with Audio Clip Automation View or Arranger Automation View
+// not used with Audio Clip Automation View
 ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (onArrangerView) {
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			currentSong->transpose(offset);
+		}
+		else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
+			currentSong->adjustMasterTransposeInterval(offset);
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
@@ -2279,36 +2311,22 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-				clip->transpose(offset * 12, modelStack);
-				if (clip->isScaleModeClip()) {
-					clip->yScroll += offset * (currentSong->numModeNotes - 12);
-				}
-				// display->displayPopup("OCTAVE");
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				clip->nudgeNotesVertically(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
+				                           modelStack);
 			}
-
-			// Otherwise, transpose single semitone
+			// Otherwise, transpose single row position
 			else {
-				// If current Clip not in scale-mode, just do it
-				if (!clip->isScaleModeClip()) {
-					clip->transpose(offset, modelStack);
-
-					// If there are no scale-mode Clips at all, move the root note along as well - just in case the user
-					// wants to go back to scale mode (in which case the "previous" root note would be used to help
-					// guess what root note to go with)
-					if (!currentSong->anyScaleModeClips()) {
-						currentSong->rootNote += offset;
-					}
-				}
-
-				// Otherwise, got to do all key-mode Clips
-				else {
-					currentSong->transposeAllScaleModeClips(offset);
-				}
-				// display->displayPopup("SEMITONE");
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
+				// it's the next note in the scale)¬
+				clip->nudgeNotesVertically(offset, modelStack);
 			}
+			instrumentClipView.recalculateColours();
+			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 	}
 
@@ -3048,17 +3066,21 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (isOnAutomationOverview()) {
-		clip->lastSelectedParamID = 0;
+		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	else if ((clip->lastSelectedParamID + offset) < 0) {
-		clip->lastSelectedParamID = kLastMidiCCForAutomation;
+	auto newCC = clip->lastSelectedParamID;
+	newCC += offset;
+	if (newCC < 0) {
+		newCC = CC_NUMBER_Y_AXIS;
 	}
-	else if ((clip->lastSelectedParamID + offset) > kLastMidiCCForAutomation) {
-		clip->lastSelectedParamID = 0;
+	else if (newCC >= kNumCCExpression) {
+		newCC = 0;
 	}
-	else {
-		clip->lastSelectedParamID += offset;
+	if (newCC == CC_NUMBER_MOD_WHEEL) {
+		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+		newCC += offset;
 	}
+	clip->lastSelectedParamID = newCC;
 }
 
 // used with SelectEncoderAction to get the next parameter in the list of parameters
@@ -3276,6 +3298,25 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 	}
 
 	return squareStart;
+}
+
+// calculates value of all nodes within a square for automation editor rendering
+int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
+                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
+	int32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
+	int32_t numNodesWithinSquare = squareWidth / kParamNodeWidth;
+
+	int32_t totalKnobPos = 0;
+
+	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
+		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
+		totalKnobPos = totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
+	}
+
+	int32_t averageKnobPos = (totalKnobPos / numNodesWithinSquare) + kKnobPosOffset;
+
+	return averageKnobPos;
 }
 
 // this function obtains a parameters value and converts it to a knobPos

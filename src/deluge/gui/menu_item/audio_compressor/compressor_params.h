@@ -15,24 +15,32 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
+#include "modulation/params/param_set.h"
 
-namespace deluge::gui::menu_item::reverb::compressor {
+namespace deluge::gui::menu_item::audio_compressor {
 
-class Shape final : public Integer {
+class CompParam final : public UnpatchedParam {
 public:
-	using Integer::Integer;
+	using UnpatchedParam::UnpatchedParam;
 	void readCurrentValue() override {
-		this->setValue((((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
+		auto value = (int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP());
+		this->setValue((value * (kMaxMenuValue * 2) + 2147483648) >> 32);
 	}
-	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	// comp params aren't set up for negative inputs - this is the same as osc pulse width
+	int32_t getFinalValue() override {
+		if (this->getValue() == kMaxMenuValue) {
+			return 2147483647;
+		}
+		else if (this->getValue() == kMinMenuValue) {
+			return 0;
+		}
+		else {
+			return (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) >> 1;
+		}
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbCompressorVolume >= 0); }
 };
-} // namespace deluge::gui::menu_item::reverb::compressor
+
+} // namespace deluge::gui::menu_item::audio_compressor

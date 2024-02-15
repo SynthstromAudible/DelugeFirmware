@@ -50,7 +50,6 @@ public:
 		}
 	}
 
-	int32_t postReverbVolumeLastTime;
 	uint32_t lastSaturationTanHWorkingValue[2];
 
 protected:

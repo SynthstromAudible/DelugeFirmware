@@ -19,9 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -31,23 +29,17 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
-#include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
-#include "model/note/note_vector.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
 #include <new>
 #include <string.h>
 
@@ -1447,8 +1439,10 @@ int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	// Apply quantization/humanization
-	for (auto j = 0; j < notes.getNumElements(); ++j) {
-		Note* note = notes.getElement(j);
+	int32_t noteWriteIdx = 0;
+	int32_t lastPos = std::numeric_limits<int32_t>::min();
+	for (auto i = 0; i < notes.getNumElements(); ++i) {
+		Note* note = notes.getElement(i);
 		int32_t destination = ((note->pos - 1 + halfIncrement) / increment) * increment;
 		if (amount < 0) { // Humanize
 			int32_t hmAmout = trunc(random(halfIncrement / 2) - (increment / float{kQuantizationPrecision}));
@@ -1456,26 +1450,98 @@ int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, 
 		}
 		int32_t distance = destination - note->pos;
 		distance = (distance * abs(amount)) / kQuantizationPrecision;
-		note->pos += distance;
+		int32_t newPos = note->pos + distance;
+		Note* writeNote = notes.getElement(noteWriteIdx);
+		if (newPos != lastPos) {
+			// The previously written note will not end up zero-length if we inserted this note as a new one so we're
+			// safe to write this one and increment the write position.
+			//
+			// XXX(sapphire): maybe we should do something clever with merging the notes?
+			// Consider this situation:
+			//       Note A:  ----
+			//       Note B:      ---
+			// Quantize pos:  ^
+			//
+			// The current code will create a single note with length 4, but maybe we should merge them (1 note of
+			// length 7) or use the shorter length/newer note (length 3)
+			//
+			// All 3 choices are reasonable in different scenarios and it's not clear which one the user actually wants.
+			// This is further complicated by the potential for the notes to have difference in other parameters --
+			// Velocity and Probability/Iteration
+
+			*writeNote = *note;
+			writeNote->pos = newPos;
+			noteWriteIdx++;
+		}
+		lastPos = newPos;
+	}
+
+	// Delete the scrap notes after zero-length elimination.
+	if (noteWriteIdx < notes.getNumElements()) {
+		notes.deleteAtIndex(noteWriteIdx, notes.getNumElements() - noteWriteIdx);
+	}
+
+	int32_t finalNumElements = notes.getNumElements();
+
+	// If the first note has ended up with a negative position, we need to rotate the vector left by the number of notes
+	// with a negative position
+	{
+		int32_t rotateAmount = 0;
+		while (rotateAmount < finalNumElements && notes.getElement(rotateAmount)->pos < 0) {
+			rotateAmount++;
+		}
+
+		// We make a memory-speed tradeoff here and only rotate by 1 note at a time. It would be more CPU-efficient to
+		// have a buffer of rotateAmount notes and cycle the notes through there, but creating such a buffer requires
+		// allocation which makes it not worthwhile in the common case of only rotating by 1 or 2 notes.
+		while (rotateAmount >= 0) {
+			// Swap the notes to the right, so the note with a negative position ends up at the end.
+			int32_t lastNoteIdx = finalNumElements - 1;
+			for (auto i = 1; i < finalNumElements; ++i) {
+				notes.swapElements(i - 1, i);
+			}
+			notes.getElement(lastNoteIdx)->pos += effectiveLength;
+
+			rotateAmount--;
+		}
+	}
+
+	// Similarly, if the last note has ended up with a position greater than the effectiveLength, we need to rotate the
+	// note vector to the right.
+	{
+		int32_t rotateAmount = 0;
+		while (rotateAmount < notes.getNumElements()
+		       && notes.getElement(finalNumElements - rotateAmount - 1)->pos >= effectiveLength) {
+			rotateAmount++;
+		}
+
+		// See comment in the left rotation about why we rotate one note at a time
+		while (rotateAmount > 0) {
+			// Swap the notes to the left, so the note with a too-large position ends up at the start
+			for (auto i = finalNumElements - 1; i > 0; i--) {
+				notes.swapElements(i - 1, i);
+			}
+			notes.getElement(0)->pos -= effectiveLength;
+			rotateAmount--;
+		}
 	}
 
 	// Fix up note lengths so there are no overlaps
-	for (auto j = 1; j < notes.getNumElements(); ++j) {
-		Note* prev = notes.getElement(j - 1);
-		Note* next = notes.getElement(j);
+	for (auto i = 1; i < notes.getNumElements(); ++i) {
+		Note* curr = notes.getElement(i - 1);
+		Note* next = notes.getElement(i);
 
-		auto maxLength = next->pos - prev->pos;
-		prev->length = std::min(prev->length, maxLength);
+		auto maxLength = next->pos - curr->pos;
+		curr->length = std::min(curr->length, maxLength);
 	}
 
-	// The last note needs special handling because it effectively wraps around to the beginning of the row (and we
-	// therefore need to check its length against the start position of the first note)
-	{
-		Note* last = notes.getElement(notes.getNumElements() - 1);
-		Note* first = notes.getElement(0);
+	// Handle the wrapping of the last note to the first note
+	if (notes.getNumElements() > 1) {
+		Note* curr = notes.getElement(notes.getNumElements() - 1);
+		Note* next = notes.getElement(0);
 
-		auto maxLength = (effectiveLength - last->pos) + first->pos;
-		last->length = std::min(maxLength, last->length);
+		auto maxLength = (effectiveLength - curr->pos) + next->pos;
+		curr->length = std::min(maxLength, curr->length);
 	}
 
 #if ENABLE_SEQUENTIALITY_TESTS

@@ -81,7 +81,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 ### 4.1 - Song View Features
 
-#### 4.1.1 - Master Compressor
+#### 4.1.1 - Compressors
 - ([#630]) In Song view, select `AFFECT ENTIRE` and the `SIDECHAIN`-related parameter button. Adjust the `UPPER` gold encoder for a single knob compressor with auto makeup gain (`ONE` mode). For detailed editing, press the `SIDECHAIN`-related gold encoder (`FULL` mode). The top LED will become a compression meter.  Clicking the `REVERB`-related lower gold encoder will cycle through additional params: `RATIO` (displays ratio), `ATTACK` & `RELEASE` (shown in milliseconds) and Sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor level detection, which sounds like an increase in bass allowed through the compression.
  
 	- `ATTACK`: 0ms - 63ms
@@ -93,7 +93,7 @@ Here is a list of features that have been added to the firmware as a list, group
 	- `RATIO`: 2:1 - 256:1
 
 	- `THRESHOLD`: 0 - 50
-
+- ([#1173]) In clip view, the settings  are available under the COMPRESSOR menu entry. The same parameters exist there. In kits there is both a per row compressor, accessed through the menu when affect entire is off, and a kit compressor accessed while it is on. 
 
 #### 4.1.2 - Change Row Colour
 
@@ -156,6 +156,13 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
 			- Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
 		- Load defaults from PerformanceView.xml file
+
+### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
+- ([#1159]) Using the same combo as in a Synth / Midi / CV clip, press and turn `▼︎▲︎` to transpose all scale mode clips up or down by 1 semitone.
+	- You can customize the amount of semitones that clips are transposed by, by holding Shift and turning `▼︎▲︎`. The display will show the number of semitones.
+	- After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
+	- Does not affect audio clips or kit clips.
+	- Works in Song Row/Grid View, Arranger View, Arranger Automation View and Performance View.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -303,6 +310,13 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 - ([#368]) Extends the probability system to set a row at a time. Hold an `AUDITION` pad and turn `SELECT` to change the whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
 
+#### 4.3.7 - Shorcut for "Transpose clip" is now "Nudge notes vertically for clip"
+
+- ([#1183]) The command `SHIFT` + hold and turn `▼︎▲︎` inside a clip was causing an unexpected behavior in which all other clips in the song were also transposed. This has been fixed by changing this command to a "Vertical nudge" command, based on current clip display (either in scale or non-scale mode). This saves user from the need to "zoom out, copy all notes, scroll up or down, and paste all notes" to nudge notes vertically.
+	- If the clip is in scale mode, all the notes are shifted up or down by one step in the scale.
+	- If the clip is not in scale mode, all the notes are shifted up or down by one semitone.
+	- Note: the other command for octave transposition, that is, hold and turn `▼︎▲︎`, keeps working in the same way, by nudging notes by one octave, regardless of the clip scale mode.
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -362,7 +376,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.5.2 - Unison Stereo Spread
  - ([#223]) The unison parts can be spread accross the stereo field. Press `SELECT` when in the `UNISON NUMBER` menu to access the new unison spread parameter.
- - **Warning: Do not use with `RING MOD` synth type when `UNISON NUMBER` and `NOISE` are both values greater than 1. Extremely loud noise is produced. (Known Bug)**
 
 #### 4.5.3 - Waveform Loop Lock
  - ([#293]) When a sample has `LOOP START` (CYAN) and `LOOP END` (MAGENTA) points set, holding down `LOOP START` and tapping `LOOP END` will `LOCK` the points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use `SHIFT` + turn `◀︎▶︎` to double or half the loop length.
@@ -410,7 +423,7 @@ This is largely on the development side and created the start of a system of mod
 
 ### 4.8.1 Lumi Keys Studio Edition
 
-- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave.
+- ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible octave (compatible Deluge scales that will match Lumi scales are Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Harmonic Minor, Arabian, Whole Tone, Blues, and Pentatonic Minor).
 	- The lit and darkened keys will be aligned with the selected root and scale, so long as the selected scale is one of the builtin scales supported by the Lumi.
 	- While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range defined on the Deluge (upper or lower dominant).
 
@@ -459,8 +472,8 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
 
 - ([#174] and [#192]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
-- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
-- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
+- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging. (`./dbt sysex-logging <port_number>`)
+- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings. (`./dbt loadfw <port_number> <hex_key> <firmware_file_path>`)
 
 ## 7. Compiletime settings
 
@@ -549,6 +562,9 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#1053]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1053
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
+[#1159]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1159
+[#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
+[#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 [MIDI Follow Mode Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/midi_follow_mode.md

@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include <cstdint>
 
 class SampleControls {
 public:

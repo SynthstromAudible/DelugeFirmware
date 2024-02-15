@@ -21,7 +21,6 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
 
 NonAudioDrum::NonAudioDrum(DrumType newType) : Drum(newType) {
 	state = false;

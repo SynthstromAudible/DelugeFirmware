@@ -108,13 +108,13 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 
 dsp::Reverb reverb{};
-PLACE_INTERNAL_FRUNK SideChain reverbCompressor{};
-int32_t reverbCompressorVolume;
-int32_t reverbCompressorShape;
+PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
+int32_t reverbSidechainVolume;
+int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
 
-int32_t reverbCompressorVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
-int32_t reverbCompressorShapeInEffect;
+int32_t reverbSidechainVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
+int32_t reverbSidechainShapeInEffect;
 
 bool mustUpdateReverbParamsBeforeNextRender = false;
 
@@ -682,17 +682,17 @@ startAgain:
 		mustUpdateReverbParamsBeforeNextRender = false;
 	}
 
-	// Render the reverb compressor
-	int32_t compressorOutput = 0;
-	if (reverbCompressorVolumeInEffect != 0) {
+	// Render the reverb sidechain
+	int32_t sidechainOutput = 0;
+	if (reverbSidechainVolumeInEffect != 0) {
 		if (sideChainHitPending != 0) {
-			reverbCompressor.registerHit(sideChainHitPending);
+			reverbSidechain.registerHit(sideChainHitPending);
 		}
 #if JFTRACE
 		rvb.begin();
 #endif
 
-		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
 #if JFTRACE
 		rvb.note();
 #endif
@@ -709,7 +709,7 @@ startAgain:
 	if (reverbOn) {
 		// Patch that to reverb volume
 		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(compressorOutput, reverbCompressorVolumeInEffect) + 0x20000000;
+		    multiply_32x32_rshift32(sidechainOutput, reverbSidechainVolumeInEffect) + 0x20000000;
 		int32_t reverbOutputVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
 
 		// Reverb panning
@@ -788,9 +788,11 @@ startAgain:
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       deluge::modulation::params::UNPATCHED_VOLUME)))
 		    >> 1;
-
-		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples, masterVolumeAdjustmentL,
-		                                                masterVolumeAdjustmentR, songVolume);
+		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
+		// equivalent
+		currentSong->globalEffectable.compressor.render(renderingBuffer.data(), numSamples,
+		                                                masterVolumeAdjustmentL >> 1, masterVolumeAdjustmentR >> 1,
+		                                                songVolume >> 3);
 		masterVolumeAdjustmentL = ONE_Q31;
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");
@@ -1123,8 +1125,8 @@ void logAction(int32_t number) {
 
 void updateReverbParams() {
 
-	// If reverb compressor on "auto" settings...
-	if (reverbCompressorVolume < 0) {
+	// If reverb sidechain on "auto" settings...
+	if (reverbSidechainVolume < 0) {
 
 		// Just leave everything as is if parts deleted cos loading new song
 		if (getCurrentUI() == &loadSongUI && loadSongUI.deletedPartsOfOldSong) {
@@ -1155,41 +1157,41 @@ void updateReverbParams() {
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
-			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
+			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
-				reverbCompressorVolumeInEffect =
+				reverbSidechainVolumeInEffect =
 				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
-				reverbCompressorVolumeInEffect = 0;
+				reverbSidechainVolumeInEffect = 0;
 			}
-			goto compressorFound;
+			goto sidechainFound;
 		}
 		else if (globalEffectableWithMostReverb) {
 			modControllable = globalEffectableWithMostReverb;
 
-			reverbCompressorVolumeInEffect =
+			reverbSidechainVolumeInEffect =
 			    globalEffectableWithMostReverb->getSidechainVolumeAmountAsPatchCableDepth(paramManagerWithMostReverb);
 
-compressorFound:
-			reverbCompressorShapeInEffect =
+sidechainFound:
+			reverbSidechainShapeInEffect =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
-			reverbCompressor.attack = modControllable->sidechain.attack;
-			reverbCompressor.release = modControllable->sidechain.release;
-			reverbCompressor.syncLevel = modControllable->sidechain.syncLevel;
+			reverbSidechain.attack = modControllable->sidechain.attack;
+			reverbSidechain.release = modControllable->sidechain.release;
+			reverbSidechain.syncLevel = modControllable->sidechain.syncLevel;
 			return;
 		}
 
 		// Or if no thing has more reverb than the Song itself...
 		else {
-			reverbCompressorVolumeInEffect = 0;
+			reverbSidechainVolumeInEffect = 0;
 			return;
 		}
 	}
 
-	// Otherwise, use manually set params for reverb compressor
-	reverbCompressorVolumeInEffect = reverbCompressorVolume;
-	reverbCompressorShapeInEffect = reverbCompressorShape;
+	// Otherwise, use manually set params for reverb sidechain
+	reverbSidechainVolumeInEffect = reverbSidechainVolume;
+	reverbSidechainShapeInEffect = reverbSidechainShape;
 }
 
 void registerSideChainHit(int32_t strength) {
@@ -1232,11 +1234,11 @@ void getReverbParamsFromSong(Song* song) {
 	reverb.setDamping(song->reverbDamp);
 	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
-	reverbCompressorVolume = song->reverbCompressorVolume;
-	reverbCompressorShape = song->reverbCompressorShape;
-	reverbCompressor.attack = song->reverbCompressorAttack;
-	reverbCompressor.release = song->reverbCompressorRelease;
-	reverbCompressor.syncLevel = song->reverbCompressorSync;
+	reverbSidechainVolume = song->reverbSidechainVolume;
+	reverbSidechainShape = song->reverbSidechainShape;
+	reverbSidechain.attack = song->reverbSidechainAttack;
+	reverbSidechain.release = song->reverbSidechainRelease;
+	reverbSidechain.syncLevel = song->reverbSidechainSync;
 }
 
 Voice* solicitVoice(Sound* forSound) {

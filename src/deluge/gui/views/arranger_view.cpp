@@ -346,6 +346,12 @@ doActualSimpleChange:
 		}
 	}
 
+	else if (b == Y_ENC) {
+		if (on) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+	}
+
 	else {
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
@@ -497,7 +503,8 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 	mustRedrawTickSquares = true;
 
 	if (doRender) {
-		uiNeedsRendering(this);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI());
 	}
 }
 
@@ -1418,6 +1425,8 @@ getItFromSection:
 
 				if (clipInstance->clip) {
 					originallyPressedClipActualLength = clipInstance->clip->loopLength;
+					// we've either created or selected a clip, so set it to be current
+					currentSong->setCurrentClip(clipInstance->clip);
 				}
 				else {
 					originallyPressedClipActualLength = clipInstance->length;
@@ -1687,8 +1696,9 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	Clip* clip = clipInstance->clip;
+	// it should already be this clip, but if it ever isn't it would be a disaster
+	currentSong->setCurrentClip(clip);
 
-	currentSong->currentClip = clip;
 	currentSong->lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
@@ -2309,7 +2319,8 @@ ActionResult ArrangerView::timerCallback() {
 		if (!pressedClipInstanceIsInValidPosition) {
 			blinkOn = !blinkOn;
 
-			uiNeedsRendering(this, 1 << yPressedEffective, 0);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2320,7 +2331,8 @@ ActionResult ArrangerView::timerCallback() {
 			currentUIMode = UI_MODE_VIEWING_RECORD_ARMING;
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			// use root UI in case this is called from performance view
+			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2393,7 +2405,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-		uiNeedsRendering(this, 1 << yPressedEffective, 0);
+		// use root UI in case this is called from performance view
+		uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 	}
 
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
@@ -2913,7 +2926,16 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->transpose(offset);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	else if (Buttons::isShiftButtonPressed()) {
+		if (currentUIMode == UI_MODE_NONE) {
+			currentSong->adjustMasterTransposeInterval(offset);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 

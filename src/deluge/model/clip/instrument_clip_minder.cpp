@@ -22,42 +22,27 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
-#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
-#include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
-#include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/model_stack.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
-#include "playback/mode/session.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/storage_manager.h"
-#include "util/cfunctions.h"
-#include <string.h>
+#include <cstring>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -136,7 +121,8 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 	}
-	else if (controlNumber == CC_NUMBER_MOD_WHEEL) {
+	else if (controlNumber == CC_NUMBER_Y_AXIS) {
+		// in mono expression this is mod wheel, and y-axis is not directly controllable
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 	}
 	else {

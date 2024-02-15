@@ -16,11 +16,11 @@
  */
 
 #include "model/sample/sample_holder_for_voice.h"
-#include "hid/display/display.h"
 #include "model/sample/sample.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include <cmath>
 
 SampleHolderForVoice::SampleHolderForVoice() {
 	loopStartPos = 0;

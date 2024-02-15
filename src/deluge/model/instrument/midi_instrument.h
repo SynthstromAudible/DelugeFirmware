@@ -18,6 +18,7 @@
 #pragma once
 
 #include "model/instrument/non_audio_instrument.h"
+#include <array>
 
 class ParamManagerMIDI;
 class ModelStack;
@@ -25,10 +26,10 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 
 struct MPEOutputMemberChannel {
-	int16_t lastNoteCode;
-	uint16_t noteOffOrder;
-	int16_t lastXValueSent;        // The actual 14-bit number. But signed (goes positive and negative).
-	int8_t lastYAndZValuesSent[2]; // The actual 7-bit numbers. Y goes both positive and negative.
+	int16_t lastNoteCode{32767};
+	uint16_t noteOffOrder{0};
+	int16_t lastXValueSent{0};        // The actual 14-bit number. But signed (goes positive and negative).
+	int8_t lastYAndZValuesSent[2]{0}; // The actual 7-bit numbers. Y goes both positive and negative.
 };
 
 class MIDIInstrument final : public NonAudioInstrument {
@@ -75,20 +76,22 @@ public:
 	}
 	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
 
-	int32_t channelSuffix;
-	int32_t lastNoteCode;
-	bool collapseAftertouch;
-	bool collapseMPE;
+	int32_t channelSuffix{-1};
+	int32_t lastNoteCode{32767};
+	bool collapseAftertouch{false};
+	bool collapseMPE{true};
 	float ratio; // for combining per finger and global bend
 
-	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
+	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
 	// for tracking mono expression output
-	int32_t lastMonoExpression[3];
-	int32_t lastCombinedPolyExpression[3];
+	int32_t lastMonoExpression[3]{0};
+	int32_t lastCombinedPolyExpression[3]{0};
+	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
+	int16_t lastOutputMonoExpression[3]{0};
 	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "midiChannel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }

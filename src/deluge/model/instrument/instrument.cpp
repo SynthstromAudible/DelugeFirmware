@@ -17,22 +17,16 @@
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
-#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
-#include "modulation/params/param_manager.h"
-#include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "string.h"
-#include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
+#include <cstring>
 #include <new>
 
 Instrument::Instrument(OutputType newType) : Output(newType) {

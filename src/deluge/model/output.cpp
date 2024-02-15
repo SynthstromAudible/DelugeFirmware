@@ -17,7 +17,6 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -25,10 +24,8 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
-#include <new>
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;

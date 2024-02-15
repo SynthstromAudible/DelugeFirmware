@@ -23,27 +23,19 @@
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "mem_functions.h"
-#include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "model/timeline_counter.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
-#include "util/misc.h"
 
 namespace params = deluge::modulation::params;
 
@@ -148,6 +140,7 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
 
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
@@ -904,8 +897,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
-                                                      int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
-                                                      int32_t amplitudeIncrement) {
+                                                      int32_t reverbSendAmount, int32_t pan,
+                                                      bool doAmplitudeIncrement) {
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
@@ -917,7 +910,10 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
-		amplitudeIncrementL = amplitudeIncrementR = (multiply_32x32_rshift32(postFXVolume, amplitudeIncrement) << 5);
+		auto postReverbSendVolumeIncrement =
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		amplitudeIncrementL = amplitudeIncrementR =
+		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
 
 	if (pan != 0 && AudioEngine::renderInStereo) {
@@ -959,6 +955,7 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	if (reverbSendAmount != 0) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
+	postReverbVolumeLastTime = postReverbVolume;
 }
 
 bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
@@ -1287,7 +1284,7 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	storageManager.closeTag();
 
-	// Sidechain compressor
+	// Sidechain
 	storageManager.writeOpeningTagBeginning("sidechain");
 	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
@@ -1355,6 +1352,8 @@ void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
+	                                       writeAutomation, false, valuesForOverride);
 }
 
 void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
@@ -1424,6 +1423,11 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 	else if (!strcmp(tagName, "modFXFeedback")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
 		storageManager.exitTag("modFXFeedback");
+	}
+	else if (!strcmp(tagName, "compressorThreshold")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("compressorThreshold");
 	}
 
 	else {
@@ -2565,20 +2569,6 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	}
 
 	return anythingFound;
-}
-
-ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t whichModEncoder,
-                                                                      ModelStackWithThreeMainThings* modelStack,
-                                                                      bool allowCreation) {
-
-	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-
-	int32_t paramId;
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	ParamCollection* paramCollection = summary->paramCollection;
-
-	ModelStackWithParamId* newModelStack1 = modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
-	return newModelStack1->paramCollection->getAutoParamFromId(newModelStack1, allowCreation);
 }
 
 char const* ModControllableAudio::getSidechainDisplayName() {

@@ -19,53 +19,30 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.h"
-#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
-#include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/model_stack.h"
 #include "model/note/note.h"
-#include "model/note/note_row.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
-#include "modulation/params/param_node.h"
-#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "playback/mode/arrangement.h"
-#include "playback/mode/playback_mode.h"
-#include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/file_item.h"
-#include "storage/flash_storage.h"
-#include "storage/storage_manager.h"
-#include "util/d_string.h"
-#include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
-#include <math.h>
+#include <cmath>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -1320,6 +1297,80 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	colourOffset -= semitones;
 }
 
+void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
+	// Note: the usage of this method is limited to no more than an octave of "change"
+	//  ideally used by the "hold and turn vertical encoder"
+	//  and "shift + hold and turn vertical encoder" shorcuts within clip
+
+	// Make sure no notes sounding
+	stopAllNotesPlaying(modelStack);
+
+	if (!this->isScaleModeClip()) {
+		// Non scale clip, transpose directly by semitone jumps
+		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			// transpose by semitones or by octave
+			thisNoteRow->y += change;
+		}
+	}
+	else {
+		// Scale clip, transpose by scale note jumps
+
+		// wanting to change a full octave
+		if (std::abs(change) == modelStack->song->numModeNotes) {
+			int32_t changeInSemitones = (change > 0) ? 12 : -12;
+			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+				NoteRow* thisNoteRow = noteRows.getElement(i);
+				// transpose by semitones or by octave
+				thisNoteRow->y += changeInSemitones;
+			}
+		}
+
+		// wanting to change less than an octave
+		else {
+			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+				NoteRow* thisNoteRow = noteRows.getElement(i);
+				int32_t changeInSemitones = 0;
+				int32_t yNoteWithinOctave = modelStack->song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode());
+				int32_t oldModeNoteIndex = 0;
+				for (; oldModeNoteIndex < modelStack->song->numModeNotes; oldModeNoteIndex++) {
+					if (modelStack->song->modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
+						break;
+					}
+				}
+				int32_t newModeNoteIndex =
+				    (oldModeNoteIndex + change + modelStack->song->numModeNotes) % modelStack->song->numModeNotes;
+
+				int32_t s = 0;
+				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
+				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
+					// within the same octave
+					changeInSemitones =
+					    modelStack->song->modeNotes[newModeNoteIndex] - modelStack->song->modeNotes[oldModeNoteIndex];
+					s = 1;
+				}
+				else {
+					if (change > 0) {
+						// go up an octave
+						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
+						                    - modelStack->song->modeNotes[oldModeNoteIndex] + 12;
+						s = 2;
+					}
+					else {
+						// go down an octave
+						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
+						                    - modelStack->song->modeNotes[oldModeNoteIndex] - 12;
+						s = 3;
+					}
+				}
+				// transpose by semitones
+				thisNoteRow->y += changeInSemitones;
+			}
+		}
+	}
+	yScroll += change;
+}
+
 // Lock rendering before calling this!
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
                                        int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
@@ -2321,8 +2372,10 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			if (output->type == OutputType::KIT && thisNoteRow->drum) {
 				drumIndex = ((Kit*)output)->getDrumIndex(thisNoteRow->drum);
 			}
-
-			thisNoteRow->writeToFile(drumIndex, this);
+			// no matching drum found
+			if (drumIndex != -1) {
+				thisNoteRow->writeToFile(drumIndex, this);
+			}
 		}
 
 		storageManager.writeClosingTag("noteRows");
@@ -2910,7 +2963,7 @@ int32_t InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
 				if (!strcmp(tagName, "cc")) {
 					char const* contents = storageManager.readTagOrAttributeValue();
 					if (!strcasecmp(contents, "bend")) {
-						paramId = 0;
+						paramId = X_PITCH_BEND;
 expressionParam:
 						// If we're here, we're reading a pre-V3.2 file, and need to read what we're now regarding as
 						// "expression".
@@ -2922,20 +2975,21 @@ expressionParam:
 						param = &expressionParams->params[paramId];
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
-						paramId = 2;
+						paramId = Z_PRESSURE;
 						goto expressionParam;
 					}
-					else if (!strcasecmp(contents, "none")
-					         || !strcmp(contents, "120")) { // We used to write 120 for "none", pre V2.0
+					else if (!strcasecmp(contents, "none")) {
+						// We used to write 120 for "none", pre V2.0, but that's now bend
 						paramId = CC_NUMBER_NONE;
 					}
 					else {
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
-							if (paramId == 74) {
-								if (storageManager.firmwareVersionOfFileBeingRead
-								    < FirmwareVersion::FIRMWARE_3P2P0_ALPHA) {
-									paramId = 1;
+							if (paramId == CC_NUMBER_MOD_WHEEL) {
+								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
+								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
+								if (storageManager.firmwareVersionOfFileBeingRead < FirmwareVersion::COMMUNITY_1P1) {
+									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
 							}

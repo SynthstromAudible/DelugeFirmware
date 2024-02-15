@@ -68,6 +68,7 @@
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -1144,7 +1145,6 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	// Quantized Stutter FX
 	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
 }
 
@@ -1495,21 +1495,21 @@ void View::cycleThroughReverbPresets() {
 	}
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
+	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
 
 	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
 	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
-	int32_t currentDampening = AudioEngine::reverb.getDamping() * 50;
+	int32_t currentDamping = AudioEngine::reverb.getDamping() * 50;
 
 	// See which preset we're the closest to currently
 	int32_t lowestDifferentness = 1000;
 	int32_t currentPreset;
 	for (int32_t p = 0; p < NUM_PRESET_REVERBS; p++) {
 		int32_t differentness =
-		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDampening - presetReverbDampening[p]);
+		    std::abs(currentRoomSize - presetReverbRoomSize[p]) + std::abs(currentDamping - presetReverbDamping[p]);
 		if (differentness < lowestDifferentness) {
 			lowestDifferentness = differentness;
 			currentPreset = p;
@@ -1984,8 +1984,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (outputType == OutputType::MIDI_OUT) {
 					MIDIInstrument* newMIDIInstrument = (MIDIInstrument*)newInstrument;
 					MIDIInstrument* oldMIDIInstrument = (MIDIInstrument*)clip->output;
-					memcpy(newMIDIInstrument->modKnobCCAssignments, oldMIDIInstrument->modKnobCCAssignments,
-					       sizeof(oldMIDIInstrument->modKnobCCAssignments));
+					newMIDIInstrument->modKnobCCAssignments = oldMIDIInstrument->modKnobCCAssignments;
 					newInstrument->editedByUser =
 					    oldNonAudioInstrument->editedByUser; // This keeps a record of "whether there are any CC
 					                                         // assignments", so must be copied across
@@ -2240,7 +2239,10 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
-			uiNeedsRendering(&sessionView, 0, 1 << yDisplayIfInSessionView);
+			RootUI* rootUI = getRootUI();
+			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
+			}
 		}
 		break;
 
@@ -2314,8 +2316,9 @@ void View::flashPlayDisable() {
 	clipArmFlashOn = false;
 	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
 
-	if (getRootUI() == &sessionView) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+	RootUI* rootUI = getRootUI();
+	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
 	else if (getRootUI()->toClipMinder()) {

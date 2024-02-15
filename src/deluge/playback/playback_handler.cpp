@@ -383,6 +383,10 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 		goto useArranger;
 	}
 
+	if (!rootUIIsClipMinderScreen() && currentSong->lastClipInstanceEnteredStartPos != -1) {
+		goto useArranger;
+	}
+
 	if (rootUIIsClipMinderScreen()
 	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:

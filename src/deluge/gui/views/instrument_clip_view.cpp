@@ -744,6 +744,12 @@ doCancelPopup:
 				goto doCancelPopup;
 			}
 		}
+
+		if (on && (currentUIMode == UI_MODE_NONE)) {
+			if (getCurrentInstrumentClip()->isScaleModeClip()) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
+		}
 	}
 
 	else {
@@ -3626,7 +3632,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	soundName.set(prefix);
 
-	Kit* kit = (Kit*)modelStack->song->currentClip->output;
+	// safe since we can't get here without being in a kit
+	Kit* kit = getCurrentKit();
 
 	int32_t error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error) {
@@ -3652,7 +3659,7 @@ doDisplayError:
 	SoundDrum* newDrum = new (memory) SoundDrum();
 	newDrum->setupAsSample(&paramManager);
 
-	modelStack->song->backUpParamManager(newDrum, modelStack->song->currentClip, &paramManager, true);
+	modelStack->song->backUpParamManager(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
 	newDrum->name.set(&soundName);
 	newDrum->nameIsDiscardable = true;
@@ -4344,36 +4351,24 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+
+			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-				getCurrentInstrumentClip()->transpose(offset * 12, modelStack);
-				if (getCurrentInstrumentClip()->isScaleModeClip()) {
-					getCurrentInstrumentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
-				}
-				// display->displayPopup("OCTAVE");
+				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				instrumentClip->nudgeNotesVertically(
+				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
 			}
-
-			// Otherwise, transpose single semitone
+			// Otherwise, transpose single row position
 			else {
-				// If current Clip not in scale-mode, just do it
-				if (!getCurrentInstrumentClip()->isScaleModeClip()) {
-					getCurrentInstrumentClip()->transpose(offset, modelStack);
-
-					// If there are no scale-mode Clips at all, move the root note along as well - just in case the user
-					// wants to go back to scale mode (in which case the "previous" root note would be used to help
-					// guess what root note to go with)
-					if (!currentSong->anyScaleModeClips()) {
-						currentSong->rootNote += offset;
-					}
-				}
-
-				// Otherwise, got to do all key-mode Clips
-				else {
-					currentSong->transposeAllScaleModeClips(offset);
-				}
-				// display->displayPopup("SEMITONE");
+				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale mode,
+				// it's the next note in the scale)¬
+				instrumentClip->nudgeNotesVertically(offset, modelStack);
 			}
+			recalculateColours();
+			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 	}
 
@@ -4674,9 +4669,9 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	uiNeedsRendering(this, rowUpdateMask, 0);
 
-	if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
-		modelStack->song->currentClip->expectEvent();
-		modelStack->song->currentClip->reGetParameterAutomation(modelStack);
+	if (playbackHandler.isEitherClockActive() && currentClip->isActiveOnOutput()) {
+		currentClip->expectEvent();
+		currentClip->reGetParameterAutomation(modelStack);
 	}
 
 	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
@@ -4789,9 +4784,10 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	bool didAnySuccessfulNudging = false;
 
-	InstrumentClip* currentClip = getCurrentInstrumentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	// safe since we can't be in instrument clip view if it's not an instrument clip
+	auto currentClip = (InstrumentClip*)modelStack->song->getCurrentClip();
 
 	// If the user is nudging back in the direction they just nudged, we can do a (possibly partial) undo, getting back
 	// the proper length of any notes that got trimmed etc.
@@ -4804,8 +4800,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 		actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// Still have to work out resultingTotalOffset, to display for the user
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4858,8 +4853,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 			}
 		}
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(modelStack->song->currentClip);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
 		// For each note / pad held down...
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
@@ -4988,9 +4982,9 @@ doCompareNote:
 	char const* message;
 	bool alignRight = false;
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(
-	    modelStack->song
-	        ->currentClip); // Can finally do this since we're not going to use the bare ModelStack for anything else
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	    modelStack->addTimelineCounter(currentClip); // Can finally do this since we're not going to use the bare
+	                                                 // ModelStack for anything else
 
 	if (numEditPadPresses > 1) {
 		if (!didAnySuccessfulNudging) {
@@ -5097,7 +5091,6 @@ abandonModRegion:
 	}
 }
 #pragma GCC pop
-
 void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
@@ -5155,7 +5148,6 @@ void InstrumentClipView::graphicsRoutine() {
 			}
 		}
 	}
-
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
