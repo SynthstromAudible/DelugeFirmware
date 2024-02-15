@@ -482,7 +482,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromF
 		}
 		int8_t newModeRoot = modeNotes[rootIndex];
 
-		for(uint8_t i = 0; i< 12; i++) {
+		for (uint8_t i = 0; i < 12; i++) {
 			oldMode[i] = modeNotes[i];
 		}
 
@@ -496,7 +496,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromF
 		int32_t oldRootNote = rootNote;
 
 		ClipArray* clipArray = &sessionClips;
-	traverseClips:
+traverseClips:
 		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 			if (clip->type != ClipType::INSTRUMENT) {
@@ -508,24 +508,25 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromF
 
 			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-				modelStack->addTimelineCounter(instrumentClip);
+			    modelStack->addTimelineCounter(instrumentClip);
 
 			yNoteOnBottomRow = 0;
-			if (clip->output->type == OutputType::MIDI_OUT &&
-				((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			if (clip->output->type == OutputType::MIDI_OUT
+			    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 				// Must not transpose MIDI clips that are routed to transpose, ie note rows
 				// stay exactly the same.
 				// Just have to scroll the clip so that the change in song root note
 				// does not visually move the notes on the grid.
-				yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
-				instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
-
-			} else {
+				yNoteOnBottomRow =
+				    getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
+				instrumentClip->yScroll =
+				    getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
+			}
+			else {
 				if (instrumentClip->isScaleModeClip()) {
 					instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
 				}
 			}
-
 		}
 		if (clipArray != &arrangementOnlyClips) {
 			clipArray = &arrangementOnlyClips;
@@ -535,13 +536,11 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromF
 		rootNote = newRootNote;
 
 		displayCurrentRootNoteAndScaleName();
-
 	}
 	else {
 		semitones = offset;
 		transposeAllScaleModeClips(semitones);
 	}
-
 }
 
 void Song::transposeAllScaleModeClips(int32_t interval) {
@@ -562,26 +561,11 @@ traverseClips:
 
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-		if (clip->output->type == OutputType::MIDI_OUT &&
-			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-			// Must not transpose MIDI clips that are routed to transpose.
-			D_PRINTLN("tclip b4  %d", instrumentClip->yScroll);
-
-		}
-
 		if (instrumentClip->isScaleModeClip()) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(instrumentClip);
 			instrumentClip->transpose(interval, modelStackWithTimelineCounter);
 		}
-
-		if (clip->output->type == OutputType::MIDI_OUT &&
-			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-			// Must not transpose MIDI clips that are routed to transpose.
-			D_PRINTLN("tclip after  %d", instrumentClip->yScroll);
-
-		}
-
 	}
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
@@ -886,15 +870,15 @@ traverseClips:
 		if (clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
-		if (!affectMIDITranspose && clip->output->type == OutputType::MIDI_OUT &&
-			((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		if (!affectMIDITranspose && clip->output->type == OutputType::MIDI_OUT
+		    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 			// Must not transpose MIDI clips that are routed to transpose.
 			continue;
 		}
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
-		D_PRINTLN("Replacing mode for clip %d", c);
+
 		instrumentClip->replaceMusicalMode(numModeNotes, changes, modelStackWithTimelineCounter);
 	}
 
