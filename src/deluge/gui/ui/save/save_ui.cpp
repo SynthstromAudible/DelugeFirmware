@@ -106,10 +106,7 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return mainButtonAction(on);
 	}
 
-	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't
-	// save over something by accident.
-	else if (b == SELECT_ENC && currentFileItem && !currentFileItem->isFolder) {}
-
+	// Pressing on select encoder button will go through here
 	else {
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);
 	}
