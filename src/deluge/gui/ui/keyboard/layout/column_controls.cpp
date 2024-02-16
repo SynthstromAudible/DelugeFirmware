@@ -36,10 +36,8 @@
 //   - slew
 //   - beat repeat
 //   - strum
-// - turn off key press / hold mode
 // - save current settings
-// BUG scrolling vertical encoder sometimes triggers horizontal encoder behavior (CHRD, CMEM)
-// BUG scrolling select knob changes sidebar when top pad held
+// - find better glide mode solution
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -212,16 +210,13 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		break;
 	case SCALE_MODE:
 		if (pad.active) {
-			currentScalePad = pad.y;
 			keyboardScreen.setScale(scaleModes[pad.y]);
 		}
 		else if (!pad.padPressHeld) {
 			previousScalePad = pad.y;
-			currentScalePad = pad.y;
 		}
 		else {
 			keyboardScreen.setScale(scaleModes[previousScalePad]);
-			currentScalePad = previousScalePad;
 		}
 		break;
 		// case BEAT_REPEAT:
@@ -458,9 +453,10 @@ void ColumnControlsKeyboard::renderColumnChordMem(RGB image[][kDisplayWidth + kS
 }
 
 void ColumnControlsKeyboard::renderColumnScaleMode(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+	int32_t currentScale = currentSong->getCurrentPresetScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		bool mode_selected = y == currentScalePad;
+		bool mode_selected = scaleModes[y] == currentScale;
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;

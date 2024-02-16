@@ -137,7 +137,6 @@ private:
 	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
 	uint8_t activeChordMem = 0xFF;
 
-	int32_t currentScalePad = currentSong->getCurrentPresetScale();
 	int32_t previousScalePad = currentSong->getCurrentPresetScale();
 	uint8_t scaleModes[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 
