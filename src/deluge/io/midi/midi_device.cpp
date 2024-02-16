@@ -404,8 +404,10 @@ int32_t MIDIDeviceUSB::sendBufferSpace() {
 	return connectedDevice->sendBufferSpace();
 }
 
+extern bool developerSysexCodeReceived;
+
 void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
-	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
 
@@ -426,6 +428,19 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	}
 
 	int32_t pos = 0;
+
+	// While we are standardizing on using the 4 byte Synthstrom Deluge in our messages, it is possible that client
+	// programs have not been updated yet, so if we get a SysEx request with 0x7D as the ID, we respond in-kind. This
+	// involves skipping the the first 5 bytes and sending 0xF0, 0x7D instead. Since the USB driver batches things in 3
+	// byte groups, we must include the first byte after the address in that first group.
+	if (developerSysexCodeReceived && (data[1] != 0x7D)) {
+		// Since the message ends with 0xF7, we can assume that data[5] does exist.
+		uint32_t packed =
+		    ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4); // fake 0xF0, 0x7D, data[5] for first send
+		connectedDevice->bufferMessage(packed);
+		pos = 6;
+	}
+
 	while (pos < len) {
 		int32_t status, byte0 = 0, byte1 = 0, byte2 = 0;
 		byte0 = data[pos];
