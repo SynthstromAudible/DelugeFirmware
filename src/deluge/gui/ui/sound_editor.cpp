@@ -1368,8 +1368,7 @@ bool SoundEditor::inSettingsMenu() {
 }
 
 bool SoundEditor::inSongMenu() {
-	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
-	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
+	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView) || (getRootUI() == &performanceSessionView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
