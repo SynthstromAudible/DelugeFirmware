@@ -42,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
 #include <cmath>
 #include <new>
 
@@ -51,6 +52,7 @@ namespace params = deluge::modulation::params;
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
 	arpeggiatorRatchetProbability = 0;
+	arpeggiatorRatchetAmount = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -139,6 +141,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
+	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2320,16 +2323,17 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (output->type != OutputType::KIT) {
 		if (arpSettings.mode != ArpMode::OFF) {
 			storageManager.writeOpeningTagBeginning("arpeggiator");
-			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
-			storageManager.writeAttribute("octaveMode", (char*)octaveModeToString(arpSettings.octaveMode));
+			storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-			storageManager.writeAttribute("numRatchets", arpSettings.numRatchets);
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				storageManager.writeAttribute("gate", arpeggiatorGate);
 				storageManager.writeAttribute("rate", arpeggiatorRate);
 				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			}
 			storageManager.closeTag();
 		}
@@ -2594,24 +2598,32 @@ someError:
 					arpeggiatorRatchetProbability = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("ratchetProbability");
 				}
+				else if (!strcmp(tagName, "ratchetAmount")) {
+					arpeggiatorRatchetAmount = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("ratchetAmount");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
-				}
-				else if (!strcmp(tagName, "numRatchets")) {
-					arpSettings.numRatchets = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("numRatchets");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("syncLevel");
 				}
-				else if (!strcmp(tagName, "mode")) {
-					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+				else if (!strcmp(tagName, "mode") && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings.mode = oldModeToArpMode(oldMode);
+					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
 					storageManager.exitTag("mode");
 				}
+				else if (!strcmp(tagName, "arpMode")) {
+					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("arpMode");
+				}
 				else if (!strcmp(tagName, "octaveMode")) {
-					arpSettings.octaveMode = stringToOctaveMode(storageManager.readTagOrAttributeValue());
+					arpSettings.octaveMode = stringToArpOctaveMode(storageManager.readTagOrAttributeValue());
 					storageManager.exitTag("octaveMode");
 				}
 				else if (!strcmp(tagName, "gate")) {
@@ -3106,7 +3118,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 				chosenNoteRowIndex = i;
 				break;
 			}
-noteRowFailed: {}
+noteRowFailed : {}
 		}
 	}
 

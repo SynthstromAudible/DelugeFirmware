@@ -15,32 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
-#include "model/song/song.h"
-#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class OctaveMode final : public Selection {
+class RatchetAmount : public UnpatchedParam {
 public:
-	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->octaveMode); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->octaveMode = this->getValue<ArpOctaveMode>(); }
-
-	deluge::vector<std::string_view> getOptions() override {
-		using enum l10n::String;
-		return {
-		    l10n::getView(STRING_FOR_UP),        //<
-		    l10n::getView(STRING_FOR_DOWN),      //<
-		    l10n::getView(STRING_FOR_UP_DOWN),   //<
-		    l10n::getView(STRING_FOR_ALTERNATE), //<
-		    l10n::getView(STRING_FOR_RANDOM),    //<
-		};
+	using UnpatchedParam::UnpatchedParam;
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return !soundEditor.editingKit() && !soundEditor.editingCVOrMIDIClip();
 	}
 };
+
 } // namespace deluge::gui::menu_item::arpeggiator

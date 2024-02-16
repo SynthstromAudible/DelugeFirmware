@@ -933,18 +933,51 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
-char const* arpModeToString(ArpMode mode) {
+ArpMode oldModeToArpMode(OldArpMode oldMode) {
+	if (oldMode != OldArpMode::OFF) {
+		return ArpMode::ARP;
+	}
+	else {
+		return ArpMode::OFF;
+	}
+}
+
+ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode) {
+	switch (oldMode) {
+	case OldArpMode::DOWN:
+		return ArpNoteMode::DOWN;
+	case OldArpMode::RANDOM:
+		return ArpNoteMode::RANDOM;
+	default:
+		return ArpNoteMode::UP;
+	}
+}
+
+ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode) {
+	switch (oldMode) {
+	case OldArpMode::DOWN:
+		return ArpOctaveMode::DOWN;
+	case OldArpMode::BOTH:
+		return ArpOctaveMode::ALTERNATE;
+	case OldArpMode::RANDOM:
+		return ArpOctaveMode::RANDOM;
+	default:
+		return ArpOctaveMode::UP;
+	}
+}
+
+char const* oldArpModeToString(OldArpMode mode) {
 	switch (mode) {
-	case ArpMode::UP:
+	case OldArpMode::UP:
 		return "up";
 
-	case ArpMode::DOWN:
+	case OldArpMode::DOWN:
 		return "down";
 
-	case ArpMode::BOTH:
+	case OldArpMode::BOTH:
 		return "both";
 
-	case ArpMode::RANDOM:
+	case OldArpMode::RANDOM:
 		return "random";
 
 	default:
@@ -952,25 +985,81 @@ char const* arpModeToString(ArpMode mode) {
 	}
 }
 
-ArpMode stringToArpMode(char const* string) {
+OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
-		return ArpMode::UP;
+		return OldArpMode::UP;
 	}
 	else if (!strcmp(string, "down")) {
-		return ArpMode::DOWN;
+		return OldArpMode::DOWN;
 	}
 	else if (!strcmp(string, "both")) {
-		return ArpMode::BOTH;
+		return OldArpMode::BOTH;
 	}
 	else if (!strcmp(string, "random")) {
-		return ArpMode::RANDOM;
+		return OldArpMode::RANDOM;
+	}
+	else {
+		return OldArpMode::OFF;
+	}
+}
+
+char const* arpModeToString(ArpMode mode) {
+	switch (mode) {
+	case ArpMode::ARP:
+		return "arp";
+
+	default:
+		return "off";
+	}
+}
+
+ArpMode stringToArpMode(char const* string) {
+	if (!strcmp(string, "arp")) {
+		return ArpMode::ARP;
 	}
 	else {
 		return ArpMode::OFF;
 	}
 }
 
-char const* octaveModeToString(ArpOctaveMode mode) {
+char const* arpNoteModeToString(ArpNoteMode mode) {
+	switch (mode) {
+	case ArpNoteMode::DOWN:
+		return "down";
+
+	case ArpNoteMode::UP_DOWN:
+		return "upDown";
+
+	case ArpNoteMode::ORDER:
+		return "order";
+
+	case ArpNoteMode::RANDOM:
+		return "random";
+
+	default:
+		return "up";
+	}
+}
+
+ArpNoteMode stringToArpNoteMode(char const* string) {
+	if (!strcmp(string, "down")) {
+		return ArpNoteMode::DOWN;
+	}
+	else if (!strcmp(string, "upDown")) {
+		return ArpNoteMode::UP_DOWN;
+	}
+	else if (!strcmp(string, "order")) {
+		return ArpNoteMode::ORDER;
+	}
+	else if (!strcmp(string, "random")) {
+		return ArpNoteMode::RANDOM;
+	}
+	else {
+		return ArpNoteMode::UP;
+	}
+}
+
+char const* arpOctaveModeToString(ArpOctaveMode mode) {
 	switch (mode) {
 	case ArpOctaveMode::DOWN:
 		return "down";
@@ -983,9 +1072,15 @@ char const* octaveModeToString(ArpOctaveMode mode) {
 	}
 }
 
-ArpOctaveMode stringToOctaveMode(char const* string) {
+ArpOctaveMode stringToArpOctaveMode(char const* string) {
 	if (!strcmp(string, "down")) {
 		return ArpOctaveMode::DOWN;
+	}
+	else if (!strcmp(string, "upDown")) {
+		return ArpOctaveMode::RANDOM;
+	}
+	else if (!strcmp(string, "alt")) {
+		return ArpOctaveMode::ALTERNATE;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpOctaveMode::RANDOM;

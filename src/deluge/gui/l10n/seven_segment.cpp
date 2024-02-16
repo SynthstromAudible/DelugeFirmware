@@ -96,7 +96,12 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_UP, "UP"},
         {STRING_FOR_DOWN, "DOWN"},
         {STRING_FOR_BOTH, "BOTH"},
-        {STRING_FOR_RANDOM, "RANDOM"},
+        {STRING_FOR_RANDOM, "RAND"},
+        {STRING_FOR_UP_DOWN, "UPDN"},
+        {STRING_FOR_ORDER, "ORD"},
+        {STRING_FOR_ALTERNATE, "ALT"},
+        {STRING_FOR_ARP, "ARP"},
+        {STRING_FOR_SEQUENCE, "SEQ"},
 
         // gui/menu_item/cv/selection.h
         {STRING_FOR_CV_OUTPUT_N, "OUT*"},
@@ -284,6 +289,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_UNISON_STEREO_SPREAD, "SPREAD"},
         {STRING_FOR_NUMBER_OF_OCTAVES, "OCTAVES"},
         {STRING_FOR_OCTAVE_MODE, "OMODE"},
+        {STRING_FOR_NOTE_MODE, "NMODE"},
         {STRING_FOR_NUMBER_OF_RATCHETS, "RATCHETS"},
         {STRING_FOR_RATCHET_PROBABILITY, "RPROB"},
         {STRING_FOR_AMOUNT_LEVEL, "AMOUNT"},

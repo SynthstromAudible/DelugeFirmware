@@ -26,40 +26,20 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class Mode final : public Selection {
+class NoteMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
-	void writeCurrentValue() override {
-		auto current_value = this->getValue<ArpMode>();
-
-		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-
-				if (soundEditor.editingCVOrMIDIClip()) {
-					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
-				}
-				else {
-					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-					soundEditor.currentSound->allNotesOff(
-					    modelStackWithSoundFlags,
-					    soundEditor.currentSound->getArp()); // Must switch off all notes when switching arp on / off
-					soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
-				}
-			}
-		}
-		soundEditor.currentArpSettings->mode = current_value;
-	}
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
+	void writeCurrentValue() override { soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>(); }
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_OFF),      //<
-		    l10n::getView(STRING_FOR_ARP),      //<
-		    l10n::getView(STRING_FOR_SEQUENCE), //<
+		    l10n::getView(STRING_FOR_UP),      //<
+		    l10n::getView(STRING_FOR_DOWN),    //<
+		    l10n::getView(STRING_FOR_UP_DOWN), //<
+		    l10n::getView(STRING_FOR_ORDER),   //<
+		    l10n::getView(STRING_FOR_RANDOM),  //<
 		};
 	}
 };

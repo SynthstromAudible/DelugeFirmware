@@ -32,18 +32,19 @@ public:
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
 		mode = other->mode;
-		numRatchets = other->numRatchets;
+		noteMode = other->noteMode;
+		octaveMode = other->octaveMode;
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
 	// Settings
-	uint8_t numOctaves;
+	ArpMode mode;
+	ArpNoteMode noteMode;
 	ArpOctaveMode octaveMode;
+	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
-	ArpMode mode;
-	uint8_t numRatchets;
 };
 
 struct ArpNote {
@@ -77,7 +78,7 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
-	            uint32_t chance, ArpReturnInstruction* instruction);
+	            uint32_t ratchetAmount, uint32_t ratchetProbability, ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
@@ -90,7 +91,6 @@ public:
 	uint32_t gatePos;
 	int8_t currentOctave;
 	int8_t currentDirection;
-	int8_t currentOctaveDirection; // This is updated every time we change the currentOctave
 	bool playedFirstArpeggiatedNoteYet;
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
@@ -100,6 +100,7 @@ public:
 	uint8_t ratchetNotesNumber = 0;
 	bool isRatcheting = false;
 	uint16_t ratchetProbability = 0;
+	uint8_t ratchetAmount = 0;
 
 protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);

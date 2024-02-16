@@ -582,18 +582,32 @@ constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
 
 constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
 
-enum class ArpMode {
+enum class OldArpMode {
 	OFF,
 	UP,
 	DOWN,
 	BOTH,
 	RANDOM,
 };
-constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
+
+enum class ArpMode {
+	OFF,
+	ARP,
+};
+
+enum class ArpNoteMode {
+	UP,
+	DOWN,
+	UP_DOWN,
+	ORDER,
+	RANDOM,
+};
 
 enum class ArpOctaveMode {
 	UP,
 	DOWN,
+	UP_DOWN,
+	ALTERNATE,
 	RANDOM,
 };
 
