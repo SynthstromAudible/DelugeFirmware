@@ -181,8 +181,8 @@ void PatchCableStrength::writeCurrentValue() {
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
-MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
-                                                                 MultiRange** currentRange) {
+MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                 int32_t whichThing, MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();
@@ -201,6 +201,8 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 	}
 
 	int32_t p = destinationDescriptor.getJustTheParam();
+
+	Sound* sound = static_cast<Sound*>(modControllable);
 
 	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
 	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))

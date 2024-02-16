@@ -27,7 +27,8 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() != SynthMode::FM && source->oscType == OscType::WAVETABLE);
 	}

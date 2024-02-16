@@ -25,9 +25,9 @@ class Feedback final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	bool isRelevant(Sound* sound, int32_t whichThing) {
-		return (util::one_of(soundEditor.currentModControllable->getModFXType(),
-		                     {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN}));
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return (
+		    util::one_of(modControllable->getModFXType(), {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN}));
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

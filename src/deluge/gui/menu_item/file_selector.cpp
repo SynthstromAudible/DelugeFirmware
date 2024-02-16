@@ -42,10 +42,13 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
+bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}
+
+	Sound* sound = static_cast<Sound*>(modControllable);
+
 	Source* source = &sound->sources[whichThing];
 
 	if (source->oscType == OscType::WAVETABLE) {
@@ -54,12 +57,14 @@ bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return MenuPermission::YES;
 	}
+
+	Sound* sound = static_cast<Sound*>(modControllable);
 
 	bool can =
 	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE

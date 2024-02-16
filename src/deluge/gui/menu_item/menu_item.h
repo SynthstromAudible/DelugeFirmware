@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/buttons.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include <cstdint>
 #include <span>
 
@@ -59,9 +60,10 @@ public:
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
-	virtual bool isRelevant(Sound* sound, int32_t whichThing) { return true; }
+	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return nullptr; }
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                                     MultiRange** currentRange);
 	virtual void readValueAgain() {}
 	virtual bool selectEncoderActionEditsInstrument() { return false; }
 	virtual uint8_t getPatchedParamIndex() { return 255; }

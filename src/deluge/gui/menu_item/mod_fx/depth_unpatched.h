@@ -25,8 +25,8 @@ class Depth_Unpatched final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	bool isRelevant(Sound* sound, int32_t whichThing) {
-		return util::one_of(soundEditor.currentModControllable->getModFXType(),
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return util::one_of(modControllable->getModFXType(),
 		                    {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::PHASER});
 	}
 };
