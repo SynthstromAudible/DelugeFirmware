@@ -240,8 +240,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
 
-						MenuPermission result = newItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
-						                                                               &currentMultiRange);
+						MenuPermission result = newItem->checkPermissionToBeginSession(
+						    currentModControllable, currentSourceIndex, &currentMultiRange);
 
 						if (result != MenuPermission::NO) {
 
@@ -413,7 +413,8 @@ void SoundEditor::goUpOneLevel() {
 			return;
 		}
 		navigationDepth--;
-	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange)
+	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
+	                                                             &currentMultiRange)
 	         == MenuPermission::NO);
 	display->setNextTransitionDirection(-1);
 
@@ -980,7 +981,7 @@ getOut:
 
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
-						    && newMenuItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
+						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
 							navigationDepth = newNavigationDepth + 1;
@@ -1305,7 +1306,7 @@ doMIDIOrCV:
 	// depth", it needs this.
 	currentParamManager = newParamManager;
 
-	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
+	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
