@@ -353,19 +353,20 @@ doNothing:
 
 ActionResult SnakeView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// if pad was pressed in main deluge grid (not sidebar)
+	// change snake direction
 	if (xDisplay >= kDisplayWidth) {
 		if (on) {
-			if (xDisplay == (kDisplayWidth + 1) && yDisplay == 3) {
-				snakeDirection = 1;
-			}
-			else if (xDisplay == kDisplayWidth && yDisplay == 3) {
-				snakeDirection = 0;
+			if (xDisplay == kDisplayWidth && yDisplay == 3) {
+				snakeDirection = 0; // left
+			}			
+			else if (xDisplay == (kDisplayWidth + 1) && yDisplay == 3) {
+				snakeDirection = 1; // right
 			}
 			else if (xDisplay == (kDisplayWidth + 1) && yDisplay == 4) {
-				snakeDirection = 2;
+				snakeDirection = 2; // up
 			}
 			else if (xDisplay == (kDisplayWidth + 1) && yDisplay == 2) {
-				snakeDirection = 3;
+				snakeDirection = 3; // down
 			}
 		}
 	}
