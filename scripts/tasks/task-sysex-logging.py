@@ -56,7 +56,7 @@ def sysex_console(port):
     midiout.open_port(port)
 
     with midiout:
-        data = bytearray(6)
+        data = bytearray(9)
         # main Deluge header
         data[0] = 0xF0  # sysex message
         data[1] = 0x00
