@@ -399,7 +399,117 @@ Firmware Version (FIRM)
 
 The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
 
-** Menu hierarchy to be added **
+The Song menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Master</summary>
+
+	- Volume
+	- Pan
+</details>
+<details><summary>Filters</summary>
+
+	- LPF
+		- Frequency
+		- Resonance
+		- Mode
+			- 12DB Ladder
+			- 24DB Ladder
+			- Drive
+			- SVF Bandpass
+			- SVF Notch
+	- HPF
+		- Frequency
+		- Resonance
+		- Mode
+			- SVF Bandpass
+			- SVF Notch
+			- HP Ladder
+	- Filter Route
+		- HPF2LPF
+		- LPF2HPF
+		- PARALLEL
+</details>
+<details><summary>FX</summary>
+
+	- EQ
+		- Bass
+		- Treble
+		- Bass Frequency
+		- Treble Frequency
+	- Delay
+		- Amount
+		- Rate
+		- Pingpong
+			- Disabled
+			- Enabled
+		- Type
+			- Digital
+			- Analog
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+				
+			- Off
+			- 2-Bar
+			- 1-Bar
+			- 2nd-Notes
+			- 4th-Notes
+			- 8th-Notes
+			- 16th-Notes
+			- 32nd-Notes
+			- 64th-Notes
+			- 128th-Notes
+			- 2-Bar-TPLTS
+			- 1-Bar-TPLTS
+			- 2nd-TPLTS
+			- 4th-TPLTS
+			- 8th-TPLTS
+			- 16th-TPLTS
+			- 32nd-TPLTS
+			- 64th-TPLTS
+			- 128th-TPLTS
+			- 2-Bar-DTTED
+			- 1-Bar-DTTED
+			- 2nd-DTTED
+			- 4th-DTTED
+			- 8th-DTTED
+			- 16th-DTTED
+			- 32nd-DTTED
+			- 64th-DTTED
+			- 128th-DTTED
+	- Reverb
+		- Amount
+		- Model
+		- Room Size (if Freeverb is Selected) or Time (if Mutable is Selected)
+		- Damping
+		- Width (if Freeverb is Selected) or Diffusion (if Mutable is Selected)
+		- Pan
+		- Reverb Sidechain
+			- Volume Ducking
+	
+	- Mod-FX
+		- Type
+			- Disabled
+			- Flanger
+			- Chorus
+			- Phaser
+			- Stereo Chorus
+			- Grain (if enabled in Community Features menu)
+		- Rate
+		- Depth (if Chorus, Phaser or Grain is selected)
+		- Feedback (if Flanger, Phaser or Grain is selected)
+		- Offset (if Chorus or Grain is selected)
+	- Distortion
+		- Decimation
+		- Bitcrush
+</details>
+<details><summary>MIDI Loopback</summary>
+
+		- Disabled
+		- Enabled
+
+</details>		
+
 </details>
 
 <details>
@@ -407,7 +517,24 @@ The Song menu is accessible from Arranger View and Song View by pressing on the 
 
 The Perform FX menu is accessible from Performance View by pressing on the `SELECT ENCODER`
 
-** Menu hierarchy to be added **
+The Perform FX menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Editing Mode</summary>
+
+	- Disabled
+	- Value
+	- Param
+</details>
+<details><summary>Filters</summary>
+
+	- See Song menu hierarchy above for break-down of Filters menu
+</details>
+<details><summary>FX</summary>
+
+	- See Song menu hierarchy above for break-down of FX menu
+</details>		
+
 </details>
 
 <details>
