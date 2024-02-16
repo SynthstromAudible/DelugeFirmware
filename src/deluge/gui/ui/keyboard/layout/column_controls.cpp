@@ -31,6 +31,16 @@
 #define RIGHT_COL (kDisplayWidth + 1)
 #define MAX_CHORD_NOTES 4
 
+// TODO
+// - checkout doTick* and ui timer manager for:
+//   - slew
+//   - beat repeat
+//   - strum
+// - turn off key press / hold mode
+// - save current settings
+// BUG scrolling vertical encoder sometimes triggers horizontal encoder behavior (CHRD, CMEM)
+// BUG scrolling select knob changes sidebar when top pad held
+
 namespace deluge::gui::ui::keyboard::layout {
 
 uint8_t chordTypeSemitoneOffsets[][MAX_CHORD_NOTES] = {
@@ -65,6 +75,9 @@ const char* functionNames[][2] = {
     /* SCALE_MODE  */ {"SMOD", "Scales"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
+
+const char* glideOn[2] = {"G ON", "Glide On"};
+const char* glideOff[2] = {"GOFF", "Glide Off"};
 
 void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 	currentNotesState.enableNote(note, velocity);
@@ -127,7 +140,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			velocity = (vDisplay + kHalfStep) >> kVelModShift;
 			display->displayPopup(velocity);
 		}
-		else if (!pad.padPressHeld) {
+		else if (!pad.padPressHeld || velocityGlide) {
 			velocity32 = velocityMin + pad.y * velocityStep;
 			vDisplay = velocity32;
 			velocity = (velocity32 + kHalfStep) >> kVelModShift;
@@ -144,7 +157,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			                                                         modelStackWithTimelineCounter);
 			display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 		}
-		else if (!pad.padPressHeld) {
+		else if (!pad.padPressHeld || modGlide) {
 			mod32 = modMin + pad.y * modStep;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
 			                                                         modelStackWithTimelineCounter);
@@ -249,6 +262,11 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByFunc(ColumnControlFunction 
 			velocityStep = (velocityMax - velocityMin) / 7;
 			return true;
 		}
+		if (pad == 6 && offset) {
+			velocityGlide = !velocityGlide;
+			display->displayPopup(velocityGlide ? glideOn : glideOff);
+			return true;
+		}
 		else if (pad == 0) {
 			velocityMin += offset << kVelModShift;
 			velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
@@ -265,6 +283,11 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByFunc(ColumnControlFunction 
 			modMax = std::clamp(modMax, modMin, (uint32_t)127 << kVelModShift);
 			display->displayPopup(modMax >> kVelModShift);
 			modStep = (modMax - modMin) / 7;
+			return true;
+		}
+		if (pad == 6 && offset) {
+			modGlide = !modGlide;
+			display->displayPopup(modGlide ? glideOn : glideOff);
 			return true;
 		}
 		else if (pad == 0) {
@@ -305,7 +328,7 @@ ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnContr
 }
 
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
-	if (leftColHeld == 7) {
+	if (leftColHeld == 7 && offset) {
 		if (!horizontalScrollingLeftCol) {
 			leftColPrev = leftCol;
 		}
@@ -314,7 +337,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		display->displayPopup(functionNames[leftCol]);
 		return true;
 	}
-	if (rightColHeld == 7) {
+	if (rightColHeld == 7 && offset) {
 		if (!horizontalScrollingRightCol) {
 			rightColPrev = rightCol;
 		}

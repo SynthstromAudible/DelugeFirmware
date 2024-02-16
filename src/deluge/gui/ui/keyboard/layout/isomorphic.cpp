@@ -43,13 +43,17 @@ void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
+	_handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
+	_handleHorizontalEncoder(offset, shiftEnabled);
+}
+
+void KeyboardLayoutIsomorphic::_handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	if (shiftEnabled) {

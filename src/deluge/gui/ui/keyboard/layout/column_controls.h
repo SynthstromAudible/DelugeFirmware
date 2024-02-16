@@ -120,12 +120,14 @@ private:
 	uint32_t velocityStep = 16 << kVelModShift;
 	uint32_t velocity32 = velocity << kVelModShift;
 	uint32_t vDisplay = velocity;
+	bool velocityGlide = false;
 
 	uint32_t modMax = 127 << kVelModShift;
 	uint32_t modMin = 15 << kVelModShift;
 	uint32_t modStep = 16 << kVelModShift;
 	uint32_t mod32 = 0 << kVelModShift;
 	uint32_t modDisplay;
+	bool modGlide = false;
 
 	ChordModeChord activeChord = NO_CHORD;
 	ChordModeChord defaultChord = NO_CHORD;
