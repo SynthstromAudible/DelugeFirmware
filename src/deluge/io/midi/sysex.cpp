@@ -131,7 +131,6 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	const int size = 512;
 	const int packed_size = 586; // ceil(512+512/7)
-	// if (len < packed_size + 12) {
 	if (len < packed_size + 10) {
 		return;
 	}
@@ -153,8 +152,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 		return;
 	}
 
-	// unpack_7bit_to_8bit(load_buf + pos, size, data + 11, packed_size);
-	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size); // was 11, now 9
+	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size);
 
 	uint32_t pad = (18 * 8 * pos) / load_bufsize;
 	uint8_t col = pad % 18;
@@ -174,12 +172,11 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 		return; // not allowed
 	}
 
-	if (len < 19 || load_buf == nullptr) {
+	if (len < 17 || load_buf == nullptr) {
 		return; // cannot do that
 	}
 
 	uint32_t fields[3];
-	//	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 4, 14); // Is this offset correct now?
 
 	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14); // Is this offset correct now?
 
