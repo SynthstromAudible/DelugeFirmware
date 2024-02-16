@@ -448,7 +448,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					
+
 					// if mod button is pressed, update mod button pop up
 					if (Buttons::isButtonPressed(
 					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
