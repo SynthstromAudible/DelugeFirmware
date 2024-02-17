@@ -49,7 +49,7 @@ bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	}
 	else if (pad == 0) {
 		velocityMin += offset << kVelModShift;
-		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
+		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)1, (int32_t)velocityMax);
 		display->displayPopup(velocityMin >> kVelModShift);
 		velocityStep = (velocityMax - velocityMin) / 7;
 		return true;
