@@ -27,7 +27,6 @@
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <limits>
-#include <sys/_stdint.h>
 
 #define LEFT_COL kDisplayWidth
 #define RIGHT_COL (kDisplayWidth + 1)
