@@ -36,7 +36,7 @@ public:
 	SampleLowLevelReader();
 	~SampleLowLevelReader();
 
-	void unassignAllReasons();
+	void unassignAllReasons(bool wontBeUsedAgain);
 	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
 	                       int32_t phaseIncrement);
 	void jumpForwardZeroes(int32_t bufferSize, int32_t numChannels, int32_t phaseIncrement);

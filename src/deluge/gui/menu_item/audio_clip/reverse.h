@@ -34,7 +34,7 @@ public:
 		auto* clip = getCurrentAudioClip();
 		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
 
-		clip->unassignVoiceSample();
+		clip->unassignVoiceSample(false);
 
 		clip->sampleControls.reversed = this->getValue();
 
