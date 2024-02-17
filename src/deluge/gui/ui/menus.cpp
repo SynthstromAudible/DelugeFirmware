@@ -960,14 +960,14 @@ Submenu triggerClockMenu{
 // Defaults menu
 defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 
-ToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_FUNCTIONS_VELOCITY_GLIDE,
-                                                   STRING_FOR_DEFAULT_UI_FUNCTIONS_VELOCITY_GLIDE,
+ToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_GLIDE,
+                                                   STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_GLIDE,
                                                    FlashStorage::keyboardFunctionsVelocityGlide};
-ToggleBool defaultUIKeyboardFunctionsModwheelGlide{STRING_FOR_DEFAULT_UI_FUNCTIONS_MODWHEEL_GLIDE,
-                                                   STRING_FOR_DEFAULT_UI_FUNCTIONS_MODWHEEL_GLIDE,
+ToggleBool defaultUIKeyboardFunctionsModwheelGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_GLIDE,
+                                                   STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_GLIDE,
                                                    FlashStorage::keyboardFunctionsModwheelGlide};
 Submenu defaultKeyboardFunctionsMenu{
-    STRING_FOR_DEFAULT_UI_FUNCTIONS,
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS,
     {&defaultUIKeyboardFunctionsVelocityGlide, &defaultUIKeyboardFunctionsModwheelGlide},
 };
 
