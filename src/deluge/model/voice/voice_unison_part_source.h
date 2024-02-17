@@ -32,7 +32,7 @@ public:
 	VoiceUnisonPartSource();
 	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
 	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode);
-	void unassign();
+	void unassign(bool deletingSong);
 	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement,
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
