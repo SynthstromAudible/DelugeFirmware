@@ -40,6 +40,9 @@ extern uint8_t defaultBendRange[2];
 extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
+extern bool keyboardFunctionsVelocityGlide;
+extern bool keyboardFunctionsModwheelGlide;
+
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;

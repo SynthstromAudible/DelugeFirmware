@@ -24,6 +24,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <limits>
 #include <sys/_stdint.h>
@@ -128,7 +129,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			velocity = (vDisplay + kHalfStep) >> kVelModShift;
 			display->displayPopup(velocity);
 		}
-		else if (!pad.padPressHeld) {
+		else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsVelocityGlide) {
 			velocity32 = velocityMin + pad.y * velocityStep;
 			vDisplay = velocity32;
 			velocity = (velocity32 + kHalfStep) >> kVelModShift;
@@ -145,7 +146,7 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 			                                                         modelStackWithTimelineCounter);
 			display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 		}
-		else if (!pad.padPressHeld) {
+		else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsModwheelGlide) {
 			mod32 = modMin + pad.y * modStep;
 			getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
 			                                                         modelStackWithTimelineCounter);

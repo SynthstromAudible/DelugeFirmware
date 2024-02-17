@@ -137,6 +137,8 @@ namespace FlashStorage {
 151: automationShift;
 152: automationNudgeNote;
 153: automationDisableAuditionPadShortcuts;
+154: keyboardFunctionsVelocityGlide;
+155: keyboardFunctionsModwheelGlide;
 */
 
 uint8_t defaultScale;
@@ -155,6 +157,9 @@ uint8_t defaultBendRange[2] = {2, 48}; // The 48 isn't editable. And the 2 actua
 
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
+
+bool keyboardFunctionsVelocityGlide;
+bool keyboardFunctionsModwheelGlide;
 
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
@@ -559,6 +564,9 @@ void readSettings() {
 			resetAutomationSettings();
 		}
 	}
+
+	keyboardFunctionsVelocityGlide = buffer[154];
+	keyboardFunctionsModwheelGlide = buffer[155];
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -755,6 +763,9 @@ void writeSettings() {
 	buffer[151] = automationShift;
 	buffer[152] = automationNudgeNote;
 	buffer[153] = automationDisableAuditionPadShortcuts;
+
+	buffer[154] = keyboardFunctionsVelocityGlide;
+	buffer[155] = keyboardFunctionsModwheelGlide;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
