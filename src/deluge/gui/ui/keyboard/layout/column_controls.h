@@ -117,13 +117,13 @@ private:
 	// use higher precision internally so that scaling and stepping is cleaner
 	uint32_t velocityMax = 127 << kVelModShift;
 	uint32_t velocityMin = 15 << kVelModShift;
-	uint32_t velocityStep = 16 << kVelModShift;
+	uint32_t velocityStep = modStep = (velocityMax - velocityMin) / 7;
 	uint32_t velocity32 = velocity << kVelModShift;
 	uint32_t vDisplay = velocity;
 
 	uint32_t modMax = 127 << kVelModShift;
-	uint32_t modMin = 15 << kVelModShift;
-	uint32_t modStep = 16 << kVelModShift;
+	uint32_t modMin = 0 << kVelModShift;
+	uint32_t modStep = modStep = (modMax - modMin) / 7;
 	uint32_t mod32 = 0 << kVelModShift;
 	uint32_t modDisplay;
 

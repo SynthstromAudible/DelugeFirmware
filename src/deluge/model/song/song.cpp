@@ -49,6 +49,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
 
@@ -2773,16 +2774,21 @@ const char* Song::getScaleName(int32_t scale) {
 
 int32_t Song::cycleThroughScales() {
 	int32_t currentScale = getCurrentPresetScale();
-	int32_t newScale = currentScale + 1;
+	if (currentScale >= NUM_PRESET_SCALES) {
+		// If we are currently in a CUSTOM scale, we can't cycle to normal scales
+		return 255;
+	}
+	int32_t newScale = currentScale + 1; // next scale
+	if (newScale >= NUM_PRESET_SCALES) {
+		// If past the last scale, start from the beginning
+		newScale = 0;
+	}
+	// Set it, it will
 	return setPresetScale(newScale);
 }
 
+// Returns 255 if it can't be done
 int32_t Song::setPresetScale(int32_t newScale) {
-	// Can only do it if there are between 5 and 7 notes in current scale
-	if (numModeNotes < 5 || numModeNotes > 7) {
-		return 255;
-	}
-
 	int32_t numNotesInCurrentScale = 7;
 	int32_t numNotesInNewScale = 7;
 
@@ -2793,10 +2799,6 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	}
 	else if (currentScale >= FIRST_6_NOTE_SCALE_INDEX) {
 		numNotesInCurrentScale = 6;
-	}
-
-	if (newScale >= NUM_PRESET_SCALES) {
-		newScale = 0;
 	}
 
 	// Get num of notes of new scale
@@ -2845,12 +2847,10 @@ traverseClips3:
 		}
 	}
 
-	// If the new scale cannot fit the notes from the old one, we need to cycle back to the beginning of the scales
-	// list
-	if ((newScale == FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
-	    || (newScale == FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
-		newScale = 0;
-		numNotesInNewScale = 7;
+	// If the new scale cannot fit the notes from the old one, we can't change scale
+	if ((newScale >= FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
+	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
+		return 255;
 	}
 
 	// The new scale can perfectly fit all notes from the old one, so mark all notes to be transposed

@@ -26,6 +26,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 #include <limits>
+#include <sys/_stdint.h>
 
 #define LEFT_COL kDisplayWidth
 #define RIGHT_COL (kDisplayWidth + 1)
@@ -199,16 +200,22 @@ void ColumnControlsKeyboard::handlePad(ModelStackWithTimelineCounter* modelStack
 		break;
 	case SCALE_MODE:
 		if (pad.active) {
-			currentScalePad = pad.y;
-			keyboardScreen.setScale(scaleModes[pad.y]);
+			if (keyboardScreen.setScale(scaleModes[pad.y])) {
+				currentScalePad = pad.y;
+			}
 		}
 		else if (!pad.padPressHeld) {
-			previousScalePad = pad.y;
-			currentScalePad = pad.y;
+			// Pad released after short press
+			if (keyboardScreen.setScale(scaleModes[pad.y])) {
+				previousScalePad = pad.y;
+				currentScalePad = pad.y;
+			}
 		}
 		else {
-			keyboardScreen.setScale(scaleModes[previousScalePad]);
-			currentScalePad = previousScalePad;
+			// Pad released after long press
+			if (keyboardScreen.setScale(scaleModes[previousScalePad])) {
+				currentScalePad = previousScalePad;
+			}
 		}
 		break;
 		// case BEAT_REPEAT:
@@ -256,9 +263,14 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByFunc(ColumnControlFunction 
 			velocityStep = (velocityMax - velocityMin) / 7;
 			return true;
 		}
-	case SCALE_MODE:
-		scaleModes[pad] = (scaleModes[pad] + offset) % NUM_PRESET_SCALES;
+	case SCALE_MODE: {
+		int32_t newScale = ((int32_t)scaleModes[pad] + offset) % NUM_PRESET_SCALES;
+		if (newScale < 0) {
+			newScale = NUM_PRESET_SCALES - 1;
+		}
+		scaleModes[pad] = newScale;
 		return true;
+	}
 	case MOD:
 		if (pad == 7) {
 			modMax += offset << kVelModShift;
