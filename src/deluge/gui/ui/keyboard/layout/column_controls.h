@@ -17,15 +17,20 @@
 
 #pragma once
 
+#include "gui/ui/keyboard/column_controls/chord.h"
+#include "gui/ui/keyboard/column_controls/chord_mem.h"
+#include "gui/ui/keyboard/column_controls/mod.h"
+#include "gui/ui/keyboard/column_controls/scale_mode.h"
+#include "gui/ui/keyboard/column_controls/velocity.h"
 #include "gui/ui/keyboard/layout.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
+using namespace deluge::gui::ui::keyboard::controls;
+
 constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
-constexpr uint32_t kVelModShift = 24;
 constexpr uint32_t kHalfStep = 0x7FFFFF;
-constexpr int32_t kMaxNotesChordMem = 10;
 
 enum ColumnControlFunction : int8_t {
 	VELOCITY = 0,
@@ -39,19 +44,6 @@ enum ColumnControlFunction : int8_t {
 
 ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
 ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
-
-enum ChordModeChord {
-	NO_CHORD = 0,
-	FIFTH,
-	SUS2,
-	MINOR,
-	MAJOR,
-	SUS4,
-	MINOR7,
-	DOMINANT7,
-	MAJOR7,
-	CHORD_MODE_CHORD_MAX, /* should be 9, 8 chord pads plus NO_CHORD */
-};
 
 enum BeatRepeat {
 	NO_BEAT_REPEAT = 0,
@@ -91,53 +83,24 @@ public:
 
 	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-protected:
-	uint8_t velocity = 64;
+	VelocityColumn velocityColumn{velocity};
 
 private:
-	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, ColumnControlFunction func,
-	               PressedPad pad);
+	ModColumn modColumn{};
+	ChordColumn chordColumn{};
+	ChordMemColumn chordMemColumn{};
+	ScaleModeColumn scaleModeColumn{};
 
-	bool verticalEncoderHandledByFunc(ColumnControlFunction func, int8_t pad, int32_t offset);
-
-	void setActiveChord(ChordModeChord chord);
-
-	void renderColumnVelocity(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
-	void renderColumnMod(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
-	void renderColumnChord(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
-	void renderColumnChordMem(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
-	void renderColumnScaleMode(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
 	void renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
 
-	ColumnControlFunction leftColPrev = VELOCITY;
-	ColumnControlFunction rightColPrev = MOD;
-	ColumnControlFunction leftCol = VELOCITY;
-	ColumnControlFunction rightCol = MOD;
+	ColumnControlFunction leftColFunc = VELOCITY;
+	ColumnControlFunction rightColFunc = MOD;
+	ControlColumn* leftColPrev = &velocityColumn;
+	ControlColumn* rightColPrev = &modColumn;
+	ControlColumn* leftCol = &velocityColumn;
+	ControlColumn* rightCol = &modColumn;
 
-	// use higher precision internally so that scaling and stepping is cleaner
-	uint32_t velocityMax = 127 << kVelModShift;
-	uint32_t velocityMin = 15 << kVelModShift;
-	uint32_t velocityStep = 16 << kVelModShift;
-	uint32_t velocity32 = velocity << kVelModShift;
-	uint32_t vDisplay = velocity;
-
-	uint32_t modMax = 127 << kVelModShift;
-	uint32_t modMin = 15 << kVelModShift;
-	uint32_t modStep = 16 << kVelModShift;
-	uint32_t mod32 = 0 << kVelModShift;
-	uint32_t modDisplay;
-
-	ChordModeChord activeChord = NO_CHORD;
-	ChordModeChord defaultChord = NO_CHORD;
-	uint8_t chordSemitoneOffsets[4] = {0};
-
-	uint8_t chordMemNoteCount[8] = {0};
-	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
-	uint8_t activeChordMem = 0xFF;
-
-	int32_t currentScalePad = currentSong->getCurrentPresetScale();
-	int32_t previousScalePad = currentSong->getCurrentPresetScale();
-	uint8_t scaleModes[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+	ControlColumn* getColumnForFunc(ColumnControlFunction func);
 
 	bool horizontalScrollingLeftCol = false;
 	bool horizontalScrollingRightCol = false;
