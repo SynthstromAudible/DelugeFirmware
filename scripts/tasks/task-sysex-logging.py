@@ -82,7 +82,7 @@ def sysex_console(port):
             (msg, _) = msg_and_dt
             if (
                 msg[0] == 0xF0
-                and len(msg) > 5
+                and len(msg) > 8
                 and msg[0:8]
                 == [
                     # main Deluge sysex header
