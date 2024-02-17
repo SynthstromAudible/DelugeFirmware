@@ -1162,8 +1162,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		automationSubType = automationView.getAutomationSubType();
 	}
 
-	bool isUISessionView = (currentUI == &performanceSessionView) || (currentUI == &sessionView)
-	                       || (currentUI == &arrangerView) || (automationSubType == AutomationSubType::ARRANGER);
+	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
+
+	bool isUISessionView = isUIPerformanceView || (currentUI == &sessionView) || (currentUI == &arrangerView)
+	                       || (automationSubType == AutomationSubType::ARRANGER);
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (isUISessionView) {
@@ -1368,8 +1370,7 @@ bool SoundEditor::inSettingsMenu() {
 }
 
 bool SoundEditor::inSongMenu() {
-	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
-	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
+	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView) || (getRootUI() == &performanceSessionView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
