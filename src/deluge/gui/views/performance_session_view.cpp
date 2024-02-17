@@ -995,7 +995,8 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	else {
 		// if releasing a pad with "held" status shortly after being given that status
 		// or releasing a pad that was not in "held" status but was a longer press and release
-		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
+		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive
+		     && lastPadPress.yDisplay == yDisplay)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
@@ -1004,7 +1005,8 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
 		}
 		// if releasing a pad that was quickly pressed, give it held status
-		else if ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
+		else if (!params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
+		         && (fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
 		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			fxPress[xDisplay].padPressHeld = true;
 		}
@@ -1248,9 +1250,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 			// if switching to a new pad in the stutter column and stuttering is already active
 			// e.g. it means a pad was held before, end previous stutter before starting stutter again
-			if ((paramKind == params::Kind::UNPATCHED_GLOBAL)
-			    && (paramID == deluge::modulation::params::UNPATCHED_STUTTER_RATE)
-			    && (isUIModeActive(UI_MODE_STUTTERING))) {
+			if (params::isParamStutter(paramKind, paramID) && (isUIModeActive(UI_MODE_STUTTERING))) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -1268,8 +1268,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
 			                                                          view.modPos, view.modLength);
 
-			if (!defaultEditingMode && (paramKind == params::Kind::UNPATCHED_GLOBAL)
-			    && (paramID == UNPATCHED_STUTTER_RATE) && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
+			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
+			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
