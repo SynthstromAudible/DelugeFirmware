@@ -366,12 +366,13 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - Velocity (VEL - Red): Low velocity is on the bottom pad and high on the top pad scaled linearly.
       The range can be adjusted by holding the top or bottom pad and scrolling the vertical encoder.
       Hold a pad down to change the velocity of notes played while held. The velocity will return to
-      default when you release the pad. Short press a pad to set a new default velocity. You can set it
-	  in "Glide" mode from the main menu:
-	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Velocity Glide (VELG)
+      default when you release the pad. Short press a pad to set a new default velocity.
+	  This is called "Momentary" mode and is the default. You can disable it from the main menu:
+	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Velocity (MVEL)
     - Modwheel (MOD - Blue): This controls the modwheel (Y) setting and has the same
-      controls as the velocity control. You can also set it in "Glide" mode from the main menu:
-	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Modwheel Glide (MODG)
+      controls as the velocity control. Its behaviour is set to "Momentary" by default. You can
+	  disable it from the main menu:
+	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Modwheel (MMOD)
     - Chords (CHRD - Green): Press and hold or tap to either temporarily set a
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
