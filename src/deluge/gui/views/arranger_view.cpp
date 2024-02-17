@@ -587,7 +587,7 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 		}
 
 		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+		else if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
 			thisColour = colours::red.dim();
 		}
@@ -1121,7 +1121,7 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 				}
 			}
 			else {
-				view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+				view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 			}
 		}
 		break;

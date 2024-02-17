@@ -1867,7 +1867,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 					view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
 				}
 				else {
-					view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+					view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 				}
 			}
 		}

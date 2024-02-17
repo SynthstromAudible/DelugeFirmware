@@ -63,7 +63,7 @@ public:
 	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
-	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
+	void instrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void midiLearnFlash();
 	void setModLedStates();

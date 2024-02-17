@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/learned_midi.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
 
@@ -75,6 +76,7 @@ public:
 	virtual bool isAnyAuditioningHappening() = 0;
 
 	uint8_t defaultVelocity;
+	LearnedMIDI midiInput;
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;

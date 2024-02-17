@@ -830,7 +830,7 @@ midiLearnMelodicInstrumentAction:
 							if (sdRoutineLock) {
 								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 							}
-							view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
+							view.instrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
 						}
 					}
 				}
@@ -2427,7 +2427,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 				                                  drawUndefinedArea);
 			}
 
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 			    && view.midiLearnFlashOn
 			    // Should be fine even if output isn't a MelodicInstrument
 			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
@@ -2751,7 +2751,7 @@ void SessionView::midiLearnFlash() {
 			    || clip->output->type == OutputType::CV) {
 
 				if (((MelodicInstrument*)clip->output)->midiInput.containsSomething()
-				    || (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+				    || (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 				        && view.learnedThing
 				               == &((MelodicInstrument*)clip->output)
 				                       ->midiInput)) { // Should be fine even if output isn't a MelodicInstrument
@@ -2967,7 +2967,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 			}
 
 			// Selected but unlearned
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
 				return colours::black; // Flash black
 			}
@@ -3415,7 +3415,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				if (output
 				    && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
 				        || output->type == OutputType::CV)) {
-					view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+					view.instrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
 				}
 			}
 			else {

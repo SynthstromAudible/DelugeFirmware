@@ -543,9 +543,9 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	}
 }
 
-void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
+void View::instrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
 	if (on) {
-		endMidiLearnPressSession(MidiLearn::MELODIC_INSTRUMENT_INPUT);
+		endMidiLearnPressSession(MidiLearn::INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
 		melodicInstrumentPressedForMIDILearn = instrument;
@@ -553,7 +553,7 @@ void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* inst
 		lowestMIDIChannelSeenWhileLearning = 16;
 	}
 
-	else if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+	else if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			clearMelodicInstrumentMonoExpressionIfPossible(); // In case it gets "stuck".
 			learnedThing->clear();
@@ -636,7 +636,7 @@ recordDetailsOfLearnedThing:
 			learnedThing->noteOrCC = note;
 			break;
 
-		case MidiLearn::MELODIC_INSTRUMENT_INPUT:
+		case MidiLearn::INSTRUMENT_INPUT:
 
 			uint8_t newBendRanges[2];
 
@@ -767,7 +767,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		deleteMidiCommandOnRelease = false;
 
 		// For MelodicInstruments...
-		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
 			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
