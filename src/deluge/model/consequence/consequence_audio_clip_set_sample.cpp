@@ -35,8 +35,8 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);
 	uint64_t endPosBeforeRevert = clip->sampleHolder.endPos;
-
-	clip->unassignVoiceSample();
+	// don't keep cached since we undid the set
+	clip->unassignVoiceSample(true);
 
 	clip->sampleHolder.filePath.set(&filePathToRevertTo);
 	clip->sampleHolder.endPos = endPosToRevertTo;

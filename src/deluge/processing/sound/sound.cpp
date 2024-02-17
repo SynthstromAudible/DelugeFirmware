@@ -1462,7 +1462,7 @@ justUnassign:
 					// Ideally, we want to save this voice to reuse. But we can only do that for the first such one
 					if (!voiceToReuse) {
 						voiceToReuse = thisVoice;
-						thisVoice->unassignStuff();
+						thisVoice->unassignStuff(false);
 					}
 
 					// Or if we'd already found one, have to just unassign this new one
@@ -2930,7 +2930,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 						}
 						else if (newNum < oldNum) {
 							for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-								thisVoice->unisonParts[newNum].sources[s].unassign();
+								thisVoice->unisonParts[newNum].sources[s].unassign(false);
 							}
 						}
 					}

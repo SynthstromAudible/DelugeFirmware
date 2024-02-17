@@ -103,7 +103,8 @@ renderEnvelope:
 				}
 
 				else {
-					activeAudioClip->unassignVoiceSample();
+					// I think we can only be here for one shot audio clips, so maybe we shouldn't keep it?
+					activeAudioClip->unassignVoiceSample(false);
 				}
 			}
 
@@ -283,7 +284,7 @@ bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
 
 void AudioOutput::cutAllSound() {
 	if (activeClip) {
-		((AudioClip*)activeClip)->unassignVoiceSample();
+		((AudioClip*)activeClip)->unassignVoiceSample(false);
 		((AudioClip*)activeClip)->abortRecording(); // Needed for when this is being called as part of a song-swap - we
 		                                            // can't leave recording happening in such a case.
 	}
@@ -395,7 +396,7 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 	if (activeClip
 	    && (activeClip != modelStack->getTimelineCounter()
 	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
-		((AudioClip*)activeClip)->unassignVoiceSample();
+		((AudioClip*)activeClip)->unassignVoiceSample(false);
 	}
 	bool clipChanged = Output::setActiveClip(modelStack, maySendMIDIPGMs);
 

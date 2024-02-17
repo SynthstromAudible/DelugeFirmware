@@ -321,7 +321,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 					// Yup, do that unassignment
 doUnassignment:
-					voiceSample->beenUnassigned();
+					voiceSample->beenUnassigned(false);
 				}
 
 				// Or if none of those several conditions were met...
@@ -409,7 +409,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
 		                                           getLoopingType(modelStack) == LoopType::LOW_LEVEL);
 		if (!success) {
-			unassignVoiceSample();
+			unassignVoiceSample(false);
 		}
 	}
 
@@ -521,7 +521,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 		int32_t result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
 		if (result) {
 			if (result == LATE_START_ATTEMPT_FAILURE) {
-				unassignVoiceSample();
+				unassignVoiceSample(false);
 			}
 			return;
 		}
@@ -729,7 +729,7 @@ justDontTimeStretch:
 
 	if (!stillActive) {
 doUnassign:
-		unassignVoiceSample();
+		unassignVoiceSample(false);
 	}
 }
 
@@ -756,9 +756,9 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 	// But, looping may still happen as normally expected at the TimeStretcher level...
 }
 
-void AudioClip::unassignVoiceSample() {
+void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 	if (voiceSample) {
-		voiceSample->beenUnassigned();
+		voiceSample->beenUnassigned(wontBeUsedAgain);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
 		voiceSample = NULL;
 	}
@@ -780,7 +780,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
 				// sound right now, so just cut out.
 				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
-					unassignVoiceSample();
+					unassignVoiceSample(false);
 				}
 
 				// Or if we were planning to do a late start as soon as the current sound fades out, then just abandon
@@ -875,7 +875,8 @@ void AudioClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool
 }
 
 void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith) {
-	unassignVoiceSample();
+	// detaching from output, so don't need it anymore
+	unassignVoiceSample(true);
 
 	if (isActiveOnOutput()) {
 		output->detachActiveClip(song);
@@ -1227,8 +1228,9 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack)
 	}
 
 	else if (sampleHolder.audioFile) {
-
-		unassignVoiceSample();
+		// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it back
+		// anyway
+		unassignVoiceSample(true);
 
 		if (action) {
 			// Must happen first
@@ -1282,7 +1284,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 
 	// Stop the clip if it is playing
 	bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
-	unassignVoiceSample();
+	unassignVoiceSample(false);
 
 	sampleHolder.startPos = newStartPos;
 	sampleHolder.endPos = newStartPos + length;

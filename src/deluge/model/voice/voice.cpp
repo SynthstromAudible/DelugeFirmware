@@ -93,17 +93,17 @@ Voice::Voice() : patcher(&patchableInfoForVoice) {
 // it. You'll normally want to call audioDriver.voiceUnassigned() after this.
 void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) {
 
-	unassignStuff();
+	unassignStuff(deletingSong);
 
 	if (!deletingSong) {
 		assignedToSound->voiceUnassigned(modelStack);
 	}
 }
 
-void Voice::unassignStuff() {
+void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		for (int32_t u = 0; u < assignedToSound->numUnison; u++) {
-			unisonParts[u].sources[s].unassign();
+			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
 }
@@ -610,7 +610,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 						    unisonParts[u].sources[s].voiceSample->noteOffWhenLoopEndPointExists(this, &guides[s]);
 
 						if (!success) {
-							unisonParts[u].sources[s].unassign();
+							unisonParts[u].sources[s].unassign(false);
 						}
 					}
 				}
@@ -652,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 			                                                                         loopingType, getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
-				voiceUnisonPartSource->unassign();
+				voiceUnisonPartSource->unassign(false);
 			}
 			else {
 				anyStillActive = true;
@@ -2056,7 +2056,7 @@ instantUnassign:
 #endif
 
 			*unisonPartBecameInactive = true;
-			voiceUnisonPartSource->unassign();
+			voiceUnisonPartSource->unassign(false);
 			continue;
 		}
 
