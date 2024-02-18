@@ -48,7 +48,8 @@ public:
 		    >> 32);
 	}
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}

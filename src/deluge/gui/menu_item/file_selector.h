@@ -25,8 +25,9 @@ class FileSelector final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool isRelevant(Sound* sound, int32_t whichThing) override;
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override;
 };
 
 extern FileSelector fileSelectorMenu;
