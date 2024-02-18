@@ -2789,6 +2789,10 @@ int32_t Song::cycleThroughScales() {
 
 // Returns 255 if it can't be done
 int32_t Song::setPresetScale(int32_t newScale) {
+	if (numModeNotes < 5 || numModeNotes > 7) {
+		return 255;
+	}
+
 	int32_t numNotesInCurrentScale = 7;
 	int32_t numNotesInNewScale = 7;
 
