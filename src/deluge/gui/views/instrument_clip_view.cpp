@@ -1540,7 +1540,7 @@ possiblyAuditionPad:
 						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
 					}
 					else {
-						view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
+						view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
 					}
 				}
 			}
@@ -4212,7 +4212,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		// Or if not assigned but we're holding it down...
 		else {
 			bool holdingDown = false;
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 				holdingDown = true;
 			}
 			else if (view.thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
