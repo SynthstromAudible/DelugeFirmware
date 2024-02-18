@@ -17,16 +17,17 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param/integer.h"
-#include "processing/sound/sound.h"
+#include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "util/comparison.h"
 
 namespace deluge::gui::menu_item::mod_fx {
-class Depth final : public patched_param::Integer {
+class Depth_Patched final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 
-	bool isRelevant(Sound* sound, int32_t whichThing) {
-		return util::one_of(sound->modFXType,
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return util::one_of(modControllable->getModFXType(),
 		                    {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::PHASER});
 	}
 };

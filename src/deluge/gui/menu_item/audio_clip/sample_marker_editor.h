@@ -26,7 +26,8 @@ public:
 	SampleMarkerEditor(l10n::String newName, MarkerType newWhichMarker = MarkerType::START)
 	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                                     MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 
 	MarkerType whichMarker;
