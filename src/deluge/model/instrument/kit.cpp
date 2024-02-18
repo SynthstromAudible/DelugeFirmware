@@ -1193,8 +1193,9 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedNoteForKit(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-		                   instrumentClip);
+		auto rootNote = midiInput.noteOrCC == 255 ? 0 : midiInput.noteOrCC;
+		receivedNoteForKit(modelStack, fromDevice, on, channel, note - rootNote, velocity, shouldRecordNotes,
+		                   doingMidiThru, instrumentClip);
 		return;
 	}
 

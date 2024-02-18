@@ -679,6 +679,7 @@ isMPEZone:
 					}
 
 					// If multiple channels seen, that's a shortcut for setting up MPE zones for the device in question
+					// note - I think this leads to confusion more than any deliberate use
 					if (highestMIDIChannelSeenWhileLearning != lowestMIDIChannelSeenWhileLearning) {
 						if (lowestMIDIChannelSeenWhileLearning == 1) {
 							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel =
@@ -727,6 +728,7 @@ isMPEZone:
 
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->device = fromDevice;
+			learnedThing->noteOrCC = note;                    // used for low note in kits
 			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
 			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
@@ -769,6 +771,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
+			// note - I think this is probably the source of a lot of bugs around MPE
 			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
