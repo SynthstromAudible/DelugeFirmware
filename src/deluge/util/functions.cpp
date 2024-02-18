@@ -2050,7 +2050,7 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 
 bool shouldAbortLoading() {
 	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (encoders::encoders[ENCODER_SELECT].detentPos || QwertyUI::predictionInterrupted));
+	        && (encoders::getEncoder(encoders::EncoderName::SELECT).detentPos || QwertyUI::predictionInterrupted));
 }
 
 void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,

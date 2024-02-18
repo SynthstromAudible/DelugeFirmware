@@ -32,7 +32,7 @@
 
 namespace deluge::hid::encoders {
 
-Encoder encoders[NUM_ENCODERS] = {};
+std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders = {};
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
@@ -42,20 +42,20 @@ int32_t nextSDTestDirection = 1;
 uint32_t encodersWaitingForCardRoutineEnd;
 
 void init() {
-	encoders[ENCODER_SCROLL_X].setPins(1, 11, 1, 12);
-	encoders[ENCODER_TEMPO].setPins(1, 7, 1, 6);
-	encoders[ENCODER_MOD_0].setPins(1, 0, 1, 15);
-	encoders[ENCODER_MOD_1].setPins(1, 5, 1, 4);
-	encoders[ENCODER_SCROLL_Y].setPins(1, 8, 1, 10);
-	encoders[ENCODER_SELECT].setPins(1, 2, 1, 3);
+	getEncoder(EncoderName::SCROLL_X).setPins(1, 11, 1, 12);
+	getEncoder(EncoderName::TEMPO).setPins(1, 7, 1, 6);
+	getEncoder(EncoderName::MOD_0).setPins(1, 0, 1, 15);
+	getEncoder(EncoderName::MOD_1).setPins(1, 5, 1, 4);
+	getEncoder(EncoderName::SCROLL_Y).setPins(1, 8, 1, 10);
+	getEncoder(EncoderName::SELECT).setPins(1, 2, 1, 3);
 
-	encoders[ENCODER_MOD_0].setNonDetentMode();
-	encoders[ENCODER_MOD_1].setNonDetentMode();
+	getEncoder(EncoderName::MOD_0).setNonDetentMode();
+	getEncoder(EncoderName::MOD_1).setNonDetentMode();
 }
 
 void readEncoders() {
-	for (int32_t i = 0; i < NUM_ENCODERS; i++) {
-		encoders[i].read();
+	for (auto& encoder : encoders) {
+		encoder.read();
 	}
 }
 
@@ -86,9 +86,9 @@ bool interpretEncoders(bool inCardRoutine) {
 	}
 #endif
 
-	for (int32_t e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
-
-		if (e != ENCODER_SCROLL_Y) {
+	for (int32_t e = 0; e < util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS); e++) {
+		auto name = static_cast<EncoderName>(e);
+		if (name != EncoderName::SCROLL_Y) {
 
 			// Basically disables all function encoders during SD routine
 			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
@@ -115,9 +115,9 @@ bool interpretEncoders(bool inCardRoutine) {
 
 			ActionResult result;
 
-			switch (e) {
+			switch (name) {
 
-			case ENCODER_SCROLL_X:
+			case EncoderName::SCROLL_X:
 				result = getCurrentUI()->horizontalEncoderAction(limitedDetentPos);
 				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even
 				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
@@ -129,7 +129,7 @@ checkResult:
 				}
 				break;
 
-			case ENCODER_SCROLL_Y:
+			case EncoderName::SCROLL_Y:
 				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
@@ -139,7 +139,7 @@ checkResult:
 				}
 				break;
 
-			case ENCODER_TEMPO:
+			case EncoderName::TEMPO:
 				if (getCurrentUI() == &instrumentClipView
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
@@ -154,7 +154,7 @@ checkResult:
 				}
 				break;
 
-			case ENCODER_SELECT:
+			case EncoderName::SELECT:
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
 					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
@@ -169,9 +169,10 @@ checkResult:
 	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
 		for (int32_t e = 0; e < 2; e++) {
+			auto& encoder = encoders[util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS) + e];
 
 			// If encoder turned...
-			if (encoders[ENCODER_MOD_0 - e].encPos != 0) {
+			if (encoder.encPos != 0) {
 				anything = true;
 
 				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
@@ -184,14 +185,14 @@ checkResult:
 					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
 
 					// Do it, only if
-					if (encoders[ENCODER_MOD_0 - e].encPos + modEncoderInitialTurnDirection[e] != 0) {
-						getCurrentUI()->modEncoderAction(e, encoders[ENCODER_MOD_0 - e].encPos);
+					if (encoder.encPos + modEncoderInitialTurnDirection[e] != 0) {
+						getCurrentUI()->modEncoderAction(e, encoder.encPos);
 						modEncoderInitialTurnDirection[e] = 0;
 					}
 
 					// Otherwise, write this off as an accidental wiggle
 					else {
-						modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;
+						modEncoderInitialTurnDirection[e] = encoder.encPos;
 					}
 				}
 
@@ -207,13 +208,13 @@ checkResult:
 						actionLogger.closeAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}
 
-					modEncoderInitialTurnDirection[e] = encoders[ENCODER_MOD_0 - e].encPos;
+					modEncoderInitialTurnDirection[e] = encoder.encPos;
 
 					// Mark as turned recently
 					timeModEncoderLastTurned[e] = AudioEngine::audioSampleTimer;
 				}
 
-				encoders[ENCODER_MOD_0 - e].encPos = 0;
+				encoder.encPos = 0;
 			}
 		}
 	}

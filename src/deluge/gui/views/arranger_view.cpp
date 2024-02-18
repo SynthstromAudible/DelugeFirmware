@@ -3071,7 +3071,7 @@ static const uint32_t autoScrollPlaybackEndUIModes[] = {UI_MODE_HOLDING_ARRANGEM
 void ArrangerView::autoScrollOnPlaybackEnd() {
 
 	if (doingAutoScrollNow && isUIModeWithinRange(autoScrollPlaybackEndUIModes)
-	    && !Buttons::isButtonPressed(ENCODER_SCROLL_X)) {
+	    && !Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		// Don't do it if they're instantly restarting playback again
 
 		uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];

@@ -18,11 +18,33 @@
 #pragma once
 
 #include "hid/encoder.h"
+#include "util/misc.h"
+#include <array>
 
 namespace deluge::hid::encoders {
 
-extern Encoder encoders[];
+/// Index of the encoder.
+enum class EncoderName {
+	SCROLL_Y,
+	SCROLL_X,
+	TEMPO,
+	SELECT,
+	/// End of function (black, detented) encoders,
+	MAX_FUNCTION_ENCODERS,
+	/// The upper gold encoder
+	MOD_1 = MAX_FUNCTION_ENCODERS,
+	/// The lower gold encoder
+	MOD_0,
+	/// Total number of encoders
+	MAX_ENCODER,
+};
+
+extern std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders;
 extern uint32_t timeModEncoderLastTurned[];
+
+[[gnu::always_inline]] inline Encoder& getEncoder(EncoderName which) {
+	return encoders[util::to_underlying(which)];
+}
 
 void init();
 void readEncoders();

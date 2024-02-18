@@ -44,6 +44,7 @@
 
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
+using encoders::EncoderName;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
@@ -1496,11 +1497,11 @@ doneMoving:
 		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 
-	if (encoders::encoders[ENCODER_SELECT].detentPos) {
+	if (encoders::getEncoder(EncoderName::SELECT).detentPos) {
 		D_PRINTLN("go again 1 --------------------------");
 
 doPendingPresetNavigation:
-		offset = encoders::encoders[ENCODER_SELECT].getLimitedDetentPosAndReset();
+		offset = encoders::getEncoder(EncoderName::SELECT).getLimitedDetentPosAndReset();
 
 		if (toReturn.loadedFromFile) {
 			currentSong->deleteOutput(toReturn.fileItem->instrument);
@@ -1523,7 +1524,7 @@ doPendingPresetNavigation:
 
 		toReturn.loadedFromFile = true;
 
-		if (encoders::encoders[ENCODER_SELECT].detentPos) {
+		if (encoders::getEncoder(EncoderName::SELECT).detentPos) {
 			D_PRINTLN("go again 2 --------------------------");
 			goto doPendingPresetNavigation;
 		}
@@ -1538,7 +1539,7 @@ doPendingPresetNavigation:
 	currentUIMode = oldUIMode;
 
 	// If user wants to move on...
-	if (encoders::encoders[ENCODER_SELECT].detentPos) {
+	if (encoders::getEncoder(EncoderName::SELECT).detentPos) {
 		D_PRINTLN("go again 3 --------------------------");
 		goto doPendingPresetNavigation;
 	}
