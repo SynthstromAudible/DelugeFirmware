@@ -1256,6 +1256,13 @@ void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWith
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
@@ -1291,7 +1298,14 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 }
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
-
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru,
+		                 instrumentClip);
+		return;
+	}
 	if (ccNumber != 74) {
 		return;
 	}
@@ -1415,6 +1429,15 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 // note). This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
+
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode,
+		                         doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_FINGER_LEVEL;
