@@ -17,6 +17,7 @@
 
 #include "velocity.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "storage/flash_storage.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
 
@@ -48,7 +49,7 @@ bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	}
 	else if (pad == 0) {
 		velocityMin += offset << kVelModShift;
-		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)0, (int32_t)velocityMax);
+		velocityMin = std::clamp((int32_t)velocityMin, (int32_t)1, (int32_t)velocityMax);
 		display->displayPopup(velocityMin >> kVelModShift);
 		velocityStep = (velocityMax - velocityMin) / 7;
 		return true;
@@ -63,7 +64,7 @@ void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTime
 		layout->velocity = (vDisplay + kHalfStep) >> kVelModShift;
 		display->displayPopup(layout->velocity);
 	}
-	else if (!pad.padPressHeld) {
+	else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsVelocityGlide) {
 		velocity32 = velocityMin + pad.y * velocityStep;
 		vDisplay = velocity32;
 		layout->velocity = (velocity32 + kHalfStep) >> kVelModShift;

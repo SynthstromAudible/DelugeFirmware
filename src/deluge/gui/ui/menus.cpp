@@ -960,9 +960,24 @@ Submenu triggerClockMenu{
 // Defaults menu
 defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 
+InvertedToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
+                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
+                                                           // This control is inverted, as the default value is true
+                                                           // (Enabled) Glide mode is the opposite to Momentary mode
+                                                           FlashStorage::keyboardFunctionsVelocityGlide};
+InvertedToggleBool defaultUIKeyboardFunctionsModwheelGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
+                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
+                                                           // This control is inverted, as the default value is true
+                                                           // (Enabled) Glide mode is the opposite to Momentary mode
+                                                           FlashStorage::keyboardFunctionsModwheelGlide};
+Submenu defaultKeyboardFunctionsMenu{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS,
+    {&defaultUIKeyboardFunctionsVelocityGlide, &defaultUIKeyboardFunctionsModwheelGlide},
+};
+
 Submenu defaultUIKeyboard{
     STRING_FOR_DEFAULT_UI_KEYBOARD,
-    {&defaultKeyboardLayoutMenu},
+    {&defaultKeyboardLayoutMenu, &defaultKeyboardFunctionsMenu},
 };
 
 ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
