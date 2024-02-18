@@ -2026,6 +2026,11 @@ void SessionView::graphicsRoutine() {
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
 		}
+		// if volume / pan mod button is selected, displayVUMeter is toggled on
+		// and we're not currently selecting a clip
+		if (modKnobMode == 0 && view.displayVUMeter && !getClipForLayout()) {
+			uiNeedsRendering(this);
+		}
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
@@ -2354,6 +2359,10 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(whichRows, image, occupancyMask)) {
+		return true;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridRenderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
 	}
@@ -2385,7 +2394,6 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 // Returns false if can't because in card routine
 bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	if (clip) {

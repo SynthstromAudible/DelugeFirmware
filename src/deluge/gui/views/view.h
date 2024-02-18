@@ -133,10 +133,17 @@ public:
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
 
+	bool displayVUMeter;
+	bool potentiallyRenderVUMeter(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
+	void renderVUMeter(uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
+	                   uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth]);
+	bool renderedVUMeter;
 };
 
 extern View view;

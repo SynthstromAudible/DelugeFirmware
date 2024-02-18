@@ -2086,6 +2086,10 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(whichRows, image, occupancyMask)) {
+		return true;
+	}
+
 	PadLEDs::renderingLock = true;
 
 	uint32_t whichRowsCouldntBeRendered =
@@ -2978,6 +2982,11 @@ void ArrangerView::graphicsRoutine() {
 				// indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
 			}
 		}
+		// if volume / pan mod button is selected, displayVUMeter is toggled on
+		// and we're not currently selecting a clip
+		if (modKnobMode == 0 && view.displayVUMeter && !getClipForSelection()) {
+			uiNeedsRendering(this);
+		}
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
@@ -3246,4 +3255,17 @@ void ArrangerView::clipNeedsReRendering(Clip* clip) {
 			break;
 		}
 	}
+}
+
+Clip* ArrangerView::getClipForSelection() {
+	Clip* clip = nullptr;
+	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && lastInteractedClipInstance) {
+		clip = lastInteractedClipInstance->clip;
+	}
+	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		Output* output = outputsOnScreen[yPressedEffective];
+		clip = currentSong->getClipWithOutput(output);
+	}
+	return clip;
 }

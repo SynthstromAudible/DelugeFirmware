@@ -103,6 +103,8 @@ View::View() {
 	modLength = 0;
 	modPos = 0xFFFFFFFF;
 	clipArmFlashOn = false;
+	displayVUMeter = false;
+	renderedVUMeter = false;
 }
 
 void View::focusRegained() {
@@ -1170,9 +1172,10 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+	UI* currentUI = getCurrentUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((currentUI == &automationView) && !automationView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1180,8 +1183,23 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
+			if (isUIModeWithinRange(modButtonUIModes) || (currentUI == &performanceSessionView)) {
+				// only displaying VU meter in session view or arranger view at the moment
+				if (currentUI == &sessionView || currentUI == &arrangerView) {
+					// are we pressing the same button that is currently selected
+					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
+						// you just pressed the volume mod button and it was already selected previously
+						// toggle displaying VU Meter on / off
+						if (whichButton == 0) {
+							displayVUMeter = !displayVUMeter;
+						}
+					}
+					// refresh grid if VU meter previously rendered is still showing
+					if (renderedVUMeter) {
+						uiNeedsRendering(currentUI);
+					}
+				}
 
-			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
 				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
@@ -1435,6 +1453,83 @@ void View::displayAutomation() {
 	}
 }
 
+/// if you've toggled showing the VU meter, and the mod encoders are controllable (e.g. affect entire on)
+/// and the current mod button selected is the volume/pan button
+/// render VU meter on the grid
+bool View::potentiallyRenderVUMeter(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	if (displayVUMeter && view.activeModControllableModelStack.modControllable
+	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
+		PadLEDs::renderingLock = true;
+
+		// erase current image as it will be refreshed
+		memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+
+		// erase current occupancy mask as it will be refreshed
+		memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+
+		// render VU meter
+		// loop through each row in the grid
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			renderVUMeter(yDisplay, image[yDisplay], occupancyMask[yDisplay]);
+		}
+		PadLEDs::renderingLock = false;
+
+		// save the VU meter rendering status so that grid can be refreshed later if required
+		// (e.g. if you switch mod buttons or turn off affect entire)
+		renderedVUMeter = true;
+
+		return true;
+	}
+
+	renderedVUMeter = false;
+
+	return false;
+}
+
+/// render AudioEngine::rmsLevel as a VU meter on the grid
+void View::renderVUMeter(uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
+                         uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth]) {
+
+	// dBFS (dB below clipping) calculation
+	// 16.7 = log(2^24) which is the rmsLevel at which clipping begins
+	float dBFS = (AudioEngine::rmsLevel - 16.7) * 4;
+	// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
+	// 9 is the rmsLevel at which the sound becomes inaudible
+	// so for grid rendering purposes, any rmsLevel value below 9 doesn't get rendered on grid
+	// 4.3 is dBFS range for a given row
+	// 0.1 is added to the dBFS range for a given row to arriving at the minimum value for the next row
+	/*
+	y7 = clipping (0 or higher)
+	y6 = -4.4 to -0.1
+	y5 = -8.8 to -4.5
+	y4 = -13.2 to -8.9
+	y3 = -17.6 to -13.3
+	y2 = -22.0 to -17.7
+	y1 = -26.4 to -22.1
+	y0 = -30.8 to -26.5
+	*/
+	float dBFSForYDisplay = ((9 - 16.7) * 4) + (yDisplay * 4.3) + (yDisplay * 0.1);
+
+	// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
+	if (dBFS >= dBFSForYDisplay) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			// y0 - y4 = green
+			if (yDisplay < 5) {
+				thisImage[xDisplay] = colours::green;
+			}
+			// y5 - y6 = orange
+			else if (yDisplay < 7) {
+				thisImage[xDisplay] = colours::orange;
+			}
+			// y7 = red
+			else {
+				thisImage[xDisplay] = colours::red;
+			}
+		}
+	}
+}
+
 void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter) {
 	if (timelineCounter) {
 		timelineCounter = timelineCounter->getTimelineCounterToRecordTo();
@@ -1454,6 +1549,13 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	// refresh grid if VU meter previously rendered is still showing and we're in session / arranger view
+	// this could happen when you're turning affect entire off or selecting a clip
+	UI* currentUI = getCurrentUI();
+	if (renderedVUMeter && (currentUI == &sessionView || currentUI == &arrangerView)) {
+		uiNeedsRendering(currentUI);
+	}
 
 	// midi follow and midi feedback enabled
 	// re-send midi cc's because learned parameter values may have changed

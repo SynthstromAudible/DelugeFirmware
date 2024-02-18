@@ -128,14 +128,7 @@ Clip* getSelectedClip(bool useActiveClip) {
 		clip = sessionView.getClipForLayout();
 		break;
 	case UIType::ARRANGER_VIEW:
-		// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
-			clip = arrangerView.lastInteractedClipInstance->clip;
-		}
-		else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
-			clip = currentSong->getClipWithOutput(output);
-		}
+		clip = arrangerView.getClipForSelection();
 		break;
 	case UIType::PERFORMANCE_SESSION_VIEW:
 		// if you're in performance view, no clip will be selected for param control
