@@ -24,9 +24,10 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+	int32_t currentScale = currentSong->getCurrentPresetScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		bool mode_selected = y == currentScalePad;
+		bool mode_selected = scaleModes[y] == currentScale;
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
