@@ -31,15 +31,18 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
 	void writeCurrentValue() override { soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingKit();
+	}
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_UP),      //<
-		    l10n::getView(STRING_FOR_DOWN),    //<
-		    l10n::getView(STRING_FOR_UP_DOWN), //<
-		    l10n::getView(STRING_FOR_ORDER),   //<
-		    l10n::getView(STRING_FOR_RANDOM),  //<
+		    l10n::getView(STRING_FOR_UP),        //<
+		    l10n::getView(STRING_FOR_DOWN),      //<
+		    l10n::getView(STRING_FOR_UP_DOWN),   //<
+		    l10n::getView(STRING_FOR_AS_PLAYED), //<
+		    l10n::getView(STRING_FOR_RANDOM),    //<
 		};
 	}
 };

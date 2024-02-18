@@ -53,8 +53,9 @@ ArpeggiatorForDrum::ArpeggiatorForDrum() {
 	arpNote.velocity = 0;
 }
 
-Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8) {
+Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(sizeof(ArpNote), 8, 8) {
 	notes.emptyingShouldFreeMemory = false;
+	notesAsPlayed.emptyingShouldFreeMemory = false;
 }
 
 // Surely this shouldn't be quite necessary?
@@ -73,6 +74,7 @@ void ArpeggiatorBase::resetRatchet() {
 
 void Arpeggiator::reset() {
 	notes.empty();
+	notesAsPlayed.empty();
 
 	D_PRINTLN("Arpeggiator::reset");
 	resetRatchet();
@@ -145,45 +147,84 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 	lastVelocity = velocity;
 
-	int32_t n = notes.search(noteCode, GREATER_OR_EQUAL);
+	bool noteExists = false;
 
 	ArpNote* arpNote;
+	ArpNote* arpNoteAsPlayed;
 
-	// If it already exists...
-	if (n < notes.getNumElements()) {
-		arpNote = (ArpNote*)notes.getElementAddress(n);
+	int32_t notesKey = notes.search(noteCode, GREATER_OR_EQUAL);
+	if (notesKey < notes.getNumElements()) {
+		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
-			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
-				return; // If we're an arpeggiator, return
-			}
-			else {
-				goto noteInserted; // Otherwise, try again. Actually is this really useful?
-			}
+			noteExists = true;
+		}
+	}
+	int32_t notesAsPlayedIndex = -1;
+	for (int32_t i = 0; i < notesAsPlayed.getNumElements(); i++) {
+		ArpNote* theArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i);
+		if (theArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
+			arpNoteAsPlayed = theArpNote;
+			notesAsPlayedIndex = i;
+			noteExists = true;
+			break;
 		}
 	}
 
-	// Insert
-	{
-		int32_t error = notes.insertAtIndex(n);
+	if (noteExists) {
+		// If note exists already, do nothing if we are an arpeggiator, and if not, go to noteinserted to update
+		// midiChannel
+		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+			return; // If we're an arpeggiator, return
+		}
+		else {
+			goto noteInserted;
+		}
+	}
+	// If note does not exist yet in the arrays, we must insert it in both
+	else {
+		// Insert in notes array
+		int32_t error = notes.insertAtIndex(notesKey);
 		if (error) {
 			return;
 		}
-	}
+		// Save arpNote
+		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
+		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+		arpNote->velocity = velocity;
+		arpNote->outputMemberChannel =
+		    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
+		                       // doesn't get included in the survey that will happen of existing output member
+		                       // channels.
 
-	arpNote = (ArpNote*)notes.getElementAddress(n);
+		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+			arpNote->mpeValues[m] = mpeValues[m];
+		}
 
-	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
-	arpNote->velocity = velocity;
-	arpNote->outputMemberChannel =
-	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
-	                       // doesn't get included in the survey that will happen of existing output member channels.
+		// Insert it in notesAsPlayed array
+		notesAsPlayedIndex = notesAsPlayed.getNumElements();
+		error = notesAsPlayed.insertAtIndex(notesAsPlayedIndex); // always insert at the end or the array
+		if (error) {
+			return;
+		}
+		// Save arpNote
+		arpNoteAsPlayed = (ArpNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
+		arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+		arpNoteAsPlayed->velocity = velocity;
+		arpNoteAsPlayed->outputMemberChannel =
+		    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
+		                       // doesn't get included in the survey that will happen of existing output member
+		                       // channels.
 
-	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-		arpNote->mpeValues[m] = mpeValues[m];
+		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+			arpNoteAsPlayed->mpeValues[m] = mpeValues[m];
+		}
 	}
 
 noteInserted:
 	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
+	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during
+	                     // editing. Kind of a hacky solution, but it works for now.
+	arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
 	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during
 	                     // editing. Kind of a hacky solution, but it works for now.
 
@@ -203,7 +244,7 @@ noteInserted:
 
 		// Or if the arpeggiator was already sounding
 		else {
-			if (whichNoteCurrentlyOnPostArp >= n) {
+			if (whichNoteCurrentlyOnPostArp >= notesKey) {
 				whichNoteCurrentlyOnPostArp++;
 			}
 		}
@@ -217,10 +258,10 @@ noteInserted:
 
 void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
 
-	int32_t n = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
-	if (n < notes.getNumElements()) {
+	int32_t notesKey = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
+	if (notesKey < notes.getNumElements()) {
 
-		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(n);
+		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
 
 			// If no arpeggiation...
@@ -233,16 +274,24 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			// it'll turn off soon with the arpeggiation.
 			else {
 				if (notes.getNumElements() == 1) {
-					if (whichNoteCurrentlyOnPostArp == n && gateCurrentlyActive) {
+					if (whichNoteCurrentlyOnPostArp == notesKey && gateCurrentlyActive) {
 						instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
 						instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
 					}
 				}
 			}
 
-			notes.deleteAtIndex(n);
+			notes.deleteAtIndex(notesKey);
+			// We must also search and delete from notesAsPlayed
+			for (int32_t i = 0; i < notesAsPlayed.getNumElements(); i++) {
+				ArpNote* arpNote = (ArpNote*)notesAsPlayed.getElementAddress(i);
+				if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
+					notesAsPlayed.deleteAtIndex(i);
+					break;
+				}
+			}
 
-			if (whichNoteCurrentlyOnPostArp >= n) {
+			if (whichNoteCurrentlyOnPostArp >= notesKey) {
 				whichNoteCurrentlyOnPostArp--; // Beware - this could send it negative
 				if (whichNoteCurrentlyOnPostArp < 0) {
 					whichNoteCurrentlyOnPostArp = 0;
@@ -306,63 +355,84 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	          ratchetNotesNumber, isRatcheting);
 }
 
+void ArpeggiatorBase::carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
+	if (settings->numOctaves == 1) {
+		currentOctave = 0;
+		currentOctaveDirection = 1;
+	}
+	else if (settings->octaveMode == ArpOctaveMode::RANDOM) {
+		currentOctave = getRandom255() % settings->numOctaves;
+		currentOctaveDirection = 1;
+	}
+	else if (settings->octaveMode == ArpOctaveMode::UP_DOWN || settings->octaveMode == ArpOctaveMode::ALTERNATE) {
+		currentOctave += currentOctaveDirection;
+		if (currentOctave > settings->numOctaves - 1) {
+			// Now go down
+			currentOctaveDirection = -1;
+			if (settings->octaveMode == ArpOctaveMode::ALTERNATE) {
+				currentOctave = settings->numOctaves - 2;
+			}
+			else {
+				currentOctave = settings->numOctaves - 1;
+			}
+		}
+		else if (currentOctave < 0) {
+			// Now go up
+			currentOctaveDirection = 1;
+			if (settings->octaveMode == ArpOctaveMode::ALTERNATE) {
+				currentOctave = 1;
+			}
+			else {
+				currentOctave = 0;
+			}
+		}
+	}
+	else {
+		currentOctaveDirection = (settings->octaveMode == ArpOctaveMode::DOWN)
+		                             ? -1
+		                             : 1; // Have to reset this, in case the user changed the setting.
+		currentOctave += currentOctaveDirection;
+		if (currentOctave >= settings->numOctaves) {
+			currentOctave = 0;
+		}
+		else if (currentOctave < 0) {
+			currentOctave = settings->numOctaves - 1;
+		}
+	}
+}
+
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+
+	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
+	//  We only need to account for octaveMode as it is always a 1-note arpeggio.
+	//  Besides, behavior of OctaveMode::UP_DOWN is equal to OctaveMode::ALTERNATE
 
 	gateCurrentlyActive = true;
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
-	if (settings->noteMode == ArpNoteMode::RANDOM) {
+	if (settings->octaveMode == ArpOctaveMode::RANDOM) {
 		currentOctave = getRandom255() % settings->numOctaves;
+		currentOctaveDirection = 1;
 	}
-
 	// Or not RANDOM
 	else {
 
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
-
-			if (settings->noteMode == ArpNoteMode::DOWN) {
+			// Set the initial octave
+			if (settings->octaveMode == ArpOctaveMode::DOWN) {
 				currentOctave = settings->numOctaves - 1;
-				currentDirection = -1;
+				currentOctaveDirection = -1;
 			}
 			else {
 				currentOctave = 0;
-				currentDirection = 1;
+				currentOctaveDirection = 1;
 			}
 		}
 
 		// Otherwise, just carry on the sequence of arpeggiated notes
 		else {
-
-			if (settings->noteMode == ArpNoteMode::UP_DOWN) {
-
-				if (settings->numOctaves == 1) {
-					currentOctave = 0;
-				}
-				else {
-					if (currentOctave >= settings->numOctaves - 1) {
-						currentDirection = -1;
-					}
-
-					else if (currentOctave <= 0) {
-						currentDirection = 1;
-					}
-				}
-				currentOctave += currentDirection;
-			}
-
-			else {
-				currentDirection = (settings->noteMode == ArpNoteMode::DOWN)
-				                       ? -1
-				                       : 1; // Have to reset this, in case the user changed the setting.
-				currentOctave += currentDirection;
-				if (currentOctave >= settings->numOctaves) {
-					currentOctave = 0;
-				}
-				else if (currentOctave < 0) {
-					currentOctave = settings->numOctaves - 1;
-				}
-			}
+			carryOnSequenceForSingleNoteArpeggio(settings);
 		}
 	}
 
@@ -382,94 +452,147 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		goto finishSwitchNoteOn;
 	}
 
-	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
-	if (settings->noteMode == ArpNoteMode::RANDOM) {
+	// If FULL-RANDOM (RANDOM for both Note and Octave), we do the same thing whether playedFirstArpeggiatedNoteYet or
+	// not
+	if (settings->noteMode == ArpNoteMode::RANDOM && settings->octaveMode == ArpOctaveMode::RANDOM) {
 		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
 		currentOctave = getRandom255() % settings->numOctaves;
-		currentDirection = 1; // Must set a currentDirection here, even though RANDOM doesn't use it, in case user
-		                      // changes arp mode.
+
+		// Must set all these variables here, even though RANDOM
+		// doesn't use them, in case user changes arp mode.
+		notesPlayedFromSequence = 0;
+		randomNotesPlayedFromOctave = 0;
+		currentOctaveDirection = 1;
+		currentDirection = 1;
 	}
 
-	// Or not RANDOM
+	// Or not FULL-RANDOM
 	else {
+		if (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength) {
+			playedFirstArpeggiatedNoteYet = false;
+		}
 
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
-			if (settings->noteMode == ArpNoteMode::DOWN) {
+			// Set initial values for note and octave
+
+			// NOTE
+			notesPlayedFromSequence = 0;
+			randomNotesPlayedFromOctave = 0;
+			if (settings->noteMode == ArpNoteMode::RANDOM) {
+				// Note: Random
+				whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
+				currentDirection = 1;
+			}
+			else if (settings->noteMode == ArpNoteMode::DOWN) {
+				// Note: Down
 				whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
-				currentOctave = settings->numOctaves - 1;
 				currentDirection = -1;
 			}
 			else {
+				// Note: Up or Up&Down
 				whichNoteCurrentlyOnPostArp = 0;
-				currentOctave = 0;
 				currentDirection = 1;
+			}
+
+			// OCTAVE
+			if (settings->octaveMode == ArpOctaveMode::RANDOM) {
+				// Octave: Random
+				currentOctave = getRandom255() % settings->numOctaves;
+				currentOctaveDirection = 1;
+			}
+			else if (settings->octaveMode == ArpOctaveMode::DOWN
+			         || (settings->octaveMode == ArpOctaveMode::ALTERNATE && settings->noteMode == ArpNoteMode::DOWN)) {
+				// Octave: Down or Alternate (with note down)
+				currentOctave = settings->numOctaves - 1;
+				currentOctaveDirection = -1;
+			}
+			else {
+				// Octave: Up or Up&Down or Alternate (with note up)
+				currentOctave = 0;
+				currentOctaveDirection = 1;
 			}
 		}
 
 		// Otherwise, just carry on the sequence of arpeggiated notes
 		else {
+			// For 1-note arpeggios it is simpler and can use the same logic as for drums
+			if (notes.getNumElements() == 1) {
+				carryOnSequenceForSingleNoteArpeggio(settings);
+				goto finishSwitchNoteOn;
+			}
 
-			whichNoteCurrentlyOnPostArp += currentDirection;
+			// Arpeggios of more than 1 note
 
-			// If reached top of notes (so current direction must be up)
-			if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
+			// NOTE
+			bool changeOctave = false;
+			bool changingOctaveDirection = false;
+			if (settings->noteMode == ArpNoteMode::RANDOM) {
+				// Note: Random
+				whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
+				if (randomNotesPlayedFromOctave >= notes.getNumElements()) {
+					changeOctave = true;
+				}
+			}
+			else {
+				whichNoteCurrentlyOnPostArp += currentDirection;
 
-				// If at top octave
-				if ((int32_t)currentOctave >= settings->numOctaves - 1) {
-
-					if (settings->noteMode == ArpNoteMode::UP) {
-						whichNoteCurrentlyOnPostArp -= notes.getNumElements();
-						currentOctave = 0;
-					}
-
-					else { // Up+down
+				// If reached top of notes (so current direction must be up)
+				if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
+					changingOctaveDirection =
+					    (int32_t)currentOctave >= settings->numOctaves - 1
+					    && (settings->noteMode == ArpNoteMode::UP || settings->noteMode == ArpNoteMode::AS_PLAYED
+					        || settings->noteMode == ArpNoteMode::DOWN)
+					    && settings->octaveMode == ArpOctaveMode::ALTERNATE;
+					if (changingOctaveDirection) {
+						// Now go down (without repeating)
 						currentDirection = -1;
 						whichNoteCurrentlyOnPostArp -= 2;
-						if (whichNoteCurrentlyOnPostArp < 0) {
-							whichNoteCurrentlyOnPostArp = 0;
-							if (currentOctave > 0) {
-								currentOctave--;
-							}
-						}
+					}
+					else if (settings->noteMode == ArpNoteMode::UP_DOWN) {
+						// Now go down (repeating note)
+						currentDirection = -1;
+						whichNoteCurrentlyOnPostArp -= 1;
+					}
+					else { // Up or AsPlayed
+						// Start on next octave first note
+						whichNoteCurrentlyOnPostArp = 0;
+						changeOctave = true;
 					}
 				}
 
-				// Otherwise, just continue
-				else {
-					whichNoteCurrentlyOnPostArp -= notes.getNumElements();
-					currentOctave++;
+				// Or, if reached bottom of notes (so current direction must be down)
+				else if (whichNoteCurrentlyOnPostArp < 0) {
+					changingOctaveDirection =
+					    (int32_t)currentOctave <= 0
+					    && (settings->noteMode == ArpNoteMode::UP || settings->noteMode == ArpNoteMode::AS_PLAYED
+					        || settings->noteMode == ArpNoteMode::DOWN)
+					    && settings->octaveMode == ArpOctaveMode::ALTERNATE;
+					if (changingOctaveDirection) {
+						// Now go up
+						currentDirection = 1;
+						whichNoteCurrentlyOnPostArp += 2;
+					}
+					else if (settings->noteMode == ArpNoteMode::UP_DOWN) { // UpDown
+						// Start on next octave first note
+						whichNoteCurrentlyOnPostArp = 0;
+						currentDirection = 1;
+						changeOctave = true;
+					}
+					else { // Down
+						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
+						changeOctave = true;
+					}
 				}
 			}
 
-			// Or, if reached bottom of notes (so current direction must be down)
-			if (whichNoteCurrentlyOnPostArp < 0) {
-
-				// If at bottom octave
-				if (currentOctave <= 0) {
-
-					if (settings->noteMode == ArpNoteMode::DOWN) {
-						whichNoteCurrentlyOnPostArp += notes.getNumElements();
-						currentOctave = settings->numOctaves - 1;
-					}
-
-					else { // Up+down
-						currentDirection = 1;
-						whichNoteCurrentlyOnPostArp += 2;
-						if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
-							whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
-							if (currentOctave < settings->numOctaves - 1) {
-								currentOctave++;
-							}
-						}
-					}
-				}
-
-				// Otherwise, just continue
-				else {
-					whichNoteCurrentlyOnPostArp += notes.getNumElements();
-					currentOctave--;
-				}
+			// OCTAVE
+			if (changingOctaveDirection) {
+				currentOctaveDirection = currentOctaveDirection == -1 ? 1 : -1;
+			}
+			if (changeOctave) {
+				randomNotesPlayedFromOctave = 0; // reset this in any case
+				carryOnSequenceForSingleNoteArpeggio(settings);
 			}
 		}
 	}
@@ -483,7 +606,16 @@ finishSwitchNoteOn:
 	}
 #endif
 
-	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
+	notesPlayedFromSequence++;
+	randomNotesPlayedFromOctave++;
+
+	ArpNote* arpNote;
+	if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
+		arpNote = (ArpNote*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
+	}
+	else {
+		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
+	}
 
 	noteCodeCurrentlyOnPostArp =
 	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
@@ -514,13 +646,16 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t ratchAmount, uint32_t ratchProb,
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t ratchAmount, uint32_t ratchProb,
                              ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
+
+	// Update Sequence Length
+	maxSequenceLength = sequenceLength;
 
 	// Update ratchetProbability with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability

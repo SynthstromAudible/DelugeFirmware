@@ -172,6 +172,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -2156,11 +2157,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t ratchetProbability =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
 		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+		uint32_t sequenceLength =
+		    (((int64_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648) * kMaxMenuValue
+		     + 2147483648)
+		    >> 32;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, ratchetAmount, ratchetProbability,
-		                 &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, ratchetAmount,
+		                 ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3520,6 +3525,11 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT, readAutomationUpToPos);
 		storageManager.exitTag("ratchetAmount");
 	}
+	else if (!strcmp(tagName, "sequenceLength")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("sequenceLength");
+	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
@@ -3734,6 +3744,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 

@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class RatchetAmount : public UnpatchedParam {
+class SequenceLength : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

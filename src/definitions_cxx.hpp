@@ -599,7 +599,7 @@ enum class ArpNoteMode {
 	UP,
 	DOWN,
 	UP_DOWN,
-	ORDER,
+	AS_PLAYED,
 	RANDOM,
 };
 

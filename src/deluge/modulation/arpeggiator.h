@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
+#include "util/container/array/resizeable_array.h"
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
@@ -78,19 +79,24 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
-	            uint32_t ratchetAmount, uint32_t ratchetProbability, ArpReturnInstruction* instruction);
+	            uint32_t sequenceLength, uint32_t ratchetAmount, uint32_t ratchetProbability,
+	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	void resetRatchet();
+	void carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
 	uint32_t gatePos;
 	int8_t currentOctave;
 	int8_t currentDirection;
+	int8_t currentOctaveDirection;
+	uint8_t notesPlayedFromSequence = 0;
+	uint8_t randomNotesPlayedFromOctave = 0;
 	bool playedFirstArpeggiatedNoteYet;
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
@@ -100,6 +106,7 @@ public:
 	uint8_t ratchetNotesNumber = 0;
 	bool isRatcheting = false;
 	uint16_t ratchetProbability = 0;
+	uint32_t maxSequenceLength = 0;
 	uint8_t ratchetAmount = 0;
 
 protected:
@@ -134,6 +141,7 @@ public:
 	bool hasAnyInputNotesActive();
 
 	OrderedResizeableArray notes;
+	ResizeableArray notesAsPlayed;
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:

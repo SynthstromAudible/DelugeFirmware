@@ -53,6 +53,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
+	arpeggiatorSequenceLength = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -142,6 +143,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
+	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2344,6 +2346,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 				storageManager.writeAttribute("rate", arpeggiatorRate);
 				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+				storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			}
 			storageManager.closeTag();
 		}
@@ -2611,6 +2614,10 @@ someError:
 				else if (!strcmp(tagName, "ratchetAmount")) {
 					arpeggiatorRatchetAmount = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("ratchetAmount");
+				}
+				else if (!strcmp(tagName, "sequenceLength")) {
+					arpeggiatorSequenceLength = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("sequenceLength");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
@@ -3128,7 +3135,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 				chosenNoteRowIndex = i;
 				break;
 			}
-noteRowFailed : {}
+noteRowFailed: {}
 		}
 	}
 

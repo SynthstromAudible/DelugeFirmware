@@ -4,6 +4,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
@@ -11,6 +12,7 @@
 #include "gui/menu_item/arpeggiator/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/rate.h"
+#include "gui/menu_item/arpeggiator/sequence_length.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/reverse.h"
@@ -306,6 +308,10 @@ arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, p
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+arpeggiator::SequenceLength arpSequenceLengthMenu{STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
+                                                  params::UNPATCHED_ARP_SEQUENCE_LENGTH};
+arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV{STRING_FOR_SEQUENCE_LENGTH,
+                                                                   STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE};
 arpeggiator::RatchetAmount arpRatchetAmountMenu{STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE,
                                                 params::UNPATCHED_ARP_RATCHET_AMOUNT};
 arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
@@ -328,6 +334,8 @@ submenu::Arpeggiator arpMenu{
         &arpGateMenuMIDIOrCV,
         &arpRateMenu,
         &arpRateMenuMIDIOrCV,
+        &arpSequenceLengthMenu,
+        &arpSequenceLengthMenuMIDIOrCV,
         &arpRatchetAmountMenu,
         &arpRatchetAmountMenuMIDIOrCV,
         &arpRatchetProbabilityMenu,

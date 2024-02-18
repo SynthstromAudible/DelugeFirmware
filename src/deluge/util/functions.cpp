@@ -1030,8 +1030,8 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::UP_DOWN:
 		return "upDown";
 
-	case ArpNoteMode::ORDER:
-		return "order";
+	case ArpNoteMode::AS_PLAYED:
+		return "asPlayed";
 
 	case ArpNoteMode::RANDOM:
 		return "random";
@@ -1048,8 +1048,8 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	else if (!strcmp(string, "upDown")) {
 		return ArpNoteMode::UP_DOWN;
 	}
-	else if (!strcmp(string, "order")) {
-		return ArpNoteMode::ORDER;
+	else if (!strcmp(string, "asPlayed")) {
+		return ArpNoteMode::AS_PLAYED;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;

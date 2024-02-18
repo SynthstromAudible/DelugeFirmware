@@ -109,6 +109,7 @@ public:
 	int32_t arpeggiatorRate;
 	int32_t arpeggiatorRatchetProbability;
 	int32_t arpeggiatorRatchetAmount;
+	int32_t arpeggiatorSequenceLength;
 	int32_t arpeggiatorGate;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;

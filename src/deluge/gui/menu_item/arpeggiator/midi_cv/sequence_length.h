@@ -15,16 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class RatchetAmount : public UnpatchedParam {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class SequenceLength final : public Integer {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	using Integer::Integer;
+	void readCurrentValue() override {
+		auto* current_clip = getCurrentInstrumentClip();
+		int64_t value = (int64_t)current_clip->arpeggiatorSequenceLength + 2147483648;
+		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
+	}
+	void writeCurrentValue() override {
+		getCurrentInstrumentClip()->arpeggiatorSequenceLength = (uint32_t)this->getValue() * 85899345 - 2147483648;
+	}
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingKit() && !soundEditor.editingCVOrMIDIClip();
+		return soundEditor.editingCVOrMIDIClip();
 	}
 };
-
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

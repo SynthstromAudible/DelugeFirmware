@@ -26,13 +26,15 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		auto* current_clip = getCurrentInstrumentClip();
-		int64_t arp_gate = (int64_t)current_clip->arpeggiatorRatchetAmount + 2147483648;
-		this->setValue((arp_gate * kMaxMenuValue + 2147483648) >> 32);
+		int64_t value = (int64_t)current_clip->arpeggiatorRatchetAmount + 2147483648;
+		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
 		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip();
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv
