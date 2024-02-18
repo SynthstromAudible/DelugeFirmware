@@ -13,7 +13,7 @@ permissions:
 
 
 jobs:
-  cherry_pick_release_v1_0:
+  cherry_pick_release:
     runs-on: ubuntu-latest
     name: Cherry pick into release branch
     if: ${{ contains(github.event.pull_request.labels.*.name, 'cherry-pick') && github.event.pull_request.merged == true }}
