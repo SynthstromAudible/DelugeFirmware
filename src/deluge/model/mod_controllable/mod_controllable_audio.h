@@ -86,6 +86,7 @@ public:
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
+	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);

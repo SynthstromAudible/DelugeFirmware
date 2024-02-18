@@ -43,35 +43,38 @@ Here is a list of general improvements that have been made, ordered from newest 
   control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings
   in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
-- ([#889]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
-  view, song view, audio clip view, instrument clip view).
-    - For a detailed description of this feature, please refer to the feature
-      documentation: [MIDI Follow Mode Documentation]
-    - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
-      Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context
-      are changed.
-    - Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`.
-    - ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this
-      folder: [MIDI Follow Mode Loopy Pro Template]
-        - It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port
-          1”)
-    - ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this
-      folder: [MIDI Follow Mode Touch OSC Template]
-- ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other
-  clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn
-  on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several
-  synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control
-  the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is
-  turned on or off)..
-- ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found
-  in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will
-  update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by
-  updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
-  feedback enabled, this will also send updated cc feedback for the new kit row selection.
+
 - ([#1251]) MIDI learn for kit - from song or arranger view, a kit can now be learnt to a midi channel in the same way
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
+
+- ([#837]) MIDI control over transpose / scale.
+    - Accessed via external MIDI via a new learnable global MIDI command in `SETTINGS > MIDI > CMD > TRANSPOSE`. It learns the entire channel, not just a single note.
+	- Accessed internally from a MIDI clip. Turn the channel to the end of the list past the MPE zones to 'Transpose'. Notes in this clip now alter the transposition of the song.
+	- Clips not in scale mode are unaffected (similar to the existing transpose behaviour from the encoders).
+	- Configureable in `SETTINGS > MIDI > TRANSPOSE` between chromatic and in-scale transposition.
+		- When set to in-scale mode:
+			- an incoming MIDI note that is already in-scale will set the root note, and rotate the existing notes into place. Eg, starting in C major, an incoming D will set the root note to D, but keep the scale notes, resulting in D Dorian. For other scales, eg Harmonic minor, this rotation still applies.
+			- Out of scale notes are ignored.
+			- MIDI clips routed to transpose can be in either scale mode or chromatic. Using the audition pads, placing notes on the grid, or notes triggered during playback will cause the root note to move around on the audition pads, or in keyboard view.
+		- When set to chromatic mode:
+			- incoming notes set the root note. Scale mode clips are all transposed chromatically.
+			- MIDI clips routed to 'Transpose' cannot be in scale mode. Existing clips of this type will drop back to chromatic mode, and pressing the Scale button will display 'CANT'.
+	- Choice of octave is determined by the first note received by each song (this is reset on each song load). The first transpostino will move the root note by at most a fifth, to the closest matching note. Subsequent transpose events will respect the octave as normal.
+		- Eg. Song is in C major. Transpose receives a D3. Regardless of whether the song is just a bassline, or pads, or a high synth part, it all goes up to D Dorian or D Major depending on the inkey/chromatic setting. After that a D4 will put everything up an octave. If instead the first transpose is a D4, this will initially only go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
+	- **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently playing notes. If this is done from a MIDI clip, it can cut off notes right at the start so they are never heard. To avoid this, move the MIDI clip with sequenced transposition events to the bottom of the list in Song View (Rows mode), since the clips seem to be handled bottom to top. Instrument clips above the transposition clip will then play correctly with the new root note.
+
+- ([#889]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+	- For a detailed description of this feature, please refer to the feature documentation: [MIDI Follow Mode Documentation]
+	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
+	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`. 
+	- ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
+		- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+	- ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
+- ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
+- ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
+
+
 
 #### 3.4 - Tempo
 
@@ -892,6 +895,8 @@ different firmware
 [#805]: https://github.com/SynthstromAudible/DelugeFirmware/pull/805
 
 [#812]: https://github.com/SynthstromAudible/DelugeFirmware/pull/812
+
+[#837]: https://github.com/SynthstromAudible/DelugeFirmware/pull/837
 
 [#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
 

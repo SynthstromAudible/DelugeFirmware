@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -139,6 +140,10 @@ namespace FlashStorage {
 153: automationDisableAuditionPadShortcuts;
 154: keyboardFunctionsVelocityGlide;
 155: keyboardFunctionsModwheelGlide;
+156: MIDI Transpose ChannelOrZone
+157: MIDI Transpose NoteOrCC
+158-161: MIDI Transpose device / vendor ID
+162: MIDI Transpose Control method.
 */
 
 uint8_t defaultScale;
@@ -567,6 +572,20 @@ void readSettings() {
 
 	keyboardFunctionsVelocityGlide = buffer[154];
 	keyboardFunctionsModwheelGlide = buffer[155];
+
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[156] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[157] - 1;
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[158]);
+	/* buffer[159]  \
+	   buffer[160]   device reference above occupies 4 bytes
+	   buffer[161] */
+
+	if (buffer[162] >= kNumMIDITransposeControlMethods) {
+		MIDITranspose::controlMethod = MIDITransposeControlMethod::INKEY;
+	}
+	else {
+		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[162]);
+	}
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -766,6 +785,14 @@ void writeSettings() {
 
 	buffer[154] = keyboardFunctionsVelocityGlide;
 	buffer[155] = keyboardFunctionsModwheelGlide;
+
+	buffer[156] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
+	buffer[157] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[158]);
+	/* buffer[159]  \
+	   buffer[160]   device reference above occupies 4 bytes
+	   buffer[161] */
+	buffer[162] = util::to_underlying(MIDITranspose::controlMethod);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

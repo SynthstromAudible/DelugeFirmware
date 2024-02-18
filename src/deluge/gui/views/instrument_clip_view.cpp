@@ -45,6 +45,7 @@
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -60,6 +61,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
@@ -478,6 +480,16 @@ doOther:
 
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::MIDI_OUT);
+
+				// Drop out of scale mode if the clip is now routed to MIDI transpose,
+				// and the transposer is set to chromatic.
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				if (clip->output->type == OutputType::MIDI_OUT
+				    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+				    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+					exitScaleMode();
+					clip->inScaleMode = false;
+				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DrumType::MIDI);
@@ -1284,6 +1296,14 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	// Or, normal option - trying to change Instrument presets
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
+
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip->output->type == OutputType::MIDI_OUT
+		    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+		    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			exitScaleMode();
+			clip->inScaleMode = false;
+		}
 	}
 }
 
@@ -3923,6 +3943,13 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	if (clip->output->type == OutputType::MIDI_OUT
+	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+		return;
+	}
 
 	int32_t newRootNote;
 	if (yDisplay == 255) {

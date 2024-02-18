@@ -39,19 +39,22 @@ public:
 			audioRecorder.process();
 		}
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
 
-		bool can = isRelevant(sound, whichThing);
+		bool can = isRelevant(modControllable, whichThing);
 		if (!can) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_RECORD_AUDIO_FM_MODE));
 			return MenuPermission::NO;
 		}
+
+		Sound* sound = static_cast<Sound*>(modControllable);
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 	}
