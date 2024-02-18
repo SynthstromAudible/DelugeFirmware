@@ -34,7 +34,7 @@ private:
 	// use higher precision internally so that scaling and stepping is cleaner
 	uint32_t velocityMax = 127 << kVelModShift;
 	uint32_t velocityMin = 15 << kVelModShift;
-	uint32_t velocityStep = 16 << kVelModShift;
+	uint32_t velocityStep = (velocityMax - velocityMin) / 7;
 	uint32_t velocity32;
 	uint32_t vDisplay;
 };
