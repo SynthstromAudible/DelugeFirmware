@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -101,7 +102,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:
-		return;
+		break;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
 		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
@@ -279,6 +280,7 @@ justAuditionNote:
 	// In case Norns layout is active show
 	// this ignores input differentiation, but since midi learn doesn't work for norns grid
 	// you can't set a device
+	// norns midigrid mod updates deluge pads by sending midi note_on messages on channel 16
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
@@ -297,7 +299,10 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
-	if (match != MIDIMatchType::NO_MATCH) {
+	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
+
+	if (match != MIDIMatchType::NO_MATCH
+		|| instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
 		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
 	}
 }
