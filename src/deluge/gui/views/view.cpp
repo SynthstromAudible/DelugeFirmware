@@ -1504,8 +1504,6 @@ void View::cycleThroughReverbPresets() {
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
-
-	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
