@@ -2391,10 +2391,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 	if (clip) {
 
 		// If user assigning MIDI controls and this Clip has a command assigned, flash pink
-		if (view.midiLearnFlashOn
-		    && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-		        || clip->output->type == OutputType::CV)
-		    && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
+		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
@@ -2426,8 +2423,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 
 			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 			    && view.midiLearnFlashOn
-			    // Should be fine even if output isn't a MelodicInstrument
-			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
+			    // fine even if output isn't an Instrument - will just compare as false
+			    && view.learnedThing == &((Instrument*)clip->output)->midiInput) {
 
 				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 					thisImage[xDisplay] = thisImage[xDisplay].dim();
@@ -2744,10 +2741,9 @@ void SessionView::midiLearnFlash() {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
-			if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-			    || clip->output->type == OutputType::CV) {
+			if (clip->output->type != OutputType::AUDIO && clip->output->type != OutputType::NONE) {
 
-				if (((MelodicInstrument*)clip->output)->midiInput.containsSomething()
+				if (((Instrument*)clip->output)->midiInput.containsSomething()
 				    || (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 				        && view.learnedThing
 				               == &((MelodicInstrument*)clip->output)
@@ -2958,7 +2954,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		else if (gridModeActive == SessionGridModeEdit) {
 			// Instrument learned
 			OutputType type = clip->output->type;
-			bool canLearn = (type == OutputType::SYNTH || type == OutputType::MIDI_OUT || type == OutputType::CV);
+			bool canLearn = (type != OutputType::AUDIO && type != OutputType::NONE);
 			if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
 				return colours::midi_command;
 			}
