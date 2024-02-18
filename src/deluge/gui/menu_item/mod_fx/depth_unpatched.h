@@ -15,25 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
+#include "util/comparison.h"
 
-namespace deluge::gui::menu_item::sidechain {
-class Release final : public Integer {
+namespace deluge::gui::menu_item::mod_fx {
+class Depth_Unpatched final : public UnpatchedParam {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		this->setValue(getLookupIndexFromValue(soundEditor.currentSidechain->release >> 3, releaseRateTable, 50));
-	}
-	void writeCurrentValue() override {
-		soundEditor.currentSidechain->release = releaseRateTable[this->getValue()] << 3;
-		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+	using UnpatchedParam::UnpatchedParam;
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return util::one_of(modControllable->getModFXType(),
+		                    {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::PHASER});
 	}
 };
-} // namespace deluge::gui::menu_item::sidechain
+} // namespace deluge::gui::menu_item::mod_fx

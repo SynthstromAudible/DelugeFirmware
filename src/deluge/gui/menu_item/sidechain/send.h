@@ -35,6 +35,8 @@ public:
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return (soundEditor.editingKit()); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return (soundEditor.editingKit());
+	}
 };
 } // namespace deluge::gui::menu_item::sidechain

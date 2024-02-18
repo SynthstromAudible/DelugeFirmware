@@ -54,7 +54,7 @@ public:
 		}
 	}
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return getCurrentOutputType() == OutputType::MIDI_OUT;
 	}
 

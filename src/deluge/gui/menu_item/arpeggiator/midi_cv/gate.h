@@ -33,6 +33,8 @@ public:
 		getCurrentInstrumentClip()->arpeggiatorGate = (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip();
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

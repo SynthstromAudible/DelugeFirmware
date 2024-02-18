@@ -62,6 +62,8 @@ public:
 	bool editingComp;
 	CompParam currentCompParam;
 
+	ModFXType getModFXType();
+
 protected:
 	int maxCompParam = 0;
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);

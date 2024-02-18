@@ -25,10 +25,10 @@
 
 namespace deluge::gui::menu_item::audio_clip {
 
-MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
-                                                                 MultiRange** currentRange) {
+MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                 int32_t whichThing, MultiRange** currentRange) {
 
-	if (!isRelevant(sound, whichThing)) {
+	if (!isRelevant(modControllable, whichThing)) {
 		return MenuPermission::NO;
 	}
 
