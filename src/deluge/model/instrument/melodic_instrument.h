@@ -90,8 +90,6 @@ public:
 	EarlyNoteArray earlyNotes;
 	EarlyNoteArray notesAuditioned;
 
-	LearnedMIDI midiInput;
-
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
 
