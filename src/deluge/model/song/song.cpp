@@ -507,18 +507,18 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 
 				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-					modelStack->addTimelineCounter(instrumentClip);
+				    modelStack->addTimelineCounter(instrumentClip);
 				if (instrumentClip->isScaleModeClip()) {
 					if (clip->output->type == OutputType::MIDI_OUT
-						&& ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+					    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 						// Must not transpose MIDI clips that are routed to transpose, ie note rows
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
 						// does not visually move the notes on the grid.
 						yNoteOnBottomRow =
-							getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
+						    getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
 						instrumentClip->yScroll =
-							getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
+						    getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
 					}
 					else {
 						instrumentClip->transpose(semitones, modelStackWithTimelineCounter);

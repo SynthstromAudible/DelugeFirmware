@@ -1,6 +1,6 @@
 #include "midi_transpose.h"
-#include "gui/ui/ui.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -69,16 +69,14 @@ void exitScaleModeForMIDITransposeClips() {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
 		if (clip != nullptr) {
-			if (clip->output->type == OutputType::MIDI_OUT &&
-				MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC &&
-				((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE
-				) {
+			if (clip->output->type == OutputType::MIDI_OUT
+			    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+			    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 				instrumentClipView.exitScaleMode();
 				clip->inScaleMode = false;
 			}
 		}
 	}
 }
-
 
 } // namespace MIDITranspose

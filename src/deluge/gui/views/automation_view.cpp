@@ -1508,10 +1508,10 @@ void AutomationView::enterScaleMode(uint8_t yDisplay) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
 	if (clip->output->type == OutputType::MIDI_OUT
-		&& MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
 	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
-			return;
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+		return;
 	}
 
 	int32_t newRootNote;

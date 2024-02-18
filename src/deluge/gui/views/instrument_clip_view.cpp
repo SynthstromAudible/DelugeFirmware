@@ -484,10 +484,9 @@ doOther:
 				// Drop out of scale mode if the clip is now routed to MIDI transpose,
 				// and the transposer is set to chromatic.
 				InstrumentClip* clip = getCurrentInstrumentClip();
-				if (clip->output->type == OutputType::MIDI_OUT &&
-					MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC &&
-					((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE
-					) {
+				if (clip->output->type == OutputType::MIDI_OUT
+				    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+				    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 					exitScaleMode();
 					clip->inScaleMode = false;
 				}
@@ -1299,10 +1298,9 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		InstrumentClipMinder::selectEncoderAction(offset);
 
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (clip->output->type == OutputType::MIDI_OUT &&
-		    MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC &&
-		    ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE
-		    ) {
+		if (clip->output->type == OutputType::MIDI_OUT
+		    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+		    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
 			exitScaleMode();
 			clip->inScaleMode = false;
 		}
@@ -3946,11 +3944,11 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-    if (clip->output->type == OutputType::MIDI_OUT
-		&& MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	if (clip->output->type == OutputType::MIDI_OUT
+	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
 	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
-			return;
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+		return;
 	}
 
 	int32_t newRootNote;

@@ -429,11 +429,11 @@ PLACE_SDRAM_DATA Language seven_segment{
 
         {STRING_FOR_CANT_TRANSPOSE, "CANT"},
 
-		// MIDI transpose strings
+        // MIDI transpose strings
         {STRING_FOR_TRANSPOSE_INKEY, "IN-K"},
         {STRING_FOR_TRANSPOSE_CHROMATIC, "CHRM"},
         {STRING_FOR_TRANSPOSE_CHORD, "CHRD"},
-		{STRING_FOR_CANT_ENTER_SCALE, "CANT"},
+        {STRING_FOR_CANT_ENTER_SCALE, "CANT"},
     },
     &built_in::english,
 };
