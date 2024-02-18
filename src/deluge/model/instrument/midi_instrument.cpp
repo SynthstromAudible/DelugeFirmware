@@ -773,10 +773,10 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
 
-	// If no MPE, nice and simple
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
 	}
+	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
@@ -865,10 +865,10 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
                                                               int32_t whichExpressionDimension, ArpNote* arpNote) {
 
-	// If we don't have MPE output...
 	if (sendsToInternal()) {
 		// Do nothing
 	}
+	// If we don't have MPE output...
 	else if (!sendsToMPE()) {
 		if (whichExpressionDimension == 2) {
 			if (!collapseAftertouch) {
