@@ -1190,8 +1190,13 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
-
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedNoteForKit(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+		                   instrumentClip);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
