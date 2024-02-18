@@ -1622,7 +1622,15 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			outputTypeText = "Kit";
 			break;
 		case OutputType::MIDI_OUT:
-			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
+			if (channel < 16) {
+				outputTypeText = "MIDI channel";
+			}
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				outputTypeText = "MPE zone";
+			}
+			else {
+				outputTypeText = "Internal";
+			}
 			break;
 		case OutputType::CV:
 			outputTypeText = "CV / gate channel";
@@ -1721,8 +1729,12 @@ yesAlignRight:
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				goto oledDrawString;
+			}
+			else {
+				nameToDraw = "Transpose";
 				goto oledDrawString;
 			}
 		}
@@ -1730,9 +1742,12 @@ yesAlignRight:
 			if (channel < 16) {
 				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
 				display->setText(text, false, 255, doBlink);
+			}
+			else {
+				display->setText("Transpose", false, 255, doBlink);
 			}
 		}
 	}
@@ -1874,7 +1889,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix < -1) {
 						newChannel = (newChannel + offset);
 						if (newChannel < 0) {
-							newChannel = 17;
+							newChannel = IS_A_DEST + NUM_INTERNAL_DESTS;
+						}
+						else if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = MIDI_CHANNEL_MPE_UPPER_ZONE;
 						}
 						newChannelSuffix = modelStack->song->getMaxMIDIChannelSuffix(newChannel);
 					}
@@ -1886,7 +1904,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix >= 26
 					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
 						newChannel = (newChannel + offset);
-						if (newChannel >= 18) {
+						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = IS_A_DEST + 1;
+						}
+						else if (newChannel > IS_A_DEST + NUM_INTERNAL_DESTS) {
 							newChannel = 0;
 						}
 						newChannelSuffix = -1;

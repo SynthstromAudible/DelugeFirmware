@@ -29,6 +29,7 @@
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -298,6 +299,7 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
+	MIDITranspose::exitScaleModeForMIDITransposeClips();
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
