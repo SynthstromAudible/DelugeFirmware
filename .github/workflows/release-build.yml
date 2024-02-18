@@ -4,12 +4,12 @@ on:
   workflow_dispatch: # allows manual triggering
   push:
     branches:
-      - 'release/1.0'  
+      - 'release/1.1'
   pull_request_target:
     types:
       - closed
     branches:
-      - 'release/1.0'
+      - 'release/1.1'
 
 jobs:
   release-build:
