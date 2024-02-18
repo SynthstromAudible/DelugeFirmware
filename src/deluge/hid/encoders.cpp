@@ -30,7 +30,7 @@
 #include "util/functions.h"
 #include <new>
 
-namespace Encoders {
+namespace deluge::hid::encoders {
 
 Encoder encoders[NUM_ENCODERS] = {};
 uint32_t timeModEncoderLastTurned[2];
@@ -221,4 +221,4 @@ checkResult:
 	return anything;
 }
 
-} // namespace Encoders
+} // namespace deluge::hid::encoders

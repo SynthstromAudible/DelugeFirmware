@@ -18,6 +18,8 @@
 #include "hid/encoder.h"
 #include "processing/engines/audio_engine.h"
 
+using deluge::hid::encoders::Encoder;
+
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 }

@@ -79,6 +79,8 @@ extern "C" {
 #include "RZA1/spibsc/spibsc_Deluge_setup.h"
 }
 
+namespace encoders = deluge::hid::encoders;
+
 extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
@@ -563,7 +565,7 @@ extern "C" int32_t deluge_main(void) {
 	makeTestRecording();
 #endif
 
-	Encoders::init();
+	encoders::init();
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -778,8 +780,8 @@ extern "C" int32_t deluge_main(void) {
 			count++;
 		}
 
-		Encoders::readEncoders();
-		bool anything = Encoders::interpretEncoders();
+		encoders::readEncoders();
+		bool anything = encoders::interpretEncoders();
 		if (anything) {
 			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 		}
@@ -833,8 +835,8 @@ extern "C" void routineForSD(void) {
 	}
 	PIC::flush();
 
-	Encoders::readEncoders();
-	Encoders::interpretEncoders(true);
+	encoders::readEncoders();
+	encoders::interpretEncoders(true);
 	readButtonsAndPads();
 	doAnyPendingUIRendering();
 

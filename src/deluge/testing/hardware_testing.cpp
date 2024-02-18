@@ -42,6 +42,8 @@ extern "C" {
 #include "drivers/uart/uart.h"
 }
 
+namespace encoders = deluge::hid::encoders;
+
 void ramTestUart() {
 	// Test the RAM
 	uint32_t lastErrorAt = 0;
@@ -198,20 +200,20 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	midiEngine.checkIncomingSerialMidi();
 	midiEngine.flushMIDI();
 
-	Encoders::readEncoders();
+	encoders::readEncoders();
 
 	anything = false;
 	for (int32_t e = 0; e < 4; e++) {
-		if (Encoders::encoders[e].detentPos != 0) {
-			encoderTestPos += Encoders::encoders[e].detentPos;
-			Encoders::encoders[e].detentPos = 0;
+		if (encoders::encoders[e].detentPos != 0) {
+			encoderTestPos += encoders::encoders[e].detentPos;
+			encoders::encoders[e].detentPos = 0;
 			anything = true;
 		}
 	}
 	for (int32_t e = 0; e < 2; e++) {
-		if (Encoders::encoders[e + 4].encPos != 0) {
-			encoderTestPos += Encoders::encoders[e + 4].encPos;
-			Encoders::encoders[e + 4].encPos = 0;
+		if (encoders::encoders[e + 4].encPos != 0) {
+			encoderTestPos += encoders::encoders[e + 4].encPos;
+			encoders::encoders[e + 4].encPos = 0;
 			anything = true;
 		}
 	}

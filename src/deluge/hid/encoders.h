@@ -19,7 +19,7 @@
 
 #include "hid/encoder.h"
 
-namespace Encoders {
+namespace deluge::hid::encoders {
 
 extern Encoder encoders[];
 extern uint32_t timeModEncoderLastTurned[];
@@ -27,4 +27,4 @@ extern uint32_t timeModEncoderLastTurned[];
 void init();
 void readEncoders();
 bool interpretEncoders(bool inCardRoutine = false);
-} // namespace Encoders
+} // namespace deluge::hid::encoders
