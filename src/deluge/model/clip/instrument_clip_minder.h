@@ -41,7 +41,7 @@ public:
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
-	void setScale(int32_t newScale);
+	bool setScale(int32_t newScale);
 	void displayScaleName(int32_t scale);
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
