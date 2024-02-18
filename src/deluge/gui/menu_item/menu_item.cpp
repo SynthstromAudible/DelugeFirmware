@@ -16,14 +16,16 @@
  */
 
 #include "menu_item.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include <string_view>
 
 using namespace deluge;
 
-MenuPermission MenuItem::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
-	bool toReturn = isRelevant(sound, whichThing);
+MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+                                                       MultiRange** currentRange) {
+	bool toReturn = isRelevant(modControllable, whichThing);
 	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 

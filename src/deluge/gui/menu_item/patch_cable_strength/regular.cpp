@@ -52,7 +52,10 @@ PatchSource Regular::getS() {
 	return source_selection::regularMenu.s;
 }
 
-MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
+MenuPermission Regular::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+                                                      MultiRange** currentRange) {
+
+	Sound* sound = static_cast<Sound*>(modControllable);
 
 	if (soundEditor.patchingParamSelected == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
 		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
@@ -67,7 +70,7 @@ MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whic
 		}
 	}
 
-	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
+	return PatchCableStrength::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
 }
 
 uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {

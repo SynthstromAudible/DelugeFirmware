@@ -26,9 +26,10 @@ class LoopPoint : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
-	bool isRelevant(::Sound* sound, int32_t whichThing) final;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final;
 	bool isRangeDependent() final { return true; }
-	MenuPermission checkPermissionToBeginSession(::Sound* sound, int32_t whichThing, ::MultiRange** currentRange) final;
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             ::MultiRange** currentRange) final;
 
 	int32_t xZoom;
 	int32_t xScroll;

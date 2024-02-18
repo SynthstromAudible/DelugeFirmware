@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::submenu {
 class PolyMonoConversion final : public Submenu {
 public:
 	using Submenu::Submenu;
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		// not relevant for cv currently
 		const auto type = getCurrentOutputType();
 		return (type == OutputType::MIDI_OUT);
