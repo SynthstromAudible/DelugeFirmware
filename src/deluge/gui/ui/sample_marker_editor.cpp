@@ -136,7 +136,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(getCurrentClip())
 		                   && getCurrentAudioClip()->voiceSample);
 
-		getCurrentAudioClip()->unassignVoiceSample();
+		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 
 	if (markerTypeNow == MarkerType::START) {

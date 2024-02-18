@@ -5535,7 +5535,7 @@ void Song::cullAudioClipVoice() {
 	}
 
 	if (bestClip) {
-		bestClip->unassignVoiceSample();
+		bestClip->unassignVoiceSample(false);
 		D_PRINTLN("audio clip voice culled!");
 	}
 }

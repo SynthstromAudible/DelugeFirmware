@@ -46,4 +46,5 @@ public:
 
 	BidirectionalLinkedListNode endNode;
 	BidirectionalLinkedListNode* first;
+	void addToStart(BidirectionalLinkedListNode* node);
 };

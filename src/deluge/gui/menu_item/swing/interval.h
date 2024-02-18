@@ -26,7 +26,8 @@ public:
 
 	void readCurrentValue() override { this->setValue(currentSong->swingInterval); }
 	void writeCurrentValue() override { currentSong->changeSwingInterval(this->getValue()); }
-
+	// triplet/dotted not yet supported
+	size_t size() override { return SYNC_TYPE_TRIPLET; }
 	void selectEncoderAction(int32_t offset) override { // So that there's no "off" option
 		this->setValue(this->getValue() + offset);
 		int32_t numOptions = this->size();

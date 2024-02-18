@@ -40,6 +40,20 @@ void BidirectionalLinkedList::addToEnd(BidirectionalLinkedListNode* node) {
 #endif
 }
 
+void BidirectionalLinkedList::addToStart(BidirectionalLinkedListNode* node) {
+	node->prevPointer = &first->next;
+	node->next = first->next;
+	first->next = node;
+
+	node->list = this;
+
+#if ALPHA_OR_BETA_VERSION
+	// Have deactivated this, because some of the lists will have up to 2000 elements in them on boot, and searching
+	// through all of these causes voice culls
+	// test();
+#endif
+}
+
 BidirectionalLinkedListNode* BidirectionalLinkedList::getFirst() {
 	if (first == &endNode) {
 		return NULL;

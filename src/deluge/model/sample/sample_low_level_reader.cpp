@@ -41,10 +41,10 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 	// actually destructed
 }
 
-void SampleLowLevelReader::unassignAllReasons() {
+void SampleLowLevelReader::unassignAllReasons(bool wontBeUsedAgain) {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
-			audioFileManager.removeReasonFromCluster(clusters[l], "E027");
+			audioFileManager.removeReasonFromCluster(clusters[l], "E027", wontBeUsedAgain);
 			clusters[l] = NULL;
 		}
 	}
@@ -133,8 +133,8 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 		clusterIndex = finalClusterIndex;
 	}
 
-	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this
-	                      // will clear
+	unassignAllReasons(false); // Can only do this after we've done the above stuff, which references clusters, which
+	                           // this will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
 		D_PRINTLN("reassessReassessmentLocation fail");
@@ -436,7 +436,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			}
 		}
 		else { // LOOP_OR_STOP
-			unassignAllReasons();
+			unassignAllReasons(false);
 			if (loopingAtLowLevel) {
 				bool success = setupClusersForInitialPlay(guide, sample, byteOvershoot, true, priorityRating);
 				if (!success) {
@@ -1282,7 +1282,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
-			audioFileManager.removeReasonFromCluster(clusters[l], "E131");
+			audioFileManager.removeReasonFromCluster(clusters[l], "E131", false);
 		}
 
 		clusters[l] = other->clusters[l];
