@@ -30,7 +30,7 @@ jobs:
         if: inputs.build-type == 'release'
         uses: actions/checkout@v4
         with:
-          ref: 'release/1.0'
+          ref: 'release/1.1'
       - name: Fetch container image
         run: |
           docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
