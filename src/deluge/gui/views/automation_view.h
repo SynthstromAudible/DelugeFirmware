@@ -49,6 +49,7 @@ class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationView();
 	bool opened();
+	void initializeView();
 	void openedInBackground();
 	void focusRegained();
 
@@ -102,6 +103,7 @@ public:
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset);
+	void getLastSelectedParamShortcut(Clip* clip);
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
@@ -200,7 +202,6 @@ private:
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
 	void selectMIDICC(int32_t offset, Clip* clip);
-	void getLastSelectedMIDIParamShortcut(Clip* clip);
 
 	// Automation Lanes Functions
 	void initPadSelection();
@@ -239,6 +240,7 @@ private:
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	void displayCVErrorMessage();
+	void blinkShortcuts();
 	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
 	void resetInterpolationShortcutBlinking();
