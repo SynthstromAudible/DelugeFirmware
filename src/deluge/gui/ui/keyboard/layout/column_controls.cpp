@@ -153,7 +153,7 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 }
 
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
-	if (leftColHeld == 7) {
+	if (leftColHeld == 7 && offset) {
 		if (!horizontalScrollingLeftCol) {
 			leftColPrev = leftCol;
 		}
@@ -164,7 +164,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		leftCol = getColumnForFunc(leftColFunc);
 		return true;
 	}
-	if (rightColHeld == 7) {
+	else if (rightColHeld == 7 && offset) {
 		if (!horizontalScrollingRightCol) {
 			rightColPrev = rightCol;
 		}
