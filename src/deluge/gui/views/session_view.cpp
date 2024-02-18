@@ -3405,10 +3405,8 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip->type != ClipType::AUDIO) {
 				// Learn + Holding pad = Learn MIDI channel
 				Output* output = gridTrackFromX(x, gridTrackCount());
-				if (output
-				    && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-				        || output->type == OutputType::CV)) {
-					view.instrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+				if (output && (output->type != OutputType::AUDIO && output->type != OutputType::NONE)) {
+					view.instrumentMidiLearnPadPressed(on, (Instrument*)output);
 				}
 			}
 			else {
