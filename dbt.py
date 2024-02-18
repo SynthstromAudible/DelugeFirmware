@@ -3,11 +3,12 @@
 import argparse
 import importlib
 import ntpath
-from pathlib import Path
+import os
 import subprocess
 import sys
-import os
 import textwrap
+from distutils.dir_util import copy_tree
+from pathlib import Path
 
 PROG_NAME = sys.argv[0].split(".")[0]
 
@@ -28,6 +29,7 @@ import util
 
 
 def setup():
+
     if sys.platform == "win32" or (sys.platform == "cosmo" and cosmo.kernel == "nt"):
         dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.cmd").replace(
             os.sep, ntpath.sep
@@ -37,6 +39,12 @@ def setup():
     else:
         dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.sh").encode()
         subprocess.run([b"bash", dbtenvcmd])
+
+
+
+def setup_vscode():
+    if not os.path.exists(".vscode"):
+        copy_tree("IDE_Configs/vscode", ".vscode")
 
 
 def print_tasks_usage(tasks):
@@ -61,6 +69,7 @@ def print_tasks_usage(tasks):
             # get our argparsers (lazy import)
             usage: str = argparser.format_usage().strip().removeprefix("usage: ")
             # usage = f"{PROG_NAME} " + usage
+
             print(textwrap.indent(usage, " " * 4))
             if argparser.description:
                 print(textwrap.indent(argparser.description, " " * 6))
@@ -79,6 +88,7 @@ def main() -> int:
         prog=f"{PROG_NAME}" or "task",
         add_help=False,
     )
+
     parser.add_argument(
         "-h", "--help", help="print this help message", action="store_true"
     )
@@ -86,6 +96,9 @@ def main() -> int:
 
     # Specify the folder containing the task files
     task_files = TASKS_DIR.glob("task-*.py")
+
+    # copy vscode config to .vscode if it doesn't exist
+    setup_vscode()
 
     tasks = {}
     for task_file in task_files:
