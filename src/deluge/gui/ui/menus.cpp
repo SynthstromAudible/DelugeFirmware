@@ -69,6 +69,7 @@
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
+#include "gui/menu_item/midi/transpose.h"
 #include "gui/menu_item/mod_fx/depth_patched.h"
 #include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
@@ -847,6 +848,18 @@ Submenu midiFollowSubmenu{
 // MIDI select kit row
 ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, midiEngine.midiSelectKitRow};
 
+// MIDI transpose menu
+
+midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
+
+Submenu midiTransposeSubmenu{
+    STRING_FOR_TRANSPOSE,
+    STRING_FOR_TRANSPOSE,
+    {
+        &midiTransposeMenu,
+    },
+};
+
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -857,21 +870,13 @@ midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
 midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
+midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
 
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
-    {
-        &playMidiCommand,
-        &playbackRestartMidiCommand,
-        &recordMidiCommand,
-        &tapMidiCommand,
-        &undoMidiCommand,
-        &redoMidiCommand,
-        &loopMidiCommand,
-        &loopContinuousLayeringMidiCommand,
-        &fillMidiCommand,
-    },
+    {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
+     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for
@@ -918,6 +923,7 @@ Submenu midiMenu{
         &midiFollowSubmenu,
         &midiSelectKitRowMenu,
         &midiThruMenu,
+        &midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,
