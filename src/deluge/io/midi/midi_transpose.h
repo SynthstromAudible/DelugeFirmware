@@ -23,6 +23,7 @@
 namespace MIDITranspose {
 extern MIDITransposeControlMethod controlMethod;
 void doTranspose(bool on, int32_t newNoteOrCC);
+void exitScaleModeForMIDITransposeClips();
 }; // namespace MIDITranspose
 
 // extern MIDITranspose midiTranspose;

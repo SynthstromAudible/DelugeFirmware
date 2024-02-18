@@ -46,6 +46,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -1505,6 +1506,13 @@ void AutomationView::enterScaleMode(uint8_t yDisplay) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	if (clip->output->type == OutputType::MIDI_OUT
+		&& MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+			return;
+	}
 
 	int32_t newRootNote;
 	if (yDisplay == 255) {

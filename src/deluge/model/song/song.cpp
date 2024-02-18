@@ -492,43 +492,40 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		int32_t oldRootNote = rootNote;
 
 		ClipArray* clipArray = &sessionClips;
-traverseClips:
-		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-			Clip* clip = clipArray->getClipAtIndex(c);
-			if (clip->type != ClipType::INSTRUMENT) {
-				continue;
+		for (uint8_t iClipTypes = 0; iClipTypes < 2; iClipTypes++) {
+			if (iClipTypes == 1) {
+				clipArray = &arrangementOnlyClips;
 			}
-			if (clip->output->type == OutputType::KIT) {
-				continue;
-			}
+			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+				Clip* clip = clipArray->getClipAtIndex(c);
+				if (clip->type != ClipType::INSTRUMENT) {
+					continue;
+				}
+				if (clip->output->type == OutputType::KIT) {
+					continue;
+				}
 
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(instrumentClip);
-
-			yNoteOnBottomRow = 0;
-			if (clip->output->type == OutputType::MIDI_OUT
-			    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-				// Must not transpose MIDI clips that are routed to transpose, ie note rows
-				// stay exactly the same.
-				// Just have to scroll the clip so that the change in song root note
-				// does not visually move the notes on the grid.
-				yNoteOnBottomRow =
-				    getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
-				instrumentClip->yScroll =
-				    getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
-			}
-			else {
+				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					modelStack->addTimelineCounter(instrumentClip);
 				if (instrumentClip->isScaleModeClip()) {
-					instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
+					if (clip->output->type == OutputType::MIDI_OUT
+						&& ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+						// Must not transpose MIDI clips that are routed to transpose, ie note rows
+						// stay exactly the same.
+						// Just have to scroll the clip so that the change in song root note
+						// does not visually move the notes on the grid.
+						yNoteOnBottomRow =
+							getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, numModeNotes, oldMode);
+						instrumentClip->yScroll =
+							getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, numModeNotes, modeNotes);
+					}
+					else {
+						instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
+					}
 				}
 			}
 		}
-		if (clipArray != &arrangementOnlyClips) {
-			clipArray = &arrangementOnlyClips;
-			goto traverseClips;
-		}
-
 		rootNote = newRootNote;
 	}
 	else {

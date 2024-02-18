@@ -1,8 +1,12 @@
 #include "midi_transpose.h"
+#include "gui/ui/ui.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "midi_device.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/song/song.h"
 
 namespace MIDITranspose {
@@ -51,6 +55,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 
 			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 			uiNeedsRendering(&instrumentClipView);
+			uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 		}
 	}
 	else {
@@ -58,4 +63,22 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 		// held notes in a chord.
 	}
 }
+
+void exitScaleModeForMIDITransposeClips() {
+	if (currentUIMode == UI_MODE_NONE && getRootUI() == &instrumentClipView) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+
+		if (clip != nullptr) {
+			if (clip->output->type == OutputType::MIDI_OUT &&
+				MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC &&
+				((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE
+				) {
+				instrumentClipView.exitScaleMode();
+				clip->inScaleMode = false;
+			}
+		}
+	}
+}
+
+
 } // namespace MIDITranspose

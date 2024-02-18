@@ -865,10 +865,11 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_CANT_TRANSPOSE, "Can't Transpose: No Scale Mode Clips"},
 
-        // MIDI transpose string
+        // MIDI transpose strings
         {STRING_FOR_TRANSPOSE_INKEY, "In Key"},
         {STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
         {STRING_FOR_TRANSPOSE_CHORD, "Chord"},
+		{STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
     },
 };
 } // namespace deluge::l10n::built_in
