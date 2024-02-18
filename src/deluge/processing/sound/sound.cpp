@@ -350,6 +350,10 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager) {
 	doneReadingFromFile();
 }
 
+ModFXType Sound::getModFXType() {
+	return modFXType;
+}
+
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
 	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
@@ -3999,21 +4003,18 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 	// LPF/HPF/EQ
 	if (whichModButton == 1) {
 		if (getSynthMode() != SynthMode::FM) {
+			FilterType currentFilterType;
 			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
-				displayLPFMode(on);
+				currentFilterType = FilterType::LPF;
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
-				displayHPFMode(on);
+				currentFilterType = FilterType::HPF;
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
 			                                                              + params::UNPATCHED_TREBLE)) {
-				if (on) {
-					display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
-				}
-				else {
-					display->cancelPopup();
-				}
+				currentFilterType = FilterType::EQ;
 			}
+			displayFilterSettings(on, currentFilterType);
 		}
 	}
 	// Delay
@@ -4027,36 +4028,6 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
 		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)) {
 			displaySidechainAndReverbSettings(on);
-		}
-	}
-}
-
-void Sound::displaySidechainAndReverbSettings(bool on) {
-	// Sidechain
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
-			// Sidechain
-			popupMsg.append("Sidechain: ");
-			popupMsg.append(getSidechainDisplayName());
-
-			popupMsg.append("\n");
-
-			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
-	}
-	else {
-		if (on) {
-			display->displayPopup(getSidechainDisplayName());
-		}
-		else {
-			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 		}
 	}
 }
@@ -4136,9 +4107,27 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
 				switchDelaySyncType();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayDelaySettings(on);
+				}
+				else {
+					display->displayPopup(getDelaySyncTypeDisplayName());
+				}
 			}
 			else {
 				switchDelayPingPong();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayDelaySettings(on);
+				}
+				else {
+					display->displayPopup(getDelayPingPongStatusDisplayName());
+				}
 			}
 			return true;
 		}
@@ -4153,9 +4142,29 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
 				switchDelaySyncLevel();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayDelaySettings(on);
+				}
+				else {
+					char displayName[30];
+					getDelaySyncLevelDisplayName(displayName);
+					display->displayPopup(displayName);
+				}
 			}
 			else {
 				switchDelayAnalog();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayDelaySettings(on);
+				}
+				else {
+					display->displayPopup(getDelayTypeDisplayName());
+				}
 			}
 			return true;
 		}
@@ -4168,6 +4177,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_RESONANCE)) {
 		if (on) {
 			switchLPFMode();
+			FilterType currentFilterType = FilterType::LPF;
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displayFilterSettings(on, currentFilterType);
+			}
+			else {
+				display->displayPopup(getFilterModeDisplayName(currentFilterType));
+			}
 			return true;
 		}
 		else {
@@ -4178,6 +4197,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_RESONANCE)) {
 		if (on) {
 			switchHPFMode();
+			FilterType currentFilterType = FilterType::HPF;
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displayFilterSettings(on, currentFilterType);
+			}
+			else {
+				display->displayPopup(getFilterModeDisplayName(currentFilterType));
+			}
 			return true;
 		}
 		else {
@@ -4188,6 +4217,15 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
 		if (on) {
 			view.cycleThroughReverbPresets();
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displaySidechainAndReverbSettings(on);
+			}
+			else {
+				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			}
 		}
 		return false;
 	}
@@ -4207,11 +4245,18 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 			if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 			}
 			else {
 				sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
+			}
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displaySidechainAndReverbSettings(on);
+			}
+			else {
+				display->displayPopup(getSidechainDisplayName());
 			}
 			return true;
 		}
@@ -4230,7 +4275,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    params::LOCAL_HPF_RESONANCE);
 			}
-			display->displayPopup("HPF");
+			FilterType currentFilterType = FilterType::HPF;
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displayFilterSettings(on, currentFilterType);
+			}
+			else {
+				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+			}
 		}
 		return false;
 	}
@@ -4244,7 +4298,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START
 				                                                                              + params::UNPATCHED_BASS);
 			}
-			display->displayPopup("EQ");
+			FilterType currentFilterType = FilterType::EQ;
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displayFilterSettings(on, currentFilterType);
+			}
+			else {
+				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+			}
 		}
 		return false;
 	}
@@ -4258,7 +4321,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    params::LOCAL_LPF_RESONANCE);
 			}
-			display->displayPopup("LPF");
+			FilterType currentFilterType = FilterType::LPF;
+
+			// if mod button is pressed, update mod button pop up
+			if (Buttons::isButtonPressed(
+			        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+				displayFilterSettings(on, currentFilterType);
+			}
+			else {
+				display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+			}
 		}
 		return false;
 	}

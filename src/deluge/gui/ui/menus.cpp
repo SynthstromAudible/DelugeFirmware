@@ -75,7 +75,9 @@
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
-#include "gui/menu_item/mod_fx/depth.h"
+#include "gui/menu_item/midi/transpose.h"
+#include "gui/menu_item/mod_fx/depth_patched.h"
+#include "gui/menu_item/mod_fx/depth_unpatched.h"
 #include "gui/menu_item/mod_fx/feedback.h"
 #include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mod_fx/type.h"
@@ -370,7 +372,7 @@ Submenu lfo1Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu}};
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
 patched_param::Integer modFXRateMenu{STRING_FOR_RATE, STRING_FOR_MODFX_RATE, params::GLOBAL_MOD_FX_RATE};
 mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBACK, params::UNPATCHED_MOD_FX_FEEDBACK};
-mod_fx::Depth modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
+mod_fx::Depth_Patched modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
 mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, params::UNPATCHED_MOD_FX_OFFSET};
 
 Submenu modFXMenu{
@@ -635,7 +637,7 @@ Submenu globalReverbMenu{
 
 // Mod FX Menu
 
-UnpatchedParam globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
+mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
 UnpatchedParam globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
 
 Submenu globalModFXMenu{
@@ -869,6 +871,18 @@ Submenu midiFollowSubmenu{
 // MIDI select kit row
 ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, midiEngine.midiSelectKitRow};
 
+// MIDI transpose menu
+
+midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
+
+Submenu midiTransposeSubmenu{
+    STRING_FOR_TRANSPOSE,
+    STRING_FOR_TRANSPOSE,
+    {
+        &midiTransposeMenu,
+    },
+};
+
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -879,21 +893,13 @@ midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
 midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
+midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
 
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
-    {
-        &playMidiCommand,
-        &playbackRestartMidiCommand,
-        &recordMidiCommand,
-        &tapMidiCommand,
-        &undoMidiCommand,
-        &redoMidiCommand,
-        &loopMidiCommand,
-        &loopContinuousLayeringMidiCommand,
-        &fillMidiCommand,
-    },
+    {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
+     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for
@@ -940,6 +946,7 @@ Submenu midiMenu{
         &midiFollowSubmenu,
         &midiSelectKitRowMenu,
         &midiThruMenu,
+        &midiTransposeMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,
         &midiInputDifferentiationMenu,
@@ -983,9 +990,24 @@ Submenu triggerClockMenu{
 // Defaults menu
 defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 
+InvertedToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
+                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
+                                                           // This control is inverted, as the default value is true
+                                                           // (Enabled) Glide mode is the opposite to Momentary mode
+                                                           FlashStorage::keyboardFunctionsVelocityGlide};
+InvertedToggleBool defaultUIKeyboardFunctionsModwheelGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
+                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
+                                                           // This control is inverted, as the default value is true
+                                                           // (Enabled) Glide mode is the opposite to Momentary mode
+                                                           FlashStorage::keyboardFunctionsModwheelGlide};
+Submenu defaultKeyboardFunctionsMenu{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS,
+    {&defaultUIKeyboardFunctionsVelocityGlide, &defaultUIKeyboardFunctionsModwheelGlide},
+};
+
 Submenu defaultUIKeyboard{
     STRING_FOR_DEFAULT_UI_KEYBOARD,
-    {&defaultKeyboardLayoutMenu},
+    {&defaultKeyboardLayoutMenu, &defaultKeyboardFunctionsMenu},
 };
 
 ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,

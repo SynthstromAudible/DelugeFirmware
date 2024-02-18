@@ -5,7 +5,7 @@
     "cmake.generator": "Ninja Multi-Config",
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
-        "editor.formatOnSave": true,
+        "editor.formatOnSave": true
     },
     "files.associations": {
         "*.scons": "python",
@@ -25,14 +25,6 @@
         "initializer_list": "cpp",
         "utility": "cpp"
     },
-    "C_Cpp.intelliSenseEngine": "disabled",
-    "C_Cpp.autocomplete": "disabled",
-    "C_Cpp.errorSquiggles": "disabled",
-    "clangd.arguments": [
-        "-pretty",
-        "--background-index",
-        "--query-driver=*arm-none-eabi-*",
-    ],
     "cSpell.words": [
         "SDRAM",
         "Synthstrom"
@@ -44,10 +36,22 @@
     "advancedLocalFormatters.formatters": [
         {
             "command": {
-                "win32": ["dbt.cmd", "format", "--stdio", "$absoluteFilePath"],
-                "*": ["./dbt", "format", "--stdio", "$absoluteFilePath"]
+                "win32": [
+                    "dbt.cmd",
+                    "format",
+                    "--stdio",
+                    "$absoluteFilePath"
+                ],
+                "*": [
+                    "./dbt",
+                    "format",
+                    "--stdio",
+                    "$absoluteFilePath"
+                ]
             },
-            "languages": ["cpp"]
+            "languages": [
+                "cpp"
+            ]
         }
     ]
 }

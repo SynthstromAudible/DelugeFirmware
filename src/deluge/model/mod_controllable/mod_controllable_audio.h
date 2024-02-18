@@ -86,6 +86,7 @@ public:
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
+	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
@@ -189,17 +190,19 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
+	char const* getFilterTypeDisplayName(FilterType currentFilterType);
+	char const* getFilterModeDisplayName(FilterType currentFilterType);
 	char const* getLPFModeDisplayName();
 	char const* getHPFModeDisplayName();
 	char const* getDelayTypeDisplayName();
 	char const* getDelayPingPongStatusDisplayName();
 	char const* getDelaySyncTypeDisplayName();
 	void getDelaySyncLevelDisplayName(char* displayName);
-
 	char const* getSidechainDisplayName();
-	void displayLPFMode(bool on);
-	void displayHPFMode(bool on);
+
+	void displayFilterSettings(bool on, FilterType currentFilterType);
 	void displayDelaySettings(bool on);
+	void displaySidechainAndReverbSettings(bool on);
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);

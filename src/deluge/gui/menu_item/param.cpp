@@ -62,6 +62,7 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 			if (rootUI != &automationView) {
 				selectAutomationViewParameter(clipMinder);
 				swapOutRootUILowLevel(&automationView);
+				automationView.initializeView();
 				automationView.openedInBackground();
 			}
 			soundEditor.exitCompletely();
@@ -74,7 +75,7 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 		if (on) {
 			if (rootUI == &automationView) {
 				selectAutomationViewParameter(clipMinder);
-				uiNeedsRendering(&automationView);
+				uiNeedsRendering(rootUI);
 			}
 		}
 		return ActionResult::DEALT_WITH;
@@ -88,17 +89,19 @@ void Param::selectAutomationViewParameter(bool clipMinder) {
 
 	int32_t p = getP();
 	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+	Clip* clip = getCurrentClip();
 
 	if (clipMinder) {
-		Clip* clip = getCurrentClip();
 		clip->lastSelectedParamID = p;
 		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedOutputType = clip->output->type;
 	}
 	else {
 		currentSong->lastSelectedParamID = p;
 		currentSong->lastSelectedParamKind = kind;
 		automationView.onArrangerView = true;
 	}
+	automationView.getLastSelectedParamShortcut(clip);
 }
 
 } // namespace deluge::gui::menu_item

@@ -228,7 +228,7 @@ enum class MidiLearn : uint8_t {
 	RECORD_BUTTON,
 	TAP_TEMPO_BUTTON,
 	SECTION,
-	MELODIC_INSTRUMENT_INPUT,
+	INSTRUMENT_INPUT,
 	DRUM_INPUT,
 };
 
@@ -646,6 +646,7 @@ enum class GlobalMIDICommand {
 	UNDO,
 	REDO,
 	FILL,
+	TRANSPOSE,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -665,6 +666,13 @@ enum class MIDIFollowChannelType : uint8_t {
 	FEEDBACK,
 };
 constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::FEEDBACK) + 1;
+
+enum class MIDITransposeControlMethod : uint8_t {
+	INKEY,
+	CHROMATIC,
+	CHORD,
+};
+constexpr auto kNumMIDITransposeControlMethods = util::to_underlying(MIDITransposeControlMethod::CHORD) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
@@ -939,9 +947,13 @@ constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
+constexpr int32_t NUM_INTERNAL_DESTS = 1;
+
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 constexpr int32_t IS_A_PC = IS_A_CC + NUM_CHANNELS; // CC128 is max.
-constexpr int32_t MIDI_TYPE_MAX = IS_A_PC + NUM_CHANNELS;
+constexpr int32_t IS_A_DEST = IS_A_PC + NUM_CHANNELS;
+constexpr int32_t MIDI_CHANNEL_TRANSPOSE = IS_A_DEST + 1;
+constexpr int32_t MIDI_TYPE_MAX = IS_A_DEST + NUM_INTERNAL_DESTS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 constexpr int32_t kMIDIOutputFilterNoMPE = 0;

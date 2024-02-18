@@ -407,6 +407,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_UPSTREAM_USB_PORT_1, "upstream USB port 1"},
         {STRING_FOR_HELLO_SYSEX, "hello sysex"},
         {STRING_FOR_OTHER_SCALE, "Other scale"},
+        {STRING_FOR_CANT_CHANGE_SCALE, "Can't change scale"},
         {STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE, "Custom scale with more than 7 notes in use"},
         {STRING_FOR_CLIP_CLEARED, "Clip cleared"},
         {STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS, "No further unused instrument numbers"},
@@ -491,6 +492,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, "Unarm"},
         {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC, "Create + Record"},
         {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
+        {STRING_FOR_DEFAULT_UI_KB_CONTROLS, "Sidebar controls"},
+        {STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, "Momentary Velocity"},
+        {STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, "Momentary Modwheel"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "In-Key"},
@@ -877,6 +881,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FILTERS, "Filters"},
 
         {STRING_FOR_CANT_TRANSPOSE, "Can't Transpose: No Scale Mode Clips"},
+
+        // MIDI transpose strings
+        {STRING_FOR_TRANSPOSE_INKEY, "In Key"},
+        {STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
+        {STRING_FOR_TRANSPOSE_CHORD, "Chord"},
+        {STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
     },
 };
 } // namespace deluge::l10n::built_in
