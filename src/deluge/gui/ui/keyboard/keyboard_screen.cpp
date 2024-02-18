@@ -680,7 +680,7 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 }
 
 void KeyboardScreen::flashDefaultRootNote() {
-	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DEFAULT_ROOT_NOTE, kFlashTime);
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	requestRendering();
 }

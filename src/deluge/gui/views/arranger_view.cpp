@@ -220,7 +220,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
 		if (on) {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 			blinkOn = true;
 		}
 		else {
@@ -1678,7 +1678,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 			whichRowsNeedReRendering = 0xFFFFFFFF;
 		}
 		uiNeedsRendering(ui, whichRowsNeedReRendering, 0);
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		actionLogger.closeAction(ActionType::CLIP_INSTANCE_EDIT);
 	}
 
@@ -1904,7 +1904,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	PadLEDs::explodeAnimationTargetUI = this;
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
 
@@ -1942,7 +1942,7 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 itsInvalid:
 				pressedClipInstanceIsInValidPosition = false;
 				blinkOn = false;
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 				return false;
 			}
 
@@ -2046,7 +2046,7 @@ itsInvalid:
 	pressedClipInstanceXScrollWhenLastInValidPosition = xScroll;
 	rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	return true;
 }
 
@@ -2316,7 +2316,7 @@ ActionResult ArrangerView::timerCallback() {
 			// use root UI in case this is called from performance view
 			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
 		break;
 
@@ -2328,7 +2328,7 @@ ActionResult ArrangerView::timerCallback() {
 			// use root UI in case this is called from performance view
 			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
 		break;
 	}

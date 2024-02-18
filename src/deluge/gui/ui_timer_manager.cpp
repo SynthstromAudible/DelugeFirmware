@@ -35,6 +35,8 @@
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 
+#include <algorithm>
+
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 }
@@ -45,10 +47,6 @@ extern void batteryLEDBlink();
 
 UITimerManager::UITimerManager() {
 	timeNextEvent = 2147483647;
-
-	for (int32_t i = 0; i < NUM_TIMERS; i++) {
-		timers[i].active = false;
-	}
 }
 
 void UITimerManager::routine() {
@@ -58,25 +56,26 @@ void UITimerManager::routine() {
 		return;
 	}
 
-	for (int32_t i = 0; i < NUM_TIMERS; i++) {
-		if (timers[i].active) {
+	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
+		auto name = static_cast<TimerName>(i);
+		auto& timer = timers_[i];
+		if (timer.active) {
 
-			int32_t timeTil = (uint32_t)(timers[i].triggerTime - AudioEngine::audioSampleTimer);
+			int32_t timeTil = (uint32_t)(timer.triggerTime - AudioEngine::audioSampleTimer);
 			if (timeTil < 0) {
+				timer.active = false;
 
-				timers[i].active = false;
+				switch (name) {
 
-				switch (i) {
-
-				case TIMER_TAP_TEMPO_SWITCH_OFF:
+				case TimerName::TAP_TEMPO_SWITCH_OFF:
 					playbackHandler.tapTempoAutoSwitchOff();
 					break;
 
-				case TIMER_MIDI_LEARN_FLASH:
+				case TimerName::MIDI_LEARN_FLASH:
 					view.midiLearnFlash();
 					break;
 
-				case TIMER_DEFAULT_ROOT_NOTE:
+				case TimerName::DEFAULT_ROOT_NOTE:
 					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
@@ -85,14 +84,14 @@ void UITimerManager::routine() {
 					}
 					break;
 
-				case TIMER_PLAY_ENABLE_FLASH: {
+				case TimerName::PLAY_ENABLE_FLASH: {
 					RootUI* rootUI = getRootUI();
 					if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
 						sessionView.flashPlayRoutine();
 					}
 					break;
 				}
-				case TIMER_DISPLAY:
+				case TimerName::DISPLAY:
 					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 						oled->timerRoutine();
@@ -103,36 +102,36 @@ void UITimerManager::routine() {
 
 					break;
 
-				case TIMER_LED_BLINK:
-				case TIMER_LED_BLINK_TYPE_1:
-					indicator_leds::ledBlinkTimeout(i - TIMER_LED_BLINK);
+				case TimerName::LED_BLINK:
+				case TimerName::LED_BLINK_TYPE_1:
+					indicator_leds::ledBlinkTimeout(i - util::to_underlying(TimerName::LED_BLINK));
 					break;
 
-				case TIMER_LEVEL_INDICATOR_BLINK:
+				case TimerName::LEVEL_INDICATOR_BLINK:
 					indicator_leds::blinkKnobIndicatorLevelTimeout();
 					break;
 
-				case TIMER_SHORTCUT_BLINK:
+				case TimerName::SHORTCUT_BLINK:
 					soundEditor.blinkShortcut();
 					break;
 
-				case TIMER_INTERPOLATION_SHORTCUT_BLINK:
+				case TimerName::INTERPOLATION_SHORTCUT_BLINK:
 					automationView.blinkInterpolationShortcut();
 					break;
 
-				case TIMER_MATRIX_DRIVER:
+				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;
 
-				case TIMER_UI_SPECIFIC: {
+				case TimerName::UI_SPECIFIC: {
 					ActionResult result = getCurrentUI()->timerCallback();
 					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-						timers[i].active = true; // Come back soon and try again.
+						timer.active = true; // Come back soon and try again.
 					}
 					break;
 				}
 
-				case TIMER_DISPLAY_AUTOMATION:
+				case TimerName::DISPLAY_AUTOMATION:
 					if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 
 						automationView.displayAutomation();
@@ -143,7 +142,7 @@ void UITimerManager::routine() {
 					}
 					break;
 
-				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
+				case TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
 					// midi follow and midi feedback enabled
 					// re-send midi cc's because learned parameter values may have changed
 					// only send updates when playback is active
@@ -175,41 +174,41 @@ void UITimerManager::routine() {
 					}
 					break;
 
-				case TIMER_READ_INPUTS:
+				case TimerName::READ_INPUTS:
 					inputRoutine();
 					break;
 
-				case TIMER_BATT_LED_BLINK:
+				case TimerName::BATT_LED_BLINK:
 					batteryLEDBlink();
 					break;
 
-				case TIMER_GRAPHICS_ROUTINE:
+				case TimerName::GRAPHICS_ROUTINE:
 					if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) > kNumBytesInColUpdateMessage) {
 						getCurrentUI()->graphicsRoutine();
 					}
-					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
+					setTimer(TimerName::GRAPHICS_ROUTINE, 15);
 					break;
 
-				case TIMER_OLED_LOW_LEVEL:
+				case TimerName::OLED_LOW_LEVEL:
 					if (deluge::hid::display::have_oled_screen) {
 						oledLowLevelTimerCallback();
 					}
 					break;
 
-				case TIMER_OLED_CONSOLE:
+				case TimerName::OLED_CONSOLE:
 					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 						oled->consoleTimerEvent();
 					}
 					break;
 
-				case TIMER_OLED_SCROLLING_AND_BLINKING:
+				case TimerName::OLED_SCROLLING_AND_BLINKING:
 					if (display->haveOLED()) {
 						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
 					}
 					break;
 
-				case TIMER_SYSEX_DISPLAY:
+				case TimerName::SYSEX_DISPLAY:
 					HIDSysex::sendDisplayIfChanged();
 					break;
 				}
@@ -220,44 +219,46 @@ void UITimerManager::routine() {
 	workOutNextEventTime();
 }
 
-void UITimerManager::setTimer(int32_t i, int32_t ms) {
-	setTimerSamples(i, ms * 44);
+void UITimerManager::setTimer(TimerName which, int32_t ms) {
+	setTimerSamples(which, ms * 44);
 }
 
-void UITimerManager::setTimerSamples(int32_t i, int32_t samples) {
-	timers[i].triggerTime = AudioEngine::audioSampleTimer + samples;
-	timers[i].active = true;
+void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
+	auto& timer = getTimer(which);
+	timer.triggerTime = AudioEngine::audioSampleTimer + samples;
+	timer.active = true;
 
 	int32_t oldTimeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (samples < oldTimeTilNextEvent) {
-		timeNextEvent = timers[i].triggerTime;
+		timeNextEvent = timer.triggerTime;
 	}
 }
 
-void UITimerManager::setTimerByOtherTimer(int32_t i, int32_t j) {
-	timers[i].triggerTime = timers[j].triggerTime;
-	timers[i].active = true;
+void UITimerManager::setTimerByOtherTimer(TimerName which, TimerName fromTimer) {
+	auto& timer = getTimer(which);
+	auto& srcTimer = getTimer(fromTimer);
+	timer.triggerTime = srcTimer.triggerTime;
+	timer.active = true;
 }
 
-void UITimerManager::unsetTimer(int32_t i) {
-	timers[i].active = false;
+void UITimerManager::unsetTimer(TimerName which) {
+	getTimer(which).active = false;
 	workOutNextEventTime();
 }
 
-bool UITimerManager::isTimerSet(int32_t i) {
-	return timers[i].active;
+bool UITimerManager::isTimerSet(TimerName which) {
+	return getTimer(which).active;
 }
 
 void UITimerManager::workOutNextEventTime() {
 
 	int32_t timeTilNextEvent = 2147483647;
 
-	for (int32_t i = 0; i < NUM_TIMERS; i++) {
-		if (timers[i].active) {
-			int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
-			if (timeTil < timeTilNextEvent) {
-				timeTilNextEvent = timeTil;
-			}
+	for (auto& timer : timers_) {
+		if (timer.active) {
+			timeTilNextEvent =
+			    std::min(static_cast<int32_t>(timer.triggerTime) - static_cast<int32_t>(AudioEngine::audioSampleTimer),
+			             timeTilNextEvent);
 		}
 	}
 

@@ -2492,7 +2492,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 
 	indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
 
-	uiTimerManager.setTimer(TIMER_TAP_TEMPO_SWITCH_OFF, 1100);
+	uiTimerManager.setTimer(TimerName::TAP_TEMPO_SWITCH_OFF, 1100);
 }
 
 // Returns whether the message has been used up by a command

@@ -98,7 +98,8 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 		}
 	}
 
-	uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisInitialFlashTime);
+	uiTimerManager.setTimer(static_cast<TimerName>(util::to_underlying(TimerName::LED_BLINK) + blinkingType),
+	                        thisInitialFlashTime);
 }
 
 void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
@@ -113,7 +114,8 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 
 	int32_t thisFlashTime = (blinkingType ? kFastFlashTime : kFlashTime);
 	if (anyActive) {
-		uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
+		uiTimerManager.setTimer(static_cast<TimerName>(util::to_underlying(TimerName::LED_BLINK) + blinkingType),
+		                        thisFlashTime);
 	}
 }
 
@@ -169,7 +171,7 @@ void indicateAlertOnLed(LED led) {
 // this sets the level only if there hasn't been a value update in 500ms
 void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 	whichKnobMetering = whichKnob;
-	if (!uiTimerManager.isTimerSet(TIMER_METER_INDICATOR_BLINK)) {
+	if (!uiTimerManager.isTimerSet(TimerName::METER_INDICATOR_BLINK)) {
 		actuallySetKnobIndicatorLevel(whichKnob, level);
 	}
 }
@@ -178,7 +180,7 @@ void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 // Set level and block metering for 500ms
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	if (whichKnob == whichKnobMetering) {
-		uiTimerManager.setTimer(TIMER_METER_INDICATOR_BLINK, 500);
+		uiTimerManager.setTimer(TimerName::METER_INDICATOR_BLINK, 500);
 	}
 	actuallySetKnobIndicatorLevel(whichKnob, level);
 }
@@ -186,8 +188,8 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 // Just set level
 void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	// If this indicator was blinking, stop it
-	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
-		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
+	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
+		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 	}
 	else {
 		if (level == knobIndicatorLevels[whichKnob]) {
@@ -220,8 +222,8 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 }
 
 void blinkKnobIndicator(int32_t whichKnob) {
-	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK)) {
-		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
+	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK)) {
+		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 		if (whichLevelIndicatorBlinking != whichKnob) {
 			setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64);
 		}
@@ -236,7 +238,7 @@ void blinkKnobIndicator(int32_t whichKnob) {
 void stopBlinkingKnobIndicator(int32_t whichKnob) {
 	if (isKnobIndicatorBlinking(whichKnob)) {
 		levelIndicatorBlinksLeft = 0;
-		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
+		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 	}
 }
 
@@ -245,7 +247,7 @@ void blinkKnobIndicatorLevelTimeout() {
 
 	levelIndicatorBlinkOn = !levelIndicatorBlinkOn;
 	if (--levelIndicatorBlinksLeft) {
-		uiTimerManager.setTimer(TIMER_LEVEL_INDICATOR_BLINK, 20);
+		uiTimerManager.setTimer(TimerName::LEVEL_INDICATOR_BLINK, 20);
 	}
 }
 

@@ -31,15 +31,15 @@ NumericLayerBasicText::~NumericLayerBasicText() {
 void NumericLayerBasicText::isNowOnTop() {
 	if (blinkSpeed) {
 
-		if (blinkSpeed == 1 && uiTimerManager.isTimerSet(TIMER_LED_BLINK)) {
-			uiTimerManager.setTimerByOtherTimer(TIMER_DISPLAY, TIMER_LED_BLINK);
+		if (blinkSpeed == 1 && uiTimerManager.isTimerSet(TimerName::LED_BLINK)) {
+			uiTimerManager.setTimerByOtherTimer(TimerName::DISPLAY, TimerName::LED_BLINK);
 			if (!indicator_leds::ledBlinkState[0]) {
 				currentlyBlanked = !currentlyBlanked; // Cheating
 			}
 		}
 		else {
 			int32_t speed = (blinkSpeed == 1 && !currentlyBlanked) ? kInitialFlashTime : kFlashTime;
-			uiTimerManager.setTimer(TIMER_DISPLAY, speed);
+			uiTimerManager.setTimer(TimerName::DISPLAY, speed);
 		}
 	}
 }
@@ -55,7 +55,7 @@ bool NumericLayerBasicText::callBack() {
 		}
 	}
 
-	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DISPLAY, kFlashTime);
 
 	return false;
 }
