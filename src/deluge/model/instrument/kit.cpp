@@ -674,7 +674,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 }
 
 // not updated for midi follow, this seems dumb and is just left for backwards compatibility
-// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
+/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 

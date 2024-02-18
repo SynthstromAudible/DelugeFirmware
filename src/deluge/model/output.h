@@ -93,6 +93,8 @@ public:
 	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                                    GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                                    int32_t* highestReverbAmountFound) {}
+	
+	/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 	virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
 	                                                   uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
 		return false;
