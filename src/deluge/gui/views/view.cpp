@@ -543,12 +543,12 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	}
 }
 
-void View::instrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
+void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	if (on) {
 		endMidiLearnPressSession(MidiLearn::INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
-		melodicInstrumentPressedForMIDILearn = instrument;
+		instrumentPressedForMIDILearn = instrument;
 		highestMIDIChannelSeenWhileLearning = -1;
 		lowestMIDIChannelSeenWhileLearning = 16;
 	}
@@ -640,7 +640,7 @@ recordDetailsOfLearnedThing:
 
 			uint8_t newBendRanges[2];
 
-			ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+			ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 			    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 			// If we already know this incoming MIDI is on an MPE zone...
@@ -654,7 +654,7 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
-					InstrumentClip* clip = (InstrumentClip*)melodicInstrumentPressedForMIDILearn->activeClip;
+					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->activeClip;
 					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
 						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
@@ -727,11 +727,11 @@ isMPEZone:
 
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->device = fromDevice;
-			melodicInstrumentPressedForMIDILearn->beenEdited(false); // Why again?
+			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
-			if (melodicInstrumentPressedForMIDILearn->type == OutputType::SYNTH) {
+			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-				    fromDevice, (SoundInstrument*)melodicInstrumentPressedForMIDILearn);
+				    fromDevice, (SoundInstrument*)instrumentPressedForMIDILearn);
 			}
 
 			break;
@@ -741,7 +741,7 @@ isMPEZone:
 
 void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 
-	ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+	ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 	    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 	if (paramManager) {
@@ -752,9 +752,8 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
-			        ->addTimelineCounter(melodicInstrumentPressedForMIDILearn->activeClip) // Could be NULL
-			        ->addOtherTwoThingsButNoNoteRow(melodicInstrumentPressedForMIDILearn->toModControllable(),
-			                                        paramManager)
+			        ->addTimelineCounter(instrumentPressedForMIDILearn->activeClip) // Could be NULL
+			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
 			expressionParams->clearValues(modelStack);

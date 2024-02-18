@@ -824,14 +824,11 @@ startHoldingDown:
 					// InstrumentClip
 					else {
 midiLearnMelodicInstrumentAction:
-						if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-						    || clip->output->type == OutputType::CV) {
 
-							if (sdRoutineLock) {
-								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-							}
-							view.instrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
+						if (sdRoutineLock) {
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
+						view.instrumentMidiLearnPadPressed(on, (Instrument*)clip->output);
 					}
 				}
 			}
