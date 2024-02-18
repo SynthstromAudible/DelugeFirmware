@@ -138,10 +138,12 @@ namespace FlashStorage {
 151: automationShift;
 152: automationNudgeNote;
 153: automationDisableAuditionPadShortcuts;
-154: MIDI Transpose ChannelOrZone
-155: MIDI Transpose NoteOrCC
-156-159: MIDI Transpose device / vendor ID
-160: MIDI Traspose Control method.
+154: keyboardFunctionsVelocityGlide;
+155: keyboardFunctionsModwheelGlide;
+156: MIDI Transpose ChannelOrZone
+157: MIDI Transpose NoteOrCC
+158-161: MIDI Transpose device / vendor ID
+162: MIDI Transpose Control method.
 */
 
 uint8_t defaultScale;
@@ -160,6 +162,9 @@ uint8_t defaultBendRange[2] = {2, 48}; // The 48 isn't editable. And the 2 actua
 
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
+
+bool keyboardFunctionsVelocityGlide;
+bool keyboardFunctionsModwheelGlide;
 
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
@@ -565,18 +570,21 @@ void readSettings() {
 		}
 	}
 
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[154] - 1;
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[155] - 1;
-	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
-	/* buffer[157]  \
-	   buffer[158]   device reference above occupies 4 bytes
-	   buffer[159] */
+	keyboardFunctionsVelocityGlide = buffer[154];
+	keyboardFunctionsModwheelGlide = buffer[155];
 
-	if (buffer[160] >= kNumMIDITransposeControlMethods) {
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[156] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[157] - 1;
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[158]);
+	/* buffer[159]  \
+	   buffer[160]   device reference above occupies 4 bytes
+	   buffer[161] */
+
+	if (buffer[162] >= kNumMIDITransposeControlMethods) {
 		MIDITranspose::controlMethod = MIDITransposeControlMethod::INKEY;
 	}
 	else {
-		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[160]);
+		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[162]);
 	}
 }
 
@@ -775,13 +783,16 @@ void writeSettings() {
 	buffer[152] = automationNudgeNote;
 	buffer[153] = automationDisableAuditionPadShortcuts;
 
-	buffer[154] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
-	buffer[155] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
-	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[156]);
-	/* buffer[157]  \
-	   buffer[158]   device reference above occupies 4 bytes
-	   buffer[159] */
-	buffer[160] = util::to_underlying(MIDITranspose::controlMethod);
+	buffer[154] = keyboardFunctionsVelocityGlide;
+	buffer[155] = keyboardFunctionsModwheelGlide;
+
+	buffer[156] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
+	buffer[157] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[158]);
+	/* buffer[159]  \
+	   buffer[160]   device reference above occupies 4 bytes
+	   buffer[161] */
+	buffer[162] = util::to_underlying(MIDITranspose::controlMethod);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

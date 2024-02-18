@@ -17,6 +17,7 @@
 
 #include "mod.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "storage/flash_storage.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
 
@@ -64,7 +65,7 @@ void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		                                                         modelStackWithTimelineCounter);
 		display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 	}
-	else if (!pad.padPressHeld) {
+	else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsModwheelGlide) {
 		mod32 = modMin + pad.y * modStep;
 		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
 		                                                         modelStackWithTimelineCounter);

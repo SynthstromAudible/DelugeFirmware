@@ -219,6 +219,16 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 // called everytime you open up the automation view
 bool AutomationView::opened() {
+	initializeView();
+
+	openedInBackground();
+
+	focusRegained();
+
+	return true;
+}
+
+void AutomationView::initializeView() {
 	navSysId = getNavSysId();
 
 	if (!midiCCShortcutsLoaded) {
@@ -252,21 +262,6 @@ bool AutomationView::opened() {
 			}
 		}
 	}
-
-	resetShortcutBlinking();
-
-	openedInBackground();
-
-	if (!onArrangerView) {
-		// only applies to instrument clips (not audio)
-		if (clip) {
-			InstrumentClipMinder::opened();
-		}
-	}
-
-	focusRegained();
-
-	return true;
 }
 
 // Initializes some stuff to begin a new editing session
@@ -294,6 +289,13 @@ void AutomationView::focusRegained() {
 			instrumentClipView.setLedStates();
 		}
 	}
+
+	// blink timer got reset by view.focusRegained() above
+	parameterShortcutBlinking = false;
+	// remove patch cable blink frequencies
+	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
+	// possibly restablish parameter shortcut blinking (if parameter is selected)
+	blinkShortcuts();
 }
 
 void AutomationView::openedInBackground() {
@@ -400,6 +402,14 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	performActualRender(whichRows, &image[0][0], occupancyMask, currentSong->xScroll[navSysId],
 	                    currentSong->xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
 
+	blinkShortcuts();
+
+	PadLEDs::renderingLock = false;
+
+	return true;
+}
+
+void AutomationView::blinkShortcuts() {
 	if (!encoderAction) {
 		int32_t lastSelectedParamShortcutX = kNoSelection;
 		int32_t lastSelectedParamShortcutY = kNoSelection;
@@ -408,6 +418,7 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
 		}
 		else {
+			Clip* clip = getCurrentClip();
 			lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
 			lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
 		}
@@ -437,10 +448,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
 		encoderAction = false;
 	}
-
-	PadLEDs::renderingLock = false;
-
-	return true;
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
@@ -2952,7 +2959,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	}
 	clip->lastSelectedParamID = newCC;
 
-	getLastSelectedMIDIParamShortcut(clip);
+	getLastSelectedParamShortcut(clip);
 
 	// update name on display, the LED mod indicators, and refresh the grid
 	lastPadSelectedKnobPos = kNoSelection;
@@ -2978,15 +2985,38 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 }
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
-void AutomationView::getLastSelectedMIDIParamShortcut(Clip* clip) {
+void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
-				clip->lastSelectedParamShortcutX = x;
-				clip->lastSelectedParamShortcutY = y;
-				paramShortcutFound = true;
-				break;
+			if (onArrangerView) {
+				if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
+					currentSong->lastSelectedParamShortcutX = x;
+					currentSong->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
+				}
+			}
+			else if (clip->output->type == OutputType::MIDI_OUT) {
+				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+					clip->lastSelectedParamShortcutX = x;
+					clip->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
+				}
+			}
+			else {
+				if ((clip->lastSelectedParamKind == params::Kind::PATCHED
+				     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
+				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
+				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)) {
+					clip->lastSelectedParamShortcutX = x;
+					clip->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
+				}
 			}
 		}
 		if (paramShortcutFound) {
@@ -2994,8 +3024,14 @@ void AutomationView::getLastSelectedMIDIParamShortcut(Clip* clip) {
 		}
 	}
 	if (!paramShortcutFound) {
-		clip->lastSelectedParamShortcutX = kNoSelection;
-		clip->lastSelectedParamShortcutY = kNoSelection;
+		if (onArrangerView) {
+			currentSong->lastSelectedParamShortcutX = kNoSelection;
+			currentSong->lastSelectedParamShortcutY = kNoSelection;
+		}
+		else {
+			clip->lastSelectedParamShortcutX = kNoSelection;
+			clip->lastSelectedParamShortcutY = kNoSelection;
+		}
 	}
 }
 

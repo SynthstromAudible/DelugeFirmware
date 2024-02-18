@@ -43,6 +43,7 @@
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cstring>
 
 extern "C" {
@@ -497,15 +498,26 @@ void InstrumentClipMinder::cycleThroughScales() {
 	}
 }
 
-void InstrumentClipMinder::setScale(int32_t newScale) {
-	newScale = currentSong->setPresetScale(newScale);
-	if (newScale >= NUM_PRESET_SCALES) {
-		display->displayPopup(
-		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
+// Returns if the scale could be changed or not
+bool InstrumentClipMinder::setScale(int32_t newScale) {
+	int32_t calculatedScale = currentSong->setPresetScale(newScale);
+	if (calculatedScale >= NUM_PRESET_SCALES) {
+		if (display->haveOLED() && newScale < NUM_PRESET_SCALES) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append(presetScaleNames[newScale]);
+			popupMsg.append(":\n");
+			popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+			display->displayPopup(popupMsg.c_str());
+		}
+		else {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+		}
+		return false;
 	}
 	else {
 		displayScaleName(newScale);
 	}
+	return true;
 }
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {

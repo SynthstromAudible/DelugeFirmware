@@ -375,17 +375,21 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 	**6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg, rudiments, ... ).  
 	**7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.  
 
-#### 4.4.1.5 - Selectable Sidebar Functions
-  - ([#255]) In the keyboard view, a function can be mapped to each column of pads in the sidebar.
-    ([#255]) In the keyboard view, each column of pads can be assigned a function.
-    You can change which function is selected by holding the top pad and turning the horizontal
-    encoder. Functions include:
+#### 4.4.1.5 - Selectable Sidebar Controls
+  - ([#255]) In the keyboard view, a control can be mapped to each column of pads in the sidebar.
+    ([#255]) In the keyboard view, each column of pads can be assigned a control.
+    You can change which control is selected by holding the top pad and turning the horizontal
+    encoder. Controls include:
     - Velocity (VEL - Red): Low velocity is on the bottom pad and high on the top pad scaled linearly.
       The range can be adjusted by holding the top or bottom pad and scrolling the vertical encoder.
       Hold a pad down to change the velocity of notes played while held. The velocity will return to
       default when you release the pad. Short press a pad to set a new default velocity.
-    - Modwheel (MOD - Blue): This is function controls the modwheel (Y) setting and has the same
-      controls as the velocity function.
+	  This is called "Momentary" mode and is the default. You can disable it from the main menu:
+	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Velocity (MVEL)
+    - Modwheel (MOD - Blue): This controls the modwheel (Y) setting and has the same
+      controls as the velocity control. Its behaviour is set to "Momentary" by default. You can
+	  disable it from the main menu:
+	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Modwheel (MMOD)
     - Chords (CHRD - Green): Press and hold or tap to either temporarily set a
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
@@ -397,7 +401,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - Scale Mode (SMOD - Yellow): Press and hold a pad to temporarily change the scale of the
       keyboard to the selected scale mode. Tap a scale mode to make it the new default. The scale
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
-      holding it down and turning the vertical encoder.
+      holding it down and turning the vertical encoder. If the scale that is going to be set
+	  can't fit/transpose the existing notes from your clips, screen will show `Can't`.
 
 #### 4.4.2 - New scales
 
