@@ -17,10 +17,13 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 
@@ -50,6 +53,12 @@ void UnpatchedParam::writeCurrentValue() {
 	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
+
+	if (getRootUI() == &automationView) {
+		int32_t p = getP();
+		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+	}
 }
 
 int32_t UnpatchedParam::getFinalValue() {

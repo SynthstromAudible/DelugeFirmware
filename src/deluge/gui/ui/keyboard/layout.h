@@ -118,6 +118,9 @@ protected:
 
 	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
 
+public:
+	uint8_t velocity = 64;
+
 protected:
 	NotesState currentNotesState;
 };

@@ -10,7 +10,7 @@ import textwrap
 from distutils.dir_util import copy_tree
 from pathlib import Path
 
-PROG_NAME = sys.argv[0].split('.')[0]
+PROG_NAME = sys.argv[0].split(".")[0]
 
 SCRIPTS_DIR = Path("./scripts")
 TASKS_DIR = SCRIPTS_DIR / "tasks"
@@ -29,13 +29,17 @@ import util
 
 
 def setup():
-    if sys.platform == 'win32' or (sys.platform == 'cosmo' and cosmo.kernel == 'nt'):
-        dbtenvcmd = str(SCRIPTS_DIR / 'toolchain' / 'dbtenv.cmd').replace(os.sep, ntpath.sep)
-        dbtenv = util.get_environment_from_batch_command([dbtenvcmd, 'env'])
+
+    if sys.platform == "win32" or (sys.platform == "cosmo" and cosmo.kernel == "nt"):
+        dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.cmd").replace(
+            os.sep, ntpath.sep
+        )
+        dbtenv = util.get_environment_from_batch_command([dbtenvcmd, "env"])
         # print("Setup Windows DBT Env")
     else:
-        dbtenvcmd = str(SCRIPTS_DIR / 'toolchain' / 'dbtenv.sh').encode()
-        subprocess.run([b'bash', dbtenvcmd])
+        dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.sh").encode()
+        subprocess.run([b"bash", dbtenvcmd])
+
 
 
 def setup_vscode():
@@ -46,7 +50,13 @@ def setup_vscode():
 def print_tasks_usage(tasks):
     grouped = {}
     for name, stem in tasks.items():
-        argparser = importlib.import_module(stem).argparser()
+        try:
+            module = importlib.import_module(stem)
+            argparser = module.argparser()
+        except:
+            argparser = argparse.ArgumentParser(
+                prog=name, description="FAILED TO LOAD MODULE"
+            )
         try:
             group = argparser.group
         except AttributeError:
@@ -54,14 +64,15 @@ def print_tasks_usage(tasks):
         grouped[group] = grouped.get(group, []) + [argparser]
 
     for group, argparsers in sorted(grouped.items()):
-        print(textwrap.indent(group + ':', ' ' * 2))
+        print(textwrap.indent(group + ":", " " * 2))
         for argparser in argparsers:
             # get our argparsers (lazy import)
             usage: str = argparser.format_usage().strip().removeprefix("usage: ")
             # usage = f"{PROG_NAME} " + usage
-            print(textwrap.indent(usage, ' ' * 4))
+
+            print(textwrap.indent(usage, " " * 4))
             if argparser.description:
-                print(textwrap.indent(argparser.description, ' ' * 6))
+                print(textwrap.indent(argparser.description, " " * 6))
 
 
 def print_help(argparser: argparse.ArgumentParser, tasks: dict):
@@ -77,8 +88,11 @@ def main() -> int:
         prog=f"{PROG_NAME}" or "task",
         add_help=False,
     )
-    parser.add_argument('-h', '--help', help='print this help message', action='store_true')
-    parser.add_argument("subcommand", nargs='?', metavar="<subcommand>")
+
+    parser.add_argument(
+        "-h", "--help", help="print this help message", action="store_true"
+    )
+    parser.add_argument("subcommand", nargs="?", metavar="<subcommand>")
 
     # Specify the folder containing the task files
     task_files = TASKS_DIR.glob("task-*.py")
@@ -118,7 +132,7 @@ def main() -> int:
         print_tasks_usage(tasks)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         retcode = main()
         sys.exit(retcode)

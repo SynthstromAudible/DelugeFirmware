@@ -101,7 +101,7 @@ public:
 	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
-	void unassignStuff();
+	void unassignStuff(bool deletingSong);
 	uint32_t getPriorityRating();
 	void expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);

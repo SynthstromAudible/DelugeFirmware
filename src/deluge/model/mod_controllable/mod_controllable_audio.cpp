@@ -1799,7 +1799,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						// for the same clip active in automation view
 						int32_t id = modelStackWithParam->paramId;
 						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						possiblyRefreshAutomationEditorGrid(clip, kind, id);
+						automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
 				// placeholder: if support is added for midi learning to song params, then you will need
@@ -1893,7 +1893,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 										// pass the current clip because you want to check that you're editing the param
 										// for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
-										    possiblyRefreshAutomationEditorGrid(clip, kind, id);
+										    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
 									}
 									else {
 										editingParamInAutomationOrPerformanceView =
@@ -2158,27 +2158,6 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 	return newKnobPos;
 }
 
-// if you're in automation view and editing the same parameter that was just updated
-// by a learned midi knob, then re-render the pads on the automation editor grid
-bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind kind, int32_t id) {
-	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
-		if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
-			doRefreshGrid = true;
-		}
-	}
-	else if (automationView.onArrangerView) {
-		if ((currentSong->lastSelectedParamID == id) && (currentSong->lastSelectedParamKind == kind)) {
-			doRefreshGrid = true;
-		}
-	}
-	if (doRefreshGrid) {
-		uiNeedsRendering(&automationView);
-		return true;
-	}
-	return false;
-}
-
 // if you had selected a parameter in performance view and the parameter name
 // and current value is displayed on the screen, don't show pop-up as the display already shows it
 // this checks that the param displayed on the screen in performance view
@@ -2338,23 +2317,10 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 
 void ModControllableAudio::switchDelayPingPong() {
 	delay.pingPong = !delay.pingPong;
-
-	char const* displayText;
-	switch (delay.pingPong) {
-	case 0:
-		displayText = "Normal delay";
-		break;
-
-	default:
-		displayText = "Ping-pong delay";
-		break;
-	}
-	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
 	delay.analog = !delay.analog;
-	display->displayPopup(getDelayTypeDisplayName());
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
@@ -2380,7 +2346,6 @@ void ModControllableAudio::switchDelaySyncType() {
 		delay.syncType = SYNC_TYPE_TRIPLET;
 		break;
 	}
-	display->displayPopup(getDelaySyncTypeDisplayName());
 }
 
 char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
@@ -2397,9 +2362,6 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
-	char displayName[30];
-	getDelaySyncLevelDisplayName(displayName);
-	display->displayPopup(displayName);
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
@@ -2410,9 +2372,33 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	strncpy(displayName, buffer.data(), 29);
 }
 
+char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
+	using enum deluge::l10n::String;
+	switch (currentFilterType) {
+	case FilterType::LPF:
+		return l10n::get(STRING_FOR_LPF);
+	case FilterType::HPF:
+		return l10n::get(STRING_FOR_HPF);
+	case FilterType::EQ:
+		return l10n::get(STRING_FOR_EQ);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
 void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	display->displayPopup(getLPFModeDisplayName());
+}
+
+char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
+	switch (currentFilterType) {
+	case FilterType::LPF:
+		return getLPFModeDisplayName();
+	case FilterType::HPF:
+		return getHPFModeDisplayName();
+	default:
+		return l10n::get(deluge::l10n::String::STRING_FOR_NONE);
+	}
 }
 
 char const* ModControllableAudio::getLPFModeDisplayName() {
@@ -2437,7 +2423,6 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	display->displayPopup(getHPFModeDisplayName());
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
@@ -2571,31 +2556,15 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	return anythingFound;
 }
 
-char const* ModControllableAudio::getSidechainDisplayName() {
-	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-	}
-	else {
-		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	}
-	using enum deluge::l10n::String;
-	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-		return l10n::get(STRING_FOR_SLOW);
-	}
-	else {
-		return l10n::get(STRING_FOR_FAST);
-	}
-}
-
-void ModControllableAudio::displayLPFMode(bool on) {
+void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
 	if (display->haveOLED()) {
 		if (on) {
 			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("LPF: ");
-			popupMsg.append(getLPFModeDisplayName());
-
+			popupMsg.append(getFilterTypeDisplayName(currentFilterType));
+			if (currentFilterType != FilterType::EQ) {
+				popupMsg.append("\n");
+				popupMsg.append(getFilterModeDisplayName(currentFilterType));
+			}
 			display->popupText(popupMsg.c_str());
 		}
 		else {
@@ -2604,33 +2573,10 @@ void ModControllableAudio::displayLPFMode(bool on) {
 	}
 	else {
 		if (on) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LPF));
+			display->displayPopup(getFilterTypeDisplayName(currentFilterType));
 		}
 		else {
-			display->displayPopup(getLPFModeDisplayName());
-		}
-	}
-}
-
-void ModControllableAudio::displayHPFMode(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("HPF: ");
-			popupMsg.append(getHPFModeDisplayName());
-
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
-	}
-	else {
-		if (on) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
-		}
-		else {
-			display->displayPopup(getHPFModeDisplayName());
+			display->displayPopup(getFilterModeDisplayName(currentFilterType));
 		}
 	}
 }
@@ -2650,10 +2596,10 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				popupMsg.append(displayName);
 			}
 			else {
-				popupMsg.append(getDelayTypeDisplayName());
-
-				popupMsg.append("\nPing pong: ");
+				popupMsg.append("Ping pong: ");
 				popupMsg.append(getDelayPingPongStatusDisplayName());
+				popupMsg.append("\n");
+				popupMsg.append(getDelayTypeDisplayName());
 			}
 
 			display->popupText(popupMsg.c_str());
@@ -2676,21 +2622,69 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		}
 		else {
 			if (on) {
-				display->displayPopup(getDelayTypeDisplayName());
+				display->displayPopup(getDelayPingPongStatusDisplayName());
 			}
 			else {
-				display->displayPopup(getDelayPingPongStatusDisplayName());
+				display->displayPopup(getDelayTypeDisplayName());
 			}
 		}
 	}
 }
 
 char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
+	using enum deluge::l10n::String;
 	switch (delay.pingPong) {
-		using enum deluge::l10n::String;
 	case 0:
 		return l10n::get(STRING_FOR_DISABLED);
 	default:
 		return l10n::get(STRING_FOR_ENABLED);
+	}
+}
+
+void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
+	// Sidechain
+	if (display->haveOLED()) {
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			// Sidechain
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
+
+			popupMsg.append("\n");
+
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		if (on) {
+			display->displayPopup(getSidechainDisplayName());
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
+char const* ModControllableAudio::getSidechainDisplayName() {
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+	using enum deluge::l10n::String;
+	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST);
 	}
 }

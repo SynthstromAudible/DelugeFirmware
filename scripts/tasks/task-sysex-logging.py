@@ -56,14 +56,20 @@ def sysex_console(port):
     midiout.open_port(port)
 
     with midiout:
-        data = bytearray(6)
+        data = bytearray(9)
+        # main Deluge header
         data[0] = 0xF0  # sysex message
-        data[1] = 0x7D  # deluge (midi_engine.cpp midiSysexReceived)
-        data[2] = 0x03  # debug namespace
-        data[3] = 0x00  # 0x00 is the command for sysex logging configuration
-        data[4] = 0x01  # 0x01 = enable, 0x00 = disable
-        data[5] = 0xF7
+        data[1] = 0x00
+        data[2] = 0x21
+        data[3] = 0x7B
+        data[4] = 0x01
+
+        data[5] = 0x03  # debug namespace
+        data[6] = 0x00  # 0x00 is the command for sysex logging configuration
+        data[7] = 0x01  # 0x01 = enable, 0x00 = disable
+        data[8] = 0xF7
         midiout.send_message(data)
+    del midiout
 
     midiin = rtmidi.MidiIn()
     midiin.open_port(port)
@@ -76,12 +82,18 @@ def sysex_console(port):
             (msg, _) = msg_and_dt
             if (
                 msg[0] == 0xF0
-                and len(msg) > 5
-                and msg[0:5]
+                and len(msg) > 8
+                and msg[0:8]
                 == [
+                    # main Deluge sysex header
                     0xF0,
-                    0x7D,
+                    0x00,
+                    0x21,
+                    0x7B,
+                    0x01,
+                    # debug namespace
                     0x03,
+                    # debug log message command
                     0x40,
                     0x00,
                 ]
@@ -91,7 +103,7 @@ def sysex_console(port):
                 print(decoded)
         else:
             # add a short sleep so the while loop doesn't hammer your cpu
-            time.sleep(0.001)
+            time.sleep(0.01)
 
 
 def main():

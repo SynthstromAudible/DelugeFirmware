@@ -19,6 +19,11 @@
 - Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
+- Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
+- Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
+- Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
+- Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
+- Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter the `AUTOMATION VIEW EDITOR`.
 - Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 - Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
 - Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with Affect Entire enabled.
@@ -29,7 +34,8 @@
 - Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger, Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and turn `▼︎▲︎` to transpose the clips by +/- 1 semitone). The number of semitones transposed is customizable (Press shift and turn `▼︎▲︎`). After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
-
+- Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling select.
+  
 In addition, a number of improvements have been made to how the OLED display is used:
 
 - Added parameter name to Mod (Gold) Encoder popups.

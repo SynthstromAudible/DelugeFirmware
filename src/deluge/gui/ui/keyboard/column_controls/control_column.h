@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,18 +17,21 @@
 
 #pragma once
 
-#include <cstdint>
+#include "gui/colour/rgb.h"
+#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/notes_state.h"
+#include "model/model_stack.h"
 
-class MIDIDevice;
+namespace deluge::gui::ui::keyboard::controls {
 
-#include "definitions_cxx.hpp"
-namespace Debug {
+constexpr uint32_t kVelModShift = 24;
 
-void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
-void sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl);
-#ifdef ENABLE_SYSEX_LOAD
-void loadPacketReceived(uint8_t* data, int32_t len);
-void loadCheckAndRun(uint8_t* data, int32_t len);
-#endif
+class ControlColumn {
+public:
+	virtual void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) = 0;
+	virtual bool handleVerticalEncoder(int8_t pad, int32_t offset) = 0;
+	virtual void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
+	                       KeyboardLayout* layout) = 0;
+};
 
-} // namespace Debug
+} // namespace deluge::gui::ui::keyboard::controls

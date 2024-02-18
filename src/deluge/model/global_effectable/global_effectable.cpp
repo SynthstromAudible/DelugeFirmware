@@ -71,8 +71,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
-	    889516852); // 3 quarters of the way up
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
@@ -98,25 +97,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 
 	// LPF/HPF/EQ
 	if (whichModButton == 1) {
-		currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
-		switch (currentFilterType) {
-		case FilterType::LPF:
-			displayLPFMode(on);
-			break;
-
-		case FilterType::HPF:
-			displayHPFMode(on);
-			break;
-
-		case FilterType::EQ:
-			if (on) {
-				display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
-			}
-			else {
-				display->cancelPopup();
-			}
-			break;
-		}
+		displayFilterSettings(on, currentFilterType);
 	}
 	// Delay
 	else if (whichModButton == 3) {
@@ -278,31 +259,16 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
-				std::string_view displayText;
-				switch (modFXType) {
-				case ModFXType::FLANGER:
-					displayText = l10n::getView(STRING_FOR_FLANGER);
-					break;
-
-				case ModFXType::PHASER:
-					displayText = l10n::getView(STRING_FOR_PHASER);
-					break;
-
-				case ModFXType::CHORUS:
-					displayText = l10n::getView(STRING_FOR_CHORUS);
-					break;
-
-				case ModFXType::CHORUS_STEREO:
-					displayText = l10n::getView(STRING_FOR_STEREO_CHORUS);
-					break;
-				case ModFXType::GRAIN:
-					displayText = l10n::getView(STRING_FOR_GRAIN);
-					break;
-				case ModFXType::NONE:
-					__builtin_unreachable();
-				}
-				display->displayPopup(displayText.data());
 				ensureModFXParamIsValid();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayModFXSettings(on);
+				}
+				else {
+					display->displayPopup(getModFXTypeDisplayName());
+				}
 				return true;
 			}
 			else {
@@ -315,21 +281,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
 				ensureModFXParamIsValid();
 
-				std::string_view displayText;
-				switch (currentModFXParam) {
-				case ModFXParam::DEPTH:
-					displayText = l10n::getView(STRING_FOR_DEPTH);
-					break;
-
-				case ModFXParam::FEEDBACK:
-					displayText = l10n::getView(STRING_FOR_FEEDBACK);
-					break;
-
-				case ModFXParam::OFFSET:
-					displayText = l10n::getView(STRING_FOR_OFFSET);
-					break;
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayModFXSettings(on);
 				}
-				display->displayPopup(displayText.data());
+				else {
+					display->displayPopup(getModFXParamDisplayName());
+				}
+				return true;
 			}
 
 			return false;
@@ -343,21 +303,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				currentFilterType =
 				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % kNumFilterTypes);
 
-				std::string_view displayText;
-				switch (currentFilterType) {
-				case FilterType::LPF:
-					displayText = l10n::getView(STRING_FOR_LPF);
-					break;
-
-				case FilterType::HPF:
-					displayText = l10n::getView(STRING_FOR_HPF);
-					break;
-
-				case FilterType::EQ:
-					displayText = l10n::getView(STRING_FOR_EQ);
-					break;
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayFilterSettings(on, currentFilterType);
 				}
-				display->displayPopup(displayText.data());
+				else {
+					display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+				}
+				return true;
 			}
 
 			return false;
@@ -366,10 +320,28 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				if (currentFilterType == FilterType::LPF) {
 					switchLPFMode();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayFilterSettings(on, currentFilterType);
+					}
+					else {
+						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+					}
 					return true;
 				}
 				else if (currentFilterType == FilterType::HPF) {
 					switchHPFMode();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayFilterSettings(on, currentFilterType);
+					}
+					else {
+						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+					}
 					return true;
 				}
 				else {
@@ -390,9 +362,27 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 				    == RuntimeFeatureStateToggle::On) {
 					switchDelaySyncType();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelaySyncTypeDisplayName());
+					}
 				}
 				else {
 					switchDelayPingPong();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelayPingPongStatusDisplayName());
+					}
 				}
 				return true;
 			}
@@ -405,9 +395,29 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 				    == RuntimeFeatureStateToggle::On) {
 					switchDelaySyncLevel();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						char displayName[30];
+						getDelaySyncLevelDisplayName(displayName);
+						display->displayPopup(displayName);
+					}
 				}
 				else {
 					switchDelayAnalog();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelayTypeDisplayName());
+					}
 				}
 				return true;
 			}
@@ -417,26 +427,51 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 	}
 
-	// Reverb / sidechain section
+	// Reverb / compressor section
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				// if we're in full move/editingComp then we cycle through the comp params
+				// if we're in full mode/editingComp then we cycle through the comp params
 				// otherwise cycle reverb sizes
 				if (!editingComp) {
 					view.cycleThroughReverbPresets();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayCompressorAndReverbSettings(on);
+					}
+					else {
+						display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+					}
 				}
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					display->displayPopup(getCompressorParamDisplayName());
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayCompressorAndReverbSettings(on);
+					}
+					else {
+						display->displayPopup(getCompressorParamDisplayName());
+					}
 				}
 			}
 		}
 		else {
 			if (on) {
 				editingComp = !editingComp;
-				display->displayPopup(getCompressorModeDisplayName());
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayCompressorAndReverbSettings(on);
+				}
+				else {
+					display->displayPopup(getCompressorModeDisplayName());
+				}
 			}
 		}
 
@@ -856,6 +891,12 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 
 	else if (!strcmp(tagName, "volume")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
+		// reduces the saved song volume by approximately 21% (889516852 / 4294967295)
+		if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_4P1P4_ALPHA
+		    && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
+		}
 		storageManager.exitTag("volume");
 	}
 

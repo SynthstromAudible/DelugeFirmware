@@ -44,7 +44,7 @@ public:
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,
 	            int32_t priorityRating);
-	void beenUnassigned();
+	void beenUnassigned(bool wontBeUsedAgain);
 	bool shouldObeyMarkers() {
 		return (!cache && !timeStretcher && !forAudioClip);
 	} // AudioClips don't obey markers because they "fudge" instead.
