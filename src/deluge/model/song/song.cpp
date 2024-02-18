@@ -458,12 +458,8 @@ gotError2:
 /* Chromatic or in-key transposition.
    If chromatic == true, offset is measured in semitones.
    if not, offset is measured in steps in the current modeNotes array.
-   fromFrontPanel indicates the source of the transpose - those from an encoder
-   or menu should display popups to give visual feedback. Those from external
-   MIDI or routed internally from a MIDI clip should not, since a sequenced clip
-   would spam popups.
    */
-void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic, bool fromFrontPanel) {
+void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 	int32_t semitones;
 	int32_t yNoteOnBottomRow, ys2;
 
@@ -534,8 +530,6 @@ traverseClips:
 		}
 
 		rootNote = newRootNote;
-
-		displayCurrentRootNoteAndScaleName();
 	}
 	else {
 		semitones = offset;
@@ -573,8 +567,6 @@ traverseClips:
 	}
 
 	rootNote += interval;
-
-	displayCurrentRootNoteAndScaleName();
 }
 
 bool Song::anyScaleModeClips() {
@@ -5847,6 +5839,7 @@ void Song::transpose(int32_t interval) {
 			interval *= currentSong->masterTransposeInterval;
 		}
 		transposeAllScaleModeClips(interval);
+		displayCurrentRootNoteAndScaleName();
 	}
 	else {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));

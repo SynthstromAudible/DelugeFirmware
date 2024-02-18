@@ -31,7 +31,6 @@ public:
 		return {
 		    l10n::getView(STRING_FOR_TRANSPOSE_INKEY),
 		    l10n::getView(STRING_FOR_TRANSPOSE_CHROMATIC),
-		    l10n::getView(STRING_FOR_TRANSPOSE_CHORD),
 		};
 	}
 };

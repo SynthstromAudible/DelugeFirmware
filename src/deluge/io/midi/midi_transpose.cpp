@@ -40,14 +40,14 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 				}
 				int32_t steps = octaves * currentSong->numModeNotes + indexInMode;
 
-				currentSong->transposeAllScaleModeClips(steps, false, false);
+				currentSong->transposeAllScaleModeClips(steps, false);
 
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 				uiNeedsRendering(&instrumentClipView);
 			}
 		}
 		else {
-			currentSong->transposeAllScaleModeClips(semitones, true, false);
+			currentSong->transposeAllScaleModeClips(semitones, true);
 
 			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 			uiNeedsRendering(&instrumentClipView);
