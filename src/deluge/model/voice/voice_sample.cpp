@@ -38,8 +38,8 @@ VoiceSample::VoiceSample() {
 	timeStretcher = NULL;
 }
 
-void VoiceSample::beenUnassigned() {
-	unassignAllReasons();
+void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
+	unassignAllReasons(wontBeUsedAgain);
 	endTimeStretching();
 }
 
@@ -222,7 +222,7 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 
 	// Remove all old reasons - there might be some if this function has been called multiple times while we wait for
 	// Clusters to load
-	unassignAllReasons();
+	unassignAllReasons(false);
 
 	// Copy in the new reasons we just made
 	memcpy(clusters, newClusters, sizeof(clusters));
@@ -823,7 +823,7 @@ readCachedWindow:
 		// But, if we're more than 1 cluster outside of the waveform, let's just not be silly.
 		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1
 		    || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
-			unassignAllReasons(); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
+			unassignAllReasons(false); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
 			currentPlayPos = 0;
 		}
 
@@ -841,7 +841,7 @@ readCachedWindow:
 
 			// If uncached Cluster has changed, update queue
 			if (!clusters[0] || clusters[0]->clusterIndex != uncachedClusterIndex) {
-				unassignAllReasons(); // We're going to set new "reasons".
+				unassignAllReasons(false); // We're going to set new "reasons".
 
 				int32_t nextUncachedClusterIndex = uncachedClusterIndex;
 				for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
@@ -1698,7 +1698,7 @@ loopBackToStartCached:
 					// If we're looping, restart it
 					if (loopingType != LoopType::NONE) {
 loopBackToStartUncached:
-						unassignAllReasons();
+						unassignAllReasons(false);
 						setupClusersForInitialPlay(voiceSource, sample, 0, true, priorityRating);
 					}
 
@@ -1720,7 +1720,7 @@ justDoReassessment:
 
 	if (false) {
 loopBackToStartTimeStretched:
-		unassignAllReasons();
+		unassignAllReasons(false);
 
 		endTimeStretching(); // It'll get started again at next render
 

@@ -17,7 +17,6 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -40,7 +39,6 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_vector.h"
-#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -140,8 +138,8 @@ SampleRecorder* firstRecorder = NULL;
 int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;
 uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
-int32_t numSamplesLastTime;
-int32_t smoothedSamples;
+int32_t numSamplesLastTime = 0;
+uint32_t smoothedSamples = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
@@ -257,8 +255,11 @@ void songSwapAboutToHappen() {
 
 // To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
 // or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
-
+Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
+	// Only include audio if doing a hard cull and not saving the voice
+	bool includeAudio = !saveVoice && !justDoFastRelease && definitelyCull;
+	// Skip releasing voices if doing a soft cull and definitely culling
+	bool skipReleasing = justDoFastRelease && definitelyCull;
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -267,8 +268,11 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
 
 		if (ratingThisVoice > bestRating) {
-			bestRating = ratingThisVoice;
-			bestVoice = thisVoice;
+			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
+			if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+				bestRating = ratingThisVoice;
+				bestVoice = thisVoice;
+			}
 		}
 	}
 
@@ -287,11 +291,14 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d", smoothedSamples);
-				D_PRINTLN(". voices left: %d ", getNumVoices());
+				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d", smoothedSamples, getNumVoices());
 #endif
 			}
-			// Otherwise, it's already fast-releasing, so just leave it
+			else {
+				// Otherwise, it's already fast-releasing, so just leave it
+				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d",
+				          smoothedSamples, getNumVoices());
+			}
 
 			bestVoice = NULL; // We don't want to return it
 		}
@@ -301,8 +308,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		}
 	}
 
-	// Or if no Voices to cull, try culling an AudioClip...
-	else {
+	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
+	else if (includeAudio) {
 		if (currentSong && !justDoFastRelease) {
 			currentSong->cullAudioClipVoice();
 		}
@@ -314,6 +321,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
+constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
+constexpr int32_t direnessThreshold = numSamplesLimit - 17;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
@@ -326,11 +335,11 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
 #define AUDIO_LOG_SIZE 64
-
-#if DO_AUDIO_LOG
 bool definitelyLog = false;
+#if DO_AUDIO_LOG
+
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
@@ -352,6 +361,7 @@ void routine() {
 	aeCtr.note();
 #endif
 	logAction("AudioDriver::routine");
+
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called
@@ -379,15 +389,15 @@ void routine() {
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
 	}
-
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
-
+	int32_t numToCull = 0;
 	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered output
 	// and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and also want
 	// to give them a head-start being sent and out of the way so the clock messages can be sent on-time
@@ -419,9 +429,14 @@ void routine() {
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
-#define MINSAMPLES 16
-
-	smoothedSamples = numSamples;
+	constexpr int MINSAMPLES = 16;
+	// two step FIR
+	if (numSamples > numSamplesLastTime) {
+		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
+	}
+	else {
+		smoothedSamples = numSamples;
+	}
 	// this is sometimes good for debugging but super spammy
 	// audiolog doesn't work because the render that notices the failure
 	// is one after the render with the problem
@@ -433,10 +448,9 @@ void routine() {
 	//  }
 
 	// Consider direness and culling - before increasing the number of samples
-	int32_t numSamplesLimit = 40; // storageManager.devVarC;
-	int32_t direnessThreshold = numSamplesLimit - 17;
 
-	if (smoothedSamples >= direnessThreshold) { // 20
+	// don't smooth this - used for other decisions as well
+	if (numSamples >= direnessThreshold) { // 23
 
 		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
@@ -449,34 +463,43 @@ void routine() {
 		}
 
 		if (!bypassCulling) {
-			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
-
+			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 			// If it's real dire, do a proper immediate cull
-			if (numSamplesOverLimit >= 10) {
+			if (smoothedSamplesOverLimit >= 10) {
 
-				int32_t numToCull = (numSamplesOverLimit >> 3) + 1;
+				numToCull = (numSamplesOverLimit >> 3);
 
 				for (int32_t i = 0; i < numToCull; i++) {
-					cullVoice();
+					// Hard cull the first one, potentially including one audio clip
+					// soft cull remainder
+					bool justDoFastRelease = i > 0;
+					cullVoice(false, justDoFastRelease, true);
 				}
 
 #if ALPHA_OR_BETA_VERSION
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				D_PRINTLN("culled  %d  voices. numSamples:  %d", numToCull, numSamples);
 
-				D_PRINTLN(". voices left:  %d", getNumVoices());
+				definitelyLog = true;
 				logAction("hard cull");
+
+				D_PRINTLN("culled  %d  voices. numSamples:  %d. voices left:  %d", numToCull, numSamples,
+				          getNumVoices());
+
 #endif
 			}
+			else if (numSamplesOverLimit >= 0) {
 
-			// Or if it's just a little bit dire, do a soft cull with fade-out
+				// definitely do a soft cull (won't include audio clips)
+				cullVoice(false, true, true);
+				logAction("soft cull");
+			}
+			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
+			// increasing
 			else if (numSamplesOverLimit >= -6) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				cullVoice(false, true);
+
+				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
+				// first routine call this is inaccurate, so just release another voice since things are probably bad
+				cullVoice(false, true, numRoutines > 0 || numSamples > numSamplesLastTime);
 				logAction("soft cull");
 			}
 		}
@@ -610,16 +633,6 @@ startAgain:
 		}
 	}
 
-	// //this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
-	// //output when cutting rendering short for clock at critical times
-	// //the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
-	// //this works out to a 1% error in the absolute worse case of alternating
-	// //no extension and max extension, approximately 10x better than average usb midi accuracy.
-	// int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	// if (currentSong) {
-	// 	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
-	// }
-	// numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
@@ -908,11 +921,11 @@ startAgain:
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINT(timePassedUS);
-			D_PRINTLN(":  %d", audioLogStrings[i]);
+			D_PRINT("%d", timePassedUS);
+			D_PRINTLN(":  %s", audioLogStrings[i]);
 		}
 
-		D_PRINT(timePassedUSA);
+		D_PRINT("%d", timePassedUSA);
 		D_PRINTLN(": end");
 	}
 	definitelyLog = false;
@@ -927,13 +940,14 @@ startAgain:
 	// this is basically so that we don't click at normal tempos and still
 	// let Ron go to 10 000 BPM and then play wildly with the tempo knob for
 	// whatever reason
-	if (shortenedWindow) {
-		if (numRoutines < 5) {
-			numRoutines += 1;
-			// this seems to get tail call optimized
-			routine();
-		}
+	// just always render again - this will immediately return once there aren't samples to render
+
+	if (numRoutines < 5) {
+		numRoutines += 1;
+		// this seems to get tail call optimized
+		routine();
 	}
+
 	numRoutines = 0;
 	bypassCulling = false;
 	audioRoutineLocked = false;
@@ -1244,11 +1258,11 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
+	// if we're probably gonna cull, just do it now instead of allocating
+	if (cpuDireness >= 13 && numSamplesLastTime > direnessThreshold && activeVoices.getNumElements()) {
 
-	if (numSamplesLastTime >= 100 && activeVoices.getNumElements()) {
-
-		numSamplesLastTime -= 10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
-		                          // up to the ones being culled
+		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
+		                  // up to the ones being culled
 		D_PRINTLN("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);

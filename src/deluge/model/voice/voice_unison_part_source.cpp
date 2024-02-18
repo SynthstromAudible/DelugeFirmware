@@ -52,7 +52,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			// otherwise we'll increase now but only reduce by one at note off
 			// not quite thread safe - if the sample is shorter than 64k
 			// an allocation before setupClustersForInitialPlay could steal it
-			voiceSample->beenUnassigned();
+			voiceSample->beenUnassigned(false);
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
 		if (samplesLate) {
@@ -79,10 +79,10 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	return true;
 }
 
-void VoiceUnisonPartSource::unassign() {
+void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
 	if (voiceSample) {
-		voiceSample->beenUnassigned();
+		voiceSample->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
 		voiceSample = NULL;
 	}
