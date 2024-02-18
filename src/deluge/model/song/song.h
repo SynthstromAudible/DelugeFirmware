@@ -84,6 +84,7 @@ public:
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);
+	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
@@ -91,8 +92,12 @@ public:
 	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
 	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
+	void rotateMusicalMode(int8_t change);
+	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
+	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
+	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
@@ -233,6 +238,7 @@ public:
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
+	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
@@ -367,10 +373,15 @@ public:
 	int32_t lastSelectedParamShortcutY;
 	// END ~ new Automation Arranger View Variables
 
+	// Song level transpose control (encoder actions)
 	int32_t masterTransposeInterval;
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
+
+	// MIDI controlled song transpose
+	bool hasBeenTransposed = 0;
+	int16_t transposeOffset = 0;
 
 private:
 	bool fillModeActive;

@@ -1225,7 +1225,7 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t change,
+void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12],
                                         ModelStackWithTimelineCounter* modelStack) {
 	if (!isScaleModeClip()) {
 		return;
@@ -1233,12 +1233,16 @@ void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t cha
 	// Find all NoteRows which belong to this yVisualWithinOctave, and change their note
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		for (int32_t yVisualWithinOctave = 0; yVisualWithinOctave < numModeNotes; yVisualWithinOctave++) {
+			if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
-			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-			thisNoteRow->y += change;
+				thisNoteRow->stopCurrentlyPlayingNote(
+				    modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+				thisNoteRow->y += changes[yVisualWithinOctave];
+				break;
+			}
 		}
 	}
 }
@@ -1280,16 +1284,22 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePr
 	}
 }
 
-void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* modelStack) {
+/* Chromatic tranpose of all notes by fixed semitone amount */
+void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter* modelStack) {
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
+	/*if (!(output->type == OutputType::MIDI_OUT &&
+	        ((NonAudioInstrument*)output)->channel == MIDI_CHANNEL_TRANSPOSE)) {*/
+	// Must not transpose MIDI clips that are routed to transpose.
+
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		thisNoteRow->y += change;
+		thisNoteRow->y += semitones;
 	}
-	yScroll += change;
-	colourOffset -= change;
+	/*}*/
+	yScroll += semitones;
+	colourOffset -= semitones;
 }
 
 void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
