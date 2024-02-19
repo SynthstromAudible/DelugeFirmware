@@ -3744,7 +3744,7 @@ void AutomationView::resetShortcutBlinking() {
 // view also created it so that you can reset blinking when a parameter is deselected or when you enter/exit automation
 // view
 void AutomationView::resetParameterShortcutBlinking() {
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	parameterShortcutBlinking = false;
 }
 
@@ -3752,12 +3752,12 @@ void AutomationView::resetParameterShortcutBlinking() {
 // automation view also created it so that you can reset blinking when interpolation is turned off or when you
 // enter/exit automation view
 void AutomationView::resetInterpolationShortcutBlinking() {
-	uiTimerManager.unsetTimer(TIMER_INTERPOLATION_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK);
 	interpolationShortcutBlinking = false;
 }
 
 void AutomationView::blinkInterpolationShortcut() {
 	PadLEDs::flashMainPad(interpolationShortcutX, interpolationShortcutY);
-	uiTimerManager.setTimer(TIMER_INTERPOLATION_SHORTCUT_BLINK, 3000);
+	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
 }

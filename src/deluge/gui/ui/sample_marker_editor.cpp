@@ -90,7 +90,7 @@ bool SampleMarkerEditor::opened() {
 		PadLEDs::skipGreyoutFade();
 	}
 
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
@@ -722,7 +722,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 		if (isUIModeWithinRange(zoomUIModes)) {
 			success = waveformBasicNavigator.zoom(offset, shouldAllowExtraScrollRight(), colsToSend, markerType);
 			if (success) {
-				uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
 		}
 	}
@@ -767,7 +767,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	PadLEDs::sortLedsForCol(x);
 	PIC::flush();
 
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 
 	return ActionResult::DEALT_WITH;
 }
@@ -1234,7 +1234,7 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 
 		if (cols[util::to_underlying(markerType)].colOnScreen >= 0
 		    && cols[util::to_underlying(markerType)].colOnScreen < kDisplayWidth) {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 		}
 	}
 

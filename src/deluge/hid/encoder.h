@@ -20,9 +20,17 @@
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
 #include <cstdint>
 
+namespace deluge::hid::encoders {
+
 class Encoder {
 public:
 	Encoder();
+
+	Encoder(Encoder& other) = delete;
+	Encoder(Encoder&& other) = delete;
+	Encoder& operator=(Encoder& other) = delete;
+	Encoder&& operator=(Encoder&& other) = delete;
+
 	void read();
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
@@ -43,3 +51,5 @@ private:
 	bool doDetents;
 	bool valuesNow[2];
 };
+
+} // namespace deluge::hid::encoders

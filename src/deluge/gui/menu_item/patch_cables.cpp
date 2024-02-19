@@ -140,8 +140,8 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 500 : 200);
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 500 : 200);
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 }
 
 ActionResult PatchCables::timerCallback() {

@@ -32,9 +32,20 @@ extern void freezeWithError(char const* errmsg);
 #else
 #define FREEZE_WITH_ERROR(error) ({ freezeWithError(error); })
 #endif
+
+/// Hardware timer index used for MIDI gate clock
 #define TIMER_MIDI_GATE_OUTPUT 2
+/// Hardware timer index used for "fast" events.
+///
+/// Runs at 528 ticks per millisecond (528 kHz).
 #define TIMER_SYSTEM_FAST 0
+/// Hardware timer index used for "slow" events.
+///
+/// Runs at 32 ticks per millisecond (32 kHz).
 #define TIMER_SYSTEM_SLOW 4
+/// Hardware timer for "superfast" events.
+///
+/// Runs as 32.792 ticks per microsecond (33.792 MHz)
 #define TIMER_SYSTEM_SUPERFAST 1
 
 #define SSI_TX_BUFFER_NUM_SAMPLES 128

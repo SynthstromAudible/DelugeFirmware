@@ -1542,7 +1542,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
 		}
 	}
@@ -1554,7 +1554,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			currentUIMode = UI_MODE_NONE;
-			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			enterKeyPress();
 		}
 	}

@@ -31,7 +31,7 @@ NumericLayerScrollingText::~NumericLayerScrollingText() {
 
 void NumericLayerScrollingText::isNowOnTop() {
 	if (length > kNumericDisplayLength) {
-		uiTimerManager.setTimer(TIMER_DISPLAY, initialDelay);
+		uiTimerManager.setTimer(TimerName::DISPLAY, initialDelay);
 	}
 
 	if (currentPos + kNumericDisplayLength >= length) {
@@ -61,7 +61,7 @@ bool NumericLayerScrollingText::callBack() {
 	}
 
 	int32_t delayTime = reachedEnd ? 600 : ((currentDirection == 1) ? 140 : 50);
-	uiTimerManager.setTimer(TIMER_DISPLAY, delayTime);
+	uiTimerManager.setTimer(TimerName::DISPLAY, delayTime);
 
 	return false;
 }

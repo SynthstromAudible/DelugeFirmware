@@ -353,7 +353,7 @@ moveAfterClipInstance:
 	else if (b == RECORD) {
 		if (on) {
 			if (isNoUIModeActive()) {
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
 			else {
@@ -616,7 +616,7 @@ void SessionView::goToArrangementEditor() {
 void SessionView::beginEditingSectionRepeatsNum() {
 	performActionOnSectionPadRelease = false;
 	drawSectionRepeatNumber();
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
@@ -694,7 +694,7 @@ holdingRecord:
 
 							// Since that was all effective, let's exit out of UI_MODE_VIEWING_RECORD_ARMING too
 							if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-								uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+								uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 								currentUIMode = UI_MODE_NONE;
 								PadLEDs::reassessGreyout(false);
 								requestRendering(this, 0, 0xFFFFFFFF);
@@ -1065,7 +1065,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				performActionOnSectionPadRelease = true;
 				sectionPressed = clip->section;
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 300);
 			}
 		}
 	}
@@ -1084,7 +1084,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			else {
 				redrawNumericDisplay();
 			}
-			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		}
 
 		else if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
@@ -1116,7 +1116,7 @@ ActionResult SessionView::timerCallback() {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
 		requestRendering(this, 0, 0xFFFFFFFF);
 		view.blinkOn = !view.blinkOn;
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -3748,7 +3748,7 @@ void SessionView::gridTransitionToSessionView() {
 	}
 
 	PadLEDs::explodeAnimationTargetUI = this;
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
