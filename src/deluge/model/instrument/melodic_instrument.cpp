@@ -287,7 +287,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
-	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
+	auto *instrumentClip = static_cast<InstrumentClip*>(activeClip);
 
 	if (match != MIDIMatchType::NO_MATCH) {
 		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
