@@ -45,6 +45,9 @@ public:
 	bool readTagFromFile(char const* tagName);
 	int32_t readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
 	void sendMIDIPGM();
+
+	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
+
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
@@ -68,7 +71,10 @@ public:
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
 	int32_t getOutputMasterChannel();
 
-	inline bool sendsToMPE() { return (channel >= 16); }
+	inline bool sendsToMPE() {
+		return (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE);
+	}
+	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
 
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
@@ -87,7 +93,7 @@ public:
 	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
 	int16_t lastOutputMonoExpression[3]{0};
 	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
-	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : "channel"; }
+	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "midiChannel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

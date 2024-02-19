@@ -70,5 +70,4 @@ protected:
 
 private:
 	bool renderedLastTime;
-	void displaySidechainAndReverbSettings(bool on);
 };

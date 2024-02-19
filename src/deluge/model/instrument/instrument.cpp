@@ -74,6 +74,15 @@ bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				    slotXMLTag,
 				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
 			}
+			else if (type == OutputType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToInternal()) {
+				switch (((NonAudioInstrument*)this)->channel) {
+				case MIDI_CHANNEL_TRANSPOSE:
+					storageManager.writeAttribute(slotXMLTag, "transpose");
+					break;
+				default:
+					storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+				}
+			}
 			else {
 				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 			}

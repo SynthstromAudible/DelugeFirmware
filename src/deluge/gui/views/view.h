@@ -63,7 +63,7 @@ public:
 	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
-	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
+	void instrumentMidiLearnPadPressed(bool on, Instrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void midiLearnFlash();
 	void setModLedStates();
@@ -105,8 +105,10 @@ public:
 	int8_t lowestMIDIChannelSeenWhileLearning;
 
 	LearnedMIDI* learnedThing;
-	MelodicInstrument* melodicInstrumentPressedForMIDILearn;
+	Instrument* instrumentPressedForMIDILearn;
 	Drum* drumPressedForMIDILearn;
+
+	// deceivingly this is used only while learning drums
 	Kit* kitPressedForMIDILearn;
 
 	ModelStackWithThreeMainThings activeModControllableModelStack;

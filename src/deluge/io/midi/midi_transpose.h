@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,20 +14,16 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "model/output.h"
-#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::submenu {
-class PolyMonoConversion final : public Submenu {
-public:
-	using Submenu::Submenu;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// not relevant for cv currently
-		const auto type = getCurrentOutputType();
-		return (type == OutputType::MIDI_OUT);
-	}
-};
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
-} // namespace deluge::gui::menu_item::submenu
+namespace MIDITranspose {
+extern MIDITransposeControlMethod controlMethod;
+void doTranspose(bool on, int32_t newNoteOrCC);
+void exitScaleModeForMIDITransposeClips();
+}; // namespace MIDITranspose
+
+// extern MIDITranspose midiTranspose;

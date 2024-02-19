@@ -543,17 +543,17 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	}
 }
 
-void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
+void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	if (on) {
-		endMidiLearnPressSession(MidiLearn::MELODIC_INSTRUMENT_INPUT);
+		endMidiLearnPressSession(MidiLearn::INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
-		melodicInstrumentPressedForMIDILearn = instrument;
+		instrumentPressedForMIDILearn = instrument;
 		highestMIDIChannelSeenWhileLearning = -1;
 		lowestMIDIChannelSeenWhileLearning = 16;
 	}
 
-	else if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+	else if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			clearMelodicInstrumentMonoExpressionIfPossible(); // In case it gets "stuck".
 			learnedThing->clear();
@@ -636,11 +636,11 @@ recordDetailsOfLearnedThing:
 			learnedThing->noteOrCC = note;
 			break;
 
-		case MidiLearn::MELODIC_INSTRUMENT_INPUT:
+		case MidiLearn::INSTRUMENT_INPUT:
 
 			uint8_t newBendRanges[2];
 
-			ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+			ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 			    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 			// If we already know this incoming MIDI is on an MPE zone...
@@ -654,7 +654,7 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
-					InstrumentClip* clip = (InstrumentClip*)melodicInstrumentPressedForMIDILearn->activeClip;
+					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->activeClip;
 					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
 						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
@@ -679,6 +679,7 @@ isMPEZone:
 					}
 
 					// If multiple channels seen, that's a shortcut for setting up MPE zones for the device in question
+					// note - I think this leads to confusion more than any deliberate use
 					if (highestMIDIChannelSeenWhileLearning != lowestMIDIChannelSeenWhileLearning) {
 						if (lowestMIDIChannelSeenWhileLearning == 1) {
 							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel =
@@ -727,11 +728,12 @@ isMPEZone:
 
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->device = fromDevice;
-			melodicInstrumentPressedForMIDILearn->beenEdited(false); // Why again?
+			learnedThing->noteOrCC = note;                    // used for low note in kits
+			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
-			if (melodicInstrumentPressedForMIDILearn->type == OutputType::SYNTH) {
+			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-				    fromDevice, (SoundInstrument*)melodicInstrumentPressedForMIDILearn);
+				    fromDevice, (SoundInstrument*)instrumentPressedForMIDILearn);
 			}
 
 			break;
@@ -741,7 +743,7 @@ isMPEZone:
 
 void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 
-	ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+	ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 	    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 	if (paramManager) {
@@ -752,9 +754,8 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
-			        ->addTimelineCounter(melodicInstrumentPressedForMIDILearn->activeClip) // Could be NULL
-			        ->addOtherTwoThingsButNoNoteRow(melodicInstrumentPressedForMIDILearn->toModControllable(),
-			                                        paramManager)
+			        ->addTimelineCounter(instrumentPressedForMIDILearn->activeClip) // Could be NULL
+			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
 			expressionParams->clearValues(modelStack);
@@ -767,9 +768,10 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		deleteMidiCommandOnRelease = false;
 
 		// For MelodicInstruments...
-		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
+			// note - I think this is probably the source of a lot of bugs around MPE
 			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
@@ -1504,8 +1506,6 @@ void View::cycleThroughReverbPresets() {
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
-
-	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
@@ -1624,7 +1624,15 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			outputTypeText = "Kit";
 			break;
 		case OutputType::MIDI_OUT:
-			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
+			if (channel < 16) {
+				outputTypeText = "MIDI channel";
+			}
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				outputTypeText = "MPE zone";
+			}
+			else {
+				outputTypeText = "Internal";
+			}
 			break;
 		case OutputType::CV:
 			outputTypeText = "CV / gate channel";
@@ -1723,8 +1731,12 @@ yesAlignRight:
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				goto oledDrawString;
+			}
+			else {
+				nameToDraw = "Transpose";
 				goto oledDrawString;
 			}
 		}
@@ -1732,9 +1744,12 @@ yesAlignRight:
 			if (channel < 16) {
 				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
 				display->setText(text, false, 255, doBlink);
+			}
+			else {
+				display->setText("Transpose", false, 255, doBlink);
 			}
 		}
 	}
@@ -1876,7 +1891,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix < -1) {
 						newChannel = (newChannel + offset);
 						if (newChannel < 0) {
-							newChannel = 17;
+							newChannel = IS_A_DEST + NUM_INTERNAL_DESTS;
+						}
+						else if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = MIDI_CHANNEL_MPE_UPPER_ZONE;
 						}
 						newChannelSuffix = modelStack->song->getMaxMIDIChannelSuffix(newChannel);
 					}
@@ -1888,7 +1906,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix >= 26
 					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
 						newChannel = (newChannel + offset);
-						if (newChannel >= 18) {
+						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = IS_A_DEST + 1;
+						}
+						else if (newChannel > IS_A_DEST + NUM_INTERNAL_DESTS) {
 							newChannel = 0;
 						}
 						newChannelSuffix = -1;

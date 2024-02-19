@@ -24,9 +24,10 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+	int32_t currentScale = currentSong->getCurrentPresetScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		bool mode_selected = y == currentScalePad;
+		bool mode_selected = scaleModes[y] == currentScale;
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
@@ -35,23 +36,33 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 }
 
 bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
-	scaleModes[pad] = (scaleModes[pad] + offset) % NUM_PRESET_SCALES;
+	int32_t newScale = ((int32_t)scaleModes[pad] + offset) % NUM_PRESET_SCALES;
+	if (newScale < 0) {
+		newScale = NUM_PRESET_SCALES - 1;
+	}
+	scaleModes[pad] = newScale;
 	return true;
 };
 
 void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                 KeyboardLayout* layout) {
 	if (pad.active) {
-		currentScalePad = pad.y;
-		keyboardScreen.setScale(scaleModes[pad.y]);
+		if (keyboardScreen.setScale(scaleModes[pad.y])) {
+			currentScalePad = pad.y;
+		}
 	}
 	else if (!pad.padPressHeld) {
-		previousScalePad = pad.y;
-		currentScalePad = pad.y;
+		// Pad released after short press
+		if (keyboardScreen.setScale(scaleModes[pad.y])) {
+			previousScalePad = pad.y;
+			currentScalePad = pad.y;
+		}
 	}
 	else {
-		keyboardScreen.setScale(scaleModes[previousScalePad]);
-		currentScalePad = previousScalePad;
+		// Pad released after long press
+		if (keyboardScreen.setScale(scaleModes[previousScalePad])) {
+			currentScalePad = previousScalePad;
+		}
 	}
 };
 } // namespace deluge::gui::ui::keyboard::controls

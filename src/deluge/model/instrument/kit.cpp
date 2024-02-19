@@ -674,7 +674,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 }
 
 // not updated for midi follow, this seems dumb and is just left for backwards compatibility
-// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
+/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
@@ -1190,8 +1190,14 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
-
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		auto rootNote = midiInput.noteOrCC == 255 ? 0 : midiInput.noteOrCC;
+		receivedNoteForKit(modelStack, fromDevice, on, channel, note - rootNote, velocity, shouldRecordNotes,
+		                   doingMidiThru, instrumentClip);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
@@ -1251,6 +1257,13 @@ void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWith
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
@@ -1286,7 +1299,14 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 }
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
-
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru,
+		                 instrumentClip);
+		return;
+	}
 	if (ccNumber != 74) {
 		return;
 	}
@@ -1410,6 +1430,15 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 // note). This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
+
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode,
+		                         doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_FINGER_LEVEL;

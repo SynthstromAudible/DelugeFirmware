@@ -15,19 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/submenu.h"
-#include "model/output.h"
-#include "model/song/song.h"
+#include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
+#include "io/midi/midi_transpose.h"
 
-namespace deluge::gui::menu_item::submenu {
-class PolyMonoConversion final : public Submenu {
+namespace deluge::gui::menu_item::midi {
+class Transpose final : public Selection {
 public:
-	using Submenu::Submenu;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		// not relevant for cv currently
-		const auto type = getCurrentOutputType();
-		return (type == OutputType::MIDI_OUT);
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(MIDITranspose::controlMethod); }
+	void writeCurrentValue() override { MIDITranspose::controlMethod = this->getValue<MIDITransposeControlMethod>(); }
+	deluge::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_TRANSPOSE_INKEY),
+		    l10n::getView(STRING_FOR_TRANSPOSE_CHROMATIC),
+		};
 	}
 };
-
-} // namespace deluge::gui::menu_item::submenu
+} // namespace deluge::gui::menu_item::midi

@@ -575,11 +575,11 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == OutputType::AUDIO || output->type == OutputType::KIT) {
+		if (!output || output->type == OutputType::AUDIO) {
 			goto drawNormally;
 		}
 
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
+		Instrument* melodicInstrument = (Instrument*)output;
 
 		// If MIDI command already assigned...
 		if (melodicInstrument->midiInput.containsSomething()) {
@@ -587,7 +587,7 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 		}
 
 		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+		else if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
 			thisColour = colours::red.dim();
 		}
@@ -1114,14 +1114,8 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 					openUI(&context_menu::audioInputSelector);
 				}
 			}
-			else if (output->type == OutputType::KIT) {
-				if (velocity) {
-					display->displayPopup(deluge::l10n::get(
-					    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
-				}
-			}
 			else {
-				view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+				view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 			}
 		}
 		break;

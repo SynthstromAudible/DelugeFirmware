@@ -52,3 +52,5 @@ protected:
 	virtual void numReasonsIncreasedFromZero() {}
 	virtual void numReasonsDecreasedToZero(char const* errorCode) {}
 };
+
+constexpr size_t afhs = sizeof(AudioFile);

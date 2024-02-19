@@ -66,13 +66,14 @@ public:
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
 
-		if (!isRelevant(sound, whichThing)) {
+		if (!isRelevant(modControllable, whichThing)) {
 			return MenuPermission::NO;
 		}
 
+		Sound* sound = static_cast<Sound*>(modControllable);
 		Source* source = &sound->sources[whichThing];
 
 		if (sound->getSynthMode() == SynthMode::FM

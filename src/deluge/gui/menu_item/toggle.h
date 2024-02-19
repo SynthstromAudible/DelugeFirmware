@@ -42,4 +42,31 @@ public:
 	bool* (*getTPtr)();
 };
 
+class InvertedToggleBool : public Toggle {
+public:
+	using Toggle::Toggle;
+
+	InvertedToggleBool(l10n::String newName, l10n::String title, bool& newToggle)
+	    : Toggle(newName, title), t(newToggle) {}
+
+	void readCurrentValue() override { this->setValue(!t); }
+	void writeCurrentValue() override { t = !this->getValue(); }
+
+	bool& t;
+};
+
+class InvertedToggleBoolDyn : public Toggle {
+public:
+	using Toggle::Toggle;
+
+	InvertedToggleBoolDyn(l10n::String newName, l10n::String title, bool* (*getTogglePtr)()) : Toggle(newName, title) {
+		getTPtr = getTogglePtr;
+	}
+
+	void readCurrentValue() override { this->setValue(!*(getTPtr())); }
+	void writeCurrentValue() override { *(getTPtr()) = !this->getValue(); }
+
+	bool* (*getTPtr)();
+};
+
 } // namespace deluge::gui::menu_item

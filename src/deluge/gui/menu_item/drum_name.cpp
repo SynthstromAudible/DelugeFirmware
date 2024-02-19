@@ -22,7 +22,7 @@
 
 namespace deluge::gui::menu_item {
 
-bool DrumName::isRelevant(Sound* sound, int32_t whichThing) {
+bool DrumName::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
 	return soundEditor.editingKit();
 }
 
