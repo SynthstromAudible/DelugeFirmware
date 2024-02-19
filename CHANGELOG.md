@@ -84,6 +84,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
+- The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
+  modes, sequence length and ratcheting notes.
 
 ### Audio Clips
 

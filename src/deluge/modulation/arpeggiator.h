@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
+#include "util/container/array/resizeable_array.h"
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
@@ -31,16 +32,72 @@ public:
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
+		preset = other->preset;
 		mode = other->mode;
+		noteMode = other->noteMode;
+		octaveMode = other->octaveMode;
+	}
+
+	void updatePresetFromCurrentSettings() {
+		if (mode == ArpMode::OFF) {
+			preset = ArpPreset::OFF;
+		}
+		else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
+			preset = ArpPreset::UP;
+		}
+		else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
+			preset = ArpPreset::DOWN;
+		}
+		else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
+			preset = ArpPreset::BOTH;
+		}
+		else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
+			preset = ArpPreset::RANDOM;
+		}
+		else {
+			preset = ArpPreset::CUSTOM;
+		}
+	}
+
+	void updateSettingsFromCurrentPreset() {
+		if (preset == ArpPreset::OFF) {
+			mode = ArpMode::OFF;
+		}
+		else if (preset == ArpPreset::UP) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::UP;
+			noteMode = ArpNoteMode::UP;
+		}
+		else if (preset == ArpPreset::DOWN) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::DOWN;
+			noteMode = ArpNoteMode::DOWN;
+		}
+		else if (preset == ArpPreset::BOTH) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::ALTERNATE;
+			noteMode = ArpNoteMode::UP;
+		}
+		else if (preset == ArpPreset::RANDOM) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::RANDOM;
+			noteMode = ArpNoteMode::RANDOM;
+		}
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
 	// Settings
+	ArpPreset preset;
+	ArpMode mode;
+	ArpNoteMode noteMode;
+	ArpOctaveMode octaveMode;
+
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
-	ArpMode mode;
+
+	bool flagForceArpRestart;
 };
 
 struct ArpNote {
@@ -74,22 +131,39 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
+	            uint32_t sequenceLength, uint32_t ratchetAmount, uint32_t ratchetProbability,
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
+	void resetRatchet();
+	void carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void setRatchetingAvailable(bool available);
 
+	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
 	uint32_t gatePos;
 	int8_t currentOctave;
 	int8_t currentDirection;
+	int8_t currentOctaveDirection;
+	uint8_t notesPlayedFromSequence = 0;
+	uint8_t randomNotesPlayedFromOctave = 0;
 	bool playedFirstArpeggiatedNoteYet;
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
 	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp;
+	uint8_t ratchetNotesIndex = 0;
+	uint8_t ratchetNotesMultiplier = 0;
+	uint8_t ratchetNotesNumber = 0;
+	bool isRatcheting = false;
+	uint16_t ratchetProbability = 0;
+	uint32_t maxSequenceLength = 0;
+	uint8_t ratchetAmount = 0;
 
 protected:
+	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
 };
@@ -119,7 +193,10 @@ public:
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
 	bool hasAnyInputNotesActive();
 
+	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
+	// This array tracks the notes as they were played by the user
+	ResizeableArray notesAsPlayed;
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:
