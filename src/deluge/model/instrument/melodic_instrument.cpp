@@ -22,7 +22,6 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
