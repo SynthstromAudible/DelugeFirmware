@@ -204,16 +204,18 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 
 	anything = false;
 	for (int32_t e = 0; e < 4; e++) {
-		if (encoders::encoders[e].detentPos != 0) {
-			encoderTestPos += encoders::encoders[e].detentPos;
-			encoders::encoders[e].detentPos = 0;
+		auto& encoder = deluge::hid::encoders::getEncoder(static_cast<deluge::hid::encoders::EncoderName>(e));
+		if (encoder.detentPos != 0) {
+			encoderTestPos += encoder.detentPos;
+			encoder.detentPos = 0;
 			anything = true;
 		}
 	}
 	for (int32_t e = 0; e < 2; e++) {
-		if (encoders::encoders[e + 4].encPos != 0) {
-			encoderTestPos += encoders::encoders[e + 4].encPos;
-			encoders::encoders[e + 4].encPos = 0;
+		auto& encoder = deluge::hid::encoders::getEncoder(static_cast<deluge::hid::encoders::EncoderName>(e + 4));
+		if (encoder.encPos != 0) {
+			encoderTestPos += encoder.encPos;
+			encoder.encPos = 0;
 			anything = true;
 		}
 	}

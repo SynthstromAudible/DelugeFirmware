@@ -39,14 +39,12 @@ enum class EncoderName {
 	MAX_ENCODER,
 };
 
-extern std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders;
+/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
 extern uint32_t timeModEncoderLastTurned[];
-
-[[gnu::always_inline]] inline Encoder& getEncoder(EncoderName which) {
-	return encoders[util::to_underlying(which)];
-}
 
 void init();
 void readEncoders();
 bool interpretEncoders(bool inCardRoutine = false);
+
+Encoder& getEncoder(EncoderName which);
 } // namespace deluge::hid::encoders

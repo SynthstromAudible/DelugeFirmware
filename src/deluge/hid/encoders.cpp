@@ -33,6 +33,7 @@
 namespace deluge::hid::encoders {
 
 std::array<Encoder, util::to_underlying(EncoderName::MAX_ENCODER)> encoders = {};
+extern uint32_t timeModEncoderLastTurned[];
 uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
@@ -40,6 +41,10 @@ uint32_t timeNextSDTestAction = 0;
 int32_t nextSDTestDirection = 1;
 
 uint32_t encodersWaitingForCardRoutineEnd;
+
+Encoder& getEncoder(EncoderName which) {
+	return encoders[util::to_underlying(which)];
+}
 
 void init() {
 	getEncoder(EncoderName::SCROLL_X).setPins(1, 11, 1, 12);
