@@ -40,8 +40,12 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_OFF),  l10n::getView(STRING_FOR_UP),     l10n::getView(STRING_FOR_DOWN),
-		    l10n::getView(STRING_FOR_BOTH), l10n::getView(STRING_FOR_RANDOM), l10n::getView(STRING_FOR_CUSTOM),
+		    l10n::getView(STRING_FOR_OFF),    //<
+		    l10n::getView(STRING_FOR_UP),     //<
+		    l10n::getView(STRING_FOR_DOWN),   //<
+		    l10n::getView(STRING_FOR_BOTH),   //<
+		    l10n::getView(STRING_FOR_RANDOM), //<
+		    l10n::getView(STRING_FOR_CUSTOM), //<
 		};
 	}
 
