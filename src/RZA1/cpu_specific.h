@@ -133,15 +133,6 @@ DMA channels:
 #define HAVE_RTT 0
 #endif
 
-#define NUM_ENCODERS          6
-#define NUM_FUNCTION_ENCODERS 4
-#define ENCODER_SCROLL_X      1
-#define ENCODER_SCROLL_Y      0
-#define ENCODER_TEMPO         3
-#define ENCODER_SELECT        2
-#define ENCODER_MOD_0         5
-#define ENCODER_MOD_1         4
-
 // OLED
 #define OLED_MAIN_WIDTH_PIXELS 128
 
