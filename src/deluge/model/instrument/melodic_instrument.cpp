@@ -297,9 +297,9 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	// you can't set a device
 	// norns midigrid mod sends deluge midi note_on messages on channel 16 to update pad brightness
 	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
-			 && instrumentClip->onKeyboardScreen && instrumentClip->output
-		 	 && instrumentClip->output->type == OutputType::MIDI_OUT
-		 	 && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
+	         && instrumentClip->onKeyboardScreen && instrumentClip->output
+	         && instrumentClip->output->type == OutputType::MIDI_OUT
+	         && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
 		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
 		keyboardScreen.requestRendering();
 	}
