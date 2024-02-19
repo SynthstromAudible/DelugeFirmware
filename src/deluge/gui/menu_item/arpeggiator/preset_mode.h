@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
@@ -26,41 +27,34 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class Mode final : public Selection {
+class PresetMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->preset); }
 	void writeCurrentValue() override {
-		auto current_value = this->getValue<ArpMode>();
-
-		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-
-				if (soundEditor.editingCVOrMIDIClip()) {
-					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
-				}
-				else {
-					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-					soundEditor.currentSound->allNotesOff(
-					    modelStackWithSoundFlags,
-					    soundEditor.currentSound->getArp()); // Must switch off all notes when switching arp on / off
-					soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
-				}
-			}
-		}
-		soundEditor.currentArpSettings->mode = current_value;
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		soundEditor.currentArpSettings->preset = this->getValue<ArpPreset>();
+		soundEditor.currentArpSettings->updateSettingsFromCurrentPreset();
+		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_OFF), //<
-		    l10n::getView(STRING_FOR_ARP), //<
+		    l10n::getView(STRING_FOR_OFF),    //<
+		    l10n::getView(STRING_FOR_UP),     //<
+		    l10n::getView(STRING_FOR_DOWN),   //<
+		    l10n::getView(STRING_FOR_BOTH),   //<
+		    l10n::getView(STRING_FOR_RANDOM), //<
+		    l10n::getView(STRING_FOR_CUSTOM), //<
 		};
+	}
+
+	MenuItem* selectButtonPress() override {
+		auto current_value = this->getValue<ArpPreset>();
+		if (current_value == ArpPreset::CUSTOM) {
+			return &arpeggiator::arpOctaveModeMenu;
+		}
+		return nullptr;
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator
