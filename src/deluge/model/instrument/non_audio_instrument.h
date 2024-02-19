@@ -27,6 +27,7 @@ class ModelStackWithSoundFlags;
 class NonAudioInstrument : public MelodicInstrument, public ModControllable {
 public:
 	NonAudioInstrument(OutputType newType) : MelodicInstrument(newType) {
+		arpeggiator.setRatchetingAvailable(false); // TODO: fix ratchets for midi clips and then remove this line
 		cachedBendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 		cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 	}

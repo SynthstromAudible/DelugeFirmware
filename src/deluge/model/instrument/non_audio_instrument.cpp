@@ -47,7 +47,6 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 			ArpReturnInstruction instruction;
 
-			arpeggiator.setRatchetingAvailable(false);
 			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
 			                   sequenceLength, ratchetAmount, ratchetProbability, &instruction);
 
