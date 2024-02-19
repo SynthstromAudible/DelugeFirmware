@@ -41,15 +41,20 @@ public:
 	void updatePresetFromCurrentSettings() {
 		if (mode == ArpMode::OFF) {
 			preset = ArpPreset::OFF;
-		} else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
+		}
+		else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
 			preset = ArpPreset::UP;
-		} else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
+		}
+		else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
 			preset = ArpPreset::DOWN;
-		} else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
+		}
+		else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
 			preset = ArpPreset::BOTH;
-		} else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
+		}
+		else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
 			preset = ArpPreset::RANDOM;
-		} else {
+		}
+		else {
 			preset = ArpPreset::CUSTOM;
 		}
 	}
@@ -57,19 +62,23 @@ public:
 	void updateSettingsFromCurrentPreset() {
 		if (preset == ArpPreset::OFF) {
 			mode = ArpMode::OFF;
-		} else if (preset == ArpPreset::UP) {
+		}
+		else if (preset == ArpPreset::UP) {
 			mode = ArpMode::ARP;
 			octaveMode = ArpOctaveMode::UP;
 			noteMode = ArpNoteMode::UP;
-		} else if (preset == ArpPreset::DOWN) {
+		}
+		else if (preset == ArpPreset::DOWN) {
 			mode = ArpMode::ARP;
 			octaveMode = ArpOctaveMode::DOWN;
 			noteMode = ArpNoteMode::DOWN;
-		} else if (preset == ArpPreset::BOTH) {
+		}
+		else if (preset == ArpPreset::BOTH) {
 			mode = ArpMode::ARP;
 			octaveMode = ArpOctaveMode::ALTERNATE;
 			noteMode = ArpNoteMode::UP;
-		} else if (preset == ArpPreset::RANDOM) {
+		}
+		else if (preset == ArpPreset::RANDOM) {
 			mode = ArpMode::ARP;
 			octaveMode = ArpOctaveMode::RANDOM;
 			noteMode = ArpNoteMode::RANDOM;

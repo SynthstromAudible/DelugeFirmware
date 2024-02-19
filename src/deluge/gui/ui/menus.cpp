@@ -749,7 +749,14 @@ Submenu audioClipSampleMenu{
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
-    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpPresetModeMenu, nullptr, nullptr, nullptr,
+    &arpRateMenuMIDIOrCV,
+    &arpSyncMenu,
+    &arpGateMenuMIDIOrCV,
+    &arpOctavesMenu,
+    &arpPresetModeMenu,
+    nullptr,
+    nullptr,
+    nullptr,
 };
 
 // Gate stuff
