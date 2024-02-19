@@ -283,6 +283,9 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		case UNPATCHED_ARP_RATCHET_AMOUNT:
 			return "ratchetAmount";
 
+		case UNPATCHED_ARP_SEQUENCE_LENGTH:
+			return "sequenceLength";
+
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
 
