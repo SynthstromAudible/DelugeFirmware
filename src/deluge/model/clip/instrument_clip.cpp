@@ -2633,15 +2633,23 @@ someError:
 					arpSettings.mode = oldModeToArpMode(oldMode);
 					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
 					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
 					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("arpMode");
 				}
 				else if (!strcmp(tagName, "octaveMode")) {
 					arpSettings.octaveMode = stringToArpOctaveMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("octaveMode");
+				}
+				else if (!strcmp(tagName, "noteMode")) {
+					arpSettings.noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					storageManager.exitTag("noteMode");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();

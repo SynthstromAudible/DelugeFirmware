@@ -30,6 +30,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	mode = ArpMode::OFF;
 	noteMode = ArpNoteMode::UP;
 	octaveMode = ArpOctaveMode::UP;
+	preset = ArpPreset::OFF;
 	flagForceArpRestart = false;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
@@ -332,7 +333,7 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
 	isRatcheting = ratchetProbability > randomChance && ratchetAmount > 0;
 	if (isRatcheting) {
-		ratchetNotesMultiplier = 1 + (random(65535) % ratchetAmount);
+		ratchetNotesMultiplier = random(65535) % (ratchetAmount + 1);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
 		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH) {
 			// If the sync level is 256th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
@@ -595,6 +596,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 	}
 
+	// Only increase steps played from the sequence for normal notes (not for ratchet notes)
+	notesPlayedFromSequence++;
+
 finishSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
 
@@ -603,8 +607,6 @@ finishSwitchNoteOn:
 		FREEZE_WITH_ERROR("E404");
 	}
 #endif
-
-	notesPlayedFromSequence++;
 	randomNotesPlayedFromOctave++;
 
 	ArpNote* arpNote;

@@ -655,18 +655,21 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 			else if (!strcmp(tagName, "octaveMode")) {
 				if (arpSettings) {
 					arpSettings->octaveMode = stringToArpOctaveMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
 				}
 				storageManager.exitTag("octaveMode");
 			}
 			else if (!strcmp(tagName, "noteMode")) {
 				if (arpSettings) {
 					arpSettings->noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
 				}
 				storageManager.exitTag("noteMode");
 			}
 			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
 				}
 				storageManager.exitTag("arpMode");
 			}
@@ -677,6 +680,7 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 					arpSettings->mode = oldModeToArpMode(oldMode);
 					arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
 					arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+					arpSettings->updatePresetFromCurrentSettings();
 				}
 				storageManager.exitTag("mode");
 			}
