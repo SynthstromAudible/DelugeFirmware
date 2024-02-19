@@ -637,7 +637,7 @@ void OLED::removePopup() {
 	oledPopupWidth = 0;
 	popupType = DisplayPopupType::NONE;
 	workingAnimationText = NULL;
-	uiTimerManager.unsetTimer(TIMER_DISPLAY);
+	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	sendMainImage();
 }
 
@@ -863,12 +863,12 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 	sendMainImage();
 	if (!persistent) {
-		uiTimerManager.setTimer(TIMER_DISPLAY, 800);
+		uiTimerManager.setTimer(TimerName::DISPLAY, 800);
 	}
 
 	// Or if persistent, make sure no previously set-up timeout occurs.
 	else {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	}
 }
 
@@ -955,7 +955,7 @@ void OLED::consoleText(char const* text) {
 
 	sendMainImage();
 
-	uiTimerManager.setTimerSamples(TIMER_OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
+	uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
 }
 
 union {
@@ -971,7 +971,7 @@ union {
 void performBlink() {
 	OLED::invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, OLED::oledMainImage);
 	OLED::sendMainImage();
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
 void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
@@ -982,14 +982,14 @@ void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, b
 	if (shouldBlinkImmediately) {
 		invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
 	}
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 	// Caller must do a sendMainImage() at some point after calling this.
 }
 
 void OLED::stopBlink() {
 	if (blinkArea.u32) {
 		blinkArea.u32 = 0;
-		uiTimerManager.unsetTimer(TIMER_OLED_SCROLLING_AND_BLINKING);
+		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
 }
 
@@ -1036,7 +1036,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->doHilight = doHilight;
 
 	sideScrollerDirection = 1;
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, 400);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, 400);
 }
 
 void OLED::stopScrollingAnimation() {
@@ -1046,7 +1046,7 @@ void OLED::stopScrollingAnimation() {
 			SideScroller* scroller = &sideScrollers[s];
 			scroller->text = NULL;
 		}
-		uiTimerManager.unsetTimer(TIMER_OLED_SCROLLING_AND_BLINKING);
+		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
 }
 
@@ -1118,7 +1118,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			sideScrollers[s].finished = false;
 		}
 	}
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, timeInterval);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, timeInterval);
 }
 
 void OLED::consoleTimerEvent() {
@@ -1234,7 +1234,7 @@ checkTimeTilTimeout:
 	}
 
 	if (timeTilNext) {
-		uiTimerManager.setTimerSamples(TIMER_OLED_CONSOLE, timeTilNext);
+		uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, timeTilNext);
 	}
 
 	sendMainImage();

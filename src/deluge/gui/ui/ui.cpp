@@ -80,7 +80,7 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	uiNavigationHierarchy[level] = newUI;
 	numUIsOpen = level + 1;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
@@ -100,7 +100,7 @@ void changeRootUI(UI* newUI) {
 	numUIsOpen = 1;
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	}
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
@@ -185,7 +185,7 @@ void closeUI(UI* uiToClose) {
 	UI* newUI = uiNavigationHierarchy[u - 1];
 	numUIsOpen = u;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
 	if (display->haveOLED()) {
@@ -222,7 +222,7 @@ bool openUI(UI* newUI) {
 	uiNavigationHierarchy[numUIsOpen] = newUI;
 	numUIsOpen++;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 

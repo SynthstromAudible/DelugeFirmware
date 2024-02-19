@@ -29,11 +29,11 @@ public:
 	void horizontalEncoderAction(int32_t offset) override;
 
 protected:
-	virtual void drawValue();
+	void drawValue() override;
 	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
 	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
 
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 
 	// 7Seg Only
 	virtual void drawActualValue(bool justDidHorizontalScroll = false);

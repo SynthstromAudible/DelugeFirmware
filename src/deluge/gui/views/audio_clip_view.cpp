@@ -183,7 +183,7 @@ ActionResult AudioClipView::timerCallback() {
 	blinkOn = !blinkOn;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0); // Very inefficient!
 
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 
 	return ActionResult::DEALT_WITH;
 }
@@ -284,7 +284,7 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
 				bool success = arrangerView.transitionToArrangementEditor();
@@ -361,7 +361,7 @@ dontDeactivateMarker:
 			getCurrentAudioClip()->clear(action, modelStack);
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
-			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 	}
@@ -377,7 +377,7 @@ deactivateMarkerIfNecessary:
 			if (endMarkerVisible) {
 				endMarkerVisible = false;
 				if (getCurrentUI() == this) {
-					uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 				}
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
@@ -412,7 +412,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 				if (soundEditorResult == ActionResult::DEALT_WITH) {
 					endMarkerVisible = false;
-					uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				}
 
@@ -435,7 +435,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						if (blinkOn) {
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
 						}
-						uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+						uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 						endMarkerVisible = false;
 					}
 
@@ -562,7 +562,7 @@ setTheEndPos:
 					if (x == endSquareDisplay || x == endSquareDisplay + 1) {
 						endMarkerVisible = true;
 needRendering:
-						uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
+						uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 						blinkOn = true;
 						uiNeedsRendering(this, 0xFFFFFFFF, 0);
 					}

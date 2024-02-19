@@ -74,14 +74,14 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 void HIDSysex::sendDisplayIfChanged() {
 	// NB: timer is only used for throttling, under good conditions sending
 	// is driven by the display subsystem only
-	uiTimerManager.unsetTimer(TIMER_SYSEX_DISPLAY);
+	uiTimerManager.unsetTimer(TimerName::SYSEX_DISPLAY);
 	if (midiDisplayDevice == nullptr || AudioEngine::audioSampleTimer > midiDisplayUntil) {
 		return;
 	}
 	// not exact, but if more than half than the serial buffer is still full,
 	// we need to slow down a little. (USB buffer is larger and should be consumed much quicker)
 	if (midiDisplayDevice->sendBufferSpace() < 512) {
-		uiTimerManager.setTimer(TIMER_SYSEX_DISPLAY, 100);
+		uiTimerManager.setTimer(TimerName::SYSEX_DISPLAY, 100);
 		return;
 	}
 

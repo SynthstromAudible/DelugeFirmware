@@ -236,13 +236,13 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			else if (!currentUIMode) {
 				currentUIMode = UI_MODE_HOLDING_BACKSPACE;
 				processBackspace();
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 			}
 		}
 		else {
 			if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 				currentUIMode = UI_MODE_NONE;
-				uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
 		}
 	}
@@ -436,7 +436,7 @@ doDisplayText:
 ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 80 : 125);
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 80 : 125);
 	}
 
 	return ActionResult::DEALT_WITH;
