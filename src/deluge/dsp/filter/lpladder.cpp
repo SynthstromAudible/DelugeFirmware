@@ -103,8 +103,8 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 		int32_t resonance = ONE_Q31 - (std::min(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-		
-		// ONE_Q31 - rawResonance2; 
+
+		// ONE_Q31 - rawResonance2;
 		// Always between 0 and 2. 1 represented as 1073741824
 		processedResonance = ONE_Q31 - resonance;
 		processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
@@ -134,7 +134,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		lpf3Feedback = multiply_32x32_rshift32_rounded(divideBy1PlusTannedFrequency, moveability);
 		lpf2Feedback = multiply_32x32_rshift32_rounded(lpf3Feedback, moveability) << 1;
 		lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
-		
+
 		// 1 represented as 67108864
 		int32_t onePlusThing =
 		    67108864
@@ -142,8 +142,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		        moveability,
 		        multiply_32x32_rshift32_rounded(
 		            moveability, multiply_32x32_rshift32_rounded(
-		                             moveability, multiply_32x32_rshift32_rounded(
-		                                              moveability, processedResonance)))));
+		                             moveability, multiply_32x32_rshift32_rounded(moveability, processedResonance)))));
 		divideByTotalMoveabilityAndProcessedResonance = (q31_t)(72057594037927936.0 / (double)onePlusThing);
 	}
 

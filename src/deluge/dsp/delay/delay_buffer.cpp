@@ -171,10 +171,10 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// rate it's the same width as the slowed-down algorithm below, so there's no click when switching between
 			// the two. This does mean we lose half the bandwidth. That's done with the following 2 lines of code, and
 			// the fact that the actual writes below are <<3 instead of <<4.
-			
+
 			// Woah, did I mean to write "<<=" ?
-			setup->spinRateForSpedUpWriting = setup->spinRateForSpedUpWriting <<= 1;                    
-			// We may change this because sped up writing is the only thing it'll be used for 
+			setup->spinRateForSpedUpWriting = setup->spinRateForSpedUpWriting <<= 1;
+			// We may change this because sped up writing is the only thing it'll be used for
 			setup->divideByRate >>= 1;
 		}
 	}

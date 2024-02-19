@@ -93,11 +93,11 @@ public:
 			// For efficiency, we start far-right, then traverse to far-left.
 			// I rearranged some algebra to get this from the strengthThisWrite equation
 			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16;
-			
+
 			// This variable represents one "step" of the delay buffer as 65536.
 			// Always positive - absolute distance
 			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16;
-			                                       
+
 			// Initially is the far-right right pos, not the central "main" one
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart;
 			while (writePos < bufferStart)
@@ -108,7 +108,8 @@ public:
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
 				// Check my notebook for a rudimentary diagram
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
+				int32_t strengthThisWrite =
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -206,14 +207,14 @@ public:
 			// be halved at high speeds.
 
 			// For efficiency, we start far-right, then traverse to far-left.
-			
+
 			// I rearranged some algebra to get this from the strengthThisWrite equation
 			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16;
-			
+
 			// This variable represents one "step" of the delay buffer as 65536.
 			// Always positive - absolute distance
-			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16; 
-			                                       
+			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16;
+
 			// Initially is the far-right right pos, not the central "main" one
 			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart;
 			while (writePos < bufferStart)
@@ -224,7 +225,8 @@ public:
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
 				// Check my notebook for a rudimentary diagram
-				int32_t strengthThisWrite = (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
+				int32_t strengthThisWrite =
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;

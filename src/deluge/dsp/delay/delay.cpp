@@ -117,7 +117,6 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerI
 	// TODO: we want to be able to reduce the 256 to 1, but for some reason, the
 	// patching engine spits out 112 even when this should be 0...
 	bool mightDoDelay = (workingState->delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
-	                                   
 
 	if (mightDoDelay) {
 

@@ -18,7 +18,7 @@
 #define numBitsInTableSize 8
 
 // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
-#define rshiftAmount \ ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize \ + 1)
+#define rshiftAmount ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1)
 
 #if rshiftAmount >= 0
 uint32_t rshifted = oscPos >> rshiftAmount;

@@ -102,8 +102,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		if (playDirection != 1) {
 			// The actual first sample of the waveform in our given
 			// direction, regardless of our elected start-point
-			startByte += sample->audioDataLengthBytes - bytesPerSample; 
-			                                                   
+			startByte += sample->audioDataLengthBytes - bytesPerSample;
 		}
 
 		// If there's actually some waveform where we propose to start, do it!
@@ -382,8 +381,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	if (playDirection != 1) {
 		// The actual first sample of the waveform in our given
 		// direction, regardless of our elected start-point
-		waveformStartByte += sample->audioDataLengthBytes - bytesPerSample; 
-		                                                   
+		waveformStartByte += sample->audioDataLengthBytes - bytesPerSample;
 	}
 
 	// If this is for some looping piece of audio (possibly an AudioClip, but also a looping instrument sample or
@@ -400,7 +398,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		if (numBytesOfPreMarginAvailable > 0) {
 
 			// This will refer to the loop point - not the actual end of the waveform
-			uint32_t loopEndSample = (uint32_t)(guide->getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes) / (uint8_t)(sample->numChannels * sample->byteDepth);
+			uint32_t loopEndSample = (uint32_t)(guide->getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes)
+			                         / (uint8_t)(sample->numChannels * sample->byteDepth);
 
 			int32_t sourceSamplesTilLoop = (int32_t)(loopEndSample - samplePos) * playDirection;
 
@@ -415,7 +414,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 					int32_t numSamplesIntoPreMarginToStartSource = outputSamplesTilLoop;
 					if (phaseIncrement != 16777216) {
 						// Round
-						numSamplesIntoPreMarginToStartSource = (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1)) / timeStretchRatio;
+						numSamplesIntoPreMarginToStartSource =
+						    (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1)) / timeStretchRatio;
 					}
 
 					newHeadBytePos = guide->getBytePosToStartPlayback(true)
@@ -542,13 +542,15 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			}
 		}
 
-		int32_t beamBackEdge = samplePos + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25) * playDirection; // The real, non-pixelated one
+		int32_t beamBackEdge = samplePos
+		                       + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
+		                             * playDirection; // The real, non-pixelated one
 
 		// The actual first sample of the waveform in our given direction, regardless of our elected start-point
 		int32_t waveformStartSample = (playDirection == 1) ? 0 : sample->lengthInSamples - 1;
 
-		// The actual last sample of the waveform in our given direction, regardless of our elected start-point		 				                                        
-		int32_t waveformEndSample = (playDirection == 1) ? sample->lengthInSamples : -1; 
+		// The actual last sample of the waveform in our given direction, regardless of our elected start-point
+		int32_t waveformEndSample = (playDirection == 1) ? sample->lengthInSamples : -1;
 
 		// Still must make sure we didn't go back beyond the start of the waveform, which can end up happening from the
 		// heavily pixellated search thing above
@@ -796,7 +798,8 @@ entryPoint:
 					// right down, while also time stretching it
 
 					// If best was this one or last one
-					if (phaseIncrement != 16777216 && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
+					if (phaseIncrement != 16777216
+					    && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
 						uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
 						uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
 						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)

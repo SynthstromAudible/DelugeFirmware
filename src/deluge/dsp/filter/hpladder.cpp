@@ -28,7 +28,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
 
 	resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-	
+
 	// ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 	hpfProcessedResonance = ONE_Q31 - resonance;
 
@@ -43,7 +43,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	// 1 = 536870912
 	int32_t moveabilityTimesProcessedResonance = multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, fc);
-	
+
 	// 1 = 268435456
 	int32_t moveabilitySquaredTimesProcessedResonance = multiply_32x32_rshift32(moveabilityTimesProcessedResonance, fc);
 
@@ -59,7 +59,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	// Adjust volume for HPF resonance
 	q31_t rawResonance = std::min(hpfResonance, (q31_t)ONE_Q31 >> 2) << 2;
 	q31_t squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
-	
+
 	// Make bigger to have more of a volume cut happen at high resonance
 	squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
 	filterGain = multiply_32x32_rshift32(filterGain, ONE_Q31 - squared) << 1;
