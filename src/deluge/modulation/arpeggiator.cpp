@@ -30,6 +30,7 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 	mode = ArpMode::OFF;
 	noteMode = ArpNoteMode::UP;
 	octaveMode = ArpOctaveMode::UP;
+	flagForceArpRestart = false;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
 	// current song, or even better the one being preloaded. Default sync level is used obviously for the default synth
@@ -710,6 +711,12 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
+	}
+
+	if (settings->flagForceArpRestart) {
+		// If flagged to restart sequence, do it now and reset the flag
+		playedFirstArpeggiatedNoteYet = false;
+		settings->flagForceArpRestart = false;
 	}
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);

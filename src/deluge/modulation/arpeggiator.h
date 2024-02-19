@@ -46,6 +46,7 @@ public:
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
+	bool flagForceArpRestart;
 };
 
 struct ArpNote {

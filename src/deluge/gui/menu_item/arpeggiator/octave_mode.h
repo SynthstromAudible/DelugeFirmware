@@ -30,7 +30,10 @@ class OctaveMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->octaveMode); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->octaveMode = this->getValue<ArpOctaveMode>(); }
+	void writeCurrentValue() override {
+		soundEditor.currentArpSettings->octaveMode = this->getValue<ArpOctaveMode>();
+		soundEditor.currentArpSettings->flagForceArpRestart = true;
+	}
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;

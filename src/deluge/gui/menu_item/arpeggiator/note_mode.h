@@ -30,7 +30,10 @@ class NoteMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>(); }
+	void writeCurrentValue() override {
+		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
+		soundEditor.currentArpSettings->flagForceArpRestart = true;
+	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingKit();
 	}
