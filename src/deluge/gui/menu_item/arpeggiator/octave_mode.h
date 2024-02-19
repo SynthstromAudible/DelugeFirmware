@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
@@ -32,6 +33,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->octaveMode); }
 	void writeCurrentValue() override {
 		soundEditor.currentArpSettings->octaveMode = this->getValue<ArpOctaveMode>();
+		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 
@@ -45,5 +47,9 @@ public:
 		    l10n::getView(STRING_FOR_RANDOM),    //<
 		};
 	}
+
+	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeMenu; }
 };
+
+extern OctaveMode arpOctaveModeMenu;
 } // namespace deluge::gui::menu_item::arpeggiator

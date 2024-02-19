@@ -32,6 +32,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
 	void writeCurrentValue() override {
 		soundEditor.currentArpSettings->noteMode = this->getValue<ArpNoteMode>();
+		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
@@ -49,4 +50,6 @@ public:
 		};
 	}
 };
+
+extern NoteMode arpNoteModeMenu;
 } // namespace deluge::gui::menu_item::arpeggiator

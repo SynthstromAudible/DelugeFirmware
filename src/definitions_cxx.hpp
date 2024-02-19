@@ -595,6 +595,15 @@ enum class ArpMode {
 	ARP,
 };
 
+enum class ArpPreset {
+	OFF,
+	UP,
+	DOWN,
+	BOTH,
+	RANDOM,
+	CUSTOM,
+};
+
 enum class ArpNoteMode {
 	UP,
 	DOWN,

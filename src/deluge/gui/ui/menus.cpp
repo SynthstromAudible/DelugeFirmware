@@ -9,6 +9,7 @@
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
+#include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/arpeggiator/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/rate.h"
@@ -299,11 +300,12 @@ Submenu unisonMenu{
 };
 
 // Arp --------------------------------------------------------------------------------------
+arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Mode arpModeMenu{STRING_FOR_MODE, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
-arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::OctaveMode arpeggiator::arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
+arpeggiator::NoteMode arpeggiator::arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::Gate arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
@@ -327,8 +329,8 @@ arpeggiator::RatchetProbability arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PRO
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
-        &arpModeMenu, &arpSyncMenu, &arpOctavesMenu, &arpOctaveModeMenu, &arpNoteModeMenu, &arpGateMenu,
-        &arpGateMenuMIDIOrCV, &arpRateMenu, &arpRateMenuMIDIOrCV, &arpSequenceLengthMenu,
+        &arpModeMenu, &arpSyncMenu, &arpOctavesMenu, &arpeggiator::arpOctaveModeMenu, &arpeggiator::arpNoteModeMenu,
+        &arpGateMenu, &arpGateMenuMIDIOrCV, &arpRateMenu, &arpRateMenuMIDIOrCV, &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV, &arpRatchetAmountMenu,
         // TODO: fix ratchets for midi clips and then uncomment this
         // &arpRatchetAmountMenuMIDIOrCV,
@@ -344,7 +346,7 @@ voice::Polyphony polyphonyMenu{STRING_FOR_POLYPHONY};
 UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &priorityMenu}};
+Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &priorityMenu}};
 
 // Modulator menu -----------------------------------------------------------------------
 
@@ -747,7 +749,7 @@ Submenu audioClipSampleMenu{
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
-    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpModeMenu, nullptr, nullptr, nullptr,
+    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, &arpOctavesMenu, &arpPresetModeMenu, nullptr, nullptr, nullptr,
 };
 
 // Gate stuff
@@ -1156,6 +1158,7 @@ menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &soundMasterMenu,
+        &arpMenu,
         &audioCompMenu,
         &soundFiltersMenu,
         &soundFXMenu,
@@ -1282,7 +1285,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &sidechainVolumeShortcutMenu,  &sidechainAttackMenu,          &sidechainShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
-    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
+    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
     {&lfo2RateMenu,           comingSoonMenu,          &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,     &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },

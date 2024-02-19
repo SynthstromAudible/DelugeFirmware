@@ -24,6 +24,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
 #include <cmath>
 #include <string.h>

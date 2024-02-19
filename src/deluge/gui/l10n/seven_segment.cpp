@@ -97,6 +97,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_DOWN, "DOWN"},
         {STRING_FOR_BOTH, "BOTH"},
         {STRING_FOR_RANDOM, "RAND"},
+        {STRING_FOR_CUSTOM, "CUST"},
         {STRING_FOR_UP_DOWN, "UPDN"},
         {STRING_FOR_AS_PLAYED, "PLAY"},
         {STRING_FOR_ALTERNATE, "ALT"},

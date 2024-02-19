@@ -32,20 +32,62 @@ public:
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
+		preset = other->preset;
 		mode = other->mode;
 		noteMode = other->noteMode;
 		octaveMode = other->octaveMode;
 	}
 
+	void updatePresetFromCurrentSettings() {
+		if (mode == ArpMode::OFF) {
+			preset = ArpPreset::OFF;
+		} else if (octaveMode == ArpOctaveMode::UP && noteMode == ArpNoteMode::UP) {
+			preset = ArpPreset::UP;
+		} else if (octaveMode == ArpOctaveMode::DOWN && noteMode == ArpNoteMode::DOWN) {
+			preset = ArpPreset::DOWN;
+		} else if (octaveMode == ArpOctaveMode::ALTERNATE && noteMode == ArpNoteMode::UP) {
+			preset = ArpPreset::BOTH;
+		} else if (octaveMode == ArpOctaveMode::RANDOM && noteMode == ArpNoteMode::RANDOM) {
+			preset = ArpPreset::RANDOM;
+		} else {
+			preset = ArpPreset::CUSTOM;
+		}
+	}
+
+	void updateSettingsFromCurrentPreset() {
+		if (preset == ArpPreset::OFF) {
+			mode = ArpMode::OFF;
+		} else if (preset == ArpPreset::UP) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::UP;
+			noteMode = ArpNoteMode::UP;
+		} else if (preset == ArpPreset::DOWN) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::DOWN;
+			noteMode = ArpNoteMode::DOWN;
+		} else if (preset == ArpPreset::BOTH) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::ALTERNATE;
+			noteMode = ArpNoteMode::UP;
+		} else if (preset == ArpPreset::RANDOM) {
+			mode = ArpMode::ARP;
+			octaveMode = ArpOctaveMode::RANDOM;
+			noteMode = ArpNoteMode::RANDOM;
+		}
+	}
+
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
 	// Settings
+	ArpPreset preset;
 	ArpMode mode;
 	ArpNoteMode noteMode;
 	ArpOctaveMode octaveMode;
+
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
+
 	bool flagForceArpRestart;
 };
 
