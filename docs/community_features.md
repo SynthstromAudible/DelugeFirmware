@@ -511,13 +511,13 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - Splitted the old `Mode` setting into separate settings `Mode` (Off or Arpeggiator) `Octave Mode` (Up, Down,
     Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random) settings, so you can setup
     individually how octaves are walked and how notes are walked in the sequence.
-    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings at once:
+    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
         - `Off` will disable arpeggiator.
-        - `Up` will setup mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
-        - `Down` will setup mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
-        - `Both` will setup mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
-        - `Random` will setup mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
-        - `Custom` will setup mode to `Arpeggiator`, and enter a submenu to edit Octave Mode and Note Mode.
+        - `Up` will setup Mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
+        - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
+        - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
+        - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
+        - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
     - Mode (MODE):
         - `Off` disables the arpeggiator.
         - `Arpeggiator` (ARP) enables the arpeggiator.
