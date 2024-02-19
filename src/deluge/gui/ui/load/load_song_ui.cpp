@@ -70,7 +70,7 @@ gotError:
 		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		renderingNeededRegardlessOfUI(); // Otherwise we may have left the scrolling-in animation partially done
 		return false;                    // Exit UI instantly
 	}
@@ -257,8 +257,9 @@ void LoadSongUI::performLoad() {
 
 	// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
 	if (!playbackHandler.isEitherClockActive()) {
-		uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access
-		                                                    // Clips that we may have deleted below (really?)
+		// Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
+		uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
@@ -477,8 +478,8 @@ ActionResult LoadSongUI::timerCallback() {
 			}
 		}
 		else {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC,
-			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
+			// *2 caused glitches occasionally
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
 getOut: {}
 		return ActionResult::DEALT_WITH;

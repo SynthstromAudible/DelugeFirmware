@@ -28,7 +28,7 @@ NumericLayerScrollTransition::~NumericLayerScrollTransition() {
 }
 
 void NumericLayerScrollTransition::isNowOnTop() {
-	uiTimerManager.setTimer(TIMER_DISPLAY, 32);
+	uiTimerManager.setTimer(TimerName::DISPLAY, 32);
 }
 
 bool NumericLayerScrollTransition::callBack() {
@@ -97,7 +97,7 @@ bool NumericLayerScrollTransition::callBack() {
 	transitionProgress += transitionDirection;
 	if (transitionProgress * transitionDirection < kNumericDisplayLength) {
 		int32_t timeToWait = (transitionProgress == 0) ? 160 : 32;
-		uiTimerManager.setTimer(TIMER_DISPLAY, timeToWait);
+		uiTimerManager.setTimer(TimerName::DISPLAY, timeToWait);
 		return false;
 	}
 

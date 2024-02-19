@@ -111,7 +111,7 @@ void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 	topLayer = newTopLayer;
 
 	if (!popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 		render();
 	}
@@ -138,7 +138,7 @@ void SevenSegment::removeTopLayer() {
 	delugeDealloc(toDelete);
 
 	if (!popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 		render();
 	}
@@ -231,7 +231,7 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	delugeDealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 	}
 
@@ -547,7 +547,7 @@ void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool ali
 
 void SevenSegment::cancelPopup() {
 	if (popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		popupActive = false;
 		topLayer->isNowOnTop();
 		render();

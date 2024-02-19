@@ -79,6 +79,8 @@ extern "C" {
 #include "RZA1/spibsc/spibsc_Deluge_setup.h"
 }
 
+namespace encoders = deluge::hid::encoders;
+
 extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
@@ -107,7 +109,7 @@ void batteryLEDBlink() {
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
 	blinkPeriod = std::max(blinkPeriod, 60_i32);
-	uiTimerManager.setTimer(TIMER_BATT_LED_BLINK, blinkPeriod);
+	uiTimerManager.setTimer(TimerName::BATT_LED_BLINK, blinkPeriod);
 	batteryLEDState = !batteryLEDState;
 }
 
@@ -167,7 +169,7 @@ void inputRoutine() {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
-				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
+				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
 		else if (batteryCurrentRegion == 1) {
@@ -179,7 +181,7 @@ makeBattLEDSolid:
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
+				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
 		else {
@@ -194,7 +196,7 @@ makeBattLEDSolid:
 
 	MIDIDeviceManager::slowRoutine();
 
-	uiTimerManager.setTimer(TIMER_READ_INPUTS, 100);
+	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
 }
 
 int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
@@ -318,7 +320,7 @@ bool readButtonsAndPads() {
 			}
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
-			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
+			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 		}
 	}
 
@@ -563,7 +565,7 @@ extern "C" int32_t deluge_main(void) {
 	makeTestRecording();
 #endif
 
-	Encoders::init();
+	encoders::init();
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -753,7 +755,7 @@ extern "C" int32_t deluge_main(void) {
 
 	inputRoutine();
 
-	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
+	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
@@ -778,8 +780,8 @@ extern "C" int32_t deluge_main(void) {
 			count++;
 		}
 
-		Encoders::readEncoders();
-		bool anything = Encoders::interpretEncoders();
+		encoders::readEncoders();
+		bool anything = encoders::interpretEncoders();
 		if (anything) {
 			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 		}
@@ -833,8 +835,8 @@ extern "C" void routineForSD(void) {
 	}
 	PIC::flush();
 
-	Encoders::readEncoders();
-	Encoders::interpretEncoders(true);
+	encoders::readEncoders();
+	encoders::interpretEncoders(true);
 	readButtonsAndPads();
 	doAnyPendingUIRendering();
 

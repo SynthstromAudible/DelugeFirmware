@@ -33,7 +33,7 @@ public:
 			if (getCurrentUI() == &soundEditor) {
 				soundEditor.goUpOneLevel();
 			}
-			uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
 		else {
 			audioRecorder.process();

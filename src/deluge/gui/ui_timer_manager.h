@@ -17,30 +17,35 @@
 
 #pragma once
 
+#include "util/misc.h"
+#include <array>
 #include <cstdint>
-#define TIMER_DISPLAY 0
-#define TIMER_MIDI_LEARN_FLASH 1
-#define TIMER_DEFAULT_ROOT_NOTE 2
-#define TIMER_TAP_TEMPO_SWITCH_OFF 3
-#define TIMER_PLAY_ENABLE_FLASH 4
-#define TIMER_LED_BLINK 5
-#define TIMER_LED_BLINK_TYPE_1 6
-#define TIMER_LEVEL_INDICATOR_BLINK 7
-#define TIMER_SHORTCUT_BLINK 8
-#define TIMER_MATRIX_DRIVER 9
-#define TIMER_UI_SPECIFIC 10
-#define TIMER_DISPLAY_AUTOMATION 11
-#define TIMER_READ_INPUTS 12
-#define TIMER_BATT_LED_BLINK 13
-#define TIMER_GRAPHICS_ROUTINE 14
-#define TIMER_OLED_LOW_LEVEL 15
-#define TIMER_OLED_CONSOLE 16
-#define TIMER_OLED_SCROLLING_AND_BLINKING 17
-#define TIMER_SYSEX_DISPLAY 18
-#define TIMER_METER_INDICATOR_BLINK 19
-#define TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION 20
-#define TIMER_INTERPOLATION_SHORTCUT_BLINK 21
-#define NUM_TIMERS 22
+enum class TimerName {
+	DISPLAY,
+	MIDI_LEARN_FLASH,
+	DEFAULT_ROOT_NOTE,
+	TAP_TEMPO_SWITCH_OFF,
+	PLAY_ENABLE_FLASH,
+	LED_BLINK,
+	LED_BLINK_TYPE_1,
+	LEVEL_INDICATOR_BLINK,
+	SHORTCUT_BLINK,
+	MATRIX_DRIVER,
+	UI_SPECIFIC,
+	DISPLAY_AUTOMATION,
+	READ_INPUTS,
+	BATT_LED_BLINK,
+	GRAPHICS_ROUTINE,
+	OLED_LOW_LEVEL,
+	OLED_CONSOLE,
+	OLED_SCROLLING_AND_BLINKING,
+	SYSEX_DISPLAY,
+	METER_INDICATOR_BLINK,
+	SEND_MIDI_FEEDBACK_FOR_AUTOMATION,
+	INTERPOLATION_SHORTCUT_BLINK,
+	/// Total number of timers
+	NUM_TIMERS
+};
 
 struct Timer {
 	bool active;
@@ -52,18 +57,20 @@ public:
 	UITimerManager();
 
 	void routine();
-	void setTimer(int32_t i, int32_t ms);
-	void setTimerSamples(int32_t i, int32_t samples);
-	void unsetTimer(int32_t i);
+	void setTimer(TimerName which, int32_t ms);
+	void setTimerSamples(TimerName which, int32_t samples);
+	void unsetTimer(TimerName which);
 
-	bool isTimerSet(int32_t i);
-	void setTimerByOtherTimer(int32_t i, int32_t j);
-
-	Timer timers[NUM_TIMERS];
+	bool isTimerSet(TimerName which);
+	void setTimerByOtherTimer(TimerName which, TimerName fromTimer);
 
 private:
 	uint32_t timeNextEvent;
+	std::array<Timer, util::to_underlying(TimerName::NUM_TIMERS)> timers_;
 	void workOutNextEventTime();
+
+public:
+	[[gnu::always_inline]] inline Timer& getTimer(TimerName which) { return timers_[util::to_underlying(which)]; }
 };
 
 extern UITimerManager uiTimerManager;

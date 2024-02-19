@@ -39,7 +39,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool success = openUI(&sampleBrowser);
 	if (!success) {
 		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
 bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {

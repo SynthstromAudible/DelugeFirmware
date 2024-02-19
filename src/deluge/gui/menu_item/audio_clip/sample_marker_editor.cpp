@@ -46,7 +46,7 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	sampleMarkerEditor.markerType = whichMarker;
 	bool success = openUI(&sampleMarkerEditor); // Shouldn't be able to fail anymore
 	if (!success) {
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
 
