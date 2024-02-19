@@ -59,7 +59,6 @@ public:
 		return {
 		    l10n::getView(STRING_FOR_OFF),      //<
 		    l10n::getView(STRING_FOR_ARP),      //<
-		    l10n::getView(STRING_FOR_SEQUENCE), //<
 		};
 	}
 };
