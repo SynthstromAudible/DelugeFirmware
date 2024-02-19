@@ -100,9 +100,10 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 		int32_t startByte = sample->audioDataStartPosBytes;
 		if (playDirection != 1) {
-			startByte +=
-			    sample->audioDataLengthBytes - bytesPerSample; // The actual first sample of the waveform in our given
-			                                                   // direction, regardless of our elected start-point
+			// The actual first sample of the waveform in our given
+			// direction, regardless of our elected start-point
+			startByte += sample->audioDataLengthBytes - bytesPerSample; 
+			                                                   
 		}
 
 		// If there's actually some waveform where we propose to start, do it!
@@ -379,9 +380,10 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 	int32_t waveformStartByte = sample->audioDataStartPosBytes;
 	if (playDirection != 1) {
-		waveformStartByte +=
-		    sample->audioDataLengthBytes - bytesPerSample; // The actual first sample of the waveform in our given
-		                                                   // direction, regardless of our elected start-point
+		// The actual first sample of the waveform in our given
+		// direction, regardless of our elected start-point
+		waveformStartByte += sample->audioDataLengthBytes - bytesPerSample; 
+		                                                   
 	}
 
 	// If this is for some looping piece of audio (possibly an AudioClip, but also a looping instrument sample or
@@ -397,10 +399,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 		if (numBytesOfPreMarginAvailable > 0) {
 
-			uint32_t loopEndSample = (uint32_t)(guide->getBytePosToEndOrLoopPlayback()
-			                                    - sample->audioDataStartPosBytes) // This will refer to the loop point -
-			                                                                      // not the actual end of the waveform
-			                         / (uint8_t)(sample->numChannels * sample->byteDepth);
+			// This will refer to the loop point - not the actual end of the waveform
+			uint32_t loopEndSample = (uint32_t)(guide->getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes) / (uint8_t)(sample->numChannels * sample->byteDepth);
 
 			int32_t sourceSamplesTilLoop = (int32_t)(loopEndSample - samplePos) * playDirection;
 
@@ -414,9 +414,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 					int32_t numSamplesIntoPreMarginToStartSource = outputSamplesTilLoop;
 					if (phaseIncrement != 16777216) {
-						numSamplesIntoPreMarginToStartSource =
-						    (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1))
-						    / timeStretchRatio; // Round
+						// Round
+						numSamplesIntoPreMarginToStartSource = (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1)) / timeStretchRatio;
 					}
 
 					newHeadBytePos = guide->getBytePosToStartPlayback(true)
@@ -543,17 +542,13 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			}
 		}
 
-		int32_t beamBackEdge = samplePos
-		                       + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
-		                             * playDirection; // The real, non-pixelated one
+		int32_t beamBackEdge = samplePos + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25) * playDirection; // The real, non-pixelated one
 
-		int32_t waveformStartSample =
-		    (playDirection == 1) ? 0
-		                         : sample->lengthInSamples - 1; // The actual first sample of the waveform in our given
-		                                                        // direction, regardless of our elected start-point
-		int32_t waveformEndSample =
-		    (playDirection == 1) ? sample->lengthInSamples : -1; // The actual last sample of the waveform in our given
-		                                                         // direction, regardless of our elected start-point
+		// The actual first sample of the waveform in our given direction, regardless of our elected start-point
+		int32_t waveformStartSample = (playDirection == 1) ? 0 : sample->lengthInSamples - 1;
+
+		// The actual last sample of the waveform in our given direction, regardless of our elected start-point		 				                                        
+		int32_t waveformEndSample = (playDirection == 1) ? sample->lengthInSamples : -1; 
 
 		// Still must make sure we didn't go back beyond the start of the waveform, which can end up happening from the
 		// heavily pixellated search thing above
@@ -565,8 +560,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			D_PRINTLN("No cluster!!!");
 		}
 
-		samplesTilHopEnd =
-		    ((uint64_t)bestBeamWidth << 24) / (uint32_t)phaseIncrement; // That's the beamWidthOnRepitchedWaveform
+		// That's the beamWidthOnRepitchedWaveform
+		samplesTilHopEnd = ((uint64_t)bestBeamWidth << 24) / (uint32_t)phaseIncrement;
 		if (samplesTilHopEnd < 1) {
 			samplesTilHopEnd = 1; // Can happen if pitch up very high and also time-stretch sped up a lot
 		}
@@ -658,9 +653,9 @@ skipPercStuff:
 		maxSearchSize = 441;
 #endif
 
-		int32_t limit = (sample->sampleRate / 45)
-		                >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just
-		                      // for searching in one direction, and we're going to do both directions.
+		// Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just
+		// for searching in one direction, and we're going to do both directions.
+		int32_t limit = (sample->sampleRate / 45) >> 1;
 		maxSearchSize = std::min(maxSearchSize, limit);
 		D_PRINTLN("max search length:  %d", maxSearchSize);
 
@@ -799,11 +794,9 @@ entryPoint:
 					// Try going in between the samples for the most accurate positioning, lining-up-wise.
 					// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave
 					// right down, while also time stretching it
-					if (phaseIncrement != 16777216
-					    && (thisOffsetIsBestMatch
-					        || bestOffset
-					               == offsetNow
-					                      - bytesPerSampleTimesSearchDirection)) { // If best was this one or last one
+
+					// If best was this one or last one
+					if (phaseIncrement != 16777216 && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
 						uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
 						uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
 						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)

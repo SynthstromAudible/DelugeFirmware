@@ -28,8 +28,9 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
 
 	resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-	hpfProcessedResonance =
-	    ONE_Q31 - resonance; // ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+	
+	// ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
+	hpfProcessedResonance = ONE_Q31 - resonance;
 
 	hpfProcessedResonance = std::max(hpfProcessedResonance, (int32_t)134217728); // Set minimum resonance amount
 
@@ -40,10 +41,11 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	hpfDivideByProcessedResonance = (q31_t)(2147483648.0 / (double)(hpfProcessedResonance >> (23)));
 
-	int32_t moveabilityTimesProcessedResonance =
-	    multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, fc); // 1 = 536870912
-	int32_t moveabilitySquaredTimesProcessedResonance =
-	    multiply_32x32_rshift32(moveabilityTimesProcessedResonance, fc); // 1 = 268435456
+	// 1 = 536870912
+	int32_t moveabilityTimesProcessedResonance = multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, fc);
+	
+	// 1 = 268435456
+	int32_t moveabilitySquaredTimesProcessedResonance = multiply_32x32_rshift32(moveabilityTimesProcessedResonance, fc);
 
 	hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(fc, divideBy1PlusTannedFrequency);
 	hpfLPF1Feedback = divideBy1PlusTannedFrequency >> 1;
@@ -57,6 +59,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	// Adjust volume for HPF resonance
 	q31_t rawResonance = std::min(hpfResonance, (q31_t)ONE_Q31 >> 2) << 2;
 	q31_t squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
+	
 	// Make bigger to have more of a volume cut happen at high resonance
 	squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
 	filterGain = multiply_32x32_rshift32(filterGain, ONE_Q31 - squared) << 1;
@@ -106,7 +109,8 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, temp_fc), temp_fc);
 
-	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
+	// Normalization
+	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1);
 
 	return a;
 }
