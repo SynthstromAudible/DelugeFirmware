@@ -88,6 +88,7 @@ public:
 	virtual void reset() = 0;
 	void resetRatchet();
 	void carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void setRatchetingAvailable(bool available);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;

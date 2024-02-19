@@ -699,6 +699,10 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 	gatePos += (phaseIncrement >> 8) * numSamples;
 }
 
+void ArpeggiatorBase::setRatchetingAvailable(bool available) {
+	ratchetingIsAvailable = available;
+}
+
 // Returns num ticks til we next want to come back here.
 // May switch notes on and/or off.
 int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
