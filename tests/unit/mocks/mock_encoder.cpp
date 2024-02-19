@@ -1,6 +1,8 @@
 #include "hid/encoder.h"
 #include "processing/engines/audio_engine.h"
 
+namespace deluge::hid::encoders {
+
 Encoder::Encoder() {
 	encPos = 0;
 	detentPos = 0;
@@ -13,3 +15,5 @@ Encoder::Encoder() {
 	valuesNow[0] = true;
 	valuesNow[1] = true;
 }
+
+} // namespace deluge::hid::encoders
