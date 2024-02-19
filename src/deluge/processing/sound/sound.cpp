@@ -710,6 +710,26 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		storageManager.exitTag("noiseVolume");
 	}
 
+	else if (!strcmp(tagName, "ratchetAmount")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT, readAutomationUpToPos);
+		storageManager.exitTag("ratchetAmount");
+	}
+
+	else if (!strcmp(tagName, "ratchetProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("ratchetProbability");
+	}
+
+	else if (!strcmp(tagName, "sequenceLength")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("sequenceLength");
+	}
+
 	else if (!strcmp(tagName,
 	                 "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
 		                              // with firmware in September 2016
