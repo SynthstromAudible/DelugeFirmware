@@ -506,8 +506,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198]) Added new features to the arpeggiator (Note: currently available only for Synth clips, but expected to be
-  extended to Midi clips and Kit rows in the future). The new features include:
+- ([#1198]) Added new features to the arpeggiator, which include:
     - Splitted the old `Mode` setting into separate settings `Mode` (Off or Arpeggiator) `Octave Mode` (Up, Down,
     Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random) settings, so you can setup
     individually how octaves are walked and how notes are walked in the sequence.
@@ -548,7 +547,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           reset itself to start from the beginning.
     - Ratcheting: There are two new parameters (unpatched, assignable to golden knobs), to control how notes
       are ratcheted. A ratchet is when a note repeats itself several time in the same time interval that the
-      original note has to play.
+      original note has to play. (Note: Ratchets currently available only for Synth clips, but expected to be
+      extended to Midi clips and Kit rows in the future.)
         - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
            could have (each step will randomize the number of ratchet notes between 1 and max value).
            - From values 0 to 4, no ratchet notes

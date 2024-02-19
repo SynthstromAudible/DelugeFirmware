@@ -415,9 +415,13 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 	// Or not RANDOM
 	else {
+		if (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength) {
+			playedFirstArpeggiatedNoteYet = false;
+		}
 
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
+			notesPlayedFromSequence = 0;
 			// Set the initial octave
 			if (settings->octaveMode == ArpOctaveMode::DOWN) {
 				currentOctave = settings->numOctaves - 1;
@@ -436,6 +440,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 
 	playedFirstArpeggiatedNoteYet = true;
+	notesPlayedFromSequence++;
 
 	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
