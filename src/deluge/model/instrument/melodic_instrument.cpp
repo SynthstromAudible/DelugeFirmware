@@ -102,7 +102,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:
-		break;
+		return;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
 		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
@@ -277,17 +277,6 @@ justAuditionNote:
 			                      note, velocity);
 		}
 	} // end match switch
-	// In case Norns layout is active show
-	// this ignores input differentiation, but since midi learn doesn't work for norns grid
-	// you can't set a device
-	// norns midigrid mod updates deluge pads by sending midi note_on messages on channel 16
-	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
-	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
-	    && instrumentClip->onKeyboardScreen && instrumentClip->output
-	    && instrumentClip->output->type == OutputType::MIDI_OUT
-	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
-		highlightNoteValue = on ? velocity : 0;
-	}
 
 	if (highlightNoteValue != -1) {
 		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
@@ -301,9 +290,20 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 
-	if (match != MIDIMatchType::NO_MATCH
-		|| instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
+	if (match != MIDIMatchType::NO_MATCH) {
 		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
+	}
+	// In case Norns layout is active show
+	// this ignores input differentiation, but since midi learn doesn't work for norns grid
+	// you can't set a device
+	// norns midigrid mod sends deluge midi note_on messages on channel 16 to update pad brightness
+	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
+			&& instrumentClip->onKeyboardScreen
+			&& instrumentClip->output
+			&& instrumentClip->output->type == OutputType::MIDI_OUT
+			&& ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
+		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
+		keyboardScreen.requestRendering();
 	}
 }
 
