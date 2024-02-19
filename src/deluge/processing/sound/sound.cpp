@@ -170,6 +170,9 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -649,9 +652,35 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				}
 				storageManager.exitTag("syncLevel");
 			}
-			else if (!strcmp(tagName, "mode")) {
+			else if (!strcmp(tagName, "octaveMode")) {
+				if (arpSettings) {
+					arpSettings->octaveMode = stringToArpOctaveMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
+				}
+				storageManager.exitTag("octaveMode");
+			}
+			else if (!strcmp(tagName, "noteMode")) {
+				if (arpSettings) {
+					arpSettings->noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
+				}
+				storageManager.exitTag("noteMode");
+			}
+			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings->updatePresetFromCurrentSettings();
+				}
+				storageManager.exitTag("arpMode");
+			}
+			else if (!strcmp(tagName, "mode") && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+				if (arpSettings) {
+					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings->mode = oldModeToArpMode(oldMode);
+					arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
+					arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+					arpSettings->updatePresetFromCurrentSettings();
 				}
 				storageManager.exitTag("mode");
 			}
@@ -679,6 +708,26 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		ENSURE_PARAM_MANAGER_EXISTS
 		patchedParams->readParam(patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
 		storageManager.exitTag("noiseVolume");
+	}
+
+	else if (!strcmp(tagName, "ratchetAmount")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT, readAutomationUpToPos);
+		storageManager.exitTag("ratchetAmount");
+	}
+
+	else if (!strcmp(tagName, "ratchetProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("ratchetProbability");
+	}
+
+	else if (!strcmp(tagName, "sequenceLength")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("sequenceLength");
 	}
 
 	else if (!strcmp(tagName,
@@ -2129,10 +2178,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+		uint32_t ratchetProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+		uint32_t sequenceLength =
+		    (((int64_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648) * kMaxMenuValue
+		     + 2147483648)
+		    >> 32;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, ratchetAmount,
+		                 ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3483,6 +3540,20 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorGate");
 	}
+	else if (!strcmp(tagName, "ratchetProbability")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("ratchetProbability");
+	}
+	else if (!strcmp(tagName, "ratchetAmount")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT, readAutomationUpToPos);
+		storageManager.exitTag("ratchetAmount");
+	}
+	else if (!strcmp(tagName, "sequenceLength")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("sequenceLength");
+	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
@@ -3694,6 +3765,10 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
@@ -3835,7 +3910,9 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 
 	if (arpSettings) {
 		storageManager.writeOpeningTagBeginning("arpeggiator");
-		storageManager.writeAttribute("mode", arpModeToString(arpSettings->mode));
+		storageManager.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
+		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);

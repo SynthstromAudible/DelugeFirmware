@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -34,6 +35,11 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
+			uint32_t ratchetProbability = activeInstrumentClip->arpeggiatorRatchetProbability + 2147483648;
+			uint32_t ratchetAmount = activeInstrumentClip->arpeggiatorRatchetAmount + 2147483648;
+			uint32_t sequenceLength =
+			    (((int64_t)activeInstrumentClip->arpeggiatorSequenceLength + 2147483648) * kMaxMenuValue + 2147483648)
+			    >> 32;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
@@ -42,7 +48,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			ArpReturnInstruction instruction;
 
 			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
-			                   &instruction);
+			                   sequenceLength, ratchetAmount, ratchetProbability, &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,

@@ -42,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
 #include <cmath>
 #include <new>
 
@@ -50,6 +51,9 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
+	arpeggiatorRatchetProbability = 0;
+	arpeggiatorRatchetAmount = 0;
+	arpeggiatorSequenceLength = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -137,6 +141,9 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
+	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
+	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
+	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2328,13 +2335,18 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (output->type != OutputType::KIT) {
 		if (arpSettings.mode != ArpMode::OFF) {
 			storageManager.writeOpeningTagBeginning("arpeggiator");
-			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
+			storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				storageManager.writeAttribute("gate", arpeggiatorGate);
 				storageManager.writeAttribute("rate", arpeggiatorRate);
+				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+				storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			}
 			storageManager.closeTag();
 		}
@@ -2595,6 +2607,18 @@ someError:
 					arpeggiatorRate = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("rate");
 				}
+				else if (!strcmp(tagName, "ratchetProbability")) {
+					arpeggiatorRatchetProbability = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("ratchetProbability");
+				}
+				else if (!strcmp(tagName, "ratchetAmount")) {
+					arpeggiatorRatchetAmount = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("ratchetAmount");
+				}
+				else if (!strcmp(tagName, "sequenceLength")) {
+					arpeggiatorSequenceLength = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("sequenceLength");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
@@ -2603,9 +2627,29 @@ someError:
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("syncLevel");
 				}
-				else if (!strcmp(tagName, "mode")) {
-					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+				else if (!strcmp(tagName, "mode") && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings.mode = oldModeToArpMode(oldMode);
+					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("mode");
+				}
+				else if (!strcmp(tagName, "arpMode")) {
+					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					storageManager.exitTag("arpMode");
+				}
+				else if (!strcmp(tagName, "octaveMode")) {
+					arpSettings.octaveMode = stringToArpOctaveMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					storageManager.exitTag("octaveMode");
+				}
+				else if (!strcmp(tagName, "noteMode")) {
+					arpSettings.noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					storageManager.exitTag("noteMode");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();
