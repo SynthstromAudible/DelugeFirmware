@@ -911,24 +911,6 @@ void StorageManager::exitTag(char const* exitTagName) {
 	tagDepthCaller = tagDepthFile;
 }
 
-void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
-	char const* tagName;
-	while (*(tagName = readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "channel")) {
-			*channel = readTagOrAttributeValueInt();
-			*channel = std::min(*channel, (uint8_t)15);
-			exitTag("channel");
-		}
-		else if (!strcmp(tagName, "note")) {
-			if (note != NULL) {
-				*note = readTagOrAttributeValueInt();
-				*note = std::min(*note, (uint8_t)127);
-			}
-			exitTag("note");
-		}
-	}
-}
-
 int32_t StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
 	return fileSystemStuff.fileSystem.free_clst ? NO_ERROR
