@@ -329,8 +329,8 @@ arpeggiator::RatchetProbability arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PRO
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
-        &arpModeMenu, &arpSyncMenu, &arpOctavesMenu, &arpeggiator::arpOctaveModeMenu, &arpeggiator::arpNoteModeMenu,
-        &arpGateMenu, &arpGateMenuMIDIOrCV, &arpRateMenu, &arpRateMenuMIDIOrCV, &arpSequenceLengthMenu,
+        &arpModeMenu, &arpSyncMenu, &arpRateMenu, &arpRateMenuMIDIOrCV, &arpGateMenu, &arpGateMenuMIDIOrCV,
+        &arpOctavesMenu, &arpeggiator::arpOctaveModeMenu, &arpeggiator::arpNoteModeMenu, &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV, &arpRatchetAmountMenu,
         // TODO: fix ratchets for midi clips and then uncomment this
         // &arpRatchetAmountMenuMIDIOrCV,
