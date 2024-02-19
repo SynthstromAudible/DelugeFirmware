@@ -518,13 +518,13 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			}
 		}
 
+		// For 1-note arpeggios it is simpler and can use the same logic as for drums
+		else if (notes.getNumElements() == 1) {
+			carryOnSequenceForSingleNoteArpeggio(settings);
+		}
+
 		// Otherwise, just carry on the sequence of arpeggiated notes
 		else {
-			// For 1-note arpeggios it is simpler and can use the same logic as for drums
-			if (notes.getNumElements() == 1) {
-				carryOnSequenceForSingleNoteArpeggio(settings);
-				goto finishSwitchNoteOn;
-			}
 
 			// Arpeggios of more than 1 note
 
