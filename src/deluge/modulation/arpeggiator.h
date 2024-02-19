@@ -193,7 +193,9 @@ public:
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
 	bool hasAnyInputNotesActive();
 
+	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
+	// This array tracks the notes as they were played by the user
 	ResizeableArray notesAsPlayed;
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 

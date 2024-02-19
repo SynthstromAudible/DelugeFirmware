@@ -192,10 +192,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 		arpNote->velocity = velocity;
-		arpNote->outputMemberChannel =
-		    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
-		                       // doesn't get included in the survey that will happen of existing output member
-		                       // channels.
+		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
+		// doesn't get included in the survey that will happen of existing output member
+		// channels.
+		arpNote->outputMemberChannel = MIDI_CHANNEL_NONE;
 
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNote->mpeValues[m] = mpeValues[m];
@@ -211,10 +211,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		arpNoteAsPlayed = (ArpNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
 		arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 		arpNoteAsPlayed->velocity = velocity;
-		arpNoteAsPlayed->outputMemberChannel =
-		    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
-		                       // doesn't get included in the survey that will happen of existing output member
-		                       // channels.
+		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
+		// doesn't get included in the survey that will happen of existing output member
+		// channels.
+		arpNoteAsPlayed->outputMemberChannel = MIDI_CHANNEL_NONE;
 
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNoteAsPlayed->mpeValues[m] = mpeValues[m];
@@ -222,12 +222,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	}
 
 noteInserted:
-	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
-	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during
-	                     // editing. Kind of a hacky solution, but it works for now.
-	arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] =
-	    fromMIDIChannel; // This is here so that "stealing" a note being edited can then replace its MPE data during
-	                     // editing. Kind of a hacky solution, but it works for now.
+	// This is here so that "stealing" a note being edited can then replace its MPE data during
+	// editing. Kind of a hacky solution, but it works for now.
+	arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
+	arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 
 	// If we're an arpeggiator...
 	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
@@ -389,9 +387,8 @@ void ArpeggiatorBase::carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* 
 		}
 	}
 	else {
-		currentOctaveDirection = (settings->octaveMode == ArpOctaveMode::DOWN)
-		                             ? -1
-		                             : 1; // Have to reset this, in case the user changed the setting.
+		// Have to reset this, in case the user changed the setting.
+		currentOctaveDirection = (settings->octaveMode == ArpOctaveMode::DOWN) ? -1 : 1;
 		currentOctave += currentOctaveDirection;
 		if (currentOctave >= settings->numOctaves) {
 			currentOctave = 0;
