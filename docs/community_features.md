@@ -504,6 +504,62 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - Note: the other command for octave transposition, that is, hold and turn `▼︎▲︎`, keeps working in the same way, by
       nudging notes by one octave, regardless of the clip scale mode.
 
+#### 4.3.8 - Advanced Arpeggiator
+
+- ([#1198]) Added new features to the arpeggiator (Note: currently available only for Synth clips, but expected to be
+  extended to Midi clips and Kit rows in the future). The new features include:
+    - Splitted the old `Mode` setting into separate settings `Mode` (Off or Arpeggiator) `Octave Mode` (Up, Down,
+    Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random) settings, so you can setup
+    individually how octaves are walked and how notes are walked in the sequence.
+    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings at once:
+        - `Off` will disable arpeggiator.
+        - `Up` will setup mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
+        - `Down` will setup mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
+        - `Both` will setup mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
+        - `Random` will setup mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
+        - `Custom` will setup mode to `Arpeggiator`, and enter a submenu to edit Octave Mode and Note Mode.
+    - Mode (MODE):
+        - `Off` disables the arpeggiator.
+        - `Arpeggiator` (ARP) enables the arpeggiator.
+    - Octave Modes (OMOD):
+        - `Up` (UP) will walk the octaves up.
+        - `Down` (DOWN) will walk the octaves down.
+        - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
+        - `Alternate` (ALT)  will walk the octaves up, and then down reversing the Notes pattern (without
+          repeating notes). Tip: Octave Mode set to Alternate and Note Mode set to Up is equivalent to
+          the old `Both` mode.
+        - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
+          Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
+    - Note Modes (NMOD):
+        - `Up` (UP) will walk the notes up.
+        - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
+          Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
+        - `Up & Down` (UPDN) will walk the notes up and down, repeating the highest and lowest notes.
+        - `As played` (PLAY) will walk the notes in the same order that they were played. Tip: this mode
+          also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
+          all the way up (with notes as played), and then down reversing the order of played notes.
+        - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
+          different than Random, then the pattern will play, in the same octave, the same number of random
+          notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
+          Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
+    - `Sequence Length` (LENG) (unpatchet parameter, assignable to golden knobs):
+        - If set to zero, the arpeggiator pattern will play fully.
+        - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
+          reset itself to start from the beginning.
+    - Ratcheting: There are two new parameters (unpatched, assignable to golden knobs), to control how notes
+      are ratcheted. A ratchet is when a note repeats itself several time in the same time interval that the
+      original note has to play.
+        - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
+           could have (each step will randomize the number of ratchet notes between 1 and max value).
+           - From values 0 to 4, no ratchet notes
+           - From 5 to 19, up to 2 ratchet notes
+           - From 20 to 34, up to 4 ratchet notes
+           - From 35 to 50, up to 8 ratchet notes
+        - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
+           - Being 0 (0%), no ratchets at all
+           - And 50 (100%), all notes will evaluate to be ratcheted.
+
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -937,6 +993,8 @@ different firmware
 [#1173]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1173
 
 [#1183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1183
+
+[#1198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1198
 
 [#1251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1251
 
