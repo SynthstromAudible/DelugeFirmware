@@ -535,7 +535,7 @@ void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 	if (shouldSendOut) {
 		sendOutMainPadColours();
-		uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 	}
 }
 
@@ -624,8 +624,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 
 	if (shouldSendOut) {
 		sendOutMainPadColours();
-		uiTimerManager.setTimer(TIMER_MATRIX_DRIVER,
-		                        35); // Nice small number of milliseconds here. This animation is prone to looking jerky
+		// Nice small number of milliseconds here. This animation is prone to looking jerky
+		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 	}
 }
 
@@ -655,7 +655,7 @@ void reassessGreyout(bool doInstantly) {
 	else {
 		greyoutChangeStartTime = AudioEngine::audioSampleTimer;
 		greyoutChangeDirection = anythingNow ? 1 : -1;
-		uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 	}
 }
 
@@ -873,7 +873,7 @@ stopFade:
 				}
 				else {
 					setGreyoutAmount(amountDone);
-					uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+					uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 				}
 			}
 			else {
@@ -885,7 +885,7 @@ stopFade:
 				}
 				else {
 					setGreyoutAmount(1 - amountDone);
-					uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+					uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 				}
 			}
 			needToSendOutMainPadColours = needToSendOutSidebarColours = true;
@@ -945,8 +945,8 @@ void sendOutSidebarColoursSoon() {
 }
 
 void setTimerForSoon() {
-	if (!uiTimerManager.isTimerSet(TIMER_MATRIX_DRIVER)) {
-		uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 20);
+	if (!uiTimerManager.isTimerSet(TimerName::MATRIX_DRIVER)) {
+		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 20);
 	}
 }
 
@@ -979,7 +979,7 @@ void renderAudioClipExpandOrCollapse() {
 
 	renderAudioClipCollapseAnimation(progress);
 
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 }
 
 void renderClipExpandOrCollapse() {
@@ -1027,7 +1027,7 @@ void renderClipExpandOrCollapse() {
 
 	renderInstrumentClipCollapseAnimation(0, kDisplayWidth + kSideBarWidth, progress);
 
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 }
 
 void renderNoteRowExpandOrCollapse() {
@@ -1045,7 +1045,7 @@ void renderNoteRowExpandOrCollapse() {
 
 	renderInstrumentClipCollapseAnimation(0, kDisplayWidth + 1, 65536 - progress);
 
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 }
 
 void renderZoom() {
@@ -1087,7 +1087,7 @@ void renderZoom() {
 	                       kDisplayWidth + kSideBarWidth, kDisplayWidth + kSideBarWidth);
 
 	sendOutMainPadColours();
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 }
 
 // inImageFadeAmount is how much of the in-image we'll see, out of 65536
@@ -1283,7 +1283,7 @@ void horizontal::renderScroll() {
 		getCurrentUI()->scrollFinished();
 	}
 	else {
-		uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH_SCROLLING);
+		uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH_SCROLLING);
 	}
 }
 
@@ -1352,7 +1352,7 @@ void renderFade(int32_t progress) {
 	}
 	sendOutMainPadColours();
 	sendOutSidebarColours();
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
 }
 
 void recordTransitionBegin(uint32_t newTransitionLength) {

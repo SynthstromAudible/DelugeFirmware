@@ -72,7 +72,7 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool success = openUI(&sampleMarkerEditor); // Shouldn't be able to fail anymore
 	if (!success) {
 		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
 } // namespace deluge::gui::menu_item::sample

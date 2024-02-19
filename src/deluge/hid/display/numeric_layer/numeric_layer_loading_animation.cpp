@@ -28,7 +28,7 @@ NumericLayerLoadingAnimation::~NumericLayerLoadingAnimation() {
 }
 
 void NumericLayerLoadingAnimation::isNowOnTop() {
-	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DISPLAY, kFlashTime);
 }
 
 bool NumericLayerLoadingAnimation::callBack() {
@@ -38,7 +38,7 @@ bool NumericLayerLoadingAnimation::callBack() {
 		loadingAnimationPos = 0;
 	}
 
-	uiTimerManager.setTimer(TIMER_DISPLAY, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DISPLAY, kFlashTime);
 
 	return false;
 }

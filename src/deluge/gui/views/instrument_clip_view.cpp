@@ -3891,7 +3891,7 @@ basicDisplay:
 int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32_t yDisplay) {
 	// Having got to this function, we have recently calculated the default root note
 
-	uiTimerManager.unsetTimer(TIMER_DEFAULT_ROOT_NOTE);
+	uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
 	int32_t scrollAdjust = 0;
 	uint8_t pinAnimationToYDisplay;
 	uint8_t pinAnimationToYNote;
@@ -5224,7 +5224,7 @@ uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLen
 void InstrumentClipView::flashDefaultRootNote() {
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DEFAULT_ROOT_NOTE, kFlashTime);
 }
 
 void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {

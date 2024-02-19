@@ -230,7 +230,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
 		qwertyVisible = false;
 
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth, true);
@@ -571,7 +571,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			                        ->sampleHolder.audioFile;
 
 			if (sample) {
-				uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 				currentlyShowingSamplePreview = true;
 				PadLEDs::reassessGreyout(true);
@@ -678,7 +678,7 @@ possiblyExit:
 
 				qwertyVisible = true;
 
-				uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
 
 				drawKeys();
@@ -2006,7 +2006,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	else {
 		qwertyVisible = true;
 
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
 
 		drawKeys();

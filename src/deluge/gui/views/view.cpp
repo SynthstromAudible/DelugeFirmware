@@ -83,6 +83,7 @@
 #include "storage/storage_manager.h"
 
 namespace params = deluge::modulation::params;
+namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
@@ -105,7 +106,7 @@ View::View() {
 }
 
 void View::focusRegained() {
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	setTripletsLedState();
 
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -452,7 +453,7 @@ void View::endMIDILearn() {
 			FlashStorage::writeSettings(); // Rare case where we could have been called during audio routine
 		}
 	}
-	uiTimerManager.unsetTimer(TIMER_MIDI_LEARN_FLASH);
+	uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH);
 	midiLearnFlashOn = false;
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
@@ -795,7 +796,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 void View::midiLearnFlash() {
 	midiLearnFlashOn = !midiLearnFlashOn;
-	uiTimerManager.setTimer(TIMER_MIDI_LEARN_FLASH, kFastFlashTime);
+	uiTimerManager.setTimer(TimerName::MIDI_LEARN_FLASH, kFastFlashTime);
 
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
@@ -952,7 +953,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					indicator_leds::blinkKnobIndicator(whichModEncoder);
 
 					// Make it harder to turn that knob away from its centred position
-					Encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
+					encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
 				}
 				else {
 					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
@@ -1386,9 +1387,9 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
 
 		// If timer wasn't set yet, set it now
-		if (!uiTimerManager.isTimerSet(TIMER_DISPLAY_AUTOMATION)) {
+		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
 			pendingParamAutomationUpdatesModLevels = updateModLevels;
-			uiTimerManager.setTimer(TIMER_DISPLAY_AUTOMATION, 25);
+			uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
 		}
 
 		else {
@@ -1397,8 +1398,8 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 			}
 		}
 
-		if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-			uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
+		if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+			uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
 		}
 	}
 }
@@ -1491,7 +1492,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 }
 
 void View::pretendModKnobsUntouchedForAWhile() {
-	Encoders::timeModEncoderLastTurned[0] = Encoders::timeModEncoderLastTurned[1] =
+	encoders::timeModEncoderLastTurned[0] = encoders::timeModEncoderLastTurned[1] =
 	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
@@ -2317,12 +2318,12 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 }
 
 void View::flashPlayEnable() {
-	uiTimerManager.setTimer(TIMER_PLAY_ENABLE_FLASH, kFastFlashTime);
+	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
 }
 
 void View::flashPlayDisable() {
 	clipArmFlashOn = false;
-	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
+	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
 	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
