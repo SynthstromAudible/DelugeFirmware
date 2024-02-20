@@ -70,8 +70,6 @@ void ArpeggiatorBase::resetRatchet() {
 	ratchetNotesMultiplier = 0;
 	ratchetNotesNumber = 0;
 	isRatcheting = false;
-	D_PRINTLN("i %d m %d n %d b %d -> resetRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber,
-	          isRatcheting);
 }
 
 void Arpeggiator::reset() {
@@ -301,14 +299,14 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesNumber || !playbackHandler.isEitherClockActive())) {
 				// If it was ratcheting but it reached the last note in the ratchet or play was stopped
 				// then we can reset the ratchet temp values.
-				D_PRINTLN("noteOff 1");
+
 				resetRatchet();
 			}
 		}
 	}
 
 	if (notes.getNumElements() == 0) {
-		D_PRINTLN("noteOff 2");
+
 		resetRatchet();
 	}
 }
@@ -351,8 +349,6 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 		ratchetNotesNumber = 0;
 	}
 	ratchetNotesIndex = 0;
-	D_PRINTLN("i %d m %d n %d b %d -> maybeSetupNewRatchet", ratchetNotesIndex, ratchetNotesMultiplier,
-	          ratchetNotesNumber, isRatcheting);
 }
 
 void ArpeggiatorBase::carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
@@ -631,12 +627,6 @@ finishSwitchNoteOn:
 	// Increment ratchet note index if we are ratcheting
 	if (isRatcheting) {
 		ratchetNotesIndex++;
-		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn RATCHETING", ratchetNotesIndex, ratchetNotesMultiplier,
-		          ratchetNotesNumber, isRatcheting);
-	}
-	else {
-		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn NORMAL", ratchetNotesIndex, ratchetNotesMultiplier,
-		          ratchetNotesNumber, isRatcheting);
 	}
 }
 
