@@ -27,7 +27,7 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class OctaveMode final : public Selection {
+class OctaveMode : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->octaveMode); }
@@ -47,9 +47,13 @@ public:
 		    l10n::getView(STRING_FOR_RANDOM),    //<
 		};
 	}
+};
 
+class OctaveModeToNoteMode final : public OctaveMode {
+public:
+	using OctaveMode::OctaveMode;
 	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeMenu; }
 };
 
-extern OctaveMode arpOctaveModeMenu;
+extern OctaveModeToNoteMode arpOctaveModeToNoteModeMenu;
 } // namespace deluge::gui::menu_item::arpeggiator
