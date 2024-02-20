@@ -42,6 +42,7 @@ public:
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
 private:
+	void _handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
 
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
