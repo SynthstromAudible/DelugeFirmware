@@ -56,5 +56,4 @@ target_link_libraries(RunAllTests CppUTest CppUTestExt)
 # strchr is seemingly different in x86
 target_compile_options(RunAllTests PUBLIC
     $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
-    -m32 -Og -ggdb3
 )
