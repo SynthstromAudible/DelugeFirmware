@@ -72,7 +72,6 @@ public:
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
 	char readNextCharOfTagOrAttributeValue();
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
-	void readMidiCommand(uint8_t* channel, uint8_t* note = NULL);
 	int32_t initSD();
 	bool closeFile();
 	int32_t closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
