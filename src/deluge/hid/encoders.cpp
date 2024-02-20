@@ -174,7 +174,8 @@ checkResult:
 	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
 		for (int32_t e = 0; e < 2; e++) {
-			auto& encoder = encoders[util::to_underlying(EncoderName::MAX_FUNCTION_ENCODERS) + e];
+			// check encoder 0, then encoder 1
+			auto& encoder = encoders[util::to_underlying(EncoderName::MOD_0) - e];
 
 			// If encoder turned...
 			if (encoder.encPos != 0) {
