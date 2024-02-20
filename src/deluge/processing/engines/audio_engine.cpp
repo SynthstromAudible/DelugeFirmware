@@ -486,15 +486,15 @@ void routine() {
 
 #endif
 			}
-			else if (numSamplesOverLimit >= 0) {
+			else if (smoothedSamplesOverLimit >= 0) {
 
 				// definitely do a soft cull (won't include audio clips)
 				cullVoice(false, true, true);
-				logAction("soft cull");
+				D_PRINTLN("forced cull");
 			}
 			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
 			// increasing
-			else if (numSamplesOverLimit >= -6) {
+			else if (smoothedSamplesOverLimit >= -6) {
 
 				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
 				// first routine call this is inaccurate, so just release another voice since things are probably bad
@@ -1257,8 +1257,10 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
-	// if we're probably gonna cull, just do it now instead of allocating
-	if (cpuDireness >= 13 && numSamplesLastTime > direnessThreshold && activeVoices.getNumElements()) {
+	// if we're gonna hard cull, just do it now instead of allocating
+	// this is slightly different from the hard cull limit (limit + 10) because we need to finish all note ons before
+	// the hard cull decision gets made, so the actual num samples will be higher
+	if (cpuDireness > 13 && smoothedSamples > (numSamplesLimit + 5) && activeVoices.getNumElements()) {
 
 		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
 		                  // up to the ones being culled
