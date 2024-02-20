@@ -16,10 +16,12 @@
  */
 
 #include "storage/cluster/cluster.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/misc.h"
 #include <string.h>
 
 Cluster::Cluster() {
@@ -144,8 +146,8 @@ void Cluster::convertDataIfNecessary() {
 	}
 }
 
-int32_t Cluster::getAppropriateQueue() {
-	int32_t q;
+StealableQueue Cluster::getAppropriateQueue() {
+	StealableQueue q;
 
 	// If it's a perc cache...
 	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {
@@ -165,7 +167,7 @@ int32_t Cluster::getAppropriateQueue() {
 		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat) {
-			q++;
+			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue
 		}
 	}
 

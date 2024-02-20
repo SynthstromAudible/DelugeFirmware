@@ -16,6 +16,7 @@
  */
 
 #include "storage/wave_table/wave_table_band_data.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
 
@@ -45,6 +46,6 @@ void WaveTableBandData::steal(char const* errorCode) {
 	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(waveTable);
 }
 
-int32_t WaveTableBandData::getAppropriateQueue() {
+StealableQueue WaveTableBandData::getAppropriateQueue() {
 	return STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA;
 }

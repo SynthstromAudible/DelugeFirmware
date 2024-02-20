@@ -221,6 +221,6 @@ void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int32_t q
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	int32_t q = stealable->getAppropriateQueue();
+	StealableQueue q = stealable->getAppropriateQueue();
 	putStealableInQueue(stealable, q);
 }

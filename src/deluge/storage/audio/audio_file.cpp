@@ -535,6 +535,6 @@ void AudioFile::steal(char const* errorCode) {
 	}
 }
 
-int32_t AudioFile::getAppropriateQueue() {
+StealableQueue AudioFile::getAppropriateQueue() {
 	return STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS;
 }

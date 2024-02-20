@@ -1,4 +1,5 @@
 #include "cache_manager.h"
+#include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
@@ -85,7 +86,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			if (q < NUM_STEALABLE_QUEUES - 1 && numberReassessed < 4) {
 				numberReassessed++;
 
-				int32_t appropriateQueue = stealable->getAppropriateQueue();
+				StealableQueue appropriateQueue = stealable->getAppropriateQueue();
 
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our
 				// queue
