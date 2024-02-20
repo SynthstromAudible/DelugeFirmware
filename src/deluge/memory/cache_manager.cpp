@@ -4,6 +4,7 @@
 #include "memory/memory_region.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
+#include <cstdint>
 
 extern bool skipConsistencyCheck;
 uint32_t currentTraversalNo = 0;
@@ -107,7 +108,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			}
 
 			// Ok, we've got one Stealable
-			auto* __restrict__ header = std::bit_cast<uint32_t*>((uint32_t)stealable - 4);
+			auto* __restrict__ header = std::bit_cast<uintptr_t*>((uint32_t)stealable - 4);
 			spaceSize = (*header & SPACE_SIZE_MASK);
 
 			stealable->lastTraversalNo = currentTraversalNo;
