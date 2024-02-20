@@ -118,6 +118,7 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
+	void writeTemplateSong(const char* templateSong);
 	void
 	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
 	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);

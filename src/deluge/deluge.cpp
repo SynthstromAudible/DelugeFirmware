@@ -17,6 +17,7 @@
 
 #include "deluge.h"
 
+#include "gui/ui/browser/browser.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
@@ -31,6 +32,8 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -298,6 +301,7 @@ bool readButtonsAndPads() {
 			else {
 				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
+
 			}
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -444,6 +448,31 @@ void setupBlankSong() {
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+// Can only happen after settings, which includes default settings, have been read
+void setupStartupSong()
+{
+	auto templatePath = "SONGS/DEFAULT.XML";
+	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+
+	if (startupSongMode == Template
+	&& !storageManager.fileExists(templatePath)) {
+		setupBlankSong();
+		currentSong->writeTemplateSong(templatePath);
+	}
+	else {
+		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+		currentSong = new (songMemory) Song();
+		auto filename = startupSongMode == Template ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
+		currentSong->name.set(filename);
+		if (openUI(&loadSongUI)) {
+			loadSongUI.performLoad();
+		}
+		else {
+			setupBlankSong();
+		}
+	}
 }
 
 void setupOLED() {
@@ -679,7 +708,7 @@ extern "C" int32_t deluge_main(void) {
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 
-	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
+	setupStartupSong();
 
 #ifdef TEST_BST
 	BST bst;

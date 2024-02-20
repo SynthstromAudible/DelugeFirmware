@@ -28,6 +28,7 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
+#include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
@@ -1092,6 +1093,7 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
+defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE, STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
@@ -1106,6 +1108,7 @@ Submenu defaultsSubmenu{
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
         &defaultMetronomeVolumeMenu,
+		&defaultStartupSongMenu
     },
 };
 

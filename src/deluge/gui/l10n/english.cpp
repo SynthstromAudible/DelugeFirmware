@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "definitions.h"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
@@ -502,6 +503,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "In-Key"},
         {STRING_FOR_DEFAULT_UI_SONG, "Song"},
         {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, "Rows"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE, "Startup song"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE, "Template song (Default.xml)"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED, "Last opened song"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED, "Last saved song"},
         {STRING_FOR_INPUT, "Input"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
