@@ -809,11 +809,11 @@ ramError:
 
 	if (topHeader[0] == 0x46464952       // "RIFF"
 	    && topHeader[2] == 0x45564157) { // "WAVE"
-		error = audioFile->loadFile(reader, false, makeWaveTableWorkAtAllCosts);
+		error = audioFile->loadWAVE(*reader, makeWaveTableWorkAtAllCosts);
 	}
 	else if (topHeader[0] == 0x4D524F46       // "FORM"
 	         && topHeader[2] == 0x46464941) { // "AIFF"
-		error = audioFile->loadFile(reader, true, makeWaveTableWorkAtAllCosts);
+		error = audioFile->loadAIFF(*reader, makeWaveTableWorkAtAllCosts);
 	}
 	else {
 		error = Error::FILE_UNSUPPORTED;
