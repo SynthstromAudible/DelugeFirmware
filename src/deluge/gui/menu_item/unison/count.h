@@ -23,7 +23,7 @@
 
 namespace deluge::gui::menu_item::unison {
 
-class Count final : public Integer {
+class Count : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
@@ -34,7 +34,12 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }
+};
 
+class CountToStereoSpread final : public Count {
+public:
+	using Count::Count;
 	MenuItem* selectButtonPress() override { return &unison::stereoSpreadMenu; }
 };
+
 } // namespace deluge::gui::menu_item::unison

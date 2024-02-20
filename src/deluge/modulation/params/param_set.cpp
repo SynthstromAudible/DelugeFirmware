@@ -377,6 +377,7 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
+	// Shared
 	switch (modelStack->paramId) {
 	case params::UNPATCHED_STUTTER_RATE:
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
@@ -384,14 +385,19 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:
-	case params::UNPATCHED_DELAY_RATE:
-	case params::UNPATCHED_DELAY_AMOUNT:
-	case params::UNPATCHED_PAN:
-	case params::UNPATCHED_PITCH_ADJUST:
 		return true;
-	default:
-		return false;
 	}
+	// Global
+	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+		switch (modelStack->paramId) {
+		case params::UNPATCHED_DELAY_RATE:
+		case params::UNPATCHED_DELAY_AMOUNT:
+		case params::UNPATCHED_PAN:
+		case params::UNPATCHED_PITCH_ADJUST:
+			return true;
+		}
+	}
+	return false;
 }
 int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
