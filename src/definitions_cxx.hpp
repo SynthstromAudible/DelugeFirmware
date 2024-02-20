@@ -908,13 +908,12 @@ enum class LoopType {
 };
 
 enum class StealableQueue {
-	// TODO:having these in the Stealable region is a bad idea in general
 	NO_SONG_SAMPLE_DATA,
 	NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
 	NO_SONG_WAVETABLE_BAND_DATA,
 	NO_SONG_SAMPLE_DATA_REPITCHED_CACHE,
 	NO_SONG_SAMPLE_DATA_PERC_CACHE,
-	NO_SONG_AUDIO_FILE_OBJECTS,
+	NO_SONG_AUDIO_FILE_OBJECTS, // TODO:having these in the Stealable region is a bad idea in general
 	CURRENT_SONG_SAMPLE_DATA,
 	CURRENT_SONG_SAMPLE_DATA_CONVERTED,
 	CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
