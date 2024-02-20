@@ -907,20 +907,21 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-enum StealableQueue {
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
-	STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE,
-	STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_CONVERTED,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work
-	                                                     // to load it all again
-	NUM_STEALABLE_QUEUES,
+enum class StealableQueue {
+	NO_SONG_SAMPLE_DATA,
+	NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
+	NO_SONG_WAVETABLE_BAND_DATA,
+	NO_SONG_SAMPLE_DATA_REPITCHED_CACHE,
+	NO_SONG_SAMPLE_DATA_PERC_CACHE,
+	NO_SONG_AUDIO_FILE_OBJECTS,
+	CURRENT_SONG_SAMPLE_DATA,
+	CURRENT_SONG_SAMPLE_DATA_CONVERTED,
+	CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
+	CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work
+	                                     // to load it all again
 };
+
+constexpr int32_t kNumStealableQueue = 10;
 
 enum class SequenceDirection {
 	FORWARD,

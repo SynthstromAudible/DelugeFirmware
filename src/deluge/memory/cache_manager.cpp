@@ -32,7 +32,9 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 	bool stolen = false;
 
 	// Go through each queue, one by one
-	for (size_t q = 0; q < NUM_STEALABLE_QUEUES; q++) {
+	for (size_t q = 0; q < kNumStealableQueue; q++) {
+		auto queue = static_cast<StealableQueue>(q);
+
 		// base case, if we've found or stolen enough memory, break
 		if (found || stolen) {
 			break;
@@ -83,14 +85,14 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 			// If we're not in the last queue, and we haven't tried this too many times yet, check whether it was
 			// actually in the right queue
-			if (q < NUM_STEALABLE_QUEUES - 1 && numberReassessed < 4) {
+			if (q < kNumStealableQueue - 1 && numberReassessed < 4) {
 				numberReassessed++;
 
 				StealableQueue appropriateQueue = stealable->getAppropriateQueue();
 
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our
 				// queue
-				if (appropriateQueue > q) {
+				if (appropriateQueue > queue) {
 
 					D_PRINTLN("changing queue from  %d  to  %d", q, appropriateQueue);
 
@@ -105,7 +107,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			}
 
 			// Ok, we've got one Stealable
-			uint32_t* __restrict__ header = (uint32_t*)((uint32_t)stealable - 4);
+			auto* __restrict__ header = std::bit_cast<uint32_t*>((uint32_t)stealable - 4);
 			spaceSize = (*header & SPACE_SIZE_MASK);
 
 			stealable->lastTraversalNo = currentTraversalNo;
@@ -144,10 +146,8 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 				continue;
 			}
-			else {
-				// reset this since it's getting stolen
-				longestRunSeenInThisQueue = 0xFFFFFFFF;
-			}
+			// reset this since it's getting stolen
+			longestRunSeenInThisQueue = 0xFFFFFFFF;
 
 			newSpaceAddress = result.address;
 

@@ -1184,7 +1184,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 				FREEZE_WITH_ERROR("E388");
 			}
 #endif
-			GeneralMemoryAllocator::get().putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);
+			GeneralMemoryAllocator::get().putStealableInQueue(band->data, StealableQueue::NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}
 }

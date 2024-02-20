@@ -496,7 +496,7 @@ void AudioFile::removeReason(char const* errorCode) {
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {
 		numReasonsDecreasedToZero(errorCode);
-		GeneralMemoryAllocator::get().putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
+		GeneralMemoryAllocator::get().putStealableInQueue(this, StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS);
 	}
 
 	else if (numReasonsToBeLoaded < 0) {
@@ -536,5 +536,5 @@ void AudioFile::steal(char const* errorCode) {
 }
 
 StealableQueue AudioFile::getAppropriateQueue() {
-	return STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS;
+	return StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS;
 }

@@ -47,5 +47,5 @@ void WaveTableBandData::steal(char const* errorCode) {
 }
 
 StealableQueue WaveTableBandData::getAppropriateQueue() {
-	return STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA;
+	return StealableQueue::NO_SONG_WAVETABLE_BAND_DATA;
 }
