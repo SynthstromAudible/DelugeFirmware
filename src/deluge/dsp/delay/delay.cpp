@@ -114,11 +114,9 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerI
                               bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
-	bool mightDoDelay =
-	    (workingState->delayFeedbackAmount >= 256
-	     && (anySoundComingIn
-	         || repeatsUntilAbandon)); // TODO: we want to be able to reduce the 256 to 1, but for some reason, the
-	                                   // patching engine spits out 112 even when this should be 0...
+	// TODO: we want to be able to reduce the 256 to 1, but for some reason, the
+	// patching engine spits out 112 even when this should be 0...
+	bool mightDoDelay = (workingState->delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
 
 	if (mightDoDelay) {
 
@@ -141,9 +139,9 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerI
 		}
 	}
 
-	informWhetherActive(mightDoDelay,
-	                    workingState->userDelayRate); // Tell it to allocate memory if that hasn't already happened
-	workingState->doDelay = isActive();               // Check that ram actually is allocated
+	// Tell it to allocate memory if that hasn't already happened
+	informWhetherActive(mightDoDelay, workingState->userDelayRate);
+	workingState->doDelay = isActive(); // Check that ram actually is allocated
 
 	if (workingState->doDelay) {
 		// If feedback has changed, or sound is coming in, reassess how long to leave the delay sounding for

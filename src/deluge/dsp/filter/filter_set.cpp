@@ -147,8 +147,8 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 	lpfMode_ = lpfmode;
 	hpfMode_ = hpfmode;
 	routing_ = routing;
-	hpfResonance =
-	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling
+	// Insanely, having changes happen in the small bytes too often causes rustling
+	hpfResonance = (hpfResonance >> 21) << 21;
 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
