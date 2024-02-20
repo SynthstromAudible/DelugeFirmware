@@ -28,21 +28,22 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	~AudioFile() override = default;
 
-	int32_t loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	int32_t loadWAVE(AudioFileReader& reader, bool makeWaveTableWorkAtAllCosts);
+	int32_t loadAIFF(AudioFileReader& reader, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
 	void removeReason(char const* errorCode);
 
 	// Stealable implementation
-	bool mayBeStolen(void* thingNotToStealFrom = NULL);
-	void steal(char const* errorCode);
-	int32_t getAppropriateQueue();
+	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
+	void steal(char const* errorCode) override;
+	int32_t getAppropriateQueue() override;
 
 	String filePath;
 
 	const AudioFileType type;
-	uint8_t numChannels;
+	uint8_t numChannels = 0;
 	String loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same
 	                                // filename (in special folder) as the original. So we need to remember which format
 	                                // the name took.
