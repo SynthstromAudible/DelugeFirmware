@@ -38,7 +38,7 @@ public:
 	bool supportsKit() override { return false; }
 
 private:
-	void _handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
+	void offsetPads(int32_t offset, bool shiftEnabled);
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
 		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}

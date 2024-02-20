@@ -41,17 +41,17 @@ void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	_handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
+	offsetPads(offset * getState().inKey.rowInterval, false);
 }
 
 void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	_handleHorizontalEncoder(offset, shiftEnabled);
+	offsetPads(offset, shiftEnabled);
 }
 
-void KeyboardLayoutInKey::_handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+void KeyboardLayoutInKey::offsetPads(int32_t offset, bool shiftEnabled) {
 	KeyboardStateInKey& state = getState().inKey;
 
 	if (shiftEnabled) {
