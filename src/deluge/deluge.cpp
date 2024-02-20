@@ -17,13 +17,15 @@
 
 #include "deluge.h"
 
-#include "gui/ui/browser/browser.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -32,8 +34,6 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
-#include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_song_ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -301,7 +301,6 @@ bool readButtonsAndPads() {
 			else {
 				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
-
 			}
 
 			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -451,13 +450,11 @@ void setupBlankSong() {
 }
 
 // Can only happen after settings, which includes default settings, have been read
-void setupStartupSong()
-{
+void setupStartupSong() {
 	auto templatePath = "SONGS/DEFAULT.XML";
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 
-	if (startupSongMode == Template
-	&& !storageManager.fileExists(templatePath)) {
+	if (startupSongMode == Template && !storageManager.fileExists(templatePath)) {
 		setupBlankSong();
 		currentSong->writeTemplateSong(templatePath);
 	}

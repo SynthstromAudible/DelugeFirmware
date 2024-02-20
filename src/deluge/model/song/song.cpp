@@ -1268,13 +1268,14 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 	}
 }
 
-void Song::writeTemplateSong(const char* templatePath)
-{
+void Song::writeTemplateSong(const char* templatePath) {
 	name.set("DEFAULT");
 	int32_t error = storageManager.createXMLFile(templatePath, false, false);
-	if (error) return;
+	if (error)
+		return;
 	writeToFile();
-	storageManager.closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	storageManager.closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                     "\n</song>\n");
 }
 
 void Song::writeToFile() {

@@ -173,7 +173,6 @@ bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
-
 uint8_t defaultMetronomeVolume;
 
 bool automationInterpolate = true;

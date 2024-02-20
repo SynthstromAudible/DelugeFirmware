@@ -1071,10 +1071,4 @@ enum class ClipType {
 
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
 
-enum StartupSongMode : uint8_t
-{
-	Template,
-	LastOpened,
-	LastSaved,
-	StartupSongModeMaxEvent
-};
+enum StartupSongMode : uint8_t { Template, LastOpened, LastSaved, StartupSongModeMaxEvent };

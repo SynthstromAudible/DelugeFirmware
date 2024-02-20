@@ -19,11 +19,11 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "util/containers.h"
+#include "util/d_string.h"
 #include <array>
 #include <cstdint>
 #include <string_view>
 #include <vector>
-#include "util/d_string.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
@@ -94,9 +94,11 @@ public:
 	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
+
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
 	String startupSong;
+
 private:
 	ResizeableArray unknownSettings;
 
