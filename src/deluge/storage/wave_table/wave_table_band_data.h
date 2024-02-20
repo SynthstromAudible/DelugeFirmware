@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "memory/stealable.h"
 
 class WaveTable;
@@ -27,7 +28,7 @@ public:
 
 	bool mayBeStolen(void* thingNotToStealFrom = nullptr);
 	void steal(char const* errorCode);
-	int32_t getAppropriateQueue();
+	StealableQueue getAppropriateQueue();
 
 	WaveTable* waveTable;
 };

@@ -33,7 +33,7 @@ public:
 	void convertDataIfNecessary();
 	bool mayBeStolen(void* thingNotToStealFrom);
 	void steal(char const* errorCode);
-	int32_t getAppropriateQueue();
+	StealableQueue getAppropriateQueue();
 
 	ClusterType type;
 	int8_t numReasonsHeldBySampleRecorder;
