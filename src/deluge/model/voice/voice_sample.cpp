@@ -167,7 +167,7 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 
 // Returns a status such as LateStartAttemptStatus::WAIT
 LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
-                                            int64_t rawSamplesSinceStart, int32_t numSamples) {
+                                                           int64_t rawSamplesSinceStart, int32_t numSamples) {
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
