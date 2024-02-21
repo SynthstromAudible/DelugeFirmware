@@ -377,8 +377,8 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-ErrorType MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
-                                                         ParamManagerForTimeline* paramManager) {
+Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+                                                     ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
 
@@ -388,9 +388,9 @@ ErrorType MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationU
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
-			ErrorType error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                                       &modKnobCCAssignments[m]);
-			if (error) {
+			Error error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
+			                                                   &modKnobCCAssignments[m]);
+			if (error != Error::NONE) {
 				return error;
 			}
 			m++;
@@ -403,7 +403,7 @@ ErrorType MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationU
 	}
 
 	editedByUser = true;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
@@ -458,15 +458,14 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 	// It does always return something, above
 }
 
-// Returns error code
-int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
-                                                    ModelStackWithThreeMainThings* modelStack) {
+Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
+                                                  ModelStackWithThreeMainThings* modelStack) {
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(oldCC, modelStack);
 
 	AutoParam* oldParam = modelStackWithAutoParam->autoParam;
 	if (!oldParam) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	AutoParamState state;
@@ -498,12 +497,12 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);
 	AutoParam* newParam = modelStackWithAutoParam->autoParam;
 	if (!newParam) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	newParam->swapState(&state, modelStackWithAutoParam);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,

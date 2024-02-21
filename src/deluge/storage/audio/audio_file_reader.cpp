@@ -24,9 +24,9 @@ AudioFileReader::AudioFileReader() {
 }
 
 // One limitation of this function is that it can never read the final byte of the file. Not a problem for us
-ErrorType AudioFileReader::readBytes(char* outputBuffer, int32_t num) {
+Error AudioFileReader::readBytes(char* outputBuffer, int32_t num) {
 	if ((uint32_t)(getBytePos() + num) > fileSize) {
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 	}
 
 	return readBytesPassedErrorChecking(outputBuffer, num);
@@ -44,12 +44,12 @@ uint32_t AudioFileReader::getBytePos() {
 	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
 }
 
-ErrorType AudioFileReader::advanceClustersIfNecessary() {
+Error AudioFileReader::advanceClustersIfNecessary() {
 
 	int32_t numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
 
 	if (!numClustersToAdvance) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	currentClusterIndex += numClustersToAdvance;

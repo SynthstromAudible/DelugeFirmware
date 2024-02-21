@@ -28,7 +28,7 @@ public:
 	            uint32_t samplesLate = 0);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue);
 	void writeToFile(bool savingSong, ParamManager* paramManager);
-	ErrorType readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void getName(char* buffer);
 	int32_t getNumChannels() { return 16; }
 	void unassignAllVoices();

@@ -31,15 +31,15 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 	clip[AFTER] = clipAfter;
 }
 
-ErrorType ConsequenceClipInstanceChange::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceClipInstanceChange::revert(TimeType time, ModelStack* modelStack) {
 	int32_t i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance) {
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 	clipInstance->pos = pos[time];
 	clipInstance->length = length[time];
 	clipInstance->clip = clip[time];
 
-	return NO_ERROR;
+	return Error::NONE;
 }

@@ -453,8 +453,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 #define ENSURE_PARAM_MANAGER_EXISTS                                                                                    \
 	if (!paramManager->containsAnyMainParamCollections()) {                                                            \
-		ErrorType error = createParamManagerForLoading(paramManager);                                                  \
-		if (error)                                                                                                     \
+		Error error = createParamManagerForLoading(paramManager);                                                      \
+		if (error != Error::NONE)                                                                                      \
 			return error;                                                                                              \
 	}                                                                                                                  \
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();                      \
@@ -465,20 +465,20 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
-ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                 int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
+Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+                             ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
-		ErrorType error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
-		if (error) {
+		Error error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
+		if (error != Error::NONE) {
 			return error;
 		}
 		storageManager.exitTag("osc1");
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
-		ErrorType error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
-		if (error) {
+		Error error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
+		if (error != Error::NONE) {
 			return error;
 		}
 		storageManager.exitTag("osc2");
@@ -806,7 +806,7 @@ ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* p
 
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
 		if (!range) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		range->getAudioFileHolder()->filePath.set(storageManager.readTagOrAttributeValue());
@@ -847,7 +847,7 @@ ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* p
 
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
 		if (!range) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		range->sampleHolder.startMSec = 0;
@@ -970,7 +970,7 @@ ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		bool result = setModFXType(
 		    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 		if (!result) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 		storageManager.exitTag("modFXType");
 	}
@@ -982,7 +982,7 @@ ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* p
 				bool result = setModFXType(
 				    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 				if (!result) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 				}
 				storageManager.exitTag("type");
 			}
@@ -1241,22 +1241,22 @@ ErrorType Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* p
 	}
 
 	else {
-		ErrorType result = ModControllableAudio::readTagFromFile(tagName, paramManager, readAutomationUpToPos, song);
-		if (result == NO_ERROR) {}
-		else if (result != RESULT_TAG_UNUSED) {
+		Error result = ModControllableAudio::readTagFromFile(tagName, paramManager, readAutomationUpToPos, song);
+		if (result == Error::NONE) {}
+		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
 		else if (readTagFromFile(tagName)) {}
 		else {
 			result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-			if (result && result != RESULT_TAG_UNUSED) {
+			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
 			storageManager.exitTag();
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
@@ -3040,8 +3040,8 @@ void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t re
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it) arpSettings optional - no need if you're loading a new V2.0+ song where Instruments are all
 // separate from Clips and won't store any arp stuff
-ErrorType Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-                              ArpeggiatorSettings* arpSettings) {
+Error Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
+                          ArpeggiatorSettings* arpSettings) {
 
 	modulatorTranspose[1] = 0;
 	memset(oscRetriggerPhase, 0, sizeof(oscRetriggerPhase));
@@ -3052,10 +3052,9 @@ ErrorType Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t
 	ParamManagerForTimeline paramManager;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		ErrorType result =
-		    readTagFromFile(tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
-		if (result == NO_ERROR) {}
-		else if (result != RESULT_TAG_UNUSED) {
+		Error result = readTagFromFile(tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
+		if (result == Error::NONE) {}
+		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
 		else {
@@ -3084,13 +3083,13 @@ ErrorType Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t
 		ensureKnobReferencesCorrectVolume(knob);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
+Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
-	ErrorType error = paramManager->setupWithPatching();
-	if (error) {
+	Error error = paramManager->setupWithPatching();
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -3098,7 +3097,7 @@ ErrorType Sound::createParamManagerForLoading(ParamManagerForTimeline* paramMana
 
 	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
@@ -3150,7 +3149,7 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
  * Reads the parameters from the storageManager's current file into paramManager
  * stack usage would be unbounded if file contained infinite tags
  */
-ErrorType Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+Error Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	Source* source = &sources[s];
 
@@ -3220,7 +3219,7 @@ ErrorType Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramMan
 
 			MultiRange* range = source->getOrCreateFirstRange();
 			if (!range) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			storageManager.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
@@ -3231,7 +3230,7 @@ ErrorType Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramMan
 
 			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
 			if (!range) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			range->sampleHolder.startMSec = 0;
@@ -3358,19 +3357,19 @@ justExitTag:
 					}
 
 					int32_t i = source->ranges.search(tempRange->topNote, GREATER_OR_EQUAL);
-					ErrorType error;
+					Error error;
 
 					// Ensure no duplicate topNote.
 					if (i < source->ranges.getNumElements()) {
 						MultisampleRange* existingRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 						if (existingRange->topNote == tempRange->topNote) {
-							error = ERROR_FILE_CORRUPTED;
+							error = Error::FILE_CORRUPTED;
 							goto gotError;
 						}
 					}
 
 					error = source->ranges.insertAtIndex(i);
-					if (error) {
+					if (error != Error::NONE) {
 gotError:
 						tempRange->~MultiRange();
 						return error;
@@ -3393,7 +3392,7 @@ gotError:
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 #pragma GCC diagnostic pop
 
@@ -3994,18 +3993,18 @@ int16_t Sound::getMinOscTranspose() {
 }
 
 // Returns true if more loading needed later
-ErrorType Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			ErrorType error = sources[s].loadAllSamples(mayActuallyReadFiles);
-			if (error) {
+			Error error = sources[s].loadAllSamples(mayActuallyReadFiles);
+			if (error != Error::NONE) {
 				return error;
 			}
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager) {

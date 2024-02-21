@@ -30,14 +30,14 @@
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
 
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
-ErrorType SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
+Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	currentFileHasSuffixFormatNameImplied = false;
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
-	ErrorType error = storageManager.initSD();
-	if (error) {
+	Error error = storageManager.initSD();
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -50,7 +50,7 @@ ErrorType SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolde
 
 	bool success = Browser::opened();
 	if (!success) {
-		return ERROR_UNSPECIFIED;
+		return Error::UNSPECIFIED;
 	}
 
 	if (shouldDrawKeys) {
@@ -58,7 +58,7 @@ ErrorType SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolde
 		drawKeys();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void SlotBrowser::focusRegained() {
@@ -175,18 +175,18 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-ErrorType SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	ErrorType error;
+Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
+	Error error;
 	if (display->have7SEG()) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
 		if (slot.slot != -1) {
 			error = filenameWithoutExtension->set(filePrefix);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 			if (slot.subSlot != -1) {
@@ -194,7 +194,7 @@ ErrorType SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithou
 				buffer[0] = 'A' + slot.subSlot;
 				buffer[1] = 0;
 				error = filenameWithoutExtension->concatenate(buffer);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 			}
@@ -207,25 +207,25 @@ ErrorType SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithou
 		filenameWithoutExtension->set(&enteredText);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType SlotBrowser::getCurrentFilePath(String* path) {
+Error SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	ErrorType error = path->concatenate("/");
-	if (error) {
+	Error error = path->concatenate("/");
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	error = path->concatenate(&filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 

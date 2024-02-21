@@ -37,8 +37,8 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
-	ErrorType performLoad(bool doClone = false);
-	ErrorType performLoadSynthToKit();
+	Error performLoad(bool doClone = false);
+	Error performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
@@ -76,14 +76,14 @@ protected:
 
 private:
 	bool showingAuditionPads();
-	ErrorType setupForOutputType();
+	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);
 	void revertToInitialPreset();
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
 
-	ErrorType currentInstrumentLoadError;
+	Error currentInstrumentLoadError;
 
 	int16_t initialChannel;
 	int8_t initialChannelSuffix;

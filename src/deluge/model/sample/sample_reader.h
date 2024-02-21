@@ -25,8 +25,8 @@ class Cluster;
 class SampleReader final : public AudioFileReader {
 public:
 	SampleReader() = default;
-	ErrorType readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
-	ErrorType readNewCluster() override;
+	Error readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
+	Error readNewCluster() override;
 
 	Cluster* currentCluster;
 };

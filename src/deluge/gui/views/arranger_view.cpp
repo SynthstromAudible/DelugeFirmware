@@ -134,8 +134,8 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			ErrorType error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
-			if (error) {
+			Error error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
+			if (error != Error::NONE) {
 				display->displayError(error);
 				return;
 			}
@@ -772,16 +772,16 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (result.error) {
-displayError:
+	if (result.error != Error::NONE) {
 		display->displayError(result.error);
-		return NULL;
+		return nullptr;
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newOutputType,
 	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error) {
-		goto displayError;
+	if (result.error != Error::NONE) {
+		display->displayError(result.error);
+		return nullptr;
 	}
 
 	Instrument* newInstrument = result.fileItem->instrument;
@@ -798,8 +798,9 @@ displayError:
 
 	Browser::emptyFileItems();
 
-	if (result.error) {
-		goto displayError;
+	if (result.error != Error::NONE) {
+		display->displayError(result.error);
+		return nullptr;
 	}
 
 	if (isHibernating) {
@@ -1201,8 +1202,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				if (oldClip && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
 					actionLogger.deleteAllLogs();
 
-					ErrorType error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
-					if (error) {
+					Error error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
+					if (error != Error::NONE) {
 						display->displayError(error);
 					}
 					else {
@@ -1351,7 +1352,7 @@ getItFromSection:
 
 					clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					if (!clipInstance) {
-						display->displayError(ERROR_INSUFFICIENT_RAM);
+						display->displayError(Error::INSUFFICIENT_RAM);
 						return;
 					}
 
@@ -1566,7 +1567,7 @@ justGetOut:
 
 								void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 								if (!memory) {
-									display->displayError(ERROR_INSUFFICIENT_RAM);
+									display->displayError(Error::INSUFFICIENT_RAM);
 									goto justGetOut;
 								}
 
@@ -1586,7 +1587,7 @@ justGetOut:
 								ModelStackWithTimelineCounter* modelStack =
 								    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 
-								ErrorType error;
+								Error error;
 
 								if (output->type == OutputType::AUDIO) {
 									error = ((AudioClip*)newClip)->setOutput(modelStack, output);
@@ -1596,7 +1597,7 @@ justGetOut:
 									            ->setInstrument((Instrument*)output, currentSong, NULL);
 								}
 
-								if (error) {
+								if (error != Error::NONE) {
 									display->displayError(error);
 									newClip->~Clip();
 									delugeDealloc(memory);
@@ -2532,7 +2533,7 @@ cant:
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
 		if (!newClip) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2546,7 +2547,7 @@ cant:
 		// Suss output
 		newOutput = currentSong->createNewAudioOutput(oldOutput);
 		if (!newOutput) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 

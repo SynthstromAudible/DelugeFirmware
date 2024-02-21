@@ -23,7 +23,7 @@
 class ConsequenceScaleAddNote final : public Consequence {
 public:
 	ConsequenceScaleAddNote(int32_t newNoteWithinOctave);
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	uint8_t noteWithinOctave;
 };

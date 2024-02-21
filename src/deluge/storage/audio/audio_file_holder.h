@@ -33,9 +33,9 @@ public:
 	virtual ~AudioFileHolder();
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
-	ErrorType loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-	                   int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL,
-	                   bool makeWaveTableWorkAtAllCosts = false);
+	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL,
+	               bool makeWaveTableWorkAtAllCosts = false);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	String filePath;

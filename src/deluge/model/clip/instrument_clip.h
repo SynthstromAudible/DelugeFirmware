@@ -78,7 +78,7 @@ public:
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void nudgeNotesVertically(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
-	ErrorType clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
+	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);
 	void changeNoteOffsetAndCounteract(int32_t newNoteOffset);
 	int32_t getYVisualFromYNote(int32_t, Song* song);
@@ -151,10 +151,10 @@ public:
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int32_t* getIndex = NULL);
-	ErrorType changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-	                           ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
-	                           InstrumentClip* favourClipForCloningParamManager = NULL,
-	                           bool keepNoteRowsWithMIDIInput = true, bool giveMidiAssignmentsToNewInstrument = false);
+	Error changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
+	                       ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
+	                       InstrumentClip* favourClipForCloningParamManager = NULL,
+	                       bool keepNoteRowsWithMIDIInput = true, bool giveMidiAssignmentsToNewInstrument = false);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
 	                      bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
@@ -164,7 +164,7 @@ public:
 	void unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumNames,
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
-	ErrorType readFromFile(Song* song);
+	Error readFromFile(Song* song);
 	void writeDataToFile(Song* song);
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
@@ -184,9 +184,8 @@ public:
 	bool hasSameInstrument(InstrumentClip* otherClip);
 	bool isScaleModeClip();
 	bool allowNoteTails(ModelStackWithNoteRow* modelStack);
-	ErrorType setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument,
-	                             ParamManager* newParamManager,
-	                             InstrumentClip* favourClipForCloningParamManager = nullptr);
+	Error setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument,
+	                         ParamManager* newParamManager, InstrumentClip* favourClipForCloningParamManager = nullptr);
 
 	void expectEvent();
 	int32_t getDistanceToNextNote(Note* givenNote, ModelStackWithNoteRow* modelStack);
@@ -202,25 +201,25 @@ public:
 	void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
 	ModelStackWithNoteRow* getNoteRowForDrumName(ModelStackWithTimelineCounter* modelStack, char const* name);
 	void compensateVolumeForResonance(ModelStackWithTimelineCounter* modelStack);
-	ErrorType undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) override;
-	ErrorType setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = NULL);
-	ErrorType setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
-	                        InstrumentClip* favourClipForCloningParamManager = nullptr);
+	Error undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) override;
+	Error setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = NULL);
+	Error setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
+	                    InstrumentClip* favourClipForCloningParamManager = nullptr);
 	void deleteOldDrumNames();
 	void ensureScrollWithinKitBounds();
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
-	ErrorType appendClip(ModelStackWithTimelineCounter* thisModelStack,
-	                     ModelStackWithTimelineCounter* otherModelStack) override;
+	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
+	                 ModelStackWithTimelineCounter* otherModelStack) override;
 	void instrumentBeenEdited();
 	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
-	int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                                  ModelStackWithTimelineCounter* modelStackClone);
+	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+	                                                ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
-	ErrorType claimOutput(ModelStackWithTimelineCounter* modelStack) override;
+	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	char const* getXMLTag() { return "instrumentClip"; }
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
 	                           int32_t buttonLatencyForTempolessRecord);
-	ErrorType beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) override;
+	Error beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) override;
 	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
 	bool isAbandonedOverdub();
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
@@ -257,13 +256,13 @@ private:
 	void deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStackWithTimelineCounter* modelStack,
 	                                    bool mustKeepLastOne = true, bool keepOnesWithMIDIInput = true);
 	void sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
-	ErrorType undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack);
+	Error undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack);
 	void deleteBackedUpParamManagerMIDI();
 	bool possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoDrum, Song* song, bool onlyIfNonNumeric = false,
 	                                bool keepIfHasMIDIInput = true);
 	void actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStack);
 	void prepareToEnterKitMode(Song* song);
-	ErrorType readMIDIParamsFromFile(int32_t readAutomationUpToPos);
+	Error readMIDIParamsFromFile(int32_t readAutomationUpToPos);
 
 	bool lastProbabilities[kNumProbabilityValues];
 	int32_t lastProbabiltyPos[kNumProbabilityValues];

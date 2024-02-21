@@ -1218,9 +1218,9 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	ErrorType error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
-	if (error) {
+	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
 	}
 
@@ -1423,8 +1423,8 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		ErrorType error = recorder->cardRoutine();
-		if (error) {
+		Error error = recorder->cardRoutine();
+		if (error != Error::NONE) {
 			display->displayError(error);
 		}
 
@@ -1496,7 +1496,7 @@ void slowRoutine() {
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
-	ErrorType error;
+	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
@@ -1506,7 +1506,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
-	if (error) {
+	if (error != Error::NONE) {
 		newRecorder->~SampleRecorder();
 		delugeDealloc(recorderMemory);
 		return NULL;

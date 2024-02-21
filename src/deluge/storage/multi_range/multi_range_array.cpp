@@ -36,8 +36,8 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 }
 
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
-	ErrorType error = insertAtIndex(i);
-	if (error) {
+	Error error = insertAtIndex(i);
+	if (error != Error::NONE) {
 		return NULL;
 	}
 	void* memory = getElementAddress(i);
@@ -52,17 +52,17 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	return range;
 }
 
-ErrorType MultiRangeArray::changeType(int32_t newSize) {
+Error MultiRangeArray::changeType(int32_t newSize) {
 
 	if (!numElements) {
 		elementSize = newSize;
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
-	ErrorType error = newArray.insertAtIndex(0, numElements);
-	if (error) {
+	Error error = newArray.insertAtIndex(0, numElements);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -91,5 +91,5 @@ ErrorType MultiRangeArray::changeType(int32_t newSize) {
 	elementSize = newSize;
 
 	swapStateWith(&newArray);
-	return NO_ERROR;
+	return Error::NONE;
 }

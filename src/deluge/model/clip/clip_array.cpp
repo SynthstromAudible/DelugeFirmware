@@ -18,7 +18,7 @@
 #include "model/clip/clip_array.h"
 #include "definitions_cxx.hpp"
 
-ErrorType ClipArray::insertClipAtIndex(Clip* clip, int32_t index) {
+Error ClipArray::insertClipAtIndex(Clip* clip, int32_t index) {
 	return insertPointerAtIndex(clip, index);
 }
 

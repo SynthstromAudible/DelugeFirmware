@@ -22,7 +22,7 @@
 class ConsequenceNoteRowMute final : public Consequence {
 public:
 	ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t newNoteRowId);
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t noteRowId;
 	InstrumentClip* clip;

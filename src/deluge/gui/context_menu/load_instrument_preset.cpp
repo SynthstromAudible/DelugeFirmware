@@ -36,7 +36,7 @@ Sized<char const**> LoadInstrumentPreset::getOptions() {
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
-	ErrorType error;
+	Error error;
 
 	switch (currentOption) {
 	/*
@@ -45,7 +45,7 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		*/
 	default: // Clone
 		error = loadInstrumentPresetUI.performLoad(true);
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return true;
 		}

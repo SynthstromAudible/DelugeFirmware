@@ -78,11 +78,11 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, ErrorType* error, FilePointer* filePointer,
+	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
 	                         void* dontStealFromThing = NULL);
-	int32_t enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
+	Error enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
 	bool loadCluster(Cluster* cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
 	void addReasonToCluster(Cluster* cluster);
@@ -93,11 +93,11 @@ public:
 
 	void slowRoutine();
 	void deallocateCluster(Cluster* cluster);
-	ErrorType setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
-	ErrorType setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
+	Error setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
+	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	ErrorType getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                          AudioRecordingFolder folderID, uint32_t* getNumber);
+	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+	                                      AudioRecordingFolder folderID, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);

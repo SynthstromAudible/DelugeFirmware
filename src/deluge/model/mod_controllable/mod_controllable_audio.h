@@ -72,8 +72,8 @@ public:
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile();
 	void writeTagsToFile();
-	ErrorType readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                          Song* song);
+	Error readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                      Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,

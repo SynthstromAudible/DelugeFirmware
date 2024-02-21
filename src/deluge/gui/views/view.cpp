@@ -1985,7 +1985,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 				newInstrument = storageManager.createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -2004,8 +2004,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 gotAnInstrument:
 
-			ErrorType error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                         InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -2024,12 +2024,12 @@ gotAnInstrument:
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
-		if (results.error == NO_ERROR_BUT_GET_OUT) {
+		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
-		else if (results.error) {
+		if (results.error != Error::NONE) {
 			display->displayError(results.error);
 			goto getOut;
 		}
@@ -2085,8 +2085,8 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in
 			// there)
 
-			ErrorType error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                         InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {

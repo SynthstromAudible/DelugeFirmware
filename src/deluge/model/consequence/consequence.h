@@ -37,7 +37,7 @@ public:
 	virtual ~Consequence();
 
 	virtual void prepareForDestruction(int32_t whichQueueActionIn, Song* song) {}
-	virtual ErrorType revert(TimeType time, ModelStack* modelStack) = 0;
+	virtual Error revert(TimeType time, ModelStack* modelStack) = 0;
 	Consequence* next;
 	uint8_t type;
 };

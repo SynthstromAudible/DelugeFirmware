@@ -25,7 +25,7 @@ class ModelStackWithNoteRow;
 class ConsequenceNoteRowLength final : public Consequence {
 public:
 	ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t newLength);
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 	void performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
 	                   bool hadIndependentPlayPosBefore);
 	int32_t backedUpLength;

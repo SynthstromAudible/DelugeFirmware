@@ -27,10 +27,10 @@ ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t 
 	clip = newClip;
 }
 
-ErrorType ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(clip)->addNoteRow(noteRowId, noteRow);
@@ -39,5 +39,5 @@ ErrorType ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) 
 	noteRow->toggleMute(modelStackWithNoteRow, (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)
 	                                               && modelStackWithNoteRow->song->isClipActive(clip));
 
-	return NO_ERROR;
+	return Error::NONE;
 }

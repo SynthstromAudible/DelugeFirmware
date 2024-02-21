@@ -319,8 +319,7 @@ playingForwardNow:
 	}
 }
 
-ErrorType Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                           ModelStackWithTimelineCounter* otherModelStack) {
+Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
@@ -341,7 +340,7 @@ ErrorType Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	}
 	loopLength += otherClip->loopLength;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Accepts any pos >= -length.
@@ -427,8 +426,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		originalLength = loopLength;
 		isPendingOverdub = false;
 
-		ErrorType error = beginLinearRecording(modelStack, buttonPressLatency);
-		if (error != 0) {
+		Error error = beginLinearRecording(modelStack, buttonPressLatency);
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
@@ -479,8 +478,8 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 }
 
 // This gets called on the "unique" copy of the original Clip
-int32_t Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-                                              ModelStackWithTimelineCounter* modelStackClone) {
+Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+                                            ModelStackWithTimelineCounter* modelStackClone) {
 
 	// Take back control!
 	activeIfNoSolo = false;
@@ -502,7 +501,7 @@ int32_t Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* mod
 
 	output->setActiveClip(modelStackOriginal, PgmChangeSend::NEVER);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
@@ -534,7 +533,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		}
 	}
 
-	if (!output->clipInstances.insertAtIndex(clipInstanceI)) {
+	if (output->clipInstances.insertAtIndex(clipInstanceI) == Error::NONE) {
 		clipInstance = output->clipInstances.getElement(clipInstanceI);
 setupClipInstance:
 		clipInstance->clip = this;
@@ -562,7 +561,7 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 // Returns error code
 // This whole function is virtual and overridden in (and sometimes called from) InstrumentClip, so don't worry about
 // MIDI / CV cases - they're dealt with there
-ErrorType Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
+Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	ModControllable* modControllable = output->toModControllable();
 
@@ -573,7 +572,7 @@ ErrorType Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelSta
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E245");
 		}
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -581,7 +580,7 @@ ErrorType Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelSta
 
 	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL, false);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // ----- TimelineCounter implementation -------
@@ -903,12 +902,12 @@ yesMakeItActive:
 }
 
 // Obviously don't call this for MIDI clips!
-ErrorType Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
+Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
 	if (paramManager.containsAnyMainParamCollections()) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	if (newParamManager) {
@@ -933,7 +932,7 @@ trimFoundParamManager:
 				                                                   &paramManager);
 				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL,
 				                          false); // oldLength actually has no consequence anyway
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 			// Ok, still here, let's do that cloning
@@ -956,9 +955,9 @@ trimFoundParamManager:
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
 			if (otherClip) {
 
-				ErrorType error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
+				Error error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
-				if (error) {
+				if (error != Error::NONE) {
 					FREEZE_WITH_ERROR("E050");
 					return error;
 				}
@@ -967,12 +966,12 @@ trimFoundParamManager:
 			// ParamManager. But, just in case
 			else {
 				FREEZE_WITH_ERROR("E051");
-				return ERROR_UNSPECIFIED;
+				return Error::UNSPECIFIED;
 			}
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
@@ -1016,14 +1015,14 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	}
 }
 
-ErrorType Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+Error Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	// if we're not in a clip level view, set to the clip that's starting linear recording
 	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
 		modelStack->song->setCurrentClip(this);
 	}
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool Clip::wantsToBeginLinearRecording(Song* song) {
@@ -1092,8 +1091,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					ErrorType error = output->clipInstances.insertAtIndex(clipInstanceI);
-					if (error) {
+					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
+					if (error != Error::NONE) {
 						return false;
 					}
 
@@ -1103,8 +1102,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				}
 			}
 
-			ErrorType error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
-			if (error) {
+			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
+			if (error != Error::NONE) {
 				return false;
 			}
 

@@ -40,7 +40,7 @@ public:
 	                  int32_t blinkSpeed = 1, DisplayPopupType type = DisplayPopupType::GENERAL) override;
 	void freezeWithError(char const* text) override;
 	void cancelPopup() override;
-	void displayError(ErrorType error) override;
+	void displayError(Error error) override;
 
 	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) override;
 	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,

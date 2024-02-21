@@ -23,10 +23,10 @@
 SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
 }
 
-ErrorType SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
+Error SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
 	int32_t oldNum = getNumElements();
-	ErrorType error = insertAtIndex(oldNum, numToInsert);
-	if (error) {
+	Error error = insertAtIndex(oldNum, numToInsert);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -35,7 +35,7 @@ ErrorType SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
 		SampleCluster* sampleCluster = new (address) SampleCluster();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 SampleCluster* SampleClusterArray::getElement(int32_t i) {

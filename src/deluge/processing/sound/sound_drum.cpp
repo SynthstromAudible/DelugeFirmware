@@ -132,7 +132,7 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-ErrorType SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
+Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
 }
 
@@ -156,7 +156,7 @@ void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 void SoundDrum::getName(char* buffer) {
 }
 
-ErrorType SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);

@@ -152,7 +152,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 }
 #pragma GCC pop
 void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
-	ErrorType error;
+	Error error;
 
 	OutputType oldOutputType = getCurrentOutputType();
 
@@ -161,14 +161,14 @@ void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
 	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (error) {
+	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
 		return;
 	}
 
 	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
@@ -180,13 +180,13 @@ gotError:
 	ParamManagerForTimeline newParamManager;
 	Instrument* newInstrument = storageManager.createNewInstrument(newOutputType, &newParamManager);
 	if (!newInstrument) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto gotError;
 	}
 
 	// Set dirPath.
 	error = newInstrument->dirPath.set(getInstrumentFolder(newOutputType));
-	if (error) {
+	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
@@ -226,7 +226,7 @@ gotError:
 	else {
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
-		ErrorType error = getCurrentInstrumentClip()->changeInstrument(
+		Error error = getCurrentInstrumentClip()->changeInstrument(
 		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);

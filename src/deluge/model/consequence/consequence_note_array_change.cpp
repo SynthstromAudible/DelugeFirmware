@@ -37,14 +37,14 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 	}
 }
 
-ErrorType ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
 
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 
 	noteRow->notes.swapStateWith(&backedUpNoteVector);
 
-	return NO_ERROR;
+	return Error::NONE;
 }

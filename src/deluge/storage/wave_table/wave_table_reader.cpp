@@ -20,11 +20,11 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 
-ErrorType WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
+Error WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		ErrorType error = advanceClustersIfNecessary();
-		if (error) {
+		Error error = advanceClustersIfNecessary();
+		if (error != Error::NONE) {
 			return error;
 		}
 
@@ -33,16 +33,16 @@ ErrorType WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int3
 		byteIndexWithinCluster++;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType WaveTableReader::readNewCluster() {
+Error WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
 	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 	                        audioFileManager.clusterSize, &bytesRead);
 	if (result) {
-		return ERROR_SD_CARD; // Failed to load cluster from card
+		return Error::SD_CARD; // Failed to load cluster from card
 	}
-	return NO_ERROR;
+	return Error::NONE;
 }

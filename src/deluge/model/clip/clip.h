@@ -41,7 +41,7 @@ public:
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();
-	virtual ErrorType clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
+	virtual Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
 	void cloneFrom(Clip* other);
 	void beginInstance(Song* song, int32_t arrangementRecordPos);
 	void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
@@ -63,13 +63,13 @@ public:
 	bool isArrangementOnlyClip();
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
-	virtual ErrorType appendClip(ModelStackWithTimelineCounter* thisModelStack,
-	                             ModelStackWithTimelineCounter* otherModelStack);
-	int32_t resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                        ModelStackWithTimelineCounter* modelStackClone);
-	virtual int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                                          ModelStackWithTimelineCounter* modelStackClone) {
-		return NO_ERROR;
+	virtual Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
+	                         ModelStackWithTimelineCounter* otherModelStack);
+	Error resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+	                                      ModelStackWithTimelineCounter* modelStackClone);
+	virtual Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+	                                                        ModelStackWithTimelineCounter* modelStackClone) {
+		return Error::NONE;
 	}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
@@ -85,7 +85,7 @@ public:
 	                              bool shouldRetainLinksToSounds = false, bool keepNoteRowsWithMIDIInput = true,
 	                              bool shouldGrabMidiCommands = false, bool shouldBackUpExpressionParamsToo = true) = 0;
 
-	virtual ErrorType undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
+	virtual Error undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
 	                               int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
@@ -93,10 +93,10 @@ public:
 	                               int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 
 	// To be called after Song loaded, to link to the relevant Output object
-	virtual ErrorType claimOutput(ModelStackWithTimelineCounter* modelStack) = 0;
+	virtual Error claimOutput(ModelStackWithTimelineCounter* modelStack) = 0;
 	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
 	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
-	virtual ErrorType beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
+	virtual Error beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
 	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
 	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
@@ -109,7 +109,7 @@ public:
 	void writeToFile(Song* song);
 	virtual void writeDataToFile(Song* song);
 	virtual char const* getXMLTag() = 0;
-	virtual ErrorType readFromFile(Song* song) = 0;
+	virtual Error readFromFile(Song* song) = 0;
 	void readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos);
 
 	virtual void copyBasicsFrom(Clip* otherClip);
@@ -200,7 +200,7 @@ protected:
 	                                                                       // modelStack if new Clip got created
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
-	ErrorType solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
-	                              Clip* favourClipForCloningParamManager = NULL);
+	Error solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
+	                          Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

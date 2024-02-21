@@ -47,9 +47,9 @@ public:
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	                uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
-	ErrorType setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
-	                uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
-	                WaveTableReader* reader = NULL);
+	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
+	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
+	            WaveTableReader* reader = NULL);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 

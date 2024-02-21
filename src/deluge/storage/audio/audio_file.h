@@ -28,7 +28,7 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	~AudioFile() override = default;
 
-	ErrorType loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();

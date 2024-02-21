@@ -25,7 +25,7 @@ class Clip;
 class ClipArray final : public ResizeablePointerArray {
 public:
 	ClipArray() = default;
-	ErrorType insertClipAtIndex(Clip* clip, int32_t index);
+	Error insertClipAtIndex(Clip* clip, int32_t index);
 	Clip* getClipAtIndex(int32_t index);
 	int32_t getIndexForClip(Clip* clip);
 };

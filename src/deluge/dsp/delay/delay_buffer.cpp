@@ -30,7 +30,7 @@ DelayBuffer::~DelayBuffer() {
 }
 
 // Returns error status
-uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
+Error DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
 
 	// Uart::println("init buffer");
 	nativeRate = newRate;
@@ -52,7 +52,7 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	}
 
 	if (size == failIfThisSize) {
-		return ERROR_UNSPECIFIED;
+		return Error::UNSPECIFIED;
 	}
 
 	if (mustMakeRatePrecise) {
@@ -64,12 +64,12 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	bufferStart = (StereoSample*)allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
 
 	if (bufferStart == 0) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	bufferEnd = bufferStart + sizeIncludingExtra;
 	empty();
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void DelayBuffer::empty() {

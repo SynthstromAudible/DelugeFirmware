@@ -29,9 +29,9 @@ public:
 	SampleCluster() = default;
 	~SampleCluster();
 
-	// TODO: This should return a std::expected<Cluster*, ErrorType), removing the last parameter
+	// TODO: This should return a std::expected<Cluster*, Error), removing the last parameter
 	Cluster* getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction = CLUSTER_ENQUEUE,
-	                    uint32_t priorityRating = 0xFFFFFFFF, ErrorType* error = nullptr);
+	                    uint32_t priorityRating = 0xFFFFFFFF, Error* error = nullptr);
 	void ensureNoReason(Sample* sample);
 
 	// In sectors. (Those 512 byte things. Not to be confused with clusters.)

@@ -30,7 +30,7 @@ class ClusterPriorityQueue final : public OrderedResizeableArrayWith32bitKey {
 public:
 	ClusterPriorityQueue();
 
-	int32_t add(Cluster* cluster, uint32_t priorityRating);
+	Error add(Cluster* cluster, uint32_t priorityRating);
 	Cluster* grabHead();
 	bool removeIfPresent(Cluster* cluster);
 	bool checkPresent(Cluster* cluster);

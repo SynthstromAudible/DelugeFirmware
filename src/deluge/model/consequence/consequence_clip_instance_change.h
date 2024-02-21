@@ -27,7 +27,7 @@ class ConsequenceClipInstanceChange final : public Consequence {
 public:
 	ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter,
 	                              Clip* clipAfter);
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
 	int32_t pos[2];

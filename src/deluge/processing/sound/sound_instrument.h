@@ -31,7 +31,7 @@ class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	ErrorType readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void cutAllSound();
 	bool noteIsOn(int32_t noteCode);
 
@@ -49,7 +49,7 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
 	}
 
-	ErrorType loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);

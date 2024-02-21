@@ -41,8 +41,8 @@ public:
 
 	void writeAttributesToFile(bool writeToFile);
 	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
-	ErrorType readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                          Song* song);
+	Error readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                      Song* song);
 	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
 	static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,

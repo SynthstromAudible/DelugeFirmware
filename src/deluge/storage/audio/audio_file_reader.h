@@ -28,12 +28,12 @@ class AudioFile;
 class AudioFileReader {
 public:
 	AudioFileReader();
-	ErrorType readBytes(char* outputBuffer, int32_t num);
-	virtual ErrorType readBytesPassedErrorChecking(char* outputBuffer, int32_t num) = 0;
+	Error readBytes(char* outputBuffer, int32_t num);
+	virtual Error readBytesPassedErrorChecking(char* outputBuffer, int32_t num) = 0;
 	void jumpForwardToBytePos(uint32_t newPos);
 	uint32_t getBytePos();
-	ErrorType advanceClustersIfNecessary();
-	virtual ErrorType readNewCluster() = 0;
+	Error advanceClustersIfNecessary();
+	virtual Error readNewCluster() = 0;
 
 	int32_t currentClusterIndex;
 	int32_t byteIndexWithinCluster;

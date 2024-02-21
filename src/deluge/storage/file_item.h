@@ -24,10 +24,10 @@
 class FileItem {
 public:
 	FileItem() = default;
-	ErrorType setupWithInstrument(Instrument* newInstrument, bool hibernating);
-	ErrorType getFilenameWithExtension(String* filenameWithExtension);
-	ErrorType getFilenameWithoutExtension(String* filenameWithoutExtension);
-	ErrorType getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
+	Error setupWithInstrument(Instrument* newInstrument, bool hibernating);
+	Error getFilenameWithExtension(String* filenameWithExtension);
+	Error getFilenameWithoutExtension(String* filenameWithoutExtension);
+	Error getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
 
 	char const* displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix,
 	                         // e.g. "SONG". And I think this always includes the file extension...

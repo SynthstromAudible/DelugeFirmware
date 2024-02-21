@@ -248,7 +248,7 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-ErrorType Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -259,7 +259,7 @@ ErrorType Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpT
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // If this returns false, the caller has to call storageManager.exitTag();
@@ -340,7 +340,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			// Ok, make the clipInstance
 			int32_t i = clipInstances.insertAtKey(pos, true);
 			if (i == -1) {
-				return true; // ERROR_INSUFFICIENT_RAM;
+				return true; // Error::INSUFFICIENT_RAM;
 			}
 			ClipInstance* newInstance = clipInstances.getElement(i);
 			newInstance->length = length;
@@ -363,14 +363,14 @@ getOut:
 	return true;
 }
 
-ErrorType Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
+Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	if (!clipInstances.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -378,14 +378,14 @@ ErrorType Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) 
 
 	Clip* newClip = createNewClipForArrangementRecording(modelStack);
 	if (!newClip) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends
 	// up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
 	int32_t i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
 	if (i == -1) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	ClipInstance* clipInstance = clipInstances.getElement(i);
@@ -417,7 +417,7 @@ ErrorType Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) 
 
 	recordingInArrangement = true;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternalTicks, uint32_t timeRemainder) {

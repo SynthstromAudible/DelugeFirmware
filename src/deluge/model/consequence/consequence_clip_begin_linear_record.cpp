@@ -29,7 +29,7 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 	type = Consequence::CLIP_BEGIN_LINEAR_RECORD;
 }
 
-ErrorType ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
 
 	// Going backwards...
 	if (time == BEFORE) {
@@ -42,19 +42,19 @@ ErrorType ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* mo
 
 			// Don't deactivate Clip if playback stopped
 			if (!playbackHandler.isEitherClockActive() || currentPlaybackMode != &session) {
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 			// Or if Clip is soloing, deactivating that would be a can of worms, whereas this whole auto-deactivation
 			// feature is really just intended as an unessential thing the user will find helpful in most cases
 			if (clip->soloingInSessionMode) {
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 			// Or if we're viewing the Clip, don't deactivate it, cos it's a massive hassle, and confusing, for user to
 			// go out and reactivate it
 			if (modelStack->song->getCurrentClip() == clip && getCurrentUI()->toClipMinder()) {
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 doToggle:
@@ -73,12 +73,12 @@ doToggle:
 			// Check that the reason it's showing as "inactive" isn't just that there's another Clip soloing - in which
 			// case we don't want to toggle its status
 			if (currentSong->getAnyClipsSoloing()) {
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 			goto doToggle;
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }

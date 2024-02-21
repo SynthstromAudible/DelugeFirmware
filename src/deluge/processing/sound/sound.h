@@ -176,8 +176,8 @@ public:
 	void setUnisonStereoSpread(int32_t newAmount);
 	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	ErrorType readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-	                       ArpeggiatorSettings* arpSettings);
+	Error readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
+	                   ArpeggiatorSettings* arpSettings);
 	void writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
@@ -205,7 +205,7 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	ErrorType loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
@@ -220,7 +220,7 @@ public:
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
-	static ErrorType createParamManagerForLoading(ParamManagerForTimeline* paramManager);
+	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
 	                                 int32_t note = 0);
 	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
@@ -279,11 +279,11 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	ErrorType readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                          ArpeggiatorSettings* arpSettings, Song* song);
+	Error readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                      ArpeggiatorSettings* arpSettings, Song* song);
 
 	void writeSourceToFile(int32_t s, char const* tagName);
-	ErrorType readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
+	Error readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);

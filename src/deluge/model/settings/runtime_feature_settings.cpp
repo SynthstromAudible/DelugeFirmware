@@ -176,8 +176,8 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		return;
 	}
 
-	ErrorType error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
-	if (error) {
+	Error error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	if (error != Error::NONE) {
 		return;
 	}
 
@@ -216,7 +216,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			if (!found) {
 				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
-				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
+				if (unknownSettings.insertAtIndex(idx) != Error::NONE) {
 					return;
 				}
 				void* address = unknownSettings.getElementAddress(idx);
@@ -235,8 +235,8 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	ErrorType error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
-	if (error) {
+	Error error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	if (error != Error::NONE) {
 		return;
 	}
 

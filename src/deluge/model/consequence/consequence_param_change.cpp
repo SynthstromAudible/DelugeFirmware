@@ -40,7 +40,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	}
 }
 
-ErrorType ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
+Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
 
 	// We only actually store one state at a time - either the before, or the after. As we revert in either direction,
 	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
@@ -48,5 +48,5 @@ ErrorType ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWi
 
 	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
 
-	return NO_ERROR;
+	return Error::NONE;
 }

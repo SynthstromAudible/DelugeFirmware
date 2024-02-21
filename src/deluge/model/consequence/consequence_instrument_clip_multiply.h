@@ -24,5 +24,5 @@ class ConsequenceInstrumentClipMultiply final : public Consequence {
 public:
 	ConsequenceInstrumentClipMultiply();
 
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 };

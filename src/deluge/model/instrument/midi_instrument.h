@@ -44,8 +44,8 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
-	ErrorType readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
-	                                         ParamManagerForTimeline* paramManager = nullptr);
+	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+	                                     ParamManagerForTimeline* paramManager = nullptr);
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
@@ -53,7 +53,7 @@ public:
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
-	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
+	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
 	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,

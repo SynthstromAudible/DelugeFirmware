@@ -21,11 +21,11 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-ErrorType SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
+Error SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		ErrorType error = advanceClustersIfNecessary();
-		if (error) {
+		Error error = advanceClustersIfNecessary();
+		if (error != Error::NONE) {
 			return error;
 		}
 
@@ -34,10 +34,10 @@ ErrorType SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t
 		byteIndexWithinCluster++;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType SampleReader::readNewCluster() {
+Error SampleReader::readNewCluster() {
 	if (currentCluster) {
 		audioFileManager.removeReasonFromCluster(currentCluster, "E031");
 	}
@@ -46,7 +46,7 @@ ErrorType SampleReader::readNewCluster() {
 	                     ->clusters.getElement(currentClusterIndex)
 	                     ->getCluster((Sample*)audioFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!currentCluster) {
-		return ERROR_SD_CARD; // Failed to load cluster from card
+		return Error::SD_CARD; // Failed to load cluster from card
 	}
-	return NO_ERROR;
+	return Error::NONE;
 }

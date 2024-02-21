@@ -30,16 +30,16 @@ public:
 	void focusRegained();
 	ActionResult horizontalEncoderAction(int32_t offset);
 
-	ErrorType getCurrentFilePath(String* path) override;
+	Error getCurrentFilePath(String* path) override;
 
 protected:
-	ErrorType beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
+	Error beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
 	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
-	ErrorType getCurrentFilenameWithoutExtension(String* filename);
+	Error getCurrentFilenameWithoutExtension(String* filename);
 
 	static bool currentFileHasSuffixFormatNameImplied;
 

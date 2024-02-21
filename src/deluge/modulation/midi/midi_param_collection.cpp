@@ -201,21 +201,21 @@ void MIDIParamCollection::sendMIDI(int32_t masterChannel, int32_t cc, int32_t ne
 
 // For MIDI CCs, which prior to V2.0 did interpolation
 // Returns error code
-ErrorType MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
+Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
 
 		if (midiParam->cc >= 120) {
-			return NO_ERROR;
+			return Error::NONE;
 		}
-		ErrorType error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
-		if (error) {
+		Error error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {

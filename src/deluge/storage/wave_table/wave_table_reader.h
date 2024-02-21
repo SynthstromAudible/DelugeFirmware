@@ -23,6 +23,6 @@
 class WaveTableReader final : public AudioFileReader {
 public:
 	WaveTableReader() = default;
-	ErrorType readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
-	ErrorType readNewCluster() override;
+	Error readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
+	Error readNewCluster() override;
 };

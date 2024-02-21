@@ -48,8 +48,8 @@ public:
 	                                bool mayActuallyResumeClip = true);
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
 	               ClipInstance* clipInstanceAdded);
-	ErrorType doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
-	                                      bool shouldCloneRepeats = false);
+	Error doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
+	                                  bool shouldCloneRepeats = false);
 	int32_t getLivePos(uint32_t* timeRemainder = nullptr);
 	void endAnyLinearRecording();
 

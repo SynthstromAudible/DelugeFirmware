@@ -71,12 +71,12 @@ public:
 	virtual bool hasAnyVoices() = 0;
 	virtual void unassignAllVoices() = 0;
 
-	virtual ErrorType loadAllSamples(bool mayActuallyReadFiles) { return NO_ERROR; }
+	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }
 	virtual void prepareForHibernation() {}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(bool savingSong, ParamManager* paramManager) = 0;
-	virtual ErrorType readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
+	virtual Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 
 	virtual void getName(char* buffer) = 0; // May return up to 5 actual characters, so supply at least a char[6]

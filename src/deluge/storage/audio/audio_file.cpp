@@ -28,11 +28,11 @@
 
 #define MAX_NUM_MARKERS 8
 
-ErrorType AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
+Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 
 	// AIFF files will only be used for WaveTables if the user insists
 	if (type == AudioFileType::WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
-		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
+		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 	}
 
 	// http://muratnkonar.com/aiff/
@@ -41,7 +41,7 @@ ErrorType AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWav
 
 	uint32_t bytePos = reader->getBytePos();
 
-	ErrorType error;
+	Error error;
 	bool foundDataChunk = false; // Also applies to AIFF file's SSND chunk
 	bool foundFmtChunk = false;  // Also applies to AIFF file's COMM chunk
 	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
@@ -66,7 +66,7 @@ ErrorType AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWav
 		} thisChunk;
 
 		error = reader->readBytes((char*)&thisChunk, 4 * 2);
-		if (error) {
+		if (error != Error::NONE) {
 			break;
 		}
 
@@ -97,13 +97,13 @@ ErrorType AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWav
 				if (type == AudioFileType::WAVETABLE) {
 doSetupWaveTable:
 					if (byteDepth == 255) {
-						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth
-						                               // or anything. Shouldn't happen.
+						return Error::FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth
+						                                // or anything. Shouldn't happen.
 					}
 
 					if (numChannels != 1) {
-						return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as
-						                                                            // WaveTable, ever.
+						return Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files not useable as
+						                                                             // WaveTable, ever.
 					}
 
 					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
@@ -111,13 +111,13 @@ doSetupWaveTable:
 					if (!fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
 						int32_t audioDataLengthSamples = audioDataLengthBytes / byteDepth;
 						if (audioDataLengthSamples & 2047) {
-							return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
+							return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 						}
 					}
 					error = ((WaveTable*)this)
 					            ->setup(NULL, waveTableCycleSize, audioDataStartPosBytes, audioDataLengthBytes,
 					                    byteDepth, rawDataFormat, (WaveTableReader*)reader);
-					if (true || error) {
+					if (true || error != Error::NONE) {
 						return error; // Just always return here, for now.
 					}
 				}
@@ -131,7 +131,7 @@ doSetupWaveTable:
 				// Read and process fmt chunk
 				uint32_t header[4];
 				error = reader->readBytes((char*)&header, 4 * 4);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 
@@ -149,7 +149,7 @@ doSetupWaveTable:
 				case 256 ... 65535:
 					__builtin_unreachable();
 				default:
-					return ERROR_FILE_UNSUPPORTED;
+					return Error::FILE_UNSUPPORTED;
 				}
 
 				// Format
@@ -159,13 +159,13 @@ doSetupWaveTable:
 					rawDataFormat = RAW_DATA_FLOAT;
 				}
 				else {
-					return ERROR_FILE_UNSUPPORTED;
+					return Error::FILE_UNSUPPORTED;
 				}
 
 				// Num channels
 				numChannels = header[0] >> 16;
 				if (numChannels != 1 && numChannels != 2) {
-					return ERROR_FILE_UNSUPPORTED;
+					return Error::FILE_UNSUPPORTED;
 				}
 
 				if (type == AudioFileType::SAMPLE) {
@@ -175,7 +175,7 @@ doSetupWaveTable:
 					// Sample rate
 					((Sample*)this)->sampleRate = header[1];
 					if (((Sample*)this)->sampleRate < 5000 || ((Sample*)this)->sampleRate > 96000) {
-						return ERROR_FILE_UNSUPPORTED;
+						return Error::FILE_UNSUPPORTED;
 					}
 				}
 
@@ -188,7 +188,7 @@ doSetupWaveTable:
 
 					uint32_t data[9];
 					error = reader->readBytes((char*)data, 4 * 9);
-					if (error) {
+					if (error != Error::NONE) {
 						break;
 					}
 
@@ -214,7 +214,7 @@ doSetupWaveTable:
 
 							uint32_t loopData[6];
 							error = reader->readBytes((char*)loopData, 4 * 6);
-							if (error) {
+							if (error != Error::NONE) {
 								goto finishedWhileLoop;
 							}
 
@@ -239,7 +239,7 @@ doSetupWaveTable:
 
 					uint8_t data[7];
 					error = reader->readBytes((char*)data, 7);
-					if (error) {
+					if (error != Error::NONE) {
 						break;
 					}
 
@@ -258,7 +258,7 @@ doSetupWaveTable:
 			case charsToIntegerConstant('c', 'l', 'm', ' '): {
 				char data[7];
 				error = reader->readBytes((char*)data, 7);
-				if (error) {
+				if (error != Error::NONE) {
 					break;
 				}
 
@@ -288,7 +288,7 @@ doSetupWaveTable:
 				// Offset
 				uint32_t offset;
 				error = reader->readBytes((char*)&offset, 4);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 				offset = swapEndianness32(offset);
@@ -308,20 +308,20 @@ doSetupWaveTable:
 				foundFmtChunk = true;
 
 				if (thisChunk.length != 18) {
-					return ERROR_FILE_UNSUPPORTED; // Why'd I do this?
+					return Error::FILE_UNSUPPORTED; // Why'd I do this?
 				}
 
 				// Read and process COMM chunk
 				uint16_t header[9];
 				error = reader->readBytes((char*)header, 18);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 
 				// Num channels
 				numChannels = swapEndianness2x16(header[0]);
 				if (numChannels != 1 && numChannels != 2) {
-					return ERROR_FILE_UNSUPPORTED;
+					return Error::FILE_UNSUPPORTED;
 				}
 
 				// Bit depth
@@ -329,7 +329,7 @@ doSetupWaveTable:
 
 				if (bits == 8 || bits == 16 || bits == 24 || bits == 32) {}
 				else {
-					return ERROR_FILE_UNSUPPORTED;
+					return Error::FILE_UNSUPPORTED;
 				}
 				byteDepth = bits >> 3;
 
@@ -343,7 +343,7 @@ doSetupWaveTable:
 					// Sample rate
 					uint32_t sampleRate = ConvertFromIeeeExtended((unsigned char*)&header[4]);
 					if (sampleRate < 5000 || sampleRate > 96000) {
-						return ERROR_FILE_UNSUPPORTED;
+						return Error::FILE_UNSUPPORTED;
 					}
 
 					((Sample*)this)->sampleRate = sampleRate;
@@ -354,7 +354,7 @@ doSetupWaveTable:
 			// MARK
 			case charsToIntegerConstant('M', 'A', 'R', 'K'): {
 				error = reader->readBytes((char*)&numMarkers, 2);
-				if (error) {
+				if (error != Error::NONE) {
 					break;
 				}
 				numMarkers = swapEndianness2x16(numMarkers);
@@ -368,7 +368,7 @@ doSetupWaveTable:
 				for (int32_t m = 0; m < numMarkers; m++) {
 					uint16_t markerId;
 					error = reader->readBytes((char*)&markerId, 2);
-					if (error) {
+					if (error != Error::NONE) {
 						goto finishedWhileLoop;
 					}
 					markerIDs[m] = swapEndianness2x16(markerId);
@@ -378,7 +378,7 @@ doSetupWaveTable:
 
 					uint32_t markerPos;
 					error = reader->readBytes((char*)&markerPos, 4);
-					if (error) {
+					if (error != Error::NONE) {
 						goto finishedWhileLoop;
 					}
 					markerPositions[m] = swapEndianness32(markerPos);
@@ -387,7 +387,7 @@ doSetupWaveTable:
 
 					uint8_t stringLength;
 					error = reader->readBytes((char*)&stringLength, 1);
-					if (error) {
+					if (error != Error::NONE) {
 						goto finishedWhileLoop;
 					}
 
@@ -403,7 +403,7 @@ doSetupWaveTable:
 				if (type == AudioFileType::SAMPLE) {
 					uint8_t data[8];
 					error = reader->readBytes((char*)data, 8);
-					if (error) {
+					if (error != Error::NONE) {
 						break;
 					}
 
@@ -423,7 +423,7 @@ doSetupWaveTable:
 
 					uint16_t loopData[3];
 					error = reader->readBytes((char*)loopData, 3 * 2);
-					if (error) {
+					if (error != Error::NONE) {
 						break;
 					}
 
@@ -447,7 +447,7 @@ doSetupWaveTable:
 finishedWhileLoop:
 
 	if (!foundDataChunk || !foundFmtChunk) {
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 	}
 
 	if (type == AudioFileType::SAMPLE) {
@@ -476,7 +476,7 @@ finishedWhileLoop:
 		((Sample*)this)->fileExplicitlySpecifiesSelfAsWaveTable = fileExplicitlySpecifiesSelfAsWaveTable;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioFile::addReason() {

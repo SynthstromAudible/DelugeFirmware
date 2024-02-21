@@ -73,18 +73,18 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
-ErrorType AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
-	ErrorType error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
-	if (error) {
+	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	if (error != Error::NONE) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		return error;
@@ -103,7 +103,7 @@ ErrorType AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shoul
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.reversed);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioClip::copyBasicsFrom(Clip* otherClip) {
@@ -143,7 +143,7 @@ bool AudioClip::isAbandonedOverdub() {
 	return (isUnfinishedAutoOverdub && !sampleHolder.audioFile);
 }
 
-ErrorType AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
 
@@ -157,7 +157,7 @@ ErrorType AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelSt
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency);
 	if (!recorder) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 	recorder->autoDeleteWhenDone = true;
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -220,7 +220,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -232,9 +232,9 @@ ramError:
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 
-	ErrorType error = newClip->setOutput(modelStackNewClip, output, this);
+	Error error = newClip->setOutput(modelStackNewClip, output, this);
 
-	if (error) {
+	if (error != Error::NONE) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		goto ramError;
@@ -830,8 +830,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 
-		ErrorType error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
-		if (error) {
+		Error error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
+		if (error != Error::NONE) {
 			return;
 		}
 
@@ -847,7 +847,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		clipInstanceI++;
 
 		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
-		if (error) {
+		if (error != Error::NONE) {
 			return;
 		}
 
@@ -896,8 +896,8 @@ doNormal:
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
-			ErrorType error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
-			if (error) {
+			Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
+			if (error != Error::NONE) {
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
@@ -1048,13 +1048,13 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeClosingTag("params");
 }
 
-ErrorType AudioClip::readFromFile(Song* song) {
+Error AudioClip::readFromFile(Song* song) {
 
-	ErrorType error;
+	Error error;
 
 	if (false) {
 ramError:
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
 		return error;
@@ -1150,45 +1150,45 @@ someError:
 		storageManager.exitTag();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
+Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	output = modelStack->song->getAudioOutputFromName(&outputNameWhileLoading);
 
 	if (!output) {
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	ErrorType error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
-	if (error) {
+	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	if (error != Error::NONE) {
 		display->displayError(error);
 	}
 }
 
 // Keeps same ParamManager
-ErrorType AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
+Error AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
 	detachAudioClipFromOutput(modelStack->song, false, true);
 
 	return setOutput(modelStack, newOutput);
 }
 
-ErrorType AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-                               AudioClip* favourClipForCloningParamManager) {
+Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
+                           AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	ErrorType error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
-	if (error) {
+	Error error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	outputChanged(modelStack, newOutput);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 RGB AudioClip::getColour() {

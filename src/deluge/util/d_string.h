@@ -48,17 +48,17 @@ public:
 	// Made no sense. Instead, constructing then calling set() works
 	~String();
 	void clear(bool destructing = false);
-	ErrorType set(char const* newChars, int32_t newLength = -1);
+	Error set(char const* newChars, int32_t newLength = -1);
 	void set(String* otherString);
 	void beenCloned();
 	size_t getLength();
-	ErrorType shorten(int32_t newLength);
-	ErrorType concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
-	ErrorType concatenateInt(int32_t number, int32_t minNumDigits = 1);
-	ErrorType setInt(int32_t number, int32_t minNumDigits = 1);
-	ErrorType setChar(char newChar, int32_t pos);
-	ErrorType concatenate(String* otherString);
-	ErrorType concatenate(char const* newChars);
+	Error shorten(int32_t newLength);
+	Error concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
+	Error concatenateInt(int32_t number, int32_t minNumDigits = 1);
+	Error setInt(int32_t number, int32_t minNumDigits = 1);
+	Error setChar(char newChar, int32_t pos);
+	Error concatenate(String* otherString);
+	Error concatenate(char const* newChars);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);
 

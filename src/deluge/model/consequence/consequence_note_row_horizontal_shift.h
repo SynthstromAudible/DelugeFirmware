@@ -23,7 +23,7 @@
 class ConsequenceNoteRowHorizontalShift final : public Consequence {
 public:
 	ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount);
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t noteRowId;
 	int32_t amount;

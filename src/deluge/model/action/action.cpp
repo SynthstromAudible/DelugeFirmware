@@ -83,7 +83,7 @@ void Action::addConsequence(Consequence* consequence) {
 }
 
 // Returns error code
-ErrorType Action::revert(TimeType time, ModelStack* modelStack) {
+Error Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* thisConsequence = firstConsequence;
 
@@ -99,10 +99,10 @@ ErrorType Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* newFirstConsequence = NULL;
 
-	ErrorType error = NO_ERROR;
+	Error error = Error::NONE;
 
 	while (thisConsequence) {
-		if (!error) {
+		if (error == Error::NONE) {
 
 			// Can't quite remember why, but we don't wanna revert param changes for arrangement-record actions
 			if (type == ActionType::ARRANGEMENT_RECORD && thisConsequence->type == Consequence::PARAM_CHANGE) {}
@@ -205,31 +205,31 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t no
 	return false;
 }
 
-ErrorType Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
-                                                               NoteVector* noteVector, bool stealData,
-                                                               bool moveToFrontIfAlreadySnapshotted) {
+Error Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
+                                                           NoteVector* noteVector, bool stealData,
+                                                           bool moveToFrontIfAlreadySnapshotted) {
 	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// If we're still here, we need to snapshot.
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
 }
 
-ErrorType Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-                                                  bool stealData) {
+Error Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+                                              bool stealData) {
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteArrayChange));
 
 	if (!consMemory) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	ConsequenceNoteArrayChange* newCons =
 	    new (consMemory) ConsequenceNoteArrayChange(clip, noteRowId, noteVector, stealData);
 	addConsequence(newCons);
 
-	return NO_ERROR; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone
-	                 // the data...
+	return Error::NONE; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone
+	                    // the data...
 }
 
 void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type) {

@@ -22,5 +22,5 @@
 class ConsequenceBeginPlayback final : public Consequence {
 public:
 	ConsequenceBeginPlayback();
-	ErrorType revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 };

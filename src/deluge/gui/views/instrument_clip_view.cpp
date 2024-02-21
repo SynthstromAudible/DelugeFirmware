@@ -381,7 +381,7 @@ doOther:
 			int32_t noteRowIndex;
 			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
-				display->displayError(ERROR_INSUFFICIENT_RAM);
+				display->displayError(Error::INSUFFICIENT_RAM);
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -786,7 +786,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		return;
 	}
 
-	ErrorType error;
+	Error error;
 	NoteRow* noteRow;
 	int32_t noteRowIndex;
 
@@ -802,9 +802,9 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		noteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 		if (!noteRow) {
 ramError:
-			error = ERROR_INSUFFICIENT_RAM;
+			error = Error::INSUFFICIENT_RAM;
 someError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -990,7 +990,7 @@ void InstrumentClipView::copyNotes() {
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1102,7 +1102,7 @@ void InstrumentClipView::pasteNotes(bool overwriteExisting = true) {
 
 	if (false) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1388,7 +1388,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				*slashAddress = '/';
 				if (result != FR_OK) {
 
-					display->displayError(ERROR_SD_CARD);
+					display->displayError(Error::SD_CARD);
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -1841,7 +1841,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				// If error (no ram left), get out
 				if (!squareType) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1890,12 +1890,12 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
-							ErrorType error = noteRow->addCorrespondingNotes(
+							Error error = noteRow->addCorrespondingNotes(
 							    squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
 							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
 
-							if (error) {
-								display->displayError(ERROR_INSUFFICIENT_RAM);
+							if (error != Error::NONE) {
+								display->displayError(Error::INSUFFICIENT_RAM);
 							}
 						}
 					}
@@ -2490,7 +2490,7 @@ ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWi
 
 		if (!noteRow) { // If memory full
 doDisplayError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 		else {
 			noteRowId = noteRow->y;
@@ -2799,7 +2799,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
 
 					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-						display->displayError(ERROR_INSUFFICIENT_RAM);
+						display->displayError(Error::INSUFFICIENT_RAM);
 cancelPress:
 						endEditPadPress(i);
 						continue;
@@ -3655,8 +3655,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
 
-	ErrorType error = kit->makeDrumNameUnique(&soundName, 1);
-	if (error) {
+	Error error = kit->makeDrumNameUnique(&soundName, 1);
+	if (error != Error::NONE) {
 doDisplayError:
 		display->displayError(error);
 		return;
@@ -3664,13 +3664,13 @@ doDisplayError:
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 	if (!memory) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto doDisplayError;
 	}
 
 	ParamManagerForTimeline paramManager;
 	error = paramManager.setupWithPatching();
-	if (error) {
+	if (error != Error::NONE) {
 		delugeDealloc(memory);
 		goto doDisplayError;
 	}
@@ -4962,10 +4962,10 @@ doCompareNote:
 					int32_t distanceTilNext =
 					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
 
-					ErrorType error =
+					Error error =
 					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
 					                                        action, currentClip->getWrapEditLevel(), offset);
-					if (error) {
+					if (error != Error::NONE) {
 						display->displayError(error);
 						return;
 					}
@@ -5486,8 +5486,8 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						ErrorType error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
-						if (error) {
+						Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						if (error != Error::NONE) {
 							display->displayError(error);
 							return;
 						}
@@ -5737,7 +5737,7 @@ editLengthWithNewAction:
 		Action* action = actionLogger.getNewAction(ActionType::NOTEROW_LENGTH_EDIT, ActionAddition::NOT_ALLOWED);
 		if (!action) {
 ramError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			if (didSecretUndo) {
 				// Need to do the resumePlayback that we blocked happening during the revert()
 				if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

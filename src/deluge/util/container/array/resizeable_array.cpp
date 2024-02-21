@@ -108,7 +108,7 @@ void ResizeableArray::empty() {
 }
 
 // Returns error
-ErrorType ResizeableArray::beenCloned() {
+Error ResizeableArray::beenCloned() {
 
 	LOCK_ENTRY
 
@@ -116,7 +116,7 @@ ErrorType ResizeableArray::beenCloned() {
 	int32_t otherMemoryStart = memoryStart;
 	void* __restrict__ oldMemory = memory;
 
-	ErrorType error = copyElementsFromOldMemory(oldMemory, otherMemorySize, otherMemoryStart);
+	Error error = copyElementsFromOldMemory(oldMemory, otherMemorySize, otherMemoryStart);
 
 	LOCK_EXIT
 
@@ -128,16 +128,16 @@ bool ResizeableArray::cloneFrom(ResizeableArray* other) {
 	LOCK_ENTRY
 
 	numElements = other->numElements;
-	ErrorType error = copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart);
+	Error error = copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart);
 
 	LOCK_EXIT
 
-	return !error;
+	return error == Error::NONE;
 }
 
 // Returns error
-ErrorType ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
-                                                     int32_t otherMemoryStart) {
+Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
+                                                 int32_t otherMemoryStart) {
 
 	memoryStart = 0;
 
@@ -155,7 +155,7 @@ ErrorType ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMem
 		if (!memory) {
 			numElements = 0;
 			memorySize = 0;
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		memorySize = allocatedSize / elementSize;
@@ -178,7 +178,7 @@ ErrorType ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMem
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void ResizeableArray::swapStateWith(ResizeableArray* other) {
@@ -894,7 +894,7 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 }
 
 // Returns error code
-ErrorType ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
+Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
 		FREEZE_WITH_ERROR("E280");
@@ -909,7 +909,7 @@ ErrorType ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* t
 
 		if (staticMemoryAllocationSize) {
 			LOCK_EXIT
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		int32_t newMemorySize = (numExtraSpacesToAllocate >> 1)
@@ -920,7 +920,7 @@ ErrorType ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* t
 		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize, thingNotToStealFrom);
 		if (!newMemory) {
 			LOCK_EXIT
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
@@ -1084,7 +1084,7 @@ getBrandNewMemory:
 
 			if (staticMemoryAllocationSize) {
 				LOCK_EXIT
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			// D_PRINTLN("getting new memory");
@@ -1110,7 +1110,7 @@ getBrandNewMemoryAgain:
 				// Otherwise, we're screwed
 				else {
 					LOCK_EXIT
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 			}
 
@@ -1169,7 +1169,7 @@ getBrandNewMemoryAgain:
 	numElements = newNum;
 
 	LOCK_EXIT
-	return NO_ERROR;
+	return Error::NONE;
 }
 // swapElements and repositionElements are fine - GCC doesn't like that workingMemory
 // would be unbounded if elementSize is unbounded, but it is so it's all ok

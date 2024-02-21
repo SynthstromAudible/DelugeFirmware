@@ -39,13 +39,14 @@ class Song;
 
 struct PresetNavigationResult {
 	FileItem* fileItem;
-	ErrorType error;
+	Error error;
 	bool loadedFromFile;
 };
 
+// FIXME: This is literally a std::expected and should be such.
 struct ReturnOfConfirmPresetOrNextUnlaunchedOne {
 	FileItem* fileItem;
-	ErrorType error;
+	Error error;
 };
 
 struct Slot {
@@ -69,23 +70,22 @@ public:
 	Browser();
 
 	void close();
-	virtual ErrorType getCurrentFilePath(String* path) = 0;
+	virtual Error getCurrentFilePath(String* path) = 0;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
-	ErrorType goIntoFolder(char const* folderName);
-	ErrorType createFolder();
+	Error goIntoFolder(char const* folderName);
+	Error createFolder();
 	void selectEncoderAction(int8_t offset);
 	static FileItem* getCurrentFileItem();
-	ErrorType readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
-	                                 char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-	                                 int32_t newMaxNumFileItems,
-	                                 int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
+	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
+	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
 	void sortFileItems();
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	ErrorType getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
+	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
 	bool checkFP();
@@ -106,10 +106,10 @@ public:
 	UIType getUIType() { return UIType::BROWSER; }
 
 protected:
-	ErrorType setEnteredTextFromCurrentFilename();
-	ErrorType goUpOneDirectoryLevel();
-	virtual ErrorType arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = nullptr,
-	                                     char const* defaultDir = nullptr);
+	Error setEnteredTextFromCurrentFilename();
+	Error goUpOneDirectoryLevel();
+	virtual Error arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = nullptr,
+	                                 char const* defaultDir = nullptr);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
@@ -119,11 +119,11 @@ protected:
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	ErrorType readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
-	                                           char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                           bool allowFoldersint,
-	                                           Availability availabilityRequirement = Availability::ANY,
-	                                           int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
+	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                       bool allowFoldersint,
+	                                       Availability availabilityRequirement = Availability::ANY,
+	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
 	                                  // maybe we're typing a new name.

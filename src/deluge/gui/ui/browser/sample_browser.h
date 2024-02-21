@@ -46,8 +46,8 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool canSeeViewUnderneath();
-	ErrorType claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
-	ErrorType claimAudioFileForAudioClip();
+	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
+	Error claimAudioFileForAudioClip();
 	void scrollFinished();
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
@@ -74,7 +74,7 @@ private:
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = NULL, int32_t* getNumCharsInPrefix = NULL);
-	ErrorType getCurrentFilePath(String* path);
+	Error getCurrentFilePath(String* path);
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();

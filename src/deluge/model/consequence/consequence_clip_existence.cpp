@@ -56,17 +56,17 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 	}
 }
 
-ErrorType ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	if (time != util::to_underlying(type)) { // (Re-)create
 
 		if (!clipArray->ensureEnoughSpaceAllocated(1)) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
-		ErrorType error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
-		if (error) { // This shouldn't actually happen, but if it does...
+		Error error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
+		if (error != Error::NONE) { // This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E046");
 #endif
@@ -163,5 +163,5 @@ ErrorType ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack
 		oldOutput->pickAnActiveClipIfPossible(modelStack); // Yup, we're required to call this after detachFromOutput().
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }

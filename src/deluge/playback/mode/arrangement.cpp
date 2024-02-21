@@ -360,8 +360,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
 			    && output->wantsToBeginArrangementRecording()) {
 
-				ErrorType error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error) {
+				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
+				if (error != Error::NONE) {
 					display->displayError(error);
 				}
 			}
@@ -486,10 +486,9 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 }
 
 // First, be sure the clipInstance has a Clip
-ErrorType Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength,
-                                                   bool shouldCloneRepeats) {
+Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 	Clip* oldClip = clipInstance->clip;
 
@@ -497,8 +496,8 @@ ErrorType Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, i
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
-	ErrorType error = oldClip->clone(modelStack, true);
-	if (error) {
+	Error error = oldClip->clone(modelStack, true);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -525,7 +524,7 @@ ErrorType Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, i
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {

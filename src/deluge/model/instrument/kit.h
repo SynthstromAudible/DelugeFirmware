@@ -36,14 +36,14 @@ public:
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void addDrum(Drum* newDrum);
-	ErrorType readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
 	~Kit();
 	int32_t getDrumIndex(Drum* drum);
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
 
-	ErrorType loadAllAudioFiles(bool mayActuallyReadFiles) override;
+	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
 	void cutAllSound() override;
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
@@ -102,7 +102,7 @@ public:
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable();
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
-	ErrorType makeDrumNameUnique(String* name, int32_t startAtNumber);
+	Error makeDrumNameUnique(String* name, int32_t startAtNumber);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
@@ -149,7 +149,7 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	ErrorType readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
+	Error readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
 	                     int32_t* drumIndex, Song* song);
 	void removeDrumFromLinkedList(Drum* drum);

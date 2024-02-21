@@ -183,8 +183,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// If note does not exist yet in the arrays, we must insert it in both
 	else {
 		// Insert in notes array
-		ErrorType error = notes.insertAtIndex(notesKey);
-		if (error) {
+		Error error = notes.insertAtIndex(notesKey);
+		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote
@@ -203,7 +203,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// Insert it in notesAsPlayed array
 		notesAsPlayedIndex = notesAsPlayed.getNumElements();
 		error = notesAsPlayed.insertAtIndex(notesAsPlayedIndex); // always insert at the end or the array
-		if (error) {
+		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote

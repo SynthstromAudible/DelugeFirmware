@@ -49,7 +49,7 @@ public:
 	~Sample();
 
 	void workOutBitMask();
-	ErrorType initialize(int32_t numClusters);
+	Error initialize(int32_t numClusters);
 	void markAsUnloadable();
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
@@ -59,8 +59,8 @@ public:
 	void deleteCache(SampleCache* cache);
 	int32_t getFirstClusterIndexWithAudioData();
 	int32_t getFirstClusterIndexWithNoAudioData();
-	int32_t fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-	                      int32_t playDirection, int32_t maxNumSamplesToProcess);
+	Error fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
+	                    int32_t playDirection, int32_t maxNumSamplesToProcess);
 	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,

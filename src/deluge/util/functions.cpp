@@ -2268,31 +2268,31 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 	return true;
 }
 
-ErrorType fresultToDelugeErrorCode(FRESULT result) {
+Error fresultToDelugeErrorCode(FRESULT result) {
 	switch (result) {
 	case FR_OK:
-		return NO_ERROR;
+		return Error::NONE;
 
 	case FR_NO_FILESYSTEM:
-		return ERROR_SD_CARD_NO_FILESYSTEM;
+		return Error::SD_CARD_NO_FILESYSTEM;
 
 	case FR_NO_FILE:
-		return ERROR_FILE_NOT_FOUND;
+		return Error::FILE_NOT_FOUND;
 
 	case FR_NO_PATH:
-		return ERROR_FOLDER_DOESNT_EXIST;
+		return Error::FOLDER_DOESNT_EXIST;
 
 	case FR_WRITE_PROTECTED:
-		return ERROR_WRITE_PROTECTED;
+		return Error::WRITE_PROTECTED;
 
 	case FR_NOT_ENOUGH_CORE:
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 
 	case FR_EXIST:
-		return ERROR_FILE_ALREADY_EXISTS;
+		return Error::FILE_ALREADY_EXISTS;
 
 	default:
-		return ERROR_SD_CARD;
+		return Error::SD_CARD;
 	}
 }
 

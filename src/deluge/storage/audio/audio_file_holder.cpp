@@ -28,23 +28,23 @@ AudioFileHolder::~AudioFileHolder() {
 }
 
 // Loads file from filePath, which would already be set.
-// Returns error, but NO_ERROR doesn't necessarily mean there's now a file loaded - it might be that filePath was NULL,
-// but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
+// Returns error, but Error::NONE doesn't necessarily mean there's now a file loaded - it might be that filePath was
+// NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
 // (!mayActuallyReadFile).
-ErrorType AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                    int32_t clusterLoadInstruction, FilePointer* filePointer,
-                                    bool makeWaveTableWorkAtAllCosts) {
+Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+                                int32_t clusterLoadInstruction, FilePointer* filePointer,
+                                bool makeWaveTableWorkAtAllCosts) {
 
 	// See if this AudioFile object already all loaded up
 	if (audioFile != nullptr) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	if (filePath.isEmpty()) {
-		return NO_ERROR; // This could happen if the filename tag wasn't present in the file
+		return Error::NONE; // This could happen if the filename tag wasn't present in the file
 	}
 
-	ErrorType error;
+	Error error;
 	AudioFile* newAudioFile = audioFileManager.getAudioFileFromFilename(
 	    &filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
 

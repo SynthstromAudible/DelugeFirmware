@@ -52,14 +52,14 @@ public:
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
-	ErrorType setupWithPatching();
-	ErrorType setupUnpatched();
-	ErrorType setupMIDI();
+	Error setupWithPatching();
+	Error setupUnpatched();
+	Error setupMIDI();
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
-	ErrorType cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
-	                                    int32_t reverseDirectionWithLength = 0);
-	ErrorType beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	Error cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
+	                                int32_t reverseDirectionWithLength = 0);
+	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	bool ensureExpressionParamSetExists(bool forDrum = false);

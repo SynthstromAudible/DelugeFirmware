@@ -64,8 +64,8 @@ bool LoadSongUI::opened() {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
-	ErrorType error = beginSlotSession(false, true);
-	if (error) {
+	Error error = beginSlotSession(false, true);
+	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
@@ -88,13 +88,13 @@ gotError:
 
 	if (!searchFilename.isEmpty()) {
 		error = searchFilename.concatenate(".XML");
-		if (error) {
+		if (error != Error::NONE) {
 			goto gotError;
 		}
 	}
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
@@ -145,9 +145,9 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		ErrorType error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.get());
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -228,9 +228,9 @@ void LoadSongUI::performLoad() {
 
 	if (!currentFileItem) {
 		display->displayError(display->haveOLED()
-		                          ? ERROR_FILE_NOT_FOUND
-		                          : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for
-		                                                                    // consistency with old times.
+		                          ? Error::FILE_NOT_FOUND
+		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
+		                                                                     // for consistency with old times.
 		return;
 	}
 
@@ -240,8 +240,8 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 
-	ErrorType error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
-	if (error) {
+	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
 	}
@@ -274,7 +274,7 @@ void LoadSongUI::performLoad() {
 	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (!songMemory) {
 ramError:
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
 		display->displayError(error);
@@ -298,7 +298,7 @@ fail:
 
 	preLoadedSong = new (songMemory) Song();
 	error = preLoadedSong->paramManager.setupUnpatched();
-	if (error) {
+	if (error != Error::NONE) {
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
@@ -314,7 +314,7 @@ gotErrorAfterCreatingSong:
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
 	error = preLoadedSong->readFromFile();
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("d");
@@ -330,13 +330,13 @@ gotErrorAfterCreatingSong:
 
 	String currentFilenameWithoutExtension;
 	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 
 	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
 	                                                    &currentFilenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
@@ -532,7 +532,7 @@ doSearch:
             "SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
 
 
-    if (result == ERROR_NO_FURTHER_FILES_THIS_DIRECTION) {
+    if (result == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
 
         if (doingSecondTry) {
             // Error - no files at all!
@@ -541,7 +541,7 @@ doSearch:
             enteredText.clear();
             enteredTextEditPos = 0;
             //currentFileExists = false;
-            return NO_ERROR;
+            return Error::NONE;
         }
 
         doingSecondTry = true;
@@ -568,7 +568,7 @@ doSearch:
     currentFilename.set(&newName); // This will only get used in the case of a folder, so it's ok(ish) that we're
 ignoring the file extension.
 
-    return NO_ERROR;
+    return Error::NONE;
 }
 */
 
@@ -711,9 +711,9 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		return;
 	}
 
-	ErrorType error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
-	if (error) {
-		if (error) {
+	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	if (error != Error::NONE) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}

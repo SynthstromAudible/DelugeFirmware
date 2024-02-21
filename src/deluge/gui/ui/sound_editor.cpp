@@ -1393,7 +1393,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
 

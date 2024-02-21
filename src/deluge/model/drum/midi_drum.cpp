@@ -61,7 +61,7 @@ void MIDIDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	}
 }
 
-ErrorType MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -75,7 +75,7 @@ ErrorType MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationU
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void MIDIDrum::getName(char* buffer) {

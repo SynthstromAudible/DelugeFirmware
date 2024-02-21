@@ -241,7 +241,7 @@ void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, boo
 	(*drumIndex)++;
 }
 
-ErrorType Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	int32_t selectedDrumIndex = -1;
 
@@ -257,8 +257,8 @@ ErrorType Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPo
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					ErrorType error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
-					if (error) {
+					Error error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
+					if (error != Error::NONE) {
 						return error;
 					}
 					storageManager.exitTag();
@@ -282,17 +282,17 @@ doReadDrum:
 			storageManager.exitTag("selectedDrumIndex");
 		}
 		else {
-			ErrorType result =
+			Error result =
 			    GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
-			if (result == NO_ERROR) {}
-			else if (result != RESULT_TAG_UNUSED) {
+			if (result == Error::NONE) {}
+			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
 			else {
 				if (Instrument::readTagFromFile(tagName)) {}
 				else {
-					ErrorType result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-					if (result && result != RESULT_TAG_UNUSED) {
+					Error result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
 					storageManager.exitTag(tagName);
@@ -310,19 +310,19 @@ doReadDrum:
 		song->backUpParamManager(this, clip, &paramManager, true);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-ErrorType Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
+Error Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
 	if (!newDrum) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
-	ErrorType error = newDrum->readFromFile(
+	Error error = newDrum->readFromFile(
 	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
-	if (error) {
+	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
 		delugeDealloc(toDealloc);
@@ -330,19 +330,19 @@ ErrorType Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32
 	}
 	addDrum(newDrum);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Returns true if more loading needed later
-ErrorType Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	ErrorType error = NO_ERROR;
+	Error error = Error::NONE;
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
-		if (error) {
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
@@ -350,11 +350,11 @@ ErrorType Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	AudioEngine::logAction("Kit::loadAllSamples");
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			error = ERROR_ABORTED_BY_USER;
+			error = Error::ABORTED_BY_USER;
 			goto getOut;
 		}
 		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error) {
+		if (error != Error::NONE) {
 			goto getOut;
 		}
 	}
@@ -372,8 +372,8 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		ErrorType error = setupDefaultAudioFileDir();
-		if (error) {
+		Error error = setupDefaultAudioFileDir();
+		if (error != Error::NONE) {
 			return;
 		}
 	}
@@ -722,7 +722,7 @@ ModControllable* Kit::toModControllable() {
 }
 
 // newName must be allowed to be edited by this function
-ErrorType Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
+Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
 	D_PRINTLN("making unique newName:");
 
@@ -731,14 +731,14 @@ ErrorType Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		ErrorType error = name->concatenateAtPos(numberString, originalLength);
-		if (error) {
+		Error error = name->concatenateAtPos(numberString, originalLength);
+		if (error != Error::NONE) {
 			return error;
 		}
 		startAtNumber++;
 	} while (getDrumFromName(name->get()));
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Kit::setupWithoutActiveClip(ModelStack* modelStack) {

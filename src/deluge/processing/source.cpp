@@ -101,7 +101,7 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-ErrorType Source::loadAllSamples(bool mayActuallyReadFiles) {
+Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) {
@@ -109,13 +109,13 @@ ErrorType Source::loadAllSamples(bool mayActuallyReadFiles) {
 			                                          // occasionally drops voices - for multisampled synths
 		}
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			return ERROR_ABORTED_BY_USER;
+			return Error::ABORTED_BY_USER;
 		}
 		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.reversed, false, mayActuallyReadFiles,
 		                                                     CLUSTER_ENQUEUE, 0, true);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
@@ -256,8 +256,8 @@ possiblyDeleteRanges:
 			*/
 
 doChangeType:
-			ErrorType error = ranges.changeType(multiRangeSize);
-			if (error) {
+			Error error = ranges.changeType(multiRangeSize);
+			if (error != Error::NONE) {
 				destructAllMultiRanges();
 				ranges.empty();
 				soundEditor.currentMultiRangeIndex = 0;

@@ -932,8 +932,8 @@ int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpola
 	}
 
 	{
-		ErrorType error = nodes.insertAtIndex(i);
-		if (error) {
+		Error error = nodes.insertAtIndex(i);
+		if (error != Error::NONE) {
 			return -1;
 		}
 	}
@@ -1198,8 +1198,8 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			ErrorType error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
-			if (error) {
+			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
+			if (error != Error::NONE) {
 				return -1;
 			}
 			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
@@ -1224,8 +1224,8 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			ErrorType error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
-			if (error) {
+			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
+			if (error != Error::NONE) {
 				return -1;
 			}
 			edgeIndexes[REGION_EDGE_RIGHT] += (int32_t)(!anyWrap);
@@ -1413,22 +1413,22 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-int32_t AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
-	ErrorType error = NO_ERROR;
+	Error error = Error::NONE;
 
 	if (copyAutomation) {
 
 		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			ParamNodeVector oldNodes =
-			    nodes; // Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
+			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
+			ParamNodeVector oldNodes = nodes;
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
 
-			if (!error) {
+			if (error == Error::NONE) {
 				ParamNode* rightmostNode = (ParamNode*)oldNodes.getElementAddress(numNodes - 1);
 				int32_t oldNodeToLeftValue = rightmostNode->value;
 
@@ -1465,8 +1465,9 @@ int32_t AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithL
 				}
 			}
 
-			oldNodes.init(); // Because this is about to get destructed, we need to stop it pointing to the old
-			                 // AutoParam's nodes' memory, cos we don't want that getting deallocated.
+			// Because this is about to get destructed, we need to stop it pointing to the old
+			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
+			oldNodes.init();
 		}
 
 		else {
@@ -1524,8 +1525,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				valueAtZero = nodeBeforeWrap->value;
 			}
 
-			ErrorType error = nodes.insertAtIndex(0);
-			if (error) {
+			Error error = nodes.insertAtIndex(0);
+			if (error != Error::NONE) {
 				return;
 			}
 
@@ -1544,8 +1545,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 
 		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
-			ErrorType error = nodes.insertAtIndex(numNodesBefore, numToInsert);
-			if (error) {
+			Error error = nodes.insertAtIndex(numNodesBefore, numToInsert);
+			if (error != Error::NONE) {
 				return;
 			}
 		}
@@ -1657,8 +1658,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 		int32_t newZeroNodeI = nodes.getNumElements();
 
-		ErrorType error = nodes.insertAtIndex(newZeroNodeI);
-		if (error) {
+		Error error = nodes.insertAtIndex(newZeroNodeI);
+		if (error != Error::NONE) {
 			return;
 		}
 
@@ -1672,8 +1673,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	}
 
 	int32_t oldNumNodes = nodes.getNumElements();
-	ErrorType error = nodes.insertAtIndex(oldNumNodes, numToInsert);
-	if (error) {
+	Error error = nodes.insertAtIndex(oldNumNodes, numToInsert);
+	if (error != Error::NONE) {
 		return;
 	}
 
@@ -1786,8 +1787,8 @@ basicTrim: {
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				ErrorType error = nodes.insertAtIndex(0);
-				if (!error) { // Should be fine cos we just deleted some, so some free RAM
+				Error error = nodes.insertAtIndex(0);
+				if (error == Error::NONE) { // Should be fine cos we just deleted some, so some free RAM
 					ParamNode* newNode = nodes.getElement(0);
 					newNode->pos = 0;
 					newNode->value = oldValueAt0;
@@ -1807,8 +1808,8 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				ErrorType error = newNodes.insertAtIndex(0, newNumNodes);
-				if (error) {
+				Error error = newNodes.insertAtIndex(0, newNumNodes);
+				if (error != Error::NONE) {
 					goto basicTrim;
 				}
 
@@ -1870,20 +1871,20 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
+Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
 	deleteAutomationBasicForSetup();
 
 	if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// char buffer[12];
 	char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
 	if (!firstChars) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// If a decimal, then read the rest of the digits
@@ -1895,7 +1896,7 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 		for (int32_t i = 2; i < 12 && (buffer[i] = storageManager.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// Or, normal case - hex and automation...
@@ -1903,7 +1904,7 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 	// First, read currentValue
 	char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(8);
 	if (!hexChars) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 	currentValue = hexToIntFixedLength(hexChars, 8);
 
@@ -1933,7 +1934,7 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			hexChars = storageManager.readNextCharsOfTagOrAttributeValue(16);
 			if (!hexChars) {
-				return NO_ERROR;
+				return Error::NONE;
 			}
 			int32_t value = hexToIntFixedLength(hexChars, 8);
 			int32_t pos = hexToIntFixedLength(&hexChars[8], 8);
@@ -1957,8 +1958,8 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = nodes.getElement(0);
 					if (!firstNode || firstNode->pos) {
-						ErrorType error = nodes.insertAtIndex(0);
-						if (error) {
+						Error error = nodes.insertAtIndex(0);
+						if (error != Error::NONE) {
 							return error;
 						}
 						firstNode = nodes.getElement(0);
@@ -1974,7 +1975,7 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			int32_t nodeI = nodes.insertAtKey(pos, true);
 			if (nodeI == -1) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 			ParamNode* node = nodes.getElement(nodeI);
 			node->value = value;
@@ -1984,7 +1985,7 @@ ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool AutoParam::containsSomething(uint32_t neutralValue) {
@@ -2182,7 +2183,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2225,10 +2226,10 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Returns error code.
 // quantizationRShift would be 25 for 7-bit CC values (cos 32 - 25 == 7).
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
-ErrorType AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
+Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
 
 	if (nodes.getNumElements() <= 1) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	int32_t stopAtElement = nodes.getNumElements();
@@ -2293,7 +2294,7 @@ ErrorType AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quan
 
 				int32_t newNodeI = nodes.insertAtKey(thisPos);
 				if (newNodeI == -1) {
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 				if (newNodeI <= i) {
 					i++;
@@ -2317,7 +2318,7 @@ ErrorType AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quan
 
 	nodes.testSequentiality("E414");
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues() {
@@ -2376,9 +2377,9 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
 
 		if (shouldAddNodeAtPos0) {
-			ErrorType error =
+			Error error =
 			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
-			if (!error) {
+			if (error == Error::NONE) {
 				ParamNode* newNode = nodes.getElement(0);
 				newNode->value = oldValue;
 				newNode->pos = 0;
@@ -2661,9 +2662,9 @@ doWrap:
 				else {
 					nextNodeI = nodes.getNumElements();
 					{
-						ErrorType error = nodes.insertAtIndex(
+						Error error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
-						if (ALPHA_OR_BETA_VERSION && error) {
+						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
 							FREEZE_WITH_ERROR("E333");
 						}
 					}
