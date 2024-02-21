@@ -183,7 +183,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// If note does not exist yet in the arrays, we must insert it in both
 	else {
 		// Insert in notes array
-		int32_t error = notes.insertAtIndex(notesKey);
+		ErrorType error = notes.insertAtIndex(notesKey);
 		if (error) {
 			return;
 		}

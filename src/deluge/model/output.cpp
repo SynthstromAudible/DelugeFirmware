@@ -248,7 +248,7 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-int32_t Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+ErrorType Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -363,7 +363,7 @@ getOut:
 	return true;
 }
 
-int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
+ErrorType Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 		return ERROR_INSUFFICIENT_RAM;

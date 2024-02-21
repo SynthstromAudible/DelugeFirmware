@@ -176,7 +176,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	ErrorType error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error) {
 		return;
 	}
@@ -235,7 +235,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	int32_t error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	ErrorType error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error) {
 		return;
 	}

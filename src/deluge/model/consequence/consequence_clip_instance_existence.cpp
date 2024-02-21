@@ -31,7 +31,7 @@ ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOu
 	type = newType;
 }
 
-int32_t ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
 
 	if (time == util::to_underlying(type)) { // (Re-)delete
 		int32_t i = output->clipInstances.search(pos, GREATER_OR_EQUAL);

@@ -20,16 +20,9 @@
 #include "model/instrument/instrument.h"
 #include <cstring>
 
-FileItem::FileItem() {
-	filePointer = {0};
-	instrument = NULL;
-	filenameIncludesExtension = true;
-	instrumentAlreadyInSong = false;
-}
-
-int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
+ErrorType FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	filename.set(&newInstrument->name);
-	int32_t error = filename.concatenate(".XML");
+	ErrorType error = filename.concatenate(".XML");
 	if (error) {
 		return error;
 	}
@@ -49,10 +42,10 @@ int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernatin
 	return NO_ERROR;
 }
 
-int32_t FileItem::getFilenameWithExtension(String* filenameWithExtension) {
+ErrorType FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	filenameWithExtension->set(&filename);
 	if (!filenameIncludesExtension) {
-		int32_t error = filenameWithExtension->concatenate(".XML");
+		ErrorType error = filenameWithExtension->concatenate(".XML");
 		if (error) {
 			return error;
 		}
@@ -60,14 +53,14 @@ int32_t FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	return NO_ERROR;
 }
 
-int32_t FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
+ErrorType FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 	filenameWithoutExtension->set(&filename);
 	if (filenameIncludesExtension) {
 		char const* chars = filenameWithoutExtension->get();
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			int32_t error = filenameWithoutExtension->shorten(newLength);
+			ErrorType error = filenameWithoutExtension->shorten(newLength);
 			if (error) {
 				return error;
 			}
@@ -76,13 +69,13 @@ int32_t FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) 
 	return NO_ERROR;
 }
 
-int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
+ErrorType FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
 	if (display->haveOLED()) {
 		return getFilenameWithoutExtension(displayNameWithoutExtension);
 	}
 
 	// 7SEG...
-	int32_t error = displayNameWithoutExtension->set(displayName);
+	ErrorType error = displayNameWithoutExtension->set(displayName);
 	if (error) {
 		return error;
 	}

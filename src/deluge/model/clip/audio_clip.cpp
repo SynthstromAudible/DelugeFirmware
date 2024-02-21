@@ -73,7 +73,7 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
-int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+ErrorType AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
@@ -83,7 +83,7 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
-	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	ErrorType error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
 	if (error) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
@@ -143,7 +143,7 @@ bool AudioClip::isAbandonedOverdub() {
 	return (isUnfinishedAutoOverdub && !sampleHolder.audioFile);
 }
 
-int32_t AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+ErrorType AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
 
@@ -232,7 +232,7 @@ ramError:
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 
-	int32_t error = newClip->setOutput(modelStackNewClip, output, this);
+	ErrorType error = newClip->setOutput(modelStackNewClip, output, this);
 
 	if (error) {
 		newClip->~AudioClip();
@@ -830,7 +830,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 
-		int32_t error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
+		ErrorType error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
 		if (error) {
 			return;
 		}
@@ -896,7 +896,7 @@ doNormal:
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
-			int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
+			ErrorType error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
 			if (error) {
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
@@ -1048,9 +1048,9 @@ void AudioClip::writeDataToFile(Song* song) {
 	storageManager.writeClosingTag("params");
 }
 
-int32_t AudioClip::readFromFile(Song* song) {
+ErrorType AudioClip::readFromFile(Song* song) {
 
-	int32_t error;
+	ErrorType error;
 
 	if (false) {
 ramError:
@@ -1153,7 +1153,7 @@ someError:
 	return NO_ERROR;
 }
 
-int32_t AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
+ErrorType AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	output = modelStack->song->getAudioOutputFromName(&outputNameWhileLoading);
 
@@ -1165,23 +1165,23 @@ int32_t AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	int32_t error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	ErrorType error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
 	if (error) {
 		display->displayError(error);
 	}
 }
 
 // Keeps same ParamManager
-int32_t AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
+ErrorType AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
 	detachAudioClipFromOutput(modelStack->song, false, true);
 
 	return setOutput(modelStack, newOutput);
 }
 
-int32_t AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-                             AudioClip* favourClipForCloningParamManager) {
+ErrorType AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
+                               AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	int32_t error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
+	ErrorType error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
 	if (error) {
 		return error;
 	}

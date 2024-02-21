@@ -16,6 +16,7 @@
  */
 
 #include "storage/multi_range/multi_range_array.h"
+#include "definitions_cxx.hpp"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include <new>
@@ -35,7 +36,7 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 }
 
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
-	int32_t error = insertAtIndex(i);
+	ErrorType error = insertAtIndex(i);
 	if (error) {
 		return NULL;
 	}
@@ -51,7 +52,7 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	return range;
 }
 
-int32_t MultiRangeArray::changeType(int32_t newSize) {
+ErrorType MultiRangeArray::changeType(int32_t newSize) {
 
 	if (!numElements) {
 		elementSize = newSize;
@@ -60,7 +61,7 @@ int32_t MultiRangeArray::changeType(int32_t newSize) {
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
-	int32_t error = newArray.insertAtIndex(0, numElements);
+	ErrorType error = newArray.insertAtIndex(0, numElements);
 	if (error) {
 		return error;
 	}

@@ -46,8 +46,8 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool canSeeViewUnderneath();
-	int32_t claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
-	int32_t claimAudioFileForAudioClip();
+	ErrorType claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
+	ErrorType claimAudioFileForAudioClip();
 	void scrollFinished();
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();

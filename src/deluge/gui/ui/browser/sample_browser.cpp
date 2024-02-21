@@ -111,7 +111,7 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	int32_t error = storageManager.initSD();
+	ErrorType error = storageManager.initSD();
 	if (error) {
 sdError:
 		display->displayError(error);
@@ -351,7 +351,7 @@ void SampleBrowser::enterKeyPress() {
 		// it returns an empty string (&nothing). Surely this is a compiler error??
 		char const* filenameChars = currentFileItem->filename.get();
 
-		int32_t error = goIntoFolder(filenameChars);
+		ErrorType error = goIntoFolder(filenameChars);
 
 		if (error) {
 			display->displayError(error);
@@ -411,7 +411,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 					// Ensure sample isn't used in current song
 					String filePath;
-					int32_t error = getCurrentFilePath(&filePath);
+					ErrorType error = getCurrentFilePath(&filePath);
 					if (error) {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
@@ -531,7 +531,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (currentFileItem && !currentFileItem->isFolder) {
 
 		String filePath;
-		int32_t error = getCurrentFilePath(&filePath);
+		ErrorType error = getCurrentFilePath(&filePath);
 		if (error) {
 			display->displayError(error);
 			return;
@@ -701,12 +701,12 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
+ErrorType SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int32_t error = getCurrentFilePath(&holder->filePath);
+	ErrorType error = getCurrentFilePath(&holder->filePath);
 	if (error) {
 		return error;
 	}
@@ -715,12 +715,12 @@ int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCo
 	                        makeWaveTableWorkAtAllCosts);
 }
 
-int32_t SampleBrowser::claimAudioFileForAudioClip() {
+ErrorType SampleBrowser::claimAudioFileForAudioClip() {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int32_t error = getCurrentFilePath(&holder->filePath);
+	ErrorType error = getCurrentFilePath(&holder->filePath);
 	if (error) {
 		return error;
 	}
@@ -749,7 +749,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 
 	display->displayLoadingAnimationText("Working");
 
-	int32_t error;
+	ErrorType error;
 
 	// If for AudioClip...
 	if (getCurrentClip()->type == ClipType::AUDIO) {
@@ -1145,7 +1145,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
                                            bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
 
 	String dirToLoad;
-	uint8_t error;
+	ErrorType error;
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -1886,7 +1886,7 @@ getOut:
 				// Make the Drum and its ParamManager
 
 				ParamManagerForTimeline paramManager;
-				int32_t error = paramManager.setupWithPatching();
+				ErrorType error = paramManager.setupWithPatching();
 				if (error) {
 					goto getOut;
 				}
@@ -1922,7 +1922,7 @@ getOut:
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
-			int32_t error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			ErrorType error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
 			if (!error) {
 
 				char const* newNameChars = newName.get();

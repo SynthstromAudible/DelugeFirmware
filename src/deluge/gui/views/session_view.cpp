@@ -216,7 +216,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					int32_t error =
+					ErrorType error =
 					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error) {
@@ -287,7 +287,7 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				int32_t error = output->clipInstances.insertAtIndex(i);
+				ErrorType error = output->clipInstances.insertAtIndex(i);
 				if (error) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
@@ -1439,8 +1439,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 }
 
 // Will now look in subfolders too if need be.
-int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                     bool copyDrumsFromClip = true) {
+ErrorType setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
+                                       bool copyDrumsFromClip = true) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(outputType));
 	if (result.error) {
@@ -1507,7 +1507,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		ErrorType error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
 		if (error != NO_ERROR) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
@@ -1553,7 +1553,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	OutputType outputType = OutputType::SYNTH;
 doGetInstrument:
-	int32_t error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
+	ErrorType error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
 	if (error) {
 
 		// If that was for a synth and there were none, try a kit
@@ -1637,7 +1637,7 @@ ramError:
 	newClip->colourOffset = random(72);
 
 	bool instrumentAlreadyInSong;
-	int32_t error;
+	ErrorType error;
 
 	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
 
@@ -1978,7 +1978,7 @@ ramError:
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
-	int32_t error = clipToClone->clone(modelStack);
+	ErrorType error = clipToClone->clone(modelStack);
 	if (error) {
 		goto ramError;
 	}
@@ -3002,7 +3002,7 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
-	int32_t error = sourceClip->clone(modelStack, false);
+	ErrorType error = sourceClip->clone(modelStack, false);
 	if (error) {
 		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return nullptr;
@@ -3055,7 +3055,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		ErrorType error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
 		if (error || instrumentAlreadyInSong) {
 			if (error) {
 				display->displayError(error);
@@ -3199,8 +3199,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-				                                                    InstrumentRemoval::NONE);
+				ErrorType error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                                      InstrumentRemoval::NONE);
 				if (error != NO_ERROR) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}

@@ -28,5 +28,5 @@ public:
 	MultiRangeArray();
 	MultiRange* getElement(int32_t i);
 	MultiRange* insertMultiRange(int32_t i);
-	int32_t changeType(int32_t newSize);
+	ErrorType changeType(int32_t newSize);
 };

@@ -645,9 +645,9 @@ bool SevenSegment::isLayerCurrentlyOnTop(NumericLayer* layer) {
 	return (!popupActive && layer == topLayer);
 }
 
-extern std::string_view getErrorMessage(int32_t error);
+extern std::string_view getErrorMessage(ErrorType error);
 
-void SevenSegment::displayError(int32_t error) {
+void SevenSegment::displayError(ErrorType error) {
 	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:

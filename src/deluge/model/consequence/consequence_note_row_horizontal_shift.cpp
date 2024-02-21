@@ -28,7 +28,7 @@ ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t new
 	noteRowId = newNoteRowId;
 }
 
-int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 

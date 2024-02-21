@@ -32,7 +32,7 @@ NoteRowVector::~NoteRowVector() {
 }
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
-	int32_t error = insertAtIndex(index);
+	ErrorType error = insertAtIndex(index);
 	if (error) {
 		return NULL;
 	}

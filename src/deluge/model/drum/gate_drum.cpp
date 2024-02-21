@@ -50,7 +50,7 @@ void GateDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	}
 }
 
-int32_t GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+ErrorType GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {

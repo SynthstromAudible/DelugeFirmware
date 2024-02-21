@@ -24,7 +24,7 @@ class ConsequencePerformanceViewPress final : public Consequence {
 public:
 	ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
 	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	ErrorType revert(TimeType time, ModelStack* modelStack);
 
 	int32_t xDisplayChanged = kNoSelection;
 	FXColumnPress fxPress[2];

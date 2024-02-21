@@ -152,7 +152,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 }
 #pragma GCC pop
 void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
-	int32_t error;
+	ErrorType error;
 
 	OutputType oldOutputType = getCurrentOutputType();
 
@@ -226,7 +226,7 @@ gotError:
 	else {
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
-		int32_t error = getCurrentInstrumentClip()->changeInstrument(
+		ErrorType error = getCurrentInstrumentClip()->changeInstrument(
 		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);

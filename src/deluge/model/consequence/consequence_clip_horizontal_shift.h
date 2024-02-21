@@ -23,7 +23,7 @@
 class ConsequenceClipHorizontalShift final : public Consequence {
 public:
 	ConsequenceClipHorizontalShift(int32_t newAmount);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	ErrorType revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t amount;
 };

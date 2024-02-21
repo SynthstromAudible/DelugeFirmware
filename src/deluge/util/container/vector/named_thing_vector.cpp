@@ -74,7 +74,7 @@ String* NamedThingVector::getName(void* namedThing) {
 }
 
 // Returns error code
-int32_t NamedThingVector::insertElement(void* namedThing) {
+ErrorType NamedThingVector::insertElement(void* namedThing) {
 
 	String* name = getName(namedThing);
 
@@ -83,10 +83,10 @@ int32_t NamedThingVector::insertElement(void* namedThing) {
 	return insertElement(namedThing, i);
 }
 
-int32_t NamedThingVector::insertElement(void* namedThing, int32_t i) {
-	int32_t error = insertAtIndex(i, 1,
-	                              this); // While inserting, the stealing of any AudioFiles would cause a simultaneous
-	                                     // delete. They all know not to allow theft when passed this AudioFileVector.
+ErrorType NamedThingVector::insertElement(void* namedThing, int32_t i) {
+	// While inserting, the stealing of any AudioFiles would cause a simultaneous
+	// delete. They all know not to allow theft when passed this AudioFileVector.
+	ErrorType error = insertAtIndex(i, 1, this);
 	if (error) {
 		return error;
 	}

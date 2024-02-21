@@ -1218,7 +1218,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	ErrorType error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
@@ -1423,7 +1423,7 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		int32_t error = recorder->cardRoutine();
+		ErrorType error = recorder->cardRoutine();
 		if (error) {
 			display->displayError(error);
 		}
@@ -1496,7 +1496,7 @@ void slowRoutine() {
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
-	int32_t error;
+	ErrorType error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {

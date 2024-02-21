@@ -58,7 +58,7 @@ public:
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
 	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
-	virtual void displayError(int32_t error) = 0;
+	virtual void displayError(ErrorType error) = 0;
 
 	virtual void removeWorkingAnimation() = 0;
 

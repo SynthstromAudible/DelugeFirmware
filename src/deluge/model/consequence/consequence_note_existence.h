@@ -26,7 +26,7 @@ class Note;
 class ConsequenceNoteExistence final : public Consequence {
 public:
 	ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note, ExistenceChangeType newType);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	ErrorType revert(TimeType time, ModelStack* modelStack) override;
 
 	InstrumentClip* clip;
 	int32_t noteRowId;

@@ -56,7 +56,7 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 	}
 }
 
-int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	if (time != util::to_underlying(type)) { // (Re-)create
@@ -65,7 +65,7 @@ int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) 
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		int32_t error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
+		ErrorType error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
 		if (error) { // This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E046");

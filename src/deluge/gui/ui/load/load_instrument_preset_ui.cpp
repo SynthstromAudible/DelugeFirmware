@@ -102,7 +102,7 @@ bool LoadInstrumentPresetUI::opened() {
 		    ->backupPresetSlot(); // Store this now cos we won't be storing it between each navigation we do
 	}
 
-	int32_t error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	ErrorType error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error) {
 gotError:
 		display->displayError(error);
@@ -123,7 +123,7 @@ gotError:
 }
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
-int32_t LoadInstrumentPresetUI::setupForOutputType() {
+ErrorType LoadInstrumentPresetUI::setupForOutputType() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -182,7 +182,7 @@ int32_t LoadInstrumentPresetUI::setupForOutputType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			int32_t error = currentDir.set(defaultDir);
+			ErrorType error = currentDir.set(defaultDir);
 			if (error) {
 				return error;
 			}
@@ -190,13 +190,13 @@ useDefaultFolder:
 	}
 
 	if (!searchFilename.isEmpty()) {
-		int32_t error = searchFilename.concatenate(".XML");
+		ErrorType error = searchFilename.concatenate(".XML");
 		if (error) {
 			return error;
 		}
 	}
 
-	int32_t error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
+	ErrorType error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
 	if (error) {
 		return error;
 	}
@@ -249,7 +249,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		int32_t error = goIntoFolder(currentFileItem->filename.get());
+		ErrorType error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
 			display->displayError(error);
@@ -359,7 +359,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
 		// some way. So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
-		int32_t error = getCurrentFilePath(&filePath);
+		ErrorType error = getCurrentFilePath(&filePath);
 		if (error != 0) {
 			display->displayError(error);
 			return ActionResult::DEALT_WITH;
@@ -439,7 +439,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;
 
-		int32_t error = setupForOutputType();
+		ErrorType error = setupForOutputType();
 		if (error) {
 			outputTypeToLoad = oldOutputType;
 			return;
@@ -551,7 +551,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// Try getting from file
 				String filePath;
-				int32_t error = getCurrentFilePath(&filePath);
+				ErrorType error = getCurrentFilePath(&filePath);
 				if (error) {
 					return;
 				}
@@ -598,8 +598,8 @@ gotAnInstrument:
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
-		int32_t error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
-		                                                          InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		ErrorType error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
+		                                                            InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -788,13 +788,13 @@ addNumber:
 }
 
 // I thiiink you're supposed to check currentFileExists before calling this?
-int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
+ErrorType LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
-	if (!currentFileItem) {
-		return display->haveOLED() ? ERROR_FILE_NOT_FOUND
-		                           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for
-		                                                                    // consistency with old times.
+	if (currentFileItem == nullptr) {
+		// Make it say "NONE" on numeric Deluge, for
+		// consistency with old times.
+		return display->haveOLED() ? ERROR_FILE_NOT_FOUND : ERROR_NO_FURTHER_FILES_THIS_DIRECTION;
 	}
 
 	if (currentFileItem->isFolder) {
@@ -863,7 +863,7 @@ giveUsedError:
 				return ERROR_UNSPECIFIED;
 			}
 		}
-		int32_t error;
+		ErrorType error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
@@ -884,7 +884,7 @@ giveUsedError:
 		}
 	}
 	display->displayLoadingAnimationText("Loading", false, true);
-	int32_t error = newInstrument->loadAllAudioFiles(true);
+	ErrorType error = newInstrument->loadAllAudioFiles(true);
 
 	display->removeLoadingAnimation();
 
@@ -923,7 +923,7 @@ giveUsedError:
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
-		int32_t error = instrumentClipToLoadFor->changeInstrument(
+		ErrorType error = instrumentClipToLoadFor->changeInstrument(
 		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors!
 
@@ -968,13 +968,12 @@ giveUsedError:
 	return NO_ERROR;
 }
 
-int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
+ErrorType LoadInstrumentPresetUI::performLoadSynthToKit() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		return display->haveOLED() ? ERROR_FILE_NOT_FOUND
-		                           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for
-		                                                                    // consistency with old times.
+		// Make it say "NONE" on numeric Deluge, for consistency with old times.
+		return display->haveOLED() ? ERROR_FILE_NOT_FOUND : ERROR_NO_FURTHER_FILES_THIS_DIRECTION;
 	}
 
 	if (currentFileItem->isFolder) {
@@ -988,8 +987,8 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
-	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
+	ErrorType error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                                 &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error) {
 		return error;
 	}

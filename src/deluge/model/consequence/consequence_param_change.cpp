@@ -40,7 +40,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	}
 }
 
-int32_t ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
+ErrorType ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
 
 	// We only actually store one state at a time - either the before, or the after. As we revert in either direction,
 	// we swap our stored state with that of the param in question - like, actually swap the pointer to the

@@ -29,7 +29,7 @@ ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress f
 	xDisplayChanged = xDisplay;
 }
 
-int32_t ConsequencePerformanceViewPress::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequencePerformanceViewPress::revert(TimeType time, ModelStack* modelStack) {
 	memcpy(&performanceSessionView.fxPress[xDisplayChanged], &fxPress[time], sizeof(FXColumnPress));
 
 	return NO_ERROR;

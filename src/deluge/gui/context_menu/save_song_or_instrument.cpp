@@ -49,7 +49,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
-		int32_t error = browser->createFolder();
+		ErrorType error = browser->createFolder();
 
 		if (error) {
 			display->displayError(error);

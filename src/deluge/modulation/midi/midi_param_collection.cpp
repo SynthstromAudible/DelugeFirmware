@@ -201,7 +201,7 @@ void MIDIParamCollection::sendMIDI(int32_t masterChannel, int32_t cc, int32_t ne
 
 // For MIDI CCs, which prior to V2.0 did interpolation
 // Returns error code
-int32_t MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
+ErrorType MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
@@ -209,7 +209,7 @@ int32_t MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 		if (midiParam->cc >= 120) {
 			return NO_ERROR;
 		}
-		int32_t error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
+		ErrorType error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
 		if (error) {
 			return error;
 		}

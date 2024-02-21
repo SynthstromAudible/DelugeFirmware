@@ -36,7 +36,7 @@ public:
 	~AudioClip();
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
-	int32_t clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false);
+	ErrorType clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
 	void render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int32_t numSamples, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t pitchAdjust);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
@@ -47,13 +47,13 @@ public:
 	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
-	int32_t claimOutput(ModelStackWithTimelineCounter* modelStack);
+	ErrorType claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	void loadSample(bool mayActuallyReadFile);
 	bool wantsToBeginLinearRecording(Song* song);
 	bool isAbandonedOverdub();
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
 	                           int32_t buttonLatencyForTempolessRecord);
-	int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency);
+	ErrorType beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) override;
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
 	                                           int32_t alternativeLongerLength);
@@ -61,9 +61,9 @@ public:
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample(bool wontBeUsedAgain);
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
-	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
-	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-	                  AudioClip* favourClipForCloningParamManager = NULL);
+	ErrorType changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
+	ErrorType setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
+	                    AudioClip* favourClipForCloningParamManager = NULL);
 	RGB getColour();
 	bool currentlyScrollableAndZoomable();
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
@@ -81,7 +81,7 @@ public:
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
 
-	int32_t readFromFile(Song* song);
+	ErrorType readFromFile(Song* song);
 	void writeDataToFile(Song* song);
 	char const* getXMLTag() { return "audioClip"; }
 

@@ -319,8 +319,8 @@ playingForwardNow:
 	}
 }
 
-int32_t Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                         ModelStackWithTimelineCounter* otherModelStack) {
+ErrorType Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
+                           ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
@@ -427,7 +427,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		originalLength = loopLength;
 		isPendingOverdub = false;
 
-		int32_t error = beginLinearRecording(modelStack, buttonPressLatency);
+		ErrorType error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error != 0) {
 			display->displayError(error);
 			return false;
@@ -562,7 +562,7 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 // Returns error code
 // This whole function is virtual and overridden in (and sometimes called from) InstrumentClip, so don't worry about
 // MIDI / CV cases - they're dealt with there
-int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
+ErrorType Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	ModControllable* modControllable = output->toModControllable();
 
@@ -903,7 +903,7 @@ yesMakeItActive:
 }
 
 // Obviously don't call this for MIDI clips!
-int32_t Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
+ErrorType Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
@@ -956,7 +956,7 @@ trimFoundParamManager:
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
 			if (otherClip) {
 
-				int32_t error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
+				ErrorType error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
 				if (error) {
 					FREEZE_WITH_ERROR("E050");
@@ -1016,7 +1016,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	}
 }
 
-int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+ErrorType Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	// if we're not in a clip level view, set to the clip that's starting linear recording
 	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
@@ -1092,7 +1092,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					int32_t error = output->clipInstances.insertAtIndex(clipInstanceI);
+					ErrorType error = output->clipInstances.insertAtIndex(clipInstanceI);
 					if (error) {
 						return false;
 					}
@@ -1103,7 +1103,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				}
 			}
 
-			int32_t error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
+			ErrorType error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
 			if (error) {
 				return false;
 			}

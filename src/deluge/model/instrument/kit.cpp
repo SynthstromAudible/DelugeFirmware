@@ -241,7 +241,7 @@ void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, boo
 	(*drumIndex)++;
 }
 
-int32_t Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+ErrorType Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	int32_t selectedDrumIndex = -1;
 
@@ -257,7 +257,7 @@ int32_t Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos)
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					int32_t error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
+					ErrorType error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
 					if (error) {
 						return error;
 					}
@@ -282,7 +282,7 @@ doReadDrum:
 			storageManager.exitTag("selectedDrumIndex");
 		}
 		else {
-			int32_t result =
+			ErrorType result =
 			    GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
 			if (result == NO_ERROR) {}
 			else if (result != RESULT_TAG_UNUSED) {
@@ -291,7 +291,7 @@ doReadDrum:
 			else {
 				if (Instrument::readTagFromFile(tagName)) {}
 				else {
-					int32_t result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					ErrorType result = storageManager.tryReadingFirmwareTagFromFile(tagName);
 					if (result && result != RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -313,14 +313,14 @@ doReadDrum:
 	return NO_ERROR;
 }
 
-int32_t Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
+ErrorType Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
 	if (!newDrum) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	int32_t error = newDrum->readFromFile(
+	ErrorType error = newDrum->readFromFile(
 	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
@@ -334,9 +334,9 @@ int32_t Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t
 }
 
 // Returns true if more loading needed later
-int32_t Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
+ErrorType Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	int32_t error = NO_ERROR;
+	ErrorType error = NO_ERROR;
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
@@ -372,7 +372,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int32_t error = setupDefaultAudioFileDir();
+		ErrorType error = setupDefaultAudioFileDir();
 		if (error) {
 			return;
 		}
@@ -722,7 +722,7 @@ ModControllable* Kit::toModControllable() {
 }
 
 // newName must be allowed to be edited by this function
-int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
+ErrorType Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
 	D_PRINTLN("making unique newName:");
 
@@ -731,7 +731,7 @@ int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		int32_t error = name->concatenateAtPos(numberString, originalLength);
+		ErrorType error = name->concatenateAtPos(numberString, originalLength);
 		if (error) {
 			return error;
 		}

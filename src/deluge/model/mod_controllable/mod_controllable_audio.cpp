@@ -1438,8 +1438,8 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 }
 
 // paramManager is optional
-int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                              int32_t readAutomationUpToPos, Song* song) {
+ErrorType ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                                int32_t readAutomationUpToPos, Song* song) {
 
 	int32_t p;
 
@@ -1474,7 +1474,7 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
-						int32_t error = Sound::createParamManagerForLoading(paramManager);
+						ErrorType error = Sound::createParamManagerForLoading(paramManager);
 						if (error) {
 							return error;
 						}

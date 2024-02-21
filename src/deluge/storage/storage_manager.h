@@ -65,47 +65,47 @@ public:
 	void exitTag(char const* exitTagName = NULL);
 	char const* readTagOrAttributeValue();
 
-	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
-	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                    bool ignoreIncorrectFirmware = false);
+	ErrorType createFile(FIL* file, char const* filePath, bool mayOverwrite);
+	ErrorType createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
+	ErrorType openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
+	                      bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
 	char readNextCharOfTagOrAttributeValue();
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
 	ErrorType initSD();
 	bool closeFile();
-	int32_t closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
-	                              char const* endString = NULL);
+	ErrorType closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                                char const* endString = nullptr);
 	uint32_t readCharXML(char* thisChar);
 	void write(char const* output);
 	void writef(char const* format, ...);
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	int32_t openInstrumentFile(OutputType outputType, FilePointer* filePointer);
+	ErrorType openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 	bool readXMLFileCluster();
 	int32_t getNumCharsRemainingInValue();
 	Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
-	int32_t loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
-	                               bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
-	                               String* name, String* dirPath);
+	ErrorType loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
+	                                 bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
+	                                 String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
-	int32_t readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-	                              int8_t* getCC = NULL);
+	ErrorType readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
+	                                int8_t* getCC = NULL);
 	Drum* createNewDrum(DrumType drumType);
-	int32_t loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
-	                        FilePointer* filePointer, String* name, String* dirPath);
+	ErrorType loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
+	                          FilePointer* filePointer, String* name, String* dirPath);
 	void openFilePointer(FilePointer* fp);
-	int32_t tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+	ErrorType tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();
 	int32_t readTagOrAttributeValueHex(int32_t errorValue);
 
-	int32_t readTagOrAttributeValueString(String* string);
-	int32_t checkSpaceOnCard();
+	ErrorType readTagOrAttributeValueString(String* string);
+	ErrorType checkSpaceOnCard();
 
 	SyncType readSyncTypeFromFile(Song* song);
 	void writeSyncTypeToFile(Song* song, char const* name, SyncType value, bool onNewLine = true);
@@ -149,12 +149,12 @@ private:
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 	bool readXMLFileClusterIfNecessary();
-	int32_t readStringUntilChar(String* string, char endChar);
-	int32_t readAttributeValueString(String* string);
+	ErrorType readStringUntilChar(String* string, char endChar);
+	ErrorType readAttributeValueString(String* string);
 	void restoreBackedUpCharIfNecessary();
 	void xmlReadDone();
 
-	int32_t writeBufferToFile();
+	ErrorType writeBufferToFile();
 };
 
 extern StorageManager storageManager;

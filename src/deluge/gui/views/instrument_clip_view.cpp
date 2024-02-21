@@ -786,7 +786,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		return;
 	}
 
-	int32_t error;
+	ErrorType error;
 	NoteRow* noteRow;
 	int32_t noteRowIndex;
 
@@ -1890,7 +1890,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
-							int32_t error = noteRow->addCorrespondingNotes(
+							ErrorType error = noteRow->addCorrespondingNotes(
 							    squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
 							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
 
@@ -3655,7 +3655,7 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
 
-	int32_t error = kit->makeDrumNameUnique(&soundName, 1);
+	ErrorType error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error) {
 doDisplayError:
 		display->displayError(error);
@@ -4962,7 +4962,7 @@ doCompareNote:
 					int32_t distanceTilNext =
 					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
 
-					int32_t error =
+					ErrorType error =
 					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
 					                                        action, currentClip->getWrapEditLevel(), offset);
 					if (error) {
@@ -5486,7 +5486,7 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						int32_t error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						ErrorType error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
 						if (error) {
 							display->displayError(error);
 							return;

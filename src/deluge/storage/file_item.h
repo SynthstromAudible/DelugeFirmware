@@ -23,19 +23,19 @@
 
 class FileItem {
 public:
-	FileItem();
-	int32_t setupWithInstrument(Instrument* newInstrument, bool hibernating);
-	int32_t getFilenameWithExtension(String* filenameWithExtension);
-	int32_t getFilenameWithoutExtension(String* filenameWithoutExtension);
-	int32_t getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
+	FileItem() = default;
+	ErrorType setupWithInstrument(Instrument* newInstrument, bool hibernating);
+	ErrorType getFilenameWithExtension(String* filenameWithExtension);
+	ErrorType getFilenameWithoutExtension(String* filenameWithoutExtension);
+	ErrorType getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
 
 	char const* displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix,
 	                         // e.g. "SONG". And I think this always includes the file extension...
 
 	String filename; // May or may not include file extension. (Or actually I think it always does now...)
-	FilePointer filePointer;
-	Instrument* instrument;
+	FilePointer filePointer{0};
+	Instrument* instrument = nullptr;
 	bool isFolder;
-	bool instrumentAlreadyInSong; // Only valid if instrument is set to something.
-	bool filenameIncludesExtension;
+	bool instrumentAlreadyInSong = false; // Only valid if instrument is set to something.
+	bool filenameIncludesExtension = true;
 };

@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_manager.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -56,7 +57,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 }
 #endif
 
-int32_t ParamManager::setupMIDI() {
+ErrorType ParamManager::setupMIDI() {
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
 	if (!memory) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -69,7 +70,7 @@ int32_t ParamManager::setupMIDI() {
 	return NO_ERROR;
 }
 
-int32_t ParamManager::setupUnpatched() {
+ErrorType ParamManager::setupUnpatched() {
 	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -81,7 +82,7 @@ int32_t ParamManager::setupUnpatched() {
 	return NO_ERROR;
 }
 
-int32_t ParamManager::setupWithPatching() {
+ErrorType ParamManager::setupWithPatching() {
 	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -160,8 +161,8 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
-int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
-                                                int32_t reverseDirectionWithLength) {
+ErrorType ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
+                                                  int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
 	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
@@ -255,7 +256,7 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-int32_t ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
+ErrorType ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
 }
 

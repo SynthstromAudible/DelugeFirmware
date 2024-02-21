@@ -57,7 +57,7 @@ doesntExistYet:
 }
 
 MIDIParam* MIDIParamVector::insertParam(int32_t i) {
-	int32_t error = insertAtIndex(i);
+	ErrorType error = insertAtIndex(i);
 	if (error) {
 		return NULL;
 	}

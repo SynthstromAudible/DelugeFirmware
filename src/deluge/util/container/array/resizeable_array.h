@@ -39,7 +39,7 @@ public:
 	ErrorType insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = NULL);
 	void swapElements(int32_t i1, int32_t i2);
 	void repositionElement(int32_t iFrom, int32_t iTo);
-	int32_t beenCloned();
+	ErrorType beenCloned();
 	void setMemory(void* newMemory, int32_t newMemorySize);
 	void setStaticMemory(void* newMemory, int32_t newMemorySize);
 
@@ -80,7 +80,7 @@ private:
 	                            void* thingNotToStealFrom);
 	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy,
 	                     uint32_t newMemorySize, uint32_t newMemoryStartIndex);
-	int32_t copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart);
+	ErrorType copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart);
 
 	void moveElementsRightNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 	void moveElementsLeftNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);

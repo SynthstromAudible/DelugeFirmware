@@ -61,12 +61,10 @@ void Source::destructAllMultiRanges() {
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
-	if (range) {
+	if (range != nullptr) {
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
 	}
-	else {
-		return 1; // Why did I put 1?
-	}
+	return 1; // Why did I put 1?
 }
 
 void Source::setCents(int32_t newCents) {
@@ -103,7 +101,7 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-int32_t Source::loadAllSamples(bool mayActuallyReadFiles) {
+ErrorType Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) {
@@ -258,7 +256,7 @@ possiblyDeleteRanges:
 			*/
 
 doChangeType:
-			int32_t error = ranges.changeType(multiRangeSize);
+			ErrorType error = ranges.changeType(multiRangeSize);
 			if (error) {
 				destructAllMultiRanges();
 				ranges.empty();

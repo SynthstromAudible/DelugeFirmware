@@ -416,8 +416,8 @@ reallyScrewed:
 				while (1) {}
 			}
 
-			int32_t error2 =
-			    newInstrument->dirPath.set("SYNTHS"); // Use new error2 variable to preserve error result from before.
+			// Use new error2 variable to preserve error result from before.
+			ErrorType error2 = newInstrument->dirPath.set("SYNTHS");
 			if (error2) {
 gotError2:
 				result.error = error2;
@@ -1446,7 +1446,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("song");
 }
 
-int32_t Song::readFromFile() {
+ErrorType Song::readFromFile() {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
@@ -1888,7 +1888,7 @@ unknownTag:
 					void* memory;
 					Output* newOutput;
 					char const* defaultDirPath;
-					int32_t error;
+					ErrorType error;
 
 					if (!strcmp(tagName, "audioTrack")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
@@ -1967,7 +1967,7 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
-				int32_t error = readClipsFromFile(&sessionClips);
+				ErrorType error = readClipsFromFile(&sessionClips);
 				if (error) {
 					return error;
 				}
@@ -1975,7 +1975,7 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
-				int32_t error = readClipsFromFile(&arrangementOnlyClips);
+				ErrorType error = readClipsFromFile(&arrangementOnlyClips);
 				if (error) {
 					return error;
 				}
@@ -1983,13 +1983,13 @@ loadOutput:
 			}
 
 			else {
-				int32_t result = globalEffectable.readTagFromFile(tagName, &paramManager, 2147483647, this);
+				ErrorType result = globalEffectable.readTagFromFile(tagName, &paramManager, 2147483647, this);
 				if (result == NO_ERROR) {}
 				else if (result != RESULT_TAG_UNUSED) {
 					return result;
 				}
 				else {
-					int32_t result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					ErrorType result = storageManager.tryReadingFirmwareTagFromFile(tagName);
 					if (result && result != RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -2038,7 +2038,7 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		int32_t error = thisClip->claimOutput(modelStackWithTimelineCounter);
+		ErrorType error = thisClip->claimOutput(modelStackWithTimelineCounter);
 		if (error) {
 			return error;
 		}
@@ -2205,7 +2205,7 @@ skipInstance:
 	return NO_ERROR;
 }
 
-int32_t Song::readClipsFromFile(ClipArray* clipArray) {
+ErrorType Song::readClipsFromFile(ClipArray* clipArray) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -2235,7 +2235,7 @@ readClip:
 				newClip = new (memory) AudioClip();
 			}
 
-			int32_t error = newClip->readFromFile(this);
+			ErrorType error = newClip->readFromFile(this);
 			if (error) {
 				newClip->~Clip();
 				delugeDealloc(memory);
@@ -3420,7 +3420,7 @@ traverseClips:
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			int32_t error = instrumentClip->changeInstrument(
+			ErrorType error = instrumentClip->changeInstrument(
 			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
 			    true); // Will call audio routine
@@ -3846,7 +3846,7 @@ doStealing:
 	// Otherwise, insert one
 	else {
 		i = indexToInsertAt;
-		int32_t error = backedUpParamManagers.insertAtIndex(i);
+		ErrorType error = backedUpParamManagers.insertAtIndex(i);
 
 		// If RAM error...
 		if (error) {
@@ -3916,7 +3916,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 				// Otherwise, we insert before it
 				else {
-					int32_t error = backedUpParamManagers.insertAtIndex(j);
+					ErrorType error = backedUpParamManagers.insertAtIndex(j);
 
 					// If RAM error (surely would never happen since we just deleted an element)...
 					if (error) {
@@ -4512,7 +4512,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 #endif
 }
 
-int32_t Song::placeFirstInstancesOfActiveClips(int32_t pos) {
+ErrorType Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 	// For each Clip in session
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
@@ -4520,7 +4520,7 @@ int32_t Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
-			int32_t error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
+			ErrorType error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
 			if (error) {
 				return error;
 			}
@@ -5088,7 +5088,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	String newName;
-	int32_t error = newName.set("AUDIO");
+	ErrorType error = newName.set("AUDIO");
 	if (error) {
 		return NULL;
 	}
@@ -5773,7 +5773,7 @@ void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevi
 	}
 }
 
-int32_t Song::addInstrumentsToFileItems(OutputType outputType) {
+ErrorType Song::addInstrumentsToFileItems(OutputType outputType) {
 	bool doingHibernatingOnes;
 	Output* thisOutput;
 	if (false) {
@@ -5806,7 +5806,7 @@ doHibernatingInstruments:
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		int32_t error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+		ErrorType error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
 
 		if (error) {
 			return error;

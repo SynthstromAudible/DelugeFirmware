@@ -60,7 +60,7 @@ doReturnFalse:
 		return false;
 	}
 
-	int32_t error;
+	ErrorType error;
 
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
@@ -119,7 +119,7 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 	display->displayLoadingAnimationText("Saving");
 
 	String filePath;
-	int32_t error = getCurrentFilePath(&filePath);
+	ErrorType error = getCurrentFilePath(&filePath);
 	if (error) {
 gotError:
 		display->removeLoadingAnimation();

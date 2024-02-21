@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
 #include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
@@ -48,7 +49,7 @@ public:
 	~Sample();
 
 	void workOutBitMask();
-	int32_t initialize(int32_t numClusters);
+	ErrorType initialize(int32_t numClusters);
 	void markAsUnloadable();
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);

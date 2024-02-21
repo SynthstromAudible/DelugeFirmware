@@ -21,8 +21,8 @@
 ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)) {
 }
 
-int32_t ResizeablePointerArray::insertPointerAtIndex(void* pointer, int32_t index) {
-	int32_t error = insertAtIndex(index);
+ErrorType ResizeablePointerArray::insertPointerAtIndex(void* pointer, int32_t index) {
+	ErrorType error = insertAtIndex(index);
 	if (error) {
 		return error;
 	}

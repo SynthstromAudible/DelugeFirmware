@@ -148,7 +148,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 }
 
 // Will replace the Clip in the modelStack, if success.
-int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+ErrorType InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
@@ -165,7 +165,7 @@ int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool sh
 		reverseWithLength = loopLength;
 	}
 
-	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
+	ErrorType error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
 	if (error) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
@@ -188,7 +188,7 @@ deleteClipAndGetOut:
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
 		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		int32_t error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		ErrorType error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
 
 		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
 		// it shouldn't be
@@ -432,7 +432,7 @@ void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t n
 	}
 }
 
-int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+ErrorType InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 	currentlyRecordingLinearly = true;
 
 	if (output->type == OutputType::KIT) {
@@ -582,8 +582,8 @@ int32_t InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWith
 }
 
 // Returns error
-int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                                   ModelStackWithTimelineCounter* otherModelStack) {
+ErrorType InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
+                                     ModelStackWithTimelineCounter* otherModelStack) {
 
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 
@@ -605,8 +605,9 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
 			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
 
-			int32_t error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow,
-			                                           loopLength, whichRepeatThisIs, otherInstrumentClip->loopLength);
+			ErrorType error =
+			    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
+			                               whichRepeatThisIs, otherInstrumentClip->loopLength);
 			if (error) {
 				return error;
 			}
@@ -628,7 +629,7 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
 
-				int32_t error =
+				ErrorType error =
 				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
 				                               whichRepeatThisIs, otherInstrumentClip->loopLength);
 				if (error) {
@@ -1547,7 +1548,7 @@ int32_t InstrumentClip::getNumNoteRows() {
 	return noteRows.getNumElements();
 }
 
-int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager) {
+ErrorType InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager) {
 
 	// New addition - need expression params... hopefully fine?
 	// Maybe this function should have the ability to do something equivalent to solicitParamManager(), for the purpose
@@ -1563,7 +1564,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
 		if (!paramManager.containsAnyMainParamCollections()) {
-			int32_t error = paramManager.setupMIDI();
+			ErrorType error = paramManager.setupMIDI();
 			if (error) {
 				if (ALPHA_OR_BETA_VERSION) {
 					FREEZE_WITH_ERROR("E052");
@@ -1579,8 +1580,8 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 }
 
 // Does not set up patching!
-int32_t InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
-                                      InstrumentClip* favourClipForCloningParamManager) {
+ErrorType InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
+                                        InstrumentClip* favourClipForCloningParamManager) {
 
 	// If MIDI or CV...
 	if (newInstrument->type == OutputType::MIDI_OUT || newInstrument->type == OutputType::CV) {
@@ -1588,12 +1589,10 @@ int32_t InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, Par
 	}
 
 	// Or if Synth or Kit...
-	else {
-		return setAudioInstrument(
-		    newInstrument, song, false, newParamManager,
-		    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in
-		                                       // changeInstrumentPreset() after all Drums matched up
-	}
+	return setAudioInstrument(
+	    newInstrument, song, false, newParamManager,
+	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in
+	                                       // changeInstrumentPreset() after all Drums matched up
 }
 
 void InstrumentClip::prepareToEnterKitMode(Song* song) {
@@ -1633,11 +1632,11 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
-int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-                                         ParamManagerForTimeline* newParamManager,
-                                         InstrumentRemoval instrumentRemovalInstruction,
-                                         InstrumentClip* favourClipForCloningParamManager,
-                                         bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
+ErrorType InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
+                                           ParamManagerForTimeline* newParamManager,
+                                           InstrumentRemoval instrumentRemovalInstruction,
+                                           InstrumentClip* favourClipForCloningParamManager,
+                                           bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
 
 	bool shouldBackUpExpressionParamsToo = false;
 
@@ -1679,7 +1678,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	                 giveMidiAssignmentsToNewInstrument,
 	                 shouldBackUpExpressionParamsToo); // Will unassignAllNoteRowsFromDrums(), and remember Drum names
 
-	int32_t error =
+	ErrorType error =
 	    setInstrument(newInstrument, modelStack->song, newParamManager,
 	                  favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here
 	                                                     // in changeInstrumentPreset() after all Drums matched up
@@ -2112,7 +2111,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 
 // Returns error code.
 // Should only call for Kit Clips.
-int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
+ErrorType InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = noteRows.getElement(i);
 		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
@@ -2204,7 +2203,7 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 }
 
 // Returns error code
-int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
+ErrorType InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	// We really just need all our ParamManagers back
 
@@ -2224,7 +2223,7 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 	else if (output->type != OutputType::CV) {
 
 		if (output->type == OutputType::KIT) {
-			int32_t error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
+			ErrorType error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
 			if (error) {
 				return error;
 			}
@@ -2237,14 +2236,14 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 }
 
 // If newInstrument is a Kit, you must call assignDrumsToNoteRows() after this
-int32_t InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldSetupPatching,
-                                           ParamManager* newParamManager,
-                                           InstrumentClip* favourClipForCloningParamManager) {
+ErrorType InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldSetupPatching,
+                                             ParamManager* newParamManager,
+                                             InstrumentClip* favourClipForCloningParamManager) {
 
 	output = newInstrument;
 	affectEntire = (newInstrument->type != OutputType::KIT); // Moved here from changeInstrument, March 2021
 
-	int32_t error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
+	ErrorType error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
 	if (error) {
 		return error;
 	}
@@ -2398,9 +2397,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 }
 
-int32_t InstrumentClip::readFromFile(Song* song) {
+ErrorType InstrumentClip::readFromFile(Song* song) {
 
-	int32_t error;
+	ErrorType error;
 
 	if (false) {
 ramError:
@@ -2585,7 +2584,7 @@ someError:
 				song->addOutput(output);
 			}
 
-			int32_t error = paramManager.setupMIDI();
+			ErrorType error = paramManager.setupMIDI();
 			if (error) {
 				return error;
 			}
@@ -2988,13 +2987,13 @@ doReadBendRange:
 	return NO_ERROR;
 }
 
-int32_t InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
+ErrorType InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "param")) {
-			// int32_t error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, this);
+			// ErrorType error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, this);
 			// if (error) return error;
 
 			char const* tagName;
@@ -3050,7 +3049,7 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						int32_t error = param->readFromFile(readAutomationUpToPos);
+						ErrorType error = param->readFromFile(readAutomationUpToPos);
 						if (error) {
 							return error;
 						}
@@ -3774,8 +3773,8 @@ displayError:
 	}
 
 	else {
-		int32_t error = changeInstrument(modelStack, newInstrument, NULL,
-		                                 InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		ErrorType error = changeInstrument(modelStack, newInstrument, NULL,
+		                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors
 
 		if (!instrumentAlreadyInSong) {
@@ -3818,7 +3817,7 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 	}
 }
 
-int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
+ErrorType InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	if (!output) { // Would only have an output already if file from before V2.0.0 I think? So, this block normally does
 		           // apply.
@@ -3904,7 +3903,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				ModelStackWithNoteRow*
 				    modelStackWithNoteRow; // Defined up here so we can do the jump to haveNoDrum, below.
 
-				int32_t error; // These declared here, to allow gotos
+				ErrorType error; // These declared here, to allow gotos
 				bool success;
 
 				// We need to see whether any other NoteRows *that we've assigned drums so far* had this same drum.
@@ -4019,7 +4018,7 @@ haveNoDrum:
 		// And...
 		if (output->type == OutputType::MIDI_OUT) {
 			if (!paramManager.containsAnyMainParamCollections()) {
-				int32_t error = paramManager.setupMIDI();
+				ErrorType error = paramManager.setupMIDI();
 				if (error) {
 					return error;
 				}
@@ -4201,7 +4200,7 @@ ramError:
 
 	ParamManagerForTimeline newParamManager;
 
-	int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
+	ErrorType error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error) {
 		display->displayError(error);
 		return NULL;
@@ -4386,7 +4385,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 					// we'll put the Note.
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-						int32_t error;
+						ErrorType error;
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
@@ -4533,7 +4532,7 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(NULL, modelStackWithAutoParam, false);
 
-			int32_t error = param->nodes.insertAtIndex(0);
+			ErrorType error = param->nodes.insertAtIndex(0);
 			if (!error) {
 				ParamNode* firstNode = param->nodes.getElement(0);
 				firstNode->pos = quantizedPos;

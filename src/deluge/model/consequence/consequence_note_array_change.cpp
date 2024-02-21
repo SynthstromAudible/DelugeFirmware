@@ -37,7 +37,7 @@ ConsequenceNoteArrayChange::ConsequenceNoteArrayChange(InstrumentClip* newClip, 
 	}
 }
 
-int32_t ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceNoteArrayChange::revert(TimeType time, ModelStack* modelStack) {
 
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {

@@ -944,8 +944,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 }
 
 // paramManager is optional
-int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                          int32_t readAutomationUpToPos, Song* song) {
+ErrorType GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                            int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	// if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager,
@@ -955,7 +955,7 @@ int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTi
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
-			int32_t error = paramManager->setupUnpatched();
+			ErrorType error = paramManager->setupUnpatched();
 			if (error) {
 				return error;
 			}

@@ -26,7 +26,7 @@ ConsequenceNoteRowLength::ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t
 	backedUpLength = newLength;
 }
 
-int32_t ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->getCurrentClip())
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();

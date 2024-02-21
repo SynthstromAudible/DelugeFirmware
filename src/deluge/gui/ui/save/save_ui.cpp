@@ -35,7 +35,7 @@ SaveUI::SaveUI() {
 }
 
 bool SaveUI::opened() {
-	int32_t error = beginSlotSession(true, true);
+	ErrorType error = beginSlotSession(true, true);
 	if (error) {
 		display->displayError(error);
 		return false;
@@ -73,7 +73,7 @@ void SaveUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int32_t error = goIntoFolder(currentFileItem->filename.get());
+		ErrorType error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
 			display->displayError(error);

@@ -72,7 +72,7 @@ void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
 
-	int32_t error = storageManager.initSD();
+	ErrorType error = storageManager.initSD();
 	if (!error) {
 		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 
@@ -250,11 +250,11 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
-int32_t AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-                                                          AudioRecordingFolder folder, uint32_t* getNumber) {
+ErrorType AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+                                                            AudioRecordingFolder folder, uint32_t* getNumber) {
 	const auto folderID = util::to_underlying(folder);
 
-	int32_t error = storageManager.initSD();
+	ErrorType error = storageManager.initSD();
 	if (error) {
 		return error;
 	}
@@ -390,10 +390,10 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 	return audioFiles.ensureEnoughSpaceAllocated(1);
 }
 
-int32_t AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
-                                                     String* songFilenameWithoutExtension) {
+ErrorType AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
+                                                       String* songFilenameWithoutExtension) {
 
-	int32_t error = newPath->set(rootDir);
+	ErrorType error = newPath->set(rootDir);
 	if (error) {
 		return error;
 	}
@@ -411,8 +411,8 @@ int32_t AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const
 	return NO_ERROR;
 }
 
-int32_t AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath) {
-	int32_t error = newPath->concatenateAtPos(&oldPath->get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
+ErrorType AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath) {
+	ErrorType error = newPath->concatenateAtPos(&oldPath->get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
 	if (error) {
 		return error;
 	}
@@ -426,7 +426,7 @@ int32_t AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t d
 			break;
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
-		int32_t error = newPath->setChar('_', slashPos);
+		ErrorType error = newPath->setChar('_', slashPos);
 		if (error) {
 			return error;
 		}
@@ -436,7 +436,7 @@ int32_t AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t d
 	return NO_ERROR;
 }
 
-AudioFile* AudioFileManager::getAudioFileFromFilename(String* filePath, bool mayReadCard, uint8_t* error,
+AudioFile* AudioFileManager::getAudioFileFromFilename(String* filePath, bool mayReadCard, ErrorType* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
 
@@ -1255,7 +1255,7 @@ void AudioFileManager::slowRoutine() {
 			// Otherwise, see if we can get it
 		}
 		else {
-			int32_t error = storageManager.initSD();
+			ErrorType error = storageManager.initSD();
 			if (!error) {
 				cardEjected = false;
 				cardReinserted();

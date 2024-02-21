@@ -593,7 +593,7 @@ void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	int32_t error = sampleBrowser.claimAudioFileForInstrument();
+	ErrorType error = sampleBrowser.claimAudioFileForInstrument();
 	if (error) {
 getOut:
 		display->displayError(error);

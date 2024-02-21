@@ -93,7 +93,7 @@ public:
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(int32_t drumIndex, InstrumentClip* clip);
-	int32_t readFromFile(int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
+	ErrorType readFromFile(int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
@@ -141,8 +141,8 @@ public:
 	                       ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
-	int32_t addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
-	                              bool allowNoteTails, Action* action);
+	ErrorType addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
+	                                bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
@@ -164,9 +164,9 @@ public:
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
-	int32_t appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                      int32_t whichRepeatThisIs, int32_t otherClipLength);
-	int32_t beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	ErrorType appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
+	                        int32_t offset, int32_t whichRepeatThisIs, int32_t otherClipLength);
+	ErrorType beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);
@@ -178,8 +178,8 @@ public:
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
-	int32_t nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-	                                   uint32_t wrapEditLevel, int32_t nudgeOffset);
+	ErrorType nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+	                                     uint32_t wrapEditLevel, int32_t nudgeOffset);
 	/// Quantize the notes in this NoteRow so their positions are within `(kQuantizationPrecision - amount) *
 	/// increment/kQuantizationPrecision` of the grid defined by `n * increment`. If `amount` is negative, the row is
 	/// instead "humanized" by jittering the note positions to `±amount * increment / kQuantizationPrecision` sequencer

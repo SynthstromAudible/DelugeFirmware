@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "playback/mode/playback_mode.h"
 
 class ClipInstance;
@@ -47,8 +48,8 @@ public:
 	                                bool mayActuallyResumeClip = true);
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
 	               ClipInstance* clipInstanceAdded);
-	int32_t doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
-	                                    bool shouldCloneRepeats = false);
+	ErrorType doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
+	                                      bool shouldCloneRepeats = false);
 	int32_t getLivePos(uint32_t* timeRemainder = nullptr);
 	void endAnyLinearRecording();
 

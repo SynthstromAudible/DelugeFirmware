@@ -23,7 +23,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-
 SampleCluster::~SampleCluster() {
 	if (cluster) {
 

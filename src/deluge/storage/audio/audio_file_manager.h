@@ -78,7 +78,7 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, uint8_t* error, FilePointer* filePointer,
+	AudioFile* getAudioFileFromFilename(String* fileName, bool mayReadCard, ErrorType* error, FilePointer* filePointer,
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
 	                         void* dontStealFromThing = NULL);
@@ -93,11 +93,11 @@ public:
 
 	void slowRoutine();
 	void deallocateCluster(Cluster* cluster);
-	int32_t setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
-	int32_t setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
+	ErrorType setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
+	ErrorType setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	int32_t getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                        AudioRecordingFolder folderID, uint32_t* getNumber);
+	ErrorType getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+	                                          AudioRecordingFolder folderID, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);

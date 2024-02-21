@@ -27,7 +27,7 @@ ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t 
 	clip = newClip;
 }
 
-int32_t ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
 		return ERROR_BUG;

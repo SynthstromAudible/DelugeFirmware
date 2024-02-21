@@ -25,7 +25,7 @@
 class ConsequenceParamChange final : public Consequence {
 public:
 	ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int32_t revert(TimeType time, ModelStack* modelStackWithSong) override;
+	ErrorType revert(TimeType time, ModelStack* modelStackWithSong) override;
 
 	union {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

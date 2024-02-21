@@ -25,7 +25,7 @@ public:
 	void cancelPopup(){};
 	void freezeWithError(char const* text) { std::cout << text << std::endl; };
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) { return false; };
-	void displayError(int32_t error) { std::cout << error << std::endl; };
+	void displayError(ErrorType error) { std::cout << error << std::endl; };
 
 	void removeWorkingAnimation(){};
 

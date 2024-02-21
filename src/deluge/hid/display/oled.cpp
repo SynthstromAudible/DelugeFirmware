@@ -874,7 +874,7 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 void updateWorkingAnimation() {
 	String textNow;
-	int32_t error = textNow.set(workingAnimationText);
+	ErrorType error = textNow.set(workingAnimationText);
 	if (error) {
 		return;
 	}
@@ -1330,9 +1330,9 @@ void OLED::freezeWithError(char const* text) {
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, DisplayPopupType::GENERAL);
 }
 
-extern std::string_view getErrorMessage(int32_t);
+extern std::string_view getErrorMessage(ErrorType);
 
-void OLED::displayError(int32_t error) {
+void OLED::displayError(ErrorType error) {
 	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:

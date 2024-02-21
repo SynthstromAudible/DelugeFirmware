@@ -22,7 +22,7 @@ ConsequenceBeginPlayback::ConsequenceBeginPlayback() {
 	// TODO Auto-generated constructor stub
 }
 
-int32_t ConsequenceBeginPlayback::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceBeginPlayback::revert(TimeType time, ModelStack* modelStack) {
 	if (time == BEFORE) {
 		if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 			playbackHandler.endPlayback();

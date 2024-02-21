@@ -25,7 +25,7 @@ class AudioClip;
 class ConsequenceAudioClipSetSample final : public Consequence {
 public:
 	ConsequenceAudioClipSetSample(AudioClip* newClip);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	ErrorType revert(TimeType time, ModelStack* modelStack) override;
 
 	AudioClip* clip;
 	String filePathToRevertTo;

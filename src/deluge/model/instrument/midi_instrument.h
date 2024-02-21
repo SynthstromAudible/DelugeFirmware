@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
 #include <array>
 
@@ -43,7 +44,8 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
-	int32_t readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
+	ErrorType readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+	                                         ParamManagerForTimeline* paramManager = nullptr);
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);

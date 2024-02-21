@@ -44,11 +44,11 @@ public:
 	void unassignAllVoices();
 	void setupPatchingForAllParamManagers(Song* song);
 	bool readTagFromFile(char const* tagName);
-	int32_t loadAllSamples(bool mayActuallyReadFiles);
+	ErrorType loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
 	void writeToFile(bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
-	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	ErrorType readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);
 	void setSkippingRendering(bool newSkipping);
 	uint8_t* getModKnobMode();

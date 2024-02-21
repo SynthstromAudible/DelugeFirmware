@@ -25,7 +25,7 @@ class ConsequenceClipBeginLinearRecord final : public Consequence {
 public:
 	ConsequenceClipBeginLinearRecord(Clip* newClip);
 
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	ErrorType revert(TimeType time, ModelStack* modelStack) override;
 
 	Clip* clip;
 };

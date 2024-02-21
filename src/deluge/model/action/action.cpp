@@ -83,7 +83,7 @@ void Action::addConsequence(Consequence* consequence) {
 }
 
 // Returns error code
-int32_t Action::revert(TimeType time, ModelStack* modelStack) {
+ErrorType Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* thisConsequence = firstConsequence;
 
@@ -99,7 +99,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* newFirstConsequence = NULL;
 
-	int32_t error = NO_ERROR;
+	ErrorType error = NO_ERROR;
 
 	while (thisConsequence) {
 		if (!error) {
@@ -205,9 +205,9 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t no
 	return false;
 }
 
-int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
-                                                             NoteVector* noteVector, bool stealData,
-                                                             bool moveToFrontIfAlreadySnapshotted) {
+ErrorType Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
+                                                               NoteVector* noteVector, bool stealData,
+                                                               bool moveToFrontIfAlreadySnapshotted) {
 	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
 		return NO_ERROR;
 	}
@@ -216,8 +216,8 @@ int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* cli
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
 }
 
-int32_t Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-                                                bool stealData) {
+ErrorType Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+                                                  bool stealData) {
 	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteArrayChange));
 
 	if (!consMemory) {

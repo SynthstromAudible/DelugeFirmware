@@ -108,7 +108,7 @@ void ResizeableArray::empty() {
 }
 
 // Returns error
-int32_t ResizeableArray::beenCloned() {
+ErrorType ResizeableArray::beenCloned() {
 
 	LOCK_ENTRY
 
@@ -116,7 +116,7 @@ int32_t ResizeableArray::beenCloned() {
 	int32_t otherMemoryStart = memoryStart;
 	void* __restrict__ oldMemory = memory;
 
-	int32_t error = copyElementsFromOldMemory(oldMemory, otherMemorySize, otherMemoryStart);
+	ErrorType error = copyElementsFromOldMemory(oldMemory, otherMemorySize, otherMemoryStart);
 
 	LOCK_EXIT
 
@@ -128,7 +128,7 @@ bool ResizeableArray::cloneFrom(ResizeableArray* other) {
 	LOCK_ENTRY
 
 	numElements = other->numElements;
-	int32_t error = copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart);
+	ErrorType error = copyElementsFromOldMemory(other->memory, other->memorySize, other->memoryStart);
 
 	LOCK_EXIT
 
@@ -136,8 +136,8 @@ bool ResizeableArray::cloneFrom(ResizeableArray* other) {
 }
 
 // Returns error
-int32_t ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
-                                                   int32_t otherMemoryStart) {
+ErrorType ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, int32_t otherMemorySize,
+                                                     int32_t otherMemoryStart) {
 
 	memoryStart = 0;
 

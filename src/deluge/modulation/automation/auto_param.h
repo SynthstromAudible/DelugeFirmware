@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
 #include <cstdint>
@@ -65,7 +66,7 @@ public:
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
 	void writeToFile(bool writeAutomation, int32_t* valueForOverride = NULL);
-	int32_t readFromFile(int32_t readAutomationUpToPos);
+	ErrorType readFromFile(int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(int32_t offset);
@@ -76,7 +77,7 @@ public:
 	          ModelStackWithAutoParam const* modelStack);
 	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
 	           CopiedParamAutomation* copiedParamAutomation, bool isPatchCable);
-	int32_t makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift);
+	ErrorType makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift);
 	void transposeCCValuesToChannelPressureValues();
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
 	void insertTime(int32_t pos, int32_t lengthToInsert);

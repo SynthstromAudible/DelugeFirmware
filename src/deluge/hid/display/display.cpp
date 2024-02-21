@@ -7,7 +7,7 @@
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
 
-std::string_view getErrorMessage(int32_t error) {
+std::string_view getErrorMessage(ErrorType error) {
 	using enum l10n::String;
 	switch (error) {
 	case ERROR_INSUFFICIENT_RAM:

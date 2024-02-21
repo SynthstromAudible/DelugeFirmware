@@ -29,7 +29,7 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 	type = Consequence::CLIP_BEGIN_LINEAR_RECORD;
 }
 
-int32_t ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
 
 	// Going backwards...
 	if (time == BEFORE) {

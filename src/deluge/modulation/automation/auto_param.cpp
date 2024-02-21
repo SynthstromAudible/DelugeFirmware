@@ -932,7 +932,7 @@ int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpola
 	}
 
 	{
-		int32_t error = nodes.insertAtIndex(i);
+		ErrorType error = nodes.insertAtIndex(i);
 		if (error) {
 			return -1;
 		}
@@ -1198,7 +1198,7 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			int32_t error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
+			ErrorType error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
 			if (error) {
 				return -1;
 			}
@@ -1224,7 +1224,7 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			int32_t error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
+			ErrorType error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
 			if (error) {
 				return -1;
 			}
@@ -1415,7 +1415,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 int32_t AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
-	int32_t error = NO_ERROR;
+	ErrorType error = NO_ERROR;
 
 	if (copyAutomation) {
 
@@ -1524,7 +1524,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				valueAtZero = nodeBeforeWrap->value;
 			}
 
-			int32_t error = nodes.insertAtIndex(0);
+			ErrorType error = nodes.insertAtIndex(0);
 			if (error) {
 				return;
 			}
@@ -1544,7 +1544,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 
 		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
-			int32_t error = nodes.insertAtIndex(numNodesBefore, numToInsert);
+			ErrorType error = nodes.insertAtIndex(numNodesBefore, numToInsert);
 			if (error) {
 				return;
 			}
@@ -1657,7 +1657,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 		int32_t newZeroNodeI = nodes.getNumElements();
 
-		int32_t error = nodes.insertAtIndex(newZeroNodeI);
+		ErrorType error = nodes.insertAtIndex(newZeroNodeI);
 		if (error) {
 			return;
 		}
@@ -1672,7 +1672,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	}
 
 	int32_t oldNumNodes = nodes.getNumElements();
-	int32_t error = nodes.insertAtIndex(oldNumNodes, numToInsert);
+	ErrorType error = nodes.insertAtIndex(oldNumNodes, numToInsert);
 	if (error) {
 		return;
 	}
@@ -1786,7 +1786,7 @@ basicTrim: {
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				int32_t error = nodes.insertAtIndex(0);
+				ErrorType error = nodes.insertAtIndex(0);
 				if (!error) { // Should be fine cos we just deleted some, so some free RAM
 					ParamNode* newNode = nodes.getElement(0);
 					newNode->pos = 0;
@@ -1807,7 +1807,7 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				int32_t error = newNodes.insertAtIndex(0, newNumNodes);
+				ErrorType error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error) {
 					goto basicTrim;
 				}
@@ -1870,7 +1870,7 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-int32_t AutoParam::readFromFile(int32_t readAutomationUpToPos) {
+ErrorType AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
@@ -1957,7 +1957,7 @@ int32_t AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = nodes.getElement(0);
 					if (!firstNode || firstNode->pos) {
-						int32_t error = nodes.insertAtIndex(0);
+						ErrorType error = nodes.insertAtIndex(0);
 						if (error) {
 							return error;
 						}
@@ -2225,7 +2225,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Returns error code.
 // quantizationRShift would be 25 for 7-bit CC values (cos 32 - 25 == 7).
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
-int32_t AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
+ErrorType AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
 
 	if (nodes.getNumElements() <= 1) {
 		return NO_ERROR;
@@ -2376,7 +2376,7 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
 
 		if (shouldAddNodeAtPos0) {
-			int32_t error =
+			ErrorType error =
 			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
 			if (!error) {
 				ParamNode* newNode = nodes.getElement(0);
@@ -2661,7 +2661,7 @@ doWrap:
 				else {
 					nextNodeI = nodes.getNumElements();
 					{
-						int32_t error = nodes.insertAtIndex(
+						ErrorType error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error) {
 							FREEZE_WITH_ERROR("E333");

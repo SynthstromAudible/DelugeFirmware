@@ -134,7 +134,7 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			int32_t error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
+			ErrorType error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
 			if (error) {
 				display->displayError(error);
 				return;
@@ -1201,7 +1201,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				if (oldClip && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
 					actionLogger.deleteAllLogs();
 
-					int32_t error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
+					ErrorType error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
 					if (error) {
 						display->displayError(error);
 					}
@@ -1586,7 +1586,7 @@ justGetOut:
 								ModelStackWithTimelineCounter* modelStack =
 								    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 
-								int32_t error;
+								ErrorType error;
 
 								if (output->type == OutputType::AUDIO) {
 									error = ((AudioClip*)newClip)->setOutput(modelStack, output);

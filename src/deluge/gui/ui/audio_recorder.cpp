@@ -82,7 +82,7 @@ bool AudioRecorder::opened() {
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
-		int32_t error = newName.set("REC");
+		ErrorType error = newName.set("REC");
 		if (error) {
 gotError:
 			display->displayError(error);

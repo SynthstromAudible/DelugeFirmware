@@ -16,6 +16,7 @@
  */
 
 #include "storage/audio/audio_file_holder.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
 
@@ -30,12 +31,12 @@ AudioFileHolder::~AudioFileHolder() {
 // Returns error, but NO_ERROR doesn't necessarily mean there's now a file loaded - it might be that filePath was NULL,
 // but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
 // (!mayActuallyReadFile).
-int32_t AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                  int32_t clusterLoadInstruction, FilePointer* filePointer,
-                                  bool makeWaveTableWorkAtAllCosts) {
+ErrorType AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+                                    int32_t clusterLoadInstruction, FilePointer* filePointer,
+                                    bool makeWaveTableWorkAtAllCosts) {
 
 	// See if this AudioFile object already all loaded up
-	if (audioFile) {
+	if (audioFile != nullptr) {
 		return NO_ERROR;
 	}
 
@@ -43,7 +44,7 @@ int32_t AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool may
 		return NO_ERROR; // This could happen if the filename tag wasn't present in the file
 	}
 
-	uint8_t error;
+	ErrorType error;
 	AudioFile* newAudioFile = audioFileManager.getAudioFileFromFilename(
 	    &filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
 

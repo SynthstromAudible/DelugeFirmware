@@ -377,8 +377,8 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-int32_t MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
-                                                       ParamManagerForTimeline* paramManager) {
+ErrorType MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+                                                         ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
 
@@ -388,8 +388,8 @@ int32_t MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpT
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
-			int32_t error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                                     &modKnobCCAssignments[m]);
+			ErrorType error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
+			                                                       &modKnobCCAssignments[m]);
 			if (error) {
 				return error;
 			}

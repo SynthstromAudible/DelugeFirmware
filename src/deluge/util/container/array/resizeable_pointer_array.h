@@ -22,7 +22,7 @@
 class ResizeablePointerArray : public ResizeableArray {
 public:
 	ResizeablePointerArray();
-	int32_t insertPointerAtIndex(void* pointer, int32_t index);
+	ErrorType insertPointerAtIndex(void* pointer, int32_t index);
 	void* getPointerAtIndex(int32_t index);
 	void setPointerAtIndex(void* pointer, int32_t index);
 };

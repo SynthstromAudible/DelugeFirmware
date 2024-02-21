@@ -16,15 +16,16 @@
  */
 
 #include "model/sample/sample_cluster_array.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_cluster.h"
 #include <new>
 
 SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)) {
 }
 
-int32_t SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
+ErrorType SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
 	int32_t oldNum = getNumElements();
-	int32_t error = insertAtIndex(oldNum, numToInsert);
+	ErrorType error = insertAtIndex(oldNum, numToInsert);
 	if (error) {
 		return error;
 	}

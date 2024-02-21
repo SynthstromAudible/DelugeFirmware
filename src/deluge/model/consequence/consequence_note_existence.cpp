@@ -36,7 +36,7 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int3
 	type = newType;
 }
 
-int32_t ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
+ErrorType ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
 		return ERROR_BUG;

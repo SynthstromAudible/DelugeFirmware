@@ -25,7 +25,7 @@ class Output;
 class ConsequenceOutputExistence final : public Consequence {
 public:
 	ConsequenceOutputExistence(Output* newOutput, ExistenceChangeType newType);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	ErrorType revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
 	int32_t outputIndex;

@@ -90,7 +90,7 @@ bool Browser::opened() {
 bool Browser::checkFP() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	String filePath;
-	int32_t error = getCurrentFilePath(&filePath);
+	ErrorType error = getCurrentFilePath(&filePath);
 	if (error != 0) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -170,7 +170,7 @@ doCull:
 	}
 
 	int32_t newIndex = fileItems.getNumElements();
-	int32_t error = fileItems.insertAtIndex(newIndex);
+	ErrorType error = fileItems.insertAtIndex(newIndex);
 	if (error) {
 		if (alreadyCulled) {
 			return NULL;
@@ -252,15 +252,15 @@ deleteFromRightSide:
 	}
 }
 
-int32_t Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
-                                        char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-                                        int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection) {
+ErrorType Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
+                                          char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+                                          int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection) {
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
 	emptyFileItems();
 
-	int32_t error = storageManager.initSD();
+	ErrorType error = storageManager.initSD();
 	if (error) {
 		return error;
 	}
@@ -482,16 +482,16 @@ deleteThisItem:
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
 // the currentSong is not set up.
-int32_t Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
-                                                  char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-                                                  bool allowFolders, Availability availabilityRequirement,
-                                                  int32_t newCatalogSearchDirection) {
+ErrorType Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
+                                                    char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+                                                    bool allowFolders, Availability availabilityRequirement,
+                                                    int32_t newCatalogSearchDirection) {
 	// filenameToStartAt should have .XML at the end of it.
 	bool triedCreatingFolder = false;
 
 tryReadingItems:
-	int32_t error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
-	                                       FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
+	ErrorType error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
+	                                         FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
 	if (error) {
 
 		// If folder didn't exist, try our alternative one if there is one.
@@ -500,7 +500,7 @@ tryReadingItems:
 				// ... only if we haven't already tried the alternative folder.
 				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
-					int32_t error = currentDir.set(defaultDirToAlsoTry);
+					ErrorType error = currentDir.set(defaultDirToAlsoTry);
 					if (error) {
 						return error;
 					}
@@ -553,7 +553,8 @@ tryReadingItems:
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
-int32_t Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
+ErrorType Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt,
+                                      char const* defaultDirToAlsoTry) {
 	arrivedAtFileByTyping = false;
 
 	if (!qwertyAlwaysVisible) {
@@ -566,7 +567,7 @@ int32_t Browser::arrivedInNewFolder(int32_t direction, char const* filenameToSta
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	int32_t error =
+	ErrorType error =
 	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
 	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error) {
@@ -830,9 +831,9 @@ everythingFinalized:
 }
 
 // You must set currentDir before calling this.
-int32_t Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
+ErrorType Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
 
-	int32_t error = 0;
+	ErrorType error;
 	if (display->haveOLED()) {
 		char filenameToStartAt[6]; // thingName is max 4 chars.
 		strcpy(filenameToStartAt, thingName);
@@ -1044,7 +1045,7 @@ nonNumeric:
 	}
 
 	int32_t newCatalogSearchDirection;
-	int32_t error;
+	ErrorType error;
 
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
@@ -1169,7 +1170,7 @@ searchFromOneEnd:
 }
 
 bool Browser::predictExtendedText() {
-	int32_t error;
+	ErrorType error;
 	arrivedAtFileByTyping = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
@@ -1568,7 +1569,7 @@ ActionResult Browser::backButtonAction() {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	int32_t error = goUpOneDirectoryLevel();
+	ErrorType error = goUpOneDirectoryLevel();
 	if (error) {
 		exitAction();
 	}
@@ -1591,10 +1592,10 @@ void Browser::goIntoDeleteFileContextMenu() {
 	}
 }
 
-int32_t Browser::setEnteredTextFromCurrentFilename() {
+ErrorType Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	int32_t error = enteredText.set(currentFileItem->displayName);
+	ErrorType error = enteredText.set(currentFileItem->displayName);
 	if (error) {
 		return error;
 	}
@@ -1615,8 +1616,8 @@ int32_t Browser::setEnteredTextFromCurrentFilename() {
 	return NO_ERROR;
 }
 
-int32_t Browser::goIntoFolder(char const* folderName) {
-	int32_t error;
+ErrorType Browser::goIntoFolder(char const* folderName) {
+	ErrorType error;
 
 	if (!currentDir.isEmpty()) {
 		error = currentDir.concatenate("/");
@@ -1644,7 +1645,7 @@ int32_t Browser::goIntoFolder(char const* folderName) {
 	return error;
 }
 
-int32_t Browser::goUpOneDirectoryLevel() {
+ErrorType Browser::goUpOneDirectoryLevel() {
 
 	char const* currentDirChars = currentDir.get();
 	char const* slashAddress = strrchr(currentDirChars, '/');
@@ -1653,7 +1654,7 @@ int32_t Browser::goUpOneDirectoryLevel() {
 	}
 
 	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
-	int32_t error = enteredText.set(slashAddress + 1);
+	ErrorType error = enteredText.set(slashAddress + 1);
 	if (error) {
 		return error;
 	}
@@ -1673,11 +1674,11 @@ int32_t Browser::goUpOneDirectoryLevel() {
 	return error;
 }
 
-int32_t Browser::createFolder() {
+ErrorType Browser::createFolder() {
 	displayText();
 
 	String newDirPath;
-	int32_t error;
+	ErrorType error;
 
 	newDirPath.set(&currentDir);
 	if (!newDirPath.isEmpty()) {
