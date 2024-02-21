@@ -165,8 +165,8 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 	}
 }
 
-// Returns a status such as LATE_START_ATTEMPT_WAIT
-int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
+// Returns a status such as LateStartAttemptStatus::WAIT
+LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
                                             int64_t rawSamplesSinceStart, int32_t numSamples) {
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
@@ -176,7 +176,7 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 
 	// If we've already passed the end of the sample (how would that occur in the real world, again?)
 	if ((int64_t)(startAtByte - voiceSource->endPlaybackAtByte) * voiceSource->playDirection >= 0) {
-		return LATE_START_ATTEMPT_FAILURE;
+		return LateStartAttemptStatus::FAILURE;
 	}
 
 	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0) {
@@ -209,7 +209,7 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 
 		// If failure (would only happen in insanely rare case where there's no free RAM)
 		if (l == 0 && !newClusters[l]) {
-			return LATE_START_ATTEMPT_FAILURE;
+			return LateStartAttemptStatus::FAILURE;
 		}
 
 		// If that was the final Cluster, that's all we need to do
@@ -241,7 +241,7 @@ goodToGo:
 
 			pendingSamplesLate = 0;
 
-			return LATE_START_ATTEMPT_SUCCESS;
+			return LateStartAttemptStatus::SUCCESS;
 		}
 
 		// Or, if we're actually not very far into the first Cluster, that's fine too - the second one should still have
@@ -264,7 +264,7 @@ goodToGo:
 	// If still here, that didn't work, so we have to wait, and come back later when hopefully some loading has taken
 	// place
 	pendingSamplesLate += numSamples;
-	return LATE_START_ATTEMPT_WAIT;
+	return LateStartAttemptStatus::WAIT;
 }
 
 // Returns false if becoming unassigned now
