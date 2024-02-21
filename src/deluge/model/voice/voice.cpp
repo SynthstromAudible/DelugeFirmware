@@ -2174,12 +2174,13 @@ pitchTooHigh:
 					    >> 24;
 				}
 
-				int32_t result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
+				LateStartAttemptStatus result =
+				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
 
-				if (result == LATE_START_ATTEMPT_FAILURE) {
+				if (result == LateStartAttemptStatus::FAILURE) {
 					goto instantUnassign;
 				}
-				else if (result == LATE_START_ATTEMPT_WAIT) {
+				else if (result == LateStartAttemptStatus::WAIT) {
 					continue;
 				}
 				// Otherwise, it started fine!
