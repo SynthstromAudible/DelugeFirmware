@@ -17,11 +17,13 @@
 
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/log.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
+#include <stdint.h>
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;
@@ -64,15 +66,20 @@ void ArpeggiatorForDrum::reset() {
 }
 
 void ArpeggiatorBase::resetRatchet() {
-	isRatcheting = false;
+	ratchetNotesIndex = 0;
 	ratchetNotesMultiplier = 0;
 	ratchetNotesNumber = 0;
-	ratchetNotesIndex = 0;
+	isRatcheting = false;
+	D_PRINTLN("i %d m %d n %d b %d -> resetRatchet", ratchetNotesIndex, ratchetNotesMultiplier, ratchetNotesNumber,
+	          isRatcheting);
 }
 
 void Arpeggiator::reset() {
 	notes.empty();
 	notesAsPlayed.empty();
+
+	D_PRINTLN("Arpeggiator::reset");
+	resetRatchet();
 }
 
 void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
@@ -102,7 +109,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
 				gatePos = 0;
-				switchNoteOn(settings, instruction, false);
+				switchNoteOn(settings, instruction);
 			}
 		}
 
@@ -139,6 +146,7 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 // that provided here.
 void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
                          ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
+
 	lastVelocity = velocity;
 
 	bool noteExists = false;
@@ -176,10 +184,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	}
 	// If note does not exist yet in the arrays, we must insert it in both
 	else {
-
-		// ORDERED NOTES
-
-		// Insert it in notes array
+		// Insert in notes array
 		int32_t error = notes.insertAtIndex(notesKey);
 		if (error) {
 			return;
@@ -192,12 +197,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
 		arpNote->outputMemberChannel = MIDI_CHANNEL_NONE;
-		// Update expression values
+
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNote->mpeValues[m] = mpeValues[m];
 		}
-
-		// "AS PLAYED" NOTES
 
 		// Insert it in notesAsPlayed array
 		notesAsPlayedIndex = notesAsPlayed.getNumElements();
@@ -213,7 +216,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// doesn't get included in the survey that will happen of existing output member
 		// channels.
 		arpNoteAsPlayed->outputMemberChannel = MIDI_CHANNEL_NONE;
-		// Update expression values
+
 		for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 			arpNoteAsPlayed->mpeValues[m] = mpeValues[m];
 		}
@@ -235,7 +238,7 @@ noteInserted:
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
 				gatePos = 0;
-				switchNoteOn(settings, instruction, false);
+				switchNoteOn(settings, instruction);
 			}
 		}
 
@@ -254,6 +257,7 @@ noteInserted:
 }
 
 void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
+
 	int32_t notesKey = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
 	if (notesKey < notes.getNumElements()) {
 
@@ -304,6 +308,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	}
 
 	if (notes.getNumElements() == 0) {
+		D_PRINTLN("noteOff 2");
 		resetRatchet();
 	}
 }
@@ -314,27 +319,31 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 		instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
 		gateCurrentlyActive = false;
+
+		if (isRatcheting && (ratchetNotesIndex >= ratchetNotesNumber || !playbackHandler.isEitherClockActive())) {
+			// If it was ratcheting but it reached the last note in the ratchet or play was stopped
+			// then we can reset the ratchet temp values.
+			D_PRINTLN("switchAnyNoteOff");
+			resetRatchet();
+		}
 	}
 }
 
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
-	isRatcheting = ratchetProbability >= randomChance
-	               && ratchetAmount > 0
-	               // For the highest sync we can't divide the time any more, so not possible to ratchet
-	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH);
+	isRatcheting = ratchetProbability > randomChance && ratchetAmount > 0;
 	if (isRatcheting) {
 		ratchetNotesMultiplier = random(65535) % (ratchetAmount + 1);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
-		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
-			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
+		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH) {
+			// If the sync level is 256th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
 			ratchetNotesMultiplier = 1;
 			ratchetNotesNumber = 2;
 		}
-		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_64TH) {
-			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
-			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
-			ratchetNotesNumber = std::max(4_u32, ratchetNotesNumber);
+		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
+			// If the sync level is 128th, the maximum ratchet can be of 4 notes (8 not allowed)
+			ratchetNotesMultiplier = std::max((uint8_t)2, ratchetNotesMultiplier);
+			ratchetNotesNumber = std::max((uint8_t)4, ratchetNotesNumber);
 		}
 	}
 	else {
@@ -346,7 +355,7 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	          ratchetNotesNumber, isRatcheting);
 }
 
-void ArpeggiatorBase::carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
+void ArpeggiatorBase::carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
 	if (settings->numOctaves == 1) {
 		currentOctave = 0;
 		currentOctaveDirection = 1;
@@ -391,27 +400,13 @@ void ArpeggiatorBase::carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSett
 	}
 }
 
-void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
-                                      bool isRatchet) {
+void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+
 	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
 	//  We only need to account for octaveMode as it is always a 1-note arpeggio.
 	//  Besides, behavior of OctaveMode::UP_DOWN is equal to OctaveMode::ALTERNATE
 
 	gateCurrentlyActive = true;
-
-	// Increment ratchet note index if we are ratcheting when entering switchNoteOn
-	if (isRatcheting) {
-		ratchetNotesIndex++;
-	}
-
-	if (!isRatchet) {
-		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet burst
-		maybeSetupNewRatchet(settings);
-	}
-
-	if (ratchetNotesIndex > 0) {
-		goto finishDrumSwitchNoteOn;
-	}
 
 	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
 	if (settings->octaveMode == ArpOctaveMode::RANDOM) {
@@ -440,15 +435,12 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 		// Otherwise, just carry on the sequence of arpeggiated notes
 		else {
-			carryOnOctaveSequenceForSingleNoteArpeggio(settings);
+			carryOnSequenceForSingleNoteArpeggio(settings);
 		}
 	}
 
-	// Only increase steps played from the sequence for normal notes (not for ratchet notes)
-	notesPlayedFromSequence++;
-
-finishDrumSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
+	notesPlayedFromSequence++;
 
 	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
@@ -456,18 +448,9 @@ finishDrumSwitchNoteOn:
 	instruction->arpNoteOn = &arpNote;
 }
 
-void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
+void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+
 	gateCurrentlyActive = true;
-
-	// Increment ratchet note index if we are ratcheting when entering switchNoteOn
-	if (isRatcheting) {
-		ratchetNotesIndex++;
-	}
-
-	if (!isRatchet) {
-		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet burst
-		maybeSetupNewRatchet(settings);
-	}
 
 	if (ratchetNotesIndex > 0) {
 		goto finishSwitchNoteOn;
@@ -537,7 +520,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 		// For 1-note arpeggios it is simpler and can use the same logic as for drums
 		else if (notes.getNumElements() == 1) {
-			carryOnOctaveSequenceForSingleNoteArpeggio(settings);
+			carryOnSequenceForSingleNoteArpeggio(settings);
 		}
 
 		// Otherwise, just carry on the sequence of arpeggiated notes
@@ -613,7 +596,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			}
 			if (changeOctave) {
 				randomNotesPlayedFromOctave = 0; // reset this in any case
-				carryOnOctaveSequenceForSingleNoteArpeggio(settings);
+				carryOnSequenceForSingleNoteArpeggio(settings);
 			}
 		}
 	}
@@ -623,13 +606,13 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 finishSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
-	randomNotesPlayedFromOctave++;
 
 #if ALPHA_OR_BETA_VERSION
 	if (whichNoteCurrentlyOnPostArp < 0 || whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
 		FREEZE_WITH_ERROR("E404");
 	}
 #endif
+	randomNotesPlayedFromOctave++;
 
 	ArpNote* arpNote;
 	if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
@@ -644,6 +627,17 @@ finishSwitchNoteOn:
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;
+
+	// Increment ratchet note index if we are ratcheting
+	if (isRatcheting) {
+		ratchetNotesIndex++;
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn RATCHETING", ratchetNotesIndex, ratchetNotesMultiplier,
+		          ratchetNotesNumber, isRatcheting);
+	}
+	else {
+		D_PRINTLN("i %d m %d n %d b %d -> switchNoteOn NORMAL", ratchetNotesIndex, ratchetNotesMultiplier,
+		          ratchetNotesNumber, isRatcheting);
+	}
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
@@ -663,60 +657,55 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		return;
 	}
 
-	// Update live Sequence Length value with the most up to date value from automation
-	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
+	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
-	// Update live ratchetProbability value with the most up to date value from automation
+	// Update Sequence Length
+	maxSequenceLength = sequenceLength;
+
+	// Update ratchetProbability with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
 
-	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
 	uint16_t amount = ratchAmount >> 16;
-	if (amount > 45874) { // > 35 -> 50
+	if (amount > 45874) {
 		ratchetAmount = 3;
 	}
-	else if (amount > 26214) { // > 20 -> 34
+	else if (amount > 26214) {
 		ratchetAmount = 2;
 	}
-	else if (amount > 6553) { // > 5 -> 19
+	else if (amount > 6553) {
 		ratchetAmount = 1;
 	}
-	else { // > 0 -> 4
+	else {
 		ratchetAmount = 0;
 	}
-
-	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
 	if (isRatcheting) {
 		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
 		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
 	}
 
-	uint32_t maxGate = 1 << 24;
-	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
-
 	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
 
 	// If gatePos is far enough along that we at least want to switch off any note...
-	if (gatePos >= ratchetNotesIndex * maxGateForRatchet + gateThresholdSmall) {
+	if (gatePos >= gateThresholdSmall) {
 		switchAnyNoteOff(instruction);
 
-		// If is ratcheting and time for the next ratchet event
-		if (isRatcheting && ratchetNotesIndex < ratchetNotesNumber - 1
-		    && gatePos >= (ratchetNotesIndex + 1) * maxGateForRatchet) {
-			// Switch on next note in the ratchet
-			switchNoteOn(settings, instruction, true);
-		}
-		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
-		else if (!syncedNow && gatePos >= maxGate) {
-			switchNoteOn(settings, instruction, false);
+		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a note on?
+		if (!syncedNow && gatePos >= 16777216) {
+			switchNoteOn(settings, instruction);
 		}
 	}
+
 	if (!syncedNow) {
-		gatePos &= (maxGate - 1);
+		gatePos &= 16777215;
 	}
 
 	gatePos += (phaseIncrement >> 8) * numSamples;
+}
+
+void ArpeggiatorBase::setRatchetingAvailable(bool available) {
+	ratchetingIsAvailable = available;
 }
 
 // Returns num ticks til we next want to come back here.
@@ -743,12 +732,24 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		ticksPerPeriod = ticksPerPeriod * 3 / 2;
 	}
 
+	if (ratchetingIsAvailable) {
+		if (!isRatcheting) {
+			// If we are not ratcheting yet, check if we should and set it up (based on ratchet chance)
+			maybeSetupNewRatchet(settings);
+		}
+
+		// If in previous step we set up ratcheting, we need to recalculate ticksPerPeriod
+		if (isRatcheting) {
+			ticksPerPeriod = ticksPerPeriod >> ratchetNotesMultiplier;
+		}
+	}
+
 	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
 			switchAnyNoteOff(instruction);
-			switchNoteOn(settings, instruction, false);
+			switchNoteOn(settings, instruction);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this
 			gatePos = 0;

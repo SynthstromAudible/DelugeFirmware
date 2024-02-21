@@ -139,7 +139,8 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	void resetRatchet();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void carryOnSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void setRatchetingAvailable(bool available);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
@@ -147,29 +148,23 @@ public:
 	int8_t currentOctave;
 	int8_t currentDirection;
 	int8_t currentOctaveDirection;
+	uint8_t notesPlayedFromSequence = 0;
+	uint8_t randomNotesPlayedFromOctave = 0;
 	bool playedFirstArpeggiatedNoteYet;
 	uint8_t lastVelocity;
 	int16_t noteCodeCurrentlyOnPostArp;
 	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp;
-
-	// Playing state
-	uint32_t notesPlayedFromSequence = 0;
-	uint32_t randomNotesPlayedFromOctave = 0;
-
-	// Ratcheting state
-	uint32_t ratchetNotesIndex = 0;
-	uint32_t ratchetNotesMultiplier = 0;
-	uint32_t ratchetNotesNumber = 0;
+	uint8_t ratchetNotesIndex = 0;
+	uint8_t ratchetNotesMultiplier = 0;
+	uint8_t ratchetNotesNumber = 0;
 	bool isRatcheting = false;
-
-	// Unpatched Automated Params
 	uint16_t ratchetProbability = 0;
 	uint32_t maxSequenceLength = 0;
-	uint32_t ratchetAmount = 0;
+	uint8_t ratchetAmount = 0;
 
 protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
-	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
+	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
 };
 
@@ -183,7 +178,7 @@ public:
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 
 protected:
-	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
+	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 	bool hasAnyInputNotesActive();
 };
 
@@ -205,5 +200,5 @@ public:
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:
-	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
+	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 };
