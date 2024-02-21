@@ -518,9 +518,9 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
-		int32_t result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
-		if (result) {
-			if (result == LATE_START_ATTEMPT_FAILURE) {
+		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
+		if (result != LateStartAttemptStatus::SUCCESS) {
+			if (result == LateStartAttemptStatus::FAILURE) {
 				unassignVoiceSample(false);
 			}
 			return;

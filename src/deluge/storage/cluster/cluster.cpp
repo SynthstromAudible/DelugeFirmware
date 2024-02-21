@@ -16,10 +16,12 @@
  */
 
 #include "storage/cluster/cluster.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/misc.h"
 #include <string.h>
 
 Cluster::Cluster() {
@@ -144,28 +146,28 @@ void Cluster::convertDataIfNecessary() {
 	}
 }
 
-int32_t Cluster::getAppropriateQueue() {
-	int32_t q;
+StealableQueue Cluster::getAppropriateQueue() {
+	StealableQueue q;
 
 	// If it's a perc cache...
 	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {
-		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
-		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE;
+		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_PERC_CACHE
+		                                 : StealableQueue::NO_SONG_SAMPLE_DATA_PERC_CACHE;
 	}
 
 	// If it's a regular repitched cache...
 	else if (sampleCache) {
-		q = (sampleCache->sample->numReasonsToBeLoaded) ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
-		                                                : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		q = (sampleCache->sample->numReasonsToBeLoaded) ? StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE
+		                                                : StealableQueue::NO_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 	}
 
 	// Or, if it has a Sample...
 	else if (sample) {
-		q = sample->numReasonsToBeLoaded ? STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA
-		                                 : STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA;
+		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
+		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
 
 		if (sample->rawDataFormat) {
-			q++;
+			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue
 		}
 	}
 

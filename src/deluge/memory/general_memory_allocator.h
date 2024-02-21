@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "memory/memory_region.h"
 
 #define MEMORY_REGION_STEALABLE 0
@@ -87,7 +88,7 @@ public:
 	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
-	void putStealableInQueue(Stealable* stealable, int32_t q);
+	void putStealableInQueue(Stealable* stealable, StealableQueue q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
