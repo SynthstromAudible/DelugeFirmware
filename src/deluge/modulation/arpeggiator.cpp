@@ -334,8 +334,8 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 		}
 		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_64TH) {
 			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
-			ratchetNotesMultiplier = std::max((uint32_t)2, ratchetNotesMultiplier);
-			ratchetNotesNumber = std::max((uint32_t)4, ratchetNotesNumber);
+			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
+			ratchetNotesNumber = std::max(4_u32, ratchetNotesNumber);
 		}
 	}
 	else {
