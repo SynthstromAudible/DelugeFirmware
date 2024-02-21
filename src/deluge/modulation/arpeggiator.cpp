@@ -133,7 +133,6 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 	}
 
 	arpNote.velocity = 0; // Means note is off
-	reset();
 }
 
 // May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from
