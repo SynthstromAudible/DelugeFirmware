@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include <cstdint>
 #include <cstring>
 extern "C" {
@@ -42,46 +43,50 @@ extern const char nothing;
 
 class String {
 public:
-	String();
+	String() = default;
 	// String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff.
 	// Made no sense. Instead, constructing then calling set() works
 	~String();
 	void clear(bool destructing = false);
-	int32_t set(char const* newChars, int32_t newLength = -1);
+	ErrorType set(char const* newChars, int32_t newLength = -1);
 	void set(String* otherString);
 	void beenCloned();
-	int32_t getLength();
-	int32_t shorten(int32_t newLength);
-	int32_t concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
-	int32_t concatenateInt(int32_t number, int32_t minNumDigits = 1);
-	int32_t setInt(int32_t number, int32_t minNumDigits = 1);
-	int32_t setChar(char newChar, int32_t pos);
-	int32_t concatenate(String* otherString);
-	int32_t concatenate(char const* newChars);
+	size_t getLength();
+	ErrorType shorten(int32_t newLength);
+	ErrorType concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
+	ErrorType concatenateInt(int32_t number, int32_t minNumDigits = 1);
+	ErrorType setInt(int32_t number, int32_t minNumDigits = 1);
+	ErrorType setChar(char newChar, int32_t pos);
+	ErrorType concatenate(String* otherString);
+	ErrorType concatenate(char const* newChars);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);
 
 	inline bool equals(String* otherString) {
-		if (stringMemory == otherString->stringMemory)
+		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
-		if (!stringMemory || !otherString->stringMemory)
+		}
+		if (!stringMemory || !otherString->stringMemory) {
 			return false; // If just one is empty, then not equal
+		}
 		return equals(otherString->get());
 	}
 
 	inline bool equalsCaseIrrespective(String* otherString) {
-		if (stringMemory == otherString->stringMemory)
+		if (stringMemory == otherString->stringMemory) {
 			return true; // Works if both lengths are 0, too
-		if (!stringMemory || !otherString->stringMemory)
+		}
+		if (!stringMemory || !otherString->stringMemory) {
 			return false; // If just one is empty, then not equal
+		}
 		return equalsCaseIrrespective(otherString->get());
 	}
 
 	inline char const* get() {
-		if (!stringMemory)
+		if (!stringMemory) {
 			return &nothing;
-		else
-			return stringMemory;
+		}
+		return stringMemory;
 	}
 
 	inline bool isEmpty() { return !stringMemory; }
@@ -90,7 +95,7 @@ private:
 	int32_t getNumReasons();
 	void setNumReasons(int32_t newNum);
 
-	char* stringMemory;
+	char* stringMemory = nullptr;
 };
 
 /// A string buffer with utility functions to append and format contents.

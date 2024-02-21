@@ -17,34 +17,36 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 
 class Instrument;
 
 class SlotBrowser : public Browser {
 public:
-	SlotBrowser();
+	SlotBrowser() = default;
 
 	// 7SEG ONLY
 	void focusRegained();
 	ActionResult horizontalEncoderAction(int32_t offset);
 
-	int32_t getCurrentFilePath(String* path);
+	ErrorType getCurrentFilePath(String* path) override;
 
 protected:
-	int32_t beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
+	ErrorType beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
 	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
-	int32_t getCurrentFilenameWithoutExtension(String* filename);
+	ErrorType getCurrentFilenameWithoutExtension(String* filename);
 
 	static bool currentFileHasSuffixFormatNameImplied;
 
-	Instrument* currentInstrument; // Although this is only needed by the child class LoadInstrumentPresetUI, we cut a
-	                               // corner by including it here so our functions can set it to NULL, which is needed.
-	                               // This is the Instrument we're currently scrolled onto. Might not be actually loaded
-	                               // (yet)? We do need this, separate from the current FileItem, because if user moves
-	                               // onto a folder, the currentInstrument needs to remain the same.
+	// Although this is only needed by the child class LoadInstrumentPresetUI, we cut a
+	// corner by including it here so our functions can set it to NULL, which is needed.
+	// This is the Instrument we're currently scrolled onto. Might not be actually loaded
+	// (yet)? We do need this, separate from the current FileItem, because if user moves
+	// onto a folder, the currentInstrument needs to remain the same.
+	Instrument* currentInstrument = nullptr;
 };

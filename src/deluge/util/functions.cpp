@@ -2268,7 +2268,7 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 	return true;
 }
 
-int32_t fresultToDelugeErrorCode(FRESULT result) {
+ErrorType fresultToDelugeErrorCode(FRESULT result) {
 	switch (result) {
 	case FR_OK:
 		return NO_ERROR;

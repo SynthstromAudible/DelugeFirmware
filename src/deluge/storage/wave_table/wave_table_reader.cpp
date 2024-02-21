@@ -16,17 +16,14 @@
  */
 
 #include "storage/wave_table/wave_table_reader.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 
-WaveTableReader::WaveTableReader() {
-	// TODO Auto-generated constructor stub
-}
-
-int32_t WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
+ErrorType WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		int32_t error = advanceClustersIfNecessary();
+		ErrorType error = advanceClustersIfNecessary();
 		if (error) {
 			return error;
 		}
@@ -39,7 +36,7 @@ int32_t WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_
 	return NO_ERROR;
 }
 
-int32_t WaveTableReader::readNewCluster() {
+ErrorType WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
 	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
@@ -47,7 +44,5 @@ int32_t WaveTableReader::readNewCluster() {
 	if (result) {
 		return ERROR_SD_CARD; // Failed to load cluster from card
 	}
-	else {
-		return NO_ERROR;
-	}
+	return NO_ERROR;
 }

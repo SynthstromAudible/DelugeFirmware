@@ -23,20 +23,16 @@
 
 const char nothing = 0;
 
-String::String() {
-	stringMemory = NULL;
-}
-
 String::~String() {
 	clear(true);
 }
 
 int32_t String::getNumReasons() {
-	return *(int32_t*)(stringMemory - 4);
+	return *std::bit_cast<intptr_t*>(stringMemory - 4);
 }
 
 void String::setNumReasons(int32_t newNum) {
-	*(int32_t*)(stringMemory - 4) = newNum;
+	*std::bit_cast<intptr_t*>(stringMemory - 4) = newNum;
 }
 
 void String::clear(bool destructing) {
@@ -55,8 +51,7 @@ void String::clear(bool destructing) {
 	}
 }
 
-// Returns error
-int32_t String::set(char const* newChars, int32_t newLength) {
+ErrorType String::set(char const* newChars, int32_t newLength) {
 
 	if (newLength == -1) {
 		newLength = strlen(newChars);
@@ -130,13 +125,13 @@ void String::set(String* otherString) {
 	char* sm = otherString->stringMemory;
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region
-	if (sm) {
+	if (sm != nullptr) {
 		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
 			FREEZE_WITH_ERROR("S001");
 			return;
 		}
 		// or if it doesn't have an allocation
-		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
+		if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
 			FREEZE_WITH_ERROR("S002");
 			return;
 		}
@@ -149,17 +144,19 @@ void String::set(String* otherString) {
 }
 
 void String::beenCloned() {
-	if (stringMemory) {
+	if (stringMemory != nullptr) {
 		setNumReasons(getNumReasons() + 1);
 	}
 }
 
-int32_t String::getLength() {
-	return stringMemory ? strlen(stringMemory) : 0;
+size_t String::getLength() {
+	if (stringMemory == nullptr) {
+		return 0;
+	}
+	return strlen(stringMemory);
 }
 
-// Returns error
-int32_t String::shorten(int32_t newLength) {
+ErrorType String::shorten(int32_t newLength) {
 	if (!newLength) {
 		clear();
 	}
@@ -189,7 +186,7 @@ int32_t String::shorten(int32_t newLength) {
 	return NO_ERROR;
 }
 
-int32_t String::concatenate(String* otherString) {
+ErrorType String::concatenate(String* otherString) {
 	if (!stringMemory) {
 		set(otherString);
 		return NO_ERROR;
@@ -198,11 +195,11 @@ int32_t String::concatenate(String* otherString) {
 	return concatenate(otherString->get());
 }
 
-int32_t String::concatenate(char const* newChars) {
+ErrorType String::concatenate(char const* newChars) {
 	return concatenateAtPos(newChars, getLength());
 }
 
-int32_t String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
+ErrorType String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
 	if (pos == 0) {
 		return set(newChars, newCharsLength);
 	}
@@ -275,19 +272,19 @@ allocateNewMemory:
 	return NO_ERROR;
 }
 
-int32_t String::concatenateInt(int32_t number, int32_t minNumDigits) {
+ErrorType String::concatenateInt(int32_t number, int32_t minNumDigits) {
 	char buffer[12];
 	intToString(number, buffer, minNumDigits);
 	return concatenate(buffer);
 }
 
-int32_t String::setInt(int32_t number, int32_t minNumDigits) {
+ErrorType String::setInt(int32_t number, int32_t minNumDigits) {
 	char buffer[12];
 	intToString(number, buffer, minNumDigits);
 	return set(buffer);
 }
 
-int32_t String::setChar(char newChar, int32_t pos) {
+ErrorType String::setChar(char newChar, int32_t pos) {
 
 	// If any additional reasons, we gotta clone the memory first
 	int32_t oldNumReasons = getNumReasons();

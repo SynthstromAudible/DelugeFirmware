@@ -16,18 +16,15 @@
  */
 
 #include "model/sample/sample_reader.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-SampleReader::SampleReader() {
-	// TODO Auto-generated constructor stub
-}
-
-int32_t SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
+ErrorType SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		int32_t error = advanceClustersIfNecessary();
+		ErrorType error = advanceClustersIfNecessary();
 		if (error) {
 			return error;
 		}
@@ -40,7 +37,7 @@ int32_t SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t n
 	return NO_ERROR;
 }
 
-int32_t SampleReader::readNewCluster() {
+ErrorType SampleReader::readNewCluster() {
 	if (currentCluster) {
 		audioFileManager.removeReasonFromCluster(currentCluster, "E031");
 	}
@@ -51,7 +48,5 @@ int32_t SampleReader::readNewCluster() {
 	if (!currentCluster) {
 		return ERROR_SD_CARD; // Failed to load cluster from card
 	}
-	else {
-		return NO_ERROR;
-	}
+	return NO_ERROR;
 }

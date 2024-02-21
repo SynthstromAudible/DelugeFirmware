@@ -478,8 +478,8 @@ bool SampleBrowser::canImportWholeKit() {
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
-int32_t SampleBrowser::getCurrentFilePath(String* path) {
-	int32_t error;
+ErrorType SampleBrowser::getCurrentFilePath(String* path) {
+	ErrorType error;
 
 	path->set(&currentDir);
 	int32_t oldLength = path->getLength();

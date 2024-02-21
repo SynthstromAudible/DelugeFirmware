@@ -1284,7 +1284,7 @@ void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionS
 // Gets ready to access SD card.
 // You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
 // just no card inserted.
-int32_t StorageManager::initSD() {
+ErrorType StorageManager::initSD() {
 
 	FRESULT result;
 

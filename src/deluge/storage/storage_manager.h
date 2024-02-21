@@ -72,7 +72,7 @@ public:
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
 	char readNextCharOfTagOrAttributeValue();
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
-	int32_t initSD();
+	ErrorType initSD();
 	bool closeFile();
 	int32_t closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
 	                              char const* endString = NULL);

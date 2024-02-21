@@ -894,7 +894,7 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 }
 
 // Returns error code
-int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
+ErrorType ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
 		FREEZE_WITH_ERROR("E280");

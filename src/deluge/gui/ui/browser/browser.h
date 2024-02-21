@@ -69,7 +69,7 @@ public:
 	Browser();
 
 	void close();
-	virtual int32_t getCurrentFilePath(String* path) = 0;
+	virtual ErrorType getCurrentFilePath(String* path) = 0;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int32_t goIntoFolder(char const* folderName);

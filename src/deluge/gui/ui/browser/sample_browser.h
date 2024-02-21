@@ -74,7 +74,7 @@ private:
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = NULL, int32_t* getNumCharsInPrefix = NULL);
-	int32_t getCurrentFilePath(String* path);
+	ErrorType getCurrentFilePath(String* path);
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();

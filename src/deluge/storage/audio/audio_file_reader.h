@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include <cstdint>
 
 class AudioFile;
@@ -27,12 +28,12 @@ class AudioFile;
 class AudioFileReader {
 public:
 	AudioFileReader();
-	int32_t readBytes(char* outputBuffer, int32_t num);
-	virtual int32_t readBytesPassedErrorChecking(char* outputBuffer, int32_t num) = 0;
+	ErrorType readBytes(char* outputBuffer, int32_t num);
+	virtual ErrorType readBytesPassedErrorChecking(char* outputBuffer, int32_t num) = 0;
 	void jumpForwardToBytePos(uint32_t newPos);
 	uint32_t getBytePos();
-	int32_t advanceClustersIfNecessary();
-	virtual int32_t readNewCluster() = 0;
+	ErrorType advanceClustersIfNecessary();
+	virtual ErrorType readNewCluster() = 0;
 
 	int32_t currentClusterIndex;
 	int32_t byteIndexWithinCluster;

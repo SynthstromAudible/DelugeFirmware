@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/slot_browser.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -28,17 +29,14 @@
 
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
 
-SlotBrowser::SlotBrowser() {
-}
-
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
-int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
+ErrorType SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	currentFileHasSuffixFormatNameImplied = false;
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
-	int32_t error = storageManager.initSD();
+	ErrorType error = storageManager.initSD();
 	if (error) {
 		return error;
 	}
@@ -177,8 +175,8 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	int32_t error;
+ErrorType SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
+	ErrorType error;
 	if (display->have7SEG()) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
@@ -212,10 +210,10 @@ int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutE
 	return NO_ERROR;
 }
 
-int32_t SlotBrowser::getCurrentFilePath(String* path) {
+ErrorType SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	int32_t error = path->concatenate("/");
+	ErrorType error = path->concatenate("/");
 	if (error) {
 		return error;
 	}

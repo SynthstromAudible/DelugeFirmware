@@ -16,20 +16,13 @@
  */
 
 #include "model/sample/sample_cluster.h"
+#include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-SampleCluster::SampleCluster() {
-	cluster = NULL;
-
-	investigatedWholeLength = false;
-	minValue = 127;
-	maxValue = -128;
-	sdAddress = 0; // 0 means invalid, and we check for this as a last resort before writing
-}
 
 SampleCluster::~SampleCluster() {
 	if (cluster) {
@@ -71,7 +64,7 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 // Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
 Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction,
-                                   uint32_t priorityRating, uint8_t* error) {
+                                   uint32_t priorityRating, ErrorType* error) {
 
 	if (error) {
 		*error = NO_ERROR;
@@ -86,7 +79,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			if (error) {
 				*error = ERROR_FILE_NOT_FOUND;
 			}
-			return NULL;
+			return nullptr;
 		}
 
 		// D_PRINTLN("loading");
@@ -97,7 +90,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 			if (error) {
 				*error = ERROR_INSUFFICIENT_RAM;
 			}
-			return NULL;
+			return nullptr;
 		}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
@@ -160,11 +153,11 @@ justEnqueue:
 				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
 				if (error) {
-					*error =
-					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now
-					                       // cos card's being accessed, and that's fine, thanks for checking."
+					// TODO: get actual error. Although sometimes it'd just be a "can't do it now
+					// cos card's being accessed, and that's fine, thanks for checking."
+					*error = ERROR_UNSPECIFIED;
 				}
-				cluster = NULL;
+				cluster = nullptr;
 			}
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {

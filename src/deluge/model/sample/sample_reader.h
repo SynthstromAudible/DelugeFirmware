@@ -17,15 +17,16 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_reader.h"
 
 class Cluster;
 
 class SampleReader final : public AudioFileReader {
 public:
-	SampleReader();
-	int32_t readBytesPassedErrorChecking(char* outputBuffer, int32_t num);
-	int32_t readNewCluster();
+	SampleReader() = default;
+	ErrorType readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
+	ErrorType readNewCluster() override;
 
 	Cluster* currentCluster;
 };

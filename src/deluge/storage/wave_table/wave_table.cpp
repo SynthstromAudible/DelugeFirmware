@@ -18,6 +18,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "NE10.h"
 #include "arm_neon_shim.h"
+#include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -133,9 +134,9 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
-int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                         uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
-                         WaveTableReader* reader) {
+ErrorType WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
+                           uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                           WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -227,7 +228,7 @@ tryGettingFFTConfig:
 	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
 	                                    // power of two.
 
-	uint8_t error;
+	ErrorType error;
 
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
@@ -235,8 +236,8 @@ tryGettingFFTConfig:
 		int32_t numBands =
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
 
-		error = bands.insertAtIndex(
-		    0, numBands); // Don't refer to numBands after this! (Why? Because we might end up using less after all?)
+		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
+		error = bands.insertAtIndex(0, numBands);
 	}
 	if (error) {
 gotError:

@@ -28,7 +28,7 @@
 
 #define MAX_NUM_MARKERS 8
 
-int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
+ErrorType AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 
 	// AIFF files will only be used for WaveTables if the user insists
 	if (type == AudioFileType::WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
@@ -41,7 +41,7 @@ int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveT
 
 	uint32_t bytePos = reader->getBytePos();
 
-	int32_t error;
+	ErrorType error;
 	bool foundDataChunk = false; // Also applies to AIFF file's SSND chunk
 	bool foundFmtChunk = false;  // Also applies to AIFF file's COMM chunk
 	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
