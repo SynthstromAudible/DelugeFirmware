@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
 #include "util/cfunctions.h"
+#include <bit>
 #include <cstring>
 
 const char nothing = 0;
