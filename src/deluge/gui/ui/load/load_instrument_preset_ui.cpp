@@ -184,26 +184,17 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		else {
 useDefaultFolder:
 			Error error;
-			error = currentDir.set(defaultDir);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(currentDir.set(defaultDir));
 		}
 	}
 
 	if (!searchFilename.isEmpty()) {
 		Error error;
-		error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(searchFilename.concatenate(".XML"));
 	}
 
 	Error error;
-	error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(arrivedInNewFolder(0, searchFilename.get(), defaultDir));
 
 	currentInstrumentLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 

@@ -256,10 +256,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 	const auto folderID = util::to_underlying(folder);
 
 	Error error;
-	error = storageManager.initSD();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(storageManager.initSD());
 
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 
@@ -300,41 +297,20 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
-	error = filePath->set(audioRecordingFolderNames[folderID]);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(filePath->set(audioRecordingFolderNames[folderID]));
 
 	bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
 	if (doingTempFolder) {
-		error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = tempFilePathForRecording->concatenate("/TEMP");
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(tempFilePathForRecording->set(audioRecordingFolderNames[folderID]));
+		D_TRY(tempFilePathForRecording->concatenate("/TEMP"));
 	}
 
-	error = filePath->concatenate("/REC");
-	if (error != Error::NONE) {
-		return error;
-	}
-	error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
-	if (error != Error::NONE) {
-		return error;
-	}
-	error = filePath->concatenate(".WAV");
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(filePath->concatenate("/REC"));
+	D_TRY(filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5));
+	D_TRY(filePath->concatenate(".WAV"));
 
 	if (doingTempFolder) {
-		error = tempFilePathForRecording->concatenate(&filePath->get()[strlen(audioRecordingFolderNames[folderID])]);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(tempFilePathForRecording->concatenate(&filePath->get()[strlen(audioRecordingFolderNames[folderID])]));
 	}
 
 	*getNumber = highestUsedAudioRecordingNumber[folderID];
@@ -396,20 +372,11 @@ Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* 
                                                    String* songFilenameWithoutExtension) {
 
 	Error error;
-	error = newPath->set(rootDir);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(newPath->set(rootDir));
 
-	error = newPath->concatenate("/");
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(newPath->concatenate("/"));
 
-	error = newPath->concatenate(songFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(newPath->concatenate(songFilenameWithoutExtension));
 
 	return Error::NONE;
 }
@@ -431,10 +398,7 @@ Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dir
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
 		Error error;
-		error = newPath->setChar('_', slashPos);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(newPath->setChar('_', slashPos));
 		pos = slashPos + 1;
 	}
 

@@ -263,10 +263,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	emptyFileItems();
 
 	Error error;
-	error = storageManager.initSD();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(storageManager.initSD());
 
 	FRESULT result = f_opendir(&staticDIR, currentDir.get());
 	if (result) {
@@ -505,10 +502,7 @@ tryReadingItems:
 				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
 					Error error;
-					error = currentDir.set(defaultDirToAlsoTry);
-					if (error != Error::NONE) {
-						return error;
-					}
+					D_TRY(currentDir.set(defaultDirToAlsoTry));
 					goto tryReadingItems;
 				}
 
@@ -534,10 +528,7 @@ tryReadingItems:
 	}
 
 	if (song && outputType != OutputType::NONE) {
-		error = song->addInstrumentsToFileItems(outputType);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(song->addInstrumentsToFileItems(outputType));
 	}
 
 	if (fileItems.getNumElements()) {
@@ -1601,10 +1592,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	Error error;
-	error = enteredText.set(currentFileItem->displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(enteredText.set(currentFileItem->displayName));
 
 	// Cut off the file extension
 	if (!currentFileItem->isFolder) {
@@ -1612,10 +1600,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 		char const* dotAddress = strrchr(enteredTextChars, '.');
 		if (dotAddress) {
 			int32_t dotPos = (uint32_t)dotAddress - (uint32_t)enteredTextChars;
-			error = enteredText.shorten(dotPos);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(enteredText.shorten(dotPos));
 		}
 	}
 
@@ -1626,16 +1611,10 @@ Error Browser::goIntoFolder(char const* folderName) {
 	Error error;
 
 	if (!currentDir.isEmpty()) {
-		error = currentDir.concatenate("/");
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(currentDir.concatenate("/"));
 	}
 
-	error = currentDir.concatenate(folderName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(currentDir.concatenate(folderName));
 
 	enteredText.clear();
 	enteredTextEditPos = 0;
@@ -1661,10 +1640,7 @@ Error Browser::goUpOneDirectoryLevel() {
 
 	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
 	Error error;
-	error = enteredText.set(slashAddress + 1);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(enteredText.set(slashAddress + 1));
 	currentDir.shorten(slashPos);
 	if (error != Error::NONE) {
 		return error;
@@ -1689,16 +1665,10 @@ Error Browser::createFolder() {
 
 	newDirPath.set(&currentDir);
 	if (!newDirPath.isEmpty()) {
-		error = newDirPath.concatenate("/");
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(newDirPath.concatenate("/"));
 	}
 
-	error = newDirPath.concatenate(&enteredText);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(newDirPath.concatenate(&enteredText));
 
 	FRESULT result = f_mkdir(newDirPath.get());
 	if (result) {

@@ -921,15 +921,9 @@ Error StorageManager::checkSpaceOnCard() {
 Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
 
 	Error error;
-	error = initSD();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(initSD());
 
-	error = checkSpaceOnCard();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(checkSpaceOnCard());
 
 	bool triedCreatingFolder = false;
 
@@ -955,10 +949,7 @@ processError:
 			triedCreatingFolder = true;
 
 			String folderPath;
-			error = folderPath.set(filePath);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(folderPath.set(filePath));
 
 			// Get just the folder path
 cutFolderPathAndTryCreating:
@@ -969,10 +960,7 @@ cutFolderPathAndTryCreating:
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
-			error = folderPath.shorten(slashPos);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(folderPath.shorten(slashPos));
 
 			// Try making the folder
 			result = f_mkdir(folderPath.get());
@@ -1474,10 +1462,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
 	Error error;
-	error = openInstrumentFile(outputType, filePointer);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(openInstrumentFile(outputType, filePointer));
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
@@ -1656,10 +1641,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 				}
 
 				Error error;
-				error = midiParam->param.readFromFile(readAutomationUpToPos);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(midiParam->param.readFromFile(readAutomationUpToPos));
 			}
 			exitTag("value");
 		}

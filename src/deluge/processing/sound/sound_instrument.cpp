@@ -199,10 +199,7 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		Error error;
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(setupDefaultAudioFileDir());
 	}
 
 	Error error;

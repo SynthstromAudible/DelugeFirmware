@@ -37,10 +37,7 @@ Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
 	Error error;
-	error = storageManager.initSD();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(storageManager.initSD());
 
 	// But we won't try to open the folder yet, because we don't yet know what it should be.
 
@@ -182,22 +179,13 @@ Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExt
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
 		if (slot.slot != -1) {
-			error = filenameWithoutExtension->set(filePrefix);
-			if (error != Error::NONE) {
-				return error;
-			}
-			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(filenameWithoutExtension->set(filePrefix));
+			D_TRY(filenameWithoutExtension->concatenateInt(slot.slot, 3));
 			if (slot.subSlot != -1) {
 				char buffer[2];
 				buffer[0] = 'A' + slot.subSlot;
 				buffer[1] = 0;
-				error = filenameWithoutExtension->concatenate(buffer);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(filenameWithoutExtension->concatenate(buffer));
 			}
 		}
 		else {
@@ -215,21 +203,12 @@ Error SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
 	Error error;
-	error = path->concatenate("/");
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(path->concatenate("/"));
 
 	String filenameWithoutExtension;
-	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(getCurrentFilenameWithoutExtension(&filenameWithoutExtension));
 
-	error = path->concatenate(&filenameWithoutExtension);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(path->concatenate(&filenameWithoutExtension));
 
 	error = path->concatenate(".XML");
 	return error;

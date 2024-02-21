@@ -565,6 +565,18 @@ enum class Error {
 	SD_CARD_NO_FILESYSTEM,
 };
 
+#define D_TRY(expr)                                                                                                    \
+	error = expr;                                                                                                      \
+	if (error != Error::NONE) {                                                                                        \
+		return error;                                                                                                  \
+	}
+
+#define D_TRY_EXCEPT(expr, block)                                                                                      \
+	error = expr;                                                                                                      \
+	if (error != Error::NONE) {                                                                                        \
+		block                                                                                                          \
+	}
+
 enum class SampleRepeatMode {
 	CUT,
 	ONCE,

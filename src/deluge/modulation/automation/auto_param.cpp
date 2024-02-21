@@ -1969,10 +1969,7 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 					ParamNode* firstNode = nodes.getElement(0);
 					if (!firstNode || firstNode->pos) {
 						Error error;
-						error = nodes.insertAtIndex(0);
-						if (error != Error::NONE) {
-							return error;
-						}
+						D_TRY(nodes.insertAtIndex(0));
 						firstNode = nodes.getElement(0);
 						firstNode->pos = 0;
 						firstNode->value = value;

@@ -561,10 +561,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 		}
 		else { // No error
 			// Having just created a new cluster, there'll be one more completed one to write
-			error = writeAnyCompletedClusters();
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(writeAnyCompletedClusters());
 		}
 	}
 
@@ -575,10 +572,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 		int32_t bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
 		if (bytesToWrite > 0) { // Will always be true
 			Error error;
-			error = writeCluster(currentRecordClusterIndex, bytesToWrite);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(writeCluster(currentRecordClusterIndex, bytesToWrite));
 		}
 
 		firstUnwrittenClusterIndex++;
@@ -657,10 +651,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 		}
 
 		Error error;
-		error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction));
 	}
 
 	// Or if no action or shifting was required...
@@ -807,10 +798,7 @@ Error SampleRecorder::createNextCluster() {
 
 	// We need to allocate our next Cluster
 	Error error;
-	error = sample->clusters.insertSampleClustersAtEnd(1);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(sample->clusters.insertSampleClustersAtEnd(1));
 
 	currentRecordCluster = sample->clusters.getElement(currentRecordClusterIndex)
 	                           ->getCluster(sample, currentRecordClusterIndex, CLUSTER_DONT_LOAD);
@@ -1481,10 +1469,7 @@ writeFailed:
 			}
 
 			Error error;
-			error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes));
 
 			fres = f_close(&file);
 			if (fres) {

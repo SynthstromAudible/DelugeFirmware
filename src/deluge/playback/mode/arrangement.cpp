@@ -498,10 +498,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
 	Error error;
-	error = oldClip->clone(modelStack, true);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(oldClip->clone(modelStack, true));
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 

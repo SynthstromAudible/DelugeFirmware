@@ -711,10 +711,7 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
 	Error error;
-	error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(getCurrentFilePath(&holder->filePath));
 
 	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
 	                        makeWaveTableWorkAtAllCosts);
@@ -726,10 +723,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
 	Error error;
-	error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(getCurrentFilePath(&holder->filePath));
 
 	bool reversed = getCurrentAudioClip()->sampleControls.reversed;
 	error = holder->loadFile(reversed, true, true);

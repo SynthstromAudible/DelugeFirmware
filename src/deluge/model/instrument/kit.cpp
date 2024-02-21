@@ -258,10 +258,7 @@ Error Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 					drumType = DrumType::SOUND;
 doReadDrum:
 					Error error;
-					error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
-					if (error != Error::NONE) {
-						return error;
-					}
+					D_TRY(readDrumFromFile(song, clip, drumType, readAutomationUpToPos));
 					storageManager.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
@@ -344,10 +341,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(setupDefaultAudioFileDir());
 	}
 
 	AudioEngine::logAction("Kit::loadAllSamples");
@@ -736,10 +730,7 @@ Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
 		Error error;
-		error = name->concatenateAtPos(numberString, originalLength);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(name->concatenateAtPos(numberString, originalLength));
 		startAtNumber++;
 	} while (getDrumFromName(name->get()));
 

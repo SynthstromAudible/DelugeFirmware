@@ -1187,10 +1187,7 @@ Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* ne
                            AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
 	Error error;
-	error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager));
 
 	outputChanged(modelStack, newOutput);
 

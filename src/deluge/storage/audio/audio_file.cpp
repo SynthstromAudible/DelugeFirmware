@@ -130,10 +130,7 @@ doSetupWaveTable:
 
 				// Read and process fmt chunk
 				uint32_t header[4];
-				error = reader->readBytes((char*)&header, 4 * 4);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(reader->readBytes((char*)&header, 4 * 4));
 
 				// Bit depth
 				uint16_t bits = header[3] >> 16;
@@ -287,10 +284,7 @@ doSetupWaveTable:
 
 				// Offset
 				uint32_t offset;
-				error = reader->readBytes((char*)&offset, 4);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(reader->readBytes((char*)&offset, 4));
 				offset = swapEndianness32(offset);
 				audioDataLengthBytes = bytesCurrentChunkNotRoundedUp - offset - 8;
 
@@ -313,10 +307,7 @@ doSetupWaveTable:
 
 				// Read and process COMM chunk
 				uint16_t header[9];
-				error = reader->readBytes((char*)header, 18);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(reader->readBytes((char*)header, 18));
 
 				// Num channels
 				numChannels = swapEndianness2x16(header[0]);

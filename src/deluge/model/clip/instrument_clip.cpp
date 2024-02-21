@@ -2228,10 +2228,7 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 
 		if (output->type == OutputType::KIT) {
 			Error error;
-			error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(undoUnassignmentOfAllNoteRowsFromDrums(modelStack));
 		}
 
 		return Clip::undoDetachmentFromOutput(modelStack);
@@ -2249,10 +2246,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	affectEntire = (newInstrument->type != OutputType::KIT); // Moved here from changeInstrument, March 2021
 
 	Error error;
-	error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(solicitParamManager(song, newParamManager, favourClipForCloningParamManager));
 
 	// Arp stuff, so long as not a Kit (but remember, Sound/Synth is the only other option in this function)
 	if (newInstrument->type == OutputType::SYNTH) {
@@ -2591,15 +2585,9 @@ someError:
 			}
 
 			Error error;
-			error = paramManager.setupMIDI();
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(paramManager.setupMIDI());
 
-			error = ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager));
 
 			if (loopLength) {
 				paramManager.getMIDIParamCollection()->makeInterpolatedCCsGoodAgain(loopLength);
@@ -3057,10 +3045,7 @@ expressionParam:
 					if (param) {
 
 						Error error;
-						error = param->readFromFile(readAutomationUpToPos);
-						if (error != Error::NONE) {
-							return error;
-						}
+						D_TRY(param->readFromFile(readAutomationUpToPos));
 
 						if (expressionParams) {
 							// Most other times you don't have to think about calling this. It's just because we didn't
@@ -4029,10 +4014,7 @@ haveNoDrum:
 		if (output->type == OutputType::MIDI_OUT) {
 			if (!paramManager.containsAnyMainParamCollections()) {
 				Error error;
-				error = paramManager.setupMIDI();
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(paramManager.setupMIDI());
 			}
 		}
 		else if (output->type == OutputType::SYNTH) {

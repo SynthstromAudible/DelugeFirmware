@@ -471,19 +471,13 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 
 	if (!strcmp(tagName, "osc1")) {
 		Error error;
-		error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(readSourceFromFile(0, paramManager, readAutomationUpToPos));
 		storageManager.exitTag("osc1");
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
 		Error error;
-		error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(readSourceFromFile(1, paramManager, readAutomationUpToPos));
 		storageManager.exitTag("osc2");
 	}
 
@@ -3090,10 +3084,7 @@ Error Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t rea
 Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
 	Error error;
-	error = paramManager->setupWithPatching();
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(paramManager->setupWithPatching());
 
 	initParams(paramManager);
 
@@ -4000,10 +3991,7 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
 			Error error;
-			error = sources[s].loadAllSamples(mayActuallyReadFiles);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(sources[s].loadAllSamples(mayActuallyReadFiles));
 		}
 	}
 

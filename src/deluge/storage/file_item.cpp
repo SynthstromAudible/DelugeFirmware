@@ -23,10 +23,7 @@
 Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	filename.set(&newInstrument->name);
 	Error error;
-	error = filename.concatenate(".XML");
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(filename.concatenate(".XML"));
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
 	isFolder = false;
@@ -47,10 +44,7 @@ Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	filenameWithExtension->set(&filename);
 	if (!filenameIncludesExtension) {
 		Error error;
-		error = filenameWithExtension->concatenate(".XML");
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(filenameWithExtension->concatenate(".XML"));
 	}
 	return Error::NONE;
 }
@@ -63,10 +57,7 @@ Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
 			Error error;
-			error = filenameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(filenameWithoutExtension->shorten(newLength));
 		}
 	}
 	return Error::NONE;
@@ -79,19 +70,13 @@ Error FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtensi
 
 	// 7SEG...
 	Error error;
-	error = displayNameWithoutExtension->set(displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(displayNameWithoutExtension->set(displayName));
 	if (filenameIncludesExtension) {
 		char const* chars = displayNameWithoutExtension->get();
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			error = displayNameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(displayNameWithoutExtension->shorten(newLength));
 		}
 	}
 	return Error::NONE;

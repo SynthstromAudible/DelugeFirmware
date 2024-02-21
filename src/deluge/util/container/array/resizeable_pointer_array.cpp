@@ -23,10 +23,7 @@ ResizeablePointerArray::ResizeablePointerArray() : ResizeableArray(sizeof(void*)
 
 Error ResizeablePointerArray::insertPointerAtIndex(void* pointer, int32_t index) {
 	Error error;
-	error = insertAtIndex(index);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(insertAtIndex(index));
 	*(void**)getElementAddress(index) = pointer;
 	return Error::NONE;
 }

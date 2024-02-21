@@ -3002,10 +3002,7 @@ Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* son
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
 					if (existingParamManager) {
 						Error error;
-						error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-						if (error != Error::NONE) {
-							return error;
-						}
+						D_TRY(paramManager.cloneParamCollectionsFrom(existingParamManager, false));
 						goto finishedNormalStuff;
 					}
 				}
@@ -3811,10 +3808,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 
 	// Pre-emptively insert space for all the notes.
 	Error error;
-	error = notes.insertAtIndex(insertIndex, numToInsert);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(notes.insertAtIndex(insertIndex, numToInsert));
 
 	// If reversing / pingponging backwards now...
 	if (reversingNow) {

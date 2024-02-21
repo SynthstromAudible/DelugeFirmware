@@ -1968,19 +1968,13 @@ loadOutput:
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
 				Error error;
-				error = readClipsFromFile(&sessionClips);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(readClipsFromFile(&sessionClips));
 				storageManager.exitTag();
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
 				Error error;
-				error = readClipsFromFile(&arrangementOnlyClips);
-				if (error != Error::NONE) {
-					return error;
-				}
+				D_TRY(readClipsFromFile(&arrangementOnlyClips));
 				storageManager.exitTag();
 			}
 
@@ -2041,10 +2035,7 @@ traverseClips:
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
 		Error error;
-		error = thisClip->claimOutput(modelStackWithTimelineCounter);
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(thisClip->claimOutput(modelStackWithTimelineCounter));
 
 		// Correct different non-synced rates of old song files
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
@@ -4528,10 +4519,7 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
 			Error error;
-			error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(clip->output->clipInstances.insertAtIndex(clipInstanceI));
 
 			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
 			clipInstance->clip = clip;
@@ -5833,11 +5821,7 @@ doHibernatingInstruments:
 		}
 
 		Error error;
-		error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
-
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes));
 	}
 
 	if (!doingHibernatingOnes) {

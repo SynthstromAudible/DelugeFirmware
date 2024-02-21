@@ -63,10 +63,7 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
 	Error error;
-	error = newArray.insertAtIndex(0, numElements);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(newArray.insertAtIndex(0, numElements));
 
 	// We're changing range types, but want to preserve their topNotes.
 	for (int32_t i = 0; i < numElements; i++) {

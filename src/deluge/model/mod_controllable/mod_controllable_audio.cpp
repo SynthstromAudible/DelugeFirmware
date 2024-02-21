@@ -1476,10 +1476,7 @@ doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
 						Error error;
-						error = Sound::createParamManagerForLoading(paramManager);
-						if (error != Error::NONE) {
-							return error;
-						}
+						D_TRY(Sound::createParamManagerForLoading(paramManager));
 					}
 					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
