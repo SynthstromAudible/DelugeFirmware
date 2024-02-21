@@ -22,7 +22,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <stdint.h>
 
 #define HARDWARE_TEST_MODE 0
 
@@ -1072,4 +1071,5 @@ enum class ClipType {
 
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
 
-enum StartupSongMode : uint8_t { Template, LastOpened, LastSaved, StartupSongModeMaxEvent };
+enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
+constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;

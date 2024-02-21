@@ -261,7 +261,7 @@ void resetSettings() {
 
 	resetAutomationSettings();
 
-	defaultStartupSongMode = Template;
+	defaultStartupSongMode = StartupSongMode::BLANK;
 }
 
 void resetMidiFollowSettings() {
@@ -593,8 +593,8 @@ void readSettings() {
 		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[162]);
 	}
 
-	if (buffer[163] >= util::to_underlying(StartupSongModeMaxEvent)) {
-		defaultStartupSongMode = StartupSongMode::Template;
+	if (buffer[163] >= kNumStartupSongMode) {
+		defaultStartupSongMode = StartupSongMode::BLANK;
 	}
 	else {
 		defaultStartupSongMode = static_cast<StartupSongMode>(buffer[163]);

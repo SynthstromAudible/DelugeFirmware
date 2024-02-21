@@ -159,7 +159,7 @@ void LoadSongUI::enterKeyPress() {
 	else {
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
 		performLoad();           // May fail
-		if (FlashStorage::defaultStartupSongMode == LastOpened) {
+		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
 			runtimeFeatureSettings.writeSettingsToFile();
 		}
 	}

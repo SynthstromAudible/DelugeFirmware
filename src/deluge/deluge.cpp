@@ -449,19 +449,23 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-// Can only happen after settings, which includes default settings, have been read
+/// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
 	auto templatePath = "SONGS/DEFAULT.XML";
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 
-	if (startupSongMode == Template && !storageManager.fileExists(templatePath)) {
+	if (startupSongMode == StartupSongMode::BLANK) {
+		setupBlankSong();
+	}
+	else if (startupSongMode == StartupSongMode::TEMPLATE && !storageManager.fileExists(templatePath)) {
 		setupBlankSong();
 		currentSong->writeTemplateSong(templatePath);
 	}
 	else {
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong = new (songMemory) Song();
-		auto filename = startupSongMode == Template ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
+		auto filename =
+		    startupSongMode == StartupSongMode::TEMPLATE ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
 		currentSong->name.set(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();

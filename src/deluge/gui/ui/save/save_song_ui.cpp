@@ -465,7 +465,7 @@ cardError:
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);
 
-	if (FlashStorage::defaultStartupSongMode == LastSaved) {
+	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.

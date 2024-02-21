@@ -28,7 +28,8 @@ public:
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultStartupSongMode); }
 	void writeCurrentValue() override { FlashStorage::defaultStartupSongMode = this->getValue<StartupSongMode>(); }
 	deluge::vector<std::string_view> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE),
+		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_BLANK),
+		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE),
 		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED),
 		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED)};
 	}
