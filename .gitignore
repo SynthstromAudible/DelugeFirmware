@@ -22,6 +22,7 @@ __pycache__
 /tests/Makefile
 /tests/RunAllTests
 /tests/_deps/*
+/tests/build
 *.a
 *.jdebug.user
 
@@ -29,3 +30,7 @@ __pycache__
 .*.swp
 .*.swo
 .session.vim
+
+.idea
+*.srctrl*
+

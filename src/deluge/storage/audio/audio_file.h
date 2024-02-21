@@ -37,7 +37,7 @@ public:
 	// Stealable implementation
 	bool mayBeStolen(void* thingNotToStealFrom = NULL);
 	void steal(char const* errorCode);
-	int32_t getAppropriateQueue();
+	StealableQueue getAppropriateQueue();
 
 	String filePath;
 
