@@ -691,7 +691,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
 	}
 
-	uint32_t maxGate = 16777216;
+	uint32_t maxGate = 1 << 24;
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
 	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));
