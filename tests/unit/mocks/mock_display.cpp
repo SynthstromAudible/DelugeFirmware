@@ -1,5 +1,6 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "util/misc.h"
 #include <iostream>
 
 class MockDisplay : public deluge::hid::Display {
@@ -25,7 +26,7 @@ public:
 	void cancelPopup(){};
 	void freezeWithError(char const* text) { std::cout << text << std::endl; };
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) { return false; };
-	void displayError(Error error) { std::cout << error << std::endl; };
+	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; };
 
 	void removeWorkingAnimation(){};
 
