@@ -78,7 +78,8 @@ tryDefaultDir:
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	Error error;
+	error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -128,7 +129,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 
 	String filePath;
-	Error error = getCurrentFilePath(&filePath);
+	Error error;
+	error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 fail:
 		display->displayError(error);
@@ -197,7 +199,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
         int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
-        Error error = storageManager.decideNextSaveableSlot(offset,
+        Error error; error = storageManager.decideNextSaveableSlot(offset,
                 &currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
                 previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(),
 outputType, getCurrentInstrument()); if (error != Error::NONE) { display->displayError(error); if (error !=

@@ -111,7 +111,8 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	Error error = storageManager.initSD();
+	Error error;
+	error = storageManager.initSD();
 	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);
@@ -351,7 +352,8 @@ void SampleBrowser::enterKeyPress() {
 		// it returns an empty string (&nothing). Surely this is a compiler error??
 		char const* filenameChars = currentFileItem->filename.get();
 
-		Error error = goIntoFolder(filenameChars);
+		Error error;
+		error = goIntoFolder(filenameChars);
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -411,7 +413,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 					// Ensure sample isn't used in current song
 					String filePath;
-					Error error = getCurrentFilePath(&filePath);
+					Error error;
+					error = getCurrentFilePath(&filePath);
 					if (error != Error::NONE) {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
@@ -531,7 +534,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (currentFileItem && !currentFileItem->isFolder) {
 
 		String filePath;
-		Error error = getCurrentFilePath(&filePath);
+		Error error;
+		error = getCurrentFilePath(&filePath);
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
@@ -706,7 +710,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	Error error = getCurrentFilePath(&holder->filePath);
+	Error error;
+	error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -720,7 +725,8 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	Error error = getCurrentFilePath(&holder->filePath);
+	Error error;
+	error = getCurrentFilePath(&holder->filePath);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1886,7 +1892,8 @@ getOut:
 				// Make the Drum and its ParamManager
 
 				ParamManagerForTimeline paramManager;
-				Error error = paramManager.setupWithPatching();
+				Error error;
+				error = paramManager.setupWithPatching();
 				if (error != Error::NONE) {
 					goto getOut;
 				}
@@ -1922,7 +1929,8 @@ getOut:
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
-			Error error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			Error error;
+			error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
 			if (error == Error::NONE) {
 
 				char const* newNameChars = newName.get();

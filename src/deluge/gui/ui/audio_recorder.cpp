@@ -82,16 +82,17 @@ bool AudioRecorder::opened() {
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
-		Error error = newName.set("REC");
+		Error error;
+		error = newName.set("REC");
 		if (error != Error::NONE) {
-gotError:
 			display->displayError(error);
 			return false;
 		}
 
 		error = kit->makeDrumNameUnique(&newName, 1);
 		if (error != Error::NONE) {
-			goto gotError;
+			display->displayError(error);
+			return false;
 		}
 
 		drum->name.set(&newName);

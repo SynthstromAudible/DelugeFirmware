@@ -339,7 +339,8 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 		i = percCacheZones[reversed].search(startPosSamples, GREATER_OR_EQUAL);
 	}
 
-	Error error = Error::NONE;
+	Error error;
+	error = Error::NONE;
 	SamplePercCacheZone* percCacheZone;
 	if (i >= 0 && i < percCacheZones[reversed].getNumElements()) {
 		percCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
@@ -953,7 +954,8 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				// This is reasonably likely to fail, cos it might want to allocate new memory, but that's not allowed
 				// if it's currently allocating a Cluster, which it will be if this Cluster got stolen, which is why
 				// we're here. Oh well
-				Error error = percCacheZones[reversed].insertAtIndex(
+				Error error;
+				error = percCacheZones[reversed].insertAtIndex(
 				    iNew, 1,
 				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even
 				           // happen given the above comment? Not sure.

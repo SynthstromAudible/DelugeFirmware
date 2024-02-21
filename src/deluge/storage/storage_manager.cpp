@@ -485,7 +485,8 @@ Error StorageManager::readAttributeValueString(String* string) {
 		string->clear();
 		return Error::NONE;
 	}
-	Error error = readStringUntilChar(string, charAtEndOfValue);
+	Error error;
+	error = readStringUntilChar(string, charAtEndOfValue);
 	if (error == Error::NONE) {
 		xmlArea = IN_TAG_PAST_NAME;
 	}
@@ -536,8 +537,8 @@ Error StorageManager::readStringUntilChar(String* string, char endChar) {
 		int32_t numCharsHere = bufferPosNow - fileBufferCurrentPos;
 
 		if (numCharsHere) {
-			Error error =
-			    string->concatenateAtPos(&fileClusterBuffer[fileBufferCurrentPos], newStringPos, numCharsHere);
+			Error error;
+			error = string->concatenateAtPos(&fileClusterBuffer[fileBufferCurrentPos], newStringPos, numCharsHere);
 
 			fileBufferCurrentPos = bufferPosNow;
 
@@ -919,7 +920,8 @@ Error StorageManager::checkSpaceOnCard() {
 // Creates folders and subfolders as needed!
 Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
 
-	Error error = initSD();
+	Error error;
+	error = initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1002,7 +1004,8 @@ cutFolderPathAndTryCreating:
 
 Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
-	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
+	Error error;
+	error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	if (error != Error::NONE) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
@@ -1023,7 +1026,8 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 }
 
 bool StorageManager::fileExists(char const* pathName) {
-	Error error = initSD();
+	Error error;
+	error = initSD();
 	if (error != Error::NONE) {
 		return false;
 	}
@@ -1034,7 +1038,8 @@ bool StorageManager::fileExists(char const* pathName) {
 
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
-	Error error = initSD();
+	Error error;
+	error = initSD();
 	if (error != Error::NONE) {
 		return false;
 	}
@@ -1059,7 +1064,8 @@ void StorageManager::write(char const* output) {
 		if (fileBufferCurrentPos == audioFileManager.clusterSize) {
 
 			if (!fileAccessFailedDuring) {
-				Error error = writeBufferToFile();
+				Error error;
+				error = writeBufferToFile();
 				if (error != Error::NONE) {
 					fileAccessFailedDuring = true;
 					return;
@@ -1108,7 +1114,8 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything
 	}
-	Error error = writeBufferToFile();
+	Error error;
+	error = writeBufferToFile();
 	if (error != Error::NONE) {
 		return Error::WRITE_FAIL;
 	}
@@ -1352,7 +1359,8 @@ Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* fil
 		firstTagName = "kit";
 	}
 
-	Error error = openXMLFile(filePointer, firstTagName, altTagName);
+	Error error;
+	error = openXMLFile(filePointer, firstTagName, altTagName);
 	return error;
 }
 
@@ -1366,7 +1374,8 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
 	          (int32_t)filePointer->sclust);
 
-	Error error = openInstrumentFile(outputType, filePointer);
+	Error error;
+	error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
 		D_PRINTLN("opening instrument file failed -  %s", name->get());
 		return error;
@@ -1464,7 +1473,8 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
-	Error error = openInstrumentFile(outputType, filePointer);
+	Error error;
+	error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1645,7 +1655,8 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(readAutomationUpToPos);
+				Error error;
+				error = midiParam->param.readFromFile(readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}

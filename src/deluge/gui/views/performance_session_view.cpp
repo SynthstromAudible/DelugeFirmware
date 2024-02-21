@@ -712,8 +712,8 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					Error error =
-					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
+					Error error;
+					error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error != Error::NONE) {
 						display->displayError(error);
@@ -1577,7 +1577,8 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 /// I should check if file exists before creating one
 void PerformanceSessionView::writeDefaultsToFile() {
 	// PerformanceView.xml
-	Error error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
+	Error error;
+	error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -1736,7 +1737,8 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	}
 
 	//<defaults>
-	Error error = storageManager.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
+	Error error;
+	error = storageManager.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;

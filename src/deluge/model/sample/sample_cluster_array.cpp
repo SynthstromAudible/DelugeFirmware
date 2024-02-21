@@ -25,7 +25,8 @@ SampleClusterArray::SampleClusterArray() : ResizeableArray(sizeof(SampleCluster)
 
 Error SampleClusterArray::insertSampleClustersAtEnd(int32_t numToInsert) {
 	int32_t oldNum = getNumElements();
-	Error error = insertAtIndex(oldNum, numToInsert);
+	Error error;
+	error = insertAtIndex(oldNum, numToInsert);
 	if (error != Error::NONE) {
 		return error;
 	}

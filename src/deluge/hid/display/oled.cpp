@@ -874,7 +874,8 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 void updateWorkingAnimation() {
 	String textNow;
-	Error error = textNow.set(workingAnimationText);
+	Error error;
+	error = textNow.set(workingAnimationText);
 	if (error != Error::NONE) {
 		return;
 	}

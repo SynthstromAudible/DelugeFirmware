@@ -601,7 +601,8 @@ currentClipSwitchedOver:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	Error error = action->revert(time, modelStack);
+	Error error;
+	error = action->revert(time, modelStack);
 
 	// Some "animations", we prefer to do after we've reverted the action
 	if (whichAnimation == Animation::ENTER_KEYBOARD_VIEW) {

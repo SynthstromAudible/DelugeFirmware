@@ -1229,7 +1229,8 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	Error error;
+	error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
@@ -1434,7 +1435,8 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		Error error = recorder->cardRoutine();
+		Error error;
+		error = recorder->cardRoutine();
 		if (error != Error::NONE) {
 			display->displayError(error);
 		}

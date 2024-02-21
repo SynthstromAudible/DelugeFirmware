@@ -257,7 +257,8 @@ Error Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					Error error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
+					Error error;
+					error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						return error;
 					}
@@ -320,7 +321,8 @@ Error Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t r
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Error error = newDrum->readFromFile(
+	Error error;
+	error = newDrum->readFromFile(
 	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
@@ -336,7 +338,8 @@ Error Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t r
 // Returns true if more loading needed later
 Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	Error error = Error::NONE;
+	Error error;
+	error = Error::NONE;
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
@@ -372,7 +375,8 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
+		Error error;
+		error = setupDefaultAudioFileDir();
 		if (error != Error::NONE) {
 			return;
 		}
@@ -731,7 +735,8 @@ Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		Error error = name->concatenateAtPos(numberString, originalLength);
+		Error error;
+		error = name->concatenateAtPos(numberString, originalLength);
 		if (error != Error::NONE) {
 			return error;
 		}

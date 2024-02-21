@@ -99,7 +99,8 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* newFirstConsequence = NULL;
 
-	Error error = Error::NONE;
+	Error error;
+	error = Error::NONE;
 
 	while (thisConsequence) {
 		if (error == Error::NONE) {

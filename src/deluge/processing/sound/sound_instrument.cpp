@@ -198,13 +198,15 @@ Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
+		Error error;
+		error = setupDefaultAudioFileDir();
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
+	Error error;
+	error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
 	if (doingAlternatePath) {
 		audioFileManager.thingFinishedLoading();

@@ -134,7 +134,8 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	sample = new (sampleMemory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
-	Error error = sample->initialize(1);
+	Error error;
+	error = sample->initialize(1);
 	if (error != Error::NONE) {
 gotError:
 		sample->~Sample();
@@ -370,7 +371,8 @@ aborted:
 		return Error::NONE;
 	}
 
-	Error error = Error::NONE;
+	Error error;
+	error = Error::NONE;
 
 	if (!hadCardError) {
 
@@ -485,7 +487,8 @@ allDoneForNow:
 Error SampleRecorder::writeAnyCompletedClusters() {
 	while (firstUnwrittenClusterIndex < currentRecordClusterIndex) {
 
-		Error error = writeOneCompletedCluster();
+		Error error;
+		error = writeOneCompletedCluster();
 
 		// If there was an error, we can only return now after removing that reason, because we'd already incremented
 		// firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
@@ -512,7 +515,8 @@ Error SampleRecorder::writeOneCompletedCluster() {
 	                              // called, and we need to be counting this cluster as "written", as in too late for it
 	                              // to be modified (by writing a final length to it)
 
-	Error error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
+	Error error;
+	error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
 
 	// We no longer have a reason to require this Cluster to be kept in memory
 	if (!keepingReasonsForFirstClusters || writingClusterIndex >= kNumClustersLoadedAhead) {
@@ -546,7 +550,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 	// we need to allocate a new one right now
 	int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
 	if (bytesTilClusterEnd < 0) {
-		Error error = createNextCluster();
+		Error error;
+		error = createNextCluster();
 
 		if (error == Error::MAX_FILE_SIZE_REACHED) {
 		} // So incredibly unlikely. But no real problem - we maybe just lose a byte or two
@@ -569,7 +574,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 
 		int32_t bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
 		if (bytesToWrite > 0) { // Will always be true
-			Error error = writeCluster(currentRecordClusterIndex, bytesToWrite);
+			Error error;
+			error = writeCluster(currentRecordClusterIndex, bytesToWrite);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -650,7 +656,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 			return Error::SD_CARD;
 		}
 
-		Error error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
+		Error error;
+		error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -666,7 +673,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 			uint32_t correctLength =
 			    sample->audioDataStartPosBytes
 			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
-			Error error = truncateFileDownToSize(correctLength);
+			Error error;
+			error = truncateFileDownToSize(correctLength);
 		}
 
 		FRESULT result = f_close(&file);
@@ -798,7 +806,8 @@ Error SampleRecorder::createNextCluster() {
 	}
 
 	// We need to allocate our next Cluster
-	Error error = sample->clusters.insertSampleClustersAtEnd(1);
+	Error error;
+	error = sample->clusters.insertSampleClustersAtEnd(1);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -884,7 +893,8 @@ doFinishCapturing:
 
 			// If we need a new cluster right now...
 			if (bytesTilClusterEnd <= 0) {
-				Error error = createNextCluster();
+				Error error;
+				error = createNextCluster();
 				if (error == Error::MAX_FILE_SIZE_REACHED) {
 					goto doFinishCapturing;
 				}
@@ -1470,7 +1480,8 @@ writeFailed:
 				return Error::SD_CARD;
 			}
 
-			Error error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
+			Error error;
+			error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
 			if (error != Error::NONE) {
 				return error;
 			}

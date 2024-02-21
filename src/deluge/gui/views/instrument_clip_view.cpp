@@ -1890,7 +1890,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
-							Error error = noteRow->addCorrespondingNotes(
+							Error error;
+							error = noteRow->addCorrespondingNotes(
 							    squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
 							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
 
@@ -3655,7 +3656,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
 
-	Error error = kit->makeDrumNameUnique(&soundName, 1);
+	Error error;
+	error = kit->makeDrumNameUnique(&soundName, 1);
 	if (error != Error::NONE) {
 doDisplayError:
 		display->displayError(error);
@@ -4962,9 +4964,9 @@ doCompareNote:
 					int32_t distanceTilNext =
 					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
 
-					Error error =
-					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-					                                        action, currentClip->getWrapEditLevel(), offset);
+					Error error;
+					error = noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
+					                                            action, currentClip->getWrapEditLevel(), offset);
 					if (error != Error::NONE) {
 						display->displayError(error);
 						return;
@@ -5486,7 +5488,8 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						Error error;
+						error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
 						if (error != Error::NONE) {
 							display->displayError(error);
 							return;

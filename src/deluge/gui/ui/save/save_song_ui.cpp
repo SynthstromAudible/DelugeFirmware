@@ -119,7 +119,8 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 	display->displayLoadingAnimationText("Saving");
 
 	String filePath;
-	Error error = getCurrentFilePath(&filePath);
+	Error error;
+	error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 gotError:
 		display->removeLoadingAnimation();

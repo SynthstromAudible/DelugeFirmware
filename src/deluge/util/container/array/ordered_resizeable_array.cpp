@@ -245,7 +245,8 @@ int32_t OrderedResizeableArray::insertAtKey(int32_t key, bool isDefinitelyLast) 
 		i = search(key, GREATER_OR_EQUAL);
 	}
 
-	Error error = insertAtIndex(i);
+	Error error;
+	error = insertAtIndex(i);
 	if (error != Error::NONE) {
 		return -1;
 	}
@@ -383,7 +384,8 @@ startAgain:
 
 			// if (numToInsert == 15) D_PRINTLN("inserting 15");
 
-			Error error = insertAtIndex(i, numToInsert);
+			Error error;
+			error = insertAtIndex(i, numToInsert);
 
 			if (error != Error::NONE) {
 				D_PRINTLN("insert failed");

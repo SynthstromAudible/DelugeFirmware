@@ -29,7 +29,8 @@ Error EarlyNoteArray::insertElementIfNonePresent(int32_t note, int32_t velocity,
 
 	if (i >= getNumElements()) {
 doInsert:
-		Error error = insertAtIndex(i);
+		Error error;
+		error = insertAtIndex(i);
 		if (error != Error::NONE) {
 			return error;
 		}

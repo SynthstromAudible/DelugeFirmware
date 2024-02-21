@@ -593,9 +593,9 @@ void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	Error error = sampleBrowser.claimAudioFileForInstrument();
+	Error error;
+	error = sampleBrowser.claimAudioFileForInstrument();
 	if (error != Error::NONE) {
-getOut:
 		display->displayError(error);
 		return;
 	}
@@ -677,14 +677,16 @@ getOut:
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupWithPatching();
 			if (error != Error::NONE) {
-				goto getOut;
+				display->displayError(error);
+				return;
 			}
 
 			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 			if (!drumMemory) {
 ramError:
 				error = Error::INSUFFICIENT_RAM;
-				goto getOut;
+				display->displayError(error);
+				return;
 			}
 
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();

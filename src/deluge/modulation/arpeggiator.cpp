@@ -180,7 +180,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		Error error = notes.insertAtIndex(notesKey);
+		Error error;
+		error = notes.insertAtIndex(notesKey);
 		if (error != Error::NONE) {
 			return;
 		}

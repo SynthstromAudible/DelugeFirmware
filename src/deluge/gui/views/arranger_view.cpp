@@ -134,7 +134,8 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			Error error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
+			Error error;
+			error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
 			if (error != Error::NONE) {
 				display->displayError(error);
 				return;
@@ -1202,7 +1203,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				if (oldClip && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
 					actionLogger.deleteAllLogs();
 
-					Error error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
+					Error error;
+					error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
 					if (error != Error::NONE) {
 						display->displayError(error);
 					}

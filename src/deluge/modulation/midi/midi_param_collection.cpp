@@ -209,7 +209,8 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 		if (midiParam->cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
+		Error error;
+		error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}

@@ -453,7 +453,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 #define ENSURE_PARAM_MANAGER_EXISTS                                                                                    \
 	if (!paramManager->containsAnyMainParamCollections()) {                                                            \
-		Error error = createParamManagerForLoading(paramManager);                                                      \
+		Error error;                                                                                                   \
+		error = createParamManagerForLoading(paramManager);                                                            \
 		if (error != Error::NONE)                                                                                      \
 			return error;                                                                                              \
 	}                                                                                                                  \
@@ -469,7 +470,8 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
                              ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
-		Error error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
+		Error error;
+		error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -477,7 +479,8 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
-		Error error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
+		Error error;
+		error = readSourceFromFile(1, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -3086,7 +3089,8 @@ Error Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t rea
 
 Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
-	Error error = paramManager->setupWithPatching();
+	Error error;
+	error = paramManager->setupWithPatching();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -3995,7 +3999,8 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			Error error = sources[s].loadAllSamples(mayActuallyReadFiles);
+			Error error;
+			error = sources[s].loadAllSamples(mayActuallyReadFiles);
 			if (error != Error::NONE) {
 				return error;
 			}

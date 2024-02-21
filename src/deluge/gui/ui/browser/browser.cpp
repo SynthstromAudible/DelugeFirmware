@@ -90,7 +90,8 @@ bool Browser::opened() {
 bool Browser::checkFP() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	String filePath;
-	Error error = getCurrentFilePath(&filePath);
+	Error error;
+	error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -170,7 +171,8 @@ doCull:
 	}
 
 	int32_t newIndex = fileItems.getNumElements();
-	Error error = fileItems.insertAtIndex(newIndex);
+	Error error;
+	error = fileItems.insertAtIndex(newIndex);
 	if (error != Error::NONE) {
 		if (alreadyCulled) {
 			return NULL;
@@ -260,7 +262,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error = storageManager.initSD();
+	Error error;
+	error = storageManager.initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -490,8 +493,9 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
 	bool triedCreatingFolder = false;
 
 tryReadingItems:
-	Error error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
-	                                     FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
+	Error error;
+	error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
+	                               FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
 	if (error != Error::NONE) {
 
 		// If folder didn't exist, try our alternative one if there is one.
@@ -500,7 +504,8 @@ tryReadingItems:
 				// ... only if we haven't already tried the alternative folder.
 				if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					filenameToStartAt = NULL;
-					Error error = currentDir.set(defaultDirToAlsoTry);
+					Error error;
+					error = currentDir.set(defaultDirToAlsoTry);
 					if (error != Error::NONE) {
 						return error;
 					}
@@ -566,9 +571,9 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	Error error =
-	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
-	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
+	Error error;
+	error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
+	                                         defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
 	if (error != Error::NONE) {
 gotErrorAfterAllocating:
 		emptyFileItems();
@@ -1568,7 +1573,8 @@ ActionResult Browser::backButtonAction() {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	Error error = goUpOneDirectoryLevel();
+	Error error;
+	error = goUpOneDirectoryLevel();
 	if (error != Error::NONE) {
 		exitAction();
 	}
@@ -1594,7 +1600,8 @@ void Browser::goIntoDeleteFileContextMenu() {
 Error Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	Error error = enteredText.set(currentFileItem->displayName);
+	Error error;
+	error = enteredText.set(currentFileItem->displayName);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1653,7 +1660,8 @@ Error Browser::goUpOneDirectoryLevel() {
 	}
 
 	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
-	Error error = enteredText.set(slashAddress + 1);
+	Error error;
+	error = enteredText.set(slashAddress + 1);
 	if (error != Error::NONE) {
 		return error;
 	}

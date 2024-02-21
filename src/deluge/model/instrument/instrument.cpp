@@ -157,7 +157,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
-		Error error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
+		Error error;
+		error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
 		if (error != Error::NONE) {
 			delugeDealloc(clipMemory);
@@ -185,7 +186,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 Error Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	Error error =
+	Error error;
+	error =
 	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
 	if (error != Error::NONE) {
 		return error;

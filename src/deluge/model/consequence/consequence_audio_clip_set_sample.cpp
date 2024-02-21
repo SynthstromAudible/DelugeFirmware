@@ -51,7 +51,8 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		}
 	}
 	else {
-		Error error = clip->sampleHolder.loadFile(false, false, true);
+		Error error;
+		error = clip->sampleHolder.loadFile(false, false, true);
 		if (error != Error::NONE) {
 			display->displayError(error); // Rare, shouldn't cause later problems.
 		}

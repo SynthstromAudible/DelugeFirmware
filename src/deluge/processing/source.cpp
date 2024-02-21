@@ -256,7 +256,8 @@ possiblyDeleteRanges:
 			*/
 
 doChangeType:
-			Error error = ranges.changeType(multiRangeSize);
+			Error error;
+			error = ranges.changeType(multiRangeSize);
 			if (error != Error::NONE) {
 				destructAllMultiRanges();
 				ranges.empty();

@@ -65,7 +65,8 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		Error error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
+		Error error;
+		error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
 		if (error != Error::NONE) { // This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E046");

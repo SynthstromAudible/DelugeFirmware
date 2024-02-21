@@ -932,7 +932,8 @@ int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpola
 	}
 
 	{
-		Error error = nodes.insertAtIndex(i);
+		Error error;
+		error = nodes.insertAtIndex(i);
 		if (error != Error::NONE) {
 			return -1;
 		}
@@ -1198,7 +1199,8 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
+			Error error;
+			error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
 			if (error != Error::NONE) {
 				return -1;
 			}
@@ -1224,7 +1226,8 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			Error error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
+			Error error;
+			error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
 			if (error != Error::NONE) {
 				return -1;
 			}
@@ -1415,7 +1418,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 
 Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
-	Error error = Error::NONE;
+	Error error;
+	error = Error::NONE;
 
 	if (copyAutomation) {
 
@@ -1525,7 +1529,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				valueAtZero = nodeBeforeWrap->value;
 			}
 
-			Error error = nodes.insertAtIndex(0);
+			Error error;
+			error = nodes.insertAtIndex(0);
 			if (error != Error::NONE) {
 				return;
 			}
@@ -1545,7 +1550,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 
 		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
-			Error error = nodes.insertAtIndex(numNodesBefore, numToInsert);
+			Error error;
+			error = nodes.insertAtIndex(numNodesBefore, numToInsert);
 			if (error != Error::NONE) {
 				return;
 			}
@@ -1658,7 +1664,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 		int32_t newZeroNodeI = nodes.getNumElements();
 
-		Error error = nodes.insertAtIndex(newZeroNodeI);
+		Error error;
+		error = nodes.insertAtIndex(newZeroNodeI);
 		if (error != Error::NONE) {
 			return;
 		}
@@ -1673,7 +1680,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	}
 
 	int32_t oldNumNodes = nodes.getNumElements();
-	Error error = nodes.insertAtIndex(oldNumNodes, numToInsert);
+	Error error;
+	error = nodes.insertAtIndex(oldNumNodes, numToInsert);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -1787,7 +1795,8 @@ basicTrim: {
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				Error error = nodes.insertAtIndex(0);
+				Error error;
+				error = nodes.insertAtIndex(0);
 				if (error == Error::NONE) { // Should be fine cos we just deleted some, so some free RAM
 					ParamNode* newNode = nodes.getElement(0);
 					newNode->pos = 0;
@@ -1808,7 +1817,8 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				Error error = newNodes.insertAtIndex(0, newNumNodes);
+				Error error;
+				error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error != Error::NONE) {
 					goto basicTrim;
 				}
@@ -1958,7 +1968,8 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = nodes.getElement(0);
 					if (!firstNode || firstNode->pos) {
-						Error error = nodes.insertAtIndex(0);
+						Error error;
+						error = nodes.insertAtIndex(0);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -2377,8 +2388,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
 
 		if (shouldAddNodeAtPos0) {
-			Error error =
-			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
+			Error error;
+			error = nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
 			if (error == Error::NONE) {
 				ParamNode* newNode = nodes.getElement(0);
 				newNode->value = oldValue;
@@ -2662,7 +2673,8 @@ doWrap:
 				else {
 					nextNodeI = nodes.getNumElements();
 					{
-						Error error = nodes.insertAtIndex(
+						Error error;
+						error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
 							FREEZE_WITH_ERROR("E333");

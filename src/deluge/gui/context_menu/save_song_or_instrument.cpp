@@ -49,7 +49,8 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
-		Error error = browser->createFolder();
+		Error error;
+		error = browser->createFolder();
 
 		if (error != Error::NONE) {
 			display->displayError(error);

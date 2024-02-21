@@ -36,7 +36,8 @@ Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
-	Error error = storageManager.initSD();
+	Error error;
+	error = storageManager.initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -213,7 +214,8 @@ Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExt
 Error SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	Error error = path->concatenate("/");
+	Error error;
+	error = path->concatenate("/");
 	if (error != Error::NONE) {
 		return error;
 	}

@@ -102,7 +102,8 @@ bool LoadInstrumentPresetUI::opened() {
 		    ->backupPresetSlot(); // Store this now cos we won't be storing it between each navigation we do
 	}
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error;
+	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -182,7 +183,8 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			Error error = currentDir.set(defaultDir);
+			Error error;
+			error = currentDir.set(defaultDir);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -190,13 +192,15 @@ useDefaultFolder:
 	}
 
 	if (!searchFilename.isEmpty()) {
-		Error error = searchFilename.concatenate(".XML");
+		Error error;
+		error = searchFilename.concatenate(".XML");
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	Error error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
+	Error error;
+	error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -249,7 +253,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error;
+		error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -359,7 +364,8 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
 		// some way. So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
-		Error error = getCurrentFilePath(&filePath);
+		Error error;
+		error = getCurrentFilePath(&filePath);
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return ActionResult::DEALT_WITH;
@@ -439,7 +445,8 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;
 
-		Error error = setupForOutputType();
+		Error error;
+		error = setupForOutputType();
 		if (error != Error::NONE) {
 			outputTypeToLoad = oldOutputType;
 			return;
@@ -551,7 +558,8 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// Try getting from file
 				String filePath;
-				Error error = getCurrentFilePath(&filePath);
+				Error error;
+				error = getCurrentFilePath(&filePath);
 				if (error != Error::NONE) {
 					return;
 				}
@@ -598,8 +606,9 @@ gotAnInstrument:
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
-		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
-		                                                        InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		Error error;
+		error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
+		                                                  InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -884,7 +893,8 @@ giveUsedError:
 		}
 	}
 	display->displayLoadingAnimationText("Loading", false, true);
-	Error error = newInstrument->loadAllAudioFiles(true);
+	Error error;
+	error = newInstrument->loadAllAudioFiles(true);
 
 	display->removeLoadingAnimation();
 
@@ -923,8 +933,9 @@ giveUsedError:
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
-		Error error = instrumentClipToLoadFor->changeInstrument(
-		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		Error error;
+		error = instrumentClipToLoadFor->changeInstrument(modelStack, newInstrument, NULL,
+		                                                  InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -987,8 +998,9 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
-	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
+	Error error;
+	error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                       &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
 	}

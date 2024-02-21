@@ -1967,7 +1967,8 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
-				Error error = readClipsFromFile(&sessionClips);
+				Error error;
+				error = readClipsFromFile(&sessionClips);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -1975,7 +1976,8 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
-				Error error = readClipsFromFile(&arrangementOnlyClips);
+				Error error;
+				error = readClipsFromFile(&arrangementOnlyClips);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -2038,7 +2040,8 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
+		Error error;
+		error = thisClip->claimOutput(modelStackWithTimelineCounter);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -2235,7 +2238,8 @@ readClip:
 				newClip = new (memory) AudioClip();
 			}
 
-			Error error = newClip->readFromFile(this);
+			Error error;
+			error = newClip->readFromFile(this);
 			if (error != Error::NONE) {
 				newClip->~Clip();
 				delugeDealloc(memory);
@@ -3420,7 +3424,8 @@ traverseClips:
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			Error error = instrumentClip->changeInstrument(
+			Error error;
+			error = instrumentClip->changeInstrument(
 			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
 			    true); // Will call audio routine
@@ -3846,7 +3851,8 @@ doStealing:
 	// Otherwise, insert one
 	else {
 		i = indexToInsertAt;
-		Error error = backedUpParamManagers.insertAtIndex(i);
+		Error error;
+		error = backedUpParamManagers.insertAtIndex(i);
 
 		// If RAM error...
 		if (error != Error::NONE) {
@@ -3916,7 +3922,8 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 				// Otherwise, we insert before it
 				else {
-					Error error = backedUpParamManagers.insertAtIndex(j);
+					Error error;
+					error = backedUpParamManagers.insertAtIndex(j);
 
 					// If RAM error (surely would never happen since we just deleted an element)...
 					if (error != Error::NONE) {
@@ -4520,7 +4527,8 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
-			Error error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
+			Error error;
+			error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -5089,7 +5097,8 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	String newName;
-	Error error = newName.set("AUDIO");
+	Error error;
+	error = newName.set("AUDIO");
 	if (error != Error::NONE) {
 		return NULL;
 	}
@@ -5823,7 +5832,8 @@ doHibernatingInstruments:
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		Error error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+		Error error;
+		error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
 
 		if (error != Error::NONE) {
 			return error;

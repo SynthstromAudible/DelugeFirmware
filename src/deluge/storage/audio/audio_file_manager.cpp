@@ -72,7 +72,8 @@ void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
 
-	Error error = storageManager.initSD();
+	Error error;
+	error = storageManager.initSD();
 	if (error == Error::NONE) {
 		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 
@@ -254,7 +255,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
                                                         AudioRecordingFolder folder, uint32_t* getNumber) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error;
+	error = storageManager.initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -393,7 +395,8 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
                                                    String* songFilenameWithoutExtension) {
 
-	Error error = newPath->set(rootDir);
+	Error error;
+	error = newPath->set(rootDir);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -412,7 +415,8 @@ Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* 
 }
 
 Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath) {
-	Error error = newPath->concatenateAtPos(&oldPath->get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
+	Error error;
+	error = newPath->concatenateAtPos(&oldPath->get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -426,7 +430,8 @@ Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dir
 			break;
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
-		Error error = newPath->setChar('_', slashPos);
+		Error error;
+		error = newPath->setChar('_', slashPos);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -1255,7 +1260,8 @@ void AudioFileManager::slowRoutine() {
 			// Otherwise, see if we can get it
 		}
 		else {
-			Error error = storageManager.initSD();
+			Error error;
+			error = storageManager.initSD();
 			if (error == Error::NONE) {
 				cardEjected = false;
 				cardReinserted();

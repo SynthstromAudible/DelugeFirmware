@@ -216,8 +216,8 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					Error error =
-					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
+					Error error;
+					error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error != Error::NONE) {
 						display->displayError(error);
@@ -287,7 +287,8 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				Error error = output->clipInstances.insertAtIndex(i);
+				Error error;
+				error = output->clipInstances.insertAtIndex(i);
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
@@ -1507,7 +1508,8 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		Error error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		Error error;
+		error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
 		if (error != Error::NONE) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
@@ -1553,7 +1555,8 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	OutputType outputType = OutputType::SYNTH;
 doGetInstrument:
-	Error error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
+	Error error;
+	error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
 	if (error != Error::NONE) {
 
 		// If that was for a synth and there were none, try a kit
@@ -1978,7 +1981,8 @@ ramError:
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
-	Error error = clipToClone->clone(modelStack);
+	Error error;
+	error = clipToClone->clone(modelStack);
 	if (error != Error::NONE) {
 		goto ramError;
 	}
@@ -3002,7 +3006,8 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
-	Error error = sourceClip->clone(modelStack, false);
+	Error error;
+	error = sourceClip->clone(modelStack, false);
 	if (error != Error::NONE) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
@@ -3055,7 +3060,8 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		Error error;
+		error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
 		if (error != Error::NONE || instrumentAlreadyInSong) {
 			if (error != Error::NONE) {
 				display->displayError(error);
@@ -3199,8 +3205,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-				                                                  InstrumentRemoval::NONE);
+				Error error;
+				error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                            InstrumentRemoval::NONE);
 				if (error != Error::NONE) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}

@@ -83,7 +83,8 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
-	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	Error error;
+	error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
 	if (error != Error::NONE) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
@@ -232,7 +233,8 @@ ramError:
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 
-	Error error = newClip->setOutput(modelStackNewClip, output, this);
+	Error error;
+	error = newClip->setOutput(modelStackNewClip, output, this);
 
 	if (error != Error::NONE) {
 		newClip->~AudioClip();
@@ -830,7 +832,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 
-		Error error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
+		Error error;
+		error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
 		if (error != Error::NONE) {
 			return;
 		}
@@ -896,7 +899,8 @@ doNormal:
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
-			Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
+			Error error;
+			error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
 			if (error != Error::NONE) {
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
@@ -1165,7 +1169,8 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	Error error;
+	error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}
@@ -1181,7 +1186,8 @@ Error AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output*
 Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
                            AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	Error error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
+	Error error;
+	error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
 	if (error != Error::NONE) {
 		return error;
 	}

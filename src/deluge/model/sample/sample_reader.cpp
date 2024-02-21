@@ -24,7 +24,8 @@
 Error SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		Error error = advanceClustersIfNecessary();
+		Error error;
+		error = advanceClustersIfNecessary();
 		if (error != Error::NONE) {
 			return error;
 		}

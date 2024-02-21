@@ -226,7 +226,8 @@ gotError:
 	else {
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
-		Error error = getCurrentInstrumentClip()->changeInstrument(
+		Error error;
+		error = getCurrentInstrumentClip()->changeInstrument(
 		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);

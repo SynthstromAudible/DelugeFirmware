@@ -36,7 +36,8 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 }
 
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
-	Error error = insertAtIndex(i);
+	Error error;
+	error = insertAtIndex(i);
 	if (error != Error::NONE) {
 		return NULL;
 	}
@@ -61,7 +62,8 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
-	Error error = newArray.insertAtIndex(0, numElements);
+	Error error;
+	error = newArray.insertAtIndex(0, numElements);
 	if (error != Error::NONE) {
 		return error;
 	}

@@ -64,7 +64,8 @@ bool LoadSongUI::opened() {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
-	Error error = beginSlotSession(false, true);
+	Error error;
+	error = beginSlotSession(false, true);
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
@@ -145,7 +146,8 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		Error error = goIntoFolder(currentFileItem->filename.get());
+		Error error;
+		error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -240,7 +242,8 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 
-	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
+	Error error;
+	error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
@@ -711,7 +714,8 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		return;
 	}
 
-	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	Error error;
+	error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
