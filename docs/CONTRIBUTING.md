@@ -214,9 +214,9 @@ To make debug log prints in your code, which will be sent to the console, here i
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
-of a CPU fault, the handler will print the last link register address and as many pointers to the code section it can
-find in the stack data. The main pads display 4 32-bit numbers which are the addresses. Every color block is one 
-address, each pad is a bit, a lit pad is 1 and an unlit pad is 0. The most significant bit is at the lower left corner
+of a CPU fault or C++ exception, the handler will print the last link register address and as many pointers to the code 
+section it can find in the stack data. The main pads display 4 32-bit numbers which are the addresses. Every color block 
+is one address. Each pad is a bit, 1 is lit, 0 is unlit. The most significant bit is at the lower left corner
 of the color block, and the least significant bit is at the top right. Each column is one byte, reading along a single 
 column from bottom row to top row first, then incrementing to the next column from left to right. Rotating Deluge 90 
 degrees to the right makes it easy to read and enter the bytes into Windows calculator. However, we have created a 
