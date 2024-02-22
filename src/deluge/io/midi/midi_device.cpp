@@ -124,7 +124,6 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
 				// Move other zone out of the way if necessary (MPE spec says to do this).
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveLowerZoneOutOfWayOfUpperZone();
-				                                         
 
 				goto resetBendRanges;
 			}
@@ -323,8 +322,9 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 			char const* tagName;
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "numMemberChannels")) {
-					// If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
-					if (mpeUpperZoneLastMemberChannel == 15) { 
+					// If value was already set, then leave it - the user or an MCM might have changed it since the file
+					// was last read.
+					if (mpeUpperZoneLastMemberChannel == 15) {
 						int32_t numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
@@ -521,7 +521,7 @@ void MIDIDeviceUSBHosted::callHook(Hook hook) {
 
 void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
-	storageManager.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false); 
+	storageManager.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false);
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
@@ -544,7 +544,7 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
-	storageManager.writeAttribute("port", "din", false); 
+	storageManager.writeAttribute("port", "din", false);
 }
 
 void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {
