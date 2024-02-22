@@ -47,9 +47,9 @@ void KeyboardLayoutNorns::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			int32_t note = noteFromCoords(x, y);
 
-			// If highlighting notes is active, do it
-			if (getHighlightedNotes()[note] != 0) {
-				image[y][x] = colours::white_full.adjust(getHighlightedNotes()[note], 1);
+			// If norns is active, do it
+			if (getNornsNotes()[note] != 0) {
+				image[y][x] = colours::white_full.adjust(getNornsNotes()[note], 1);
 			}
 		}
 	}

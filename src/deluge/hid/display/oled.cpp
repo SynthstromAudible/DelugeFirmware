@@ -902,31 +902,40 @@ void OLED::removeWorkingAnimation() {
 	}
 }
 
-static void drawSegment(int32_t xMin, int32_t width, int32_t startY, int32_t height, bool fill) {
-	if (fill) {
-		OLED::invertArea(xMin, width, startY, startY + height - 1, OLED::oledMainImage);
-	}
-}
-
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
 	clearMainImage();
 	for (int i = 0; i < 4; i++) {
-		int ix = 30 * i + 8;
-		const int dy = 13;
+		int ix = 33 * i + 1;
+		const int dy = 17;
 
 		const int horz[] = {6, 0, 3};
 		for (int y = 0; y < 3; y++) {
-			drawSegment(ix + 4, 10, 9 + dy * y, 3, display[i] & (1 << horz[y]));
+			if (display[i] & (1 << horz[y])) {
+				int ybase = 7 + dy * y;
+				OLED::invertArea(ix + 3, 15, ybase + 0, ybase + 0, OLED::oledMainImage);
+				OLED::invertArea(ix + 2, 17, ybase + 1, ybase + 1, OLED::oledMainImage);
+				OLED::invertArea(ix + 3, 15, ybase + 2, ybase + 2, OLED::oledMainImage);
+			}
 		}
 
 		const int vert[] = {1, 2, 5, 4};
 		for (int x = 0; x < 2; x++) {
+			int xside = x * 2 - 1;
 			for (int y = 0; y < 2; y++) {
-				drawSegment(ix + 15 * x, 3, 13 + dy * y, 8, display[i] & (1 << vert[2 * x + y]));
+				if (display[i] & (1 << vert[2 * x + y])) {
+					int xbase = ix + 18 * x + 1;
+					int ybase = 10 + dy * y;
+					int yside = y * -2 + 1;
+					OLED::invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside, OLED::oledMainImage);
+					OLED::invertArea(xbase, 1, ybase + 0, ybase + 13, OLED::oledMainImage);
+					OLED::invertArea(xbase - xside, 1, ybase + 1, ybase + 12, OLED::oledMainImage);
+				}
 			}
 		}
 
-		drawSegment(ix + 21, 3, 40, 3, display[i] & (1 << 7));
+		if (display[i] & (1 << 7)) {
+			OLED::invertArea(ix + 22, 2, 42, 43, OLED::oledMainImage);
+		}
 	}
 	sendMainImage();
 }

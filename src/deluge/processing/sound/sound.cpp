@@ -2182,9 +2182,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
 		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
 		uint32_t sequenceLength =
-		    (((int64_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648) * kMaxMenuValue
-		     + 2147483648)
-		    >> 32;
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
