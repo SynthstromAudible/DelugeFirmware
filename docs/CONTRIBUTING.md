@@ -175,7 +175,8 @@ project by:
 ## Tools
 
 To help you to speed up your development you have two command line tools that can help you streamline the process of
-loading a firmware and then debugging it. We also have a Discord Crash Reader Bot which can output the la
+loading a firmware and then debugging it. We also have a Deluge Crash Reader Discord Bot in the nightly-testing channel
+of the Deluge discord.
 
 ### IDE Configs
 
