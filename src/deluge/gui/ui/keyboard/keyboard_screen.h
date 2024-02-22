@@ -50,6 +50,7 @@ public:
 	void exitAuditionMode();
 
 	uint8_t highlightedNotes[kHighestKeyboardNote] = {0};
+	uint8_t nornsNotes[kHighestKeyboardNote] = {0};
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 

@@ -115,6 +115,7 @@ protected:
 	}
 
 	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
+	inline NoteHighlightIntensity& getNornsNotes() { return keyboardScreen.nornsNotes; }
 
 	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
 

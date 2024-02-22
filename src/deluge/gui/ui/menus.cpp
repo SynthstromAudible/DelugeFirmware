@@ -146,7 +146,6 @@
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/sound_unpatched_param.h"
-#include "gui/menu_item/unpatched_param/synth_unpatched_param.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/priority.h"
@@ -317,29 +316,34 @@ arpeggiator::OnlyForSoundUnpatchedParam arpSequenceLengthMenu{
     STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, params::UNPATCHED_ARP_SEQUENCE_LENGTH};
 arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV{STRING_FOR_SEQUENCE_LENGTH,
                                                                    STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE};
-arpeggiator::OnlyForSynthUnpatchedParam arpRatchetAmountMenu{
+arpeggiator::OnlyForSoundUnpatchedParam arpRatchetAmountMenu{
     STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
-// TODO: fix ratchets for midi clips and then uncomment this
-// arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
-//                                                                  STRING_FOR_ARP_RATCHETS_MENU_TITLE};
-arpeggiator::OnlyForSynthUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
+arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
+                                                                 STRING_FOR_ARP_RATCHETS_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
-// TODO: fix ratchets for midi clips and then uncomment this
-// arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
-//     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
+arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
+    STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
-        &arpModeMenu, &arpSyncMenu, &arpRateMenu, &arpRateMenuMIDIOrCV, &arpGateMenu, &arpGateMenuMIDIOrCV,
-        &arpOctavesMenu, &arpOctaveModeMenu, &arpeggiator::arpNoteModeMenu, &arpSequenceLengthMenu,
-        &arpSequenceLengthMenuMIDIOrCV, &arpRatchetAmountMenu,
-        // TODO: fix ratchets for midi clips and then uncomment this
-        // &arpRatchetAmountMenuMIDIOrCV,
+        &arpModeMenu,
+        &arpSyncMenu,
+        &arpRateMenu,
+        &arpRateMenuMIDIOrCV,
+        &arpGateMenu,
+        &arpGateMenuMIDIOrCV,
+        &arpOctavesMenu,
+        &arpOctaveModeMenu,
+        &arpeggiator::arpNoteModeMenu,
+        &arpSequenceLengthMenu,
+        &arpSequenceLengthMenuMIDIOrCV,
+        &arpRatchetAmountMenu,
+        &arpRatchetAmountMenuMIDIOrCV,
         &arpRatchetProbabilityMenu,
-        // TODO: fix ratchets for midi clips and then uncomment this
-        // &arpRatchetProbabilityMenuMIDIOrCV,
+        &arpRatchetProbabilityMenuMIDIOrCV,
     },
 };
 
