@@ -466,9 +466,13 @@ void setupStartupSong() {
 		currentSong = new (songMemory) Song();
 		auto filename =
 		    startupSongMode == StartupSongMode::TEMPLATE ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
-		currentSong->name.set(filename);
+		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
+			if (startupSongMode == StartupSongMode::TEMPLATE) {
+				// Wipe the name so the Save action asks you for a new new
+				currentSong->name.clear();
+			}
 		}
 		else {
 			setupBlankSong();

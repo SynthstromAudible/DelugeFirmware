@@ -5774,6 +5774,29 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	return fileValue;
 }
 
+const char* Song::getSongFullPath() {
+	String fullPath;
+	fullPath.concatenate(&dirPath);
+	fullPath.concatenate("/");
+	fullPath.concatenate(&name);
+	return fullPath.get();
+}
+
+void Song::setSongFullPath(const char* fullPath) {
+	if (char* filename = strrchr((char*)fullPath, '/')) {
+		char* dir = new char[sizeof(char) * strlen(fullPath) + 1];
+
+		memset(dir, 0, sizeof(char) * strlen(fullPath) + 1);
+		strncpy(dir, fullPath, strlen(fullPath) - strlen(filename));
+
+		dirPath.set(dir);
+		name.set(++filename);
+	}
+	else {
+		name.set(fullPath);
+	}
+}
+
 void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
                                                 int32_t whichBendRange, int32_t bendSemitones) {
 

@@ -248,7 +248,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
-	storageManager.writeAttribute("startupSong", currentSong->name.get());
+	storageManager.writeAttribute("startupSong", currentSong->getSongFullPath());
 	storageManager.writeOpeningTagEnd();
 
 	for (auto& setting : settings) {
