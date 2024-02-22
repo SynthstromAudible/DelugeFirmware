@@ -276,16 +276,6 @@ justAuditionNote:
 			                      note, velocity);
 		}
 	} // end match switch
-	// In case Norns layout is active show
-	// this ignores input differentiation, but since midi learn doesn't work for norns grid
-	// you can't set a device
-	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
-	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
-	    && instrumentClip->onKeyboardScreen && instrumentClip->output
-	    && instrumentClip->output->type == OutputType::MIDI_OUT
-	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
-		highlightNoteValue = on ? velocity : 0;
-	}
 
 	if (highlightNoteValue != -1) {
 		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
@@ -297,8 +287,21 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
+	auto* instrumentClip = static_cast<InstrumentClip*>(activeClip);
+
 	if (match != MIDIMatchType::NO_MATCH) {
 		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
+	}
+	// In case Norns layout is active show
+	// this ignores input differentiation, but since midi learn doesn't work for norns grid
+	// you can't set a device
+	// norns midigrid mod sends deluge midi note_on messages on channel 16 to update pad brightness
+	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
+	         && instrumentClip->onKeyboardScreen && instrumentClip->output
+	         && instrumentClip->output->type == OutputType::MIDI_OUT
+	         && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
+		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
+		keyboardScreen.requestRendering();
 	}
 }
 
