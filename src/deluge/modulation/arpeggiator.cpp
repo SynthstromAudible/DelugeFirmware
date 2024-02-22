@@ -566,12 +566,12 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 					if (changingOctaveDirection) {
 						// Now go down (without repeating)
 						currentDirection = -1;
-						whichNoteCurrentlyOnPostArp -= 2;
+						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 2;
 					}
 					else if (settings->noteMode == ArpNoteMode::UP_DOWN) {
 						// Now go down (repeating note)
 						currentDirection = -1;
-						whichNoteCurrentlyOnPostArp -= 1;
+						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
 					}
 					else { // Up or AsPlayed
 						// Start on next octave first note
@@ -590,7 +590,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 					if (changingOctaveDirection) {
 						// Now go up
 						currentDirection = 1;
-						whichNoteCurrentlyOnPostArp += 2;
+						whichNoteCurrentlyOnPostArp = 1;
 					}
 					else if (settings->noteMode == ArpNoteMode::UP_DOWN) { // UpDown
 						// Start on next octave first note
@@ -683,6 +683,12 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		ratchetAmount = 0;
 	}
 
+	if (settings->flagForceArpRestart) {
+		// If flagged to restart sequence, do it now and reset the flag
+		playedFirstArpeggiatedNoteYet = false;
+		settings->flagForceArpRestart = false;
+	}
+
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
 	if (isRatcheting) {
@@ -724,12 +730,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	// Make sure we actually intended to sync
 	if (settings->mode == ArpMode::OFF || (settings->syncLevel == 0u)) {
 		return 2147483647;
-	}
-
-	if (settings->flagForceArpRestart) {
-		// If flagged to restart sequence, do it now and reset the flag
-		playedFirstArpeggiatedNoteYet = false;
-		settings->flagForceArpRestart = false;
 	}
 
 	uint32_t ticksPerPeriod = 3 << (9 - settings->syncLevel);
