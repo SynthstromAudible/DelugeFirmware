@@ -320,7 +320,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
-constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
+constexpr int32_t numSamplesLimit = 45; // storageManager.devVarC;
 constexpr int32_t direnessThreshold = numSamplesLimit - 17;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
@@ -486,7 +486,7 @@ void routine() {
 
 #endif
 			}
-			else if (smoothedSamplesOverLimit >= 0) {
+			else if (smoothedSamplesOverLimit >= 5) {
 
 				// definitely do a soft cull (won't include audio clips)
 				cullVoice(false, true, true);
@@ -494,7 +494,7 @@ void routine() {
 			}
 			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
 			// increasing
-			else if (smoothedSamplesOverLimit >= -6) {
+			else if (smoothedSamplesOverLimit >= 0) {
 
 				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
 				// first routine call this is inaccurate, so just release another voice since things are probably bad
