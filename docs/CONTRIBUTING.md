@@ -175,7 +175,7 @@ project by:
 ## Tools
 
 To help you to speed up your development you have two command line tools that can help you streamline the process of
-loading a firmware and then debugging it.
+loading a firmware and then debugging it. We also have a Discord Crash Reader Bot which can output the la
 
 ### IDE Configs
 
@@ -210,4 +210,34 @@ The only build able to send debug messages via sysex is the "debug" build, so yo
 To make debug log prints in your code, which will be sent to the console, here is a code example:
 `D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
 
+### Deluge Crash Reader Discord Bot
+
+If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
+of a CPU fault, the handler will print the last link register address and as many pointers to the code section it can
+find in the stack data. The main pads display 4 32-bit numbers which are the addresses. Every color block is one 
+address, each pad is a bit, a lit pad is 1 and an unlit pad is 0. The most significant bit is at the lower left corner
+of the color block, and the least significant bit is at the top right. Each column is one byte, reading along a single 
+column from bottom row to top row first, then incrementing to the next column from left to right. Rotating Deluge 90 
+degrees to the right makes it easy to read and enter the bytes into Windows calculator. However, we have created a 
+Deluge Crash Reader Discord Bot which can decode the addresses for you from a picture of the pads.
+
+The red sidebar is the first 4 chars of commit ID. Pink color in main pads means it's from ARM USR mode. Blue would be
+SYS mode. Stack pointers will alternate green and light blue. 
+
+The Deluge Crash Reader Discord Bot uses image recognition to decode the pad lights for you if you post a picture of 
+your Deluge to the nightly-testing channel on the Deluge Discord. Take a photo of your deluge, make sure all the pad 
+LEDs are inside the photo, then post it in the channel, and the robot should output the decoded addresses and the 
+command used to investigate the addresses.
+
+For example, after posting a picture, the Deluge Crash Reader might output a message similar to this:
+
+Thanks for the image @username!, try running  
+I couldn't find a recent matching commit for `0x714a`  
+`arm-none-eabi-addr2line -Capife build/Release/deluge.elf 0x200a2f5b 0x200f3100 0x200fe6c1 0x2006dfe7 `  
+
+Then run the command that Deluge Crash Reader Bot outputs. This outputs the latest stack trace before hard crashing.
+(If you're on Windows and using VS Code, try running `.\dbt.cmd shell` first in your terminal.)
+
+[Black Box PR](https://github.com/SynthstromAudible/DelugeFirmware/pull/660)
+[Discord Bot Repo](https://github.com/0beron/delugeqr/)
 
