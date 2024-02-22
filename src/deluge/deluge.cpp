@@ -470,7 +470,7 @@ void setupStartupSong() {
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// Wipe the name so the Save action asks you for a new new
+				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
 			}
 		}
