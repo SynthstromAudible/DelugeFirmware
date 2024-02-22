@@ -320,8 +320,10 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
-constexpr int32_t numSamplesLimit = 45; // storageManager.devVarC;
-constexpr int32_t direnessThreshold = numSamplesLimit - 17;
+// used for culling
+constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
+// used for decisions in rendering engine
+constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
