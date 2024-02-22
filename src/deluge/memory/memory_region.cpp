@@ -166,7 +166,8 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 			// If the "right" space is bigger, delete the "left" one's record
 			// address here is same as, and best thought of as, emptySpaceToLeft.address.
 			// Hang on, wouldn't the space to the right always have a higher address?
-			if (emptySpaceToRight.length > emptySpaceToLeft.length || (emptySpaceToRight.length == emptySpaceToLeft.length && emptySpaceToRight.address > address)) {                        
+			if (emptySpaceToRight.length > emptySpaceToLeft.length
+			    || (emptySpaceToRight.length == emptySpaceToLeft.length && emptySpaceToRight.address > address)) {
 				recordToMergeWith = &emptySpaceToRight;
 				recordToDelete = &emptySpaceToLeft;
 			}
