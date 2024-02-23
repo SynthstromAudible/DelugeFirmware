@@ -1578,10 +1578,7 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 void PerformanceSessionView::writeDefaultsToFile() {
 	// PerformanceView.xml
 	Error error;
-	error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
-	if (error != Error::NONE) {
-		return;
-	}
+	D_TRY_CATCH(storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true), { return; });
 
 	//<defaults>
 	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
@@ -1738,11 +1735,10 @@ void PerformanceSessionView::readDefaultsFromFile() {
 
 	//<defaults>
 	Error error;
-	error = storageManager.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(storageManager.openXMLFile(&fp, PERFORM_DEFAULTS_TAG), {
 		loadDefaultLayout();
 		return;
-	}
+	});
 
 	char const* tagName;
 	// step into the <defaultFXValues> tag

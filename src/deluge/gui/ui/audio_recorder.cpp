@@ -83,17 +83,15 @@ bool AudioRecorder::opened() {
 		String newName;
 
 		Error error;
-		error = newName.set("REC");
-		if (error != Error::NONE) {
+		D_TRY_CATCH(newName.set("REC"), {
 			display->displayError(error);
 			return false;
-		}
+		});
 
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 1), {
 			display->displayError(error);
 			return false;
-		}
+		});
 
 		drum->name.set(&newName);
 	}

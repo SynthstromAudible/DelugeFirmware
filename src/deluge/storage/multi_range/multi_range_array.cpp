@@ -37,10 +37,7 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	Error error;
-	error = insertAtIndex(i);
-	if (error != Error::NONE) {
-		return NULL;
-	}
+	D_TRY_CATCH(insertAtIndex(i), { return NULL; });
 	void* memory = getElementAddress(i);
 	MultiRange* range;
 

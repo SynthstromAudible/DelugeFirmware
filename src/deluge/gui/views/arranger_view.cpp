@@ -135,11 +135,10 @@ void ArrangerView::moveClipToSession() {
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
 			Error error;
-			error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
-			if (error != Error::NONE) {
+			D_TRY_CATCH(currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex), {
 				display->displayError(error);
 				return;
-			}
+			});
 			actionLogger.deleteAllLogs();
 
 			int32_t oldIndex = currentSong->arrangementOnlyClips.getIndexForClip(clip);
@@ -1204,10 +1203,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 					actionLogger.deleteAllLogs();
 
 					Error error;
-					error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
-					if (error != Error::NONE) {
-						display->displayError(error);
-					}
+					D_TRY_CATCH(arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true),
+					            { display->displayError(error); });
 					else {
 						uiNeedsRendering(this, 1 << y, 0);
 					}

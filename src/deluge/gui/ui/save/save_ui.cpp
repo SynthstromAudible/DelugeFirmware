@@ -36,11 +36,10 @@ SaveUI::SaveUI() {
 
 bool SaveUI::opened() {
 	Error error;
-	error = beginSlotSession(true, true);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(beginSlotSession(true, true), {
 		display->displayError(error);
 		return false;
-	}
+	});
 
 	PadLEDs::clearSideBar();
 	return true;

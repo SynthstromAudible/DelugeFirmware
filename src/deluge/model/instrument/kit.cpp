@@ -350,10 +350,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 			error = Error::ABORTED_BY_USER;
 			goto getOut;
 		}
-		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error != Error::NONE) {
-			goto getOut;
-		}
+		D_TRY_CATCH(thisDrum->loadAllSamples(mayActuallyReadFiles), { goto getOut; });
 	}
 
 getOut:
@@ -370,10 +367,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		Error error;
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return;
-		}
+		D_TRY_CATCH(setupDefaultAudioFileDir(), { return; });
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");

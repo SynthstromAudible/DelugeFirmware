@@ -246,10 +246,7 @@ int32_t OrderedResizeableArray::insertAtKey(int32_t key, bool isDefinitelyLast) 
 	}
 
 	Error error;
-	error = insertAtIndex(i);
-	if (error != Error::NONE) {
-		return -1;
-	}
+	D_TRY_CATCH(insertAtIndex(i), { return -1; });
 
 	setKeyAtIndex(key, i);
 

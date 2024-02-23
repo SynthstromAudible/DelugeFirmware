@@ -483,10 +483,7 @@ void writeDevicesToFile() {
 
 worthIt:
 	Error error;
-	error = storageManager.createXMLFile("MIDIDevices.XML", true);
-	if (error != Error::NONE) {
-		return;
-	}
+	D_TRY_CATCH(storageManager.createXMLFile("MIDIDevices.XML", true), { return; });
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
 
@@ -541,10 +538,7 @@ void readDevicesFromFile() {
 	}
 
 	Error error;
-	error = storageManager.openXMLFile(&fp, "midiDevices");
-	if (error != Error::NONE) {
-		return;
-	}
+	D_TRY_CATCH(storageManager.openXMLFile(&fp, "midiDevices"), { return; });
 
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {

@@ -52,16 +52,14 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	}
 	else {
 		Error error;
-		error = clip->sampleHolder.loadFile(false, false, true);
-		if (error != Error::NONE) {
-			display->displayError(error); // Rare, shouldn't cause later problems.
-		}
+		D_TRY_CATCH(clip->sampleHolder.loadFile(false, false, true), {
+			display->displayError(error); // Rare, shouldn't cause later problems.});
 
-		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+			if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			clip->resumePlayback(modelStackWithTimelineCounter);
-		}
+				clip->resumePlayback(modelStackWithTimelineCounter);
+			}
 	}
 
 	clip->renderData.xScroll = -1; // Force re-render
@@ -70,4 +68,4 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	endPosToRevertTo = endPosBeforeRevert;
 
 	return Error::NONE;
-}
+	}

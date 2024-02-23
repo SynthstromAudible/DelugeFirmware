@@ -65,10 +65,7 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 			uint32_t length;
 		} thisChunk;
 
-		error = reader->readBytes((char*)&thisChunk, 4 * 2);
-		if (error != Error::NONE) {
-			break;
-		}
+		D_TRY_CATCH(reader->readBytes((char*)&thisChunk, 4 * 2), { break; });
 
 		if (isAiff) {
 			thisChunk.length = swapEndianness32(thisChunk.length);
@@ -184,10 +181,7 @@ doSetupWaveTable:
 				if (type == AudioFileType::SAMPLE) {
 
 					uint32_t data[9];
-					error = reader->readBytes((char*)data, 4 * 9);
-					if (error != Error::NONE) {
-						break;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)data, 4 * 9), { break; });
 
 					uint32_t midiNote = data[3];
 					uint32_t midiPitchFraction = data[4];
@@ -210,10 +204,7 @@ doSetupWaveTable:
 							D_PRINTLN("loop  %d", l);
 
 							uint32_t loopData[6];
-							error = reader->readBytes((char*)loopData, 4 * 6);
-							if (error != Error::NONE) {
-								goto finishedWhileLoop;
-							}
+							D_TRY_CATCH(reader->readBytes((char*)loopData, 4 * 6), { goto finishedWhileLoop; });
 
 							D_PRINTLN("start:  %d", loopData[2]);
 							((Sample*)this)->fileLoopStartSamples = loopData[2];
@@ -235,10 +226,7 @@ doSetupWaveTable:
 				if (type == AudioFileType::SAMPLE) {
 
 					uint8_t data[7];
-					error = reader->readBytes((char*)data, 7);
-					if (error != Error::NONE) {
-						break;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)data, 7), { break; });
 
 					uint8_t midiNote = data[0];
 					int8_t fineTune = data[1];
@@ -254,10 +242,7 @@ doSetupWaveTable:
 			// Serum wavetable chunk - "clm "
 			case charsToIntegerConstant('c', 'l', 'm', ' '): {
 				char data[7];
-				error = reader->readBytes((char*)data, 7);
-				if (error != Error::NONE) {
-					break;
-				}
+				D_TRY_CATCH(reader->readBytes((char*)data, 7), { break; });
 
 				if ((*(uint32_t*)data & 0x00FFFFFF) == charsToIntegerConstant('<', '!', '>', 0)) {
 					fileExplicitlySpecifiesSelfAsWaveTable = true;
@@ -344,10 +329,7 @@ doSetupWaveTable:
 
 			// MARK
 			case charsToIntegerConstant('M', 'A', 'R', 'K'): {
-				error = reader->readBytes((char*)&numMarkers, 2);
-				if (error != Error::NONE) {
-					break;
-				}
+				D_TRY_CATCH(reader->readBytes((char*)&numMarkers, 2), { break; });
 				numMarkers = swapEndianness2x16(numMarkers);
 
 				D_PRINTLN("numMarkers:  %d", numMarkers);
@@ -358,29 +340,20 @@ doSetupWaveTable:
 
 				for (int32_t m = 0; m < numMarkers; m++) {
 					uint16_t markerId;
-					error = reader->readBytes((char*)&markerId, 2);
-					if (error != Error::NONE) {
-						goto finishedWhileLoop;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)&markerId, 2), { goto finishedWhileLoop; });
 					markerIDs[m] = swapEndianness2x16(markerId);
 
 					D_PRINTLN("");
 					D_PRINTLN("markerId:  %d", markerIDs[m]);
 
 					uint32_t markerPos;
-					error = reader->readBytes((char*)&markerPos, 4);
-					if (error != Error::NONE) {
-						goto finishedWhileLoop;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)&markerPos, 4), { goto finishedWhileLoop; });
 					markerPositions[m] = swapEndianness32(markerPos);
 
 					D_PRINTLN("markerPos:  %d", markerPositions[m]);
 
 					uint8_t stringLength;
-					error = reader->readBytes((char*)&stringLength, 1);
-					if (error != Error::NONE) {
-						goto finishedWhileLoop;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)&stringLength, 1), { goto finishedWhileLoop; });
 
 					uint32_t stringLengthRoundedUpToBeEven = ((uint32_t)stringLength + 1) & ~(uint32_t)1;
 					reader->byteIndexWithinCluster +=
@@ -393,10 +366,7 @@ doSetupWaveTable:
 			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
 				if (type == AudioFileType::SAMPLE) {
 					uint8_t data[8];
-					error = reader->readBytes((char*)data, 8);
-					if (error != Error::NONE) {
-						break;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)data, 8), { break; });
 
 					uint8_t midiNote = data[0];
 					int8_t fineTune = data[1];
@@ -413,10 +383,7 @@ doSetupWaveTable:
 					// Just read the sustain loop, which is first
 
 					uint16_t loopData[3];
-					error = reader->readBytes((char*)loopData, 3 * 2);
-					if (error != Error::NONE) {
-						break;
-					}
+					D_TRY_CATCH(reader->readBytes((char*)loopData, 3 * 2), { break; });
 
 					D_PRINTLN("play mode:  %d", swapEndianness2x16(loopData[0]));
 

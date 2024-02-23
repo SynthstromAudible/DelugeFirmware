@@ -88,16 +88,10 @@ gotError:
 	searchFilename.set(&currentSong->name);
 
 	if (!searchFilename.isEmpty()) {
-		error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			goto gotError;
-		}
+		D_TRY_CATCH(searchFilename.concatenate(".XML"), { goto gotError; });
 	}
 
-	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), { goto gotError; });
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 	currentSlot = (currentSlot + 1) % 19;
@@ -243,11 +237,10 @@ void LoadSongUI::performLoad() {
 	}
 
 	Error error;
-	error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
-	if (error != Error::NONE) {
+	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song"), {
 		display->displayError(error);
 		return;
-	}
+	});
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -316,10 +309,7 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile();
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	D_TRY_CATCH(preLoadedSong->readFromFile(), { goto gotErrorAfterCreatingSong; });
 	AudioEngine::logAction("d");
 
 	bool success = storageManager.closeFile();
@@ -332,10 +322,8 @@ gotErrorAfterCreatingSong:
 	preLoadedSong->dirPath.set(&currentDir);
 
 	String currentFilenameWithoutExtension;
-	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	D_TRY_CATCH(currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension),
+	            { goto gotErrorAfterCreatingSong; });
 
 	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
 	                                                    &currentFilenameWithoutExtension);

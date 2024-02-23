@@ -181,10 +181,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 		// Insert it in notes array
 		Error error;
-		error = notes.insertAtIndex(notesKey);
-		if (error != Error::NONE) {
-			return;
-		}
+		D_TRY_CATCH(notes.insertAtIndex(notesKey), { return; });
 		// Save arpNote
 		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;

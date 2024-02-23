@@ -1015,10 +1015,7 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 
 bool StorageManager::fileExists(char const* pathName) {
 	Error error;
-	error = initSD();
-	if (error != Error::NONE) {
-		return false;
-	}
+	D_TRY_CATCH(initSD(), { return false; });
 
 	FRESULT result = f_stat(pathName, &staticFNO);
 	return (result == FR_OK);
@@ -1027,10 +1024,7 @@ bool StorageManager::fileExists(char const* pathName) {
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	Error error;
-	error = initSD();
-	if (error != Error::NONE) {
-		return false;
-	}
+	D_TRY_CATCH(initSD(), { return false; });
 
 	FRESULT result = f_open(&fileSystemStuff.currentFile, pathName, FA_READ);
 	if (result != FR_OK) {
@@ -1103,10 +1097,7 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 		                          // don't want it to flush any data to the card or anything
 	}
 	Error error;
-	error = writeBufferToFile();
-	if (error != Error::NONE) {
-		return Error::WRITE_FAIL;
-	}
+	D_TRY_CATCH(writeBufferToFile(), { return Error::WRITE_FAIL; });
 
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	if (result) {
@@ -1407,10 +1398,7 @@ deleteInstrumentAndGetOut:
 		// paramManager to be created when we read the Kit just now. So, just make one.
 		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
-			error = paramManager.setupUnpatched();
-			if (error != Error::NONE) {
-				goto deleteInstrumentAndGetOut;
-			}
+			D_TRY_CATCH(paramManager.setupUnpatched(), { goto deleteInstrumentAndGetOut; });
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
@@ -1536,10 +1524,7 @@ paramManagerSetupError:
 	// Kit
 	else {
 		if (paramManager) {
-			error = paramManager->setupUnpatched();
-			if (error != Error::NONE) {
-				goto paramManagerSetupError;
-			}
+			D_TRY_CATCH(paramManager->setupUnpatched(), { goto paramManagerSetupError; });
 
 			GlobalEffectableForClip::initParams(paramManager);
 		}

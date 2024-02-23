@@ -427,11 +427,10 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		isPendingOverdub = false;
 
 		Error error;
-		error = beginLinearRecording(modelStack, buttonPressLatency);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(beginLinearRecording(modelStack, buttonPressLatency), {
 			display->displayError(error);
 			return false;
-		}
+		});
 
 		if (action != nullptr) {
 			actionLogger.updateAction(action); // Needed for vertical scroll reasons
@@ -1094,10 +1093,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					clipInstanceI++;
 
 					Error error;
-					error = output->clipInstances.insertAtIndex(clipInstanceI);
-					if (error != Error::NONE) {
-						return false;
-					}
+					D_TRY_CATCH(output->clipInstances.insertAtIndex(clipInstanceI), { return false; });
 
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 

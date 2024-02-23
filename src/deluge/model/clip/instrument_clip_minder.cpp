@@ -167,10 +167,7 @@ gotError:
 		return;
 	}
 
-	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName), { goto gotError; });
 
 	if (newName.isEmpty()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));

@@ -566,13 +566,13 @@ enum class Error {
 };
 
 #define D_TRY(expr)                                                                                                    \
-	error = expr;                                                                                                      \
+	error = (expr);                                                                                                    \
 	if (error != Error::NONE) {                                                                                        \
 		return error;                                                                                                  \
 	}
 
-#define D_TRY_EXCEPT(expr, block)                                                                                      \
-	error = expr;                                                                                                      \
+#define D_TRY_CATCH(expr, block)                                                                                       \
+	error = (expr);                                                                                                    \
 	if (error != Error::NONE) {                                                                                        \
 		block                                                                                                          \
 	}

@@ -361,10 +361,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 			    && output->wantsToBeginArrangementRecording()) {
 
 				Error error;
-				error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error != Error::NONE) {
-					display->displayError(error);
-				}
+				D_TRY_CATCH(output->possiblyBeginArrangementRecording(currentSong, newPos),
+				            { display->displayError(error); });
 			}
 		}
 	}

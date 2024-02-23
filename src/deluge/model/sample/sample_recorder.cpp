@@ -379,16 +379,10 @@ aborted:
 		// If file not created yet, do that
 		if (filePathCreated.isEmpty()) {
 
-			error = storageManager.initSD();
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			D_TRY_CATCH(storageManager.initSD(), { goto gotError; });
 
 			// Check there's space on the card
-			error = storageManager.checkSpaceOnCard();
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			D_TRY_CATCH(storageManager.checkSpaceOnCard(), { goto gotError; });
 
 			String filePath;
 			String tempFilePathForRecording;
@@ -430,10 +424,7 @@ aborted:
 			sample->filePath.set(&filePath);                                 // Can't fail!
 			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
 
-			error = audioFileManager.audioFiles.insertElement(sample);
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			D_TRY_CATCH(audioFileManager.audioFiles.insertElement(sample), { goto gotError; });
 
 			haveAddedSampleToArray = true;
 		}

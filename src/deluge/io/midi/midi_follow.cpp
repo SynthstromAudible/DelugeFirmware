@@ -569,10 +569,7 @@ bool MidiFollow::isFeedbackEnabled() {
 void MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
 	Error error;
-	error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
-	if (error != Error::NONE) {
-		return;
-	}
+	D_TRY_CATCH(storageManager.createXMLFile(MIDI_DEFAULTS_XML, true), { return; });
 
 	//<defaults>
 	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);

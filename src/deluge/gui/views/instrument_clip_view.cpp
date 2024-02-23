@@ -3671,11 +3671,10 @@ doDisplayError:
 	}
 
 	ParamManagerForTimeline paramManager;
-	error = paramManager.setupWithPatching();
-	if (error != Error::NONE) {
+	D_TRY_CATCH(paramManager.setupWithPatching(), {
 		delugeDealloc(memory);
 		goto doDisplayError;
-	}
+	});
 
 	Sound::initParams(&paramManager);
 	SoundDrum* newDrum = new (memory) SoundDrum();

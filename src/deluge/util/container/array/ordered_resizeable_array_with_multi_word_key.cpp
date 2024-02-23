@@ -92,10 +92,7 @@ int32_t OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* _
 	int32_t i = searchMultiWord(keyWords, GREATER_OR_EQUAL, 0, rangeEnd);
 
 	Error error;
-	error = insertAtIndex(i);
-	if (error != Error::NONE) {
-		return -1;
-	}
+	D_TRY_CATCH(insertAtIndex(i), { return -1; });
 
 	uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
 

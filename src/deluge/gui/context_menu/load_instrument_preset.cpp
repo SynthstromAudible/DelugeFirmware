@@ -44,11 +44,10 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(true);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(loadInstrumentPresetUI.performLoad(true), {
 			display->displayError(error);
 			return true;
-		}
+		});
 		loadInstrumentPresetUI.close();
 		return true;
 	}

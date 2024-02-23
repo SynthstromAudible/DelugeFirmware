@@ -76,10 +76,7 @@ gotError:
 
 	currentDir.set(&currentSong->dirPath);
 
-	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), { goto gotError; });
 
 	// TODO: create folder if doesn't exist.
 
@@ -154,20 +151,14 @@ gotError:
 	String newSongAlternatePath;
 
 	String filenameWithoutExtension;
-	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(getCurrentFilenameWithoutExtension(&filenameWithoutExtension), { goto gotError; });
 
 	error =
 	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
-	error = newSongAlternatePath.concatenate("/");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(newSongAlternatePath.concatenate("/"), { goto gotError; });
 	int32_t dirPathLengthNew = newSongAlternatePath.getLength();
 
 	bool anyErrorMovingTempFiles = false;
@@ -316,10 +307,8 @@ failAfterOpeningSourceFile:
 					// to just use the original filename, and hope it doesn't clash with anything.
 					else {
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
-						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
-						if (error != Error::NONE) {
-							goto failAfterOpeningSourceFile;
-						}
+						D_TRY_CATCH(newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew),
+						            { goto failAfterOpeningSourceFile; });
 					}
 
 					if (needToPretendLoadedAlternate) {
@@ -395,18 +384,9 @@ fail3:
 		int32_t tempFileNumber = 0;
 
 		while (true) {
-			error = filePathDuringWrite.set("SONGS/TEMP");
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-			error = filePathDuringWrite.concatenateInt(tempFileNumber, 4);
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-			error = filePathDuringWrite.concatenate(".XML");
-			if (error != Error::NONE) {
-				goto gotError;
-			}
+			D_TRY_CATCH(filePathDuringWrite.set("SONGS/TEMP"), { goto gotError; });
+			D_TRY_CATCH(filePathDuringWrite.concatenateInt(tempFileNumber, 4), { goto gotError; });
+			D_TRY_CATCH(filePathDuringWrite.concatenate(".XML"), { goto gotError; });
 
 			if (!storageManager.fileExists(filePathDuringWrite.get())) {
 				break;
@@ -422,10 +402,7 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = storageManager.createXMLFile(filePathDuringWrite.get(), false, false);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(storageManager.createXMLFile(filePathDuringWrite.get(), false, false), { goto gotError; });
 
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
 	// for either overwriting or not.

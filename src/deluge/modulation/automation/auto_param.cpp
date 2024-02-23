@@ -933,10 +933,7 @@ int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpola
 
 	{
 		Error error;
-		error = nodes.insertAtIndex(i);
-		if (error != Error::NONE) {
-			return -1;
-		}
+		D_TRY_CATCH(nodes.insertAtIndex(i), { return -1; });
 	}
 	ourNode = nodes.getElement(i);
 	ourNode->pos = pos;
@@ -1200,10 +1197,7 @@ getValueNormalWay:
 		// Otherwise, insert one
 		else {
 			Error error;
-			error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
-			if (error != Error::NONE) {
-				return -1;
-			}
+			D_TRY_CATCH(nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]), { return -1; });
 			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
 			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access
 			// it again anyway.
@@ -1227,10 +1221,7 @@ getValueNormalWay:
 		// Otherwise, insert one
 		else {
 			Error error;
-			error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
-			if (error != Error::NONE) {
-				return -1;
-			}
+			D_TRY_CATCH(nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]), { return -1; });
 			edgeIndexes[REGION_EDGE_RIGHT] += (int32_t)(!anyWrap);
 			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access
 			// it again anyway.
@@ -1530,10 +1521,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			}
 
 			Error error;
-			error = nodes.insertAtIndex(0);
-			if (error != Error::NONE) {
-				return;
-			}
+			D_TRY_CATCH(nodes.insertAtIndex(0), { return; });
 
 			ParamNode* zeroNode = (ParamNode*)nodes.getElementAddress(0);
 			zeroNode->pos = 0;
@@ -1551,10 +1539,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
 			Error error;
-			error = nodes.insertAtIndex(numNodesBefore, numToInsert);
-			if (error != Error::NONE) {
-				return;
-			}
+			D_TRY_CATCH(nodes.insertAtIndex(numNodesBefore, numToInsert), { return; });
 		}
 
 		int32_t highestNodeIndex = numNodesBefore - 1;
@@ -1665,10 +1650,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 		int32_t newZeroNodeI = nodes.getNumElements();
 
 		Error error;
-		error = nodes.insertAtIndex(newZeroNodeI);
-		if (error != Error::NONE) {
-			return;
-		}
+		D_TRY_CATCH(nodes.insertAtIndex(newZeroNodeI), { return; });
 
 		ParamNode* zeroNode = (ParamNode*)nodes.getElementAddress(newZeroNodeI);
 		zeroNode->pos = oldLength;
@@ -1681,10 +1663,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 	int32_t oldNumNodes = nodes.getNumElements();
 	Error error;
-	error = nodes.insertAtIndex(oldNumNodes, numToInsert);
-	if (error != Error::NONE) {
-		return;
-	}
+	D_TRY_CATCH(nodes.insertAtIndex(oldNumNodes, numToInsert), { return; });
 
 	if (reverseThisRepeatWithLength) {
 
@@ -1818,10 +1797,7 @@ addNewNodeAt0IfNecessary:
 			else {
 				ParamNodeVector newNodes;
 				Error error;
-				error = newNodes.insertAtIndex(0, newNumNodes);
-				if (error != Error::NONE) {
-					goto basicTrim;
-				}
+				D_TRY_CATCH(newNodes.insertAtIndex(0, newNumNodes), { goto basicTrim; });
 
 				for (int32_t i = 0; i < newNumNodes; i++) {
 					ParamNode* __restrict__ sourceNode = nodes.getElement(i);

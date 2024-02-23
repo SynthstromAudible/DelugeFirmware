@@ -68,11 +68,10 @@ bool DeleteFile::acceptCurrentOption() {
 
 	String filePath;
 	Error error;
-	error = browser->getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(browser->getCurrentFilePath(&filePath), {
 		display->displayError(error);
 		return false;
-	}
+	});
 
 	FRESULT result = f_unlink(filePath.get());
 

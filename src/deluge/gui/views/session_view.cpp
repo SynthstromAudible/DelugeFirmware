@@ -1509,10 +1509,8 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 		Error error;
-		error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
-		if (error != Error::NONE) {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
-		}
+		D_TRY_CATCH(clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE),
+		            { display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED)); });
 
 		if (newInstrument->type == OutputType::KIT) {
 			clip->yScroll = 0;
@@ -1982,10 +1980,7 @@ ramError:
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
 	Error error;
-	error = clipToClone->clone(modelStack);
-	if (error != Error::NONE) {
-		goto ramError;
-	}
+	D_TRY_CATCH(clipToClone->clone(modelStack), { goto ramError; });
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
@@ -3076,11 +3071,10 @@ bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* cli
 			return false;
 		}
 
-		auto error = clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong);
-		if (error != Error::NONE) {
+		auto D_TRY_CATCH(clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong), {
 			display->displayError(error);
 			return false;
-		}
+		});
 	}
 	else {
 		return false;

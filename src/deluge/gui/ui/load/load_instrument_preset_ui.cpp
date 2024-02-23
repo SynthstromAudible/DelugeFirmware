@@ -550,10 +550,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				// Try getting from file
 				String filePath;
 				Error error;
-				error = getCurrentFilePath(&filePath);
-				if (error != Error::NONE) {
-					return;
-				}
+				D_TRY_CATCH(getCurrentFilePath(&filePath), { return; });
 
 				FilePointer tempFilePointer;
 

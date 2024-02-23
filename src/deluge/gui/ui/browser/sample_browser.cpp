@@ -157,10 +157,7 @@ sdError:
 
 dissectionDone:
 
-	error = arrivedInNewFolder(1, searchFilename, "SAMPLES");
-	if (error != Error::NONE) {
-		goto sdError;
-	}
+	D_TRY_CATCH(arrivedInNewFolder(1, searchFilename, "SAMPLES"), { goto sdError; });
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
 	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
@@ -497,10 +494,7 @@ gotError:
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	error = path->concatenate(&currentFileItem->filename);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(path->concatenate(&currentFileItem->filename), { goto gotError; });
 
 	return Error::NONE;
 }
@@ -535,11 +529,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		String filePath;
 		Error error;
-		error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(getCurrentFilePath(&filePath), {
 			display->displayError(error);
 			return;
-		}
+		});
 
 		// This more formally does the thing that actually was happening accidentally for ages, as found by Michael B.
 		lastFilePathLoaded.set(&filePath);
@@ -878,10 +871,7 @@ doLoadAsSample:
 
 			soundEditor.currentSource->setOscType(OscType::SAMPLE);
 
-			error = claimAudioFileForInstrument();
-			if (error != Error::NONE) {
-				goto removeLoadingAnimationAndGetOut;
-			}
+			D_TRY_CATCH(claimAudioFileForInstrument(), { goto removeLoadingAnimationAndGetOut; });
 
 			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
 
@@ -957,10 +947,8 @@ doLoadAsSample:
 					newName.set(&enteredText);
 				}
 				else {
-					error = newName.set(&enteredText.get()[numCharsInPrefix]);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
-					}
+					D_TRY_CATCH(newName.set(&enteredText.get()[numCharsInPrefix]),
+					            { goto removeLoadingAnimationAndGetOut; });
 				}
 
 				Kit* kit = getCurrentKit();
@@ -968,10 +956,7 @@ doLoadAsSample:
 				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
 				if (kit->getDrumFromName(newName.get())) {
 
-					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
-					}
+					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), { goto removeLoadingAnimationAndGetOut; });
 				}
 
 				drum->name.set(&newName);
@@ -1152,11 +1137,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	char const* previouslyViewedFilename = "";
 
 	if (currentFileItem->isFolder) {
-		error = getCurrentFilePath(&dirToLoad);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(getCurrentFilePath(&dirToLoad), {
 			display->displayError(error);
 			return false;
-		}
+		});
 	}
 	else {
 		dirToLoad.set(&currentDir);
@@ -1887,10 +1871,7 @@ getOut:
 
 				ParamManagerForTimeline paramManager;
 				Error error;
-				error = paramManager.setupWithPatching();
-				if (error != Error::NONE) {
-					goto getOut;
-				}
+				D_TRY_CATCH(paramManager.setupWithPatching(), { goto getOut; });
 
 				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 				if (!drumMemory) {
@@ -1935,10 +1916,7 @@ getOut:
 				}
 
 				if (kit->getDrumFromName(newName.get())) {
-					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error != Error::NONE) {
-						goto skipNameStuff;
-					}
+					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), { goto skipNameStuff; });
 				}
 
 				drum->name.set(&newName);

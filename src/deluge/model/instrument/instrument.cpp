@@ -158,12 +158,10 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
 		Error error;
-		error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
-
-		if (error != Error::NONE) {
+		D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true), {
 			delugeDealloc(clipMemory);
 			return NULL;
-		}
+		});
 	}
 	else if (type == OutputType::CV) {
 		if (activeClip) {

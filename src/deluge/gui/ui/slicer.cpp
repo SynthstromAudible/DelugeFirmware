@@ -594,11 +594,10 @@ void Slicer::doSlice() {
 	AudioEngine::stopAnyPreviewing();
 
 	Error error;
-	error = sampleBrowser.claimAudioFileForInstrument();
-	if (error != Error::NONE) {
+	D_TRY_CATCH(sampleBrowser.claimAudioFileForInstrument(), {
 		display->displayError(error);
 		return;
-	}
+	});
 
 	Kit* kit = getCurrentKit();
 
@@ -675,11 +674,10 @@ void Slicer::doSlice() {
 
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
-			error = paramManager.setupWithPatching();
-			if (error != Error::NONE) {
+			D_TRY_CATCH(paramManager.setupWithPatching(), {
 				display->displayError(error);
 				return;
-			}
+			});
 
 			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 			if (!drumMemory) {
@@ -701,10 +699,7 @@ ramError2:
 
 			char newName[5];
 			intToString(i + 1, newName);
-			error = newDrum->name.set(newName);
-			if (error != Error::NONE) {
-				goto ramError2;
-			}
+			D_TRY_CATCH(newDrum->name.set(newName), { goto ramError2; });
 
 			Sound::initParams(&paramManager);
 

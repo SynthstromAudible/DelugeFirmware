@@ -5086,21 +5086,12 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	String newName;
 	Error error;
-	error = newName.set("AUDIO");
-	if (error != Error::NONE) {
-		return NULL;
-	}
+	D_TRY_CATCH(newName.set("AUDIO"), { return NULL; });
 
-	error = newName.concatenateInt(highestNumber + 1);
-	if (error != Error::NONE) {
-		return NULL;
-	}
+	D_TRY_CATCH(newName.concatenateInt(highestNumber + 1), { return NULL; });
 
 	ParamManagerForTimeline newParamManager;
-	error = newParamManager.setupUnpatched();
-	if (error != Error::NONE) {
-		return NULL;
-	}
+	D_TRY_CATCH(newParamManager.setupUnpatched(), { return NULL; });
 
 	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 	if (!outputMemory) {
