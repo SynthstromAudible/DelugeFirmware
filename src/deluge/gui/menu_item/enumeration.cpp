@@ -13,48 +13,19 @@ void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Enumeration::selectEncoderAction(int32_t offset) {
-	this->setValue(this->getValue() + offset);
 	int32_t numOptions = size();
-	int32_t sign = (offset < 0) ? -1 : ((offset > 0) ? 1 : 0);
+	int32_t startValue = getValue();
 
-	switch (numOptions) {
-	case 0:
-		[[fallthrough]];
-	case 1:
-		[[fallthrough]];
-	case 2:
-		offset = 1 * sign;
-		break;
-	case 3:
-		offset = std::min<int32_t>(offset * sign, 2) * sign;
-		break;
-	case 4:
-		offset = std::min<int32_t>(offset * sign, 3) * sign;
-		break;
-	case 5:
-		offset = std::min<int32_t>(offset * sign, 4) * sign;
-		break;
-	default:
-		break;
+	// valid values are [0, numOptions), so wrap as needed
+	int32_t nextValue = (startValue + offset) % numOptions;
+	if (nextValue < 0) {
+		nextValue += numOptions;
 	}
 
-	if (display->haveOLED()) {
-		if (this->getValue() >= numOptions) {
-			this->setValue(numOptions - 1);
-		}
-		else if (this->getValue() < 0) {
-			this->setValue(0);
-		}
-	}
-	else {
-		if (this->getValue() >= numOptions) {
-			this->setValue(this->getValue() - numOptions);
-		}
-		else if (this->getValue() < 0) {
-			this->setValue(this->getValue() + numOptions);
-		}
-	}
+	setValue(nextValue);
 
+	// reset offset to account for wrapping
+	offset = startValue - nextValue;
 	Value::selectEncoderAction(offset);
 }
 
