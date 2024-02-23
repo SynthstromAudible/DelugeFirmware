@@ -30,7 +30,7 @@ ConsequenceOutputExistence::ConsequenceOutputExistence(Output* newOutput, Existe
 
 // TODO: wait a minute, do we have a memory leak here? Never deletes the Output?
 
-int32_t ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack) {
 	if (time != util::to_underlying(type)) { // Re-create
 		modelStack->song->addOutput(output, true);
 	}
@@ -45,5 +45,5 @@ int32_t ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack
 		output->prepareForHibernationOrDeletion();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }

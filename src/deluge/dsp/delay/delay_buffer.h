@@ -39,7 +39,7 @@ class DelayBuffer {
 public:
 	DelayBuffer();
 	~DelayBuffer();
-	uint8_t init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
+	Error init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
 	void makeNativeRatePrecise();
 	void makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherBuffer);
 	void discard();

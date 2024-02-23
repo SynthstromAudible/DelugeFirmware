@@ -17,14 +17,15 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/resizeable_pointer_array.h"
 
 class Clip;
 
 class ClipArray final : public ResizeablePointerArray {
 public:
-	ClipArray();
-	int32_t insertClipAtIndex(Clip* clip, int32_t index);
+	ClipArray() = default;
+	Error insertClipAtIndex(Clip* clip, int32_t index);
 	Clip* getClipAtIndex(int32_t index);
 	int32_t getIndexForClip(Clip* clip);
 };

@@ -16,6 +16,7 @@
  */
 
 #include "gui/context_menu/delete_file.h"
+#include "definitions_cxx.hpp"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -66,8 +67,8 @@ bool DeleteFile::acceptCurrentOption() {
 	auto* browser = static_cast<Browser*>(ui);
 
 	String filePath;
-	int32_t error = browser->getCurrentFilePath(&filePath);
-	if (error) {
+	Error error = browser->getCurrentFilePath(&filePath);
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}

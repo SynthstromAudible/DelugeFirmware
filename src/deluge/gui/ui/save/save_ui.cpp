@@ -35,8 +35,8 @@ SaveUI::SaveUI() {
 }
 
 bool SaveUI::opened() {
-	int32_t error = beginSlotSession(true, true);
-	if (error) {
+	Error error = beginSlotSession(true, true);
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}
@@ -73,9 +73,9 @@ void SaveUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int32_t error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.get());
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;

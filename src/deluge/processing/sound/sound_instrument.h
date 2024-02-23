@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
@@ -30,7 +31,7 @@ class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void cutAllSound();
 	bool noteIsOn(int32_t noteCode);
 
@@ -48,7 +49,7 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
 	}
 
-	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
