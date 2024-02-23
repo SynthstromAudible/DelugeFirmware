@@ -28,7 +28,7 @@ class ConsequenceClipExistence final : public Consequence {
 public:
 	ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, ExistenceChangeType newType);
 	void prepareForDestruction(int32_t whichQueueActionIn, Song* song) override;
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	Clip* clip;
 	ClipArray* clipArray;

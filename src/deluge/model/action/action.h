@@ -74,15 +74,14 @@ class Action {
 public:
 	Action(ActionType newActionType);
 	void addConsequence(Consequence* consequence);
-	int32_t revert(TimeType time, ModelStack* modelStack);
+	Error revert(TimeType time, ModelStack* modelStack);
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int32_t recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
-	                                                     NoteVector* noteVector, bool stealData,
-	                                                     bool moveToFrontIfAlreadySnapshotted = false);
-	int32_t recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-	                                        bool stealData);
+	Error recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+	                                                   bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
+	Error recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+	                                      bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound = false);
 	void recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type);
 	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter,

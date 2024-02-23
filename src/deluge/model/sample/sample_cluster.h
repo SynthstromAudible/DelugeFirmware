@@ -26,16 +26,21 @@ class Sample;
 // audio data for that Sample.
 class SampleCluster {
 public:
-	SampleCluster();
+	SampleCluster() = default;
 	~SampleCluster();
+
+	// TODO: This should return a std::expected<Cluster*, Error), removing the last parameter
 	Cluster* getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction = CLUSTER_ENQUEUE,
-	                    uint32_t priorityRating = 0xFFFFFFFF, uint8_t* error = NULL);
+	                    uint32_t priorityRating = 0xFFFFFFFF, Error* error = nullptr);
 	void ensureNoReason(Sample* sample);
 
-	uint32_t sdAddress; // In sectors. (Those 512 byte things. Not to be confused with clusters.)
-	Cluster* cluster; // May automatically be set to NULL if the Cluster needs to be deallocated (can only happen if it
-	                  // has no "reasons" left)
-	int8_t minValue;
-	int8_t maxValue;
-	bool investigatedWholeLength;
+	// In sectors. (Those 512 byte things. Not to be confused with clusters.)
+	// 0 means invalid, and we check for this as a last resort before writing
+	uint32_t sdAddress = 0;
+
+	Cluster* cluster = nullptr; // May automatically be set to NULL if the Cluster needs to be deallocated (can only
+	                            // happen if it has no "reasons" left)
+	int8_t minValue = 127;
+	int8_t maxValue = -128;
+	bool investigatedWholeLength = false;
 };

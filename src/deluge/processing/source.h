@@ -54,7 +54,7 @@ public:
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	int32_t loadAllSamples(bool mayActuallyReadFiles);
+	Error loadAllSamples(bool mayActuallyReadFiles);
 	void setReversed(bool newReversed);
 	int32_t getRangeIndex(int32_t note);
 	MultiRange* getRange(int32_t note);

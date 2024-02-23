@@ -17,11 +17,12 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_reader.h"
 
 class WaveTableReader final : public AudioFileReader {
 public:
-	WaveTableReader();
-	int32_t readBytesPassedErrorChecking(char* outputBuffer, int32_t num);
-	int32_t readNewCluster();
+	WaveTableReader() = default;
+	Error readBytesPassedErrorChecking(char* outputBuffer, int32_t num) override;
+	Error readNewCluster() override;
 };

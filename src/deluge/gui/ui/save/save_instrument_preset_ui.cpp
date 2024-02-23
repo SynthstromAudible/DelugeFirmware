@@ -78,8 +78,8 @@ tryDefaultDir:
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
-	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
-	if (error) {
+	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
 		goto doReturnFalse;
@@ -95,7 +95,7 @@ gotError:
 	/*
 	String filePath;
 	error = getCurrentFilePath(&filePath);
-	if (error) goto gotError;
+	if (error != Error::NONE) goto gotError;
 	currentFileExists = storageManager.fileExists(filePath.get());
 */
 
@@ -128,8 +128,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 
 	String filePath;
-	int32_t error = getCurrentFilePath(&filePath);
-	if (error) {
+	Error error = getCurrentFilePath(&filePath);
+	if (error != Error::NONE) {
 fail:
 		display->displayError(error);
 		return false;
@@ -137,7 +137,7 @@ fail:
 
 	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
 
-	if (error == ERROR_FILE_ALREADY_EXISTS) {
+	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
 
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
@@ -148,12 +148,12 @@ fail:
 			return true;
 		}
 		else {
-			error = ERROR_UNSPECIFIED;
+			error = Error::UNSPECIFIED;
 			goto fail;
 		}
 	}
 
-	else if (error) {
+	else if (error != Error::NONE) {
 		goto fail;
 	}
 
@@ -168,7 +168,7 @@ fail:
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
-	if (error) {
+	if (error != Error::NONE) {
 		goto fail;
 	}
 
@@ -197,11 +197,11 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
         int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
-        int32_t error = storageManager.decideNextSaveableSlot(offset,
+        Error error = storageManager.decideNextSaveableSlot(offset,
                 &currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
                 previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(),
-outputType, getCurrentInstrument()); if (error) { display->displayError(error); if (error != ERROR_FOLDER_DOESNT_EXIST)
-{ close();
+outputType, getCurrentInstrument()); if (error != Error::NONE) { display->displayError(error); if (error !=
+Error::FOLDER_DOESNT_EXIST) { close();
             }
             return;
         }

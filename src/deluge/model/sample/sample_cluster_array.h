@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/resizeable_array.h"
 
 class SampleCluster;
@@ -24,6 +25,6 @@ class SampleCluster;
 class SampleClusterArray : public ResizeableArray {
 public:
 	SampleClusterArray();
-	int32_t insertSampleClustersAtEnd(int32_t numToInsert);
+	Error insertSampleClustersAtEnd(int32_t numToInsert);
 	SampleCluster* getElement(int32_t i);
 };

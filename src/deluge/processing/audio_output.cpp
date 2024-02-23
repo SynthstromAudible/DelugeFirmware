@@ -325,7 +325,7 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
-int32_t AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
@@ -346,9 +346,9 @@ int32_t AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomation
 
 		else {
 
-			int32_t result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
-			if (result == NO_ERROR) {}
-			else if (result == RESULT_TAG_UNUSED) {
+			Error result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
+			if (result == Error::NONE) {}
+			else if (result == Error::RESULT_TAG_UNUSED) {
 				storageManager.exitTag();
 			}
 			else {
@@ -361,7 +361,7 @@ int32_t AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomation
 		song->backUpParamManager(this, NULL, &paramManager);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioOutput::deleteBackedUpParamManagers(Song* song) {

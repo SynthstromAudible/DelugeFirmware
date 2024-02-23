@@ -157,9 +157,9 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
-		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
+		Error error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
-		if (error) {
+		if (error != Error::NONE) {
 			delugeDealloc(clipMemory);
 			return NULL;
 		}
@@ -183,15 +183,15 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	return newInstrumentClip;
 }
 
-int32_t Instrument::setupDefaultAudioFileDir() {
+Error Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	int32_t error =
+	Error error =
 	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	// TODO: (Kate) Why is OutputType getting converted to ThingType here???
 	audioFileManager.thingBeginningLoading(static_cast<ThingType>(type));
-	return NO_ERROR;
+	return Error::NONE;
 }

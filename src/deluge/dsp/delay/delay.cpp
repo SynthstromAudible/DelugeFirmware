@@ -18,7 +18,7 @@
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 Delay::Delay() {
 	pingPong = true;
@@ -44,8 +44,8 @@ void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 	if (previouslyActive != newActive) {
 		if (newActive) {
 setupSecondaryBuffer:
-			uint8_t result = secondaryBuffer.init(userDelayRate);
-			if (result != NO_ERROR) {
+			Error result = secondaryBuffer.init(userDelayRate);
+			if (result != Error::NONE) {
 				return;
 			}
 			prepareToBeginWriting();

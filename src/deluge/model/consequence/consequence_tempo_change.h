@@ -23,7 +23,7 @@
 class ConsequenceTempoChange final : public Consequence {
 public:
 	ConsequenceTempoChange(uint64_t newTimePerBigBefore, uint64_t newTimePerBigAfter);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	uint64_t timePerBig[2];
 };
