@@ -25,7 +25,7 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 	setValue(nextValue);
 
 	// reset offset to account for wrapping
-	offset = startValue - nextValue;
+	offset = nextValue - startValue;
 	Value::selectEncoderAction(offset);
 }
 
