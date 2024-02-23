@@ -16,28 +16,43 @@
  */
 
 #include "gui/ui/keyboard/layout/snake.h"
+#include "hid/display/display.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutSnake::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	// these will place food on grid
 	currentNotesState = NotesState{}; // Erase active notes
 
-	// loops through all pressed notes (max 10) then enables the note from the coordinates
+	// for each pressed pad, place or remove food
+	uint8_t note = 0;
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
-			// NotesStates in notes_state.h has enableNote and noteEnabled and stuff
-			// enableNote
-			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getDefaultVelocity());
+			note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
+			if (snakeFood[note]) {
+				snakeFood[note] = 0; // FOOD OFF
+				display->displayPopup("OFF")
+			} else {
+				snakeFood[note] = 1; // FOOD ON
+				display->displayPopup("ON")
+			}
 		}
 	}
 }
 
 void KeyboardLayoutSnake::handleVerticalEncoder(int32_t offset) {
+	if (verticalEncoderHandledByColumns(offset)) {
+		return;
+	}
+	handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
 }
 
+
 void KeyboardLayoutSnake::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
+	KeyboardStateSnake& snakeState = getState().snake;
 }
 
 void KeyboardLayoutSnake::precalculate() {
@@ -45,10 +60,13 @@ void KeyboardLayoutSnake::precalculate() {
 
 void KeyboardLayoutSnake::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Iterate over grid image
+	uint8_t note = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			// noteFromCoords defined in snake.h, returns midi note x + y * kDisplayWidth
-			int32_t note = noteFromCoords(x, y);
+			note = noteFromCoords(x, y);
+			if (snakeFood[note]) {
+				image[y][x] = colours::green;
+			}
 		}
 	}
 }

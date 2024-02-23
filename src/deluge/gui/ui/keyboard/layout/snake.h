@@ -17,8 +17,11 @@
 #pragma once
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/notes_state.h"
 
 namespace deluge::gui::ui::keyboard::layout {
+
+
 
 class KeyboardLayoutSnake : public KeyboardLayout {
 public:
@@ -35,6 +38,13 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
+	uint8_t snakeFood[kHighestKeyboardNote] = {0};
+	enum SnakeDirection : uint8_t {
+		UP = 0,
+		RIGHT, // 1
+		DOWN,  // 2
+		LEFT,  // 3
+	};
 
 private:
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) { return x + y * kDisplayWidth; }

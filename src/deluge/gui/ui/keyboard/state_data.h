@@ -39,6 +39,11 @@ struct KeyboardStateInKey {
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
+struct KeyboardStateSnake {
+	int32_t scrollOffset = 0;
+	int32_t edgeSize = 4;
+};
+
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -47,6 +52,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+	KeyboardStateSnake snake;
 };
 
 }; // namespace deluge::gui::ui::keyboard
