@@ -26,13 +26,13 @@ ConsequenceNoteRowLength::ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t
 	backedUpLength = newLength;
 }
 
-int32_t ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->getCurrentClip())
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();
 	performChange(modelStackWithNoteRow, NULL, modelStackWithNoteRow->getLastProcessedPos(),
 	              modelStackWithNoteRow->getNoteRow()->hasIndependentPlayPos());
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void ConsequenceNoteRowLength::performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo,

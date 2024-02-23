@@ -80,5 +80,5 @@ public:
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;
-	int32_t setupDefaultAudioFileDir();
+	Error setupDefaultAudioFileDir();
 };

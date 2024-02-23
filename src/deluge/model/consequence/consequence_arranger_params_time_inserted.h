@@ -23,7 +23,7 @@
 class ConsequenceArrangerParamsTimeInserted final : public Consequence {
 public:
 	ConsequenceArrangerParamsTimeInserted(int32_t newPos, int32_t newLength);
-	int32_t revert(TimeType time, ModelStack* modelStack) override;
+	Error revert(TimeType time, ModelStack* modelStack) override;
 	int32_t pos;
 	int32_t length;
 };

@@ -128,7 +128,7 @@ public:
 
 	void cancelPopup() override { removePopup(); }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override { return (!this->hasPopup()); }
-	void displayError(int32_t error) override;
+	void displayError(Error error) override;
 
 	// Loading animations
 	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {

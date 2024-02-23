@@ -18,6 +18,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "NE10.h"
 #include "arm_neon_shim.h"
+#include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -133,9 +134,9 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
-int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                         uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
-                         WaveTableReader* reader) {
+Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
+                       uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                       WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -163,8 +164,8 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 	// As opposed for checks before this function is called, for softer conditions which merely determine that this file
 	// might not be *intended* as a WaveTable, but the user have have overridden.
 	if (rawFileCycleSize < kWavetableMinCycleSize) {
-		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to
-		                                             // WAVETABLE_MIN_CYCLE_SIZE.
+		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to
+		                                              // WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
 	int32_t initialBandCycleMagnitude = getMagnitude(rawFileCycleSize);
@@ -187,7 +188,7 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 		// Otherwise, if multiple cycles (wavetable), not allowed - it'd take too long to process, and no one has
 		// wavetables of weird sizes anyway.
 		else {
-			return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
+			return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 		}
 	}
 
@@ -196,8 +197,8 @@ int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audi
 		numCycles =
 		    originalSampleLengthInSamples >> initialBandCycleMagnitude; // Will round down, which is what we want.
 		if (numCycles < 1) {
-			return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // Surely can't happen, becacuse of the checks / limiting we've
-			                                             // done above?
+			return Error::FILE_NOT_LOADABLE_AS_WAVETABLE; // Surely can't happen, becacuse of the checks / limiting
+			                                              // we've done above?
 		}
 	}
 
@@ -214,11 +215,11 @@ tryGettingFFTConfig:
 		// Actually screw it, this is so rare, it's easier just to make a rule that for non-power-of-two we *have* to
 		// render it out to that bigger size. Cos if we allow a smaller initial band, we don't have enough space in it
 		// for the dummy writing we do during load, which could be avoided, but yeah this is so rare.
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 
 		/*
 		// So, see if there's a smaller FFT config we can still get.
-		if (initialBandCycleMagnitude <= 3) return ERROR_INSUFFICIENT_RAM; // But, can't go smaller than size 8 (2^3) -
+		if (initialBandCycleMagnitude <= 3) return Error::INSUFFICIENT_RAM; // But, can't go smaller than size 8 (2^3) -
 		see comment on min size below. initialBandCycleMagnitude--; goto tryGettingFFTConfig;
 		*/
 	}
@@ -227,7 +228,7 @@ tryGettingFFTConfig:
 	    1 << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a
 	                                    // power of two.
 
-	uint8_t error;
+	Error error;
 
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs
 	// that small unless we enable its additional C code, which would take up program size for little advantage.
@@ -235,10 +236,10 @@ tryGettingFFTConfig:
 		int32_t numBands =
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
 
-		error = bands.insertAtIndex(
-		    0, numBands); // Don't refer to numBands after this! (Why? Because we might end up using less after all?)
+		// Don't refer to numBands after this! (Why? Because we might end up using less after all?)
+		error = bands.insertAtIndex(0, numBands);
 	}
-	if (error) {
+	if (error != Error::NONE) {
 gotError:
 		return error;
 	}
@@ -266,7 +267,7 @@ gotError2:
 		void* bandDataMemory =
 		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
-			error = ERROR_INSUFFICIENT_RAM;
+			error = Error::INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else
 			// tries to do anything with them.
 			bands.deleteAtIndex(b, bands.getNumElements() - b);
@@ -303,7 +304,7 @@ gotError2:
 	int32_t* __restrict__ currentCycleInt32 =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto gotError2;
 	}
 
@@ -314,7 +315,7 @@ gotError2:
 	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
 	                                                                       * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 gotError4:
 		delugeDealloc(currentCycleInt32);
 		goto gotError2;
@@ -409,7 +410,7 @@ gotError5:
 					                            // read from card
 				}
 				error = reader->advanceClustersIfNecessary();
-				if (error) {
+				if (error != Error::NONE) {
 					goto gotError5;
 				}
 			}
@@ -805,7 +806,7 @@ transformBandToTimeDomain:
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 __attribute__((optimize("unroll-loops"))) void

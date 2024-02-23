@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
 
 struct EarlyNote {
@@ -29,6 +30,6 @@ class EarlyNoteArray : public OrderedResizeableArray {
 public:
 	EarlyNoteArray();
 
-	int32_t insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive = true);
+	Error insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive = true);
 	void noteNoLongerActive(int32_t note);
 };

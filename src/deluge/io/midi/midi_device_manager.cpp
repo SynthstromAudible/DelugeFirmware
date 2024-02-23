@@ -172,9 +172,9 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	device->productId = productId;
 
 	// Store record of this device
-	int32_t error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
+	Error error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
 #if ALPHA_OR_BETA_VERSION
-	if (error) {
+	if (error != Error::NONE) {
 		FREEZE_WITH_ERROR("E405");
 	}
 #endif
@@ -251,8 +251,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	if (display->haveOLED()) {
 		String text;
 		text.set(&device->name);
-		int32_t error = text.concatenate(" attached");
-		if (!error) {
+		Error error = text.concatenate(" attached");
+		if (error == Error::NONE) {
 			consoleTextIfAllBootedUp(text.get());
 		}
 	}
@@ -480,8 +480,8 @@ void writeDevicesToFile() {
 	return;
 
 worthIt:
-	int32_t error = storageManager.createXMLFile("MIDIDevices.XML", true);
-	if (error) {
+	Error error = storageManager.createXMLFile("MIDIDevices.XML", true);
+	if (error != Error::NONE) {
 		return;
 	}
 
@@ -537,8 +537,8 @@ void readDevicesFromFile() {
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&fp, "midiDevices");
-	if (error) {
+	Error error = storageManager.openXMLFile(&fp, "midiDevices");
+	if (error != Error::NONE) {
 		return;
 	}
 

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/params/param_collection.h"
 
@@ -43,7 +44,7 @@ public:
 	                       bool didPingpong, bool mayInterpolate);
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
-	int32_t makeInterpolatedCCsGoodAgain(int32_t clipLength);
+	Error makeInterpolatedCCsGoodAgain(int32_t clipLength);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack);

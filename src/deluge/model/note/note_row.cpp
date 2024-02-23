@@ -82,7 +82,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 }
 
-int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
+Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 
 	firstOldDrumName = NULL;
@@ -97,9 +97,9 @@ int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlatte
 
 	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
 
-	int32_t error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
+	Error error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
 
-	if (error) {
+	if (error != Error::NONE) {
 		notes.init(); // Abandon non-yet-cloned stuff
 		return error;
 	}
@@ -111,7 +111,7 @@ int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlatte
 		notes.init();
 
 		error = notes.insertAtIndex(0, numNotes);
-		if (!error) {
+		if (error == Error::NONE) {
 
 			InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -343,8 +343,8 @@ addNewNote:
 	}
 }
 
-int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, uint8_t velocity,
-                                       ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
+Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, uint8_t velocity,
+                                     ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
 	int32_t posWithinEachScreen = (uint32_t)targetPos % wrapEditLevel;
@@ -362,15 +362,15 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreensToAddNoteOn * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Make new NoteVector to copy into as we go through each screen - and pre-allocate the max amount of memory we
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -506,7 +506,7 @@ addNewNote:
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
 
@@ -568,8 +568,8 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		length = 1; // Special case where note added at the end of linear record must temporarily be allowed to eat into
 		            // note at position 0
 	}
-	int32_t error = notes.insertAtIndex(i);
-	if (error) {
+	Error error = notes.insertAtIndex(i);
+	if (error != Error::NONE) {
 		return 0;
 	}
 	Note* newNote = notes.getElement(i);
@@ -626,8 +626,8 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 		// Ok, there was no Note there, so let's make one
 	}
 
-	int32_t error = notes.insertAtIndex(i);
-	if (error) {
+	Error error = notes.insertAtIndex(i);
+	if (error != Error::NONE) {
 		return 0;
 	}
 	Note* newNote = notes.getElement(i);
@@ -642,12 +642,12 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	return distanceToNextNote;
 }
 
-int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
-                           uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
+Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
+                         uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 	// It'd also be tempting to just abort if there were no notes within the area-to-clear, but remember, we also might
 	// need to shorten note tails leading into that area
@@ -662,15 +662,15 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Make new NoteVector to copy into as we go through each screen - and pre-allocate the max amount of memory we
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements();
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -816,7 +816,7 @@ thatsDone:
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity) {
@@ -938,14 +938,14 @@ void NoteRow::complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStac
 }
 
 // Caller must call expectEvent on Clip after this
-int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-                                                Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
+Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
+                                              Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
 	// If no Notes, nothing to do.
 	if (!numSourceNotes) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	editPos = (uint32_t)editPos % wrapEditLevel;
@@ -962,7 +962,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	bool wrappingLeft = false;
@@ -971,8 +971,8 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -1127,17 +1127,17 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	notes.testSequentiality("E328");
 #endif
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                            uint32_t wrapEditLevel, int32_t nudgeOffset) {
+Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+                                          uint32_t wrapEditLevel, int32_t nudgeOffset) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
 	// If no Notes, nothing to do.
 	if (!numSourceNotes) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	editPos = (uint32_t)editPos % wrapEditLevel;
@@ -1162,7 +1162,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	bool wrappingLeft = false;
@@ -1171,8 +1171,8 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -1426,13 +1426,13 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	notes.testSequentiality("E327");
 #endif
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount) {
+Error NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount) {
 	if (notes.getNumElements() == 0) {
 		// Nothing to do, and checking this now makes some later logic simpler
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	int32_t halfIncrement = increment / 2;
@@ -1547,15 +1547,15 @@ int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, 
 #if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E452");
 #endif
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                             int32_t changeType, int32_t changeValue) {
+Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+                                           int32_t changeType, int32_t changeValue) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
-		NO_ERROR;
+		Error::NONE;
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
@@ -1567,7 +1567,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	if (action) {
@@ -1613,7 +1613,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	// Deallocate working memory - no longer needed
 	delugeDealloc(searchTerms);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void NoteRow::deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action) {
@@ -2492,8 +2492,8 @@ basicTrim:
 			else {
 
 				NoteVector newNotes;
-				int32_t error = newNotes.insertAtIndex(0, newNumNotes);
-				if (error) {
+				Error error = newNotes.insertAtIndex(0, newNumNotes);
+				if (error != Error::NONE) {
 					goto basicTrim;
 				}
 
@@ -2594,8 +2594,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete any
 		// extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
-		int32_t error = notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore);
-		if (error) {
+		Error error = notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore);
+		if (error != Error::NONE) {
 			return false;
 		}
 
@@ -2920,7 +2920,7 @@ uint32_t NoteRow::getNumNotes() {
 	return notes.getNumElements();
 }
 
-int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
@@ -2992,8 +2992,8 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 					ParamManager* existingParamManager =
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
 					if (existingParamManager) {
-						int32_t error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-						if (error) {
+						Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
+						if (error != Error::NONE) {
 							return error;
 						}
 						goto finishedNormalStuff;
@@ -3052,7 +3052,7 @@ finishedNormalStuff:
 						// Make this Note
 						int32_t i = notes.insertAtKey(pos, true);
 						if (i == -1) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						Note* newNote = notes.getElement(i);
 						newNote->setLength(length);
@@ -3148,7 +3148,7 @@ useDefaultLift:
 				// Ok, make the note
 				int32_t i = notes.insertAtKey(pos, true);
 				if (i == -1) {
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 				Note* newNote = notes.getElement(i);
 				newNote->setLength(length);
@@ -3189,7 +3189,7 @@ getOut: {}
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
@@ -3369,8 +3369,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 					// If there is no NoteRow for this Drum... Oh dear. Make a blank ParamManager and pray?
 					else {
-						int32_t error = paramManager.setupWithPatching();
-						if (error) {
+						Error error = paramManager.setupWithPatching();
+						if (error != Error::NONE) {
 							FREEZE_WITH_ERROR("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
@@ -3633,9 +3633,9 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 		stopCurrentlyPlayingNote(modelStack);
 
 		if (action) {
-			int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+			Error error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
-			if (error) {
+			if (error != Error::NONE) {
 				goto justEmpty;
 			}
 		}
@@ -3740,8 +3740,8 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
-int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
-                               int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
+Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
+                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
@@ -3762,7 +3762,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 
 	int32_t numToInsert = otherNoteRow->notes.getNumElements();
 	if (!numToInsert) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
@@ -3790,7 +3790,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 				Note* existingNote = notes.getElement(numNotesHere - 1);
 				existingNote->length += otherNoteRowLength;
 			}
-			return NO_ERROR;
+			return Error::NONE;
 		}
 	}
 
@@ -3798,8 +3798,8 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 	int32_t insertIndex = notes.getNumElements();
 
 	// Pre-emptively insert space for all the notes.
-	int32_t error = notes.insertAtIndex(insertIndex, numToInsert);
-	if (error) {
+	Error error = notes.insertAtIndex(insertIndex, numToInsert);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -3953,7 +3953,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 		notes.deleteAtIndex(insertIndex, numExtraToDelete);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // This gets called on the "unique" copy of the original NoteRow

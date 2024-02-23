@@ -16,6 +16,7 @@
  */
 
 #include "playback/mode/arrangement.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -359,8 +360,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
 			    && output->wantsToBeginArrangementRecording()) {
 
-				int32_t error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error) {
+				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
+				if (error != Error::NONE) {
 					display->displayError(error);
 				}
 			}
@@ -485,10 +486,9 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 }
 
 // First, be sure the clipInstance has a Clip
-int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength,
-                                                 bool shouldCloneRepeats) {
+Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 	Clip* oldClip = clipInstance->clip;
 
@@ -496,8 +496,8 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
-	int32_t error = oldClip->clone(modelStack, true);
-	if (error) {
+	Error error = oldClip->clone(modelStack, true);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -524,7 +524,7 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
