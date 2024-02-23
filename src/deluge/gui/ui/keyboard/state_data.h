@@ -40,8 +40,8 @@ struct KeyboardStateInKey {
 };
 
 struct KeyboardStateSnake {
-	int32_t scrollOffset = 0;
-	int32_t edgeSize = 4;
+	int32_t snakeDirection = 0; // 0 - 3
+	int32_t foodState = 4;
 };
 
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts

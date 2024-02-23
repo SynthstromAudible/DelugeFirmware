@@ -465,11 +465,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		selectLayout(0);
 	}
 
-	// Snake Mode enable/disable
-	else if (b == CROSS_SCREEN_EDIT) {
-		display->displayPopup("Snake");
-	}
-
 	else if (b == SELECT_ENC && on && getCurrentInstrumentClip()->inScaleMode
 	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 		exitScaleModeOnButtonRelease = false;

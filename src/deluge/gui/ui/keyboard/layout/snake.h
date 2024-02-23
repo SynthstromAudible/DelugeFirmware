@@ -18,12 +18,64 @@
 
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/notes_state.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
+class Snake {
+	public:
+		int32_t x = 0;
+		int32_t y = 0;
+		bool dead;
+	    int getDirection() {
+	        return direction;
+	    }
+	    void setDirection(int d) {
+	        direction = d % 4;
+	    }
+	    void turnClockwise() {
+	        direction = (direction + 1) % 4;
+	    }
+		void turnCounterclockwise() {
+			if (direction > 0) {
+				direction = (direction - 1) % 4;
+			} else { // if 0 (up) then set to 3 (left)
+				direction = 3;
+			}
+		}
+		void stepForward() {
+	        switch(direction) {
+				// I tried using std::clamp() here but vscode said I couldn't?
+				// I just wanted to do clamp(y,0,kDisplayHeight) and so on
+				case 0: // UP
+					y = (y + 1) % kDisplayHeight;
+					break;
+				case 1: // RIGHT
+					x = (x + 1) % kDisplayWidth;
+					break;
+				case 2: // DOWN
+					if (y > 0) {
+						y = (y - 1) % kDisplayHeight;
+					} else {
+						y = kDisplayHeight - 1;
+					}
+					break;
+				case 3: // LEFT
+					if (x > 0) {
+						x = (x - 1) % kDisplayWidth;
+					} else {
+						x = kDisplayWidth - 1;
+					}
+					break;
+				default:
+					break;
+			}
+	    }
 
+	private:
+		int32_t direction = 0; // 0 up, 1 right, 2 down, 3 left
+};
 
-
-class KeyboardLayoutSnake : public KeyboardLayout {
+class KeyboardLayoutSnake : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutSnake() = default;
 	~KeyboardLayoutSnake() override = default;
@@ -38,13 +90,8 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
-	uint8_t snakeFood[kHighestKeyboardNote] = {0};
-	enum SnakeDirection : uint8_t {
-		UP = 0,
-		RIGHT, // 1
-		DOWN,  // 2
-		LEFT,  // 3
-	};
+	bool snakeFood[kDisplayWidth][kDisplayHeight];
+	Snake snakeGreen;
 
 private:
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) { return x + y * kDisplayWidth; }

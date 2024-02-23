@@ -17,7 +17,6 @@
 
 #include "gui/ui/keyboard/layout/snake.h"
 #include "hid/display/display.h"
-#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -25,26 +24,29 @@ void KeyboardLayoutSnake::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	currentNotesState = NotesState{}; // Erase active notes
 
 	// for each pressed pad, place or remove food
-	uint8_t note = 0;
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
-			note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
-			if (snakeFood[note]) {
-				snakeFood[note] = 0; // FOOD OFF
-				display->displayPopup("OFF")
+			if (snakeFood[presses[idxPress].x][presses[idxPress].y]) {
+				snakeFood[presses[idxPress].x][presses[idxPress].y] = false; // FOOD OFF
+				display->displayPopup("OFF");
 			} else {
-				snakeFood[note] = 1; // FOOD ON
-				display->displayPopup("ON")
+				snakeFood[presses[idxPress].x][presses[idxPress].y] = true; // FOOD ON
+				display->displayPopup("ON");
 			}
 		}
 	}
+	snakeGreen.stepForward();
 }
 
 void KeyboardLayoutSnake::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
+	if (offset > 0) {
+		snakeGreen.turnClockwise();
+	} else if (offset < 0) {
+		snakeGreen.turnCounterclockwise();
+	}
 }
 
 
@@ -52,7 +54,6 @@ void KeyboardLayoutSnake::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	KeyboardStateSnake& snakeState = getState().snake;
 }
 
 void KeyboardLayoutSnake::precalculate() {
@@ -60,12 +61,14 @@ void KeyboardLayoutSnake::precalculate() {
 
 void KeyboardLayoutSnake::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Iterate over grid image
-	uint8_t note = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			note = noteFromCoords(x, y);
-			if (snakeFood[note]) {
+			if (snakeGreen.x == x && snakeGreen.y == y) {
 				image[y][x] = colours::green;
+			} else if (snakeFood[x][y]) {
+				image[y][x] = colours::white_full;
+			} else {
+				image[y][x] = colours::black;
 			}
 		}
 	}
