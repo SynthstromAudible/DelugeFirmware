@@ -5518,6 +5518,21 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
+int32_t Song::countAudioClips() const {
+	int32_t i = 0;
+	for (Output* output = firstOutput; output; output = output->next) {
+		if (output->type == OutputType::AUDIO) {
+			if (output->activeClip) {
+				AudioClip* clip = (AudioClip*)output->activeClip;
+				if (clip->voiceSample) {
+					i++;
+				}
+			}
+		}
+	}
+	return i;
+}
+
 void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = NULL;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
