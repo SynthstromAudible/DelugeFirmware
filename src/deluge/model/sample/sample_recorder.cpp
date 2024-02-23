@@ -135,13 +135,12 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	sample = new (sampleMemory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error;
-	error = sample->initialize(1);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(sample->initialize(1), {
 gotError:
 		sample->~Sample();
 		delugeDealloc(sampleMemory);
 		return error;
-	}
+	});
 
 	currentRecordCluster =
 	    sample->clusters.getElement(0)->getCluster(sample, 0, CLUSTER_DONT_LOAD); // Adds a "reason" to it, too
@@ -450,11 +449,10 @@ gotError:
 	// If we've actually finished recording...
 	if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		if (!hadCardError) {
-			error = finalizeRecordedFile();
-			if (error != Error::NONE) {
+			D_TRY_CATCH(finalizeRecordedFile(), {
 				hadCardError = true;
 				error = Error::SD_CARD;
-			}
+			});
 		}
 
 		if (reachedMaxFileSize) {

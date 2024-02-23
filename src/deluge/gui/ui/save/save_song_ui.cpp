@@ -65,12 +65,11 @@ doReturnFalse:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
-		error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
+		D_TRY_CATCH(searchFilename.concatenate(".XML"), {
 gotError:
 			display->displayError(error);
 			goto doReturnFalse;
-		}
+		});
 	}
 	currentFolderIsEmpty = false;
 
@@ -117,13 +116,12 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	String filePath;
 	Error error;
-	error = getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(getCurrentFilePath(&filePath), {
 gotError:
 		display->removeLoadingAnimation();
 		display->displayError(error);
 		return false;
-	}
+	});
 
 	bool fileAlreadyExisted = storageManager.fileExists(filePath.get());
 
@@ -294,13 +292,13 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						error = audioFileManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew,
-						                                                     &audioFile->filePath);
-						if (error != Error::NONE) {
+						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(
+						                &newSongAlternatePath, dirPathLengthNew, &audioFile->filePath),
+						            {
 failAfterOpeningSourceFile:
 							f_close(&fileSystemStuff.currentFile); // Close source file
 							goto gotError;
-						}
+						            });
 					}
 
 					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
@@ -409,11 +407,9 @@ fail3:
 
 	currentSong->writeToFile();
 
-	error = storageManager.closeFileAfterWriting(filePathDuringWrite.get(),
-	                                             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(storageManager.closeFileAfterWriting(
+	                filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n"),
+	            { goto gotError; });
 
 	// If "overwriting an existing file"...
 	if (fileAlreadyExisted) {

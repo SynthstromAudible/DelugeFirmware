@@ -642,12 +642,11 @@ void MidiFollow::readDefaultsFromFile() {
 
 	//<defaults>
 	Error error;
-	error = storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG), {
 		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
 		return;
-	}
+	});
 
 	char const* tagName;
 	// step into the <defaultCCMappings> tag

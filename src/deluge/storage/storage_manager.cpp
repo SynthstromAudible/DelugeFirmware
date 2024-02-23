@@ -993,12 +993,11 @@ cutFolderPathAndTryCreating:
 Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
 	Error error;
-	error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite), {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
 			display->displayError(error);
-		}
+		});
 		return error;
 	}
 
@@ -1047,11 +1046,10 @@ void StorageManager::write(char const* output) {
 
 			if (!fileAccessFailedDuring) {
 				Error error;
-				error = writeBufferToFile();
-				if (error != Error::NONE) {
+				D_TRY_CATCH(writeBufferToFile(), {
 					fileAccessFailedDuring = true;
 					return;
-				}
+				});
 			}
 
 			fileBufferCurrentPos = 0;
@@ -1354,11 +1352,10 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	          (int32_t)filePointer->sclust);
 
 	Error error;
-	error = openInstrumentFile(outputType, filePointer);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(openInstrumentFile(outputType, filePointer), {
 		D_PRINTLN("opening instrument file failed -  %s", name->get());
 		return error;
-	}
+	});
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
@@ -1510,12 +1507,11 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 	// Synth
 	if (newOutputType == OutputType::SYNTH) {
 		if (paramManager) {
-			error = paramManager->setupWithPatching();
-			if (error != Error::NONE) {
+			D_TRY_CATCH(paramManager->setupWithPatching(), {
 paramManagerSetupError:
 				delugeDealloc(instrumentMemory);
 				return NULL;
-			}
+			});
 			Sound::initParams(paramManager);
 		}
 		newInstrument = new (instrumentMemory) SoundInstrument();

@@ -367,12 +367,10 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 						stringToConcat[1] = 0;
 
 						Error error;
-						error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
-
-						if (error != Error::NONE) {
+						D_TRY_CATCH(enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos), {
 							display->displayError(error);
 							return ActionResult::DEALT_WITH;
-						}
+						});
 
 						enteredTextEditPos++;
 

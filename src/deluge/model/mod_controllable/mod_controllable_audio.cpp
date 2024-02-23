@@ -2276,12 +2276,11 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
 	// sound as good if not better (in terms of ticking / crackling)...
 	Error error;
-	error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(stutterer.buffer.init(getStutterRate(paramManager), 0, true), {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
 		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size;
 		enterUIMode(UI_MODE_STUTTERING);
-	}
+	});
 }
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate

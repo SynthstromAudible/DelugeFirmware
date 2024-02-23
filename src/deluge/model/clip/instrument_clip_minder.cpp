@@ -160,12 +160,11 @@ void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (error != Error::NONE) {
+	D_TRY_CATCH(Browser::currentDir.set(getInstrumentFolder(newOutputType)), {
 gotError:
 		display->displayError(error);
 		return;
-	}
+	});
 
 	D_TRY_CATCH(loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName), { goto gotError; });
 
@@ -182,13 +181,12 @@ gotError:
 	}
 
 	// Set dirPath.
-	error = newInstrument->dirPath.set(getInstrumentFolder(newOutputType));
-	if (error != Error::NONE) {
+	D_TRY_CATCH(newInstrument->dirPath.set(getInstrumentFolder(newOutputType)), {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 		goto gotError;
-	}
+	});
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 

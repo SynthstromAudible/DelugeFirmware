@@ -1908,13 +1908,12 @@ unknownTag:
 						defaultDirPath = "SYNTHS";
 
 setDirPathFirst:
-						error = ((Instrument*)newOutput)->dirPath.set(defaultDirPath);
-						if (error != Error::NONE) {
+						D_TRY_CATCH(((Instrument*)newOutput)->dirPath.set(defaultDirPath), {
 gotError:
 							newOutput->~Output();
 							delugeDealloc(memory);
 							return error;
-						}
+						});
 
 loadOutput:
 						error = newOutput->readFromFile(
@@ -2230,12 +2229,11 @@ readClip:
 			}
 
 			Error error;
-			error = newClip->readFromFile(this);
-			if (error != Error::NONE) {
+			D_TRY_CATCH(newClip->readFromFile(this), {
 				newClip->~Clip();
 				delugeDealloc(memory);
 				return error;
-			}
+			});
 
 			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
 

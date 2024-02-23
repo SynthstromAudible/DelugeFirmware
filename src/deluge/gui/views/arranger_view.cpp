@@ -1203,8 +1203,10 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 					actionLogger.deleteAllLogs();
 
 					Error error;
-					D_TRY_CATCH(arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true),
-					            { display->displayError(error); });
+					error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
+					if (error != Error::NONE) {
+						display->displayError(error);
+					}
 					else {
 						uiNeedsRendering(this, 1 << y, 0);
 					}

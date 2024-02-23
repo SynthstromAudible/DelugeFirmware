@@ -389,11 +389,8 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
 			Error error;
-			error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                             &modKnobCCAssignments[m]);
-			if (error != Error::NONE) {
-				return error;
-			}
+			D_TRY(storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
+			                                           &modKnobCCAssignments[m]));
 			m++;
 		}
 

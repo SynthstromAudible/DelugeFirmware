@@ -956,12 +956,10 @@ trimFoundParamManager:
 			if (otherClip) {
 
 				Error error;
-				error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
-
-				if (error != Error::NONE) {
+				D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true), {
 					FREEZE_WITH_ERROR("E050");
 					return error;
-				}
+				});
 			}
 			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up
 			// ParamManager. But, just in case

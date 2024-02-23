@@ -245,13 +245,11 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	if (currentFileItem->isFolder) {
 
 		Error error;
-		error = goIntoFolder(currentFileItem->filename.get());
-
-		if (error != Error::NONE) {
+		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
-		}
+		});
 	}
 
 	else {
@@ -356,11 +354,10 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// some way. So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
 		Error error;
-		error = getCurrentFilePath(&filePath);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(getCurrentFilePath(&filePath), {
 			display->displayError(error);
 			return ActionResult::DEALT_WITH;
-		}
+		});
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
@@ -437,11 +434,10 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		outputTypeToLoad = newOutputType;
 
 		Error error;
-		error = setupForOutputType();
-		if (error != Error::NONE) {
+		D_TRY_CATCH(setupForOutputType(), {
 			outputTypeToLoad = oldOutputType;
 			return;
-		}
+		});
 
 		if (display->haveOLED()) {
 			renderUIsForOled();
@@ -559,12 +555,10 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 					return;
 				}
 
-				error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
-				                                              false, &initialInstrument, &tempFilePointer, &initialName,
-				                                              &initialDirPath);
-				if (error != Error::NONE) {
-					return;
-				}
+				D_TRY_CATCH(storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
+				                                                  initialOutputType, false, &initialInstrument,
+				                                                  &tempFilePointer, &initialName, &initialDirPath),
+				            { return; });
 			}
 
 			initialInstrument->loadAllAudioFiles(true);
@@ -863,13 +857,9 @@ giveUsedError:
 		Error error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
-		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
-		                                              &currentDir);
-
-		if (error != Error::NONE) {
-			return error;
-		}
+		D_TRY(storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+		                                            &newInstrument, &currentFileItem->filePointer, &enteredText,
+		                                            &currentDir));
 
 		shouldReplaceWholeInstrument = oldInstrumentShouldBeReplaced;
 		needToAddInstrumentToSong = true;
@@ -987,11 +977,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	Error error;
-	error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                       &currentFileItem->filePointer, &enteredText, &currentDir);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                     &currentFileItem->filePointer, &enteredText, &currentDir));
 	// kitToLoadFor->addDrum(soundDrumToReplace);
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllSamples(true);

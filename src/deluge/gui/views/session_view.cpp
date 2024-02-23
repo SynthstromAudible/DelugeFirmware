@@ -217,12 +217,11 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
 					Error error;
-					error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
-
-					if (error != Error::NONE) {
-						display->displayError(error);
-						return ActionResult::DEALT_WITH;
-					}
+					D_TRY_CATCH(currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted),
+					            {
+						            display->displayError(error);
+						            return ActionResult::DEALT_WITH;
+					            });
 					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
 
@@ -288,11 +287,10 @@ moveAfterClipInstance:
 
 				// If we're here, we're ok!
 				Error error;
-				error = output->clipInstances.insertAtIndex(i);
-				if (error != Error::NONE) {
+				D_TRY_CATCH(output->clipInstances.insertAtIndex(i), {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
-				}
+				});
 
 				ClipInstance* newInstance = output->clipInstances.getElement(i);
 				newInstance->pos = proposedStartPos;
@@ -1554,14 +1552,12 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	OutputType outputType = OutputType::SYNTH;
 doGetInstrument:
 	Error error;
-	error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-	if (error != Error::NONE) {
-
+	D_TRY_CATCH(setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong), {
 		// If that was for a synth and there were none, try a kit
 		if (error == Error::NO_FURTHER_PRESETS && outputType == OutputType::SYNTH) {
 			outputType = OutputType::KIT;
 			goto doGetInstrument;
-		}
+		});
 		newClip->~InstrumentClip();
 		delugeDealloc(memory);
 		display->displayError(error);
@@ -1642,15 +1638,14 @@ ramError:
 
 	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
 
-		error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong), {
 gotError:
 			display->displayError(error);
 gotErrorDontDisplay:
 			newClip->~InstrumentClip();
 			delugeDealloc(clipMemory);
 			return;
-		}
+		});
 	}
 
 	else {
@@ -1660,11 +1655,10 @@ gotErrorDontDisplay:
 			goto gotErrorDontDisplay;
 		}
 
-		error = newClip->setNonAudioInstrument(newInstrument, currentSong);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(newClip->setNonAudioInstrument(newInstrument, currentSong), {
 			// TODO: we'd really want to deallocate the Instrument
 			goto gotError;
-		}
+		});
 	}
 
 	if (!instrumentAlreadyInSong) {
@@ -3002,11 +2996,10 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
 	Error error;
-	error = sourceClip->clone(modelStack, false);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(sourceClip->clone(modelStack, false), {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
-	}
+	});
 
 	return (Clip*)modelStack->getTimelineCounter();
 }
@@ -3200,11 +3193,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
 				Error error;
-				error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-				                                            InstrumentRemoval::NONE);
-				if (error != Error::NONE) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
-				}
+				D_TRY_CATCH(newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                                InstrumentRemoval::NONE),
+				            { display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED)); });
 
 				if (targetOutput->type == OutputType::KIT) {
 					newInstrumentClip->yScroll = 0;

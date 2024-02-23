@@ -257,13 +257,12 @@ possiblyDeleteRanges:
 
 doChangeType:
 			Error error;
-			error = ranges.changeType(multiRangeSize);
-			if (error != Error::NONE) {
+			D_TRY_CATCH(ranges.changeType(multiRangeSize), {
 				destructAllMultiRanges();
 				ranges.empty();
 				soundEditor.currentMultiRangeIndex = 0;
 				goto doChangeType; // Can't fail now it's empty.
-			}
+			});
 
 			oscType = newType;
 

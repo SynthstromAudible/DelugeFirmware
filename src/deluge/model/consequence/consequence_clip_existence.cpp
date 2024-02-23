@@ -66,13 +66,13 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 		}
 
 		Error error;
-		error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
-		if (error != Error::NONE) { // This shouldn't actually happen, but if it does...
+		D_TRY_CATCH(clip->undoDetachmentFromOutput(modelStackWithTimelineCounter), {
+		// This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
 			FREEZE_WITH_ERROR("E046");
 #endif
 			return error; // Run away. This and the Clip(?) will get destructed, and everything should be ok!
-		}
+		});
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {

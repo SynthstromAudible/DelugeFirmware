@@ -1231,86 +1231,87 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	range->sampleHolder.filePath.set(path);
 	Error error;
 	D_TRY_CATCH(range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer), {
-		display->displayError(error); // Rare, shouldn't cause later problems.});
+		display->displayError(error); // Rare, shouldn't cause later problems.
+	});
 
-		if (shouldActuallySound) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
-			    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-			sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
-			bypassCulling = true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we
-			                      // may have gone a while without an audio routine call.
-		}
+	if (shouldActuallySound) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
+		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
+		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
+		bypassCulling = true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we
+		                      // may have gone a while without an audio routine call.
+	}
 }
 
 void stopAnyPreviewing() {
-		sampleForPreview->unassignAllVoices();
-		if (sampleForPreview->sources[0].ranges.getNumElements()) {
-			MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
-			range->sampleHolder.setAudioFile(NULL);
-		}
+	sampleForPreview->unassignAllVoices();
+	if (sampleForPreview->sources[0].ranges.getNumElements()) {
+		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
+		range->sampleHolder.setAudioFile(NULL);
+	}
 }
 
 void getReverbParamsFromSong(Song* song) {
-		reverb.setRoomSize(song->reverbRoomSize);
-		reverb.setDamping(song->reverbDamp);
-		reverb.setWidth(song->reverbWidth);
-		reverbPan = song->reverbPan;
-		reverbSidechainVolume = song->reverbSidechainVolume;
-		reverbSidechainShape = song->reverbSidechainShape;
-		reverbSidechain.attack = song->reverbSidechainAttack;
-		reverbSidechain.release = song->reverbSidechainRelease;
-		reverbSidechain.syncLevel = song->reverbSidechainSync;
+	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setDamping(song->reverbDamp);
+	reverb.setWidth(song->reverbWidth);
+	reverbPan = song->reverbPan;
+	reverbSidechainVolume = song->reverbSidechainVolume;
+	reverbSidechainShape = song->reverbSidechainShape;
+	reverbSidechain.attack = song->reverbSidechainAttack;
+	reverbSidechain.release = song->reverbSidechainRelease;
+	reverbSidechain.syncLevel = song->reverbSidechainSync;
 }
 
 Voice* solicitVoice(Sound* forSound) {
-		Voice* newVoice;
-		// if we're gonna hard cull, just do it now instead of allocating
-		// this is slightly different from the hard cull limit (limit + 10) because we need to finish all note ons
-		// before the hard cull decision gets made, so the actual num samples will be higher
-		if (cpuDireness > 13 && smoothedSamples > (numSamplesLimit + 5) && activeVoices.getNumElements()) {
+	Voice* newVoice;
+	// if we're gonna hard cull, just do it now instead of allocating
+	// this is slightly different from the hard cull limit (limit + 10) because we need to finish all note ons
+	// before the hard cull decision gets made, so the actual num samples will be higher
+	if (cpuDireness > 13 && smoothedSamples > (numSamplesLimit + 5) && activeVoices.getNumElements()) {
 
-			cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
-			                  // up to the ones being culled
-			D_PRINTLN("soliciting via culling");
+		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
+		                  // up to the ones being culled
+		D_PRINTLN("soliciting via culling");
 doCull:
-			newVoice = cullVoice(true);
-		}
+		newVoice = cullVoice(true);
+	}
 
-		else if (firstUnassignedVoice) {
+	else if (firstUnassignedVoice) {
 
-			newVoice = firstUnassignedVoice;
-			firstUnassignedVoice = firstUnassignedVoice->nextUnassigned;
-		}
+		newVoice = firstUnassignedVoice;
+		firstUnassignedVoice = firstUnassignedVoice->nextUnassigned;
+	}
 
-		else {
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
-			if (!memory) {
-				if (activeVoices.getNumElements()) {
-					goto doCull;
-				}
-				else {
-					return NULL;
-				}
+	else {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
+		if (!memory) {
+			if (activeVoices.getNumElements()) {
+				goto doCull;
 			}
-
-			newVoice = new (memory) Voice();
+			else {
+				return NULL;
+			}
 		}
 
-		newVoice->assignedToSound = forSound;
+		newVoice = new (memory) Voice();
+	}
 
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)forSound;
-		keyWords[1] = (uint32_t)newVoice;
+	newVoice->assignedToSound = forSound;
 
-		int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
-		if (i == -1) {
-			// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
-			// not continue.
-			disposeOfVoice(newVoice);
-			return NULL;
-		}
-		return newVoice;
+	uint32_t keyWords[2];
+	keyWords[0] = (uint32_t)forSound;
+	keyWords[1] = (uint32_t)newVoice;
+
+	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
+	if (i == -1) {
+		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
+		// not continue.
+		disposeOfVoice(newVoice);
+		return NULL;
+	}
+	return newVoice;
 }
 
 // **** This is the main function that enacts the unassigning of the Voice
@@ -1318,247 +1319,247 @@ doCull:
 // modelStack can be NULL if you really insist
 void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack, bool removeFromVector,
                    bool shouldDispose) {
-		activeVoices.checkVoiceExists(voice, sound, "E195");
+	activeVoices.checkVoiceExists(voice, sound, "E195");
 
-		voice->setAsUnassigned(modelStack->addVoice(voice));
-		if (removeFromVector) {
-			uint32_t keyWords[2];
-			keyWords[0] = (uint32_t)sound;
-			keyWords[1] = (uint32_t)voice;
-			activeVoices.deleteAtKeyMultiWord(keyWords);
-		}
+	voice->setAsUnassigned(modelStack->addVoice(voice));
+	if (removeFromVector) {
+		uint32_t keyWords[2];
+		keyWords[0] = (uint32_t)sound;
+		keyWords[1] = (uint32_t)voice;
+		activeVoices.deleteAtKeyMultiWord(keyWords);
+	}
 
-		if (shouldDispose) {
-			disposeOfVoice(voice);
-		}
+	if (shouldDispose) {
+		disposeOfVoice(voice);
+	}
 }
 
 void disposeOfVoice(Voice* voice) {
-		delugeDealloc(voice);
+	delugeDealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {
-		if (firstUnassignedVoiceSample) {
-			VoiceSample* toReturn = firstUnassignedVoiceSample;
-			firstUnassignedVoiceSample = firstUnassignedVoiceSample->nextUnassigned;
-			return toReturn;
+	if (firstUnassignedVoiceSample) {
+		VoiceSample* toReturn = firstUnassignedVoiceSample;
+		firstUnassignedVoiceSample = firstUnassignedVoiceSample->nextUnassigned;
+		return toReturn;
+	}
+	else {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
+		if (!memory) {
+			return NULL;
 		}
-		else {
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
-			if (!memory) {
-				return NULL;
-			}
 
-			return new (memory) VoiceSample();
-		}
+		return new (memory) VoiceSample();
+	}
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-		if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[kNumVoiceSamplesStatic]) {
-			voiceSample->nextUnassigned = firstUnassignedVoiceSample;
-			firstUnassignedVoiceSample = voiceSample;
-		}
-		else {
-			delugeDealloc(voiceSample);
-		}
+	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[kNumVoiceSamplesStatic]) {
+		voiceSample->nextUnassigned = firstUnassignedVoiceSample;
+		firstUnassignedVoiceSample = voiceSample;
+	}
+	else {
+		delugeDealloc(voiceSample);
+	}
 }
 
 TimeStretcher* solicitTimeStretcher() {
-		if (firstUnassignedTimeStretcher) {
+	if (firstUnassignedTimeStretcher) {
 
-			TimeStretcher* toReturn = firstUnassignedTimeStretcher;
-			firstUnassignedTimeStretcher = firstUnassignedTimeStretcher->nextUnassigned;
-			return toReturn;
+		TimeStretcher* toReturn = firstUnassignedTimeStretcher;
+		firstUnassignedTimeStretcher = firstUnassignedTimeStretcher->nextUnassigned;
+		return toReturn;
+	}
+
+	else {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
+		if (!memory) {
+			return NULL;
 		}
 
-		else {
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
-			if (!memory) {
-				return NULL;
-			}
-
-			return new (memory) TimeStretcher();
-		}
+		return new (memory) TimeStretcher();
+	}
 }
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-		if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[kNumTimeStretchersStatic]) {
-			timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
-			firstUnassignedTimeStretcher = timeStretcher;
-		}
-		else {
-			delugeDealloc(timeStretcher);
-		}
+	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[kNumTimeStretchersStatic]) {
+		timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
+		firstUnassignedTimeStretcher = timeStretcher;
+	}
+	else {
+		delugeDealloc(timeStretcher);
+	}
 }
 
 // TODO: delete unused ones
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
-		const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
-		if (!liveInputBuffers[idx]) {
-			if (!mayCreate) {
-				return NULL;
-			}
-
-			int32_t size = sizeof(LiveInputBuffer);
-			if (inputType == OscType::INPUT_STEREO) {
-				size += kInputRawBufferSize * sizeof(int32_t);
-			}
-
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
-			if (!memory) {
-				return NULL;
-			}
-
-			liveInputBuffers[idx] = new (memory) LiveInputBuffer();
+	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
+	if (!liveInputBuffers[idx]) {
+		if (!mayCreate) {
+			return NULL;
 		}
 
-		return liveInputBuffers[idx];
+		int32_t size = sizeof(LiveInputBuffer);
+		if (inputType == OscType::INPUT_STEREO) {
+			size += kInputRawBufferSize * sizeof(int32_t);
+		}
+
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
+		if (!memory) {
+			return NULL;
+		}
+
+		liveInputBuffers[idx] = new (memory) LiveInputBuffer();
+	}
+
+	return liveInputBuffers[idx];
 }
 
 bool createdNewRecorder;
 
 void doRecorderCardRoutines() {
-		SampleRecorder** prevPointer = &firstRecorder;
-		int32_t count = 0;
-		while (true) {
-			count++;
+	SampleRecorder** prevPointer = &firstRecorder;
+	int32_t count = 0;
+	while (true) {
+		count++;
 
-			SampleRecorder* recorder = *prevPointer;
-			if (!recorder) {
-				break;
-			}
-
-			Error error;
-			D_TRY_CATCH(recorder->cardRoutine(), { display->displayError(error); });
-
-			// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
-			// be out of wack, so let's just get out and come back later
-			if (createdNewRecorder) {
-				break;
-			}
-
-			// If complete, discard it
-			if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
-				D_PRINTLN("deleting recorder");
-				*prevPointer = recorder->next;
-				recorder->~SampleRecorder();
-				delugeDealloc(recorder);
-			}
-
-			// Otherwise, move on
-			else {
-				prevPointer = &recorder->next;
-			}
+		SampleRecorder* recorder = *prevPointer;
+		if (!recorder) {
+			break;
 		}
 
-		if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
-			display->displayPopup("MORE");
+		Error error;
+		D_TRY_CATCH(recorder->cardRoutine(), { display->displayError(error); });
+
+		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
+		// be out of wack, so let's just get out and come back later
+		if (createdNewRecorder) {
+			break;
 		}
+
+		// If complete, discard it
+		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
+			D_PRINTLN("deleting recorder");
+			*prevPointer = recorder->next;
+			recorder->~SampleRecorder();
+			delugeDealloc(recorder);
+		}
+
+		// Otherwise, move on
+		else {
+			prevPointer = &recorder->next;
+		}
+	}
+
+	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
+		display->displayPopup("MORE");
+	}
 }
 
 void slowRoutine() {
-		// The RX buffer is much bigger than the TX, and we get our timing from the TX buffer's sending.
-		// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle
-		// of the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and
-		// correct it. The correct latency for the RX buffer is between (SSI_TX_BUFFER_NUM_SAMPLES) and (2 *
-		// SSI_TX_BUFFER_NUM_SAMPLES).
+	// The RX buffer is much bigger than the TX, and we get our timing from the TX buffer's sending.
+	// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle
+	// of the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and
+	// correct it. The correct latency for the RX buffer is between (SSI_TX_BUFFER_NUM_SAMPLES) and (2 *
+	// SSI_TX_BUFFER_NUM_SAMPLES).
 
-		uint32_t rxBufferWriteAddr = (uint32_t)getRxBufferCurrentPlace();
-		uint32_t latencyWithinAppropriateWindow =
+	uint32_t rxBufferWriteAddr = (uint32_t)getRxBufferCurrentPlace();
+	uint32_t latencyWithinAppropriateWindow =
+	    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
+	     - SSI_TX_BUFFER_NUM_SAMPLES)
+	    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
+
+	while (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
+		i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
+		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
+			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
+		}
+		latencyWithinAppropriateWindow =
 		    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
 		     - SSI_TX_BUFFER_NUM_SAMPLES)
 		    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
+	}
 
-		while (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
-			i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-			if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
-				i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
-			}
-			latencyWithinAppropriateWindow =
-			    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
-			     - SSI_TX_BUFFER_NUM_SAMPLES)
-			    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
-		}
-
-		// Discard any LiveInputBuffers which aren't in use
-		for (int32_t i = 0; i < 3; i++) {
-			if (liveInputBuffers[i]) {
-				if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
-					liveInputBuffers[i]->~LiveInputBuffer();
-					delugeDealloc(liveInputBuffers[i]);
-					liveInputBuffers[i] = NULL;
-				}
+	// Discard any LiveInputBuffers which aren't in use
+	for (int32_t i = 0; i < 3; i++) {
+		if (liveInputBuffers[i]) {
+			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
+				liveInputBuffers[i]->~LiveInputBuffer();
+				delugeDealloc(liveInputBuffers[i]);
+				liveInputBuffers[i] = NULL;
 			}
 		}
+	}
 
-		createdNewRecorder = false;
+	createdNewRecorder = false;
 
-		// Go through all SampleRecorders, getting them to write etc
-		doRecorderCardRoutines();
+	// Go through all SampleRecorders, getting them to write etc
+	doRecorderCardRoutines();
 }
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
-		Error error;
+	Error error;
 
-		void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
-		if (!recorderMemory) {
-			return NULL;
-		}
+	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
+	if (!recorderMemory) {
+		return NULL;
+	}
 
-		SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
+	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
-		error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
-		if (error != Error::NONE) {
-			newRecorder->~SampleRecorder();
-			delugeDealloc(recorderMemory);
-			return NULL;
-		}
+	D_TRY_CATCH(newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency),
+	            {
+		            newRecorder->~SampleRecorder();
+		            delugeDealloc(recorderMemory);
+		            return NULL;
+	            });
 
-		newRecorder->next = firstRecorder;
-		firstRecorder = newRecorder;
+	newRecorder->next = firstRecorder;
+	firstRecorder = newRecorder;
 
-		createdNewRecorder = true;
+	createdNewRecorder = true;
 
-		if (mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
-			renderInStereo = true; // Quickly set it to true. It'll keep getting reset to true now every time
-			                       // inputRoutine() is called
-		}
+	if (mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+		renderInStereo = true; // Quickly set it to true. It'll keep getting reset to true now every time
+		                       // inputRoutine() is called
+	}
 
-		return newRecorder;
+	return newRecorder;
 }
 
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
 void discardRecorder(SampleRecorder* recorder) {
-		int32_t count = 0;
-		SampleRecorder** prevPointer = &firstRecorder;
-		while (*prevPointer) {
+	int32_t count = 0;
+	SampleRecorder** prevPointer = &firstRecorder;
+	while (*prevPointer) {
 
-			count++;
-			if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-				FREEZE_WITH_ERROR("E264");
-			}
-			if (*prevPointer == recorder) {
-				*prevPointer = recorder->next;
-				break;
-			}
-
-			prevPointer = &(*prevPointer)->next;
+		count++;
+		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
+			FREEZE_WITH_ERROR("E264");
+		}
+		if (*prevPointer == recorder) {
+			*prevPointer = recorder->next;
+			break;
 		}
 
-		recorder->~SampleRecorder();
-		delugeDealloc(recorder);
+		prevPointer = &(*prevPointer)->next;
+	}
+
+	recorder->~SampleRecorder();
+	delugeDealloc(recorder);
 }
 
 bool isAnyInternalRecordingHappening() {
-		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
-			if (recorder->mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
-				return true;
-			}
+	for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
+		if (recorder->mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+			return true;
 		}
+	}
 
-		return false;
+	return false;
 }
 
 } // namespace AudioEngine

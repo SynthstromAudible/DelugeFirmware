@@ -112,13 +112,12 @@ bool SampleBrowser::opened() {
 	}
 
 	Error error;
-	error = storageManager.initSD();
-	if (error != Error::NONE) {
+	D_TRY_CATCH(storageManager.initSD(), {
 sdError:
 		display->displayError(error);
 		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
 		return false;
-	}
+	});
 
 	String currentPath;
 	currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
@@ -350,13 +349,11 @@ void SampleBrowser::enterKeyPress() {
 		char const* filenameChars = currentFileItem->filename.get();
 
 		Error error;
-		error = goIntoFolder(filenameChars);
-
-		if (error != Error::NONE) {
+		D_TRY_CATCH(goIntoFolder(filenameChars), {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
-		}
+		});
 	}
 
 	// Or if it's an audio file...
@@ -411,11 +408,10 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 					// Ensure sample isn't used in current song
 					String filePath;
 					Error error;
-					error = getCurrentFilePath(&filePath);
-					if (error != Error::NONE) {
+					D_TRY_CATCH(getCurrentFilePath(&filePath), {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
-					}
+					});
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
@@ -484,12 +480,11 @@ Error SampleBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 	int32_t oldLength = path->getLength();
 	if (oldLength) {
-		error = path->concatenateAtPos("/", oldLength);
-		if (error != Error::NONE) {
+		D_TRY_CATCH(path->concatenateAtPos("/", oldLength), {
 gotError:
 			path->clear();
 			return error;
-		}
+		});
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -747,13 +742,12 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 	// If for AudioClip...
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 
-		error = claimAudioFileForAudioClip();
-		if (error != Error::NONE) {
+		D_TRY_CATCH(claimAudioFileForAudioClip(), {
 removeLoadingAnimationAndGetOut:
 			display->removeLoadingAnimation();
 			display->displayError(error);
 			return false;
-		}
+		});
 
 		AudioClip* clip = getCurrentAudioClip();
 
@@ -807,8 +801,7 @@ doLoadAsWaveTable:
 			*/
 			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
-			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
-			if (error != Error::NONE) {
+			D_TRY_CATCH(claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts), {
 				// If word has come back that this file isn't wanting to load as a WaveTable...
 				if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
 				    || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
@@ -830,7 +823,7 @@ doLoadAsWaveTable:
 				else {
 					goto removeLoadingAnimationAndGetOut;
 				}
-			}
+			});
 
 			// Alright, if we're still here, it was successfully loaded as a WaveTable!
 
@@ -1905,9 +1898,7 @@ getOut:
 
 			String newName;
 			Error error;
-			error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
-			if (error == Error::NONE) {
-
+			D_TRY_CATCH(newName.set(&thisSample->filePath.get()[prefixAndDirLength]), {
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
@@ -1920,7 +1911,7 @@ getOut:
 				}
 
 				drum->name.set(&newName);
-			}
+			});
 skipNameStuff:
 
 			source->repeatMode =

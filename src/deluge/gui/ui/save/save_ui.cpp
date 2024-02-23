@@ -74,13 +74,11 @@ void SaveUI::enterKeyPress() {
 	if (currentFileItem && currentFileItem->isFolder) {
 
 		Error error;
-		error = goIntoFolder(currentFileItem->filename.get());
-
-		if (error != Error::NONE) {
+		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
-		}
+		});
 	}
 
 	else if (enteredText.isEmpty()) {} // Previously had &&currentFolderIsEmpty ... why?

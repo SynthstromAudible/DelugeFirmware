@@ -713,12 +713,11 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
 					Error error;
-					error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
-
-					if (error != Error::NONE) {
-						display->displayError(error);
-						return ActionResult::DEALT_WITH;
-					}
+					D_TRY_CATCH(currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted),
+					            {
+						            display->displayError(error);
+						            return ActionResult::DEALT_WITH;
+					            });
 					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
 

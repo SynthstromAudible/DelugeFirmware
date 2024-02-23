@@ -3361,12 +3361,11 @@ justExitTag:
 						}
 					}
 
-					error = source->ranges.insertAtIndex(i);
-					if (error != Error::NONE) {
+					D_TRY_CATCH(source->ranges.insertAtIndex(i), {
 gotError:
 						tempRange->~MultiRange();
 						return error;
-					}
+					});
 
 					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);

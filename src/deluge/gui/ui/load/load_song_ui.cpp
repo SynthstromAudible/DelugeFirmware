@@ -65,8 +65,7 @@ bool LoadSongUI::opened() {
 	currentDir.set(&currentSong->dirPath);
 
 	Error error;
-	error = beginSlotSession(false, true);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(beginSlotSession(false, true), {
 gotError:
 		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
@@ -74,7 +73,7 @@ gotError:
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		renderingNeededRegardlessOfUI(); // Otherwise we may have left the scrolling-in animation partially done
 		return false;                    // Exit UI instantly
-	}
+	});
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
 	PadLEDs::vertical::setupScroll(1, true);
@@ -141,13 +140,11 @@ void LoadSongUI::enterKeyPress() {
 	if (currentFileItem && currentFileItem->isFolder) {
 
 		Error error;
-		error = goIntoFolder(currentFileItem->filename.get());
-
-		if (error != Error::NONE) {
+		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
-		}
+		});
 	}
 
 	else {
@@ -293,15 +290,14 @@ fail:
 	}
 
 	preLoadedSong = new (songMemory) Song();
-	error = preLoadedSong->paramManager.setupUnpatched();
-	if (error != Error::NONE) {
+	D_TRY_CATCH(preLoadedSong->paramManager.setupUnpatched(), {
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
 		delugeDealloc(toDealloc);
 		preLoadedSong = NULL;
 		goto someError;
-	}
+	});
 
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
 
@@ -325,11 +321,9 @@ gotErrorAfterCreatingSong:
 	D_TRY_CATCH(currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension),
 	            { goto gotErrorAfterCreatingSong; });
 
-	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    &currentFilenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
+	D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
+	                                                        currentDir.get(), &currentFilenameWithoutExtension),
+	            { goto gotErrorAfterCreatingSong; });
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -703,18 +697,16 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 
 	Error error;
-	error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true), {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
-		}
+		});
 	}
 
 	char const* tagName;
 	int32_t previewNumPads = 40;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-
 		if (!strcmp(tagName, "previewNumPads")) {
 			previewNumPads = storageManager.readTagOrAttributeValueInt();
 			storageManager.exitTag("previewNumPads");

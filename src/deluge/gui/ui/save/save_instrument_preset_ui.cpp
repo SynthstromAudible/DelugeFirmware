@@ -79,12 +79,11 @@ tryDefaultDir:
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
 	Error error;
-	error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(arrivedInNewFolder(0, enteredText.get(), defaultDir), {
 gotError:
 		display->displayError(error);
 		goto doReturnFalse;
-	}
+	});
 
 	if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
@@ -130,12 +129,11 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 
 	String filePath;
 	Error error;
-	error = getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
+	D_TRY_CATCH(getCurrentFilePath(&filePath), {
 fail:
 		display->displayError(error);
 		return false;
-	}
+	});
 
 	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
 
