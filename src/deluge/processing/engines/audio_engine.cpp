@@ -375,7 +375,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 		}
 		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
-		if (!bypassCulling && numAudio + numVoice > 7) {
+		if (!bypassCulling && numAudio + numVoice > 8) {
 			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
 			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 			// If it's real dire, do a proper immediate cull

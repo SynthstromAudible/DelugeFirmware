@@ -42,6 +42,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -5524,7 +5525,8 @@ int32_t Song::countAudioClips() const {
 		if (output->type == OutputType::AUDIO) {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
-				if (clip->voiceSample) {
+				// this seems to be the only way to find whether the voice is sounding
+				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					i++;
 				}
 			}
@@ -5541,7 +5543,7 @@ void Song::cullAudioClipVoice() {
 		if (output->type == OutputType::AUDIO) {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
-				if (clip->voiceSample) {
+				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
 					lowestImmunity = immunity;
 					bestClip = clip;
