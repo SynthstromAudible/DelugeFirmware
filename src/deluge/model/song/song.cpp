@@ -5519,14 +5519,14 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
+int32_t Song::countAudioClips() {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
 				// this seems to be the only way to find whether the voice is sounding
-				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
+				if (isClipActive(clip)) {
 					i++;
 				}
 			}

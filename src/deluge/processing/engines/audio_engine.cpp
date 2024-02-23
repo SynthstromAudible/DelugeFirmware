@@ -320,10 +320,6 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
-// used for culling
-constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
-// used for decisions in rendering engine
-constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
@@ -357,7 +353,12 @@ Debug::AverageDT rvb("reverb", Debug::uS);
 #endif
 
 uint8_t numRoutines = 0;
+// used for culling
+constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
+// used for decisions in rendering engine
+constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
+constexpr int MIN_VOICES = 7;
 /// set the direness level and cull any voices
 void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	int32_t numToCull = 0;
@@ -375,7 +376,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 		}
 		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
-		if (!bypassCulling && numAudio + numVoice > 8) {
+		if (!bypassCulling && numAudio + numVoice > MIN_VOICES) {
 			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
 			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 			// If it's real dire, do a proper immediate cull
@@ -385,7 +386,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 
 				// leave at least 7 - below this point culling won't save us
 				// if they can't load their sample in time they'll stop the same way anyway
-				numToCull = std::min(numToCull, numAudio + numVoice - 7);
+				numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 				for (int32_t i = 0; i < numToCull; i++) {
 					// Hard cull the first one, potentially including one audio clip
 					// soft cull last one (otherwise there's a weird gap from soft cull to hard cull)
@@ -411,11 +412,11 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 			}
 			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
 			// increasing
-			else if (smoothedSamplesOverLimit >= 0) {
+			else if (smoothedSamplesOverLimit >= -5) {
 
-				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
-				// first routine call this is inaccurate, so just release another voice since things are probably bad
-				cullVoice(false, true, numRoutines > 0 || numSamples > numSamplesLastTime);
+				// If not in first routine call this is inaccurate, so just release another voice since things are
+				// probably bad
+				cullVoice(false, true, numRoutines > 0);
 				logAction("soft cull");
 			}
 		}
@@ -426,7 +427,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
-				D_PRINTLN("numSamples %d", numSamples);
+				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
 				logAction("skipped cull");
 			}
 		}
@@ -543,7 +544,7 @@ void routine() {
 	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	constexpr size_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
+	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
 
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 

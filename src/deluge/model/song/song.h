@@ -383,7 +383,7 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
-	int32_t countAudioClips() const;
+	int32_t countAudioClips();
 
 private:
 	bool fillModeActive;
