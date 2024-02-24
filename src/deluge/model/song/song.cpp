@@ -3192,7 +3192,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 	return 25; // "Z"
 }
 
-bool Song::getAnyClipsSoloing() {
+bool Song::getAnyClipsSoloing() const {
 	return anyClipsSoloing;
 }
 
@@ -4153,7 +4153,7 @@ traverseClips:
 	output->setActiveClip(modelStack);
 }
 
-bool Song::isClipActive(Clip* clip) {
+bool Song::isClipActive(Clip* clip) const {
 	return clip->soloingInSessionMode || (clip->activeIfNoSolo && !getAnyClipsSoloing());
 }
 
@@ -5519,7 +5519,7 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() {
+int32_t Song::countAudioClips() const {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
