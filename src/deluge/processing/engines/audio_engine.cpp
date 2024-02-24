@@ -456,28 +456,10 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 	}
 }
 
-void routine() {
+void routine_() {
 #if JFTRACE
 	aeCtr.note();
 #endif
-	logAction("AudioDriver::routine");
-
-	if (audioRoutineLocked) {
-		logAction("AudioDriver::routine locked");
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called
-		        // from within this!
-	}
-
-	// See if some more outputting is left over from last time to do
-	bool finishedOutputting = doSomeOutputting();
-	if (!finishedOutputting) {
-		logAction("AudioDriver::still outputting");
-		// D_PRINTLN("still waiting");
-		return;
-	}
-
-	audioRoutineLocked = true;
-	routineBeenCalled = true;
 
 	playbackHandler.routine();
 
@@ -491,7 +473,6 @@ void routine() {
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (!numSamples) {
-		audioRoutineLocked = false;
 		return;
 	}
 #if AUTOMATED_TESTER_ENABLED
@@ -522,7 +503,6 @@ void routine() {
 #ifdef REPORT_CPU_USAGE
 #define MINSAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
 	if (numSamples < (MINSAMPLES)) {
-		audioRoutineLocked = false;
 		return;
 	}
 
@@ -954,24 +934,30 @@ startAgain:
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
-	// If we shorten the window we need to render again immediately - otherwise
-	// we'll get a click at high CPU loads, and hard cull when we could soft cull
-	// this is basically so that we don't click at normal tempos and still
-	// let Ron go to 10 000 BPM and then play wildly with the tempo knob for
-	// whatever reason
-	// just always render again - this will immediately return once there aren't samples to render
 
-	if (numRoutines < 5) {
-		numRoutines += 1;
-		// this seems to get tail call optimized
-		routine();
-	}
-
-	numRoutines = 0;
 	bypassCulling = false;
-	audioRoutineLocked = false;
 }
 
+void routine() {
+
+	logAction("AudioDriver::routine");
+
+	if (audioRoutineLocked) {
+		logAction("AudioDriver::routine locked");
+		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called
+		        // from within this!
+	}
+
+	audioRoutineLocked = true;
+
+	numRoutines = 0;
+	while (doSomeOutputting() && numRoutines < 3) {
+		numRoutines += 1;
+		routine_();
+		routineBeenCalled = true;
+	}
+	audioRoutineLocked = false;
+}
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
 }
