@@ -39,30 +39,27 @@ public:
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 		yPixel = 20;
 
-		if (channelType != MIDIFollowChannelType::FEEDBACK) {
-			char const* differentiationString;
-			if (MIDIDeviceManager::differentiatingInputsByDevice) {
-				differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_ON);
-			}
-			else {
-				differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
-			}
-			deluge::hid::display::OLED::drawString(differentiationString, 0, yPixel,
-			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       kTextSpacingX, kTextSizeYUpdated);
-
-			yPixel += kTextSpacingY;
-
-			char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
-			if (midiInput.device) {
-				deviceString = midiInput.device->getDisplayName();
-			}
-			deluge::hid::display::OLED::drawString(deviceString, 0, yPixel,
-			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       kTextSpacingX, kTextSizeYUpdated);
-			deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
-			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, false);
+		char const* differentiationString;
+		if (MIDIDeviceManager::differentiatingInputsByDevice) {
+			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_ON);
 		}
+		else {
+			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
+		}
+		deluge::hid::display::OLED::drawString(differentiationString, 0, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
+
+		yPixel += kTextSpacingY;
+
+		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
+		if (midiInput.device) {
+			deviceString = midiInput.device->getDisplayName();
+		}
+		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
 
 		yPixel += kTextSpacingY;
 

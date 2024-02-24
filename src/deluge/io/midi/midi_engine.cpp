@@ -216,11 +216,12 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
-	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+	for (auto& midiChannelType : midiFollowChannelType) {
 		midiChannelType.clear();
 	}
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
+	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
