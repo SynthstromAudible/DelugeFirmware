@@ -456,6 +456,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 	}
 }
 
+/// inner loop of audio rendering, deliberately not in header
 void routine_() {
 #if JFTRACE
 	aeCtr.note();
@@ -910,12 +911,10 @@ startAgain:
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINT("%d", timePassedUS);
-			D_PRINTLN(":  %s", audioLogStrings[i]);
+			D_PRINTLN("%d:  %s", timePassedUS, audioLogStrings[i]);
 		}
 
-		D_PRINT("%d", timePassedUSA);
-		D_PRINTLN(": end");
+		D_PRINTLN("%d: end", timePassedUSA);
 	}
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
@@ -948,6 +947,7 @@ void routine() {
 	}
 	audioRoutineLocked = false;
 }
+
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
 }
