@@ -1405,20 +1405,23 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	int32_t channel =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
-	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-			if (ccNumber != MIDI_CC_NONE) {
-				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		int32_t channel =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
+		        .channelOrZone;
+		if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+				if (ccNumber != MIDI_CC_NONE) {
+					((ModControllableAudio*)activeModControllableModelStack.modControllable)
+					    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+				}
 			}
-		}
-		else {
-			((ModControllableAudio*)activeModControllableModelStack.modControllable)
-			    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			else {
+				((ModControllableAudio*)activeModControllableModelStack.modControllable)
+				    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			}
 		}
 	}
 }
