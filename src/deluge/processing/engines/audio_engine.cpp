@@ -529,7 +529,6 @@ void routine_() {
 
 	setDireness(numSamples);
 
-	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
@@ -601,7 +600,6 @@ startAgain:
 		// If the tick is during this window, shorten the window so we stop right at the tick
 		if (timeTilNextTick < numSamples) {
 			numSamples = timeTilNextTick;
-			shortenedWindow = true;
 		}
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or MIDI
