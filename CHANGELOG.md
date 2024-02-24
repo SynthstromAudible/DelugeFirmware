@@ -3,6 +3,10 @@
 > To find a detailed list of how to use each feature, check
 > here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
+## c1.2.0 Unnamed
+
+- Insert changes for next release here
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine
