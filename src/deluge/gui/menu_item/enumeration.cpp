@@ -16,10 +16,16 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 	int32_t numOptions = size();
 	int32_t startValue = getValue();
 
-	// valid values are [0, numOptions), so wrap as needed
-	int32_t nextValue = (startValue + offset) % numOptions;
-	if (nextValue < 0) {
-		nextValue += numOptions;
+	int32_t nextValue = startValue + offset;
+	// valid values are [0, numOptions), so wrap on 7SEG, clamp on OLED
+	if (display->haveOLED()) {
+		nextValue = std::clamp<int32_t>(nextValue, 0, numOptions - 1);
+	}
+	else {
+		nextValue = nextValue % numOptions;
+		if (nextValue < 0) {
+			nextValue += numOptions;
+		}
 	}
 
 	setValue(nextValue);
