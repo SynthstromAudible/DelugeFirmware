@@ -268,10 +268,10 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 
 		if (ratingThisVoice > bestRating) {
 			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-			if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
-				bestRating = ratingThisVoice;
-				bestVoice = thisVoice;
-			}
+			// if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+			bestRating = ratingThisVoice;
+			bestVoice = thisVoice;
+			//}
 		}
 	}
 
@@ -293,6 +293,14 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d", smoothedSamples, getNumVoices());
 #endif
 			}
+
+			else if (definitelyCull) {
+				unassignVoice(bestVoice, bestVoice->assignedToSound);
+#if ALPHA_OR_BETA_VERSION
+				D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d", smoothedSamples, getNumVoices());
+#endif
+			}
+
 			else {
 				// Otherwise, it's already fast-releasing, so just leave it
 				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d",
@@ -408,7 +416,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 
 				// definitely do a soft cull (won't include audio clips)
 				cullVoice(false, true, true);
-				D_PRINTLN("forced cull");
+				logAction("forced cull");
 			}
 			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
 			// increasing
@@ -863,7 +871,7 @@ startAgain:
 	renderingBufferOutputPos = renderingBuffer.begin();
 	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
 
-	doSomeOutputting();
+	// doSomeOutputting();
 
 	/*
 	if (!getRandom255()) {
