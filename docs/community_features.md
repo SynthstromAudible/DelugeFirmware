@@ -131,7 +131,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.12 - Automatically load the last open/saved song or user-defined template at startup.
 
-- Added feature to load automatically projects at startup.
+- ([#1272]) Added feature to load automatically projects at startup.
 To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
 - Four modes are available :
     - `NEW SONG` : default mode, empty project on clip view with default synth.
