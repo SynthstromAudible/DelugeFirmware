@@ -124,7 +124,7 @@ namespace FlashStorage {
 128: midiFollow set follow channel C
 129: midiFollow set kit root note
 130: midiFollow display param pop up
-131: midiFollow set feedback channel
+131: midiFollow set feedback channel type (A/B/C/NONE)
 132: midiFollow feedback automation mode
 133: midiFollow feedback filter to handle feedback loops
 134-137: midiFollow set follow device A product / vendor ids
@@ -202,10 +202,11 @@ void resetSettings() {
 
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
-	resetMidiFollowSettings();
-
+	midiEngine.midiThru = false;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 	midiEngine.midiSelectKitRow = false;
+
+	resetMidiFollowSettings();
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
 		globalMIDICommand.clear();
@@ -259,12 +260,12 @@ void resetSettings() {
 }
 
 void resetMidiFollowSettings() {
-	midiEngine.midiThru = false;
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}
 	midiEngine.midiFollowKitRootNote = 36;
 	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiFollowFeedbackFilter = false;
 }
@@ -351,14 +352,41 @@ void readSettings() {
 
 	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
+		/* buffer[81]  \
+		   buffer[82]   device reference above occupies 4 bytes
+		   buffer[83] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAY, &buffer[84]);
+		/* buffer[85]  \
+		   buffer[86]   device reference above occupies 4 bytes
+		   buffer[87] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::RECORD, &buffer[88]);
+		/* buffer[89]  \
+		   buffer[90]   device reference above occupies 4 bytes
+		   buffer[91] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TAP, &buffer[92]);
+		/* buffer[93]  \
+		   buffer[94]   device reference above occupies 4 bytes
+		   buffer[95] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP, &buffer[96]);
+		/* buffer[97]  \
+		   buffer[98]   device reference above occupies 4 bytes
+		   buffer[99] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+		/* buffer[101]  \
+		   buffer[102]   device reference above occupies 4 bytes
+		   buffer[103] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
+		/* buffer[105]  \
+		   buffer[106]   device reference above occupies 4 bytes
+		   buffer[107] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
+		/* buffer[109]  \
+		   buffer[110]   device reference above occupies 4 bytes
+		   buffer[111] */
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
+		/* buffer[117]  \
+		   buffer[118]   device reference above occupies 4 bytes
+		   buffer[119] */
 	}
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
@@ -537,12 +565,20 @@ void readSettings() {
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone = buffer[127];
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone = buffer[128];
 		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::A, &buffer[134]);
+		/* buffer[135]  \
+		   buffer[136]   device reference above occupies 4 bytes
+		   buffer[137] */
 		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::B, &buffer[138]);
+		/* buffer[139]  \
+		   buffer[140]   device reference above occupies 4 bytes
+		   buffer[141] */
 		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::C, &buffer[142]);
+		/* buffer[143]  \
+		   buffer[144]   device reference above occupies 4 bytes
+		   buffer[145] */
 		midiEngine.midiFollowKitRootNote = buffer[129];
 		midiEngine.midiFollowDisplayParam = !!buffer[130];
-		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone =
-		    buffer[131];
+		midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowChannelType>(buffer[131]);
 		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
 	}
@@ -609,8 +645,8 @@ bool areMidiFollowSettingsValid(uint8_t* buffer) {
 	else if (buffer[130] != false && buffer[130] != true) {
 		return false;
 	}
-	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone
-	else if ((buffer[131] < 0 || buffer[131] >= NUM_CHANNELS) && buffer[131] != MIDI_CHANNEL_NONE) {
+	// midiEngine.midiFollowFeedbackChannelType
+	else if (buffer[131] < 0 || buffer[131] > util::to_underlying(MIDIFollowChannelType::NONE)) {
 		return false;
 	}
 	// midiEngine.midiFollowFeedbackAutomation
@@ -705,14 +741,41 @@ void writeSettings() {
 
 	/* Global MIDI command device references - these occupy 4 bytes each */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
+	/* buffer[81]  \
+	   buffer[82]   device reference above occupies 4 bytes
+	   buffer[83] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAY, &buffer[84]);
+	/* buffer[85]  \
+	   buffer[86]   device reference above occupies 4 bytes
+	   buffer[87] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::RECORD, &buffer[88]);
+	/* buffer[89]  \
+	   buffer[90]   device reference above occupies 4 bytes
+	   buffer[91] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TAP, &buffer[92]);
+	/* buffer[93]  \
+	   buffer[94]   device reference above occupies 4 bytes
+	   buffer[95] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP, &buffer[96]);
+	/* buffer[97]  \
+	   buffer[98]   device reference above occupies 4 bytes
+	   buffer[99] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+	/* buffer[101]  \
+	   buffer[102]   device reference above occupies 4 bytes
+	   buffer[103] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::UNDO, &buffer[104]);
+	/* buffer[105]  \
+	   buffer[106]   device reference above occupies 4 bytes
+	   buffer[107] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::REDO, &buffer[108]);
+	/* buffer[109]  \
+	   buffer[110]   device reference above occupies 4 bytes
+	   buffer[111] */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::FILL, &buffer[116]);
+	/* buffer[117]  \
+	   buffer[118]   device reference above occupies 4 bytes
+	   buffer[119] */
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
@@ -765,11 +828,20 @@ void writeSettings() {
 	buffer[127] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone;
 	buffer[128] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone;
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::A, &buffer[134]);
+	/* buffer[135]  \
+	   buffer[136]   device reference above occupies 4 bytes
+	   buffer[137] */
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::B, &buffer[138]);
+	/* buffer[139]  \
+	   buffer[140]   device reference above occupies 4 bytes
+	   buffer[141] */
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::C, &buffer[142]);
+	/* buffer[143]  \
+	   buffer[144]   device reference above occupies 4 bytes
+	   buffer[145] */
 	buffer[129] = midiEngine.midiFollowKitRootNote;
 	buffer[130] = midiEngine.midiFollowDisplayParam;
-	buffer[131] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
+	buffer[131] = util::to_underlying(midiEngine.midiFollowFeedbackChannelType);
 	buffer[132] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
 	buffer[133] = midiEngine.midiFollowFeedbackFilter;
 

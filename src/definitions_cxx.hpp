@@ -672,9 +672,9 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
-	FEEDBACK,
+	NONE,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::FEEDBACK) + 1;
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::NONE);
 
 enum class MIDITransposeControlMethod : uint8_t {
 	INKEY,
