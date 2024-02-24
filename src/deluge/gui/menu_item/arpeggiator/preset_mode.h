@@ -20,6 +20,7 @@
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"

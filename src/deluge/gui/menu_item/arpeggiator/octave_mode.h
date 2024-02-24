@@ -52,7 +52,13 @@ public:
 class OctaveModeToNoteMode final : public OctaveMode {
 public:
 	using OctaveMode::OctaveMode;
-	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeMenu; }
+	void readCurrentValue() override {
+		if (display->have7SEG()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OCTAVE_MODE));
+		}
+		OctaveMode::readCurrentValue();
+	}
+	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeFromOctaveModeMenu; }
 };
 
 extern OctaveModeToNoteMode arpOctaveModeToNoteModeMenu;
