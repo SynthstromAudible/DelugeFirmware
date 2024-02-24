@@ -69,6 +69,7 @@
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
+#include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -851,8 +852,7 @@ midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_F
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
                                       midiEngine.midiFollowDisplayParam};
-midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
-                                                  MIDIFollowChannelType::FEEDBACK};
+midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
@@ -871,7 +871,7 @@ Submenu midiFollowFeedbackSubmenu{
     STRING_FOR_FOLLOW_FEEDBACK,
     STRING_FOR_FOLLOW_FEEDBACK,
     {
-        &midiFollowChannelFeedbackMenu,
+        &midiFollowFeedbackChannelMenu,
         &midiFollowFeedbackAutomationMenu,
         &midiFollowFeedbackFilterMenu,
     },
