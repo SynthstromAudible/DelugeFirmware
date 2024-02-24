@@ -53,6 +53,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
+#include <stdint.h>
 
 extern "C" {}
 
@@ -5792,20 +5793,21 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	return fileValue;
 }
 
-const char* Song::getSongFullPath() {
+String Song::getSongFullPath() {
 	String fullPath;
 	fullPath.concatenate(&dirPath);
 	fullPath.concatenate("/");
 	fullPath.concatenate(&name);
-	return fullPath.get();
+	return fullPath;
 }
 
 void Song::setSongFullPath(const char* fullPath) {
 	if (char* filename = strrchr((char*)fullPath, '/')) {
-		char* dir = new char[sizeof(char) * strlen(fullPath) + 1];
+		auto fullPathLength = strlen(fullPath) + 1;
+		char* dir = new char[sizeof(char) * fullPathLength + 1];
 
-		memset(dir, 0, sizeof(char) * strlen(fullPath) + 1);
-		strncpy(dir, fullPath, strlen(fullPath) - strlen(filename));
+		memset(dir, 0, sizeof(char) * fullPathLength + 1);
+		strncpy(dir, fullPath, fullPathLength - strlen(filename));
 
 		dirPath.set(dir);
 		name.set(++filename);

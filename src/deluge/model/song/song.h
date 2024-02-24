@@ -143,7 +143,7 @@ public:
 	void changeSwingInterval(int32_t newValue);
 	int32_t convertSyncLevelFromFileValueToInternalValue(int32_t fileValue);
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
-	const char* getSongFullPath();
+	String getSongFullPath();
 	void setSongFullPath(const char* fullPath);
 
 	GlobalEffectableForSong globalEffectable;
