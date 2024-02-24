@@ -426,8 +426,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		originalLength = loopLength;
 		isPendingOverdub = false;
 
-		Error error;
-		D_TRY_CATCH(beginLinearRecording(modelStack, buttonPressLatency), {
+		D_TRY_CATCH(beginLinearRecording(modelStack, buttonPressLatency), error, {
 			display->displayError(error);
 			return false;
 		});
@@ -955,8 +954,7 @@ trimFoundParamManager:
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
 			if (otherClip) {
 
-				Error error;
-				D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true), {
+				D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true), error, {
 					FREEZE_WITH_ERROR("E050");
 					return error;
 				});
@@ -1090,8 +1088,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					Error error;
-					D_TRY_CATCH(output->clipInstances.insertAtIndex(clipInstanceI), { return false; });
+					D_TRY_CATCH(output->clipInstances.insertAtIndex(clipInstanceI), error, { return false; });
 
 					clipInstance = output->clipInstances.getElement(clipInstanceI);
 

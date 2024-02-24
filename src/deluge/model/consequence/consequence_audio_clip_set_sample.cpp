@@ -51,8 +51,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 		}
 	}
 	else {
-		Error error;
-		D_TRY_CATCH(clip->sampleHolder.loadFile(false, false, true), {
+		D_TRY_CATCH(clip->sampleHolder.loadFile(false, false, true), error, {
 			display->displayError(error); // Rare, shouldn't cause later problems.
 		});
 

@@ -470,13 +470,11 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
                              ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
-		Error error;
 		D_TRY(readSourceFromFile(0, paramManager, readAutomationUpToPos));
 		storageManager.exitTag("osc1");
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
-		Error error;
 		D_TRY(readSourceFromFile(1, paramManager, readAutomationUpToPos));
 		storageManager.exitTag("osc2");
 	}
@@ -3083,7 +3081,6 @@ Error Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t rea
 
 Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager) {
 
-	Error error;
 	D_TRY(paramManager->setupWithPatching());
 
 	initParams(paramManager);
@@ -3357,12 +3354,12 @@ justExitTag:
 						MultisampleRange* existingRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 						if (existingRange->topNote == tempRange->topNote) {
 							error = Error::FILE_CORRUPTED;
-							goto gotError;
+							tempRange->~MultiRange();
+							return error;
 						}
 					}
 
-					D_TRY_CATCH(source->ranges.insertAtIndex(i), {
-gotError:
+					D_TRY_CATCH(source->ranges.insertAtIndex(i), error, {
 						tempRange->~MultiRange();
 						return error;
 					});
@@ -3989,7 +3986,6 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			Error error;
 			D_TRY(sources[s].loadAllSamples(mayActuallyReadFiles));
 		}
 	}

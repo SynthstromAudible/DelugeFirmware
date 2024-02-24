@@ -566,16 +566,40 @@ enum class Error {
 };
 
 #define D_TRY(expr)                                                                                                    \
-	error = (expr);                                                                                                    \
-	if (error != Error::NONE) {                                                                                        \
-		return error;                                                                                                  \
-	}
+	do {                                                                                                               \
+		Error error = (expr);                                                                                          \
+		if (error != Error::NONE) {                                                                                    \
+			return error;                                                                                              \
+		}                                                                                                              \
+	} while (0)
 
-#define D_TRY_CATCH(expr, block)                                                                                       \
-	error = (expr);                                                                                                    \
-	if (error != Error::NONE) {                                                                                        \
-		block                                                                                                          \
-	}
+#define D_TRY_FINALLY(expr, finally)                                                                                   \
+	do {                                                                                                               \
+		Error error = (expr);                                                                                          \
+		(finally);                                                                                                     \
+		if (error != Error::NONE) {                                                                                    \
+			return error;                                                                                              \
+		}                                                                                                              \
+	} while (0)
+
+#define D_TRY_CATCH(expr, error, block)                                                                                \
+	do {                                                                                                               \
+		Error error = (expr);                                                                                          \
+		if ((error) != Error::NONE) {                                                                                  \
+			block                                                                                                      \
+		}                                                                                                              \
+	} while (0)
+
+#define D_TRY_CATCH_ELSE(expr, error, error_block, else_block)                                                         \
+	do {                                                                                                               \
+		Error error = (expr);                                                                                          \
+		if ((error) != Error::NONE) {                                                                                  \
+			error_block                                                                                                \
+		}                                                                                                              \
+		else {                                                                                                         \
+			else_block                                                                                                 \
+		}                                                                                                              \
+	} while (0)
 
 enum class SampleRepeatMode {
 	CUT,

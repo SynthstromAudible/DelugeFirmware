@@ -955,7 +955,6 @@ Error GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTime
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
-			Error error;
 			D_TRY(paramManager->setupUnpatched());
 			initParams(paramManager);
 		}

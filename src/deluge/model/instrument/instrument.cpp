@@ -157,8 +157,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
-		Error error;
-		D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true), {
+		D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true), error, {
 			delugeDealloc(clipMemory);
 			return NULL;
 		});

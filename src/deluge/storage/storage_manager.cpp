@@ -920,7 +920,6 @@ Error StorageManager::checkSpaceOnCard() {
 // Creates folders and subfolders as needed!
 Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
 
-	Error error;
 	D_TRY(initSD());
 
 	D_TRY(checkSpaceOnCard());
@@ -979,7 +978,7 @@ cutFolderPathAndTryCreating:
 
 		// Otherwise, just return the appropriate error.
 		else {
-			error = fresultToDelugeErrorCode(result);
+			Error error = fresultToDelugeErrorCode(result);
 			if (error == Error::SD_CARD) {
 				error = Error::WRITE_FAIL; // Get a bit more specific if we only got the most general error.
 			}
@@ -992,14 +991,13 @@ cutFolderPathAndTryCreating:
 
 Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
-	Error error;
-	D_TRY_CATCH(createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite), {
+	D_TRY_CATCH(createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite), error, {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
 			display->displayError(error);
-		});
+		}
 		return error;
-	}
+	});
 
 	fileBufferCurrentPos = 0;
 	fileTotalBytesWritten = 0;
@@ -1013,8 +1011,7 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 }
 
 bool StorageManager::fileExists(char const* pathName) {
-	Error error;
-	D_TRY_CATCH(initSD(), { return false; });
+	D_TRY_CATCH(initSD(), error, { return false; });
 
 	FRESULT result = f_stat(pathName, &staticFNO);
 	return (result == FR_OK);
@@ -1022,8 +1019,7 @@ bool StorageManager::fileExists(char const* pathName) {
 
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
-	Error error;
-	D_TRY_CATCH(initSD(), { return false; });
+	D_TRY_CATCH(initSD(), error, { return false; });
 
 	FRESULT result = f_open(&fileSystemStuff.currentFile, pathName, FA_READ);
 	if (result != FR_OK) {
@@ -1045,8 +1041,7 @@ void StorageManager::write(char const* output) {
 		if (fileBufferCurrentPos == audioFileManager.clusterSize) {
 
 			if (!fileAccessFailedDuring) {
-				Error error;
-				D_TRY_CATCH(writeBufferToFile(), {
+				D_TRY_CATCH(writeBufferToFile(), error, {
 					fileAccessFailedDuring = true;
 					return;
 				});
@@ -1094,8 +1089,7 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything
 	}
-	Error error;
-	D_TRY_CATCH(writeBufferToFile(), { return Error::WRITE_FAIL; });
+	D_TRY_CATCH(writeBufferToFile(), error, { return Error::WRITE_FAIL; });
 
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	if (result) {
@@ -1351,8 +1345,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
 	          (int32_t)filePointer->sclust);
 
-	Error error;
-	D_TRY_CATCH(openInstrumentFile(outputType, filePointer), {
+	D_TRY_CATCH(openInstrumentFile(outputType, filePointer), error, {
 		D_PRINTLN("opening instrument file failed -  %s", name->get());
 		return error;
 	});
@@ -1366,7 +1359,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(song, clip, 0);
+	Error error = newInstrument->readFromFile(song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -1395,7 +1388,7 @@ deleteInstrumentAndGetOut:
 		// paramManager to be created when we read the Kit just now. So, just make one.
 		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
-			D_TRY_CATCH(paramManager.setupUnpatched(), { goto deleteInstrumentAndGetOut; });
+			D_TRY_CATCH(paramManager.setupUnpatched(), error, { goto deleteInstrumentAndGetOut; });
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
@@ -1440,18 +1433,17 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
                                       String* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
-	if (!newDrum) {
+	if (newDrum == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
-	Error error;
 	D_TRY(openInstrumentFile(outputType, filePointer));
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(song, clip, 0);
+	Error error = newDrum->readFromFile(song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -1502,15 +1494,12 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 
 	Instrument* newInstrument;
 
-	Error error;
-
 	// Synth
 	if (newOutputType == OutputType::SYNTH) {
 		if (paramManager) {
-			D_TRY_CATCH(paramManager->setupWithPatching(), {
-paramManagerSetupError:
+			D_TRY_CATCH(paramManager->setupWithPatching(), error, {
 				delugeDealloc(instrumentMemory);
-				return NULL;
+				return nullptr;
 			});
 			Sound::initParams(paramManager);
 		}
@@ -1520,7 +1509,10 @@ paramManagerSetupError:
 	// Kit
 	else {
 		if (paramManager) {
-			D_TRY_CATCH(paramManager->setupUnpatched(), { goto paramManagerSetupError; });
+			D_TRY_CATCH(paramManager->setupUnpatched(), error, {
+				delugeDealloc(instrumentMemory);
+				return nullptr;
+			});
 
 			GlobalEffectableForClip::initParams(paramManager);
 		}
@@ -1621,7 +1613,6 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error;
 				D_TRY(midiParam->param.readFromFile(readAutomationUpToPos));
 			}
 			exitTag("value");

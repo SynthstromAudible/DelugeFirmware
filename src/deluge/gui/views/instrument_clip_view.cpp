@@ -1890,11 +1890,16 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
-							Error error;
-							D_TRY_CATCH(noteRow->addCorrespondingNotes(
-							                squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
-							                modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action),
-							            { display->displayError(Error::INSUFFICIENT_RAM); });
+							D_TRY_CATCH(
+							    {
+								    noteRow->addCorrespondingNotes(
+								        squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
+								        modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action); //<
+							    },
+							    error,
+							    {
+								    display->displayError(Error::INSUFFICIENT_RAM); //<
+							    });
 						}
 					}
 
@@ -3653,23 +3658,22 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
 
-	Error error;
-	D_TRY_CATCH(kit->makeDrumNameUnique(&soundName, 1), {
-doDisplayError:
+	D_TRY_CATCH(kit->makeDrumNameUnique(&soundName, 1), error, {
 		display->displayError(error);
 		return;
 	});
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
-	if (!memory) {
-		error = Error::INSUFFICIENT_RAM;
-		goto doDisplayError;
+	if (memory == nullptr) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return;
 	}
 
 	ParamManagerForTimeline paramManager;
-	D_TRY_CATCH(paramManager.setupWithPatching(), {
+	D_TRY_CATCH(paramManager.setupWithPatching(), error, {
 		delugeDealloc(memory);
-		goto doDisplayError;
+		display->displayError(error);
+		return;
 	});
 
 	Sound::initParams(&paramManager);
@@ -4959,14 +4963,16 @@ doCompareNote:
 					int32_t distanceTilNext =
 					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
 
-					Error error;
-					D_TRY_CATCH(noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos,
-					                                                modelStackWithNoteRow, action,
-					                                                currentClip->getWrapEditLevel(), offset),
-					            {
-						            display->displayError(error);
-						            return;
-					            });
+					D_TRY_CATCH(
+					    {
+						    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
+						                                        action, currentClip->getWrapEditLevel(), offset); //<
+					    },
+					    error,
+					    {
+						    display->displayError(error);
+						    return;
+					    });
 
 					// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
 					{

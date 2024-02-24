@@ -409,7 +409,7 @@ gotError5:
 					    byteIndexWithinCluster; // Will put it right at the start of the next cluster, to force it to
 					                            // read from card
 				}
-				D_TRY_CATCH(reader->advanceClustersIfNecessary(), { goto gotError5; });
+				D_TRY_CATCH(reader->advanceClustersIfNecessary(), error, { goto gotError5; });
 			}
 
 			// Macro setup for below

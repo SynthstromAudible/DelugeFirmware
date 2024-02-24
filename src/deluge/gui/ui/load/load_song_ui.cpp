@@ -64,15 +64,18 @@ bool LoadSongUI::opened() {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
-	Error error;
-	D_TRY_CATCH(beginSlotSession(false, true), {
-gotError:
+	// Error handler, was originally goto label in below TRY/CATCH block
+	auto gotError = [&](Error error) {
 		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		renderingNeededRegardlessOfUI(); // Otherwise we may have left the scrolling-in animation partially done
-		return false;                    // Exit UI instantly
+	};
+
+	D_TRY_CATCH(beginSlotSession(false, true), error, {
+		gotError(error);
+		return false; // Exit UI instantly
 	});
 
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
@@ -87,10 +90,16 @@ gotError:
 	searchFilename.set(&currentSong->name);
 
 	if (!searchFilename.isEmpty()) {
-		D_TRY_CATCH(searchFilename.concatenate(".XML"), { goto gotError; });
+		D_TRY_CATCH(searchFilename.concatenate(".XML"), error, {
+			gotError(error);
+			return false;
+		});
 	}
 
-	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), { goto gotError; });
+	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), error, {
+		gotError(error);
+		return false;
+	});
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 	currentSlot = (currentSlot + 1) % 19;
@@ -139,8 +148,7 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		Error error;
-		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), {
+		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), error, {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -233,8 +241,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 
-	Error error;
-	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song"), {
+	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song"), error, {
 		display->displayError(error);
 		return;
 	});
@@ -266,11 +273,7 @@ void LoadSongUI::performLoad() {
 
 	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (!songMemory) {
-ramError:
-		error = Error::INSUFFICIENT_RAM;
-
-someError:
-		display->displayError(error);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		storageManager.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -290,13 +293,19 @@ fail:
 	}
 
 	preLoadedSong = new (songMemory) Song();
-	D_TRY_CATCH(preLoadedSong->paramManager.setupUnpatched(), {
-gotErrorAfterCreatingSong:
-		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
+
+	// Was originally a goto block in the below error handler
+	auto gotErrorAfterCreatingSong = [&](Error error) {
 		preLoadedSong->~Song(); // Will also delete paramManager
-		delugeDealloc(toDealloc);
-		preLoadedSong = NULL;
-		goto someError;
+		delugeDealloc(preLoadedSong);
+		preLoadedSong = nullptr;
+		display->displayError(error);
+		storageManager.closeFile();
+	};
+
+	D_TRY_CATCH(preLoadedSong->paramManager.setupUnpatched(), error, {
+		gotErrorAfterCreatingSong(error);
+		goto fail;
 	});
 
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
@@ -305,7 +314,10 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	D_TRY_CATCH(preLoadedSong->readFromFile(), { goto gotErrorAfterCreatingSong; });
+	D_TRY_CATCH(preLoadedSong->readFromFile(), error, {
+		gotErrorAfterCreatingSong(error);
+		goto fail;
+	});
 	AudioEngine::logAction("d");
 
 	bool success = storageManager.closeFile();
@@ -318,12 +330,21 @@ gotErrorAfterCreatingSong:
 	preLoadedSong->dirPath.set(&currentDir);
 
 	String currentFilenameWithoutExtension;
-	D_TRY_CATCH(currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension),
-	            { goto gotErrorAfterCreatingSong; });
+	D_TRY_CATCH(currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension), error, {
+		gotErrorAfterCreatingSong(error);
+		goto fail;
+	});
 
-	D_TRY_CATCH(audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
-	                                                        currentDir.get(), &currentFilenameWithoutExtension),
-	            { goto gotErrorAfterCreatingSong; });
+	D_TRY_CATCH(
+	    {
+		    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
+		                                                &currentFilenameWithoutExtension);
+	    },
+	    error,
+	    {
+		    gotErrorAfterCreatingSong(error);
+		    goto fail;
+	    });
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
@@ -696,13 +717,10 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		return;
 	}
 
-	Error error;
-	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true), {
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return;
-		});
-	}
+	D_TRY_CATCH(storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true), error, {
+		display->displayError(error);
+		return;
+	});
 
 	char const* tagName;
 	int32_t previewNumPads = 40;

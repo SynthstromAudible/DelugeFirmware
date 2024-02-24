@@ -90,8 +90,7 @@ bool Browser::opened() {
 bool Browser::checkFP() {
 	FileItem* currentFileItem = getCurrentFileItem();
 	String filePath;
-	Error error;
-	D_TRY_CATCH(getCurrentFilePath(&filePath), {
+	D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
 		D_PRINTLN("couldn't get filepath");
 		return false;
 	});
@@ -170,8 +169,7 @@ doCull:
 	}
 
 	int32_t newIndex = fileItems.getNumElements();
-	Error error;
-	D_TRY_CATCH(fileItems.insertAtIndex(newIndex), {
+	D_TRY_CATCH(fileItems.insertAtIndex(newIndex), error, {
 		if (alreadyCulled) {
 			return NULL;
 		}
@@ -260,16 +258,16 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error;
 	D_TRY(storageManager.initSD());
 
+	// TODO: Make an RAII container for opendir that always calls `closedir` on exit
 	FRESULT result = f_opendir(&staticDIR, currentDir.get());
 	if (result) {
 		return fresultToDelugeErrorCode(result);
 	}
 
 	/*
-	D_TRY_CATCH(fileItems.allocateMemory(FILE_ITEMS_MAX_NUM_ELEMENTS, false), {
+	D_TRY_CATCH(fileItems.allocateMemory(FILE_ITEMS_MAX_NUM_ELEMENTS, false), error, {
 	    f_closedir(&staticDIR);
 	    return error;
 });
@@ -329,10 +327,16 @@ extensionNotSupported:
 
 		FileItem* thisItem = getNewFileItem();
 		if (!thisItem) {
-			error = Error::INSUFFICIENT_RAM;
-			break;
+			f_closedir(&staticDIR);
+			emptyFileItems();
+			return Error::INSUFFICIENT_RAM;
 		}
-		D_TRY_CATCH(thisItem->filename.set(staticFNO.fname), { break; });
+		D_TRY_CATCH(thisItem->filename.set(staticFNO.fname), error, {
+			// originally was a break;
+			f_closedir(&staticDIR);
+			emptyFileItems();
+			return error;
+		});
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
@@ -380,11 +384,7 @@ nonNumericFile:
 
 	f_closedir(&staticDIR);
 
-	if (error != Error::NONE) {
-		emptyFileItems();
-	}
-
-	return error;
+	return Error::NONE;
 }
 
 void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
@@ -484,12 +484,12 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
 	bool triedCreatingFolder = false;
 
 tryReadingItems:
-	Error error;
 	D_TRY_CATCH(
 	    {
 		    readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
 		                           FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
 	    },
+	    error,
 	    {
 		    // If folder didn't exist, try our alternative one if there is one.
 		    if (error == Error::FOLDER_DOESNT_EXIST) {
@@ -497,7 +497,6 @@ tryReadingItems:
 				    // ... only if we haven't already tried the alternative folder.
 				    if (!currentDir.equalsCaseIrrespective(defaultDirToAlsoTry)) {
 					    filenameToStartAt = NULL;
-					    Error error;
 					    D_TRY(currentDir.set(defaultDirToAlsoTry));
 					    goto tryReadingItems;
 				    }
@@ -558,15 +557,16 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 tryReadingItems:
 	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
 	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	Error error;
-	D_TRY_CATCH(readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
-	                                             defaultDirToAlsoTry, true, Availability::ANY,
-	                                             newCatalogSearchDirection),
-	            {
-gotErrorAfterAllocating:
-		emptyFileItems();
-		return error;
-	            });
+	D_TRY_CATCH(
+	    {
+		    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
+		                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
+	    },
+	    error,
+	    {
+		    emptyFileItems();
+		    return error;
+	    });
 
 	enteredTextEditPos = 0;
 	if (display->haveOLED()) {
@@ -590,7 +590,10 @@ noExactFileFound:
 					goto tryReadingItems;
 				}
 setEnteredTextAndUseFoundFile:
-				D_TRY_CATCH(setEnteredTextFromCurrentFilename(), { goto gotErrorAfterAllocating; });
+				D_TRY_CATCH(setEnteredTextFromCurrentFilename(), error, {
+					emptyFileItems();
+					return error;
+				});
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
 				if (display->getNumBrowserAndMenuLines() > 1) {
@@ -628,7 +631,10 @@ useFoundFile:
 
 		// We found an exact file. But if we've just entered the Browser and are allowed, then we need to find a new
 		// subslot variation. Come up with a new name variation.
-		D_TRY_CATCH(setEnteredTextFromCurrentFilename(), { goto gotErrorAfterAllocating; });
+		D_TRY_CATCH(setEnteredTextFromCurrentFilename(), error, {
+			emptyFileItems();
+			return error;
+		});
 		// `#if 1 || !OLED` macro was here
 		char const* enteredTextChars = enteredText.get();
 		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
@@ -671,7 +677,10 @@ useFoundFile:
 				}
 			}
 			*(subSlotPos + 1) = 0; // Removes ".XML"
-			D_TRY_CATCH(enteredText.set(nameBuffer), { goto gotErrorAfterAllocating; });
+			D_TRY_CATCH(enteredText.set(nameBuffer), error, {
+				emptyFileItems();
+				return error;
+			});
 		}
 		/* This was originally never accessible as the `else` branch of a `#if 1 || !OLED` macro
 		int32_t length = enteredText.getLength();
@@ -715,9 +724,10 @@ tryAgain:
 				}
 
 				numberStartPos = underscorePos + 1;
-				D_TRY_CATCH(endSearchString.concatenateAtPos(":", numberStartPos), {
-					goto gotErrorAfterAllocating; // Colon is the next character after the ascii digits, so searching
-					                              // for this will get us past the final number present.
+				D_TRY_CATCH(endSearchString.concatenateAtPos(":", numberStartPos), error, {
+					emptyFileItems();
+					return error; // Colon is the next character after the ascii digits, so searching
+					              // for this will get us past the final number present.
 				});
 			}
 			else {
@@ -727,8 +737,9 @@ noNumberYet:
 					goto tryAgain;
 				}
 				numberStartPos = endSearchString.getLength() + 1;
-				D_TRY_CATCH(endSearchString.concatenate(display->haveOLED() ? " :" : "_:"), {
-					goto gotErrorAfterAllocating; // See above comment.
+				D_TRY_CATCH(endSearchString.concatenate(display->haveOLED() ? " :" : "_:"), error, {
+					emptyFileItems();
+					return error; // See above comment.
 				});
 			}
 
@@ -736,13 +747,17 @@ noNumberYet:
 #if ALPHA_OR_BETA_VERSION
 			if (searchResult <= 0) {
 				FREEZE_WITH_ERROR("E448");
-				error = Error::BUG;
-				goto gotErrorAfterAllocating;
+				emptyFileItems();
+				return Error::BUG;
+				;
 			}
 #endif
 			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
 			String prevFilename;
-			D_TRY_CATCH(prevFile->getFilenameWithoutExtension(&prevFilename), { goto gotErrorAfterAllocating; });
+			D_TRY_CATCH(prevFile->getFilenameWithoutExtension(&prevFilename), error, {
+				emptyFileItems();
+				return error;
+			});
 			char const* prevFilenameChars = prevFilename.get();
 			int32_t number;
 			if (prevFilename.getLength() > numberStartPos) {
@@ -757,8 +772,14 @@ noNumberYet:
 
 			number++;
 			enteredText.set(&endSearchString);
-			D_TRY_CATCH(enteredText.shorten(numberStartPos), { goto gotErrorAfterAllocating; });
-			D_TRY_CATCH(enteredText.concatenateInt(number), { goto gotErrorAfterAllocating; });
+			D_TRY_CATCH(enteredText.shorten(numberStartPos), error, {
+				emptyFileItems();
+				return error;
+			});
+			D_TRY_CATCH(enteredText.concatenateInt(number), error, {
+				emptyFileItems();
+				return error;
+			});
 
 			enteredTextEditPos = enteredText.getLength();
 		}
@@ -770,13 +791,23 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				D_TRY_CATCH(getUnusedSlot(OutputType::NONE, &enteredText, "SONG"), { goto gotErrorAfterAllocating; });
+				D_TRY_CATCH(getUnusedSlot(OutputType::NONE, &enteredText, "SONG"), error, {
+					emptyFileItems();
+					return error;
+				});
 				// Note - this is only hit if we're saving the first song created on boot (because the default name
 				// won't match anything) Because that will have cleared out all the FileItems, we need to get them
 				// again. Actually there would kinda be a way around doing this...
-				D_TRY_CATCH(readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.get(),
-				                                             NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH),
-				            { goto gotErrorAfterAllocating; });
+				D_TRY_CATCH(
+				    {
+					    readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.get(), NULL,
+					                                     true, Availability::ANY, CATALOG_SEARCH_BOTH);
+				    },
+				    error,
+				    {
+					    emptyFileItems();
+					    return error;
+				    });
 			}
 		}
 		else {
@@ -827,7 +858,8 @@ doReturn:
 		if (fileItems.getNumElements()) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
 			String displayName;
-			D_TRY_CATCH(fileItem->getDisplayNameWithoutExtension(&displayName), { goto emptyFileItemsAndReturn; });
+			D_TRY_CATCH(fileItem->getDisplayNameWithoutExtension(&displayName), error,
+			            { goto emptyFileItemsAndReturn; });
 			char const* readingChar = &displayName.get()[strlen(thingName)];
 			freeSlotNumber = 0;
 			minNumDigits = 0;
@@ -840,7 +872,7 @@ doReturn:
 			freeSlotNumber++;
 		}
 
-		D_TRY_CATCH(newName->set(thingName), { goto emptyFileItemsAndReturn; });
+		D_TRY_CATCH(newName->set(thingName), error, { goto emptyFileItemsAndReturn; });
 		error = newName->concatenateInt(freeSlotNumber, minNumDigits);
 	}
 	else {
@@ -863,7 +895,8 @@ noMoreToLookAt:
 		else {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 			String displayName;
-			D_TRY_CATCH(fileItem->getDisplayNameWithoutExtension(&displayName), { goto emptyFileItemsAndReturn; });
+			D_TRY_CATCH(fileItem->getDisplayNameWithoutExtension(&displayName), error,
+			            { goto emptyFileItemsAndReturn; });
 			char const* displayNameChars = displayName.get();
 			if (displayNameChars[0] < '0') {
 				goto noMoreToLookAt;
@@ -1012,15 +1045,18 @@ nonNumeric:
 
 tryReadingItems:
 			D_PRINTLN("reloading");
-			D_TRY_CATCH(readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(),
-			                                             NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH),
-			            {
-gotErrorAfterAllocating:
-				D_PRINTLN("error while reloading, emptying file items");
-				emptyFileItems();
-				return;
-				// TODO - need to close UI or something?
-			            });
+			D_TRY_CATCH(
+			    {
+				    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.get(), NULL,
+				                                     true, Availability::ANY, CATALOG_SEARCH_BOTH);
+			    },
+			    error,
+			    {
+				    D_PRINTLN("error while reloading, emptying file items");
+				    emptyFileItems();
+				    return;
+				    // TODO - need to close UI or something?
+			    });
 
 			newFileIndex = fileItems.search(enteredText.get()) + offset;
 			D_PRINTLN("new file Index is %d", newFileIndex);
@@ -1037,12 +1073,18 @@ gotErrorAfterAllocating:
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
 searchFromOneEnd:
 				D_PRINTLN("reloading and wrap");
-				error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
-				                                         Availability::ANY,
-				                                         newCatalogSearchDirection); // Load from start
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating;
-				}
+
+				// Load from start
+				D_TRY_CATCH(
+				    {
+					    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
+					                                     Availability::ANY, newCatalogSearchDirection);
+				    },
+				    error,
+				    {
+					    emptyFileItems();
+					    return;
+				    });
 
 				newFileIndex =
 				    (newCatalogSearchDirection == CATALOG_SEARCH_LEFT) ? (fileItems.getNumElements() - 1) : 0;
@@ -1117,7 +1159,7 @@ searchFromOneEnd:
 		}
 	}
 
-	D_TRY_CATCH(setEnteredTextFromCurrentFilename(), {
+	D_TRY_CATCH(setEnteredTextFromCurrentFilename(), error, {
 		display->displayError(error);
 		return;
 	});
@@ -1141,8 +1183,7 @@ bool Browser::predictExtendedText() {
 	String searchString;
 	searchString.set(&enteredText);
 	bool doneNewRead = false;
-	D_TRY_CATCH(searchString.shorten(enteredTextEditPos), {
-gotError:
+	D_TRY_CATCH(searchString.shorten(enteredTextEditPos), error, {
 		display->displayError(error);
 		return false;
 	});
@@ -1150,7 +1191,10 @@ gotError:
 	int32_t numExtraZeroesAdded = 0;
 
 addTildeAndSearch:
-	D_TRY_CATCH(searchString.concatenate("~"), { goto gotError; });
+	D_TRY_CATCH(searchString.concatenate("~"), error, {
+		display->displayError(error);
+		return false;
+	});
 
 	// Ok, search whatever FileItems we currently have in memory.
 doSearch:
@@ -1169,7 +1213,8 @@ doNewRead:
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
 				emptyFileItems();
-				goto gotError;
+				display->displayError(error);
+				return false;
 				// TODO - need to close UI or something?
 			}
 			goto doSearch;
@@ -1204,8 +1249,10 @@ notFound:
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName, enteredText.get(), enteredTextEditPos)) {
 		if (numExtraZeroesAdded < 4) {
-			D_TRY_CATCH(searchString.concatenateAtPos("0", searchString.getLength() - 1, 1), {
-				goto gotError; // Gets rid of previously appended "~"
+			// Gets rid of previously appended "~"
+			D_TRY_CATCH(searchString.concatenateAtPos("0", searchString.getLength() - 1, 1), error, {
+				display->displayError(error);
+				return false;
 			});
 			numExtraZeroesAdded++;
 			doneNewRead = false;
@@ -1223,7 +1270,10 @@ notFound:
 		scrollPosVertical = i;
 	}
 
-	D_TRY_CATCH(setEnteredTextFromCurrentFilename(), { goto gotError; });
+	D_TRY_CATCH(setEnteredTextFromCurrentFilename(), error, {
+		display->displayError(error);
+		return false;
+	});
 
 	displayText();
 
@@ -1518,8 +1568,7 @@ ActionResult Browser::backButtonAction() {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	Error error;
-	D_TRY_CATCH(goUpOneDirectoryLevel(), { exitAction(); });
+	D_TRY_CATCH(goUpOneDirectoryLevel(), error, { exitAction(); });
 
 	return ActionResult::DEALT_WITH;
 }
@@ -1542,7 +1591,6 @@ void Browser::goIntoDeleteFileContextMenu() {
 Error Browser::setEnteredTextFromCurrentFilename() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	Error error;
 	D_TRY(enteredText.set(currentFileItem->displayName));
 
 	// Cut off the file extension
@@ -1590,22 +1638,16 @@ Error Browser::goUpOneDirectoryLevel() {
 	}
 
 	int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentDirChars;
-	Error error;
 	D_TRY(enteredText.set(slashAddress + 1));
-	currentDir.shorten(slashPos);
-	if (error != Error::NONE) {
-		return error;
-	}
+	D_TRY(currentDir.shorten(slashPos));
 	enteredTextEditPos = 0;
 
 	display->setNextTransitionDirection(-1);
-	error = arrivedInNewFolder(-1, enteredText.get());
+	D_TRY(arrivedInNewFolder(-1, enteredText.get()));
 	if (display->haveOLED()) {
-		if (error == Error::NONE) {
-			renderUIsForOled();
-		}
+		renderUIsForOled();
 	}
-	return error;
+	return Error::NONE;
 }
 
 Error Browser::createFolder() {

@@ -257,7 +257,6 @@ Error Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					Error error;
 					D_TRY(readDrumFromFile(song, clip, drumType, readAutomationUpToPos));
 					storageManager.exitTag();
 				}
@@ -350,7 +349,7 @@ Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 			error = Error::ABORTED_BY_USER;
 			goto getOut;
 		}
-		D_TRY_CATCH(thisDrum->loadAllSamples(mayActuallyReadFiles), { goto getOut; });
+		D_TRY_CATCH(thisDrum->loadAllSamples(mayActuallyReadFiles), error, { goto getOut; });
 	}
 
 getOut:
@@ -366,8 +365,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		Error error;
-		D_TRY_CATCH(setupDefaultAudioFileDir(), { return; });
+		D_TRY_CATCH(setupDefaultAudioFileDir(), error, { return; });
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
@@ -723,7 +721,6 @@ Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		Error error;
 		D_TRY(name->concatenateAtPos(numberString, originalLength));
 		startAtNumber++;
 	} while (getDrumFromName(name->get()));

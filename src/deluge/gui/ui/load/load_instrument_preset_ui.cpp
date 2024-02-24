@@ -183,17 +183,14 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			Error error;
 			D_TRY(currentDir.set(defaultDir));
 		}
 	}
 
 	if (!searchFilename.isEmpty()) {
-		Error error;
 		D_TRY(searchFilename.concatenate(".XML"));
 	}
 
-	Error error;
 	D_TRY(arrivedInNewFolder(0, searchFilename.get(), defaultDir));
 
 	currentInstrumentLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
@@ -244,8 +241,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		Error error;
-		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), {
+		D_TRY_CATCH(goIntoFolder(currentFileItem->filename.get()), error, {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -353,8 +349,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
 		// some way. So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
-		Error error;
-		D_TRY_CATCH(getCurrentFilePath(&filePath), {
+		D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
 			display->displayError(error);
 			return ActionResult::DEALT_WITH;
 		});
@@ -433,8 +428,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;
 
-		Error error;
-		D_TRY_CATCH(setupForOutputType(), {
+		D_TRY_CATCH(setupForOutputType(), error, {
 			outputTypeToLoad = oldOutputType;
 			return;
 		});
@@ -490,7 +484,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 			return;
 		}
 
-		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
+		if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
 			if (currentSong->doesOutputHaveActiveClipInSession(initialInstrument)) {
 				return;
 			}
@@ -545,8 +539,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// Try getting from file
 				String filePath;
-				Error error;
-				D_TRY_CATCH(getCurrentFilePath(&filePath), { return; });
+				D_TRY_CATCH(getCurrentFilePath(&filePath), error, { return; });
 
 				FilePointer tempFilePointer;
 
@@ -555,10 +548,16 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 					return;
 				}
 
-				D_TRY_CATCH(storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
-				                                                  initialOutputType, false, &initialInstrument,
-				                                                  &tempFilePointer, &initialName, &initialDirPath),
-				            { return; });
+				D_TRY_CATCH(
+				    {
+					    storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
+					                                          false, &initialInstrument, &tempFilePointer, &initialName,
+					                                          &initialDirPath);
+				    },
+				    error,
+				    {
+					    return; //< return fast
+				    });
 			}
 
 			initialInstrument->loadAllAudioFiles(true);
@@ -976,7 +975,6 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
-	Error error;
 	D_TRY(storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                     &currentFileItem->filePointer, &enteredText, &currentDir));
 	// kitToLoadFor->addDrum(soundDrumToReplace);
@@ -988,19 +986,19 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
-	if (paramManager) {
-		kitToLoadFor->addDrum(soundDrumToReplace);
-		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
-		                 false);
-		kitToLoadFor->beenEdited();
-	}
-	else {
-		error = Error::FILE_CORRUPTED;
+	if (paramManager == nullptr) {
+		display->removeLoadingAnimation();
+		return Error::FILE_CORRUPTED;
 	}
 
+	kitToLoadFor->addDrum(soundDrumToReplace);
+	// don't back up the param manager since we can't use the backup anyway
+	noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
+	                 false);
+	kitToLoadFor->beenEdited();
+
 	display->removeLoadingAnimation();
-	return error;
+	return Error::NONE;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {

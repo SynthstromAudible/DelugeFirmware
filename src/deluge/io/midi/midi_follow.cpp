@@ -568,8 +568,7 @@ bool MidiFollow::isFeedbackEnabled() {
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
-	Error error;
-	D_TRY_CATCH(storageManager.createXMLFile(MIDI_DEFAULTS_XML, true), { return; });
+	D_TRY_CATCH(storageManager.createXMLFile(MIDI_DEFAULTS_XML, true), error, { return; });
 
 	//<defaults>
 	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
@@ -641,8 +640,7 @@ void MidiFollow::readDefaultsFromFile() {
 	}
 
 	//<defaults>
-	Error error;
-	D_TRY_CATCH(storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG), {
+	D_TRY_CATCH(storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG), error, {
 		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
 		return;

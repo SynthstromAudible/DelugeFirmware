@@ -593,8 +593,7 @@ void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	Error error;
-	D_TRY_CATCH(sampleBrowser.claimAudioFileForInstrument(), {
+	D_TRY_CATCH(sampleBrowser.claimAudioFileForInstrument(), error, {
 		display->displayError(error);
 		return;
 	});
@@ -674,32 +673,31 @@ void Slicer::doSlice() {
 
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
-			D_TRY_CATCH(paramManager.setupWithPatching(), {
+			D_TRY_CATCH(paramManager.setupWithPatching(), error, {
 				display->displayError(error);
 				return;
 			});
 
 			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
-			if (!drumMemory) {
-ramError:
-				error = Error::INSUFFICIENT_RAM;
-				display->displayError(error);
+			if (drumMemory == nullptr) {
+				display->displayError(Error::INSUFFICIENT_RAM);
 				return;
 			}
 
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
-			if (!range) {
+			if (range == nullptr) {
 ramError2:
 				newDrum->~SoundDrum();
 				delugeDealloc(drumMemory);
-				goto ramError;
+				display->displayError(Error::INSUFFICIENT_RAM);
+				return;
 			}
 
 			char newName[5];
 			intToString(i + 1, newName);
-			D_TRY_CATCH(newDrum->name.set(newName), { goto ramError2; });
+			D_TRY_CATCH(newDrum->name.set(newName), error, { goto ramError2; });
 
 			Sound::initParams(&paramManager);
 

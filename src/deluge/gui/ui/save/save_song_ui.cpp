@@ -52,9 +52,8 @@ bool SaveSongUI::opened() {
 	// Grab screenshot of song, for saving, before qwerty drawn
 	memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 
-	bool success = SaveUI::opened(); // Clears enteredText
-	if (!success) {                  // In this case, an error will have already displayed.
-doReturnFalse:
+	bool success = SaveUI::opened();     // Clears enteredText
+	if (!success) {                      // In this case, an error will have already displayed.
 		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
 		                                 // the pads.
 		return false;
@@ -65,17 +64,21 @@ doReturnFalse:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
-		D_TRY_CATCH(searchFilename.concatenate(".XML"), {
-gotError:
+		D_TRY_CATCH(searchFilename.concatenate(".XML"), error, {
 			display->displayError(error);
-			goto doReturnFalse;
+			renderingNeededRegardlessOfUI();
+			return false;
 		});
 	}
 	currentFolderIsEmpty = false;
 
 	currentDir.set(&currentSong->dirPath);
 
-	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), { goto gotError; });
+	D_TRY_CATCH(arrivedInNewFolder(0, searchFilename.get(), "SONGS"), error, {
+		display->displayError(error);
+		renderingNeededRegardlessOfUI();
+		return false;
+	});
 
 	// TODO: create folder if doesn't exist.
 
@@ -114,12 +117,14 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	display->displayLoadingAnimationText("Saving");
 
-	String filePath;
-	Error error;
-	D_TRY_CATCH(getCurrentFilePath(&filePath), {
-gotError:
+	auto gotError = [&](Error error) {
 		display->removeLoadingAnimation();
 		display->displayError(error);
+	};
+
+	String filePath;
+	D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
+		gotError(error);
 		return false;
 	});
 
@@ -136,10 +141,8 @@ gotError:
 			openUI(&context_menu::overwriteFile);
 			return true;
 		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto gotError;
-		}
+		gotError(Error::UNSPECIFIED);
+		return false;
 	}
 
 	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they
@@ -149,14 +152,21 @@ gotError:
 	String newSongAlternatePath;
 
 	String filenameWithoutExtension;
-	D_TRY_CATCH(getCurrentFilenameWithoutExtension(&filenameWithoutExtension), { goto gotError; });
+	D_TRY_CATCH(getCurrentFilenameWithoutExtension(&filenameWithoutExtension), error, {
+		gotError(error);
+		return false;
+	});
 
-	error =
-	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-	D_TRY_CATCH(newSongAlternatePath.concatenate("/"), { goto gotError; });
+	D_TRY_CATCH(
+	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension),
+	    error, {
+		    gotError(error);
+		    return false;
+	    });
+	D_TRY_CATCH(newSongAlternatePath.concatenate("/"), error, {
+		gotError(error);
+		return false;
+	});
 	int32_t dirPathLengthNew = newSongAlternatePath.getLength();
 
 	bool anyErrorMovingTempFiles = false;
@@ -212,13 +222,15 @@ gotError:
 					sourceFilePath = audioFile->loadedFromAlternatePath.get();
 				}
 				else {
-					sourceFilePath =
-					    (audioFile->type != AudioFileType::SAMPLE
-					     || ((Sample*)audioFile)->tempFilePathForRecording.isEmpty())
-					        ? audioFile->filePath.get()
-					        : ((Sample*)audioFile)
-					              ->tempFilePathForRecording.get(); // It may still have a temp path if for some reason
-					                                                // we failed to move it, above
+					// It may still have a temp path if for some reason
+					// we failed to move it, above
+					if (audioFile->type == AudioFileType::SAMPLE
+					    && !((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
+						sourceFilePath = ((Sample*)audioFile)->tempFilePathForRecording.get();
+					}
+					else {
+						sourceFilePath = audioFile->filePath.get();
+					}
 				}
 
 				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we
@@ -228,8 +240,8 @@ gotError:
 				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
-					error = Error::UNSPECIFIED;
-					goto gotError;
+					gotError(Error::UNSPECIFIED);
+					return false;
 				}
 
 				char const* destFilePath;
@@ -294,10 +306,10 @@ gotError:
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
 						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(
 						                &newSongAlternatePath, dirPathLengthNew, &audioFile->filePath),
-						            {
-failAfterOpeningSourceFile:
-							f_close(&fileSystemStuff.currentFile); // Close source file
-							goto gotError;
+						            error, {
+							            f_close(&fileSystemStuff.currentFile); // Close source file
+							            gotError(error);
+							            return false;
 						            });
 					}
 
@@ -305,8 +317,11 @@ failAfterOpeningSourceFile:
 					// to just use the original filename, and hope it doesn't clash with anything.
 					else {
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
-						D_TRY_CATCH(newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew),
-						            { goto failAfterOpeningSourceFile; });
+						D_TRY_CATCH(newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew), error, {
+							f_close(&fileSystemStuff.currentFile); // Close source file
+							gotError(error);
+							return false;
+						});
 					}
 
 					if (needToPretendLoadedAlternate) {
@@ -320,49 +335,56 @@ failAfterOpeningSourceFile:
 				}
 
 				// Create file to write
-				error = storageManager.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
-				if (error == Error::FILE_ALREADY_EXISTS) {
-				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
-				else if (error != Error::NONE) {
-					goto failAfterOpeningSourceFile;
+				D_TRY_CATCH(
+				    {
+					    storageManager.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false); //<
+				    },
+				    error,
+				    {
+					    // If the file already exists, then there's no problem - the audio file was already
+					    // there from before, so we don't need to copy it again now.
 
-					// Or if everything's fine and we're ready to write / copy...
-				}
-				else {
+					    // Otherwise...
+					    if (error != Error::FILE_ALREADY_EXISTS) {
+						    f_close(&fileSystemStuff.currentFile); // Close source file
+						    gotError(error);
+						    return false;
+					    }
+				    });
 
-					// Copy
-					while (true) {
-						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
-						                audioFileManager.clusterSize, &bytesRead);
-						if (result) {
-							D_PRINTLN("read fail");
+				// Everything's fine and we're ready to write / copy...
+				while (true) {
+					UINT bytesRead;
+					result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
+					                audioFileManager.clusterSize, &bytesRead);
+					if (result) {
+						D_PRINTLN("read fail");
 fail3:
-							f_close(&recorderFileSystemStuff.currentFile);
-							error = Error::UNSPECIFIED;
-							goto failAfterOpeningSourceFile;
-						}
-						if (!bytesRead) {
-							break; // Stop, on rare case where file ended right at end of last cluster
-						}
-
-						UINT bytesWritten;
-						result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer,
-						                 bytesRead, &bytesWritten);
-						if (result || bytesWritten != bytesRead) {
-							D_PRINTLN("write fail %d", result);
-							goto fail3;
-						}
-
-						if (bytesRead < audioFileManager.clusterSize) {
-							break; // Stop - file clearly ended part-way through cluster
-						}
+						f_close(&recorderFileSystemStuff.currentFile);
+						f_close(&fileSystemStuff.currentFile); // Close source file
+						gotError(Error::UNSPECIFIED);
+						return false;
+					}
+					if (bytesRead == 0u) {
+						break; // Stop, on rare case where file ended right at end of last cluster
 					}
 
-					f_close(&recorderFileSystemStuff.currentFile); // Close destination file
+					UINT bytesWritten;
+					result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer, bytesRead,
+					                 &bytesWritten);
+					if (result || bytesWritten != bytesRead) {
+						D_PRINTLN("write fail %d", result);
+						goto fail3;
+					}
+
+					if (bytesRead < audioFileManager.clusterSize) {
+						break; // Stop - file clearly ended part-way through cluster
+					}
 				}
 
-				f_close(&fileSystemStuff.currentFile); // Close source file
+				// TODO(Kate): again, RAII file handlers so we don't need to have goto cleanup
+				f_close(&recorderFileSystemStuff.currentFile); // Close destination file
+				f_close(&fileSystemStuff.currentFile);         // Close source file
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
 				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new
@@ -382,9 +404,18 @@ fail3:
 		int32_t tempFileNumber = 0;
 
 		while (true) {
-			D_TRY_CATCH(filePathDuringWrite.set("SONGS/TEMP"), { goto gotError; });
-			D_TRY_CATCH(filePathDuringWrite.concatenateInt(tempFileNumber, 4), { goto gotError; });
-			D_TRY_CATCH(filePathDuringWrite.concatenate(".XML"), { goto gotError; });
+			D_TRY_CATCH(filePathDuringWrite.set("SONGS/TEMP"), error, {
+				gotError(error);
+				return false;
+			});
+			D_TRY_CATCH(filePathDuringWrite.concatenateInt(tempFileNumber, 4), error, {
+				gotError(error);
+				return false;
+			});
+			D_TRY_CATCH(filePathDuringWrite.concatenate(".XML"), error, {
+				gotError(error);
+				return false;
+			});
 
 			if (!storageManager.fileExists(filePathDuringWrite.get())) {
 				break;
@@ -400,16 +431,26 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	D_TRY_CATCH(storageManager.createXMLFile(filePathDuringWrite.get(), false, false), { goto gotError; });
+	D_TRY_CATCH(storageManager.createXMLFile(filePathDuringWrite.get(), false, false), error, {
+		gotError(error);
+		return false;
+	});
 
-	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
-	// for either overwriting or not.
+	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could
+	// be for either overwriting or not.
 
 	currentSong->writeToFile();
 
-	D_TRY_CATCH(storageManager.closeFileAfterWriting(
-	                filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n"),
-	            { goto gotError; });
+	D_TRY_CATCH(
+	    {
+		    storageManager.closeFileAfterWriting(filePathDuringWrite.get(),
+		                                         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	    },
+	    error,
+	    {
+		    gotError(error);
+		    return false;
+	    });
 
 	// If "overwriting an existing file"...
 	if (fileAlreadyExisted) {
@@ -418,8 +459,8 @@ fail3:
 		FRESULT result = f_unlink(filePath.get());
 		if (result != FR_OK) {
 cardError:
-			error = fresultToDelugeErrorCode(result);
-			goto gotError;
+			gotError(fresultToDelugeErrorCode(result));
+			return false;
 		}
 
 		// Rename the new file

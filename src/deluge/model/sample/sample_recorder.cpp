@@ -128,25 +128,28 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	// Didn't seem to make a difference forcing this into local RAM
 	void* sampleMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
-	if (!sampleMemory) {
+	if (sampleMemory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	sample = new (sampleMemory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
-	Error error;
-	D_TRY_CATCH(sample->initialize(1), {
-gotError:
+
+	auto gotError = [&]() {
 		sample->~Sample();
 		delugeDealloc(sampleMemory);
+	};
+
+	D_TRY_CATCH(sample->initialize(1), error, {
+		gotError();
 		return error;
 	});
 
 	currentRecordCluster =
 	    sample->clusters.getElement(0)->getCluster(sample, 0, CLUSTER_DONT_LOAD); // Adds a "reason" to it, too
-	if (!currentRecordCluster) {
-		error = Error::INSUFFICIENT_RAM;
-		goto gotError;
+	if (currentRecordCluster == nullptr) {
+		gotError();
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Bug hunting - newly gotten Cluster
@@ -370,18 +373,23 @@ aborted:
 		return Error::NONE;
 	}
 
-	Error error;
-	error = Error::NONE;
+	Error error = Error::NONE;
 
 	if (!hadCardError) {
 
 		// If file not created yet, do that
 		if (filePathCreated.isEmpty()) {
 
-			D_TRY_CATCH(storageManager.initSD(), { goto gotError; });
+			error = storageManager.initSD();
+			if (error != Error::NONE) {
+				goto gotError;
+			}
 
 			// Check there's space on the card
-			D_TRY_CATCH(storageManager.checkSpaceOnCard(), { goto gotError; });
+			error = storageManager.checkSpaceOnCard();
+			if (error != Error::NONE) {
+				goto gotError;
+			}
 
 			String filePath;
 			String tempFilePathForRecording;
@@ -423,7 +431,10 @@ aborted:
 			sample->filePath.set(&filePath);                                 // Can't fail!
 			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
 
-			D_TRY_CATCH(audioFileManager.audioFiles.insertElement(sample), { goto gotError; });
+			error = audioFileManager.audioFiles.insertElement(sample);
+			if (error != Error::NONE) {
+				goto gotError;
+			}
 
 			haveAddedSampleToArray = true;
 		}
@@ -449,10 +460,11 @@ gotError:
 	// If we've actually finished recording...
 	if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		if (!hadCardError) {
-			D_TRY_CATCH(finalizeRecordedFile(), {
+			error = finalizeRecordedFile();
+			if (error != Error::NONE) {
 				hadCardError = true;
 				error = Error::SD_CARD;
-			});
+			}
 		}
 
 		if (reachedMaxFileSize) {
@@ -560,7 +572,6 @@ Error SampleRecorder::finalizeRecordedFile() {
 
 		int32_t bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
 		if (bytesToWrite > 0) { // Will always be true
-			Error error;
 			D_TRY(writeCluster(currentRecordClusterIndex, bytesToWrite));
 		}
 
@@ -639,7 +650,6 @@ Error SampleRecorder::finalizeRecordedFile() {
 			return Error::SD_CARD;
 		}
 
-		Error error;
 		D_TRY(alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction));
 	}
 
@@ -786,7 +796,6 @@ Error SampleRecorder::createNextCluster() {
 	}
 
 	// We need to allocate our next Cluster
-	Error error;
 	D_TRY(sample->clusters.insertSampleClustersAtEnd(1));
 
 	currentRecordCluster = sample->clusters.getElement(currentRecordClusterIndex)
@@ -1457,7 +1466,6 @@ writeFailed:
 				return Error::SD_CARD;
 			}
 
-			Error error;
 			D_TRY(truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes));
 
 			fres = f_close(&file);

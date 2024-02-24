@@ -360,8 +360,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
 			    && output->wantsToBeginArrangementRecording()) {
 
-				Error error;
-				D_TRY_CATCH(output->possiblyBeginArrangementRecording(currentSong, newPos),
+				D_TRY_CATCH(output->possiblyBeginArrangementRecording(currentSong, newPos), error,
 				            { display->displayError(error); });
 			}
 		}
@@ -495,7 +494,6 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
-	Error error;
 	D_TRY(oldClip->clone(modelStack, true));
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();

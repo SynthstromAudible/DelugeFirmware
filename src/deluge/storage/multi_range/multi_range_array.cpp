@@ -36,8 +36,7 @@ MultiRange* MultiRangeArray::getElement(int32_t i) {
 }
 
 MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
-	Error error;
-	D_TRY_CATCH(insertAtIndex(i), { return NULL; });
+	D_TRY_CATCH(insertAtIndex(i), error, { return NULL; });
 	void* memory = getElementAddress(i);
 	MultiRange* range;
 
@@ -59,7 +58,6 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
-	Error error;
 	D_TRY(newArray.insertAtIndex(0, numElements));
 
 	// We're changing range types, but want to preserve their topNotes.

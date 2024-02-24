@@ -57,8 +57,7 @@ doesntExistYet:
 }
 
 MIDIParam* MIDIParamVector::insertParam(int32_t i) {
-	Error error;
-	D_TRY_CATCH(insertAtIndex(i), { return NULL; });
+	D_TRY_CATCH(insertAtIndex(i), error, { return NULL; });
 	void* address = getElementAddress(i);
 	MIDIParam* param = new (address) MIDIParam();
 	return param;

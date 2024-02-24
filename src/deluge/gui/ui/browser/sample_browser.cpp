@@ -111,11 +111,13 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	Error error;
-	D_TRY_CATCH(storageManager.initSD(), {
-sdError:
+	auto sdError = [](Error error) {
 		display->displayError(error);
 		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
+	};
+
+	D_TRY_CATCH(storageManager.initSD(), error, {
+		sdError(error);
 		return false;
 	});
 
@@ -156,7 +158,10 @@ sdError:
 
 dissectionDone:
 
-	D_TRY_CATCH(arrivedInNewFolder(1, searchFilename, "SAMPLES"), { goto sdError; });
+	D_TRY_CATCH(arrivedInNewFolder(1, searchFilename, "SAMPLES"), error, {
+		sdError(error);
+		return false;
+	});
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
 	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
@@ -348,8 +353,7 @@ void SampleBrowser::enterKeyPress() {
 		// it returns an empty string (&nothing). Surely this is a compiler error??
 		char const* filenameChars = currentFileItem->filename.get();
 
-		Error error;
-		D_TRY_CATCH(goIntoFolder(filenameChars), {
+		D_TRY_CATCH(goIntoFolder(filenameChars), error, {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -407,8 +411,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 					// Ensure sample isn't used in current song
 					String filePath;
-					Error error;
-					D_TRY_CATCH(getCurrentFilePath(&filePath), {
+					D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					});
@@ -479,9 +482,8 @@ Error SampleBrowser::getCurrentFilePath(String* path) {
 
 	path->set(&currentDir);
 	int32_t oldLength = path->getLength();
-	if (oldLength) {
-		D_TRY_CATCH(path->concatenateAtPos("/", oldLength), {
-gotError:
+	if (oldLength != 0) {
+		D_TRY_CATCH(path->concatenateAtPos("/", oldLength), error, {
 			path->clear();
 			return error;
 		});
@@ -489,7 +491,10 @@ gotError:
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	D_TRY_CATCH(path->concatenate(&currentFileItem->filename), { goto gotError; });
+	D_TRY_CATCH(path->concatenate(&currentFileItem->filename), error, {
+		path->clear();
+		return error;
+	});
 
 	return Error::NONE;
 }
@@ -523,8 +528,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (currentFileItem && !currentFileItem->isFolder) {
 
 		String filePath;
-		Error error;
-		D_TRY_CATCH(getCurrentFilePath(&filePath), {
+		D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
 			display->displayError(error);
 			return;
 		});
@@ -698,7 +702,6 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	Error error;
 	D_TRY(getCurrentFilePath(&holder->filePath));
 
 	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
@@ -710,18 +713,17 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	Error error;
 	D_TRY(getCurrentFilePath(&holder->filePath));
 
 	bool reversed = getCurrentAudioClip()->sampleControls.reversed;
-	error = holder->loadFile(reversed, true, true);
+	D_TRY(holder->loadFile(reversed, true, true));
 
 	// If there's a pre-margin, we want to set an attack-time
-	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
+	if (((SampleHolder*)holder)->startPos) {
 		getCurrentAudioClip()->attack = kAudioClipDefaultAttackIfPreMargin;
 	}
 
-	return error;
+	return Error::NONE;
 }
 
 // This display-> any (rare) specific errors generated, then spits out just a boolean success.
@@ -742,8 +744,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 	// If for AudioClip...
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 
-		D_TRY_CATCH(claimAudioFileForAudioClip(), {
-removeLoadingAnimationAndGetOut:
+		D_TRY_CATCH(claimAudioFileForAudioClip(), error, {
 			display->removeLoadingAnimation();
 			display->displayError(error);
 			return false;
@@ -801,7 +802,7 @@ doLoadAsWaveTable:
 			*/
 			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
-			D_TRY_CATCH(claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts), {
+			D_TRY_CATCH(claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts), error, {
 				// If word has come back that this file isn't wanting to load as a WaveTable...
 				if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
 				    || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
@@ -810,19 +811,19 @@ doLoadAsWaveTable:
 					// tell them no.
 					if (mayDoWaveTable == 2 || numTypesTried > 1
 					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
-						goto removeLoadingAnimationAndGetOut;
+						display->removeLoadingAnimation();
+						display->displayError(error);
+						return false;
 					}
 
 					// Or if they don't really mind, just load it as a Sample.
-					else {
-						goto doLoadAsSample;
-					}
+					goto doLoadAsSample;
 				}
 
 				// Or any other error...
-				else {
-					goto removeLoadingAnimationAndGetOut;
-				}
+				display->removeLoadingAnimation();
+				display->displayError(error);
+				return false;
 			});
 
 			// Alright, if we're still here, it was successfully loaded as a WaveTable!
@@ -864,7 +865,11 @@ doLoadAsSample:
 
 			soundEditor.currentSource->setOscType(OscType::SAMPLE);
 
-			D_TRY_CATCH(claimAudioFileForInstrument(), { goto removeLoadingAnimationAndGetOut; });
+			D_TRY_CATCH(claimAudioFileForInstrument(), error, {
+				display->removeLoadingAnimation();
+				display->displayError(error);
+				return false;
+			});
 
 			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
 
@@ -940,8 +945,11 @@ doLoadAsSample:
 					newName.set(&enteredText);
 				}
 				else {
-					D_TRY_CATCH(newName.set(&enteredText.get()[numCharsInPrefix]),
-					            { goto removeLoadingAnimationAndGetOut; });
+					D_TRY_CATCH(newName.set(&enteredText.get()[numCharsInPrefix]), error, {
+						display->removeLoadingAnimation();
+						display->displayError(error);
+						return false;
+					});
 				}
 
 				Kit* kit = getCurrentKit();
@@ -949,7 +957,11 @@ doLoadAsSample:
 				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
 				if (kit->getDrumFromName(newName.get())) {
 
-					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), { goto removeLoadingAnimationAndGetOut; });
+					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), error, {
+						display->removeLoadingAnimation();
+						display->displayError(error);
+						return false;
+					});
 				}
 
 				drum->name.set(&newName);
@@ -1130,7 +1142,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	char const* previouslyViewedFilename = "";
 
 	if (currentFileItem->isFolder) {
-		D_TRY_CATCH(getCurrentFilePath(&dirToLoad), {
+		D_TRY_CATCH(getCurrentFilePath(&dirToLoad), error, {
 			display->displayError(error);
 			return false;
 		});
@@ -1863,8 +1875,7 @@ getOut:
 				// Make the Drum and its ParamManager
 
 				ParamManagerForTimeline paramManager;
-				Error error;
-				D_TRY_CATCH(paramManager.setupWithPatching(), { goto getOut; });
+				D_TRY_CATCH(paramManager.setupWithPatching(), error, { goto getOut; });
 
 				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 				if (!drumMemory) {
@@ -1897,8 +1908,7 @@ getOut:
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
-			Error error;
-			D_TRY_CATCH(newName.set(&thisSample->filePath.get()[prefixAndDirLength]), {
+			D_TRY_CATCH(newName.set(&thisSample->filePath.get()[prefixAndDirLength]), error, {
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
@@ -1907,7 +1917,7 @@ getOut:
 				}
 
 				if (kit->getDrumFromName(newName.get())) {
-					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), { goto skipNameStuff; });
+					D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 2), error, { goto skipNameStuff; });
 				}
 
 				drum->name.set(&newName);

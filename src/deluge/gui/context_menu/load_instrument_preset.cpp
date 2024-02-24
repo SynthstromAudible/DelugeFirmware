@@ -44,7 +44,7 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		D_TRY_CATCH(loadInstrumentPresetUI.performLoad(true), {
+		D_TRY_CATCH(loadInstrumentPresetUI.performLoad(true), error, {
 			display->displayError(error);
 			return true;
 		});

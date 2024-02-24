@@ -1229,8 +1229,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	Error error;
-	D_TRY_CATCH(range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer), {
+	D_TRY_CATCH(range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer), error, {
 		display->displayError(error); // Rare, shouldn't cause later problems.
 	});
 
@@ -1430,8 +1429,7 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		Error error;
-		D_TRY_CATCH(recorder->cardRoutine(), { display->displayError(error); });
+		D_TRY_CATCH(recorder->cardRoutine(), error, { display->displayError(error); });
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
 		// be out of wack, so let's just get out and come back later
@@ -1511,10 +1509,10 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
 	D_TRY_CATCH(newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency),
-	            {
+	            error, {
 		            newRecorder->~SampleRecorder();
 		            delugeDealloc(recorderMemory);
-		            return NULL;
+		            return nullptr;
 	            });
 
 	newRecorder->next = firstRecorder;

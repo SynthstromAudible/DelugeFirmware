@@ -165,8 +165,7 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 		reverseWithLength = loopLength;
 	}
 
-	Error error;
-	D_TRY_CATCH(newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength), {
+	D_TRY_CATCH(newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength), error, {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
 		delugeDealloc(clipMemory);
@@ -178,8 +177,9 @@ deleteClipAndGetOut:
 	newClip->output = output;
 
 	if (!newClip->noteRows.cloneFrom(&noteRows)) {
-		error = Error::INSUFFICIENT_RAM;
-		goto deleteClipAndGetOut;
+		newClip->~InstrumentClip();
+		delugeDealloc(clipMemory);
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	modelStack->setTimelineCounter(newClip);
@@ -188,9 +188,8 @@ deleteClipAndGetOut:
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
 		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		Error error;
-		error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
 
+		Error error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
 		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
 		// it shouldn't be
 	}
@@ -606,7 +605,6 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
 			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
 
-			Error error;
 			D_TRY(thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
 			                                 whichRepeatThisIs, otherInstrumentClip->loopLength));
 		}
@@ -627,7 +625,6 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
 
-				Error error;
 				D_TRY(thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
 				                                 whichRepeatThisIs, otherInstrumentClip->loopLength));
 			}
@@ -1559,8 +1556,7 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
 		if (!paramManager.containsAnyMainParamCollections()) {
-			Error error;
-			D_TRY_CATCH(paramManager.setupMIDI(), {
+			D_TRY_CATCH(paramManager.setupMIDI(), error, {
 				if (ALPHA_OR_BETA_VERSION) {
 					FREEZE_WITH_ERROR("E052");
 				}
@@ -2219,7 +2215,6 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 	else if (output->type != OutputType::CV) {
 
 		if (output->type == OutputType::KIT) {
-			Error error;
 			D_TRY(undoUnassignmentOfAllNoteRowsFromDrums(modelStack));
 		}
 
@@ -2237,7 +2232,6 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	output = newInstrument;
 	affectEntire = (newInstrument->type != OutputType::KIT); // Moved here from changeInstrument, March 2021
 
-	Error error;
 	D_TRY(solicitParamManager(song, newParamManager, favourClipForCloningParamManager));
 
 	// Arp stuff, so long as not a Kit (but remember, Sound/Synth is the only other option in this function)
@@ -2391,23 +2385,15 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 Error InstrumentClip::readFromFile(Song* song) {
 
-	Error error;
+	// Error error;
 
-	if (false) {
-ramError:
-
-		error = Error::INSUFFICIENT_RAM;
-
-someError:
+	auto someError = [&]() {
 		// Clear out all NoteRows of phony info stored where their drum pointer would normally go
-
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 			thisNoteRow->drum = NULL;
 		}
-
-		return error;
-	}
+	};
 
 	instrumentWasLoadedByReferenceFromClip = NULL;
 
@@ -2566,17 +2552,17 @@ someError:
 
 			output = song->getInstrumentFromPresetSlot(OutputType::MIDI_OUT, instrumentPresetSlot,
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
-			if (!output) {
+			if (output == nullptr) {
 				output = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
 				                                                    instrumentPresetSubSlot);
 
-				if (!output) {
-					goto ramError;
+				if (output == nullptr) {
+					someError();
+					return Error::INSUFFICIENT_RAM;
 				}
 				song->addOutput(output);
 			}
 
-			Error error;
 			D_TRY(paramManager.setupMIDI());
 
 			D_TRY(((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager));
@@ -2652,19 +2638,19 @@ someError:
 		else if (!strcmp(tagName, "instrument")) {
 			if (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "referToTrackId")) {
-					if (!output) {
+					if (output == nullptr) {
 						int32_t clipId = storageManager.readTagOrAttributeValueInt();
 						clipId = std::max((int32_t)0, clipId);
 						if (clipId >= song->sessionClips.getNumElements()) {
-							error = Error::FILE_CORRUPTED;
-							goto someError;
+							someError();
+							return Error::FILE_CORRUPTED;
 						}
 						instrumentWasLoadedByReferenceFromClip =
 						    (InstrumentClip*)song->sessionClips.getClipAtIndex(clipId);
 						output = instrumentWasLoadedByReferenceFromClip->output;
-						if (!output) {
-							error = Error::FILE_CORRUPTED;
-							goto someError;
+						if (output == nullptr) {
+							someError();
+							return Error::FILE_CORRUPTED;
 						}
 						outputTypeWhileLoading = output->type;
 						if (outputTypeWhileLoading == OutputType::SYNTH) {
@@ -2678,24 +2664,29 @@ someError:
 
 		// For song files from before V2.0, where Instruments were stored within the Clip
 		else if (!strcmp(tagName, "sound") || !strcmp(tagName, "synth")) {
-			if (!output) {
+			if (output == nullptr) {
 				{
 					void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
-					if (!instrumentMemory) {
-						goto ramError;
+					if (instrumentMemory == nullptr) {
+						someError();
+						return Error::INSUFFICIENT_RAM;
 					}
 
 					outputTypeWhileLoading = OutputType::SYNTH;
 
 					SoundInstrument* soundInstrument = new (instrumentMemory) SoundInstrument();
-					D_TRY_CATCH(soundInstrument->dirPath.set("SYNTHS"), {
-						goto someError; // Default, in case not included in file.
+					D_TRY_CATCH(soundInstrument->dirPath.set("SYNTHS"), error, {
+						someError();
+						return error; // Default, in case not included in file.
 					});
 					output = soundInstrument;
 				}
 
 loadInstrument:
-				D_TRY_CATCH(output->readFromFile(song, this, readAutomationUpToPos), { goto someError; });
+				D_TRY_CATCH(output->readFromFile(song, this, readAutomationUpToPos), error, {
+					someError();
+					return error;
+				});
 
 				if (outputTypeWhileLoading == OutputType::SYNTH) {
 					arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
@@ -2708,16 +2699,18 @@ loadInstrument:
 
 		// For song files from before V2.0, where Instruments were stored within the Clip
 		else if (!strcmp(tagName, "kit")) {
-			if (!output) {
+			if (output == nullptr) {
 				void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
-				if (!instrumentMemory) {
-					goto ramError;
+				if (instrumentMemory == nullptr) {
+					someError();
+					return Error::INSUFFICIENT_RAM;
 				}
 
 				outputTypeWhileLoading = OutputType::KIT;
 				Kit* kit = new (instrumentMemory) Kit();
-				D_TRY_CATCH(kit->dirPath.set("KITS"), {
-					goto someError; // Default, in case not included in file.
+				D_TRY_CATCH(kit->dirPath.set("KITS"), error, {
+					someError();
+					return error; // Default, in case not included in file.
 				});
 				output = kit;
 				goto loadInstrument;
@@ -2730,7 +2723,10 @@ loadInstrument:
 			// Normal case - load in brand new ParamManager
 			if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_1P2P0 || !output) {
 createNewParamManager:
-				D_TRY_CATCH(paramManager.setupWithPatching(), { goto someError; });
+				D_TRY_CATCH(paramManager.setupWithPatching(), error, {
+					someError();
+					return error;
+				});
 				Sound::initParams(&paramManager);
 			}
 
@@ -2742,14 +2738,20 @@ createNewParamManager:
 				if (!otherParamManager) {
 					goto createNewParamManager;
 				}
-				D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(otherParamManager, false), { goto someError; });
+				D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(otherParamManager, false), error, {
+					someError();
+					return error;
+				});
 			}
 			Sound::readParamsFromFile(&paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "kitParams")) {
 			outputTypeWhileLoading = OutputType::KIT;
-			D_TRY_CATCH(paramManager.setupUnpatched(), { goto someError; });
+			D_TRY_CATCH(paramManager.setupUnpatched(), error, {
+				someError();
+				return error;
+			});
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
@@ -2757,9 +2759,15 @@ createNewParamManager:
 
 		else if (!strcmp(tagName, "midiParams")) {
 			outputTypeWhileLoading = OutputType::MIDI_OUT;
-			D_TRY_CATCH(paramManager.setupMIDI(), { goto someError; });
+			D_TRY_CATCH(paramManager.setupMIDI(), error, {
+				someError();
+				return error;
+			});
 
-			D_TRY_CATCH(readMIDIParamsFromFile(readAutomationUpToPos), { goto someError; });
+			D_TRY_CATCH(readMIDIParamsFromFile(readAutomationUpToPos), error, {
+				someError();
+				return error;
+			});
 		}
 
 		else if (!strcmp(tagName, "noteRows")) {
@@ -2767,11 +2775,14 @@ createNewParamManager:
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "noteRow")) {
 					NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(noteRows.getNumElements());
-					if (!newNoteRow) {
-						goto ramError;
+					if (newNoteRow == nullptr) {
+						someError();
+						return Error::INSUFFICIENT_RAM;
 					}
-					D_TRY_CATCH(newNoteRow->readFromFile(&minY, this, song, readAutomationUpToPos),
-					            { goto someError; });
+					D_TRY_CATCH(newNoteRow->readFromFile(&minY, this, song, readAutomationUpToPos), error, {
+						someError();
+						return error;
+					});
 				}
 				storageManager.exitTag();
 			}
@@ -2883,7 +2894,10 @@ doReadBendRange:
 					// in 1.0?). Just create one now.
 					if (!instrumentWasLoadedByReferenceFromClip && output->type == OutputType::KIT) {
 
-						D_TRY_CATCH(paramManager.setupUnpatched(), { goto someError; });
+						D_TRY_CATCH(paramManager.setupUnpatched(), error, {
+							someError();
+							return error;
+						});
 
 						GlobalEffectableForClip::initParams(&paramManager);
 					}
@@ -2892,13 +2906,16 @@ doReadBendRange:
 						if (!instrumentWasLoadedByReferenceFromClip
 						    || !instrumentWasLoadedByReferenceFromClip->paramManager
 						            .containsAnyMainParamCollections()) {
-							error = Error::FILE_CORRUPTED;
-							goto someError;
+							someError();
+							return Error::FILE_CORRUPTED;
 						}
 						// No need to trim - param automation didn't exist back then
 						D_TRY_CATCH(paramManager.cloneParamCollectionsFrom(
 						                &instrumentWasLoadedByReferenceFromClip->paramManager, false),
-						            { goto someError; });
+						            error, {
+							            someError();
+							            return error;
+						            });
 					}
 				}
 			}
@@ -3007,7 +3024,6 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error;
 						D_TRY(param->readFromFile(readAutomationUpToPos));
 
 						if (expressionParams) {
@@ -3879,7 +3895,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 						// If any ParamManager, discard it
 						thisNoteRow->deleteParamManager();
 
-						goto haveNoDrum;
+						thisNoteRow->drum = nullptr;
 					}
 				}
 
@@ -3911,16 +3927,16 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 						paramManagerCloned = true;
 
 						// If wasn't enough RAM, we're really in trouble
-						D_TRY_CATCH(thisNoteRow->paramManager.cloneParamCollectionsFrom(otherParamManager, false), {
-							FREEZE_WITH_ERROR("E011");
-haveNoDrum:
-							thisNoteRow->drum = NULL;
-						});
+						D_TRY_CATCH(thisNoteRow->paramManager.cloneParamCollectionsFrom(otherParamManager, false),
+						            error, {
+							            FREEZE_WITH_ERROR("E011");
+							            thisNoteRow->drum = nullptr;
+						            });
 					}
 				}
 
 				// If we've now got a paramManager and Drum...
-				if (thisNoteRow->drum) {
+				if (thisNoteRow->drum != nullptr) {
 
 					// If saved before V2.1, see if we need linear interpolation
 					if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
@@ -3980,7 +3996,6 @@ haveNoDrum:
 		// And...
 		if (output->type == OutputType::MIDI_OUT) {
 			if (!paramManager.containsAnyMainParamCollections()) {
-				Error error;
 				D_TRY(paramManager.setupMIDI());
 			}
 		}
@@ -4161,8 +4176,7 @@ ramError:
 
 	ParamManagerForTimeline newParamManager;
 
-	Error error;
-	D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(&paramManager, false, true), {
+	D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(&paramManager, false, true), error, {
 		display->displayError(error);
 		return NULL;
 	});

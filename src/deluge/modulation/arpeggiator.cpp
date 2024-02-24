@@ -170,9 +170,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 			return; // If we're an arpeggiator, return
 		}
-		else {
-			goto noteInserted;
-		}
+		goto noteInserted;
 	}
 	// If note does not exist yet in the arrays, we must insert it in both
 	else {
@@ -180,8 +178,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		Error error;
-		D_TRY_CATCH(notes.insertAtIndex(notesKey), { return; });
+		D_TRY_CATCH(notes.insertAtIndex(notesKey), error, { return; });
 		// Save arpNote
 		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
@@ -199,10 +196,10 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 
 		// Insert it in notesAsPlayed array
 		notesAsPlayedIndex = notesAsPlayed.getNumElements();
-		error = notesAsPlayed.insertAtIndex(notesAsPlayedIndex); // always insert at the end or the array
-		if (error != Error::NONE) {
-			return;
-		}
+
+		// always insert at the end or the array
+		D_TRY_CATCH(notesAsPlayed.insertAtIndex(notesAsPlayedIndex), _e, { return; });
+
 		// Save arpNote
 		arpNoteAsPlayed = (ArpNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
 		arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;

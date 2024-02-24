@@ -83,8 +83,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
-	Error error;
-	D_TRY_CATCH(newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true), {
+	D_TRY_CATCH(newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true), error, {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		return error;
@@ -232,8 +231,7 @@ ramError:
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 
-	Error error;
-	D_TRY_CATCH(newClip->setOutput(modelStackNewClip, output, this), {
+	D_TRY_CATCH(newClip->setOutput(modelStackNewClip, output, this), error, {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		goto ramError;
@@ -896,8 +894,7 @@ doNormal:
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
-			Error error;
-			D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(&paramManager, true), {
+			D_TRY_CATCH(newParamManager.cloneParamCollectionsFrom(&paramManager, true), error, {
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			});
 
@@ -1165,9 +1162,14 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error;
-	D_TRY_CATCH(sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile),
-	            { display->displayError(error); });
+	D_TRY_CATCH(
+	    {
+		    sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile); //<
+	    },
+	    error,
+	    {
+		    display->displayError(error); //<
+	    });
 }
 
 // Keeps same ParamManager
@@ -1180,7 +1182,6 @@ Error AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output*
 Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
                            AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	Error error;
 	D_TRY(solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager));
 
 	outputChanged(modelStack, newOutput);

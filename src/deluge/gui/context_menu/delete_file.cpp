@@ -67,8 +67,7 @@ bool DeleteFile::acceptCurrentOption() {
 	auto* browser = static_cast<Browser*>(ui);
 
 	String filePath;
-	Error error;
-	D_TRY_CATCH(browser->getCurrentFilePath(&filePath), {
+	D_TRY_CATCH(browser->getCurrentFilePath(&filePath), error, {
 		display->displayError(error);
 		return false;
 	});

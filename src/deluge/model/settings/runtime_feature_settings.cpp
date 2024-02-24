@@ -176,8 +176,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		return;
 	}
 
-	Error error;
-	D_TRY_CATCH(storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS), { return; });
+	D_TRY_CATCH(storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS), error, { return; });
 
 	String currentName;
 	int32_t currentValue = 0;
@@ -233,8 +232,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error;
-	D_TRY_CATCH(storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true), { return; });
+	D_TRY_CATCH(storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true), error, { return; });
 
 	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();

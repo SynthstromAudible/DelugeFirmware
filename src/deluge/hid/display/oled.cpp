@@ -874,8 +874,7 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 void updateWorkingAnimation() {
 	String textNow;
-	Error error;
-	D_TRY_CATCH(textNow.set(workingAnimationText), { return; });
+	D_TRY_CATCH(textNow.set(workingAnimationText), error, { return; });
 
 	char buffer[4];
 	buffer[3] = 0;
@@ -884,7 +883,7 @@ void updateWorkingAnimation() {
 		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
 	}
 
-	error = textNow.concatenate(buffer);
+	D_TRY_CATCH(textNow.concatenate(buffer), error, { return; });
 	OLED::popupText(textNow.get(), true, DisplayPopupType::GENERAL);
 }
 

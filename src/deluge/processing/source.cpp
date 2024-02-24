@@ -256,8 +256,7 @@ possiblyDeleteRanges:
 			*/
 
 doChangeType:
-			Error error;
-			D_TRY_CATCH(ranges.changeType(multiRangeSize), {
+			D_TRY_CATCH(ranges.changeType(multiRangeSize), error, {
 				destructAllMultiRanges();
 				ranges.empty();
 				soundEditor.currentMultiRangeIndex = 0;

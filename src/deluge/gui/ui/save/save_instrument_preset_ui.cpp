@@ -78,8 +78,7 @@ tryDefaultDir:
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
-	Error error;
-	D_TRY_CATCH(arrivedInNewFolder(0, enteredText.get(), defaultDir), {
+	D_TRY_CATCH(arrivedInNewFolder(0, enteredText.get(), defaultDir), error, {
 gotError:
 		display->displayError(error);
 		goto doReturnFalse;
@@ -128,34 +127,37 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 
 	String filePath;
-	Error error;
-	D_TRY_CATCH(getCurrentFilePath(&filePath), {
-fail:
+	D_TRY_CATCH(getCurrentFilePath(&filePath), error, {
 		display->displayError(error);
 		return false;
 	});
 
-	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
+	D_TRY_CATCH(
+	    {
+		    storageManager.createXMLFile(filePath.get(), mayOverwrite, false); //<
+	    },
+	    error,
+	    {
+		    // We tried creating the file, but it already exists
+		    if (error == Error::FILE_ALREADY_EXISTS) {
+			    gui::context_menu::overwriteFile.currentSaveUI = this;
 
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
+			    bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
+			    if (available) { // Will always be true.
+				    display->setNextTransitionDirection(1);
+				    openUI(&gui::context_menu::overwriteFile);
+				    return true;
+			    }
 
-		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
+			    display->displayError(Error::UNSPECIFIED);
+			    return false;
+		    }
 
-	else if (error != Error::NONE) {
-		goto fail;
-	}
+		    // The file does not already exist, but there's a different error
+		    display->displayError(error);
+		    return false;
+	    });
 
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
@@ -165,12 +167,19 @@ fail:
 
 	char const* endString = (outputTypeToLoad == OutputType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
 
-	error =
-	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
-	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
+	D_TRY_CATCH_ELSE(
+	    {
+		    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+		                                         endString);
+	    },
+	    error,
+	    {
+		    display->removeWorkingAnimation();
+		    display->displayError(error);
+		    return false;
+	    },
+	    // else
+	    { display->removeWorkingAnimation(); });
 
 	// Give the Instrument in memory its new slot
 	instrumentToSave->name.set(&enteredText);

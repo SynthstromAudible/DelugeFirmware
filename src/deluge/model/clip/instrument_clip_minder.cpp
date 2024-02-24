@@ -152,21 +152,21 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 }
 #pragma GCC pop
 void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
-	Error error;
-
 	OutputType oldOutputType = getCurrentOutputType();
 
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(getCurrentInstrumentClip());
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	D_TRY_CATCH(Browser::currentDir.set(getInstrumentFolder(newOutputType)), {
-gotError:
+	D_TRY_CATCH(Browser::currentDir.set(getInstrumentFolder(newOutputType)), error, {
 		display->displayError(error);
 		return;
 	});
 
-	D_TRY_CATCH(loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName), { goto gotError; });
+	D_TRY_CATCH(loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName), error, {
+		display->displayError(error);
+		return;
+	});
 
 	if (newName.isEmpty()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
@@ -175,17 +175,18 @@ gotError:
 
 	ParamManagerForTimeline newParamManager;
 	Instrument* newInstrument = storageManager.createNewInstrument(newOutputType, &newParamManager);
-	if (!newInstrument) {
-		error = Error::INSUFFICIENT_RAM;
-		goto gotError;
+	if (newInstrument == nullptr) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return;
 	}
 
 	// Set dirPath.
-	D_TRY_CATCH(newInstrument->dirPath.set(getInstrumentFolder(newOutputType)), {
+	D_TRY_CATCH(newInstrument->dirPath.set(getInstrumentFolder(newOutputType)), error, {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
-		goto gotError;
+		display->displayError(error);
+		return;
 	});
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!

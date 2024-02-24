@@ -24,7 +24,6 @@
 Error SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		Error error;
 		D_TRY(advanceClustersIfNecessary());
 
 		*outputBuffer = currentCluster->data[byteIndexWithinCluster];

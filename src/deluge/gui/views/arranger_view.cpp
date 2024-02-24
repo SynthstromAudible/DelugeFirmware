@@ -134,8 +134,7 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			Error error;
-			D_TRY_CATCH(currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex), {
+			D_TRY_CATCH(currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex), error, {
 				display->displayError(error);
 				return;
 			});

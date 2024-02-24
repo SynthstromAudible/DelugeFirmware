@@ -255,7 +255,6 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
                                                         AudioRecordingFolder folder, uint32_t* getNumber) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error;
 	D_TRY(storageManager.initSD());
 
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
@@ -371,7 +370,6 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
                                                    String* songFilenameWithoutExtension) {
 
-	Error error;
 	D_TRY(newPath->set(rootDir));
 
 	D_TRY(newPath->concatenate("/"));
@@ -397,7 +395,6 @@ Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dir
 			break;
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
-		Error error;
 		D_TRY(newPath->setChar('_', slashPos));
 		pos = slashPos + 1;
 	}

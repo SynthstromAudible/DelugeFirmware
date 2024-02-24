@@ -22,7 +22,6 @@
 
 Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	filename.set(&newInstrument->name);
-	Error error;
 	D_TRY(filename.concatenate(".XML"));
 	filenameIncludesExtension = true;
 	instrument = newInstrument;
@@ -43,7 +42,6 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 Error FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	filenameWithExtension->set(&filename);
 	if (!filenameIncludesExtension) {
-		Error error;
 		D_TRY(filenameWithExtension->concatenate(".XML"));
 	}
 	return Error::NONE;
@@ -56,7 +54,6 @@ Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
 			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			Error error;
 			D_TRY(filenameWithoutExtension->shorten(newLength));
 		}
 	}
@@ -69,7 +66,6 @@ Error FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtensi
 	}
 
 	// 7SEG...
-	Error error;
 	D_TRY(displayNameWithoutExtension->set(displayName));
 	if (filenameIncludesExtension) {
 		char const* chars = displayNameWithoutExtension->get();

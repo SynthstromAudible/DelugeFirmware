@@ -1908,20 +1908,24 @@ unknownTag:
 						defaultDirPath = "SYNTHS";
 
 setDirPathFirst:
-						D_TRY_CATCH(((Instrument*)newOutput)->dirPath.set(defaultDirPath), {
-gotError:
+						D_TRY_CATCH(((Instrument*)newOutput)->dirPath.set(defaultDirPath), error, {
 							newOutput->~Output();
 							delugeDealloc(memory);
 							return error;
 						});
 
 loadOutput:
-						error = newOutput->readFromFile(
-						    this, NULL,
-						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
-						if (error != Error::NONE) {
-							goto gotError;
-						}
+						D_TRY_CATCH(
+						    {
+							    // If it finds any default params, it'll make a ParamManager and "back it up"
+							    newOutput->readFromFile(this, NULL, 0);
+						    },
+						    error,
+						    {
+							    newOutput->~Output();
+							    delugeDealloc(memory);
+							    return error;
+						    });
 
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
@@ -1966,13 +1970,11 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
-				Error error;
 				D_TRY(readClipsFromFile(&sessionClips));
 				storageManager.exitTag();
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
-				Error error;
 				D_TRY(readClipsFromFile(&arrangementOnlyClips));
 				storageManager.exitTag();
 			}
@@ -2033,7 +2035,6 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		Error error;
 		D_TRY(thisClip->claimOutput(modelStackWithTimelineCounter));
 
 		// Correct different non-synced rates of old song files
@@ -2228,8 +2229,7 @@ readClip:
 				newClip = new (memory) AudioClip();
 			}
 
-			Error error;
-			D_TRY_CATCH(newClip->readFromFile(this), {
+			D_TRY_CATCH(newClip->readFromFile(this), error, {
 				newClip->~Clip();
 				delugeDealloc(memory);
 				return error;
@@ -4516,7 +4516,6 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
-			Error error;
 			D_TRY(clip->output->clipInstances.insertAtIndex(clipInstanceI));
 
 			ClipInstance* clipInstance = clip->output->clipInstances.getElement(clipInstanceI);
@@ -5083,13 +5082,12 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	String newName;
-	Error error;
-	D_TRY_CATCH(newName.set("AUDIO"), { return NULL; });
+	D_TRY_CATCH(newName.set("AUDIO"), error, { return NULL; });
 
-	D_TRY_CATCH(newName.concatenateInt(highestNumber + 1), { return NULL; });
+	D_TRY_CATCH(newName.concatenateInt(highestNumber + 1), error, { return NULL; });
 
 	ParamManagerForTimeline newParamManager;
-	D_TRY_CATCH(newParamManager.setupUnpatched(), { return NULL; });
+	D_TRY_CATCH(newParamManager.setupUnpatched(), error, { return NULL; });
 
 	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 	if (!outputMemory) {
@@ -5809,7 +5807,6 @@ doHibernatingInstruments:
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		Error error;
 		D_TRY(thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes));
 	}
 

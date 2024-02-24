@@ -86,7 +86,6 @@ Error NamedThingVector::insertElement(void* namedThing) {
 Error NamedThingVector::insertElement(void* namedThing, int32_t i) {
 	// While inserting, the stealing of any AudioFiles would cause a simultaneous
 	// delete. They all know not to allow theft when passed this AudioFileVector.
-	Error error;
 	D_TRY(insertAtIndex(i, 1, this));
 
 	String* name = getName(namedThing);

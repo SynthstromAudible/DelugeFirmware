@@ -82,13 +82,12 @@ bool AudioRecorder::opened() {
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
-		Error error;
-		D_TRY_CATCH(newName.set("REC"), {
+		D_TRY_CATCH(newName.set("REC"), error, {
 			display->displayError(error);
 			return false;
 		});
 
-		D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 1), {
+		D_TRY_CATCH(kit->makeDrumNameUnique(&newName, 1), error, {
 			display->displayError(error);
 			return false;
 		});

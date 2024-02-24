@@ -370,8 +370,7 @@ Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, 
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
-	Error error;
-	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), {
+	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), error, {
 		delugeDealloc(searchTerms);
 		return error;
 	});
@@ -569,8 +568,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		length = 1; // Special case where note added at the end of linear record must temporarily be allowed to eat into
 		            // note at position 0
 	}
-	Error error;
-	D_TRY_CATCH(notes.insertAtIndex(i), { return 0; });
+	D_TRY_CATCH(notes.insertAtIndex(i), error, { return 0; });
 	Note* newNote = notes.getElement(i);
 	newNote->pos = pos;
 	newNote->setLength(length);
@@ -625,8 +623,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 		// Ok, there was no Note there, so let's make one
 	}
 
-	Error error;
-	D_TRY_CATCH(notes.insertAtIndex(i), { return 0; });
+	D_TRY_CATCH(notes.insertAtIndex(i), error, { return 0; });
 	Note* newNote = notes.getElement(i);
 	newNote->pos = insertionPos;
 	newNote->setLength(1);
@@ -666,8 +663,7 @@ Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNot
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements();
-	Error error;
-	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), {
+	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), error, {
 		delugeDealloc(searchTerms);
 		return error;
 	});
@@ -968,8 +964,7 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
-	Error error;
-	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), {
+	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), error, {
 		delugeDealloc(searchTerms);
 		return error;
 	});
@@ -1168,8 +1163,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes;
-	Error error;
-	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), {
+	D_TRY_CATCH(newNotes.insertAtIndex(0, newNotesInitialSize), error, {
 		delugeDealloc(searchTerms);
 		return error;
 	});
@@ -2489,8 +2483,7 @@ basicTrim:
 			else {
 
 				NoteVector newNotes;
-				Error error;
-				D_TRY_CATCH(newNotes.insertAtIndex(0, newNumNotes), { goto basicTrim; });
+				D_TRY_CATCH(newNotes.insertAtIndex(0, newNumNotes), error, { goto basicTrim; });
 
 				for (int32_t i = 0; i < newNumNotes; i++) {
 					Note* __restrict__ sourceNote = notes.getElement(i);
@@ -2589,8 +2582,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete any
 		// extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
-		Error error;
-		D_TRY_CATCH(notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore), { return false; });
+		D_TRY_CATCH(notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore), error, { return false; });
 
 		int32_t highestNoteIndex = numNotesBefore - 1; // We'll keep counting this up.
 
@@ -2985,7 +2977,6 @@ Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* son
 					ParamManager* existingParamManager =
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
 					if (existingParamManager) {
-						Error error;
 						D_TRY(paramManager.cloneParamCollectionsFrom(existingParamManager, false));
 						goto finishedNormalStuff;
 					}
@@ -3360,8 +3351,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 					// If there is no NoteRow for this Drum... Oh dear. Make a blank ParamManager and pray?
 					else {
-						Error error;
-						D_TRY_CATCH(paramManager.setupWithPatching(), {
+						D_TRY_CATCH(paramManager.setupWithPatching(), error, {
 							FREEZE_WITH_ERROR("E010"); // If there also was no RAM, we're really in trouble.
 						});
 						Sound::initParams(&paramManager);
@@ -3791,7 +3781,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	int32_t insertIndex = notes.getNumElements();
 
 	// Pre-emptively insert space for all the notes.
-	Error error;
 	D_TRY(notes.insertAtIndex(insertIndex, numToInsert));
 
 	// If reversing / pingponging backwards now...
