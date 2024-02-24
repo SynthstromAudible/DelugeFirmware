@@ -216,10 +216,10 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					int32_t error =
+					Error error =
 					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
-					if (error) {
+					if (error != Error::NONE) {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
@@ -287,8 +287,8 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				int32_t error = output->clipInstances.insertAtIndex(i);
-				if (error) {
+				Error error = output->clipInstances.insertAtIndex(i);
+				if (error != Error::NONE) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
 				}
@@ -1439,17 +1439,17 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 }
 
 // Will now look in subfolders too if need be.
-int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                     bool copyDrumsFromClip = true) {
+Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
+                                   bool copyDrumsFromClip = true) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(outputType));
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType,
 	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
@@ -1467,7 +1467,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 
 	Browser::emptyFileItems();
 
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
@@ -1488,7 +1488,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 
 	if (copyDrumsFromClip) {
 		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
-		if (result.error) {
+		if (result.error != Error::NONE) {
 			// TODO: needs more thought - we'd want to deallocate the Instrument...
 			return result.error;
 		}
@@ -1507,8 +1507,8 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
-		if (error != NO_ERROR) {
+		Error error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		if (error != Error::NONE) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
 
@@ -1517,7 +1517,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 constexpr float colourStep = 22.5882352941;
@@ -1528,7 +1528,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (memory == nullptr) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -1553,11 +1553,11 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	OutputType outputType = OutputType::SYNTH;
 doGetInstrument:
-	int32_t error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-	if (error) {
+	Error error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
+	if (error != Error::NONE) {
 
 		// If that was for a synth and there were none, try a kit
-		if (error == ERROR_NO_FURTHER_PRESETS && outputType == OutputType::SYNTH) {
+		if (error == Error::NO_FURTHER_PRESETS && outputType == OutputType::SYNTH) {
 			outputType = OutputType::KIT;
 			goto doGetInstrument;
 		}
@@ -1625,7 +1625,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outp
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1637,12 +1637,12 @@ ramError:
 	newClip->colourOffset = random(72);
 
 	bool instrumentAlreadyInSong;
-	int32_t error;
+	Error error;
 
 	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
 
 		error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-		if (error) {
+		if (error != Error::NONE) {
 gotError:
 			display->displayError(error);
 gotErrorDontDisplay:
@@ -1660,7 +1660,7 @@ gotErrorDontDisplay:
 		}
 
 		error = newClip->setNonAudioInstrument(newInstrument, currentSong);
-		if (error) {
+		if (error != Error::NONE) {
 			// TODO: we'd really want to deallocate the Instrument
 			goto gotError;
 		}
@@ -1716,7 +1716,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
 
 	if (!newClip) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1970,7 +1970,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	bool enoughSpace = currentSong->sessionClips.ensureEnoughSpaceAllocated(1);
 	if (!enoughSpace) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1978,8 +1978,8 @@ ramError:
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
-	int32_t error = clipToClone->clone(modelStack);
-	if (error) {
+	Error error = clipToClone->clone(modelStack);
+	if (error != Error::NONE) {
 		goto ramError;
 	}
 
@@ -3002,9 +3002,9 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
-	int32_t error = sourceClip->clone(modelStack, false);
-	if (error) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+	Error error = sourceClip->clone(modelStack, false);
+	if (error != Error::NONE) {
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3055,9 +3055,9 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
-		if (error || instrumentAlreadyInSong) {
-			if (error) {
+		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		if (error != Error::NONE || instrumentAlreadyInSong) {
+			if (error != Error::NONE) {
 				display->displayError(error);
 			}
 			return false;
@@ -3071,7 +3071,7 @@ bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* cli
 		}
 
 		auto error = clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong);
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
@@ -3100,7 +3100,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(OutputType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!memory) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3173,10 +3173,10 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
-	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
+	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != Error::NONE) {
 		newClip->~Clip();
 		delugeDealloc(newClip);
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3199,9 +3199,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-				                                                    InstrumentRemoval::NONE);
-				if (error != NO_ERROR) {
+				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                                  InstrumentRemoval::NONE);
+				if (error != Error::NONE) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}
 

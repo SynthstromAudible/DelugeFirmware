@@ -21,7 +21,7 @@
 EarlyNoteArray::EarlyNoteArray() : OrderedResizeableArray(sizeof(EarlyNote), 16) {
 }
 
-int32_t EarlyNoteArray::insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive) {
+Error EarlyNoteArray::insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive) {
 
 	int32_t i = search(note, GREATER_OR_EQUAL);
 
@@ -29,8 +29,8 @@ int32_t EarlyNoteArray::insertElementIfNonePresent(int32_t note, int32_t velocit
 
 	if (i >= getNumElements()) {
 doInsert:
-		int32_t error = insertAtIndex(i);
-		if (error) {
+		Error error = insertAtIndex(i);
+		if (error != Error::NONE) {
 			return error;
 		}
 		earlyNote = (EarlyNote*)getElementAddress(i);
@@ -46,7 +46,7 @@ doInsert:
 	earlyNote->velocity = velocity;
 	earlyNote->stillActive = newStillActive;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void EarlyNoteArray::noteNoLongerActive(int32_t note) {

@@ -62,13 +62,13 @@ doReturnFalse:
 		return false;
 	}
 
-	int32_t error;
+	Error error;
 
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
 		error = searchFilename.concatenate(".XML");
-		if (error) {
+		if (error != Error::NONE) {
 gotError:
 			display->displayError(error);
 			goto doReturnFalse;
@@ -79,7 +79,7 @@ gotError:
 	currentDir.set(&currentSong->dirPath);
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
@@ -121,8 +121,8 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 	display->displayLoadingAnimationText("Saving");
 
 	String filePath;
-	int32_t error = getCurrentFilePath(&filePath);
-	if (error) {
+	Error error = getCurrentFilePath(&filePath);
+	if (error != Error::NONE) {
 gotError:
 		display->removeLoadingAnimation();
 		display->displayError(error);
@@ -143,7 +143,7 @@ gotError:
 			return true;
 		}
 		else {
-			error = ERROR_UNSPECIFIED;
+			error = Error::UNSPECIFIED;
 			goto gotError;
 		}
 	}
@@ -156,17 +156,17 @@ gotError:
 
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
 	error =
 	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 	error = newSongAlternatePath.concatenate("/");
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 	int32_t dirPathLengthNew = newSongAlternatePath.getLength();
@@ -240,7 +240,7 @@ gotError:
 				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
-					error = ERROR_UNSPECIFIED;
+					error = Error::UNSPECIFIED;
 					goto gotError;
 				}
 
@@ -306,7 +306,7 @@ gotError:
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
 						error = audioFileManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew,
 						                                                     &audioFile->filePath);
-						if (error) {
+						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
 							f_close(&fileSystemStuff.currentFile); // Close source file
 							goto gotError;
@@ -318,7 +318,7 @@ failAfterOpeningSourceFile:
 					else {
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
-						if (error) {
+						if (error != Error::NONE) {
 							goto failAfterOpeningSourceFile;
 						}
 					}
@@ -335,9 +335,9 @@ failAfterOpeningSourceFile:
 
 				// Create file to write
 				error = storageManager.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
-				if (error == ERROR_FILE_ALREADY_EXISTS) {
+				if (error == Error::FILE_ALREADY_EXISTS) {
 				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
-				else if (error) {
+				else if (error != Error::NONE) {
 					goto failAfterOpeningSourceFile;
 
 					// Or if everything's fine and we're ready to write / copy...
@@ -353,7 +353,7 @@ failAfterOpeningSourceFile:
 							D_PRINTLN("read fail");
 fail3:
 							f_close(&recorderFileSystemStuff.currentFile);
-							error = ERROR_UNSPECIFIED;
+							error = Error::UNSPECIFIED;
 							goto failAfterOpeningSourceFile;
 						}
 						if (!bytesRead) {
@@ -397,15 +397,15 @@ fail3:
 
 		while (true) {
 			error = filePathDuringWrite.set("SONGS/TEMP");
-			if (error) {
+			if (error != Error::NONE) {
 				goto gotError;
 			}
 			error = filePathDuringWrite.concatenateInt(tempFileNumber, 4);
-			if (error) {
+			if (error != Error::NONE) {
 				goto gotError;
 			}
 			error = filePathDuringWrite.concatenate(".XML");
-			if (error) {
+			if (error != Error::NONE) {
 				goto gotError;
 			}
 
@@ -424,7 +424,7 @@ fail3:
 
 	// Write the actual song file
 	error = storageManager.createXMLFile(filePathDuringWrite.get(), false, false);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
@@ -435,7 +435,7 @@ fail3:
 
 	error = storageManager.closeFileAfterWriting(filePathDuringWrite.get(),
 	                                             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 

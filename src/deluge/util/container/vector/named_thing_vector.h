@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/resizeable_array.h"
 
 #include "util/d_string.h"
@@ -37,8 +38,8 @@ public:
 	int32_t search(char const* searchString, int32_t comparison, bool* foundExact = NULL);
 	void* getElement(int32_t index);
 	void removeElement(int32_t i);
-	int32_t insertElement(void* namedThing);
-	int32_t insertElement(void* namedThing, int32_t i);
+	Error insertElement(void* namedThing);
+	Error insertElement(void* namedThing, int32_t i);
 	void renameMember(int32_t i, String* newName);
 
 	const int32_t stringOffset;

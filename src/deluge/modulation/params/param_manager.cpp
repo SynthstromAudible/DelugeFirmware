@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_manager.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -56,42 +57,42 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 }
 #endif
 
-int32_t ParamManager::setupMIDI() {
+Error ParamManager::setupMIDI() {
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
 	if (!memory) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t ParamManager::setupUnpatched() {
+Error ParamManager::setupUnpatched() {
 	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1] = {0};
 	expressionParamSetOffset = 1;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t ParamManager::setupWithPatching() {
+Error ParamManager::setupWithPatching() {
 	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
 	if (!memoryPatched) {
 ramError2:
 		delugeDealloc(memoryUnpatched);
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
@@ -105,7 +106,7 @@ ramError2:
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
 	summaries[3] = {0};
 	expressionParamSetOffset = 3;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Make sure other isn't NULL before you call this, you muppet.
@@ -160,8 +161,8 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
-int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
-                                                int32_t reverseDirectionWithLength) {
+Error ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
+                                              int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
 	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
@@ -201,7 +202,7 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 			// Mark that there's nothing here
 			summaries[0] = mpeParamsOrNullHere;
 			summaries[1] = {0};
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		newSummary++;
@@ -251,11 +252,11 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 
 	expressionParamSetOffset = other->expressionParamSetOffset;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // This is only called once - for NoteRows after cloning an InstrumentClip.
-int32_t ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
+Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
 }
 

@@ -19,24 +19,21 @@
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
 #include "util/cfunctions.h"
+#include <bit>
 #include <cstring>
 
 const char nothing = 0;
-
-String::String() {
-	stringMemory = NULL;
-}
 
 String::~String() {
 	clear(true);
 }
 
 int32_t String::getNumReasons() {
-	return *(int32_t*)(stringMemory - 4);
+	return *std::bit_cast<intptr_t*>(stringMemory - 4);
 }
 
 void String::setNumReasons(int32_t newNum) {
-	*(int32_t*)(stringMemory - 4) = newNum;
+	*std::bit_cast<intptr_t*>(stringMemory - 4) = newNum;
 }
 
 void String::clear(bool destructing) {
@@ -55,8 +52,7 @@ void String::clear(bool destructing) {
 	}
 }
 
-// Returns error
-int32_t String::set(char const* newChars, int32_t newLength) {
+Error String::set(char const* newChars, int32_t newLength) {
 
 	if (newLength == -1) {
 		newLength = strlen(newChars);
@@ -64,7 +60,7 @@ int32_t String::set(char const* newChars, int32_t newLength) {
 
 	if (!newLength) {
 		clear();
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// If we're here, new length is not 0
@@ -113,7 +109,7 @@ clearAndAllocateNew:
 	{
 		void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
 		if (!newMemory) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 		stringMemory = (char*)newMemory + 4;
 	}
@@ -122,7 +118,7 @@ doCopy:
 	memcpy(stringMemory, newChars, newLength);
 	stringMemory[newLength] = 0;
 	setNumReasons(1);
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // This one can't fail!
@@ -130,13 +126,13 @@ void String::set(String* otherString) {
 	char* sm = otherString->stringMemory;
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region
-	if (sm) {
+	if (sm != nullptr) {
 		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
 			FREEZE_WITH_ERROR("S001");
 			return;
 		}
 		// or if it doesn't have an allocation
-		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
+		if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
 			FREEZE_WITH_ERROR("S002");
 			return;
 		}
@@ -149,17 +145,19 @@ void String::set(String* otherString) {
 }
 
 void String::beenCloned() {
-	if (stringMemory) {
+	if (stringMemory != nullptr) {
 		setNumReasons(getNumReasons() + 1);
 	}
 }
 
-int32_t String::getLength() {
-	return stringMemory ? strlen(stringMemory) : 0;
+size_t String::getLength() {
+	if (stringMemory == nullptr) {
+		return 0;
+	}
+	return strlen(stringMemory);
 }
 
-// Returns error
-int32_t String::shorten(int32_t newLength) {
+Error String::shorten(int32_t newLength) {
 	if (!newLength) {
 		clear();
 	}
@@ -171,7 +169,7 @@ int32_t String::shorten(int32_t newLength) {
 		if (oldNumReasons > 1) {
 			void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
 			if (!newMemory) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			setNumReasons(oldNumReasons - 1); // Reduce reasons on old memory
@@ -186,23 +184,23 @@ int32_t String::shorten(int32_t newLength) {
 		stringMemory[newLength] = 0;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t String::concatenate(String* otherString) {
+Error String::concatenate(String* otherString) {
 	if (!stringMemory) {
 		set(otherString);
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	return concatenate(otherString->get());
 }
 
-int32_t String::concatenate(char const* newChars) {
+Error String::concatenate(char const* newChars) {
 	return concatenateAtPos(newChars, getLength());
 }
 
-int32_t String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
+Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength) {
 	if (pos == 0) {
 		return set(newChars, newCharsLength);
 	}
@@ -254,7 +252,7 @@ int32_t String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newC
 allocateNewMemory:
 			void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
 			if (!newMemory) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			char* newStringMemory = (char*)newMemory + 4;
@@ -272,22 +270,22 @@ allocateNewMemory:
 	memcpy(&stringMemory[pos], newChars, newCharsLength);
 	stringMemory[pos + newCharsLength] = 0;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t String::concatenateInt(int32_t number, int32_t minNumDigits) {
+Error String::concatenateInt(int32_t number, int32_t minNumDigits) {
 	char buffer[12];
 	intToString(number, buffer, minNumDigits);
 	return concatenate(buffer);
 }
 
-int32_t String::setInt(int32_t number, int32_t minNumDigits) {
+Error String::setInt(int32_t number, int32_t minNumDigits) {
 	char buffer[12];
 	intToString(number, buffer, minNumDigits);
 	return set(buffer);
 }
 
-int32_t String::setChar(char newChar, int32_t pos) {
+Error String::setChar(char newChar, int32_t pos) {
 
 	// If any additional reasons, we gotta clone the memory first
 	int32_t oldNumReasons = getNumReasons();
@@ -298,7 +296,7 @@ int32_t String::setChar(char newChar, int32_t pos) {
 		int32_t requiredSize = length + 4 + 1;
 		void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
 		if (!newMemory) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
 		char* newStringMemory = (char*)newMemory + 4;
@@ -311,7 +309,7 @@ int32_t String::setChar(char newChar, int32_t pos) {
 	}
 
 	stringMemory[pos] = newChar;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool String::equals(char const* otherChars) {

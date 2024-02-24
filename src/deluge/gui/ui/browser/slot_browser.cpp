@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/slot_browser.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -28,18 +29,15 @@
 
 bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
 
-SlotBrowser::SlotBrowser() {
-}
-
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
-int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
+Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	currentFileHasSuffixFormatNameImplied = false;
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
-	int32_t error = storageManager.initSD();
-	if (error) {
+	Error error = storageManager.initSD();
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -52,7 +50,7 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 
 	bool success = Browser::opened();
 	if (!success) {
-		return ERROR_UNSPECIFIED;
+		return Error::UNSPECIFIED;
 	}
 
 	if (shouldDrawKeys) {
@@ -60,7 +58,7 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 		drawKeys();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void SlotBrowser::focusRegained() {
@@ -177,18 +175,18 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	int32_t error;
+Error SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
+	Error error;
 	if (display->have7SEG()) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
 		if (slot.slot != -1) {
 			error = filenameWithoutExtension->set(filePrefix);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 			if (slot.subSlot != -1) {
@@ -196,7 +194,7 @@ int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutE
 				buffer[0] = 'A' + slot.subSlot;
 				buffer[1] = 0;
 				error = filenameWithoutExtension->concatenate(buffer);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 			}
@@ -209,25 +207,25 @@ int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutE
 		filenameWithoutExtension->set(&enteredText);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t SlotBrowser::getCurrentFilePath(String* path) {
+Error SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	int32_t error = path->concatenate("/");
-	if (error) {
+	Error error = path->concatenate("/");
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	String filenameWithoutExtension;
 	error = getCurrentFilenameWithoutExtension(&filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	error = path->concatenate(&filenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 

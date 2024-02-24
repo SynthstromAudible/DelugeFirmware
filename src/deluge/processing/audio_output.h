@@ -49,7 +49,7 @@ public:
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
-	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,

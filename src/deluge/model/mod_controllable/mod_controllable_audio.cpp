@@ -1214,22 +1214,23 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
-	if (result == NO_ERROR) {
-		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
-
-		// 2 different options here for different scenarios. I can't very clearly remember how to describe the
-		// difference
-		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			// D_PRINTLN("making precise");
-			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
-		}
-		else {
-			delay.primaryBuffer.makeNativeRatePrecise();
-			delay.secondaryBuffer.makeNativeRatePrecise();
-		}
-		delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size + 5;
+	Error result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
+	if (result != Error::NONE) {
+		return;
 	}
+	D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
+
+	// 2 different options here for different scenarios. I can't very clearly remember how to describe the
+	// difference
+	if (makeNativeRatePreciseRelativeToOtherBuffer) {
+		// D_PRINTLN("making precise");
+		delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
+	}
+	else {
+		delay.primaryBuffer.makeNativeRatePrecise();
+		delay.secondaryBuffer.makeNativeRatePrecise();
+	}
+	delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size + 5;
 }
 
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
@@ -1438,8 +1439,8 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 }
 
 // paramManager is optional
-int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                              int32_t readAutomationUpToPos, Song* song) {
+Error ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                            int32_t readAutomationUpToPos, Song* song) {
 
 	int32_t p;
 
@@ -1474,8 +1475,8 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
-						int32_t error = Sound::createParamManagerForLoading(paramManager);
-						if (error) {
+						Error error = Sound::createParamManagerForLoading(paramManager);
+						if (error != Error::NONE) {
 							return error;
 						}
 					}
@@ -1644,10 +1645,10 @@ doReadPatchedParam:
 	}
 
 	else {
-		return RESULT_TAG_UNUSED;
+		return Error::RESULT_TAG_UNUSED;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* knob,
@@ -2276,8 +2277,8 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
 	// sound as good if not better (in terms of ticking / crackling)...
-	bool error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
-	if (error == NO_ERROR) {
+	Error error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
+	if (error != Error::NONE) {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
 		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size;
 		enterUIMode(UI_MODE_STUTTERING);

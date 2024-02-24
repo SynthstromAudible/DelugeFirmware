@@ -320,8 +320,10 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull) {
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
-constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
-constexpr int32_t direnessThreshold = numSamplesLimit - 17;
+// used for culling
+constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
+// used for decisions in rendering engine
+constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
@@ -355,6 +357,96 @@ Debug::AverageDT rvb("reverb", Debug::uS);
 #endif
 
 uint8_t numRoutines = 0;
+
+/// set the direness level and cull any voices
+void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+	int32_t numToCull = 0;
+	// don't smooth this - used for other decisions as well
+	if (numSamples >= direnessThreshold) { // 23
+
+		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
+		if (newDireness > 14) {
+			newDireness = 14;
+		}
+
+		if (newDireness >= cpuDireness) {
+			cpuDireness = newDireness;
+			timeDirenessChanged = audioSampleTimer;
+		}
+		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
+		auto numVoice = getNumVoices();
+		if (!bypassCulling && numAudio + numVoice > 8) {
+			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+			// If it's real dire, do a proper immediate cull
+			if (smoothedSamplesOverLimit >= 10) {
+
+				numToCull = (numSamplesOverLimit >> 3);
+
+				// leave at least 7 - below this point culling won't save us
+				// if they can't load their sample in time they'll stop the same way anyway
+				numToCull = std::min(numToCull, numAudio + numVoice - 7);
+				for (int32_t i = 0; i < numToCull; i++) {
+					// Hard cull the first one, potentially including one audio clip
+					// soft cull last one (otherwise there's a weird gap from soft cull to hard cull)
+					bool justDoFastRelease = i + 1 < numToCull;
+					cullVoice(false, justDoFastRelease, true);
+				}
+
+#if ALPHA_OR_BETA_VERSION
+
+				definitelyLog = true;
+				logAction("hard cull");
+
+				D_PRINTLN("culled  %d  voices. numSamples:  %d. voices left:  %d", numToCull, numSamples,
+				          numAudio + numVoice - numToCull);
+
+#endif
+			}
+			else if (smoothedSamplesOverLimit >= 5) {
+
+				// definitely do a soft cull (won't include audio clips)
+				cullVoice(false, true, true);
+				D_PRINTLN("forced cull");
+			}
+			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
+			// increasing
+			else if (smoothedSamplesOverLimit >= 0) {
+
+				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
+				// first routine call this is inaccurate, so just release another voice since things are probably bad
+				cullVoice(false, true, numRoutines > 0 || numSamples > numSamplesLastTime);
+				logAction("soft cull");
+			}
+		}
+		else {
+
+			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
+			if (numSamplesOverLimit >= 0) {
+#if DO_AUDIO_LOG
+				definitelyLog = true;
+#endif
+				D_PRINTLN("numSamples %d", numSamples);
+				logAction("skipped cull");
+			}
+		}
+	}
+
+	else if (smoothedSamples < direnessThreshold - 10) {
+
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
+			timeDirenessChanged = audioSampleTimer;
+			cpuDireness--;
+			if (cpuDireness < 0) {
+				cpuDireness = 0;
+			}
+			else {
+				D_PRINTLN("direness:  %d", cpuDireness);
+			}
+		}
+	}
+}
+
 void routine() {
 #if JFTRACE
 	aeCtr.note();
@@ -396,7 +488,7 @@ void routine() {
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
-	int32_t numToCull = 0;
+
 	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered output
 	// and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and also want
 	// to give them a head-start being sent and out of the way so the clock messages can be sent on-time
@@ -446,88 +538,7 @@ void routine() {
 	//  	D_PRINTLN(numSamples);
 	//  }
 
-	// Consider direness and culling - before increasing the number of samples
-
-	// don't smooth this - used for other decisions as well
-	if (numSamples >= direnessThreshold) { // 23
-
-		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
-		if (newDireness > 14) {
-			newDireness = 14;
-		}
-
-		if (newDireness >= cpuDireness) {
-			cpuDireness = newDireness;
-			timeDirenessChanged = audioSampleTimer;
-		}
-
-		if (!bypassCulling) {
-			int32_t smoothedSamplesOverLimit = smoothedSamples - numSamplesLimit;
-			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
-			// If it's real dire, do a proper immediate cull
-			if (smoothedSamplesOverLimit >= 10) {
-
-				numToCull = (numSamplesOverLimit >> 3);
-
-				for (int32_t i = 0; i < numToCull; i++) {
-					// Hard cull the first one, potentially including one audio clip
-					// soft cull remainder
-					bool justDoFastRelease = i > 0;
-					cullVoice(false, justDoFastRelease, true);
-				}
-
-#if ALPHA_OR_BETA_VERSION
-
-				definitelyLog = true;
-				logAction("hard cull");
-
-				D_PRINTLN("culled  %d  voices. numSamples:  %d. voices left:  %d", numToCull, numSamples,
-				          getNumVoices());
-
-#endif
-			}
-			else if (smoothedSamplesOverLimit >= 0) {
-
-				// definitely do a soft cull (won't include audio clips)
-				cullVoice(false, true, true);
-				D_PRINTLN("forced cull");
-			}
-			// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples is
-			// increasing
-			else if (smoothedSamplesOverLimit >= -6) {
-
-				// if the numSamples is increasing, start fast release on a clip even if one's already there. If not in
-				// first routine call this is inaccurate, so just release another voice since things are probably bad
-				cullVoice(false, true, numRoutines > 0 || numSamples > numSamplesLastTime);
-				logAction("soft cull");
-			}
-		}
-		else {
-
-			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
-			if (numSamplesOverLimit >= 0) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				D_PRINTLN("numSamples %d", numSamples);
-				logAction("skipped cull");
-			}
-		}
-	}
-
-	else if (smoothedSamples < direnessThreshold - 10) {
-
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
-			timeDirenessChanged = audioSampleTimer;
-			cpuDireness--;
-			if (cpuDireness < 0) {
-				cpuDireness = 0;
-			}
-			else {
-				D_PRINTLN("direness:  %d", cpuDireness);
-			}
-		}
-	}
+	setDireness(numSamples);
 
 	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
@@ -1218,9 +1229,9 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
-	if (error) {
+	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
 	}
 
@@ -1423,8 +1434,8 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		int32_t error = recorder->cardRoutine();
-		if (error) {
+		Error error = recorder->cardRoutine();
+		if (error != Error::NONE) {
 			display->displayError(error);
 		}
 
@@ -1496,7 +1507,7 @@ void slowRoutine() {
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
-	int32_t error;
+	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
@@ -1506,7 +1517,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
-	if (error) {
+	if (error != Error::NONE) {
 		newRecorder->~SampleRecorder();
 		delugeDealloc(recorderMemory);
 		return NULL;

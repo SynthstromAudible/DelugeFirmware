@@ -42,6 +42,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -378,12 +379,12 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 		result.error = storageManager.initSD(); // Still want this here?
-		if (result.error) {
+		if (result.error != Error::NONE) {
 			goto couldntLoad;
 		}
 
 		result.error = Browser::currentDir.set("SYNTHS");
-		if (result.error) {
+		if (result.error != Error::NONE) {
 			goto couldntLoad;
 		}
 
@@ -392,7 +393,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 		Instrument* newInstrument;
 
-		if (!result.error) {
+		if (result.error == Error::NONE) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 			result.error = storageManager.loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
@@ -400,7 +401,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 			                                                     &newPresetName, &Browser::currentDir);
 
 			Browser::emptyFileItems();
-			if (result.error) {
+			if (result.error != Error::NONE) {
 				goto couldntLoad;
 			}
 		}
@@ -408,25 +409,24 @@ bool Song::ensureAtLeastOneSessionClip() {
 couldntLoad:
 			newInstrument = storageManager.createNewInstrument(OutputType::SYNTH, &newParamManager);
 
+			// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
+
 			// If that failed (really unlikely) we're really screwed
 			if (!newInstrument) {
-				result.error = ERROR_INSUFFICIENT_RAM;
-reallyScrewed:
+				display->displayError(Error::INSUFFICIENT_RAM);
+				while (1) {}
+			}
+
+			result.error = newInstrument->dirPath.set("SYNTHS");
+			if (result.error != Error::NONE) {
 				display->displayError(result.error);
 				while (1) {}
 			}
 
-			int32_t error2 =
-			    newInstrument->dirPath.set("SYNTHS"); // Use new error2 variable to preserve error result from before.
-			if (error2) {
-gotError2:
-				result.error = error2;
-				goto reallyScrewed;
-			}
-
-			error2 = newInstrument->name.set("0");
-			if (error2) {
-				goto gotError2;
+			result.error = newInstrument->name.set("0");
+			if (result.error != Error::NONE) {
+				display->displayError(result.error);
+				while (1) {}
 			}
 
 			((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
@@ -1456,7 +1456,7 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("song");
 }
 
-int32_t Song::readFromFile() {
+Error Song::readFromFile() {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
@@ -1898,12 +1898,12 @@ unknownTag:
 					void* memory;
 					Output* newOutput;
 					char const* defaultDirPath;
-					int32_t error;
+					Error error;
 
 					if (!strcmp(tagName, "audioTrack")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 						if (!memory) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) AudioOutput();
 						goto loadOutput;
@@ -1912,14 +1912,14 @@ unknownTag:
 					else if (!strcmp(tagName, "sound")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
 						if (!memory) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) SoundInstrument();
 						defaultDirPath = "SYNTHS";
 
 setDirPathFirst:
 						error = ((Instrument*)newOutput)->dirPath.set(defaultDirPath);
-						if (error) {
+						if (error != Error::NONE) {
 gotError:
 							newOutput->~Output();
 							delugeDealloc(memory);
@@ -1930,7 +1930,7 @@ loadOutput:
 						error = newOutput->readFromFile(
 						    this, NULL,
 						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
-						if (error) {
+						if (error != Error::NONE) {
 							goto gotError;
 						}
 
@@ -1941,7 +1941,7 @@ loadOutput:
 					else if (!strcmp(tagName, "kit")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
 						if (!memory) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) Kit();
 						defaultDirPath = "KITS";
@@ -1951,7 +1951,7 @@ loadOutput:
 					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
 						if (!memory) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) MIDIInstrument();
 						goto loadOutput;
@@ -1960,7 +1960,7 @@ loadOutput:
 					else if (!strcmp(tagName, "cvChannel")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(CVInstrument));
 						if (!memory) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) CVInstrument();
 						goto loadOutput;
@@ -1977,30 +1977,30 @@ loadOutput:
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
-				int32_t error = readClipsFromFile(&sessionClips);
-				if (error) {
+				Error error = readClipsFromFile(&sessionClips);
+				if (error != Error::NONE) {
 					return error;
 				}
 				storageManager.exitTag();
 			}
 
 			else if (!strcmp(tagName, "arrangementOnlyTracks") || !strcmp(tagName, "arrangementOnlyClips")) {
-				int32_t error = readClipsFromFile(&arrangementOnlyClips);
-				if (error) {
+				Error error = readClipsFromFile(&arrangementOnlyClips);
+				if (error != Error::NONE) {
 					return error;
 				}
 				storageManager.exitTag();
 			}
 
 			else {
-				int32_t result = globalEffectable.readTagFromFile(tagName, &paramManager, 2147483647, this);
-				if (result == NO_ERROR) {}
-				else if (result != RESULT_TAG_UNUSED) {
+				Error result = globalEffectable.readTagFromFile(tagName, &paramManager, 2147483647, this);
+				if (result == Error::NONE) {}
+				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
 				}
 				else {
-					int32_t result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-					if (result && result != RESULT_TAG_UNUSED) {
+					Error result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
 					if (ALPHA_OR_BETA_VERSION) {
@@ -2048,8 +2048,8 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		int32_t error = thisClip->claimOutput(modelStackWithTimelineCounter);
-		if (error) {
+		Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
+		if (error != Error::NONE) {
 			return error;
 		}
 
@@ -2212,10 +2212,10 @@ skipInstance:
 
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t Song::readClipsFromFile(ClipArray* clipArray) {
+Error Song::readClipsFromFile(ClipArray* clipArray) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -2229,12 +2229,12 @@ int32_t Song::readClipsFromFile(ClipArray* clipArray) {
 
 readClip:
 			if (!clipArray->ensureEnoughSpaceAllocated(1)) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocationSize);
 			if (!memory) {
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			Clip* newClip;
@@ -2245,8 +2245,8 @@ readClip:
 				newClip = new (memory) AudioClip();
 			}
 
-			int32_t error = newClip->readFromFile(this);
-			if (error) {
+			Error error = newClip->readFromFile(this);
+			if (error != Error::NONE) {
 				newClip->~Clip();
 				delugeDealloc(memory);
 				return error;
@@ -2267,7 +2267,7 @@ readClip:
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Needs to be in a separate function than the above because the main song XML file needs to be closed first before
@@ -3430,7 +3430,7 @@ traverseClips:
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			int32_t error = instrumentClip->changeInstrument(
+			Error error = instrumentClip->changeInstrument(
 			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
 			    true); // Will call audio routine
@@ -3856,10 +3856,10 @@ doStealing:
 	// Otherwise, insert one
 	else {
 		i = indexToInsertAt;
-		int32_t error = backedUpParamManagers.insertAtIndex(i);
+		Error error = backedUpParamManagers.insertAtIndex(i);
 
 		// If RAM error...
-		if (error) {
+		if (error != Error::NONE) {
 
 			// Destroy paramManager
 			paramManager->destructAndForgetParamCollections();
@@ -3926,10 +3926,10 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 				// Otherwise, we insert before it
 				else {
-					int32_t error = backedUpParamManagers.insertAtIndex(j);
+					Error error = backedUpParamManagers.insertAtIndex(j);
 
 					// If RAM error (surely would never happen since we just deleted an element)...
-					if (error) {
+					if (error != Error::NONE) {
 						// Don't increment i, as we've deleted an element instead
 					}
 
@@ -4522,7 +4522,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 #endif
 }
 
-int32_t Song::placeFirstInstancesOfActiveClips(int32_t pos) {
+Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 	// For each Clip in session
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
@@ -4530,8 +4530,8 @@ int32_t Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 		if (isClipActive(clip)) {
 			int32_t clipInstanceI = clip->output->clipInstances.getNumElements();
-			int32_t error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
-			if (error) {
+			Error error = clip->output->clipInstances.insertAtIndex(clipInstanceI);
+			if (error != Error::NONE) {
 				return error;
 			}
 
@@ -4542,7 +4542,7 @@ int32_t Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Normally we leave detachClipsToo as false, becuase we need to keep them attached because
@@ -4852,7 +4852,7 @@ cantDoIt:
 	else {
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
-		if (results.error == NO_ERROR_BUT_GET_OUT) {
+		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {
 				auto oled = static_cast<deluge::hid::display::OLED*>(display);
@@ -4861,7 +4861,7 @@ removeWorkingAnimationAndGetOut:
 			}
 			return output;
 		}
-		else if (results.error) {
+		else if (results.error != Error::NONE) {
 			display->displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}
@@ -4978,7 +4978,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;
 		}
 
@@ -4989,16 +4989,16 @@ gotAnInstrument: {}
 	else {
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 		result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-		if (result.error) {
-displayError:
+		if (result.error != Error::NONE) {
 			display->displayError(result.error);
-			return NULL;
+			return nullptr;
 		}
 
 		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 		    this, newOutputType, Availability::INSTRUMENT_UNUSED);
-		if (result.error) {
-			goto displayError;
+		if (result.error != Error::NONE) {
+			display->displayError(result.error);
+			return nullptr;
 		}
 
 		newInstrument = result.fileItem->instrument;
@@ -5014,8 +5014,9 @@ displayError:
 
 		Browser::emptyFileItems();
 
-		if (result.error) {
-			goto displayError;
+		if (result.error != Error::NONE) {
+			display->displayError(result.error);
+			return nullptr;
 		}
 
 		if (isHibernating) {
@@ -5098,19 +5099,19 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	String newName;
-	int32_t error = newName.set("AUDIO");
-	if (error) {
+	Error error = newName.set("AUDIO");
+	if (error != Error::NONE) {
 		return NULL;
 	}
 
 	error = newName.concatenateInt(highestNumber + 1);
-	if (error) {
+	if (error != Error::NONE) {
 		return NULL;
 	}
 
 	ParamManagerForTimeline newParamManager;
 	error = newParamManager.setupUnpatched();
-	if (error) {
+	if (error != Error::NONE) {
 		return NULL;
 	}
 
@@ -5294,7 +5295,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;
 		}
 	}
@@ -5528,6 +5529,22 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
+int32_t Song::countAudioClips() const {
+	int32_t i = 0;
+	for (Output* output = firstOutput; output; output = output->next) {
+		if (output->type == OutputType::AUDIO) {
+			if (output->activeClip) {
+				AudioClip* clip = (AudioClip*)output->activeClip;
+				// this seems to be the only way to find whether the voice is sounding
+				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
+					i++;
+				}
+			}
+		}
+	}
+	return i;
+}
+
 void Song::cullAudioClipVoice() {
 	AudioClip* bestClip = NULL;
 	uint64_t lowestImmunity = 0xFFFFFFFFFFFFFFFF;
@@ -5536,7 +5553,7 @@ void Song::cullAudioClipVoice() {
 		if (output->type == OutputType::AUDIO) {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
-				if (clip->voiceSample) {
+				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
 					lowestImmunity = immunity;
 					bestClip = clip;
@@ -5806,7 +5823,7 @@ void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevi
 	}
 }
 
-int32_t Song::addInstrumentsToFileItems(OutputType outputType) {
+Error Song::addInstrumentsToFileItems(OutputType outputType) {
 	bool doingHibernatingOnes;
 	Output* thisOutput;
 	if (false) {
@@ -5836,12 +5853,12 @@ doHibernatingInstruments:
 		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
 
 		if (!thisItem) {
-			return ERROR_INSUFFICIENT_RAM;
+			return Error::INSUFFICIENT_RAM;
 		}
 
-		int32_t error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+		Error error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
 
-		if (error) {
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
@@ -5850,7 +5867,7 @@ doHibernatingInstruments:
 		goto doHibernatingInstruments;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Song::displayCurrentRootNoteAndScaleName() {
