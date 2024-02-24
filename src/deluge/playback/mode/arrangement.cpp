@@ -27,7 +27,6 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
-#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
