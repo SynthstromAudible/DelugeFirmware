@@ -557,6 +557,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
            - Being 0 (0%), no ratchets at all
            - And 50 (100%), all notes will evaluate to be ratcheted.
+    - `MPE` settings:
+        = `Pressure to Velocity` (P-V): if you have an MPE keyboard  you may want to enable this. It will allow
+          you to control the velocity of each new arpeggiated note by applying different pressure on the keys.
 
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
