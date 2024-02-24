@@ -24,12 +24,6 @@
 #include "util/functions.h"
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
-	numOctaves = 2;
-	mode = ArpMode::OFF;
-	noteMode = ArpNoteMode::UP;
-	octaveMode = ArpOctaveMode::UP;
-	preset = ArpPreset::OFF;
-	flagForceArpRestart = false;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
 	// current song, or even better the one being preloaded. Default sync level is used obviously for the default synth

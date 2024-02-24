@@ -88,18 +88,18 @@ public:
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
 	// Settings
-	ArpPreset preset;
-	ArpMode mode;
-	ArpNoteMode noteMode;
-	ArpOctaveMode octaveMode;
+	ArpPreset preset{ArpPreset::OFF};
+	ArpMode mode{ArpMode::OFF};
+	ArpNoteMode noteMode{ArpNoteMode::UP};
+	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
 
-	uint8_t numOctaves;
+	uint8_t numOctaves{2};
 	SyncLevel syncLevel;
 	SyncType syncType;
 
-	bool mpePressureToVelocity;
+	bool mpePressureToVelocity{true};
 
-	bool flagForceArpRestart;
+	bool flagForceArpRestart{false};
 };
 
 struct ArpNote {
