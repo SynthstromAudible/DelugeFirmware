@@ -851,14 +851,6 @@ startAgain:
 	renderingBufferOutputPos = renderingBuffer.begin();
 	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
 
-	// doSomeOutputting();
-
-	/*
-	if (!getRandom255()) {
-	    D_PRINTLN("samples:  %d . voices:  %d", numSamples, getNumVoices());
-	}
-*/
-
 	bool anyGateOutputPending =
 	    cvEngine.gateOutputPending || cvEngine.clockOutputPending || cvEngine.asapGateOutputPending;
 
@@ -951,7 +943,7 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	while (doSomeOutputting() && numRoutines < 3) {
+	while (doSomeOutputting() && numRoutines < 2) {
 		numRoutines += 1;
 		routine_();
 		routineBeenCalled = true;
