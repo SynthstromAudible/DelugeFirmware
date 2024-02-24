@@ -155,8 +155,6 @@ InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
 
-int32_t reverbSendPostLPF = 0;
-
 VoiceVector activeVoices{};
 
 LiveInputBuffer* liveInputBuffers[3];
@@ -748,15 +746,6 @@ startAgain:
 
 		auto reverb_buffer_slice = std::span{reverbBuffer.data(), numSamples};
 		auto render_buffer_slice = std::span{renderingBuffer.data(), numSamples};
-
-		// HPF on reverb send, cos if it has DC offset, the reverb magnifies that, and the sound farts out
-		{
-			for (auto& reverb_sample : reverb_buffer_slice) {
-				int32_t distance_to_go_l = reverb_sample - reverbSendPostLPF;
-				reverbSendPostLPF += distance_to_go_l >> 11;
-				reverb_sample -= reverbSendPostLPF;
-			}
-		}
 
 		// Mix reverb into main render
 		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
