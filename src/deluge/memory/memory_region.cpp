@@ -164,11 +164,10 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 			EmptySpaceRecord* recordToDelete = &emptySpaceToRight; // The default, which we may override below.
 
 			// If the "right" space is bigger, delete the "left" one's record
+			// address here is same as, and best thought of as, emptySpaceToLeft.address.
+			// Hang on, wouldn't the space to the right always have a higher address?
 			if (emptySpaceToRight.length > emptySpaceToLeft.length
-			    || (emptySpaceToRight.length == emptySpaceToLeft.length
-			        && emptySpaceToRight.address
-			               > address)) { // address here is same as, and best thought of as, emptySpaceToLeft.address.
-				                         // Hang on, wouldn't the space to the right always have a higher address?
+			    || (emptySpaceToRight.length == emptySpaceToLeft.length && emptySpaceToRight.address > address)) {
 				recordToMergeWith = &emptySpaceToRight;
 				recordToDelete = &emptySpaceToLeft;
 			}
@@ -177,8 +176,8 @@ inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize,
 			int32_t nextIndex;
 			biggerRecordSearchFromIndex = emptySpaces.searchMultiWordExact((uint32_t*)recordToDelete, &nextIndex);
 
-			if (biggerRecordSearchFromIndex
-			    == -1) { // It might not have been found if array got full so there was no record for this empty space.
+			// It might not have been found if array got full so there was no record for this empty space.
+			if (biggerRecordSearchFromIndex == -1) {
 				biggerRecordSearchFromIndex = nextIndex;
 			}
 			else {
@@ -478,8 +477,8 @@ uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint
 
 	newSize = padSize(newSize);
 
-	uint32_t* __restrict__ lookLeft =
-	    (uint32_t*)((uint32_t)address - 8); // Looking to what's directly left of our old allocated space
+	// Looking to what's directly left of our old allocated space
+	uint32_t* __restrict__ lookLeft = (uint32_t*)((uint32_t)address - 8);
 
 	int32_t newSizeLowerLimit = oldAllocatedSize;
 	if ((*lookLeft & SPACE_TYPE_MASK) != SPACE_HEADER_EMPTY) {
