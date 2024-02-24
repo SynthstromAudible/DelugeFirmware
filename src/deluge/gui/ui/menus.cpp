@@ -306,7 +306,9 @@ arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
                                                                            STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::NoteMode arpeggiator::arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
+                                                                               STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
@@ -337,7 +339,7 @@ submenu::Arpeggiator arpMenu{
         &arpGateMenuMIDIOrCV,
         &arpOctavesMenu,
         &arpOctaveModeMenu,
-        &arpeggiator::arpNoteModeMenu,
+        &arpNoteModeMenu,
         &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV,
         &arpRatchetAmountMenu,
