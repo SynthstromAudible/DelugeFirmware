@@ -191,8 +191,8 @@ void usbReceiveCompletePeripheralOrA1(usb_utr_t* p_mess, uint16_t data1, uint16_
 
 	int32_t deviceNum = p_mess - &g_usb_midi_recv_utr[ip][0];
 
-	if (p_mess->status
-	    != USB_DATA_SHT) { // Are there actually any other possibilities that could happen here? Can't remember.
+	// Are there actually any other possibilities that could happen here? Can't remember.
+	if (p_mess->status != USB_DATA_SHT) {
 		uartPrint("status: ");
 		uartPrintNumber(p_mess->status);
 	}
@@ -1054,9 +1054,9 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	// Do MIDI-thru if that's on and we didn't decide not to, above. This will let clock messages through along with all
 	// other messages, rather than using our special clock-specific system
 	if (shouldDoMidiThruNow && fromDevice != &MIDIDeviceManager::loopbackMidi) {
-		bool shouldSendUSB =
-		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
-		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,
-		         shouldSendUSB); // TODO: reconsider interaction with MPE?
+		// Only send out on USB if it didn't originate from USB
+		bool shouldSendUSB = (fromDevice == &MIDIDeviceManager::dinMIDIPorts);
+		// TODO: reconsider interaction with MPE?
+		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE, shouldSendUSB);
 	}
 }
