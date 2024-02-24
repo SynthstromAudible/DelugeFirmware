@@ -97,6 +97,8 @@ public:
 	SyncLevel syncLevel;
 	SyncType syncType;
 
+	bool mpePressureToVelocity;
+
 	bool flagForceArpRestart;
 };
 
@@ -135,11 +137,8 @@ public:
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
-	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
-	void resetRatchet();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
@@ -168,6 +167,9 @@ public:
 	uint32_t ratchetAmount = 0;
 
 protected:
+	void resetRatchet();
+	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);

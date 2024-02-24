@@ -450,6 +450,11 @@ finishDrumSwitchNoteOn:
 
 	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
+	int16_t currentNotePressure = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)];
+	if (settings->mpePressureToVelocity && currentNotePressure > 0) {
+		// If "MPE pressure to velocity" is enabled and we have some pressure applied, we need to set the velocity here
+		arpNote.velocity = currentNotePressure >> 8;
+	}
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
 }
@@ -637,6 +642,11 @@ finishSwitchNoteOn:
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
 
+	int16_t currentNotePressure = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)];
+	if (settings->mpePressureToVelocity && currentNotePressure > 0) {
+		// If "MPE pressure to velocity" is enabled and we have some pressure applied, we need to set the velocity here
+		arpNote->velocity = currentNotePressure >> 8;
+	}
 	noteCodeCurrentlyOnPostArp =
 	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
 

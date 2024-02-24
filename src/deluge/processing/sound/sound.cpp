@@ -666,6 +666,12 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				}
 				storageManager.exitTag("noteMode");
 			}
+			else if (!strcmp(tagName, "mpeAtToV")) {
+				if (arpSettings) {
+					arpSettings->mpePressureToVelocity = storageManager.readTagOrAttributeValue();
+				}
+				storageManager.exitTag("mpeAtToV");
+			}
 			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
@@ -3911,6 +3917,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
 		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
+		storageManager.writeAttribute("mpeAtToV", arpSettings->mpePressureToVelocity);
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);

@@ -464,6 +464,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NUMBER_OF_RATCHETS, "Ratchet Amount"},
         {STRING_FOR_RATCHET_PROBABILITY, "Ratchet Probability"},
         {STRING_FOR_SEQUENCE_LENGTH, "Sequence Length"},
+        {STRING_FOR_PRESSURE_TO_VELOCITY, "Pressure to Velocity"},
         {STRING_FOR_SHAPE, "SHAPE"},
         {STRING_FOR_MOD_FX, "Mod-fx"},
         {STRING_FOR_POLY_FINGER_MPE, "Poly / finger / MPE"},

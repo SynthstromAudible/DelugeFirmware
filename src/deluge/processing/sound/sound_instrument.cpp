@@ -359,6 +359,13 @@ lookAtArpNote:
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 		}
 	}
+	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
+	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+		}
+	}
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
