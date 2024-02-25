@@ -624,7 +624,6 @@ enum class ArpMpeModSource {
 	OFF,
 	AFTERTOUCH,
 	MPE_Y,
-	MPE_X,
 };
 
 enum class ModFXParam {
