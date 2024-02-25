@@ -40,7 +40,6 @@ public:
 		    l10n::getView(STRING_FOR_DISABLED),                //<
 		    l10n::getView(STRING_FOR_PATCH_SOURCE_AFTERTOUCH), //<
 		    l10n::getView(STRING_FOR_PATCH_SOURCE_Y),          //<
-		    l10n::getView(STRING_FOR_PATCH_SOURCE_X),          //<
 		};
 	}
 };
