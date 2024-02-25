@@ -95,7 +95,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
 - The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
-  modes, sequence length and ratcheting notes.
+  modes, sequence length and ratcheting notes. It also enables MPE keyboards to give more expression to the arpeggiated
+  notes.
 
 ### Audio Clips
 
