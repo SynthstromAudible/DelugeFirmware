@@ -20,53 +20,66 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include <cstdint>
+#include <expected>
 
 class StereoSample;
 
-#define delaySpaceBetweenReadAndWrite 20
-#define DELAY_BUFFER_MAX_SIZE 88200
-#define DELAY_BUFFER_MIN_SIZE 1
-#define DELAY_BUFFER_NEUTRAL_SIZE 16384
-
-struct DelayBufferSetup {
-	int32_t actualSpinRate;           // 1 is represented as kMaxSampleValue
-	int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
-	uint32_t divideByRate;            // 1 is represented as 65536
-	int32_t rateMultiple;
-	uint32_t writeSizeAdjustment;
-};
+constexpr ptrdiff_t delaySpaceBetweenReadAndWrite = 20;
 
 class DelayBuffer {
 public:
-	DelayBuffer();
-	~DelayBuffer();
-	Error init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
-	void makeNativeRatePrecise();
-	void makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherBuffer);
-	void discard();
-	void setupForRender(int32_t rate, DelayBufferSetup* setup);
-	int32_t getIdealBufferSizeFromRate(uint32_t newRate);
-	void empty();
+	constexpr static size_t kMaxSize = 88200;
+	constexpr static size_t kMinSize = 1;
+	constexpr static size_t kNeutralSize = 16384;
 
-	inline bool isActive() { return (bufferStart != NULL); }
+	struct Config {
+		int32_t actualSpinRate;           // 1 is represented as 16777216
+		int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
+		uint32_t divideByRate;            // 1 is represented as 65536
+		int32_t rateMultiple;
+		uint32_t writeSizeAdjustment;
+	};
+
+	DelayBuffer() = default;
+	~DelayBuffer() { discard(); }
+	Error init(uint32_t newRate, uint32_t failIfThisSize = 0, bool includeExtraSpace = true);
+
+	// Prevent the delaybuffer from deallocing the Sample array on destruction
+	// TODO (Kate): investigate a shared_ptr for start_
+	constexpr void invalidate() { start_ = nullptr; }
+
+
+	void makeNativeRatePrecise();
+	void makeNativeRatePreciseRelativeToOtherBuffer(const DelayBuffer& otherBuffer);
+
+	void discard();
+
+	void setupForRender(int32_t rate, Config& setup);
+
+	static int32_t getIdealBufferSizeFromRate(uint32_t newRate);
+
+	[[nodiscard]] constexpr bool isActive() const { return (start_ != nullptr); }
 
 	inline bool clearAndMoveOn() {
-		bufferCurrentPos->l = 0;
-		bufferCurrentPos->r = 0;
+		current_->l = 0;
+		current_->r = 0;
 		return moveOn();
 	}
 
 	inline bool moveOn() {
-		bool wrapped = (++bufferCurrentPos == bufferEnd);
-		if (wrapped)
-			bufferCurrentPos = bufferStart;
+		++current_;
+		bool wrapped = (current_ == end_);
+		if (wrapped) {
+			current_ = start_;
+		}
 		return wrapped;
 	}
 
 	inline void writeNative(int32_t toDelayL, int32_t toDelayR) {
-		StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-		if (writePos < bufferStart)
+		StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
+		if (writePos < start_) {
 			writePos += sizeIncludingExtra;
+		}
 		writePos->l = toDelayL;
 		writePos->r = toDelayR;
 	}
@@ -76,14 +89,15 @@ public:
 		(*writePos)->r = toDelayR;
 
 		(*writePos)++;
-		if (*writePos == bufferEnd)
-			*writePos = bufferStart;
+		if (*writePos == end_) {
+			*writePos = start_;
+		}
 	}
 
 	[[gnu::always_inline]] inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1,
-	                                                  int32_t strength2, DelayBufferSetup* setup) {
+	                                                  int32_t strength2, const Config& setup) {
 		// If delay buffer spinning above sample rate...
-		if (setup->actualSpinRate >= kMaxSampleValue) {
+		if (setup.actualSpinRate >= kMaxSampleValue) {
 
 			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
 			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
@@ -93,46 +107,51 @@ public:
 
 			// For efficiency, we start far-right, then traverse to far-left.
 			// I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16;
+			int32_t howFarRightToStart = (strength2 + (setup.spinRateForSpedUpWriting >> 8)) >> 16;
 
 			// This variable represents one "step" of the delay buffer as 65536.
 			// Always positive - absolute distance
 			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16;
 
 			// Initially is the far-right right pos, not the central "main" one
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart;
-			while (writePos < bufferStart)
+			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + howFarRightToStart;
+			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
-			while (writePos >= bufferEnd)
+			}
+			while (writePos >= end_) {
 				writePos -= sizeIncludingExtra;
+			}
 
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
 				// Check my notebook for a rudimentary diagram
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup.divideByRate);
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
-				// writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
+				// writePos = (writePos == start_) ? end_ - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
 
 			// Do all writes to the left of (and including) the main write pos
 			while (true) {
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
-				if (strengthThisWrite <= 0)
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup.divideByRate);
+				if (strengthThisWrite <= 0) {
 					break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
+				}
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
 				distanceFromMainWrite += 65536;
 			}
 		}
@@ -152,17 +171,18 @@ public:
 			// a tiny slow-down causes half the bandwidth to be lost
 
 			// The furthest right we need to write is 2 steps right from the "main" write
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + 2;
+			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + 2;
 
-			while (writePos < bufferStart)
+			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
-			// while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this
+			}
+			// while (writePos >= end_) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this
 			// here as a reminder
 
 			int32_t strength[4];
 
-			strength[1] = strength1 + setup->rateMultiple - 65536; // For the "main" pos
-			strength[2] = strength2 + setup->rateMultiple - 65536; // For the "main + 1" pos
+			strength[1] = strength1 + setup.rateMultiple - 65536; // For the "main" pos
+			strength[2] = strength2 + setup.rateMultiple - 65536; // For the "main + 1" pos
 
 			// Strengths for the further 1 write in each direction
 			strength[0] = strength[1] - 65536;
@@ -171,15 +191,17 @@ public:
 			int8_t i = 3;
 			while (true) {
 				if (strength[i] > 0) {
-					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup.writeSizeAdjustment)
 					               << 2;
-					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup.writeSizeAdjustment)
 					               << 2;
 				}
-				if (--i < 0)
+				if (--i < 0) {
 					break;
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
+				}
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
 			}
 		}
 	}
@@ -188,18 +210,19 @@ public:
 	// process like 5% slower...
 
 	inline void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
-	                  DelayBufferSetup* setup) {
+	                  const DelayBuffer::Config& setup) {
 		// If no speed adjustment
-		if (!isResampling) {
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite;
-			if (writePos < bufferStart)
+		if (!is_resampling_) {
+			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
+			if (writePos < start_) {
 				writePos += sizeIncludingExtra;
+			}
 			writePos->l = toDelayL;
 			writePos->r = toDelayR;
 		}
 
 		// If delay buffer spinning above sample rate...
-		else if (setup->actualSpinRate >= kMaxSampleValue) {
+		else if (setup.actualSpinRate >= kMaxSampleValue) {
 
 			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
 			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
@@ -210,46 +233,51 @@ public:
 			// For efficiency, we start far-right, then traverse to far-left.
 
 			// I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t howFarRightToStart = (strength2 + (setup->spinRateForSpedUpWriting >> 8)) >> 16;
+			int32_t howFarRightToStart = (strength2 + (setup.spinRateForSpedUpWriting >> 8)) >> 16;
 
 			// This variable represents one "step" of the delay buffer as 65536.
 			// Always positive - absolute distance
 			int32_t distanceFromMainWrite = (int32_t)howFarRightToStart << 16;
 
 			// Initially is the far-right right pos, not the central "main" one
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite + howFarRightToStart;
-			while (writePos < bufferStart)
+			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + howFarRightToStart;
+			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
-			while (writePos >= bufferEnd)
+			}
+			while (writePos >= end_) {
 				writePos -= sizeIncludingExtra;
+			}
 
 			// Do all writes to the right of the main write pos
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
 				// Check my notebook for a rudimentary diagram
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup->divideByRate);
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup.divideByRate);
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
-				// writePos = (writePos == bufferStart) ? bufferEnd - 1 : writePos - 1;
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
+				// writePos = (writePos == start_) ? end_ - 1 : writePos - 1;
 				distanceFromMainWrite -= 65536;
 			}
 
 			// Do all writes to the left of (and including) the main write pos
 			while (true) {
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup->divideByRate);
-				if (strengthThisWrite <= 0)
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup.divideByRate);
+				if (strengthThisWrite <= 0) {
 					break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
+				}
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
 
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
 				distanceFromMainWrite += 65536;
 			}
 		}
@@ -268,17 +296,20 @@ public:
 			// We've also had to make sure that the "triangles"' corners exactly meet up. Unfortunately this means even
 			// a tiny slow-down causes half the bandwidth to be lost
 
-			StereoSample* writePos = bufferCurrentPos - delaySpaceBetweenReadAndWrite
-			                         + 2; // The furthest right we need to write is 2 steps right from the "main" write
-			while (writePos < bufferStart)
+			// The furthest right we need to write is 2 steps right from the "main" write
+			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite + 2;
+
+			while (writePos < start_) {
 				writePos += sizeIncludingExtra;
-			// while (writePos >= bufferEnd) writePos -= sizeIncludingExtra; // Not needed - but be careful! Leave this
-			// here as a reminder
+			}
+
+			// Not needed - but be careful! Leave this here as a reminder
+			// while (writePos >= end_) writePos -= sizeIncludingExtra;
 
 			int32_t strength[4];
 
-			strength[1] = strength1 + setup->rateMultiple - 65536; // For the "main" pos
-			strength[2] = strength2 + setup->rateMultiple - 65536; // For the "main + 1" pos
+			strength[1] = strength1 + setup.rateMultiple - 65536; // For the "main" pos
+			strength[2] = strength2 + setup.rateMultiple - 65536; // For the "main + 1" pos
 
 			// Strengths for the further 1 write in each direction
 			strength[0] = strength[1] - 65536;
@@ -287,26 +318,51 @@ public:
 			int8_t i = 3;
 			while (true) {
 				if (strength[i] > 0) {
-					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup.writeSizeAdjustment)
 					               << 2;
-					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup->writeSizeAdjustment)
+					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup.writeSizeAdjustment)
 					               << 2;
 				}
-				if (--i < 0)
+				if (--i < 0) {
 					break;
-				if (--writePos == bufferStart - 1)
-					writePos = bufferEnd - 1;
+				}
+				if (--writePos == start_ - 1) {
+					writePos = end_ - 1;
+				}
 			}
 		}
 	}
 
-	StereoSample* bufferStart;
-	StereoSample* bufferEnd;
-	StereoSample* bufferCurrentPos;
+	[[nodiscard]] constexpr bool isResampling() const { return is_resampling_; }
+	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
+
+	// Iterator access
+	[[nodiscard]] constexpr StereoSample* current() const { return current_; }
+	[[nodiscard]] constexpr StereoSample* begin() const { return start_; }
+	[[nodiscard]] constexpr StereoSample* end() const { return end_; }
+	[[nodiscard]] constexpr size_t size() const { return size_; }
+
+	void clear();
+
+	constexpr void setCurrent(StereoSample* sample) { current_ = sample; }
+
+
+	// TODO (Kate): Make it so the ModControllableFX stuff isn't touching these.
+	// That behavior should either be contained in this class or Delay or a new Stutterer class
 	uint32_t longPos;
 	uint8_t lastShortPos;
-	uint32_t nativeRate;
-	uint32_t size;
-	uint32_t sizeIncludingExtra;
-	bool isResampling;
+
+	size_t sizeIncludingExtra;
+
+private:
+	void setupResample();
+
+	bool is_resampling_ = false;
+	uint32_t native_rate_ = 0;
+
+	StereoSample* start_ = nullptr;
+	StereoSample* end_;
+	StereoSample* current_;
+
+	size_t size_;
 };

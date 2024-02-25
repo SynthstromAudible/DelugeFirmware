@@ -119,7 +119,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	filterRoute = other->filterRoute;
 	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
-	delay.cloneFrom(&other->delay);
+	delay = other->delay;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -535,8 +535,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	DelayBufferSetup delayPrimarySetup;
-	DelayBufferSetup delaySecondarySetup;
+	DelayBuffer::Config delayPrimarySetup;
+	DelayBuffer::Config delaySecondarySetup;
 
 	if (delayWorkingState->doDelay) {
 
@@ -552,8 +552,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		if (!delay.secondaryBuffer.isActive()) {
 
 			// If resampling previously recorded as happening, or just about to be recorded as happening
-			if (delay.primaryBuffer.isResampling
-			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
+			if (delay.primaryBuffer.isResampling()
+			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate()) {
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
@@ -563,24 +563,24 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
 				// (smaller) buffer at our new rate
-				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate << 1)) {
+				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate() << 1)) {
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, false);
 				}
 
 				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
 				// rate is half our current rate (double the quality)
-				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate) {
+				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate()) {
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate >> 1, false);
 				}
 			}
 		}
 
 		// Figure some stuff out for the primary buffer
-		delay.primaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delayPrimarySetup);
+		delay.primaryBuffer.setupForRender(delayWorkingState->userDelayRate, delayPrimarySetup);
 
 		// Figure some stuff out for the secondary buffer - only if it's active
 		if (delay.secondaryBuffer.isActive()) {
-			delay.secondaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delaySecondarySetup);
+			delay.secondaryBuffer.setupForRender(delayWorkingState->userDelayRate, delaySecondarySetup);
 		}
 
 		bool wrapped = false;
@@ -603,18 +603,18 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		// Or...
 		else {
 
-			primaryBufferOldPos = delay.primaryBuffer.bufferCurrentPos;
+			primaryBufferOldPos = delay.primaryBuffer.current();
 			primaryBufferOldLongPos = delay.primaryBuffer.longPos;
 			primaryBufferOldLastShortPos = delay.primaryBuffer.lastShortPos;
 
 			// Native read
-			if (!delay.primaryBuffer.isResampling) {
+			if (!delay.primaryBuffer.isResampling()) {
 
 				int32_t* workingBufferPos = delayWorkingBuffer;
 				do {
 					wrapped = delay.primaryBuffer.clearAndMoveOn() || wrapped;
-					workingBufferPos[0] = delay.primaryBuffer.bufferCurrentPos->l;
-					workingBufferPos[1] = delay.primaryBuffer.bufferCurrentPos->r;
+					workingBufferPos[0] = delay.primaryBuffer.current()->l;
+					workingBufferPos[1] = delay.primaryBuffer.current()->r;
 
 					workingBufferPos += 2;
 				} while (workingBufferPos != workingBufferEnd);
@@ -639,12 +639,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
 					int32_t primaryStrength1 = 65536 - primaryStrength2;
 
-					StereoSample* nextPos = delay.primaryBuffer.bufferCurrentPos + 1;
-					if (nextPos == delay.primaryBuffer.bufferEnd) {
-						nextPos = delay.primaryBuffer.bufferStart;
+					StereoSample* nextPos = delay.primaryBuffer.current() + 1;
+					if (nextPos == delay.primaryBuffer.end()) {
+						nextPos = delay.primaryBuffer.begin();
 					}
-					int32_t fromDelay1L = delay.primaryBuffer.bufferCurrentPos->l;
-					int32_t fromDelay1R = delay.primaryBuffer.bufferCurrentPos->r;
+					int32_t fromDelay1L = delay.primaryBuffer.current()->l;
+					int32_t fromDelay1R = delay.primaryBuffer.current()->r;
 					int32_t fromDelay2L = nextPos->l;
 					int32_t fromDelay2R = nextPos->r;
 
@@ -787,11 +787,11 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		if (delay.primaryBuffer.isActive()) {
 
 			// Native
-			if (!delay.primaryBuffer.isResampling) {
+			if (!delay.primaryBuffer.isResampling()) {
 				int32_t* workingBufferPos = delayWorkingBuffer;
 
 				StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
-				if (writePos < delay.primaryBuffer.bufferStart) {
+				if (writePos < delay.primaryBuffer.begin()) {
 					writePos += delay.primaryBuffer.sizeIncludingExtra;
 				}
 
@@ -804,7 +804,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 			// Resampling
 			else {
-				delay.primaryBuffer.bufferCurrentPos = primaryBufferOldPos;
+				delay.primaryBuffer.setCurrent(primaryBufferOldPos);
 				delay.primaryBuffer.longPos = primaryBufferOldLongPos;
 				delay.primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
 
@@ -827,7 +827,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t primaryStrength1 = 65536 - primaryStrength2;
 
 					delay.primaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], primaryStrength1,
-					                                   primaryStrength2, &delayPrimarySetup);
+					                                   primaryStrength2, delayPrimarySetup);
 
 					workingBufferPos += 2;
 				} while (workingBufferPos != workingBufferEnd);
@@ -842,7 +842,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			    false; // We want to disregard whatever the primary buffer told us, and just use the secondary one now
 
 			// Native
-			if (!delay.secondaryBuffer.isResampling) {
+			if (!delay.secondaryBuffer.isResampling()) {
 
 				int32_t* workingBufferPos = delayWorkingBuffer;
 				do {
@@ -878,7 +878,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 					// Write to secondary buffer
 					delay.secondaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], secondaryStrength1,
-					                                     secondaryStrength2, &delaySecondarySetup);
+					                                     secondaryStrength2, delaySecondarySetup);
 
 					workingBufferPos += 2;
 				} while (workingBufferPos != workingBufferEnd);
@@ -1077,11 +1077,11 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 	StereoSample* thisSample = buffer;
 
-	DelayBufferSetup delayBufferSetup;
+	DelayBuffer::Config delayBufferSetup;
 
 	int32_t rate = getStutterRate(paramManager);
 
-	stutterer.buffer.setupForRender(rate, &delayBufferSetup);
+	stutterer.buffer.setupForRender(rate, delayBufferSetup);
 
 	if (stutterer.status == STUTTERER_STATUS_RECORDING) {
 
@@ -1093,7 +1093,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			// First, tick it along, as if we were reading from it
 
 			// Non-resampling tick-along
-			if (!stutterer.buffer.isResampling) {
+			if (!stutterer.buffer.isResampling()) {
 				stutterer.buffer.clearAndMoveOn();
 				stutterer.sizeLeftUntilRecordFinished--;
 
@@ -1122,7 +1122,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				// &delayBufferSetup);
 			}
 
-			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, &delayBufferSetup);
+			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, delayBufferSetup);
 
 		} while (++thisSample != bufferEnd);
 
@@ -1139,10 +1139,10 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			int32_t strength2;
 
 			// Non-resampling read
-			if (!stutterer.buffer.isResampling) {
+			if (!stutterer.buffer.isResampling()) {
 				stutterer.buffer.moveOn();
-				thisSample->l = stutterer.buffer.bufferCurrentPos->l;
-				thisSample->r = stutterer.buffer.bufferCurrentPos->r;
+				thisSample->l = stutterer.buffer.current()->l;
+				thisSample->r = stutterer.buffer.current()->r;
 			}
 
 			// Or, resampling read
@@ -1162,12 +1162,12 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
 				strength1 = 65536 - strength2;
 
-				StereoSample* nextPos = stutterer.buffer.bufferCurrentPos + 1;
-				if (nextPos == stutterer.buffer.bufferEnd) {
-					nextPos = stutterer.buffer.bufferStart;
+				StereoSample* nextPos = stutterer.buffer.current() + 1;
+				if (nextPos == stutterer.buffer.end()) {
+					nextPos = stutterer.buffer.begin();
 				}
-				int32_t fromDelay1L = stutterer.buffer.bufferCurrentPos->l;
-				int32_t fromDelay1R = stutterer.buffer.bufferCurrentPos->r;
+				int32_t fromDelay1L = stutterer.buffer.current()->l;
+				int32_t fromDelay1R = stutterer.buffer.current()->r;
 				int32_t fromDelay2L = nextPos->l;
 				int32_t fromDelay2R = nextPos->r;
 
@@ -1214,23 +1214,23 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
                                                           bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	Error result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
+	Error result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size());
 	if (result != Error::NONE) {
 		return;
 	}
-	D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
+	D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size());
 
 	// 2 different options here for different scenarios. I can't very clearly remember how to describe the
 	// difference
 	if (makeNativeRatePreciseRelativeToOtherBuffer) {
 		// D_PRINTLN("making precise");
-		delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
+		delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(delay.secondaryBuffer);
 	}
 	else {
 		delay.primaryBuffer.makeNativeRatePrecise();
 		delay.secondaryBuffer.makeNativeRatePrecise();
 	}
-	delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size + 5;
+	delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size() + 5;
 }
 
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
@@ -2283,7 +2283,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	Error error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
 	if (error == Error::NONE) {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
-		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size;
+		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size();
 		enterUIMode(UI_MODE_STUTTERING);
 	}
 }

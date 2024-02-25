@@ -17,69 +17,52 @@
 
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
+#include "dsp/delay/delay_buffer.h"
 #include "io/debug/log.h"
 #include <cstdlib>
-
-Delay::Delay() {
-	pingPong = true;
-	analog = false;
-	repeatsUntilAbandon = 0;
-	prevFeedback = 0;
-
-	syncLevel = (SyncLevel)5;
-
-	syncType = SYNC_TYPE_EVEN;
-}
-
-void Delay::cloneFrom(Delay* other) {
-	pingPong = other->pingPong;
-	analog = other->analog;
-	syncLevel = other->syncLevel;
-}
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
 	bool previouslyActive = isActive();
 
 	if (previouslyActive != newActive) {
-		if (newActive) {
-setupSecondaryBuffer:
-			Error result = secondaryBuffer.init(userDelayRate);
-			if (result != Error::NONE) {
-				return;
-			}
-			prepareToBeginWriting();
-			postLPFL = 0;
-			postLPFR = 0;
-		}
-		else {
+		if (!newActive) {
 			discardBuffers();
+			return;
 		}
+
+setupSecondaryBuffer:
+		Error result = secondaryBuffer.init(userDelayRate);
+		if (result != Error::NONE) {
+			return;
+		}
+		prepareToBeginWriting();
+		postLPFL = 0;
+		postLPFR = 0;
+		return;
 	}
 
 	// Or if no change...
-	else {
 
-		// If it already was active...
-		if (previouslyActive) {
-			// If no writing has happened yet to this Delay, check that the buffer is the right size.
-			// The delay time might have changed since it was set up, and we could be better off making a new buffer,
-			// which is easily done now, before anything's been written
-			if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
-			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
+	// If it already was active...
+	if (previouslyActive) {
+		// If no writing has happened yet to this Delay, check that the buffer is the right size.
+		// The delay time might have changed since it was set up, and we could be better off making a new buffer,
+		// which is easily done now, before anything's been written
+		if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
+		    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
-				int32_t idealBufferSize = secondaryBuffer.getIdealBufferSizeFromRate(userDelayRate);
-				idealBufferSize = std::min(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
-				idealBufferSize = std::max(idealBufferSize, (int32_t)DELAY_BUFFER_MIN_SIZE);
+			int32_t idealBufferSize = DelayBuffer::getIdealBufferSizeFromRate(userDelayRate);
+			idealBufferSize = std::min(idealBufferSize, (int32_t)DelayBuffer::kMaxSize);
+			idealBufferSize = std::max(idealBufferSize, (int32_t)DelayBuffer::kMinSize);
 
-				if (idealBufferSize != secondaryBuffer.size) {
+			if (idealBufferSize != secondaryBuffer.size()) {
 
-					D_PRINTLN("new secondary buffer before writing starts");
+				D_PRINTLN("new secondary buffer before writing starts");
 
-					// Ditch that secondary buffer, make a new one
-					secondaryBuffer.discard();
-					goto setupSecondaryBuffer;
-				}
+				// Ditch that secondary buffer, make a new one
+				secondaryBuffer.discard();
+				goto setupSecondaryBuffer;
 			}
 		}
 	}
@@ -87,26 +70,18 @@ setupSecondaryBuffer:
 
 void Delay::copySecondaryToPrimary() {
 	primaryBuffer.discard();
-	primaryBuffer = secondaryBuffer;    // Does actual copying
-	secondaryBuffer.bufferStart = NULL; // Make sure this doesn't try to get "deallocated" later
+	primaryBuffer = secondaryBuffer;  // Does actual copying
+	secondaryBuffer.invalidate(); // Make sure this doesn't try to get "deallocated" later
 }
 
 void Delay::copyPrimaryToSecondary() {
 	secondaryBuffer.discard();
-	secondaryBuffer = primaryBuffer;  // Does actual copying
-	primaryBuffer.bufferStart = NULL; // Make sure this doesn't try to get "deallocated" later
+	secondaryBuffer = primaryBuffer; // Does actual copying
+	primaryBuffer.invalidate();  // Make sure this doesn't try to get "deallocated" later
 }
 
 void Delay::prepareToBeginWriting() {
 	sizeLeftUntilBufferSwap = getAmountToWriteBeforeReadingBegins(); // If you change this, make sure you
-}
-
-int32_t Delay::getAmountToWriteBeforeReadingBegins() {
-	return secondaryBuffer.size;
-}
-
-bool Delay::isActive() {
-	return (primaryBuffer.isActive() || secondaryBuffer.isActive());
 }
 
 // Set the rate and feedback in the workingState before calling this
@@ -114,7 +89,7 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerI
                               bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
-	// TODO: we want to be able to reduce the 256 to 1, but for some reason, the
+	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the
 	// patching engine spits out 112 even when this should be 0...
 	bool mightDoDelay = (workingState->delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
 
