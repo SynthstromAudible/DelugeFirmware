@@ -18,6 +18,7 @@
 #include "runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
+#include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstring>
@@ -176,15 +177,20 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
-	if (error) {
+	Error error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	if (error != Error::NONE) {
 		return;
 	}
 
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
+
 	while (*(currentTag = storageManager.readNextTagOrAttributeName())) {
+
+		if (strcmp(currentTag, "startupSong") == 0) {
+			storageManager.readTagOrAttributeValueString(&startupSong);
+		}
 		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
 			// Read name
 			currentTag = storageManager.readNextTagOrAttributeName();
@@ -201,6 +207,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				display->displayPopup("Community file err");
 				break;
 			}
+
 			currentValue = storageManager.readTagOrAttributeValueInt();
 			storageManager.exitTag();
 
@@ -216,7 +223,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			if (!found) {
 				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
-				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
+				if (unknownSettings.insertAtIndex(idx) != Error::NONE) {
 					return;
 				}
 				void* address = unknownSettings.getElementAddress(idx);
@@ -225,24 +232,23 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				unknownSetting->value = currentValue;
 			}
 		}
-
-		storageManager.exitTag();
+		storageManager.exitTag(currentTag);
 	}
-
 	storageManager.closeFile();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	int32_t error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
-	if (error) {
+	Error error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	if (error != Error::NONE) {
 		return;
 	}
 
 	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
+	storageManager.writeAttribute("startupSong", currentSong->getSongFullPath().get());
 	storageManager.writeOpeningTagEnd();
 
 	for (auto& setting : settings) {

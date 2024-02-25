@@ -176,8 +176,8 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// ORDERED NOTES
 
 		// Insert it in notes array
-		int32_t error = notes.insertAtIndex(notesKey);
-		if (error) {
+		Error error = notes.insertAtIndex(notesKey);
+		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote
@@ -198,7 +198,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// Insert it in notesAsPlayed array
 		notesAsPlayedIndex = notesAsPlayed.getNumElements();
 		error = notesAsPlayed.insertAtIndex(notesAsPlayedIndex); // always insert at the end or the array
-		if (error) {
+		if (error != Error::NONE) {
 			return;
 		}
 		// Save arpNote

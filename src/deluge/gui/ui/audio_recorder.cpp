@@ -82,15 +82,15 @@ bool AudioRecorder::opened() {
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
-		int32_t error = newName.set("REC");
-		if (error) {
+		Error error = newName.set("REC");
+		if (error != Error::NONE) {
 gotError:
 			display->displayError(error);
 			return false;
 		}
 
 		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) {
+		if (error != Error::NONE) {
 			goto gotError;
 		}
 
@@ -141,7 +141,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, kInternalButtonPressLatency);
 	if (!recorder) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
 	}
 

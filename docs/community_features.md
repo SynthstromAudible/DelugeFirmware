@@ -37,44 +37,44 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.3 - MIDI
 
-- ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the
+- ([#47]) `Extra MIDI ports on the USB interface for MPE.` Port 2 shows in the MIDI device menu, and improves the
   usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to
   be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW
   control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings
   in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
 
-- ([#1251]) MIDI learn for kit - from song or arranger view, a kit can now be learnt to a midi channel in the same way
+- ([#1251]) `MIDI learn for kit` - from song or arranger view, a kit can now be learnt to a midi channel in the same way
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
 
-- ([#837]) MIDI control over transpose / scale.
+- ([#837]) `MIDI control over transpose / scale.`
     - Accessed via external MIDI via a new learnable global MIDI command in `SETTINGS > MIDI > CMD > TRANSPOSE`. It learns the entire channel, not just a single note.
 	- Accessed internally from a MIDI clip. Turn the channel to the end of the list past the MPE zones to 'Transpose'. Notes in this clip now alter the transposition of the song.
 	- Clips not in scale mode are unaffected (similar to the existing transpose behaviour from the encoders).
 	- Configureable in `SETTINGS > MIDI > TRANSPOSE` between chromatic and in-scale transposition.
-		- When set to in-scale mode:
+		- When set to `in-scale mode`:
 			- an incoming MIDI note that is already in-scale will set the root note, and rotate the existing notes into place. Eg, starting in C major, an incoming D will set the root note to D, but keep the scale notes, resulting in D Dorian. For other scales, eg Harmonic minor, this rotation still applies.
 			- Out of scale notes are ignored.
 			- MIDI clips routed to transpose can be in either scale mode or chromatic. Using the audition pads, placing notes on the grid, or notes triggered during playback will cause the root note to move around on the audition pads, or in keyboard view.
-		- When set to chromatic mode:
+		- When set to `chromatic mode`:
 			- incoming notes set the root note. Scale mode clips are all transposed chromatically.
 			- MIDI clips routed to 'Transpose' cannot be in scale mode. Existing clips of this type will drop back to chromatic mode, and pressing the Scale button will display 'CANT'.
 	- Choice of octave is determined by the first note received by each song (this is reset on each song load). The first transpostino will move the root note by at most a fifth, to the closest matching note. Subsequent transpose events will respect the octave as normal.
 		- Eg. Song is in C major. Transpose receives a D3. Regardless of whether the song is just a bassline, or pads, or a high synth part, it all goes up to D Dorian or D Major depending on the inkey/chromatic setting. After that a D4 will put everything up an octave. If instead the first transpose is a D4, this will initially only go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
 	- **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently playing notes. If this is done from a MIDI clip, it can cut off notes right at the start so they are never heard. To avoid this, move the MIDI clip with sequenced transposition events to the bottom of the list in Song View (Rows mode), since the clips seem to be handled bottom to top. Instrument clips above the transposition clip will then play correctly with the new root note.
 
-- ([#889]) Master MIDI Follow Mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+- ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 	- For a detailed description of this feature, please refer to the feature documentation: [MIDI Follow Mode Documentation]
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI-FOLLOW`. 
 	- ([#976]) For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
 		- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
 	- ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Touch OSC Template]
-- ([#865]) MIDI Loopback - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
-- ([#963]) MIDI Select Kit Row - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
+- ([#865]) `MIDI Loopback` - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is turned on or off).. 
 
+- ([#963]) `MIDI Select Kit Row` - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
 #### 3.4 - Tempo
 
@@ -129,6 +129,16 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and
   Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
+#### 3.12 - Automatically load the last open/saved song or user-defined template at startup.
+
+- ([#1272]) Added feature to load automatically projects at startup.
+To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
+- Four modes are available :
+    - `NEW SONG` : default mode, empty project on clip view with default synth.
+    - `TEMPLATE` : it will load `DEFAULT.XML` project that will be saved automatically when you select this mode, and will enable you to edit it later on and to replace the default blank song by a user-defined template.
+    - `LAST OPENED SONG` : it will load the last long that you `OPENED` before shutting down the Deluge.
+    - `LAST SAVED SONG` : it will load the least songs that you `SAVED` before shutting down the Deluge.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -166,20 +176,16 @@ Here is a list of features that have been added to the firmware as a list, group
 
 - ([#196] and [#1018]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type
   selection menu. The options are:
-    - Default (DEFA) - the default Deluge clip type.
-    - Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to
+    - **`Default (DEFA)`** - the default Deluge clip type.
+    - **`Fill (FILL)`** - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to
       start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the
       remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest
-      playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a
-      fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output
-      from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a
-      default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent
-      copy.
-    - Once (ONCE) - Once clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to
+      playing clip, or by the total length of a section times the repeat count set for that section. 
+		- **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+    - **`Once (ONCE)`** - Once clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to
       start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of
-      clips also work when soloing them, they will solo just for one loop and unsolo after that. **Limitation**: a Once
-      clip is still subject to the one clip per instrument behavior of the Deluge, A Once clip can steal an output from
-      other normal clips, so take that into account when you plan your performance.
+      clips also work when soloing them, they will solo just for one loop and unsolo after that. 
+		- **Limitation**: a Once clip is still subject to the one clip per instrument behavior of the Deluge, A Once clip can steal an output from other normal clips, so take that into account when you plan your performance.
 
 #### 4.1.4 - Catch Notes
 
@@ -203,24 +209,24 @@ Here is a list of features that have been added to the firmware as a list, group
     - Every track (column) has a random generated color that can be changed in edit mode (see below)
     - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
     - New default settings that can be reached pressing both `SHIFT` + `SELECT`: `MENU > DEFAULTS > UI > SONG`
-        - Layout: Select the default layout for all new songs
-        - Grid
-            - Default active mode: "Selection" allows changing the mode as described below, all other settings will
+        - `Layout:` Select the default layout for all new songs
+        - `Grid`
+            - `Default active mode:` "Selection" allows changing the mode as described below, all other settings will
               always make mode snap back to the configured one (default Selection)
-            - Select in green mode: Enabling this will make allow holding clips in green (launch) mode to change their
+            - `Select in green mode:` Enabling this will make allow holding clips in green (launch) mode to change their
               parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
-            - Empty pad unarm: Enabling will make pressing empty pads in a track unarm all playing tracks in that
+            - `Empty pad unarm:` Enabling will make pressing empty pads in a track unarm all playing tracks in that
               track (default off)
     - There are different interaction modes that change how the grid behaves
         - The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
         - To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the
           grid, the mode will snap back to the current permanent one
-        - Green mode
+        - `Green mode`
             - All main pads behave the same as the Mute/Launch pads in rows layout (arm/immediate
               launch/mute/record/MIDI learn arm)
             - Section pads (left sidebar column) behave the same as in rows layout, in addition Shift+Section will
               immediate launch all clips in that row
-        - Blue mode
+        - `Blue mode`
             - All main pads behave the same as the main pads in rows layout (open/select/create/delete/MIDI learn)
             - While holding a clip it can be copied to other empty slots by clicking on them, apart from
               audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g.
@@ -444,26 +450,26 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during
           playback
         - Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > AUTOMATION`
-            * Automation (AUTO)
-                * Interpolation (INTE)
+            * `Automation (AUTO)`
+                * `Interpolation (INTE)`
                     * When On, Interpolation is on by default in the Automation View.
                     * Note: This is just a default setting and can be overriden in the Automation View using the Shift +
                       Interpolation grid button shortcut combo.
-                * Clear (CLEA)
+                * `Clear (CLEA)`
                     * When On, clearing the arrangement in arranger view / a clip in the regular Instrument Clip View
                       will clear Notes and MPE, but not Automation.
                     * When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
-                * Shift Note (SHIF)
+                * `Shift Note (SHIF)`
                     * When On, shifting notes horizontally in the regular Arranger View / Instrument Clip View will
                       shift the Arrangement / Notes and MPE, but not the Automation.
                     * When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument
                       Clip View.
-                * Nudge (NUDG)
+                * `Nudge (NUDG)`
                     * When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not
                       the Automation.
                     * When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the
                       automation in the Automation Clip View.
-                * Disable Audition Pad Shortcuts (SCUT)
+                * `Disable Audition Pad Shortcuts (SCUT)`
                     * When On, audition pad shortcuts are disabled. Holding an audition pad and pressing a shortcut pad
                       will not activate the shortcut and will not change the selected parameter.
                     * When On, to change the selected parameter you will need to either:
@@ -517,10 +523,10 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
         - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
         - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - Mode (MODE):
+    - **`Mode (MODE):`**
         - `Off` disables the arpeggiator.
         - `Arpeggiator` (ARP) enables the arpeggiator.
-    - Octave Modes (OMOD):
+    - **`Octave Modes (OMOD):`**
         - `Up` (UP) will walk the octaves up.
         - `Down` (DOWN) will walk the octaves down.
         - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
@@ -529,7 +535,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           the old `Both` mode.
         - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
           Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - Note Modes (NMOD):
+    - **`Note Modes (NMOD):`**
         - `Up` (UP) will walk the notes up.
         - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
           Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
@@ -545,7 +551,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
           reset itself to start from the beginning.
-    - Ratcheting: There are two new parameters (unpatched, assignable to golden knobs), to control how notes
+    - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
       are ratcheted. A ratchet is when a note repeats itself several time in the same time interval that the
       original note has to play.
         - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
@@ -621,29 +627,26 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
   pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.
 
 #### 4.4.1.5 - Selectable Sidebar Controls
-  - ([#255]) In the keyboard view, a control can be mapped to each column of pads in the sidebar.
-    ([#255]) In the keyboard view, each column of pads can be assigned a control.
-    You can change which control is selected by holding the top pad and turning the horizontal
-    encoder. Controls include:
-    - Velocity (VEL - Red): Low velocity is on the bottom pad and high on the top pad scaled linearly.
+  - ([#901]) In the keyboard view, a control can be mapped to each column of pads in the sidebar. You can change which control is selected by holding the top pad and turning the horizontal encoder. Controls include:
+    - **`Velocity (VEL - Red):`** Low velocity is on the bottom pad and high on the top pad scaled linearly.
       The range can be adjusted by holding the top or bottom pad and scrolling the vertical encoder.
       Hold a pad down to change the velocity of notes played while held. The velocity will return to
       default when you release the pad. Short press a pad to set a new default velocity.
 	  This is called "Momentary" mode and is the default. You can disable it from the main menu:
 	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Velocity (MVEL)
-    - Modwheel (MOD - Blue): This controls the modwheel (Y) setting and has the same
+    - **`Modwheel (MOD - Blue):`** This controls the modwheel (Y) setting and has the same
       controls as the velocity control. Its behaviour is set to "Momentary" by default. You can
 	  disable it from the main menu:
 	  Defaults -> UI -> Keyboard -> Sidebar controls (CTRL) -> Momentary Modwheel (MMOD)
-    - Chords (CHRD - Green): Press and hold or tap to either temporarily set a
+    - **`Chords (CHRD - Green):`** Press and hold or tap to either temporarily set a
       chord or change the default chord. Any note you play will be interpreted as the root note
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
       Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
-    - Chord Memory (CMEM - Cyan): Hold a chord down and press a pad to remember the chord. Press
+    - **`Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear.
-    - Scale Mode (SMOD - Yellow): Press and hold a pad to temporarily change the scale of the
+    - **`Scale Mode (SMOD - Yellow):`** Press and hold a pad to temporarily change the scale of the
       keyboard to the selected scale mode. Tap a scale mode to make it the new default. The scale
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
       holding it down and turning the vertical encoder. If the scale that is going to be set
@@ -766,46 +769,46 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a
 list of all options as listed in OLED and 7SEG displays and what they do:
 
-* Drum Randomizer (DRUM)
+* `Drum Randomizer (DRUM)`
     * When On, the "AUDITION + RANDOM" shortcut is enabled.
-* Fine Tempo Knob (TEMP)
+* `Fine Tempo Knob (TEMP)`
     * When On, the Fine Tempo change option is enabled.
-* Quantize (QUAN)
+* `Quantize (QUAN)`
     * When On, the Note Quantize shortcut is enabled.
-* Mod. Depth Decimals (MOD.)
+* `Mod. Depth Decimals (MOD.)`
     * When On, Modulation Resolution is increased.
-* Catch Notes (CATC)
+* `Catch Notes (CATC)`
     * When Off, existing "Catch Notes" behaviour is disabled.
-* Delete Unused Kit Rows (UNUS)
+* `Delete Unused Kit Rows (UNUS)`
     * When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
-* Alternative Golden Knob Delay Params (DELA)
+* `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* Stutter Rate Quantize (STUT)
+* `Stutter Rate Quantize (STUT)`
     * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
       selecting it is enabled.
-* Allow Insecure Develop Sysex Messages (SYSX)
+* `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
-* Sync Scaling Action (SCAL)
+* `Sync Scaling Action (SCAL)`
     * When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The
       original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
-* Highlight Incoming Notes (HIGH)
+* `Highlight Incoming Notes (HIGH)`
     * When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
-* Display Norns Layout (NORN)
+* `Display Norns Layout (NORN)`
     * When On, enables keyboard layout which emulates monome grid for monome norns using midigrid mod where incoming
       midi
       notes on channel 16 are rendered as white pads using velocity for brightness.
-* Sticky Shift (STIC)
+* `Sticky Shift (STIC)`
     * When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting
       will automatically enable "Light Shift" as well.
-* Light Shift (LIGH)
+* `Light Shift (LIGH)`
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* Grain FX (GRFX)
+* `Grain FX (GRFX)`
     * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
       only use one instance per song or resample and remove instance afterwards.
-* Emulated Display (EMUL)
+* `Emulated Display (EMUL)`
     * This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
     * In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at
       any time.
@@ -965,6 +968,8 @@ different firmware
 [#888]: https://github.com/SynthstromAudible/DelugeFirmware/pull/888
 
 [#889]: https://github.com/SynthstromAudible/DelugeFirmware/pull/889
+
+[#901]: https://github.com/SynthstromAudible/DelugeFirmware/pull/901
 
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 

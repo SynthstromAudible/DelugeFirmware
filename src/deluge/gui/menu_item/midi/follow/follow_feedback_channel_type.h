@@ -17,19 +17,27 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
-#include "storage/flash_storage.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
+#include "util/misc.h"
 
-namespace deluge::gui::menu_item::defaults {
-class SessionLayout final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class FollowFeedbackChannelType final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
-	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
+	void readCurrentValue() override { this->setValue(midiEngine.midiFollowFeedbackChannelType); }
+	void writeCurrentValue() override {
+		midiEngine.midiFollowFeedbackChannelType = this->getValue<MIDIFollowChannelType>();
+	}
 	deluge::vector<std::string_view> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_GRID)};
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_A),
+		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_B),
+		    l10n::getView(STRING_FOR_FOLLOW_CHANNEL_C),
+		    l10n::getView(STRING_FOR_NONE),
+		};
 	}
 };
-} // namespace deluge::gui::menu_item::defaults
+} // namespace deluge::gui::menu_item::midi

@@ -46,10 +46,10 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int32_t setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-	              bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
+	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
-	int32_t cardRoutine();
+	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
@@ -122,17 +122,17 @@ public:
 
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
-	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
-	int32_t alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+	Error writeCluster(int32_t clusterIndex, int32_t numBytes);
+	Error alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
 
-	                  uint64_t dataLengthAfterAction);
-	int32_t finalizeRecordedFile();
-	int32_t createNextCluster();
-	int32_t writeAnyCompletedClusters();
+	                uint64_t dataLengthAfterAction);
+	Error finalizeRecordedFile();
+	Error createNextCluster();
+	Error writeAnyCompletedClusters();
 	void finishCapturing();
 	void updateDataLengthInFirstCluster(Cluster* cluster);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
-	int32_t truncateFileDownToSize(uint32_t newFileSize);
-	int32_t writeOneCompletedCluster();
+	Error truncateFileDownToSize(uint32_t newFileSize);
+	Error writeOneCompletedCluster();
 };

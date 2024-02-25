@@ -16,6 +16,7 @@
  */
 
 #include "processing/sound/sound_drum.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -131,7 +132,7 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-int32_t SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
+Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
 }
 
@@ -155,7 +156,7 @@ void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 void SoundDrum::getName(char* buffer) {
 }
 
-int32_t SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);

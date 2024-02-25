@@ -489,7 +489,7 @@ bool shouldAbortLoading();
 void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
                                     bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
-int32_t fresultToDelugeErrorCode(FRESULT result);
+Error fresultToDelugeErrorCode(FRESULT result);
 
 [[gnu::always_inline]] inline void writeInt16(char** address, uint16_t number) {
 	*(uint16_t*)*address = number;

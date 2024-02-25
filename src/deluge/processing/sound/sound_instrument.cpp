@@ -74,7 +74,7 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and
 // won't store any arp stuff
-int32_t SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
@@ -193,18 +193,18 @@ yesTickParamManagerForClip:
 	}
 }
 
-int32_t SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int32_t error = setupDefaultAudioFileDir();
-		if (error) {
+		Error error = setupDefaultAudioFileDir();
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	int32_t error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
+	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
 	if (doingAlternatePath) {
 		audioFileManager.thingFinishedLoading();

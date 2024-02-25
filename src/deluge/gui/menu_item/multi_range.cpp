@@ -204,7 +204,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;
 			if (!newRange) {
-				display->displayError(ERROR_INSUFFICIENT_RAM);
+				display->displayError(Error::INSUFFICIENT_RAM);
 				return;
 			}
 

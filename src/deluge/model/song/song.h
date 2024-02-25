@@ -118,6 +118,7 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
+	void writeTemplateSong(const char* templateSong);
 	void
 	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
 	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
@@ -142,6 +143,8 @@ public:
 	void changeSwingInterval(int32_t newValue);
 	int32_t convertSyncLevelFromFileValueToInternalValue(int32_t fileValue);
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
+	String getSongFullPath();
+	void setSongFullPath(const char* fullPath);
 
 	GlobalEffectableForSong globalEffectable;
 
@@ -218,7 +221,7 @@ public:
 
 	String dirPath;
 
-	bool getAnyClipsSoloing();
+	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
 	void setCurrentClip(Clip* clip) {
 		if (currentClip != nullptr) {
@@ -234,7 +237,7 @@ public:
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
-	int32_t readFromFile();
+	Error readFromFile();
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
@@ -279,7 +282,7 @@ public:
 	void deleteOrAddToHibernationListOutput(Output* output);
 	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output);
 	void assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime = -1);
-	bool isClipActive(Clip* clip);
+	bool isClipActive(Clip* clip) const;
 	void sendAllMIDIPGMs();
 	void sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int32_t playbackWillStartInArrangerAtPos);
 	void deactivateAnyArrangementOnlyClips();
@@ -299,7 +302,7 @@ public:
 	Output* getOutputFromIndex(int32_t index);
 	void ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* errorMessageNormal,
 	                                                         char const* errorMessageHibernating);
-	int32_t placeFirstInstancesOfActiveClips(int32_t pos);
+	Error placeFirstInstancesOfActiveClips(int32_t pos);
 	void endInstancesOfActiveClips(int32_t pos, bool detachClipsToo = false);
 	void clearArrangementBeyondPos(int32_t pos, Action* action);
 	void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip);
@@ -340,7 +343,7 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
 	                                          int32_t whichBendRange, int32_t bendSemitones);
-	int32_t addInstrumentsToFileItems(OutputType outputType);
+	Error addInstrumentsToFileItems(OutputType outputType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
@@ -383,12 +386,14 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
+	int32_t countAudioClips() const;
+
 private:
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
-	int32_t readClipsFromFile(ClipArray* clipArray);
+	Error readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
 	void deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector = true);
 	void deleteAllBackedUpParamManagersWithClips();

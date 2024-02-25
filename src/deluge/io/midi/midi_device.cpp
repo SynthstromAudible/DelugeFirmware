@@ -122,9 +122,8 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 			else if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel < 15 && channel == 15) {
 				zone = MPE_ZONE_UPPER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
-				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
-				    .moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says
-				                                         // to do this).
+				// Move other zone out of the way if necessary (MPE spec says to do this).
+				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveLowerZoneOutOfWayOfUpperZone();
 
 				goto resetBendRanges;
 			}
@@ -323,10 +322,9 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 			char const* tagName;
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "numMemberChannels")) {
-
-					if (mpeUpperZoneLastMemberChannel
-					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it
-						         // since the file was last read.
+					// If value was already set, then leave it - the user or an MCM might have changed it since the file
+					// was last read.
+					if (mpeUpperZoneLastMemberChannel == 15) {
 						int32_t numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
@@ -435,8 +433,8 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	// byte groups, we must include the first byte after the address in that first group.
 	if (developerSysexCodeReceived && (data[1] != 0x7D)) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
-		uint32_t packed =
-		    ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4); // fake 0xF0, 0x7D, data[5] for first send
+		// fake 0xF0, 0x7D, data[5] for first send
+		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
 		connectedDevice->bufferMessage(packed);
 		pos = 6;
 	}
@@ -522,9 +520,8 @@ void MIDIDeviceUSBHosted::callHook(Hook hook) {
 }
 
 void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute(
-	    "port", portNumber ? "upstreamUSB2" : "upstreamUSB",
-	    false); // Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
+	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
+	storageManager.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false);
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
@@ -546,8 +543,8 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 }
 
 void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "din",
-	                              false); // Same line. Usually the user wouldn't have default velocity sensitivity set
+	// Same line. Usually the user wouldn't have default velocity sensitivity set
+	storageManager.writeAttribute("port", "din", false);
 }
 
 void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {

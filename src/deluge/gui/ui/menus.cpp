@@ -32,6 +32,7 @@
 #include "gui/menu_item/defaults/metronome_volume.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
+#include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -70,6 +71,7 @@
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
+#include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -306,7 +308,9 @@ arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
                                                                            STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::NoteMode arpeggiator::arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
+                                                                               STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
@@ -341,7 +345,7 @@ submenu::Arpeggiator arpMenu{
         &arpGateMenuMIDIOrCV,
         &arpOctavesMenu,
         &arpOctaveModeMenu,
-        &arpeggiator::arpNoteModeMenu,
+        &arpNoteModeMenu,
         &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV,
         &arpRatchetAmountMenu,
@@ -855,8 +859,7 @@ midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_F
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
                                       midiEngine.midiFollowDisplayParam};
-midi::FollowChannel midiFollowChannelFeedbackMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL,
-                                                  MIDIFollowChannelType::FEEDBACK};
+midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
@@ -875,7 +878,7 @@ Submenu midiFollowFeedbackSubmenu{
     STRING_FOR_FOLLOW_FEEDBACK,
     STRING_FOR_FOLLOW_FEEDBACK,
     {
-        &midiFollowChannelFeedbackMenu,
+        &midiFollowFeedbackChannelMenu,
         &midiFollowFeedbackAutomationMenu,
         &midiFollowFeedbackFilterMenu,
     },
@@ -1104,21 +1107,14 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
+defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
-    {
-        &defaultUI,
-        &defaultAutomationMenu,
-        &defaultTempoMenu,
-        &defaultSwingMenu,
-        &defaultKeyMenu,
-        &defaultScaleMenu,
-        &defaultVelocityMenu,
-        &defaultMagnitudeMenu,
-        &defaultBendRangeMenu,
-        &defaultMetronomeVolumeMenu,
-    },
+    {&defaultUI, &defaultAutomationMenu, &defaultTempoMenu, &defaultSwingMenu, &defaultKeyMenu, &defaultScaleMenu,
+     &defaultVelocityMenu, &defaultMagnitudeMenu, &defaultBendRangeMenu, &defaultMetronomeVolumeMenu,
+     &defaultStartupSongMenu},
 };
 
 // Sound editor menu -----------------------------------------------------------------------------

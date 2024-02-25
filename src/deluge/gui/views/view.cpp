@@ -1405,20 +1405,23 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	int32_t channel =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
-	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-			if (ccNumber != MIDI_CC_NONE) {
-				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		int32_t channel =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
+		        .channelOrZone;
+		if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+				if (ccNumber != MIDI_CC_NONE) {
+					((ModControllableAudio*)activeModControllableModelStack.modControllable)
+					    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+				}
 			}
-		}
-		else {
-			((ModControllableAudio*)activeModControllableModelStack.modControllable)
-			    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			else {
+				((ModControllableAudio*)activeModControllableModelStack.modControllable)
+				    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			}
 		}
 	}
 }
@@ -1985,7 +1988,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 				newInstrument = storageManager.createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -2004,8 +2007,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 gotAnInstrument:
 
-			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -2024,12 +2027,12 @@ gotAnInstrument:
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
-		if (results.error == NO_ERROR_BUT_GET_OUT) {
+		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
-		else if (results.error) {
+		if (results.error != Error::NONE) {
 			display->displayError(results.error);
 			goto getOut;
 		}
@@ -2085,8 +2088,8 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in
 			// there)
 
-			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {

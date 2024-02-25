@@ -23,8 +23,8 @@ MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob)) {
 }
 
 MIDIKnob* MidiKnobArray::insertKnob(int32_t i) {
-	int32_t error = insertAtIndex(i);
-	if (error) {
+	Error error = insertAtIndex(i);
+	if (error != Error::NONE) {
 		return NULL;
 	}
 	else {

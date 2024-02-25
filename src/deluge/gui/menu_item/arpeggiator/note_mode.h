@@ -26,7 +26,7 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class NoteMode final : public Selection {
+class NoteMode : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->noteMode); }
@@ -51,5 +51,16 @@ public:
 	}
 };
 
-extern NoteMode arpNoteModeMenu;
+class NoteModeFromOctaveMode final : public NoteMode {
+public:
+	using NoteMode::NoteMode;
+	void readCurrentValue() override {
+		if (display->have7SEG()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
+		}
+		NoteMode::readCurrentValue();
+	}
+};
+
+extern NoteModeFromOctaveMode arpNoteModeFromOctaveModeMenu;
 } // namespace deluge::gui::menu_item::arpeggiator
