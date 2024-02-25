@@ -391,13 +391,6 @@ noEmptySpace:
 			return NULL;
 		}
 
-#if 0 && TEST_GENERAL_MEMORY_ALLOCATION
-		if (allocatedSize < requiredSize) {
-			D_PRINTLN("freeSomeStealableMemory() got too little memory");
-			while (1);
-		}
-#endif
-
 		// D_PRINTLN("Reclaimed");
 
 		// See if there was some extra space left over
