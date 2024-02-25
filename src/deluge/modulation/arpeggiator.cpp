@@ -23,13 +23,9 @@
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 
+#define MIN_MPE_MODULATED_VELOCITY 10
+
 ArpeggiatorSettings::ArpeggiatorSettings() {
-	numOctaves = 2;
-	mode = ArpMode::OFF;
-	noteMode = ArpNoteMode::UP;
-	octaveMode = ArpOctaveMode::UP;
-	preset = ArpPreset::OFF;
-	flagForceArpRestart = false;
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
 	// current song, or even better the one being preloaded. Default sync level is used obviously for the default synth
@@ -450,6 +446,20 @@ finishDrumSwitchNoteOn:
 
 	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
+	// Check if we need to update velocity with some MPE value
+	switch (settings->mpeVelocity) {
+	case ArpMpeModSource::AFTERTOUCH:
+		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+		break;
+	case ArpMpeModSource::MPE_Y:
+		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		break;
+	}
+	// Fix velocity if it's too low
+	if (arpNote.velocity < MIN_MPE_MODULATED_VELOCITY) {
+		arpNote.velocity = MIN_MPE_MODULATED_VELOCITY;
+	}
+
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
 }
@@ -635,6 +645,20 @@ finishSwitchNoteOn:
 	}
 	else {
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
+	}
+
+	// Check if we need to update velocity with some MPE value
+	switch (settings->mpeVelocity) {
+	case ArpMpeModSource::AFTERTOUCH:
+		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+		break;
+	case ArpMpeModSource::MPE_Y:
+		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		break;
+	}
+	// Fix velocity if it's too low
+	if (arpNote->velocity < MIN_MPE_MODULATED_VELOCITY) {
+		arpNote->velocity = MIN_MPE_MODULATED_VELOCITY;
 	}
 
 	noteCodeCurrentlyOnPostArp =

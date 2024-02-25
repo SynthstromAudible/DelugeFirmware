@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
@@ -131,8 +132,44 @@ lookAtArpNote:
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
-			// If there's actual arpeggiation happening right now...
-			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+			// If there's actual arpeggiation happening right now and noteMode is not AS_PLAYED...
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF
+			    && settings->noteMode != ArpNoteMode::AS_PLAYED) {
+				// If it's not this noteCode's turn, then do nothing with it
+				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
+					continue;
+				}
+
+				// Otherwise, just take note of which octave is currently outputting
+				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
+
+				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still
+				// be sounding on the connected synth, so this probably makes sense
+			}
+
+			// Send this even if arp is on and this note isn't currently sounding: its release might still be
+			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
+			                                         arpNote);
+		}
+	}
+	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
+	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+
+			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a
+			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
+			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
+			// work.
+			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+
+			int32_t noteCodeBeforeArpeggiation =
+			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
+
+			// If there's actual arpeggiation happening right now and noteMode is AS_PLAYED...
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF
+			    && settings->noteMode == ArpNoteMode::AS_PLAYED) {
 				// If it's not this noteCode's turn, then do nothing with it
 				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
 					continue;
