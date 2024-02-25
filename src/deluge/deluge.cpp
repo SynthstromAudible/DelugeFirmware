@@ -455,15 +455,15 @@ void setupStartupSong() {
 
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE:
-	case StartupSongMode::LASTOPENED:
-	case StartupSongMode::LASTSAVED: {
-		if (startupSongMode == StartupSongMode::TEMPLATE) {
-			auto templatePath = "SONGS/DEFAULT.XML";
-			setupBlankSong();
-			if (!storageManager.fileExists(templatePath)) {
-				currentSong->writeTemplateSong(templatePath);
-			}
+		auto templatePath = "SONGS/DEFAULT.XML";
+		setupBlankSong();
+		if (!storageManager.fileExists(templatePath)) {
+			currentSong->writeTemplateSong(templatePath);
 		}
+		[[fallthrough]];
+	case StartupSongMode::LASTOPENED:
+		[[fallthrough]];
+	case StartupSongMode::LASTSAVED: {
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong = new (songMemory) Song();
 		auto filename =
@@ -481,6 +481,7 @@ void setupStartupSong() {
 		}
 	} break;
 	case StartupSongMode::BLANK:
+		[[fallthrough]];
 	default:
 		setupBlankSong();
 	}
