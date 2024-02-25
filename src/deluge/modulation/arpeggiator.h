@@ -36,6 +36,7 @@ public:
 		mode = other->mode;
 		noteMode = other->noteMode;
 		octaveMode = other->octaveMode;
+		mpeVelocity = other->mpeVelocity;
 	}
 
 	void updatePresetFromCurrentSettings() {
@@ -83,21 +84,30 @@ public:
 			octaveMode = ArpOctaveMode::RANDOM;
 			noteMode = ArpNoteMode::RANDOM;
 		}
+		else if (preset == ArpPreset::CUSTOM) {
+			mode = ArpMode::ARP;
+			// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
+			// shortcut, we can provide here some default starting settings that user can change later with the menus.
+			octaveMode = ArpOctaveMode::UP;
+			noteMode = ArpNoteMode::UP;
+		}
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
 	// Settings
-	ArpPreset preset;
-	ArpMode mode;
-	ArpNoteMode noteMode;
-	ArpOctaveMode octaveMode;
+	ArpPreset preset{ArpPreset::OFF};
+	ArpMode mode{ArpMode::OFF};
+	ArpNoteMode noteMode{ArpNoteMode::UP};
+	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
 
-	uint8_t numOctaves;
+	uint8_t numOctaves{2};
 	SyncLevel syncLevel;
 	SyncType syncType;
 
-	bool flagForceArpRestart;
+	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
+
+	bool flagForceArpRestart{false};
 };
 
 struct ArpNote {
@@ -135,11 +145,8 @@ public:
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
-	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
-	void resetRatchet();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
@@ -168,6 +175,9 @@ public:
 	uint32_t ratchetAmount = 0;
 
 protected:
+	void resetRatchet();
+	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
