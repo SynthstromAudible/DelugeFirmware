@@ -130,7 +130,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 		// Go through all Outputs
 		for (Output* output = currentSong->firstOutput; output; output = output->next) {
 
-			if (output->needsPriority() == (iPass == 1)) {
+			if (output->needsEarlyPlayback() == (iPass == 1)) {
 				continue; // First time through, skip anything but priority clips, which must take effect first
 				          // 2nd time through, skip the priority clips already actioned.
 			}

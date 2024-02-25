@@ -1296,6 +1296,12 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
+	// Must also do auditioned notes, since transpose can now be sequenced and change
+	// noterows while we hold an audition pad.
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStackWithSong = setupModelStackWithSong(modelStackMemory, currentSong);
+	output->stopAnyAuditioning(modelStackWithSong);
+
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		thisNoteRow->y += semitones;

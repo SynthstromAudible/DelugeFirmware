@@ -203,6 +203,6 @@ bool NonAudioInstrument::readTagFromFile(char const* tagName) {
 	return true;
 }
 
-bool NonAudioInstrument::needsPriority() {
+bool NonAudioInstrument::needsEarlyPlayback() const {
 	return (type == OutputType::MIDI_OUT && channel == MIDI_CHANNEL_TRANSPOSE);
 }
