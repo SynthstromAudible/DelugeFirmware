@@ -48,7 +48,6 @@ public:
 	// TODO (Kate): investigate a shared_ptr for start_
 	constexpr void invalidate() { start_ = nullptr; }
 
-
 	void makeNativeRatePrecise();
 	void makeNativeRatePreciseRelativeToOtherBuffer(const DelayBuffer& otherBuffer);
 
@@ -345,7 +344,6 @@ public:
 	void clear();
 
 	constexpr void setCurrent(StereoSample* sample) { current_ = sample; }
-
 
 	// TODO (Kate): Make it so the ModControllableFX stuff isn't touching these.
 	// That behavior should either be contained in this class or Delay or a new Stutterer class

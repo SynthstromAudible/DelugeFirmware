@@ -70,14 +70,14 @@ setupSecondaryBuffer:
 
 void Delay::copySecondaryToPrimary() {
 	primaryBuffer.discard();
-	primaryBuffer = secondaryBuffer;  // Does actual copying
-	secondaryBuffer.invalidate(); // Make sure this doesn't try to get "deallocated" later
+	primaryBuffer = secondaryBuffer; // Does actual copying
+	secondaryBuffer.invalidate();    // Make sure this doesn't try to get "deallocated" later
 }
 
 void Delay::copyPrimaryToSecondary() {
 	secondaryBuffer.discard();
 	secondaryBuffer = primaryBuffer; // Does actual copying
-	primaryBuffer.invalidate();  // Make sure this doesn't try to get "deallocated" later
+	primaryBuffer.invalidate();      // Make sure this doesn't try to get "deallocated" later
 }
 
 void Delay::prepareToBeginWriting() {
@@ -85,8 +85,7 @@ void Delay::prepareToBeginWriting() {
 }
 
 // Set the rate and feedback in the workingState before calling this
-void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerInternalTickInverse,
-                              bool anySoundComingIn) {
+void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
 	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the

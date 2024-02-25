@@ -46,8 +46,7 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse,
-	                       bool anySoundComingIn = true);
+	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(const State& workingState);
 	void hasWrapped();

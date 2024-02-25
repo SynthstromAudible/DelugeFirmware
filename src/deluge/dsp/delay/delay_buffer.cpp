@@ -79,8 +79,8 @@ void DelayBuffer::makeNativeRatePrecise() {
 }
 
 void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(const DelayBuffer& otherBuffer) {
-	double otherBufferAmountTooFast = (double)otherBuffer.native_rate_ * (double)otherBuffer.size_
-	                                  / ((double)kNeutralSize * (double)kMaxSampleValue);
+	double otherBufferAmountTooFast =
+	    (double)otherBuffer.native_rate_ * (double)otherBuffer.size_ / ((double)kNeutralSize * (double)kMaxSampleValue);
 	native_rate_ =
 	    round((double)kNeutralSize * (double)kMaxSampleValue * otherBufferAmountTooFast / (double)size_);
 }
