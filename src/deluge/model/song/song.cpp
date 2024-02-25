@@ -3204,7 +3204,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 	return 25; // "Z"
 }
 
-bool Song::getAnyClipsSoloing() {
+bool Song::getAnyClipsSoloing() const {
 	return anyClipsSoloing;
 }
 
@@ -4165,7 +4165,7 @@ traverseClips:
 	output->setActiveClip(modelStack);
 }
 
-bool Song::isClipActive(Clip* clip) {
+bool Song::isClipActive(Clip* clip) const {
 	return clip->soloingInSessionMode || (clip->activeIfNoSolo && !getAnyClipsSoloing());
 }
 
@@ -5538,7 +5538,7 @@ int32_t Song::countAudioClips() const {
 			if (output->activeClip) {
 				AudioClip* clip = (AudioClip*)output->activeClip;
 				// this seems to be the only way to find whether the voice is sounding
-				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
+				if (isClipActive(clip)) {
 					i++;
 				}
 			}

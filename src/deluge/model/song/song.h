@@ -221,7 +221,7 @@ public:
 
 	String dirPath;
 
-	bool getAnyClipsSoloing();
+	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
 	void setCurrentClip(Clip* clip) {
 		if (currentClip != nullptr) {
@@ -282,7 +282,7 @@ public:
 	void deleteOrAddToHibernationListOutput(Output* output);
 	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output);
 	void assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime = -1);
-	bool isClipActive(Clip* clip);
+	bool isClipActive(Clip* clip) const;
 	void sendAllMIDIPGMs();
 	void sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int32_t playbackWillStartInArrangerAtPos);
 	void deactivateAnyArrangementOnlyClips();
