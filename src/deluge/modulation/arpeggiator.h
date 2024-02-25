@@ -36,6 +36,7 @@ public:
 		mode = other->mode;
 		noteMode = other->noteMode;
 		octaveMode = other->octaveMode;
+		mpeVelocity = other->mpeVelocity;
 	}
 
 	void updatePresetFromCurrentSettings() {
@@ -83,6 +84,13 @@ public:
 			octaveMode = ArpOctaveMode::RANDOM;
 			noteMode = ArpNoteMode::RANDOM;
 		}
+		else if (preset == ArpPreset::CUSTOM) {
+			mode = ArpMode::ARP;
+			// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
+			// shortcut, we can provide here some default starting settings that user can change later with the menus.
+			octaveMode = ArpOctaveMode::UP;
+			noteMode = ArpNoteMode::UP;
+		}
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
@@ -97,7 +105,7 @@ public:
 	SyncLevel syncLevel;
 	SyncType syncType;
 
-	bool mpePressureToVelocity{true};
+	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
 
 	bool flagForceArpRestart{false};
 };

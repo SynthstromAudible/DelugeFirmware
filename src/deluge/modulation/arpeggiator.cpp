@@ -23,6 +23,8 @@
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 
+#define MIN_MPE_MODULATED_VELOCITY 10
+
 ArpeggiatorSettings::ArpeggiatorSettings() {
 
 	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the
@@ -444,11 +446,20 @@ finishDrumSwitchNoteOn:
 
 	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
-	int16_t currentNotePressure = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)];
-	if (settings->mpePressureToVelocity && currentNotePressure > 0) {
-		// If "MPE pressure to velocity" is enabled and we have some pressure applied, we need to set the velocity here
-		arpNote.velocity = currentNotePressure >> 8;
+	// Check if we need to update velocity with some MPE value
+	switch (settings->mpeVelocity) {
+	case ArpMpeModSource::AFTERTOUCH:
+		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+		break;
+	case ArpMpeModSource::MPE_Y:
+		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		break;
 	}
+	// Fix velocity if it's too low
+	if (arpNote.velocity < MIN_MPE_MODULATED_VELOCITY) {
+		arpNote.velocity = MIN_MPE_MODULATED_VELOCITY;
+	}
+
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
 }
@@ -636,11 +647,20 @@ finishSwitchNoteOn:
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
 
-	int16_t currentNotePressure = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)];
-	if (settings->mpePressureToVelocity && currentNotePressure > 0) {
-		// If "MPE pressure to velocity" is enabled and we have some pressure applied, we need to set the velocity here
-		arpNote->velocity = currentNotePressure >> 8;
+	// Check if we need to update velocity with some MPE value
+	switch (settings->mpeVelocity) {
+	case ArpMpeModSource::AFTERTOUCH:
+		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+		break;
+	case ArpMpeModSource::MPE_Y:
+		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		break;
 	}
+	// Fix velocity if it's too low
+	if (arpNote->velocity < MIN_MPE_MODULATED_VELOCITY) {
+		arpNote->velocity = MIN_MPE_MODULATED_VELOCITY;
+	}
+
 	noteCodeCurrentlyOnPostArp =
 	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
 

@@ -15,15 +15,33 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/toggle.h"
+#include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class MpePressureToVelocity final : public Toggle {
+class ArpMpeVelocity final : public Selection {
 public:
-	using Toggle::Toggle;
-	// this is safe since it's only shown in midi clips
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mpePressureToVelocity); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->mpePressureToVelocity = this->getValue(); }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mpeVelocity); }
+	void writeCurrentValue() override {
+		soundEditor.currentArpSettings->mpeVelocity = this->getValue<ArpMpeModSource>();
+	}
+
+	deluge::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_DISABLED),                //<
+		    l10n::getView(STRING_FOR_PATCH_SOURCE_AFTERTOUCH), //<
+		    l10n::getView(STRING_FOR_PATCH_SOURCE_Y),          //<
+		    l10n::getView(STRING_FOR_PATCH_SOURCE_X),          //<
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

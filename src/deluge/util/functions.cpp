@@ -1092,6 +1092,37 @@ ArpOctaveMode stringToArpOctaveMode(char const* string) {
 	}
 }
 
+char const* arpMpeModSourceToString(ArpMpeModSource modSource) {
+	switch (modSource) {
+	case ArpMpeModSource::MPE_X:
+		return "x";
+
+	case ArpMpeModSource::MPE_Y:
+		return "y";
+
+	case ArpMpeModSource::AFTERTOUCH:
+		return "z";
+
+	default:
+		return "off";
+	}
+}
+
+ArpMpeModSource stringToArpMpeModSource(char const* string) {
+	if (!strcmp(string, "x")) {
+		return ArpMpeModSource::MPE_X;
+	}
+	else if (!strcmp(string, "y")) {
+		return ArpMpeModSource::MPE_Y;
+	}
+	else if (!strcmp(string, "z")) {
+		return ArpMpeModSource::AFTERTOUCH;
+	}
+	else {
+		return ArpMpeModSource::OFF;
+	}
+}
+
 char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
 	case AudioInputChannel::LEFT:

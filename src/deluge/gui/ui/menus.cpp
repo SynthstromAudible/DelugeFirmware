@@ -5,11 +5,11 @@
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
 #include "gui/menu_item/arpeggiator/mode.h"
+#include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
-#include "gui/menu_item/arpeggiator/pressure_to_velocity.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
@@ -327,9 +327,8 @@ arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 // Arp: MPE
-arpeggiator::MpePressureToVelocity arpPressureToVelocityMenu{STRING_FOR_PRESSURE_TO_VELOCITY,
-                                                             STRING_FOR_PRESSURE_TO_VELOCITY};
-Submenu arpMpeMenu{STRING_FOR_MPE, {&arpPressureToVelocityMenu}};
+arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
+Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
