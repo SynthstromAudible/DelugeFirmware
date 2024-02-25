@@ -77,8 +77,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	int32_t pitchAdjust =
 	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-	DelayWorkingState delayWorkingState;
-	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	Delay::State delayWorkingState = createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
 
 	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
@@ -174,7 +173,7 @@ doNormal:
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
+		                             delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,

@@ -171,7 +171,7 @@ void ModControllableAudio::setWrapsToShutdown() {
 }
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, DelayWorkingState* delayWorkingState, int32_t* postFXVolume,
+                                     int32_t modFXDepth, Delay::State& delayWorkingState, int32_t* postFXVolume,
                                      ParamManager* paramManager, int32_t analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -535,13 +535,13 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	DelayBuffer::Config delayPrimarySetup;
-	DelayBuffer::Config delaySecondarySetup;
+	DelayBuffer::Config delayPrimarySetup{};
+	DelayBuffer::Config delaySecondarySetup{};
 
-	if (delayWorkingState->doDelay) {
+	if (delayWorkingState.doDelay) {
 
-		if (delayWorkingState->userDelayRate != delay.userRateLastTime) {
-			delay.userRateLastTime = delayWorkingState->userDelayRate;
+		if (delayWorkingState.userDelayRate != delay.userRateLastTime) {
+			delay.userRateLastTime = delayWorkingState.userDelayRate;
 			delay.countCyclesWithoutChange = 0;
 		}
 		else {
@@ -553,34 +553,34 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 			// If resampling previously recorded as happening, or just about to be recorded as happening
 			if (delay.primaryBuffer.isResampling()
-			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate()) {
+			    || delayWorkingState.userDelayRate != delay.primaryBuffer.nativeRate()) {
 
 				// If delay speed has settled for a split second...
 				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
 					// D_PRINTLN("settling");
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
+					initializeSecondaryDelayBuffer(delayWorkingState.userDelayRate, true);
 				}
 
 				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
 				// (smaller) buffer at our new rate
-				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate() << 1)) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, false);
+				else if (delayWorkingState.userDelayRate >= (delay.primaryBuffer.nativeRate() << 1)) {
+					initializeSecondaryDelayBuffer(delayWorkingState.userDelayRate, false);
 				}
 
 				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
 				// rate is half our current rate (double the quality)
-				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate()) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate >> 1, false);
+				else if (delayWorkingState.userDelayRate < delay.primaryBuffer.nativeRate()) {
+					initializeSecondaryDelayBuffer(delayWorkingState.userDelayRate >> 1, false);
 				}
 			}
 		}
 
 		// Figure some stuff out for the primary buffer
-		delay.primaryBuffer.setupForRender(delayWorkingState->userDelayRate, delayPrimarySetup);
+		delay.primaryBuffer.setupForRender(delayWorkingState.userDelayRate, delayPrimarySetup);
 
 		// Figure some stuff out for the secondary buffer - only if it's active
 		if (delay.secondaryBuffer.isActive()) {
-			delay.secondaryBuffer.setupForRender(delayWorkingState->userDelayRate, delaySecondarySetup);
+			delay.secondaryBuffer.setupForRender(delayWorkingState.userDelayRate, delaySecondarySetup);
 		}
 
 		bool wrapped = false;
@@ -682,11 +682,11 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 					// Reduce headroom, since this sounds ok with analog sim
 					workingBufferPos[0] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount),
+					    getTanHUnknown(multiply_32x32_rshift32(fromDelayL, delayWorkingState.delayFeedbackAmount),
 					                   analogDelaySaturationAmount)
 					    << 2;
 					workingBufferPos[1] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
+					    getTanHUnknown(multiply_32x32_rshift32(fromDelayR, delayWorkingState.delayFeedbackAmount),
 					                   analogDelaySaturationAmount)
 					    << 2;
 
@@ -700,10 +700,10 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			do {
 				// Leave more headroom, because making it clip sounds bad with pure digital
 				workingBufferPos[0] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[0], delayWorkingState->delayFeedbackAmount))
+				                          workingBufferPos[0], delayWorkingState.delayFeedbackAmount))
 				                      << 2;
 				workingBufferPos[1] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[1], delayWorkingState->delayFeedbackAmount))
+				                          workingBufferPos[1], delayWorkingState.delayFeedbackAmount))
 				                      << 2;
 
 				workingBufferPos += 2;
@@ -740,16 +740,16 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				/*
 				if (delay.analog) {
 				    // Reduce headroom, since this sounds ok with analog sim
-				    fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 8)
-				<< 2; fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
+				    fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState.delayFeedbackAmount), 8)
+				<< 2; fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState.delayFeedbackAmount),
 				8) << 2;
 				}
 
 				else {
 				    fromDelayL =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) <<
+				signed_saturate<delayWorkingState.delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) <<
 				2; fromDelayR =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) <<
+				signed_saturate<delayWorkingState.delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) <<
 				2;
 				}
 				*/

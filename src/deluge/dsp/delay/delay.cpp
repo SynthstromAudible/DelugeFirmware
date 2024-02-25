@@ -85,97 +85,97 @@ void Delay::prepareToBeginWriting() {
 }
 
 // Set the rate and feedback in the workingState before calling this
-void Delay::setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+void Delay::setupWorkingState(Delay::State& workingState, uint32_t timePerInternalTickInverse,
                               bool anySoundComingIn) {
 
 	// Set some stuff up that we need before we make some decisions
 	// BUG: we want to be able to reduce the 256 to 1, but for some reason, the
 	// patching engine spits out 112 even when this should be 0...
-	bool mightDoDelay = (workingState->delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
+	bool mightDoDelay = (workingState.delayFeedbackAmount >= 256 && (anySoundComingIn || repeatsUntilAbandon));
 
 	if (mightDoDelay) {
 
 		if (syncLevel != 0) {
 
-			workingState->userDelayRate =
-			    multiply_32x32_rshift32_rounded(workingState->userDelayRate, timePerInternalTickInverse);
+			workingState.userDelayRate =
+			    multiply_32x32_rshift32_rounded(workingState.userDelayRate, timePerInternalTickInverse);
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (syncLevel + 5);
-			workingState->userDelayRate = std::min(workingState->userDelayRate, limit);
+			workingState.userDelayRate = std::min(workingState.userDelayRate, limit);
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
 			else if (syncType == SYNC_TYPE_TRIPLET) {
-				workingState->userDelayRate = workingState->userDelayRate * 3 / 2;
+				workingState.userDelayRate = workingState.userDelayRate * 3 / 2;
 			}
 			else if (syncType == SYNC_TYPE_DOTTED) {
-				workingState->userDelayRate = workingState->userDelayRate * 2 / 3;
+				workingState.userDelayRate = workingState.userDelayRate * 2 / 3;
 			}
-			workingState->userDelayRate <<= (syncLevel + 5);
+			workingState.userDelayRate <<= (syncLevel + 5);
 		}
 	}
 
 	// Tell it to allocate memory if that hasn't already happened
-	informWhetherActive(mightDoDelay, workingState->userDelayRate);
-	workingState->doDelay = isActive(); // Check that ram actually is allocated
+	informWhetherActive(mightDoDelay, workingState.userDelayRate);
+	workingState.doDelay = isActive(); // Check that ram actually is allocated
 
-	if (workingState->doDelay) {
+	if (workingState.doDelay) {
 		// If feedback has changed, or sound is coming in, reassess how long to leave the delay sounding for
-		if (anySoundComingIn || workingState->delayFeedbackAmount != prevFeedback) {
+		if (anySoundComingIn || workingState.delayFeedbackAmount != prevFeedback) {
 			setTimeToAbandon(workingState);
-			prevFeedback = workingState->delayFeedbackAmount;
+			prevFeedback = workingState.delayFeedbackAmount;
 		}
 	}
 }
 
-void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
+void Delay::setTimeToAbandon(const Delay::State& workingState) {
 
-	if (!workingState->doDelay) {
+	if (!workingState.doDelay) {
 		repeatsUntilAbandon = 0;
 	}
-	else if (workingState->delayFeedbackAmount < 33554432) {
+	else if (workingState.delayFeedbackAmount < 33554432) {
 		repeatsUntilAbandon = 1;
 	}
-	else if (workingState->delayFeedbackAmount <= 100663296) {
+	else if (workingState.delayFeedbackAmount <= 100663296) {
 		repeatsUntilAbandon = 2;
 	}
-	else if (workingState->delayFeedbackAmount <= 218103808) {
+	else if (workingState.delayFeedbackAmount <= 218103808) {
 		repeatsUntilAbandon = 3;
 	}
-	else if (workingState->delayFeedbackAmount < 318767104) {
+	else if (workingState.delayFeedbackAmount < 318767104) {
 		repeatsUntilAbandon = 4;
 	}
-	else if (workingState->delayFeedbackAmount < 352321536) {
+	else if (workingState.delayFeedbackAmount < 352321536) {
 		repeatsUntilAbandon = 5;
 	}
-	else if (workingState->delayFeedbackAmount < 452984832) {
+	else if (workingState.delayFeedbackAmount < 452984832) {
 		repeatsUntilAbandon = 6;
 	}
-	else if (workingState->delayFeedbackAmount < 520093696) {
+	else if (workingState.delayFeedbackAmount < 520093696) {
 		repeatsUntilAbandon = 9;
 	}
-	else if (workingState->delayFeedbackAmount < 637534208) {
+	else if (workingState.delayFeedbackAmount < 637534208) {
 		repeatsUntilAbandon = 12;
 	}
-	else if (workingState->delayFeedbackAmount < 704643072) {
+	else if (workingState.delayFeedbackAmount < 704643072) {
 		repeatsUntilAbandon = 13;
 	}
-	else if (workingState->delayFeedbackAmount < 771751936) {
+	else if (workingState.delayFeedbackAmount < 771751936) {
 		repeatsUntilAbandon = 18;
 	}
-	else if (workingState->delayFeedbackAmount < 838860800) {
+	else if (workingState.delayFeedbackAmount < 838860800) {
 		repeatsUntilAbandon = 24;
 	}
-	else if (workingState->delayFeedbackAmount < 939524096) {
+	else if (workingState.delayFeedbackAmount < 939524096) {
 		repeatsUntilAbandon = 40;
 	}
-	else if (workingState->delayFeedbackAmount < 1040187392) {
+	else if (workingState.delayFeedbackAmount < 1040187392) {
 		repeatsUntilAbandon = 110;
 	}
 	else {
 		repeatsUntilAbandon = 255;
 	}
 
-	// if (!getRandom255()) D_PRINTLN(workingState->delayFeedbackAmount);
+	// if (!getRandom255()) D_PRINTLN(workingState.delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {

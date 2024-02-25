@@ -22,14 +22,14 @@
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
 
-struct DelayWorkingState {
-	bool doDelay;
-	int32_t userDelayRate;
-	int32_t delayFeedbackAmount;
-};
-
 class Delay {
 public:
+	struct State {
+		bool doDelay;
+		int32_t userDelayRate;
+		int32_t delayFeedbackAmount;
+	};
+
 	Delay() = default;
 	Delay(const Delay& other) = delete;
 
@@ -46,10 +46,10 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
+	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse,
 	                       bool anySoundComingIn = true);
 	void discardBuffers();
-	void setTimeToAbandon(DelayWorkingState* workingState);
+	void setTimeToAbandon(const State& workingState);
 	void hasWrapped();
 
 	DelayBuffer primaryBuffer;
