@@ -60,7 +60,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 		- When set to chromatic mode:
 			- incoming notes set the root note. Scale mode clips are all transposed chromatically.
 			- MIDI clips routed to 'Transpose' cannot be in scale mode. Existing clips of this type will drop back to chromatic mode, and pressing the Scale button will display 'CANT'.
-	- Choice of octave is determined by the first note received by each song (this is reset on each song load). The first transpostino will move the root note by at most a fifth, to the closest matching note. Subsequent transpose events will respect the octave as normal.
+	- Choice of octave is determined by the first note received by each song (this is reset on each song load). The first transposition will move the root note by at most a fifth, to the closest matching note. Subsequent transpose events will respect the octave as normal.
 		- Eg. Song is in C major. Transpose receives a D3. Regardless of whether the song is just a bassline, or pads, or a high synth part, it all goes up to D Dorian or D Major depending on the inkey/chromatic setting. After that a D4 will put everything up an octave. If instead the first transpose is a D4, this will initially only go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
 	- **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently playing notes. Clip playback ensures transpose clips play first to affect new notes starting at the same position correctly, but any already sounding notes will be stopped.
 
