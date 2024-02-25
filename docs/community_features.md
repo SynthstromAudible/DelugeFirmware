@@ -547,7 +547,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - `Sequence Length` (LENG) (unpatchet parameter, assignable to golden knobs):
+    - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
           reset itself to start from the beginning.
@@ -653,10 +653,10 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 - ([#991]) Added new scales for instrument clips.
     - The new set of scales is:
-        - 7-note scales: Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Melodic Minor, Hungarian Minor,
+        - `7-note scales:` Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Melodic Minor, Hungarian Minor,
           Marva (Indian), Arabian
-        - 6-note scales: Whole Tone, Blues
-        - 5-note scales: Pentatonic Minor, Hirajoshi (Japanese)
+        - `6-note scales:` Whole Tone, Blues
+        - `5-note scales:` Pentatonic Minor, Hirajoshi (Japanese)
     - You rotate through them the same way as before, using Shift + Scale.
     - **Improvement:** when you exit Scale mode, and enter Scale mode again, if there was already a selected Scale, and
       it fits the notes you have entered, the Deluge will prefer that scale, instead of trying to change your scale or
