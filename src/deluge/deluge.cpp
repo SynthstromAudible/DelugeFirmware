@@ -455,11 +455,13 @@ void setupStartupSong() {
 
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE:
+	{
 		auto templatePath = "SONGS/DEFAULT.XML";
 		setupBlankSong();
 		if (!storageManager.fileExists(templatePath)) {
 			currentSong->writeTemplateSong(templatePath);
 		}
+	}
 		[[fallthrough]];
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
