@@ -454,8 +454,7 @@ void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 
 	switch (startupSongMode) {
-	case StartupSongMode::TEMPLATE:
-	{
+	case StartupSongMode::TEMPLATE: {
 		auto templatePath = "SONGS/DEFAULT.XML";
 		setupBlankSong();
 		if (!storageManager.fileExists(templatePath)) {
