@@ -135,7 +135,6 @@ extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 #define FIRST_7_NOTE_SCALE_INDEX 0
 #define FIRST_6_NOTE_SCALE_INDEX 12
 #define FIRST_5_NOTE_SCALE_INDEX 14
-#define CANT_SET_PRESET_BUT_MAJOR_IS_POSSIBLE 254
 #define CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES 255
 extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
 extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;

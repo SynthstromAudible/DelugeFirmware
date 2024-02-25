@@ -2920,16 +2920,10 @@ int32_t Song::cycleThroughScales() {
 		// If past the last scale, start from the beginning
 		newScale = 0;
 	}
-	int32_t result = setPresetScale(newScale);
-	if (result == CANT_SET_PRESET_BUT_MAJOR_IS_POSSIBLE) {
-		// We cycle back to the beginning of the list
-		result = setPresetScale(0);
-	}
-	return result;
+	return setPresetScale(newScale);
 }
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
-/// Returns CANT_SET_PRESET_BUT_MAJOR_IS_POSSIBLE if at least a 7-note scale is possible.
 int32_t Song::setPresetScale(int32_t newScale) {
 	int32_t numNotesInCurrentScale = numModeNotes;
 	int32_t numNotesInNewScale = 7;
@@ -2982,8 +2976,14 @@ traverseClips3:
 	if ((newScale >= 0 && notesWithinOctavePresentCount > 7)
 	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
 	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
-		return notesWithinOctavePresentCount <= 7 ? CANT_SET_PRESET_BUT_MAJOR_IS_POSSIBLE
-		                                          : CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+		if (notesWithinOctavePresentCount <= 7) {
+			// We can cycle back to Major scale, becasue number of notes allows it
+			newScale = 0;
+			numNotesInNewScale = 7;
+		}
+		else {
+			return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+		}
 	}
 
 	// The new scale can perfectly fit all notes from the old one, so mark all notes to be transposed
@@ -3054,7 +3054,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne: {}
+notThisOne : {}
 	}
 
 	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
@@ -4972,7 +4972,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return NULL;
 		}
 
-gotAnInstrument: {}
+gotAnInstrument : {}
 	}
 
 	// Synth or Kit
