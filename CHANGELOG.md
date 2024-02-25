@@ -7,6 +7,12 @@
 
 - Insert changes for next release here
 
+### User Interface
+
+- Added feature to load automatically projects at startup.
+To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
+Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine

@@ -19,6 +19,7 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "util/containers.h"
+#include "util/d_string.h"
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -70,7 +71,6 @@ struct RuntimeFeatureSetting {
 	std::string_view displayName;
 	std::string_view xmlName;
 	uint32_t value;
-
 	// Limited to safe memory
 	deluge::vector<RuntimeFeatureSettingOption> options;
 };
@@ -90,12 +90,14 @@ public:
 	 */
 	inline void set(RuntimeFeatureSettingType type, uint32_t value) { settings[type].value = value; }
 
+	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
+	String startupSong;
 
 private:
 	ResizeableArray unknownSettings;

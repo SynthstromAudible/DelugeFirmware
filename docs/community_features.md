@@ -129,6 +129,16 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and
   Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
+#### 3.12 - Automatically load the last open/saved song or user-defined template at startup.
+
+- ([#1272]) Added feature to load automatically projects at startup.
+To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
+- Four modes are available :
+    - `NEW SONG` : default mode, empty project on clip view with default synth.
+    - `TEMPLATE` : it will load `DEFAULT.XML` project that will be saved automatically when you select this mode, and will enable you to edit it later on and to replace the default blank song by a user-defined template.
+    - `LAST OPENED SONG` : it will load the last long that you `OPENED` before shutting down the Deluge.
+    - `LAST SAVED SONG` : it will load the least songs that you `SAVED` before shutting down the Deluge.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
