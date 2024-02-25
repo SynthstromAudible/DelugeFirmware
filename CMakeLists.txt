@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainD
 
 project(Deluge
     LANGUAGES CXX C ASM
-    VERSION 1.1.0
+    VERSION 1.2.0
 )
 
 include(ProcessorCount)
@@ -176,8 +176,8 @@ target_link_libraries(deluge PUBLIC
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)
-set(DELUGE_C_STANDARD 17)
-set(DELUGE_CXX_STANDARD 20)
+set(DELUGE_C_STANDARD 23)
+set(DELUGE_CXX_STANDARD 23)
 list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
@@ -192,7 +192,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
 
-    # Offsetof for non standard types is supported in GCC, 
+    # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 
     # Stack usage
@@ -224,9 +224,9 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 target_link_options(deluge PUBLIC
 
     # use newlib nano
-    --specs=nano.specs 
+    --specs=nano.specs
 
-    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
+    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
     LINKER:-Map=${MAP_FILE}
     LINKER:--cref
     LINKER:--gc-sections
@@ -234,7 +234,7 @@ target_link_options(deluge PUBLIC
 
     # Enabled to generate a full ELF, objcopy will do the stripping
     # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
-    
+
     -nostartfiles # Don't emit startfiles
 
     # Print details
@@ -292,7 +292,7 @@ POST_BUILD
     COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS deluge)
-    
+
 # Clean up artefacts
 set_target_properties(deluge
     PROPERTIES
