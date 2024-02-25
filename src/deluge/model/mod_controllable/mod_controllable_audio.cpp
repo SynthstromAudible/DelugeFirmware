@@ -1983,17 +1983,20 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
-	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)];
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		LearnedMIDI& midiInput =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)];
 
-	if (midiInput.isForMPEZone()) {
-		channel = midiInput.getMasterChannel();
+		if (midiInput.isForMPEZone()) {
+			channel = midiInput.getMasterChannel();
+		}
+
+		int32_t midiOutputFilter = midiInput.channelOrZone;
+
+		midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+
+		midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 	}
-
-	int32_t midiOutputFilter = midiInput.channelOrZone;
-
-	midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
-
-	midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
 
 /// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
