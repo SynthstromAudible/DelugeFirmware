@@ -1094,9 +1094,6 @@ ArpOctaveMode stringToArpOctaveMode(char const* string) {
 
 char const* arpMpeModSourceToString(ArpMpeModSource modSource) {
 	switch (modSource) {
-	case ArpMpeModSource::MPE_X:
-		return "x";
-
 	case ArpMpeModSource::MPE_Y:
 		return "y";
 
@@ -1109,10 +1106,7 @@ char const* arpMpeModSourceToString(ArpMpeModSource modSource) {
 }
 
 ArpMpeModSource stringToArpMpeModSource(char const* string) {
-	if (!strcmp(string, "x")) {
-		return ArpMpeModSource::MPE_X;
-	}
-	else if (!strcmp(string, "y")) {
+	if (!strcmp(string, "y")) {
 		return ArpMpeModSource::MPE_Y;
 	}
 	else if (!strcmp(string, "z")) {
