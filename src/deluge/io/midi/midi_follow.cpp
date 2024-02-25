@@ -543,10 +543,9 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 
 /// obtain match to check if device is compatible with the midi follow channel
 /// a valid match is passed through to the instruments for further evaluation
-/// don't check for match to the midi feedback channel type
 MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel) {
 	MIDIMatchType m = MIDIMatchType::NO_MATCH;
-	for (auto i = 0; i < (kNumMIDIFollowChannelTypes - 1); i++) {
+	for (auto i = 0; i < kNumMIDIFollowChannelTypes; i++) {
 		m = midiEngine.midiFollowChannelType[i].checkMatch(fromDevice, channel);
 		if (m != MIDIMatchType::NO_MATCH) {
 			return m;
@@ -556,10 +555,13 @@ MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t c
 }
 
 bool MidiFollow::isFeedbackEnabled() {
-	uint8_t channel =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
-	if (channel != MIDI_CHANNEL_NONE) {
-		return true;
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		uint8_t channel =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
+		        .channelOrZone;
+		if (channel != MIDI_CHANNEL_NONE) {
+			return true;
+		}
 	}
 	return false;
 }

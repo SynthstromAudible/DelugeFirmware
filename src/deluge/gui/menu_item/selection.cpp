@@ -10,7 +10,7 @@ void Selection::drawValue() {
 	}
 	if (display->have7SEG()) {
 		const auto options = this->getOptions();
-		display->setText(options[this->getValue()].data());
+		display->setScrollingText(options[this->getValue()].data());
 	}
 }
 
