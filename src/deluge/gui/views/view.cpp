@@ -1497,8 +1497,9 @@ void View::renderVUMeter(uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBa
 	// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
 	// 9 is the rmsLevel at which the sound becomes inaudible
 	// so for grid rendering purposes, any rmsLevel value below 9 doesn't get rendered on grid
-	// 4.3 is dBFS range for a given row
-	// 0.1 is added to the dBFS range for a given row to arriving at the minimum value for the next row
+	// -30.8 dBFS = (9 - 16.7) * 4
+	// 4.4 = 4.3 is dBFS range for a given row + 0.1
+	// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
 	/*
 	y7 = clipping (0 or higher)
 	y6 = -4.4 to -0.1
@@ -1509,7 +1510,7 @@ void View::renderVUMeter(uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBa
 	y1 = -26.4 to -22.1
 	y0 = -30.8 to -26.5
 	*/
-	float dBFSForYDisplay = ((9 - 16.7) * 4) + (yDisplay * 4.3) + (yDisplay * 0.1);
+	float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
 
 	// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
 	if (dBFS >= dBFSForYDisplay) {
