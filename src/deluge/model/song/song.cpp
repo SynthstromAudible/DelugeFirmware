@@ -53,6 +53,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
+#include <stdint.h>
 
 extern "C" {}
 
@@ -1266,6 +1267,17 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 			return clip;
 		}
 	}
+}
+
+void Song::writeTemplateSong(const char* templatePath) {
+	name.set("DEFAULT");
+	Error error = storageManager.createXMLFile(templatePath, false, false);
+	if (error != Error::NONE) {
+		return;
+	}
+	writeToFile();
+	storageManager.closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                     "\n</song>\n");
 }
 
 void Song::writeToFile() {
@@ -5779,6 +5791,30 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	}
 
 	return fileValue;
+}
+
+String Song::getSongFullPath() {
+	String fullPath;
+	fullPath.concatenate(&dirPath);
+	fullPath.concatenate("/");
+	fullPath.concatenate(&name);
+	return fullPath;
+}
+
+void Song::setSongFullPath(const char* fullPath) {
+	if (char* filename = strrchr((char*)fullPath, '/')) {
+		auto fullPathLength = strlen(fullPath);
+		char* dir = new char[sizeof(char) * fullPathLength + 1];
+
+		memset(dir, 0, sizeof(char) * fullPathLength + 1);
+		strncpy(dir, fullPath, fullPathLength - strlen(filename));
+
+		dirPath.set(dir);
+		name.set(++filename);
+	}
+	else {
+		name.set(fullPath);
+	}
 }
 
 void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,

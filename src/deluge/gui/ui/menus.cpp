@@ -31,6 +31,7 @@
 #include "gui/menu_item/defaults/metronome_volume.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
+#include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -1100,21 +1101,14 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
+defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
-    {
-        &defaultUI,
-        &defaultAutomationMenu,
-        &defaultTempoMenu,
-        &defaultSwingMenu,
-        &defaultKeyMenu,
-        &defaultScaleMenu,
-        &defaultVelocityMenu,
-        &defaultMagnitudeMenu,
-        &defaultBendRangeMenu,
-        &defaultMetronomeVolumeMenu,
-    },
+    {&defaultUI, &defaultAutomationMenu, &defaultTempoMenu, &defaultSwingMenu, &defaultKeyMenu, &defaultScaleMenu,
+     &defaultVelocityMenu, &defaultMagnitudeMenu, &defaultBendRangeMenu, &defaultMetronomeVolumeMenu,
+     &defaultStartupSongMenu},
 };
 
 // Sound editor menu -----------------------------------------------------------------------------

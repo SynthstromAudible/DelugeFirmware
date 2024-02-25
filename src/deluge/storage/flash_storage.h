@@ -56,6 +56,8 @@ extern bool automationShift;
 extern bool automationNudgeNote;
 extern bool automationDisableAuditionPadShortcuts;
 
+extern StartupSongMode defaultStartupSongMode;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

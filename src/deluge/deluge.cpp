@@ -20,9 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -446,6 +449,45 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+/// Can only happen after settings, which includes default settings, have been read
+void setupStartupSong() {
+	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+
+	switch (startupSongMode) {
+	case StartupSongMode::TEMPLATE: {
+		auto templatePath = "SONGS/DEFAULT.XML";
+		setupBlankSong();
+		if (!storageManager.fileExists(templatePath)) {
+			currentSong->writeTemplateSong(templatePath);
+		}
+	}
+		[[fallthrough]];
+	case StartupSongMode::LASTOPENED:
+		[[fallthrough]];
+	case StartupSongMode::LASTSAVED: {
+		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+		currentSong = new (songMemory) Song();
+		auto filename =
+		    startupSongMode == StartupSongMode::TEMPLATE ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
+		currentSong->setSongFullPath(filename);
+		if (openUI(&loadSongUI)) {
+			loadSongUI.performLoad();
+			if (startupSongMode == StartupSongMode::TEMPLATE) {
+				// Wipe the name so the Save action asks you for a new song
+				currentSong->name.clear();
+			}
+		}
+		else {
+			setupBlankSong();
+		}
+	} break;
+	case StartupSongMode::BLANK:
+		[[fallthrough]];
+	default:
+		setupBlankSong();
+	}
+}
+
 void setupOLED() {
 	// delayMS(10);
 
@@ -679,7 +721,7 @@ extern "C" int32_t deluge_main(void) {
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 
-	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
+	setupStartupSong();
 
 #ifdef TEST_BST
 	BST bst;
