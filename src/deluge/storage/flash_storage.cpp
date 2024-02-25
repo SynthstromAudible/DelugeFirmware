@@ -25,6 +25,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
@@ -144,6 +145,7 @@ namespace FlashStorage {
 157: MIDI Transpose NoteOrCC
 158-161: MIDI Transpose device / vendor ID
 162: MIDI Transpose Control method.
+163: default Startup Song Mode
 */
 
 uint8_t defaultScale;
@@ -178,6 +180,8 @@ bool automationClear = true;
 bool automationShift = true;
 bool automationNudgeNote = true;
 bool automationDisableAuditionPadShortcuts = true;
+
+StartupSongMode defaultStartupSongMode;
 
 void resetSettings() {
 
@@ -257,6 +261,8 @@ void resetSettings() {
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
 	resetAutomationSettings();
+
+	defaultStartupSongMode = StartupSongMode::BLANK;
 }
 
 void resetMidiFollowSettings() {
@@ -622,6 +628,13 @@ void readSettings() {
 	else {
 		MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(buffer[162]);
 	}
+
+	if (buffer[163] >= kNumStartupSongMode) {
+		defaultStartupSongMode = StartupSongMode::BLANK;
+	}
+	else {
+		defaultStartupSongMode = static_cast<StartupSongMode>(buffer[163]);
+	}
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -865,6 +878,8 @@ void writeSettings() {
 	   buffer[160]   device reference above occupies 4 bytes
 	   buffer[161] */
 	buffer[162] = util::to_underlying(MIDITranspose::controlMethod);
+
+	buffer[163] = util::to_underlying(defaultStartupSongMode);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

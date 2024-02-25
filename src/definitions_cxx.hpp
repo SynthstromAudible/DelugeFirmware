@@ -1070,3 +1070,6 @@ enum class ClipType {
 };
 
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
+
+enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
+constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
