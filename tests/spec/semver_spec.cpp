@@ -1,4 +1,4 @@
-#include "../../src/deluge/util/semver.hpp"
+#include "util/semver.h"
 
 #include "cppspec.hpp"
 

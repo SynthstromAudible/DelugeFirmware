@@ -7,6 +7,9 @@ FetchContent_MakeAvailable(CppSpec)
 add_library(deluge STATIC
   ../../src/deluge/util/semver.cpp
 )
+
+target_include_directories(deluge PUBLIC ../../src/deluge)
+
 set_target_properties(deluge PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED YES
@@ -31,4 +34,4 @@ function(create_specs_driver driver_name spec_dir)
 endfunction()
 
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(all_specs PRIVATE deluge)
+target_link_libraries(all_specs PUBLIC deluge)
