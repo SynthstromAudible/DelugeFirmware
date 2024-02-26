@@ -100,6 +100,7 @@
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/patched_param/pan.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/menu_item/record/countin.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/model.h"
@@ -818,7 +819,7 @@ Submenu padsSubmenu{
 // Record submenu
 record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
 ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, FlashStorage::audioClipRecordMargins};
-ToggleBool recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN, playbackHandler.countInEnabled};
+record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
 monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
 
 Submenu recordSubmenu{
