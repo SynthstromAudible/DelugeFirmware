@@ -146,6 +146,7 @@ namespace FlashStorage {
 158-161: MIDI Transpose device / vendor ID
 162: MIDI Transpose Control method.
 163: default Startup Song Mode
+164: default pad brightness
 */
 
 uint8_t defaultScale;
@@ -174,6 +175,7 @@ bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
 uint8_t defaultMetronomeVolume;
+uint8_t defaultPadBrightness;
 
 bool automationInterpolate = true;
 bool automationClear = true;
@@ -635,6 +637,8 @@ void readSettings() {
 	else {
 		defaultStartupSongMode = static_cast<StartupSongMode>(buffer[163]);
 	}
+
+	defaultPadBrightness = buffer[164] == false ? 25 : buffer[164];
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {
@@ -880,6 +884,7 @@ void writeSettings() {
 	buffer[162] = util::to_underlying(MIDITranspose::controlMethod);
 
 	buffer[163] = util::to_underlying(defaultStartupSongMode);
+	buffer[164] = defaultPadBrightness;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
