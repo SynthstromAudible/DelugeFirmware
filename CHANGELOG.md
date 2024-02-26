@@ -57,6 +57,7 @@
 - Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
+- Updated the count-in setting to allow specifying the number of bars (1-4).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
