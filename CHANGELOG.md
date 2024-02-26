@@ -67,6 +67,7 @@ Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
 - Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
+- Updated the count-in setting to allow specifying the number of bars (1-4).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
@@ -95,7 +96,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
 - The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
-  modes, sequence length and ratcheting notes.
+  modes, sequence length and ratcheting notes. It also enables MPE keyboards to give more expression to the arpeggiated
+  notes.
 
 ### Audio Clips
 

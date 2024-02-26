@@ -254,7 +254,7 @@ void resetSettings() {
 	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
 
 	audioClipRecordMargins = true;
-	playbackHandler.countInEnabled = false;
+	playbackHandler.countInBars = 0;
 	keyboardLayout = KeyboardLayout::QWERTY;
 	sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
 
@@ -469,7 +469,7 @@ void readSettings() {
 
 	soundEditor.setShortcutsVersion(buffer[60]);
 	audioClipRecordMargins = buffer[61];
-	playbackHandler.countInEnabled = buffer[62];
+	playbackHandler.countInBars = buffer[62];
 	keyboardLayout =
 	    (buffer[69] >= kNumKeyboardLayouts) ? KeyboardLayout::QWERTY : static_cast<KeyboardLayout>(buffer[69]);
 
@@ -777,7 +777,7 @@ void writeSettings() {
 	buffer[60] = soundEditor.shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
-	buffer[62] = playbackHandler.countInEnabled;
+	buffer[62] = playbackHandler.countInBars;
 
 	buffer[69] = util::to_underlying(keyboardLayout);
 	buffer[72] = sampleBrowserPreviewMode;

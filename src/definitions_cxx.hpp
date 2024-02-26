@@ -540,6 +540,12 @@ enum class ArpOctaveMode {
 	RANDOM,
 };
 
+enum class ArpMpeModSource {
+	OFF,
+	AFTERTOUCH,
+	MPE_Y,
+};
+
 enum class ModFXParam {
 	DEPTH,
 	FEEDBACK,

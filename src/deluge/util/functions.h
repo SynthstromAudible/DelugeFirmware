@@ -167,6 +167,9 @@ ArpNoteMode stringToArpNoteMode(char const* string);
 char const* arpOctaveModeToString(ArpOctaveMode mode);
 ArpOctaveMode stringToArpOctaveMode(char const* string);
 
+char const* arpMpeModSourceToString(ArpMpeModSource modSource);
+ArpMpeModSource stringToArpMpeModSource(char const* string);
+
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
 

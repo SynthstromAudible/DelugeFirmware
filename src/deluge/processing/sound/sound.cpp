@@ -667,6 +667,12 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("noteMode");
 			}
+			else if (!strcmp(tagName, "mpeVelocity")) {
+				if (arpSettings) {
+					arpSettings->mpeVelocity = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("mpeVelocity");
+			}
 			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
@@ -3913,6 +3919,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
 		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
+		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);

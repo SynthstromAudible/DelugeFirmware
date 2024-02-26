@@ -150,7 +150,7 @@ public:
 	bool midiOutClockEnabled;
 	bool midiInClockEnabled;
 	bool tempoMagnitudeMatchingEnabled;
-	bool countInEnabled;
+	uint8_t countInBars;
 
 	int32_t swungTicksTilNextEvent;
 

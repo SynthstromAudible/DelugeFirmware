@@ -2338,6 +2338,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
@@ -2650,6 +2651,10 @@ someError:
 					arpSettings.noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("noteMode");
+				}
+				else if (!strcmp(tagName, "mpeVelocity")) {
+					arpSettings.mpeVelocity = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeVelocity");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();
