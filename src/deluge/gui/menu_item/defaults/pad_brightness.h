@@ -17,15 +17,14 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "hid/led/pad_leds.h"
-#include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
 class PadBrightness final : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 25; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinLedBrightness; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxLedBrightness; }
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultPadBrightness); }
 	void writeCurrentValue() override {
 		FlashStorage::defaultPadBrightness = this->getValue();

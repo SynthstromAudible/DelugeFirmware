@@ -638,7 +638,7 @@ void readSettings() {
 		defaultStartupSongMode = static_cast<StartupSongMode>(buffer[163]);
 	}
 
-	defaultPadBrightness = buffer[164] == false ? 25 : buffer[164];
+	defaultPadBrightness = buffer[164] == false ? kMaxLedBrightness : buffer[164];
 }
 
 bool areMidiFollowSettingsValid(uint8_t* buffer) {

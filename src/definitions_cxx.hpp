@@ -194,6 +194,9 @@ constexpr int32_t kNumBytesInMainPadRedraw = (kNumBytesInColUpdateMessage * 8);
 constexpr int32_t kDefaultClipLength = 96; // You'll want to <<displayWidthMagnitude this each time used
 constexpr int32_t kDefaultArrangerZoom = (kDefaultClipLength >> 1);
 
+constexpr int32_t kMinLedBrightness = 1;
+constexpr int32_t kMaxLedBrightness = 25;
+
 struct Pin {
 	uint8_t port;
 	uint8_t pin;

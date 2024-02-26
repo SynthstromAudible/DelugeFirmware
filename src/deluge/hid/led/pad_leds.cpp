@@ -690,7 +690,7 @@ int32_t refreshTime = 23;
 int32_t dimmerInterval = 0;
 
 void setBrightnessLevel(uint8_t offset) {
-	return setDimmerInterval(25 - offset);
+	return setDimmerInterval(kMaxLedBrightness - offset);
 }
 
 void setRefreshTime(int32_t newTime) {
