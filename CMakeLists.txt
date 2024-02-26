@@ -47,6 +47,8 @@ execute_process(
 # Today's date
 string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
 
+set(BUILD_VERSION_STRING_SHORT "c${PROJECT_VERSION}") # Used in firmware
+
 # Build our version string
 if(RELEASE_TYPE STREQUAL "release")
     set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
