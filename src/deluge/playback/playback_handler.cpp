@@ -100,7 +100,7 @@ PlaybackHandler::PlaybackHandler() {
 	posToNextContinuePlaybackFrom = 0;
 	stopOutputRecordingAtLoopEnd = false;
 	recording = RecordingMode::OFF;
-	countInEnabled = true;
+	countInBars = 1;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
 }
@@ -305,12 +305,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 
 	// See if we want a count-in
-	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInEnabled
+	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInBars
 	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	    && getCurrentUI() == getRootUI()) {
 
-		ticksLeftInCountIn = currentSong->getBarLength();
-		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as a 4.
+		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
+		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
 		currentUIMode = UI_MODE_RECORD_COUNT_IN;
 	}
 	else {
