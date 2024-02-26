@@ -2628,7 +2628,7 @@ someError:
 					storageManager.exitTag("syncLevel");
 				}
 				else if (!strcmp(tagName, "mode")
-				         && storageManager.firmware_version.type() != FirmwareVersion::Type::COMMUNITY) {
+				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
@@ -3038,7 +3038,7 @@ expressionParam:
 							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+								if (storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
