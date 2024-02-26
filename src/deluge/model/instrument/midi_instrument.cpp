@@ -779,10 +779,8 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	else if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
-		if (!collapseAftertouch) {
-			midiEngine.sendPolyphonicAftertouch(channel, 0, noteCodePostArp, kMIDIOutputFilterNoMPE);
-		}
-		else {
+		if (collapseAftertouch) {
+
 			combineMPEtoMono(0, Z_PRESSURE);
 		}
 		// this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
@@ -999,8 +997,11 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			// casting down will truncate
 			value32 = (int32_t)fbend;
 		}
-		lastCombinedPolyExpression[whichExpressionDimension] = value32;
-		sendMonophonicExpressionEvent(whichExpressionDimension);
+		// if it's changed, we need to update the outputs
+		if (value32 != lastCombinedPolyExpression[whichExpressionDimension]) {
+			lastCombinedPolyExpression[whichExpressionDimension] = value32;
+			sendMonophonicExpressionEvent(whichExpressionDimension);
+		}
 	}
 }
 
