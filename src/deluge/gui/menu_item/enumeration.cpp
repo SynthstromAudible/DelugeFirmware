@@ -17,10 +17,10 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 	int32_t startValue = getValue();
 
 	int32_t nextValue = startValue + offset;
-	// valid values are [0, numOptions), so wrap on 7SEG, clamp on OLED
-	if (display->haveOLED()) {
+	// valid values are [0, numOptions), so on OLED and in shif + select, clamp to valid values
+	if (display->haveOLED() || (offset > 1 || offset < -1)) {
 		nextValue = std::clamp<int32_t>(nextValue, 0, numOptions - 1);
-	}
+	} // 7SEG can wrap with +/-1 offset
 	else {
 		nextValue = nextValue % numOptions;
 		if (nextValue < 0) {
