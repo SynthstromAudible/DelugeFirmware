@@ -204,10 +204,10 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	                                 + 1; // Not 100% sure on the +1, but better safe than sorry
 
 	// Make it a bit longer, to capture the ring-out of the interpolation / time-stretching
-	if (phaseIncrement != 16777216) {
+	if (phaseIncrement != kMaxSampleValue) {
 		lengthInSamplesCached += (kInterpolationMaxNumSamples >> 1);
 	}
-	if (timeStretchRatio != 16777216) {
+	if (timeStretchRatio != kMaxSampleValue) {
 		lengthInSamplesCached += 16384; // This one is quite an inexact science
 	}
 

@@ -577,7 +577,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	// Interpolating
-	if (phaseIncrement != 16777216) {
+	if (phaseIncrement != kMaxSampleValue) {
 
 		// But if we weren't interpolating last time...
 		if (!interpolationBufferSizeLastTime) {
@@ -1259,7 +1259,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(
 		}
 
 		// No resampling
-		if (phaseIncrement == 16777216) {
+		if (phaseIncrement == kMaxSampleValue) {
 			readSamplesNative(&outputBuffer, samplesNow, sample, jumpAmount, numChannels, numChannelsAfterCondensing,
 			                  &amplitude, amplitudeIncrement, timeStretcher, bufferingToTimeStretcher);
 		}

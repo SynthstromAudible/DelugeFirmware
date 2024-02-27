@@ -529,10 +529,10 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 		doingLateStart = false;
 	}
 
-	int32_t timeStretchRatio = 16777216;
+	int32_t timeStretchRatio = kMaxSampleValue;
 	int32_t phaseIncrement = sampleHolder.neutralPhaseIncrement;
 
-	if (pitchAdjust != 16777216) {
+	if (pitchAdjust != kMaxSampleValue) {
 		uint64_t newPhaseIncrement = ((uint64_t)phaseIncrement * (uint64_t)pitchAdjust) >> 24;
 		phaseIncrement = (newPhaseIncrement > 2147483647) ? 2147483647 : newPhaseIncrement;
 	}
@@ -553,7 +553,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 		// And if pitch was manually adjusted too (or file's sample rate wasn't 44100kHz, that's fine - counteract that
 		// by adjusting the time-stretch amount more
-		if (phaseIncrement != 16777216) {
+		if (phaseIncrement != kMaxSampleValue) {
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
 
@@ -568,7 +568,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 				if (!playbackHandler.isEitherClockActive() || doingLateStart) {
 justDontTimeStretch:
 					// We can just not time-stretch... for now, until we end up more out-of-sync later
-					timeStretchRatio = 16777216;
+					timeStretchRatio = kMaxSampleValue;
 				}
 
 				// Or...
@@ -625,7 +625,7 @@ justDontTimeStretch:
 
 		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop
 		// point (if it's gonna loop)
-		if (timeStretchRatio == 16777216 && !voiceSample->timeStretcher
+		if (timeStretchRatio == kMaxSampleValue && !voiceSample->timeStretcher
 		    && (!voiceSample->cache || voiceSample->writingToCache)) {
 
 			// First, see if there is actually any pre-margin at all for us to crossfade to
@@ -650,7 +650,7 @@ justDontTimeStretch:
 
 					int32_t numSamplesOfPreMarginAvailable =
 					    (uint32_t)numBytesOfPreMarginAvailable / (uint8_t)bytesPerSample;
-					if (phaseIncrement != 16777216) {
+					if (phaseIncrement != kMaxSampleValue) {
 						numSamplesOfPreMarginAvailable =
 						    ((uint64_t)numSamplesOfPreMarginAvailable << 24) / (uint32_t)phaseIncrement;
 					}

@@ -394,7 +394,7 @@ void Voice::setupPorta(Sound* sound) {
 		phaseIncrement = 2147483647;
 	}
 
-	portaEnvelopeMaxAmplitude = phaseIncrement - 16777216;
+	portaEnvelopeMaxAmplitude = phaseIncrement - kMaxSampleValue;
 }
 
 void Voice::randomizeOscPhases(Sound* sound) {
@@ -454,7 +454,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
 			}
 			else {
-				pitchAdjustNeutralValue = 16777216;
+				pitchAdjustNeutralValue = kMaxSampleValue;
 			}
 
 			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
@@ -776,7 +776,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	int32_t overallPitchAdjust = paramFinalValues[params::LOCAL_PITCH_ADJUST];
 
 	// Pitch adjust from "external" - e.g. the Kit
-	if (externalPitchAdjust != 16777216) {
+	if (externalPitchAdjust != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(overallPitchAdjust, externalPitchAdjust);
 		if (output > 8388607) {
 			output = 8388607; // Limit it a bit. Not really quite sure if necessary?
@@ -801,7 +801,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	if (portaEnvelopePos < 8388608) {
 		int32_t envValue = getDecay4(portaEnvelopePos, 23);
 		int32_t pitchAdjustmentHere =
-		    16777216 + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
+		    kMaxSampleValue + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
 
 		int32_t a = multiply_32x32_rshift32_rounded(overallPitchAdjust, pitchAdjustmentHere);
 		if (a > 8388607) {
@@ -897,7 +897,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					// up some existing users' songs - e.g. Michael B's one I tried during V3.0 beta phase, July 2019
 
 					// Scale that according to our resampling rate
-					if (actualSampleReadRate != 16777216) {
+					if (actualSampleReadRate != kMaxSampleValue) {
 						releaseStageLengthBytes = ((int64_t)releaseStageLengthBytes * actualSampleReadRate) >> 24;
 					}
 
@@ -912,7 +912,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					int32_t samplesLeft = bytesLeft / (bytesPerSample);
 
 					// Scale that according to our resampling rate
-					if (actualSampleReadRate != 16777216) {
+					if (actualSampleReadRate != kMaxSampleValue) {
 						samplesLeft = (((int64_t)samplesLeft << 24) / actualSampleReadRate);
 					}
 
@@ -1312,7 +1312,7 @@ decidedWhichBufferRenderingInto:
 			}
 
 			// If overall pitch adjusted...
-			if (overallPitchAdjust != 16777216) {
+			if (overallPitchAdjust != kMaxSampleValue) {
 				for (int32_t s = 0; s < kNumSources; s++) {
 					if (!adjustPitch(&phaseIncrements[s], overallPitchAdjust)) {
 						if (synthMode == SynthMode::RINGMOD) {
@@ -1414,7 +1414,7 @@ cantBeDoingOscSyncForFirstOsc:
 					}
 				}
 
-				if (overallPitchAdjust != 16777216) {
+				if (overallPitchAdjust != kMaxSampleValue) {
 					for (int32_t m = 0; m < kNumModulators; m++) {
 						if (modulatorsActive[m]) {
 							if (!adjustPitch(&phaseIncrementModulator[m], overallPitchAdjust)) {
@@ -1720,7 +1720,7 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
 
 // Returns false if it takes us above 22.05kHz, in which case it doesn't return a valid value
 bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
-	if (adjustment != 16777216) {
+	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(*phaseIncrement, adjustment);
 		if (output >= 8388608) {
 			return false;
@@ -2191,7 +2191,7 @@ pitchTooHigh:
 			int32_t interpolationBufferSize;
 
 			// If pitch adjustment...
-			if (phaseIncrement != 16777216) {
+			if (phaseIncrement != kMaxSampleValue) {
 
 				// Work out what quality we're going to do that at
 				interpolationBufferSize = sound->sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
@@ -2323,7 +2323,7 @@ dontUseCache: {}
 			VoiceUnisonPartSource* source = &unisonParts[u].sources[s];
 
 			// If pitch shifting and we weren't previously...
-			if (phaseIncrement != 16777216) {
+			if (phaseIncrement != kMaxSampleValue) {
 
 				if (!source->livePitchShifter) {
 
