@@ -43,6 +43,7 @@ public:
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
 	                          uint32_t newFastReleaseIncrement = 4096);
 	void resumeAttack(int32_t oldLastValue);
+	void resetTimeEntered();
 
 private:
 	void setState(EnvelopeStage newState);

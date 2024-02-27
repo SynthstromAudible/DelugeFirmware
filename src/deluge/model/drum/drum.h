@@ -68,7 +68,7 @@ public:
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual bool anyNoteIsOn() = 0;
-	virtual bool hasAnyVoices() = 0;
+	virtual bool hasAnyVoices(bool resetTimeEntered) = 0;
 	virtual void unassignAllVoices() = 0;
 
 	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }

@@ -71,8 +71,18 @@ bool SoundDrum::anyNoteIsOn() {
 	return Sound::anyNoteIsOn();
 }
 
-bool SoundDrum::hasAnyVoices() {
-	return Sound::hasAnyVoices();
+bool SoundDrum::hasAnyVoices(bool resetTimeEntered) {
+	bool hasVoice = Sound::hasAnyVoices(false);
+	if (hasVoice && resetTimeEntered) {
+		// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
+		int32_t ends[2];
+		AudioEngine::activeVoices.getRangeForSound(this, ends);
+		for (int32_t v = ends[0]; v < ends[1]; v++) {
+			Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+			thisVoice->envelopes[0].resetTimeEntered();
+		}
+	}
+	return hasVoice;
 }
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,

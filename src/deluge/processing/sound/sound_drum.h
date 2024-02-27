@@ -36,7 +36,7 @@ public:
 	bool isDrum() { return true; }
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 	bool anyNoteIsOn();
-	bool hasAnyVoices();
+	bool hasAnyVoices(bool resetTimeEntered);
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);

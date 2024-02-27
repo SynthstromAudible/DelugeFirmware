@@ -28,7 +28,7 @@ public:
 
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;
-	bool hasAnyVoices() final;
+	bool hasAnyVoices(bool resetTimeEntered) final;
 	void unassignAllVoices();
 	bool readDrumTagFromFile(char const* tagName);
 

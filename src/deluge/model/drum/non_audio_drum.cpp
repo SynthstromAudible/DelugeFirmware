@@ -32,7 +32,7 @@ bool NonAudioDrum::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool dis
 }
 
 void NonAudioDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+	if (hasAnyVoices(false)) {
 		noteOff(NULL);
 	}
 }
@@ -41,7 +41,7 @@ bool NonAudioDrum::anyNoteIsOn() {
 	return state;
 }
 
-bool NonAudioDrum::hasAnyVoices() {
+bool NonAudioDrum::hasAnyVoices(bool resetTimeEntered) {
 	return state;
 }
 

@@ -40,7 +40,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 }
 
 void MIDIDrum::unassignAllVoices() {
-	if (hasAnyVoices()) {
+	if (hasAnyVoices(false)) {
 		noteOff(NULL);
 	}
 }
