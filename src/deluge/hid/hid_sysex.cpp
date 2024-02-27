@@ -48,7 +48,7 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 		bool force = (data[2] == 3);
 		midiDisplayDevice = device;
 		// two seconds
-		midiDisplayUntil = AudioEngine::audioSampleTimer + 2 * 44100;
+		midiDisplayUntil = AudioEngine::audioSampleTimer + 2 * kSampleRate;
 		if (display->haveOLED()) {
 			if (force) {
 				oledDeltaForce = true;

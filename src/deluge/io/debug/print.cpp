@@ -25,7 +25,7 @@ extern "C" {
 
 namespace Debug {
 
-constexpr uint32_t kNumSamplesBetweenReports = 44100;
+constexpr uint32_t kNumSamplesBetweenReports = kSampleRate;
 bool initFlag = false;
 bool prependDeltaT = true;
 bool lastWasNewline = false;

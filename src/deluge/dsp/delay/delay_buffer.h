@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include <cstdint>
 
@@ -28,7 +29,7 @@ class StereoSample;
 #define DELAY_BUFFER_NEUTRAL_SIZE 16384
 
 struct DelayBufferSetup {
-	int32_t actualSpinRate;           // 1 is represented as 16777216
+	int32_t actualSpinRate;           // 1 is represented as kMaxSampleValue
 	int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
 	uint32_t divideByRate;            // 1 is represented as 65536
 	int32_t rateMultiple;
@@ -82,7 +83,7 @@ public:
 	[[gnu::always_inline]] inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1,
 	                                                  int32_t strength2, DelayBufferSetup* setup) {
 		// If delay buffer spinning above sample rate...
-		if (setup->actualSpinRate >= 16777216) {
+		if (setup->actualSpinRate >= kMaxSampleValue) {
 
 			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
 			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
@@ -198,7 +199,7 @@ public:
 		}
 
 		// If delay buffer spinning above sample rate...
-		else if (setup->actualSpinRate >= 16777216) {
+		else if (setup->actualSpinRate >= kMaxSampleValue) {
 
 			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
 			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty

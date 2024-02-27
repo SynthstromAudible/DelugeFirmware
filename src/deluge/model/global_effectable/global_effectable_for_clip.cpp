@@ -75,7 +75,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
-	    getFinalParameterValueExp(16777216, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
 	DelayWorkingState delayWorkingState;
 	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
