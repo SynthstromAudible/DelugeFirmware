@@ -286,9 +286,10 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	                                                     // in weShouldBeTimeStretchingNow() - better safe than sorry.
 	int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
 
-	bool success = timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels,
-	                                   phaseIncrement, kMaxSampleValue, playDirection, priorityRating, numSamplesTilLoop,
-	                                   LoopType::NONE); // Tell it no looping
+	bool success =
+	    timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
+	                        kMaxSampleValue, playDirection, priorityRating, numSamplesTilLoop,
+	                        LoopType::NONE); // Tell it no looping
 	if (!success) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return false; // It's too late to salvage anything - our play pos has probably been mucked around
@@ -506,7 +507,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					// which case we can't continue to write to it, and there's nothing else we want it for, so forget
 					// about it. Also can't continue to write if doing linear interpolation now
 					if (cache->writeBytePos < cacheBytePos
-					    || (phaseIncrement != kMaxSampleValue && interpolationBufferSize != kInterpolationMaxNumSamples)) {
+					    || (phaseIncrement != kMaxSampleValue
+					        && interpolationBufferSize != kInterpolationMaxNumSamples)) {
 						cache = NULL;
 					}
 
@@ -1205,8 +1207,8 @@ readTimestretched:
 			int32_t newerAmplitudeIncrementNow;
 			int32_t olderSourceAmplitudeNow;
 			int32_t olderAmplitudeIncrementNow;
-			bool olderPlayHeadAudibleHere =
-			    (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->crossfadeProgress < kMaxSampleValue);
+			bool olderPlayHeadAudibleHere = (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			                                 && timeStretcher->crossfadeProgress < kMaxSampleValue);
 
 			bool didShortening1 = false;
 #if TIME_STRETCH_ENABLE_BUFFER

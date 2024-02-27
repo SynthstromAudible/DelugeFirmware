@@ -142,8 +142,8 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return kMaxSampleValue; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
-		                 // 16x smaller)
+		return kMaxSampleValue; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since
+		                        // made it 16x smaller)
 
 	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912

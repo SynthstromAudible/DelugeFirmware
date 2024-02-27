@@ -175,7 +175,8 @@ startRenderAgain:
 				crossfadeIncrement = kMaxSampleValue;
 			}
 			else {
-				uint32_t minCrossfadeIncrement = (uint32_t)(kMaxSampleValue - crossfadeProgress) / maxPlayableSamplesOlder + 1;
+				uint32_t minCrossfadeIncrement =
+				    (uint32_t)(kMaxSampleValue - crossfadeProgress) / maxPlayableSamplesOlder + 1;
 				// crossfadeIncrement = std::max(crossfadeIncrement, minCrossfadeIncrement);
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
@@ -539,7 +540,8 @@ stopPercSearch:
 			howFarBack = 1500;
 		}
 
-		samplesTilHopEnd = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - kMaxSampleValue) - nextCrossfadeLength;
+		samplesTilHopEnd =
+		    ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - kMaxSampleValue) - nextCrossfadeLength;
 		if (samplesTilHopEnd < 100) {
 			samplesTilHopEnd = 100; // Must be 100, not 200. Otherwise, shifting up 2 octaves gets messed up. (Though
 			                        // maybe not anymore?)
