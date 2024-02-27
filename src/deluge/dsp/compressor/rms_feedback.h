@@ -91,8 +91,8 @@ public:
 
 private:
 	// parameters in use
-	float a_ = (-1000.0 / kSampleRate);
-	float r_ = (-1000.0 / kSampleRate);
+	float a_ = (-1000.0f / kSampleRate);
+	float r_ = (-1000.0f / kSampleRate);
 	float ratio = 2;
 	float er = 0;
 	float threshdb = 17;
