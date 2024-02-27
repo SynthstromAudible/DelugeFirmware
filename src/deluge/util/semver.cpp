@@ -1,6 +1,7 @@
 #include "semver.h"
 #include "try.h"
 #include <charconv>
+#include <expected>
 
 std::strong_ordering SemVer::operator<=>(const SemVer& other) const {
 	if (auto cmp = (this->major <=> other.major); cmp != 0) {
@@ -25,25 +26,25 @@ std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parse() {
 	SemVer semver = D_TRY(parseVersionCore());
 
 	// Version Core alone is valid
-	if (index == input_.size()) {
+	if (index_ == input_.size()) {
 		return semver;
 	}
 
 	// Parse pre-release
-	if (input_[index] == '-') {
-		index++;
+	if (input_[index_] == '-') {
+		index_++;
 		semver.pre_release = parsePreRelease();
 	}
 	return semver;
 
 	// // Return if complete
-	// if (index == input_.size()) {
+	// if (index_ == input_.size()) {
 	// 	return semver;
 	// }
 
 	// // Parse build
-	// if (input_[index] == '+') {
-	// 	index++;
+	// if (input_[index_] == '+') {
+	// 	index_++;
 	// 	semver.build = parseBuild();
 	// }
 
@@ -62,35 +63,43 @@ std::expected<SemVer, SemVer::Parser::Error> SemVer::Parser::parseVersionCore() 
 }
 
 std::string_view SemVer::Parser::parsePreRelease() {
-	size_t start = index;
-	while (index < input_.size() && input_[index] != '+') {
-		index++;
+	size_t start = index_;
+	while (index_ < input_.size() && input_[index_] != '+') {
+		index_++;
 	}
-	return input_.substr(start, index - start);
+	return input_.substr(start, index_ - start);
 }
 
+/*
 std::string_view SemVer::Parser::parseBuild() {
-	size_t start = index;
-	while (index < input_.size()) {
-		index++;
-	}
-	return input_.substr(start, index - start);
+    size_t start = index_;
+    while (index_ < input_.size()) {
+        index_++;
+    }
+    return input_.substr(start, index_ - start);
 }
+*/
 
 std::expected<uint8_t, SemVer::Parser::Error> SemVer::Parser::parseNumericIdentifier() {
 	uint8_t number;
-	auto [ptr, ec] = std::from_chars(input_.data() + index, input_.data() + input_.size(), number);
-	if (ec == std::errc{}) {
-		index = ptr - input_.data();
-		return number;
+	auto [ptr, ec] = std::from_chars(input_.data() + index_, input_.data() + input_.size(), number);
+	if (ec != std::errc{}) {
+		return std::unexpected(Error::INVALID_NUMBER);
 	}
-	return std::unexpected(Error::INVALID_NUMBER);
+	index_ = ptr - input_.data();
+	return number;
 }
 
 std::expected<void, SemVer::Parser::Error> SemVer::Parser::expect(char expected) {
-	if (index < input_.size() && input_[index] == expected) {
-		index++;
-		return {};
+	if (index_ >= input_.size()) {
+		return std::unexpected(Error::END_OF_STREAM);
 	}
-	return std::unexpected(Error::WRONG_CHAR);
+
+	if (input_[index_] != expected) {
+		return std::unexpected(Error::WRONG_CHAR);
+	}
+
+	++index_;
+
+	return {};
 }
