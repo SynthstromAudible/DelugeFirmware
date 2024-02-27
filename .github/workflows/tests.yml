@@ -31,15 +31,18 @@ jobs:
       - name: Run build
         run: cmake --build build
 
-      - name: Run Tests
-        run: ctest --test-dir build --output-junit test_results.xml
+      - name: Run CTest
+        run: ctest --test-dir build --output-junit results/ctest_results.xml
+
+      - name: Run CppUTest
+        run: build/unit/RunAllTests -ojunit build/results/cpputest_results.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Test Results
-          path: build/**/*.xml
+          path: build/results/**/*.xml
 
   event_file:
     name: "Event File"
