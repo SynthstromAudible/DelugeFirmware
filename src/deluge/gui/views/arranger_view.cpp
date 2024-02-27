@@ -514,6 +514,10 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			drawMuteSquare(i, image[i]);
@@ -2086,10 +2090,6 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 		return true;
 	}
 
-	if (view.potentiallyRenderVUMeter(whichRows, image, occupancyMask)) {
-		return true;
-	}
-
 	PadLEDs::renderingLock = true;
 
 	uint32_t whichRowsCouldntBeRendered =
@@ -2982,11 +2982,11 @@ void ArrangerView::graphicsRoutine() {
 				// indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
 			}
 		}
-		// if volume / pan mod button is selected, displayVUMeter is toggled on
-		// and we're not currently selecting a clip
-		if (modKnobMode == 0 && view.displayVUMeter && !getClipForSelection()) {
-			uiNeedsRendering(this);
-		}
+	}
+
+	// if we're not currently selecting a clip
+	if (!getClipForSelection() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {

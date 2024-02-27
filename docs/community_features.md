@@ -272,7 +272,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 ### 4.1.8 - Added VU Meter rendering to Song / Arranger View
 
-- ([#1344]) Added `VU Meter` rendering on the grid in Song / Arranger Views. 
+- ([#1344]) Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
     - To display the VU meter:
       - turn `Affect Entire` on
       - select the `Volume mod button`

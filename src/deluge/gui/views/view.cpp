@@ -105,6 +105,7 @@ View::View() {
 	clipArmFlashOn = false;
 	displayVUMeter = false;
 	renderedVUMeter = false;
+	cachedMaxYDisplayForVUMeter = 255;
 }
 
 void View::focusRegained() {
@@ -115,6 +116,10 @@ void View::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
+
+	// when switching between UI's we want to start with a fresh VU meter render
+	renderedVUMeter = false;
+	cachedMaxYDisplayForVUMeter = 255;
 }
 
 void View::setTripletsLedState() {
@@ -1184,8 +1189,8 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
 			if (isUIModeWithinRange(modButtonUIModes) || (currentUI == &performanceSessionView)) {
-				// only displaying VU meter in session view or arranger view at the moment
-				if (currentUI == &sessionView || currentUI == &arrangerView) {
+				// only displaying VU meter in session view, arranger view and performance view at the moment
+				if (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView) {
 					// are we pressing the same button that is currently selected
 					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
 						// you just pressed the volume mod button and it was already selected previously
@@ -1194,9 +1199,9 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 							displayVUMeter = !displayVUMeter;
 						}
 					}
-					// refresh grid if VU meter previously rendered is still showing
+					// refresh sidebar if VU meter previously rendered is still showing
 					if (renderedVUMeter) {
-						uiNeedsRendering(currentUI);
+						uiNeedsRendering(currentUI, 0); // only render sidebar
 					}
 				}
 
@@ -1456,76 +1461,99 @@ void View::displayAutomation() {
 /// if you've toggled showing the VU meter, and the mod encoders are controllable (e.g. affect entire on)
 /// and the current mod button selected is the volume/pan button
 /// render VU meter on the grid
-bool View::potentiallyRenderVUMeter(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	if (displayVUMeter && view.activeModControllableModelStack.modControllable
 	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
 		PadLEDs::renderingLock = true;
 
-		// erase current image as it will be refreshed
-		memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+		// get max Y display that would be rendered based on AudioEngine::rmsLevel
+		int32_t maxYDisplayForVUMeter = getMaxYDisplayForVUMeter();
 
-		// erase current occupancy mask as it will be refreshed
-		memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+		// if we haven't yet rendered
+		// or previously rendered VU meter was rendered to a different maxYDisplay
+		// then we want to refresh the VU meter rendered in the sidebar
+		// if we've already rendered and maxYDisplay hasn't changed, no need to refresh sidebar image
+		if (!renderedVUMeter || (maxYDisplayForVUMeter != cachedMaxYDisplayForVUMeter)) {
+			// save maxYDisplay about to be rendered
+			cachedMaxYDisplayForVUMeter = maxYDisplayForVUMeter;
 
-		// render VU meter
-		// loop through each row in the grid
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			renderVUMeter(yDisplay, image[yDisplay], occupancyMask[yDisplay]);
+			// erase current image as it will be refreshed
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				RGB* const start = &image[y][kDisplayWidth];
+				std::fill(start, start + kSideBarWidth, colours::black);
+			}
+
+			if (maxYDisplayForVUMeter != 255) {
+				renderVUMeter(maxYDisplayForVUMeter, image);
+			}
+			// save the VU meter rendering status so that grid can be refreshed later if required
+			// (e.g. if you switch mod buttons or turn off affect entire)
+			renderedVUMeter = true;
 		}
+
 		PadLEDs::renderingLock = false;
 
-		// save the VU meter rendering status so that grid can be refreshed later if required
-		// (e.g. if you switch mod buttons or turn off affect entire)
-		renderedVUMeter = true;
-
+		// return true so that you don't render the usual sidebar
 		return true;
 	}
 
+	// if we made it here then we haven't rendered a VU meter in the sidebar
 	renderedVUMeter = false;
 
+	// return false so that the usual sidebar rendering can be drawn
 	return false;
 }
 
-/// render AudioEngine::rmsLevel as a VU meter on the grid
-void View::renderVUMeter(uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
-                         uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth]) {
-
+int32_t View::getMaxYDisplayForVUMeter() {
 	// dBFS (dB below clipping) calculation
 	// 16.7 = log(2^24) which is the rmsLevel at which clipping begins
 	float dBFS = (AudioEngine::rmsLevel - 16.7) * 4;
-	// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
-	// 9 is the rmsLevel at which the sound becomes inaudible
-	// so for grid rendering purposes, any rmsLevel value below 9 doesn't get rendered on grid
-	// -30.8 dBFS = (9 - 16.7) * 4
-	// 4.4 = 4.3 is dBFS range for a given row + 0.1
-	// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
-	/*
-	y7 = clipping (0 or higher)
-	y6 = -4.4 to -0.1
-	y5 = -8.8 to -4.5
-	y4 = -13.2 to -8.9
-	y3 = -17.6 to -13.3
-	y2 = -22.0 to -17.7
-	y1 = -26.4 to -22.1
-	y0 = -30.8 to -26.5
-	*/
-	float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
+	int32_t maxYDisplay = 255;
 
-	// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
-	if (dBFS >= dBFSForYDisplay) {
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
+		// 9 is the rmsLevel at which the sound becomes inaudible
+		// so for grid rendering purposes, any rmsLevel value below 9 doesn't get rendered on grid
+		// -30.8 dBFS = (9 - 16.7) * 4
+		// 4.4 = 4.3 is dBFS range for a given row + 0.1
+		// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
+		/*
+		y7 = clipping (0 or higher)
+		y6 = -4.4 to -0.1
+		y5 = -8.8 to -4.5
+		y4 = -13.2 to -8.9
+		y3 = -17.6 to -13.3
+		y2 = -22.0 to -17.7
+		y1 = -26.4 to -22.1
+		y0 = -30.8 to -26.5
+		*/
+		float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
+		// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
+		if (dBFS >= dBFSForYDisplay) {
+			maxYDisplay = yDisplay;
+		}
+		else {
+			break;
+		}
+	}
+	return maxYDisplay;
+}
+
+/// render AudioEngine::rmsLevel as a VU meter on the grid
+void View::renderVUMeter(uint8_t maxYDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
+	for (int32_t yDisplay = 0; yDisplay < (maxYDisplay + 1); yDisplay++) {
+		for (int32_t xDisplay = kDisplayWidth; xDisplay < (kDisplayWidth + kSideBarWidth); xDisplay++) {
 			// y0 - y4 = green
 			if (yDisplay < 5) {
-				thisImage[xDisplay] = colours::green;
+				thisImage[yDisplay][xDisplay] = colours::green;
 			}
 			// y5 - y6 = orange
 			else if (yDisplay < 7) {
-				thisImage[xDisplay] = colours::orange;
+				thisImage[yDisplay][xDisplay] = colours::orange;
 			}
 			// y7 = red
 			else {
-				thisImage[xDisplay] = colours::red;
+				thisImage[yDisplay][xDisplay] = colours::red;
 			}
 		}
 	}
@@ -1551,11 +1579,12 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	setModLedStates();
 	setKnobIndicatorLevels();
 
-	// refresh grid if VU meter previously rendered is still showing and we're in session / arranger view
-	// this could happen when you're turning affect entire off or selecting a clip
+	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
+	// view this could happen when you're turning affect entire off or selecting a clip
 	UI* currentUI = getCurrentUI();
-	if (renderedVUMeter && (currentUI == &sessionView || currentUI == &arrangerView)) {
-		uiNeedsRendering(currentUI);
+	if (renderedVUMeter
+	    && (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView)) {
+		uiNeedsRendering(currentUI, 0);
 	}
 
 	// midi follow and midi feedback enabled
@@ -1574,6 +1603,13 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	// refresh sidebar if VU meter previously rendered is still showing and we're in arranger / arranger performance
+	// view this happens when selecting a clip that is not playing back (e.g. white clip with no notes)
+	UI* currentUI = getCurrentUI();
+	if (renderedVUMeter && (currentUI == &arrangerView || currentUI == &performanceSessionView)) {
+		uiNeedsRendering(currentUI, 0);
+	}
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {

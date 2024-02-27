@@ -131,7 +131,10 @@ Clip* getSelectedClip(bool useActiveClip) {
 		clip = arrangerView.getClipForSelection();
 		break;
 	case UIType::PERFORMANCE_SESSION_VIEW:
-		// if you're in performance view, no clip will be selected for param control
+		// if you're in the arranger performance view, check if you're holding audition pad
+		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			clip = arrangerView.getClipForSelection();
+		}
 		break;
 	case UIType::AUTOMATION_VIEW:
 		if (automationView.getAutomationSubType() == AutomationSubType::ARRANGER) {

@@ -1384,6 +1384,10 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridRenderSidebar(whichRows, image, occupancyMask);
 	}
@@ -2026,11 +2030,11 @@ void SessionView::graphicsRoutine() {
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
 		}
-		// if volume / pan mod button is selected, displayVUMeter is toggled on
-		// and we're not currently selecting a clip
-		if (modKnobMode == 0 && view.displayVUMeter && !getClipForLayout()) {
-			uiNeedsRendering(this);
-		}
+	}
+
+	// if we're not currently selecting a clip
+	if (!getClipForLayout() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
@@ -2356,10 +2360,6 @@ uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
-		return true;
-	}
-
-	if (view.potentiallyRenderVUMeter(whichRows, image, occupancyMask)) {
 		return true;
 	}
 
