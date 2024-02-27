@@ -30,6 +30,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -897,8 +898,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
 		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
 		// reduces the saved song volume by approximately 21% (889516852 / 4294967295)
-		if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_4P1P4_ALPHA
-		    && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+		if (storageManager.firmware_version >= FirmwareVersion::official({4, 1, 4, "alpha"})
+		    && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
 		}
 		storageManager.exitTag("volume");

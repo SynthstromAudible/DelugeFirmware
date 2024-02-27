@@ -892,7 +892,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0
+	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
