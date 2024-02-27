@@ -48,7 +48,7 @@ public:
 	constexpr int32_t setAttack(q31_t attack) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
 		attackMS = 0.5 + (std::exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
-		a_ = (-1000.0f / 44100.f) / attackMS;
+		a_ = (-1000.0f / kSampleRate) / attackMS;
 		attackKnobPos = attack;
 		return attackMS;
 	};
@@ -57,7 +57,7 @@ public:
 	constexpr int32_t setRelease(q31_t release) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
 		releaseMS = 50 + (std::exp(2 * float(release) / ONE_Q31f) - 1) * 50;
-		r_ = (-1000.0f / 44100.f) / releaseMS;
+		r_ = (-1000.0f / kSampleRate) / releaseMS;
 		releaseKnobPos = release;
 		return releaseMS;
 	};
@@ -91,8 +91,8 @@ public:
 
 private:
 	// parameters in use
-	float a_ = (-1000.0 / 44100);
-	float r_ = (-1000.0 / 44100);
+	float a_ = (-1000.0 / kSampleRate);
+	float r_ = (-1000.0 / kSampleRate);
 	float ratio = 2;
 	float er = 0;
 	float threshdb = 17;

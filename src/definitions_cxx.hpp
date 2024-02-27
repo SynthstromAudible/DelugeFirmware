@@ -1024,6 +1024,12 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
 
+// The Deluge deals with 24-bit PCM audio
+constexpr uint32_t kBitDepth = 24;
+
+// The maximum value a (24-bit) sample can hold
+constexpr uint32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
+
 /// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;

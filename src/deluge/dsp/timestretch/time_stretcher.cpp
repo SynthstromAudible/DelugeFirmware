@@ -88,7 +88,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 		int32_t numSamplesIntoPreMarginToStartSource = fudgingNumSamplesTilLoop;
 
-		if (phaseIncrement != 16777216) {
+		if (phaseIncrement != kMaxSampleValue) {
 			fudgingNumSamplesTilLoop =
 			    ((uint64_t)fudgingNumSamplesTilLoop * (uint32_t)phaseIncrement + (1 << 23)) >> 24; // Round
 		}
@@ -119,7 +119,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		samplesTilHopEnd = 2147483647; // We don't want to do a hop-end
 
 		crossfadeIncrement =
-		    (uint32_t)(16777216 + fudgingNumSamplesTilLoop) / (uint32_t)fudgingNumSamplesTilLoop; // Round up
+		    (uint32_t)(kMaxSampleValue + fudgingNumSamplesTilLoop) / (uint32_t)fudgingNumSamplesTilLoop; // Round up
 		crossfadeProgress = 0;
 	}
 
@@ -134,7 +134,7 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 		// which would cause a spike
 		samplesTilHopEnd = TimeStretch::kDefaultFirstHopLength + ((int8_t)getRandom255() >> 2);
 
-		crossfadeProgress = 16777216;
+		crossfadeProgress = kMaxSampleValue;
 		crossfadeIncrement = 0;
 	}
 
@@ -412,7 +412,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 				if (outputSamplesTilLoop < kAntiClickCrossfadeLength) {
 
 					int32_t numSamplesIntoPreMarginToStartSource = outputSamplesTilLoop;
-					if (phaseIncrement != 16777216) {
+					if (phaseIncrement != kMaxSampleValue) {
 						// Round
 						numSamplesIntoPreMarginToStartSource =
 						    (((uint64_t)sourceSamplesTilLoop << 24) + (timeStretchRatio >> 1)) / timeStretchRatio;
@@ -493,11 +493,11 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			     beamWidthNow += kPercBufferReductionSize) {
 
 				int32_t beamBackEdge = beamPosAtTop
-				                       + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - 16777216))
+				                       + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - kMaxSampleValue))
 				                                   >> (25 + kPercBufferReductionMagnitude))
 				                             * playDirection;
 				int32_t beamFrontEdge = beamPosAtTop
-				                        + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + 16777216))
+				                        + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + kMaxSampleValue))
 				                                    >> (25 + kPercBufferReductionMagnitude))
 				                              * playDirection;
 
@@ -543,7 +543,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		int32_t beamBackEdge = samplePos
-		                       + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
+		                       + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - kMaxSampleValue)) >> 25)
 		                             * playDirection; // The real, non-pixelated one
 
 		// The actual first sample of the waveform in our given direction, regardless of our elected start-point
@@ -580,7 +580,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplesTilHopEnd = std::min(samplesTilHopEnd, maxHopLength);
 		crossfadeLengthSamples = std::min<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
-		crossfadeIncrement = (uint32_t)16777216 / (uint32_t)crossfadeLengthSamples;
+		crossfadeIncrement = (uint32_t)kMaxSampleValue / (uint32_t)crossfadeLengthSamples;
 		crossfadeProgress = 0;
 
 		// Make sure we haven't shot past end of waveform. If so, we don't want this new play-head sounding
@@ -798,14 +798,14 @@ entryPoint:
 					// right down, while also time stretching it
 
 					// If best was this one or last one
-					if (phaseIncrement != 16777216
+					if (phaseIncrement != kMaxSampleValue
 					    && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
 						uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
 						uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
 						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)
 						                   / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
 						if (searchDirectionRelativeToPlayDirection == -1) {
-							additionalOscPos = 16777216 - additionalOscPos;
+							additionalOscPos = kMaxSampleValue - additionalOscPos;
 						}
 						if (thisOffsetIsBestMatch != (searchDirectionRelativeToPlayDirection == -1)) {
 							bestOffset -= bytesPerSample * playDirection;
@@ -843,10 +843,10 @@ searchNextDirection:
 
 stopSearch:
 
-		if (phaseIncrement != 16777216) {
+		if (phaseIncrement != kMaxSampleValue) {
 			additionalOscPos += olderPartReader.oscPos;
-			if (additionalOscPos >= 16777216) {
-				additionalOscPos -= 16777216;
+			if (additionalOscPos >= kMaxSampleValue) {
+				additionalOscPos -= kMaxSampleValue;
 				bestOffset += bytesPerSample * playDirection;
 			}
 		}
@@ -866,7 +866,7 @@ skipSearch:
 #if TIME_STRETCH_ENABLE_BUFFER
 	// If we might want to set up reading from buffer...
 	if (bufferFillingMode != BUFFER_FILLING_OFF // If not OFF, it can only be OLDER or NEITHER - it gets changed above
-	    && phaseIncrement != 16777216) {
+	    && phaseIncrement != kMaxSampleValue) {
 
 		if (!olderPartReader.clusters[0]) {
 			D_PRINTLN("aaa");
@@ -1012,7 +1012,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 	if (bufferFillingMode == BUFFER_FILLING_OFF) {
 
 		// If need to start filling buffer...
-		if (phaseIncrement != 16777216 && timeStretchRatio < 16777216) {
+		if (phaseIncrement != kMaxSampleValue && timeStretchRatio < kMaxSampleValue) {
 
 			bool success = allocateBuffer(numChannels);
 			if (success) {
@@ -1213,7 +1213,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	olderHeadReadingFromBuffer = true;
 	olderBufferReadPos = 0;
-	crossfadeIncrement = 16777216 / (uint16_t)numSamplesThisCacheRead + 1;
+	crossfadeIncrement = kMaxSampleValue / (uint16_t)numSamplesThisCacheRead + 1;
 	crossfadeProgress = 0;
 
 	D_PRINTLN("doing crossfade from cache, length:  %d", numSamplesThisCacheRead);
@@ -1238,7 +1238,7 @@ int32_t a = getSine(((olderPlayPos & 63) << 20), 26) >> 11;
 outputBuffer[1] = a * sample->percCacheMemory[(timeStretcher->distanceSinceStart >> PERC_BUFFER_REDUCTION_MAGNITUDE) >>
 24];
 //if (samplesTilHopEnd <= 3) outputBuffer[1] = 536870911;
-if (hopStrength >= ((16777216 + (16777216 >> lShiftAmount)) >> 1) && !lastThingSilentNow) {
+if (hopStrength >= ((kMaxSampleValue + (kMaxSampleValue >> lShiftAmount)) >> 1) && !lastThingSilentNow) {
     lastThingSilentNow = true;
     outputBuffer[1] = -536870911;
 }

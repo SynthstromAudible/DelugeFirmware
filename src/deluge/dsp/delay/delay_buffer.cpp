@@ -79,17 +79,17 @@ void DelayBuffer::empty() {
 }
 
 int32_t DelayBuffer::getIdealBufferSizeFromRate(uint32_t newRate) {
-	return (uint64_t)DELAY_BUFFER_NEUTRAL_SIZE * 16777216 / newRate;
+	return (uint64_t)DELAY_BUFFER_NEUTRAL_SIZE * kMaxSampleValue / newRate;
 }
 
 void DelayBuffer::makeNativeRatePrecise() {
-	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216 / (double)size);
+	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)kMaxSampleValue / (double)size);
 }
 
 void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherBuffer) {
 	double otherBufferAmountTooFast = (double)otherBuffer->nativeRate * (double)otherBuffer->size
-	                                  / ((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216);
-	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)16777216 * otherBufferAmountTooFast / (double)size);
+	                                  / ((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)kMaxSampleValue);
+	nativeRate = round((double)DELAY_BUFFER_NEUTRAL_SIZE * (double)kMaxSampleValue * otherBufferAmountTooFast / (double)size);
 }
 
 void DelayBuffer::discard() {
@@ -132,12 +132,12 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 	if (isResampling) {
 
 		setup->actualSpinRate =
-		    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)nativeRate); // 1 is represented as 16777216
+		    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)nativeRate); // 1 is represented as kMaxSampleValue
 		setup->divideByRate =
 		    (uint32_t)((double)0xFFFFFFFF / (double)(setup->actualSpinRate >> 8)); // 1 is represented as 65536
 
 		// If buffer spinning slow
-		if (setup->actualSpinRate < 16777216) {
+		if (setup->actualSpinRate < kMaxSampleValue) {
 
 			uint32_t timesSlowerRead = setup->divideByRate >> 16;
 
@@ -163,7 +163,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 
 			// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster
 			// takes longer). No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
-			setup->spinRateForSpedUpWriting = std::min(setup->actualSpinRate, (int32_t)16777216 * 8);
+			setup->spinRateForSpedUpWriting = std::min(setup->actualSpinRate, (int32_t)kMaxSampleValue * 8);
 
 			// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
 			// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing

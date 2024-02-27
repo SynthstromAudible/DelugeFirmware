@@ -142,7 +142,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
+		return kMaxSampleValue; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
 		                 // 16x smaller)
 
 	case params::GLOBAL_MOD_FX_DEPTH:
@@ -1491,8 +1491,8 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t mem
 	int32_t strengthR[LANCZOS_A];
 
 	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
+		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
+		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
 	int32_t howManyLeft = std::min((int32_t)LANCZOS_A, (int32_t)(pos + 1));
@@ -1518,8 +1518,8 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	int32_t strengthR[LANCZOS_A];
 
 	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
+		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
+		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
 	int32_t value = 0;
