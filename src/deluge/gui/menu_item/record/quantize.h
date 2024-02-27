@@ -22,6 +22,8 @@ namespace deluge::gui::menu_item::record {
 class Quantize final : public sync_level::RelativeToSong {
 public:
 	using RelativeToSong::RelativeToSong;
+	// can't do triplets/dots for quantize
+	size_t size() override { return SYNC_TYPE_TRIPLET; }
 	void readCurrentValue() { this->setValue(FlashStorage::recordQuantizeLevel); }
 	void writeCurrentValue() { FlashStorage::recordQuantizeLevel = this->getValue(); }
 };
