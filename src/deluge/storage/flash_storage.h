@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include <cstdint>
+#include <span>
 
 #define PREVIEW_OFF 0
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
@@ -63,7 +64,5 @@ void writeSettings();
 void resetSettings();
 void resetMidiFollowSettings();
 void resetAutomationSettings();
-bool areMidiFollowSettingsValid(uint8_t* buffer);
-bool areAutomationSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage

@@ -3,8 +3,8 @@ name: Run tests
 on:
   pull_request:
     branches:
-      - 'community'
-      - 'release/**'
+      - "community"
+      - "release/**"
   merge_group:
   workflow_dispatch:
 
@@ -21,11 +21,32 @@ jobs:
           sudo apt-get install gcc-12 gcc-12-multilib g++-12-multilib
           echo "CC=gcc-12" >> $GITHUB_ENV
           echo "CXX=g++-12" >> $GITHUB_ENV
-      - name: Configure build
-        uses: threeal/cmake-action@v1.3.0
-        with:
-          generator: Ninja
-          source-dir: tests
-          build-dir: build
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Configure
+        run: cmake -B build -S tests -G Ninja
+
       - name: Run build
         run: cmake --build build
+
+      - name: Run Tests
+        run: ctest --test-dir build --output-junit test_results.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Test Results
+          path: build/**/*.xml
+
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
