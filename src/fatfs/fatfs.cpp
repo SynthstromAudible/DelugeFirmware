@@ -1,5 +1,4 @@
 #include "fatfs.hpp"
-#include "ff.h"
 
 #define FF_TRY(expr)                                                                                                   \
 	do {                                                                                                               \
