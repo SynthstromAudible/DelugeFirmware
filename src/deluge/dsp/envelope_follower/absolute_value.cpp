@@ -37,31 +37,35 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-float AbsValueFollower::calcRMS(StereoSample* buffer, uint16_t numSamples) {
+stereo AbsValueFollower::calcRMS(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
-	q31_t sum = 0;
+	q31_t l = 0;
+	q31_t r = 0;
+	stereo logMean;
 
 	do {
-		q31_t l = thisSample->l;
-		q31_t r = thisSample->r;
-		q31_t s = std::max(std::abs(l), std::abs(r));
-		sum += s;
-
+		l += std::abs(thisSample->l);
+		r += std::abs(thisSample->r);
 	} while (++thisSample != bufferEnd);
 
 	auto ns = float(numSamples);
-	mean = (float(sum)) / ns;
+	meanL = (float(l)) / ns;
+	meanR = (float(r)) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
 	// at high cpu loads
-	mean = (mean * ns + lastMean) / (1 + ns);
+	meanL = (meanL * ns + lastMeanL) / (1 + ns);
+	meanR = (meanR * ns + lastMeanR) / (1 + ns);
 
-	lastMean = runEnvelope(lastMean, mean, numSamples);
-	float logmean = std::log(lastMean + 1e-24f);
+	lastMeanL = runEnvelope(lastMeanL, meanL, numSamples);
+	logMean.l = std::log(lastMeanL + 1e-24f);
 
-	return logmean;
+	lastMeanR = runEnvelope(lastMeanR, meanR, numSamples);
+	logMean.r = std::log(lastMeanR + 1e-24f);
+
+	return logMean;
 }
 // takes in knob positions in the range 0-ONE_Q31
 void AbsValueFollower::setup(q31_t a, q31_t r) {

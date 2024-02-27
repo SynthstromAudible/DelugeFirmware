@@ -24,6 +24,11 @@
 #include "modulation/params/param.h"
 #include <cstdint>
 
+struct vuMeter {
+	int32_t l;
+	int32_t r;
+};
+
 class InstrumentClip;
 class NoteRow;
 class UI;
@@ -143,9 +148,9 @@ private:
 	void clearMelodicInstrumentMonoExpressionIfPossible();
 
 	// vu meter rendering
-	int32_t getMaxYDisplayForVUMeter();
-	int32_t cachedMaxYDisplayForVUMeter;
-	void renderVUMeter(uint8_t maxYDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
+	int32_t getMaxYDisplayForVUMeter(float level);
+	vuMeter cachedMaxYDisplayForVUMeter;
+	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
 };
 

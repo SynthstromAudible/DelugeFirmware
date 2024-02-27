@@ -502,3 +502,8 @@ extern char miscStringBuffer[];
 
 constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
+
+struct stereo {
+	float l;
+	float r;
+};

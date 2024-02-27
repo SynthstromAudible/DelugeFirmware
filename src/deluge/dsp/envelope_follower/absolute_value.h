@@ -45,7 +45,7 @@ public:
 		return releaseMS;
 	};
 
-	float calcRMS(StereoSample* buffer, uint16_t numSamples);
+	stereo calcRMS(StereoSample* buffer, uint16_t numSamples);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
@@ -57,8 +57,10 @@ private:
 	// state
 	float state{0};
 	float rms{0};
-	float mean{0};
-	float lastMean{0};
+	float meanL{0};
+	float lastMeanL{0};
+	float meanR{0};
+	float lastMeanR{0};
 
 	// for display
 	float attackMS{1};

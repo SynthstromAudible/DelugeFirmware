@@ -105,7 +105,8 @@ View::View() {
 	clipArmFlashOn = false;
 	displayVUMeter = false;
 	renderedVUMeter = false;
-	cachedMaxYDisplayForVUMeter = 255;
+	cachedMaxYDisplayForVUMeter.l = 255;
+	cachedMaxYDisplayForVUMeter.r = 255;
 }
 
 void View::focusRegained() {
@@ -119,7 +120,8 @@ void View::focusRegained() {
 
 	// when switching between UI's we want to start with a fresh VU meter render
 	renderedVUMeter = false;
-	cachedMaxYDisplayForVUMeter = 255;
+	cachedMaxYDisplayForVUMeter.l = 255;
+	cachedMaxYDisplayForVUMeter.r = 255;
 }
 
 void View::setTripletsLedState() {
@@ -1467,15 +1469,19 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::rmsLevel
-		int32_t maxYDisplayForVUMeter = getMaxYDisplayForVUMeter();
+		vuMeter maxYDisplayForVUMeter;
+		maxYDisplayForVUMeter.l = getMaxYDisplayForVUMeter(AudioEngine::rmsLevel.l);
+		maxYDisplayForVUMeter.r = getMaxYDisplayForVUMeter(AudioEngine::rmsLevel.r);
 
 		// if we haven't yet rendered
 		// or previously rendered VU meter was rendered to a different maxYDisplay
 		// then we want to refresh the VU meter rendered in the sidebar
 		// if we've already rendered and maxYDisplay hasn't changed, no need to refresh sidebar image
-		if (!renderedVUMeter || (maxYDisplayForVUMeter != cachedMaxYDisplayForVUMeter)) {
+		if (!renderedVUMeter || (maxYDisplayForVUMeter.l != cachedMaxYDisplayForVUMeter.l)
+		    || (maxYDisplayForVUMeter.r != cachedMaxYDisplayForVUMeter.r)) {
 			// save maxYDisplay about to be rendered
-			cachedMaxYDisplayForVUMeter = maxYDisplayForVUMeter;
+			cachedMaxYDisplayForVUMeter.l = maxYDisplayForVUMeter.l;
+			cachedMaxYDisplayForVUMeter.r = maxYDisplayForVUMeter.r;
 
 			// erase current image as it will be refreshed
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -1483,8 +1489,14 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 				std::fill(start, start + kSideBarWidth, colours::black);
 			}
 
-			if (maxYDisplayForVUMeter != 255) {
-				renderVUMeter(maxYDisplayForVUMeter, image);
+			// render left VU meter
+			if (maxYDisplayForVUMeter.l != 255) {
+				renderVUMeter(maxYDisplayForVUMeter.l, kDisplayWidth, image);
+			}
+
+			// render right VU meter
+			if (maxYDisplayForVUMeter.r != 255) {
+				renderVUMeter(maxYDisplayForVUMeter.r, kDisplayWidth + 1, image);
 			}
 			// save the VU meter rendering status so that grid can be refreshed later if required
 			// (e.g. if you switch mod buttons or turn off affect entire)
@@ -1504,10 +1516,10 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	return false;
 }
 
-int32_t View::getMaxYDisplayForVUMeter() {
+int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
 	// 16.7 = log(2^24) which is the rmsLevel at which clipping begins
-	float dBFS = (AudioEngine::rmsLevel - 16.7) * 4;
+	float dBFS = (level - 16.7) * 4;
 	int32_t maxYDisplay = 255;
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -1540,21 +1552,19 @@ int32_t View::getMaxYDisplayForVUMeter() {
 }
 
 /// render AudioEngine::rmsLevel as a VU meter on the grid
-void View::renderVUMeter(uint8_t maxYDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
+void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
 	for (int32_t yDisplay = 0; yDisplay < (maxYDisplay + 1); yDisplay++) {
-		for (int32_t xDisplay = kDisplayWidth; xDisplay < (kDisplayWidth + kSideBarWidth); xDisplay++) {
-			// y0 - y4 = green
-			if (yDisplay < 5) {
-				thisImage[yDisplay][xDisplay] = colours::green;
-			}
-			// y5 - y6 = orange
-			else if (yDisplay < 7) {
-				thisImage[yDisplay][xDisplay] = colours::orange;
-			}
-			// y7 = red
-			else {
-				thisImage[yDisplay][xDisplay] = colours::red;
-			}
+		// y0 - y4 = green
+		if (yDisplay < 5) {
+			thisImage[yDisplay][xDisplay] = colours::green;
+		}
+		// y5 - y6 = orange
+		else if (yDisplay < 7) {
+			thisImage[yDisplay][xDisplay] = colours::orange;
+		}
+		// y7 = red
+		else {
+			thisImage[yDisplay][xDisplay] = colours::red;
 		}
 	}
 }
