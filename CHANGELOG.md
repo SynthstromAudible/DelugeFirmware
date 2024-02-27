@@ -44,7 +44,7 @@
   Affect Entire enabled.
 - Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will
   automatically be set on the keyboard.
-- Short-press of empty clip pads in Grid mode while REC is enabled automatically creates a new clip and queues it for
+- Streamlined recording new clips in Grid mode while Deluge is playing. Short-press empty clip pads in Grid green mode while recording is enabled to automatically create a new clip and queue it for
   recording at the start of the next bar.
 - Fixed a bug preventing clip selection while Shift was held.
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
