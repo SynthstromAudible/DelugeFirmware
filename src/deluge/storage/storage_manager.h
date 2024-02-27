@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "util/firmware_version.h"
 #include <cstdint>
 
 extern "C" {
@@ -113,7 +114,7 @@ public:
 
 	bool fileAccessFailedDuring;
 
-	int32_t firmwareVersionOfFileBeingRead;
+	FirmwareVersion firmware_version = FirmwareVersion::current();
 
 	char* fileClusterBuffer;
 	UINT currentReadBufferEndPos;
