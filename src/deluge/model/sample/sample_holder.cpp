@@ -88,7 +88,7 @@ int64_t SampleHolder::getDurationInSamples(bool forTimeStretching) {
 
 int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretching) {
 	uint64_t lengthInSamples = getDurationInSamples(forTimeStretching);
-	if (neutralPhaseIncrement == 16777216) {
+	if (neutralPhaseIncrement == kMaxSampleValue) {
 		return lengthInSamples;
 	}
 	else {

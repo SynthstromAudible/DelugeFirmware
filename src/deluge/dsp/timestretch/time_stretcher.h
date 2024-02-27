@@ -70,7 +70,7 @@ public:
 
 	int64_t samplePosBig; // In whole samples including both channels. From audioDataStart. <<'d by 24
 
-	uint32_t crossfadeProgress; // Out of 16777216
+	uint32_t crossfadeProgress; // Out of kMaxSampleValue
 	uint32_t crossfadeIncrement;
 
 	int32_t samplesTilHopEnd;
