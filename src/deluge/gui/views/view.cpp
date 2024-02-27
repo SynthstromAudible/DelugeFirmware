@@ -1468,10 +1468,10 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
 		PadLEDs::renderingLock = true;
 
-		// get max Y display that would be rendered based on AudioEngine::rmsLevel
+		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
 		vuMeter maxYDisplayForVUMeter;
-		maxYDisplayForVUMeter.l = getMaxYDisplayForVUMeter(AudioEngine::rmsLevel.l);
-		maxYDisplayForVUMeter.r = getMaxYDisplayForVUMeter(AudioEngine::rmsLevel.r);
+		maxYDisplayForVUMeter.l = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
+		maxYDisplayForVUMeter.r = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
 
 		// if we haven't yet rendered
 		// or previously rendered VU meter was rendered to a different maxYDisplay
@@ -1518,14 +1518,14 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 
 int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
-	// 16.7 = log(2^24) which is the rmsLevel at which clipping begins
+	// 16.7 = log(2^24) which is the approxRMSLevel at which clipping begins
 	float dBFS = (level - 16.7) * 4;
 	int32_t maxYDisplay = 255;
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
-		// 9 is the rmsLevel at which the sound becomes inaudible
-		// so for grid rendering purposes, any rmsLevel value below 9 doesn't get rendered on grid
+		// 9 is the approxRMSLevel at which the sound becomes inaudible
+		// so for grid rendering purposes, any approxRMSLevel value below 9 doesn't get rendered on grid
 		// -30.8 dBFS = (9 - 16.7) * 4
 		// 4.4 = 4.3 is dBFS range for a given row + 0.1
 		// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
@@ -1551,7 +1551,7 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 	return maxYDisplay;
 }
 
-/// render AudioEngine::rmsLevel as a VU meter on the grid
+/// render AudioEngine::approxRMSLevel as a VU meter on the grid
 void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
 	for (int32_t yDisplay = 0; yDisplay < (maxYDisplay + 1); yDisplay++) {
 		// y0 - y4 = green

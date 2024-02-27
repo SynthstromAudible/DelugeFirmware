@@ -45,7 +45,7 @@ public:
 		return releaseMS;
 	};
 
-	stereo calcRMS(StereoSample* buffer, uint16_t numSamples);
+	stereo calcApproxRMS(StereoSample* buffer, uint16_t numSamples);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
