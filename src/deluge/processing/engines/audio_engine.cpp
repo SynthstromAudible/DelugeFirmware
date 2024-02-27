@@ -543,8 +543,14 @@ void routine_() {
 	//  	D_PRINTLN(" samples but output ");
 	//  	D_PRINTLN(numSamples);
 	//  }
-
-	setDireness(numSamples);
+	size_t smoothedSamples;
+	if (numSamples > numSamplesLastTime) {
+		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
+	}
+	else {
+		smoothedSamples = numSamples;
+	}
+	setDireness(smoothedSamples);
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
