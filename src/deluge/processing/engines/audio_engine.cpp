@@ -375,8 +375,62 @@ constexpr int MIN_VOICES = 7;
 
 // global (to this file) because it's used for determining whether to solicit voices via culling as well
 int32_t numToCull = 0;
+
+// not in header (private to audio engine)
+/// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
+inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+	if (numAudio + numVoice > MIN_VOICES) {
+
+		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		// If it's real dire, do a proper immediate cull
+		if (numSamplesOverLimit >= 10) {
+
+			numToCull = (numSamplesOverLimit >> 3);
+
+			// leave at least 7 - below this point culling won't save us
+			// if they can't load their sample in time they'll stop the same way anyway
+			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
+			for (int32_t i = 0; i < numToCull; i++) {
+				// hard cull (no release)
+				cullVoice(false, false, true, numSamples);
+			}
+
+#if ALPHA_OR_BETA_VERSION
+
+			definitelyLog = true;
+			logAction("hard cull");
+
+#endif
+		}
+		if (numSamplesOverLimit >= 5) {
+
+			// definitely do a soft cull (won't include audio clips)
+			cullVoice(false, true, true, numSamples);
+			logAction("forced cull");
+		}
+		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
+		// is increasing
+		else if (numSamplesOverLimit >= -5) {
+
+			// If not in first routine call this is inaccurate, so just release another voice since things are
+			// probably bad
+			cullVoice(false, true, numRoutines > 0, numSamples);
+			logAction("soft cull");
+		}
+	}
+	else {
+		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		// If it's real dire, do a proper immediate cull
+		if (numSamplesOverLimit >= 10) {
+			D_PRINTLN("under min voices but culling anyway");
+			cullVoice(false, false, true, numSamples);
+		}
+	}
+}
+
+// not in header (private to audio engine)
 /// set the direness level and cull any voices
-void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	numToCull = 0;
 
 	// don't smooth this - used for other decisions as well
@@ -394,53 +448,7 @@ void setDireness(size_t numSamples) { // Consider direness and culling - before 
 		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
-			if (numAudio + numVoice > MIN_VOICES) {
-
-				int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
-				// If it's real dire, do a proper immediate cull
-				if (numSamplesOverLimit >= 10) {
-
-					numToCull = (numSamplesOverLimit >> 3);
-
-					// leave at least 7 - below this point culling won't save us
-					// if they can't load their sample in time they'll stop the same way anyway
-					numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
-					for (int32_t i = 0; i < numToCull; i++) {
-						// hard cull (no release)
-						cullVoice(false, false, true, numSamples);
-					}
-
-#if ALPHA_OR_BETA_VERSION
-
-					definitelyLog = true;
-					logAction("hard cull");
-
-#endif
-				}
-				if (numSamplesOverLimit >= 5) {
-
-					// definitely do a soft cull (won't include audio clips)
-					cullVoice(false, true, true, numSamples);
-					logAction("forced cull");
-				}
-				// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-				// is increasing
-				else if (numSamplesOverLimit >= -5) {
-
-					// If not in first routine call this is inaccurate, so just release another voice since things are
-					// probably bad
-					cullVoice(false, true, numRoutines > 0, numSamples);
-					logAction("soft cull");
-				}
-			}
-			else {
-				int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
-				// If it's real dire, do a proper immediate cull
-				if (numSamplesOverLimit >= 10) {
-					D_PRINTLN("under min voices but culling anyway");
-					cullVoice(false, false, true, numSamples);
-				}
-			}
+			cullVoices(numSamples, numAudio, numVoice);
 		}
 		else {
 
