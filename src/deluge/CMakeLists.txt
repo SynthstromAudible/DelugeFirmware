@@ -1,4 +1,5 @@
 configure_file(version.h.in version.h @ONLY)
+configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
 
 # Add the sources to the target
@@ -37,7 +38,7 @@ if(ENABLE_RTT)
     target_compile_definitions(deluge PUBLIC
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:HAVE_RTT=1>
     )
-    target_link_libraries(deluge PUBLIC 
+    target_link_libraries(deluge PUBLIC
         $<$<CONFIG:DEBUG,RELWITHDEBINFO>:RTT>
     )
 endif(ENABLE_RTT)
