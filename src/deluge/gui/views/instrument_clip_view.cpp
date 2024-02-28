@@ -840,7 +840,7 @@ someError:
 			drum = nullptr;
 		}
 
-		loadInstrumentPresetUI.setupLoadSynthToKit(drum, kit, noteRow, noteRowIndex);
+		loadInstrumentPresetUI.setupLoadSynthToKit(kit, getCurrentInstrumentClip(), drum, noteRow, noteRowIndex);
 		openUI(&loadInstrumentPresetUI);
 	}
 

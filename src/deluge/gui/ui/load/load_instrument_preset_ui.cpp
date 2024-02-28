@@ -176,9 +176,27 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 
 	// Or if the Instruments are different types...
 	else {
+		if (loadingSynthToKitRow) {
 
+			if (&soundDrumToReplace->name) {
+				String* name = &soundDrumToReplace->name;
+				enteredText.set(name);
+				searchFilename.set(name);
+			}
+
+			if (&soundDrumToReplace->path) {
+				currentDir.set(&soundDrumToReplace->path);
+				if (currentDir.isEmpty()) {
+					goto useDefaultFolder;
+				}
+			}
+
+			else {
+				goto useDefaultFolder;
+			}
+		}
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
-		if (instrumentClipToLoadFor) {
+		else if (instrumentClipToLoadFor) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
 			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
 			enteredText.set(backedUpName);
@@ -188,15 +206,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				goto useDefaultFolder;
 			}
 		}
-		else if (loadingSynthToKitRow) {
-			String* backedUpName = &soundDrumToReplace->name;
-			enteredText.set(backedUpName);
-			searchFilename.set(backedUpName);
-			currentDir.set(&soundDrumToReplace->path);
-			if (currentDir.isEmpty()) {
-				goto useDefaultFolder;
-			}
-		}
+
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
@@ -988,7 +998,7 @@ giveUsedError:
 
 Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	FileItem* currentFileItem = getCurrentFileItem();
-
+	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
 		// Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
@@ -998,7 +1008,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::NONE;
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
@@ -1006,7 +1017,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace
-	Error error = storageManager.loadSynthToDrum(currentSong, getCurrentInstrumentClip(), false, &soundDrumToReplace,
+	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
@@ -1019,12 +1030,12 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
 	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
-	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, getCurrentInstrumentClip());
+	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
 		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, getCurrentInstrumentClip(),
-		                 paramManager, false);
+		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
+		                 false);
 		kitToLoadFor->beenEdited();
 	}
 	else {

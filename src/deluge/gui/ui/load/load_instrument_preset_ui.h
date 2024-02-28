@@ -62,17 +62,15 @@ public:
 		instrumentClipToLoadFor = instrumentClipToLoadFor_;
 		loadingSynthToKitRow = false;
 		soundDrumToReplace = nullptr;
-		kitToLoadFor = nullptr;
 		noteRowIndex = 255; // (not set value for note rows)
 		noteRow = nullptr;
 	}
-	void setupLoadSynthToKit(SoundDrum* drum, Kit* kit, NoteRow* row, int32_t rowIndex) {
+	void setupLoadSynthToKit(Instrument* kit, InstrumentClip* clip, SoundDrum* drum, NoteRow* row, int32_t rowIndex) {
 		Browser::outputTypeToLoad = OutputType::SYNTH;
-		instrumentToReplace = nullptr;
-		instrumentClipToLoadFor = nullptr;
+		instrumentToReplace = kit;
+		instrumentClipToLoadFor = clip;
 		loadingSynthToKitRow = true;
 		soundDrumToReplace = drum;
-		kitToLoadFor = kit;
 		noteRowIndex = rowIndex; // (not set value for note rows)
 		noteRow = row;
 	}
@@ -99,7 +97,6 @@ private:
 	// these are all necessary to setup a sound drum
 	bool loadingSynthToKitRow;
 	SoundDrum* soundDrumToReplace;
-	Kit* kitToLoadFor;
 	int32_t noteRowIndex;
 	NoteRow* noteRow;
 	Error currentInstrumentLoadError;
