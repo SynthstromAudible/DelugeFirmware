@@ -55,7 +55,7 @@ public:
 
 	DelayBuffer primaryBuffer;
 	DelayBuffer secondaryBuffer;
-	ImpulseResponseProcessor impulseResponseProcessor;
+	ImpulseResponseProcessor ir_processor;
 
 	uint32_t countCyclesWithoutChange;
 	int32_t userRateLastTime;

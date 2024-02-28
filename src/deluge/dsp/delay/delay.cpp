@@ -270,7 +270,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	bool wrapped = false;
 
-	std::span<StereoSample> delayWorkingBuffer{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()};
+	std::span<StereoSample> working_buffer{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()};
 
 	GeneralMemoryAllocator::get().checkStack("delay");
 
@@ -280,7 +280,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	// If nothing to read yet, easy
 	if (!primaryBuffer.isActive()) {
-		std::fill(delayWorkingBuffer.begin(), delayWorkingBuffer.end(), StereoSample{0, 0});
+		std::fill(working_buffer.begin(), working_buffer.end(), StereoSample{0, 0});
 	}
 
 	// Or...
@@ -292,7 +292,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 		// Native read
 		if (!primaryBuffer.isResampling()) {
-			for (StereoSample& sample : delayWorkingBuffer) {
+			for (StereoSample& sample : working_buffer) {
 				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
 				sample = primaryBuffer.current();
 			}
@@ -301,7 +301,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 		// Or, resampling read
 		else {
 
-			for (StereoSample& sample : delayWorkingBuffer) {
+			for (StereoSample& sample : working_buffer) {
 				// Move forward, and clear buffer as we go
 				int32_t primaryStrength2 = primaryBuffer.advance([&] {
 					wrapped = primaryBuffer.clearAndMoveOn() || wrapped; //<
@@ -328,11 +328,11 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	if (analog) {
 
-		for (StereoSample& sample : delayWorkingBuffer) {
-			impulseResponseProcessor.process(sample, sample);
+		for (StereoSample& sample : working_buffer) {
+			ir_processor.process(sample, sample);
 		}
 
-		for (StereoSample& sample : delayWorkingBuffer) {
+		for (StereoSample& sample : working_buffer) {
 			// impulseResponseProcessor.process(sample, sample);
 
 			// Reduce headroom, since this sounds ok with analog sim
@@ -346,7 +346,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 	}
 
 	else {
-		for (StereoSample& sample : delayWorkingBuffer) {
+		for (StereoSample& sample : working_buffer) {
 			// Leave more headroom, because making it clip sounds bad with pure digital
 			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount))
 			           << 2;
@@ -357,7 +357,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
 	// repetitions
-	for (StereoSample& sample : delayWorkingBuffer) {
+	for (StereoSample& sample : working_buffer) {
 		int32_t distanceToGoL = sample.l - postLPFL;
 		postLPFL += distanceToGoL >> 11;
 		sample.l -= postLPFL;
@@ -369,7 +369,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
 	// into the delay
-	for (auto [input, output] : std::views::zip(delayWorkingBuffer, buffer)) {
+	for (auto [input, output] : std::views::zip(working_buffer, buffer)) {
 		// Feedback calculation, and combination with input
 		if (pingPong && AudioEngine::renderInStereo) {
 			input.l = input.r;
@@ -393,7 +393,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 				writePos += primaryBuffer.sizeIncludingExtra;
 			}
 
-			for (StereoSample sample : delayWorkingBuffer) {
+			for (StereoSample sample : working_buffer) {
 				primaryBuffer.writeNativeAndMoveOn(sample, &writePos);
 			}
 		}
@@ -404,7 +404,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 			primaryBuffer.longPos = primaryBufferOldLongPos;
 			primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
 
-			for (StereoSample sample : delayWorkingBuffer) {
+			for (StereoSample sample : working_buffer) {
 				// Move forward
 				int32_t primaryStrength2 = primaryBuffer.advance([&] {
 					primaryBuffer.moveOn(); //<
@@ -425,7 +425,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 		// Native
 		if (!secondaryBuffer.isResampling()) {
-			for (StereoSample sample : delayWorkingBuffer) {
+			for (StereoSample sample : working_buffer) {
 				wrapped = secondaryBuffer.clearAndMoveOn() || wrapped;
 				sizeLeftUntilBufferSwap--;
 
@@ -437,7 +437,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 		// Resampled
 		else {
 
-			for (StereoSample sample : delayWorkingBuffer) {
+			for (StereoSample sample : working_buffer) {
 				// Move forward, and clear buffer as we go
 				int32_t secondaryStrength2 = secondaryBuffer.advance([&] {
 					wrapped = secondaryBuffer.clearAndMoveOn() || wrapped; //<
