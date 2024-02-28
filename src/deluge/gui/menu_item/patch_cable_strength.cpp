@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -179,6 +180,12 @@ void PatchCableStrength::writeCurrentValue() {
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+
+	if (getRootUI() == &automationView) {
+		int32_t p = modelStackWithParam->paramId;
+		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+	}
 }
 
 MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
@@ -237,5 +244,55 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
 	return nullptr; // Navigate back
+}
+
+ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+
+	bool clipMinder = rootUIIsClipMinderScreen();
+	RootUI* rootUI = getRootUI();
+
+	// Clip or Song button
+	// Used to enter automation view from sound editor
+	if (b == CLIP_VIEW && clipMinder) {
+		if (on) {
+			if (rootUI != &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				swapOutRootUILowLevel(&automationView);
+				automationView.initializeView();
+				automationView.openedInBackground();
+			}
+			soundEditor.exitCompletely();
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	// Select encoder button, used to change current parameter selection in automation view
+	// if you are already in automation view and entered an automatable parameter menu
+	else if (b == SELECT_ENC && clipMinder) {
+		if (on) {
+			if (rootUI == &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				uiNeedsRendering(rootUI);
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+
+void PatchCableStrength::selectAutomationViewParameter(bool clipMinder) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory, true);
+
+	int32_t p = modelStack->paramId;
+	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+	Clip* clip = getCurrentClip();
+
+	if (clipMinder) {
+		clip->lastSelectedParamID = p;
+		clip->lastSelectedParamKind = kind;
+		clip->lastSelectedOutputType = clip->output->type;
+		clip->lastSelectedPatchSource = getS();
+	}
 }
 } // namespace deluge::gui::menu_item

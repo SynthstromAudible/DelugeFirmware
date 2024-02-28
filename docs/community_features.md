@@ -528,6 +528,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           provide the ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
           press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter
           the `AUTOMATION VIEW EDITOR`.
+    - ([#TBD]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable.
 
 #### 4.3.6 - Set Probability By Row
 

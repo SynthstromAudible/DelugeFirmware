@@ -15,6 +15,8 @@
 
 - Added a feature save user-defined pad brightness level and restore it at startup.
 
+- Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine
