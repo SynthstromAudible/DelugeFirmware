@@ -23,12 +23,12 @@
 #include <optional>
 
 // Returns error status
-Error DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
+Error DelayBuffer::init(uint32_t rate, uint32_t failIfThisSize, bool includeExtraSpace) {
 
 	// Uart::println("init buffer");
-	auto [size, make_precise] = getIdealBufferSizeFromRate(native_rate_);
+	auto [size, make_precise] = getIdealBufferSizeFromRate(rate);
 
-	native_rate_ = newRate;
+	native_rate_ = rate;
 	size_ = size;
 
 	// Uart::print("buffer size_: ");
