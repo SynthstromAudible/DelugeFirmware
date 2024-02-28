@@ -12,7 +12,6 @@
 - Added feature to automatically load song projects at startup.
     - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
-- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
 
 - Added a feature save user-defined pad brightness level and restore it at startup.
 
@@ -71,6 +70,7 @@
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
 - Updated the count-in setting to allow specifying the number of bars (1-4).
+- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
