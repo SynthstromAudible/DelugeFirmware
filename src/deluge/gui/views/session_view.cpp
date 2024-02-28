@@ -523,7 +523,7 @@ changeOutputType:
 
 						currentUIMode = UI_MODE_NONE;
 						selectedClipYDisplay = 255;
-						
+
 						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
 					}
