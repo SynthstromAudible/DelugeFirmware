@@ -21,6 +21,7 @@
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
+#include <span>
 
 class Delay {
 public:
@@ -46,6 +47,7 @@ public:
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
+	void initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn = true);
 	void discardBuffers();
 	void setTimeToAbandon(const State& workingState);
@@ -73,6 +75,8 @@ public:
 	int32_t prevFeedback = 0;
 
 	uint8_t repeatsUntilAbandon = 0; // 0 means never abandon
+
+	void process(std::span<StereoSample> buffer, State delayWorkingState, int32_t analogDelaySaturationAmount);
 
 private:
 	void prepareToBeginWriting();

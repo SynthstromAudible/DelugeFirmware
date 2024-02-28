@@ -22,9 +22,7 @@
 
 #include "util/functions.h"
 
-class StereoSample {
-public:
-	StereoSample() {}
+struct StereoSample {
 	inline void addMono(q31_t sampleValue) {
 		l += sampleValue;
 		r += sampleValue;
@@ -47,6 +45,6 @@ public:
 		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
 	}
 
-	q31_t l;
-	q31_t r;
+	q31_t l = 0;
+	q31_t r = 0;
 };

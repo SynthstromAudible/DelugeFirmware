@@ -246,7 +246,7 @@ public:
 	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
 
 	// Iterator access
-	[[nodiscard]] constexpr StereoSample* current() const { return current_; }
+	[[nodiscard]] constexpr StereoSample& current() const { return *current_; }
 	[[nodiscard]] constexpr StereoSample* begin() const { return start_; }
 	[[nodiscard]] constexpr StereoSample* end() const { return end_; }
 	[[nodiscard]] constexpr size_t size() const { return size_; }

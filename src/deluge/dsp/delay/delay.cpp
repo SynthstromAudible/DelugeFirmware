@@ -18,8 +18,13 @@
 #include "dsp/delay/delay.h"
 #include "definitions_cxx.hpp"
 #include "dsp/delay/delay_buffer.h"
+#include "dsp/stereo_sample.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
+#include "processing/engines/audio_engine.h"
 #include <cstdlib>
+
+extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 void Delay::informWhetherActive(bool newActive, int32_t userDelayRate) {
 
@@ -192,4 +197,270 @@ void Delay::discardBuffers() {
 	secondaryBuffer.discard();
 	prevFeedback = 0;
 	repeatsUntilAbandon = 0;
+}
+
+void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer) {
+	Error result = secondaryBuffer.init(newNativeRate, primaryBuffer.size());
+	if (result != Error::NONE) {
+		return;
+	}
+	D_PRINTLN("new buffer, size:  %d", secondaryBuffer.size());
+
+	// 2 different options here for different scenarios. I can't very clearly remember how to describe the
+	// difference
+	if (makeNativeRatePreciseRelativeToOtherBuffer) {
+		// D_PRINTLN("making precise");
+		primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(secondaryBuffer);
+	}
+	else {
+		primaryBuffer.makeNativeRatePrecise();
+		secondaryBuffer.makeNativeRatePrecise();
+	}
+	sizeLeftUntilBufferSwap = secondaryBuffer.size() + 5;
+}
+
+void Delay::process(std::span<StereoSample> buffer, const State delayWorkingState,
+                    const int32_t analogDelaySaturationAmount) {
+	if (!delayWorkingState.doDelay) {
+		return;
+	}
+
+	if (delayWorkingState.userDelayRate != userRateLastTime) {
+		userRateLastTime = delayWorkingState.userDelayRate;
+		countCyclesWithoutChange = 0;
+	}
+	else {
+		countCyclesWithoutChange += buffer.size();
+	}
+
+	// If just a single buffer is being used for reading and writing, we can consider making a 2nd buffer
+	if (!secondaryBuffer.isActive()) {
+
+		// If resampling previously recorded as happening, or just about to be recorded as happening
+		if (primaryBuffer.isResampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
+
+			// If delay speed has settled for a split second...
+			if (countCyclesWithoutChange >= (kSampleRate >> 5)) {
+				// D_PRINTLN("settling");
+				initializeSecondaryBuffer(delayWorkingState.userDelayRate, true);
+			}
+
+			// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
+			// (smaller) buffer at our new rate
+			else if (delayWorkingState.userDelayRate >= (primaryBuffer.nativeRate() << 1)) {
+				initializeSecondaryBuffer(delayWorkingState.userDelayRate, false);
+			}
+
+			// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
+			// rate is half our current rate (double the quality)
+			else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate()) {
+				initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
+			}
+		}
+	}
+
+	// Figure some stuff out for the primary buffer
+	primaryBuffer.setupForRender(delayWorkingState.userDelayRate);
+
+	// Figure some stuff out for the secondary buffer - only if it's active
+	if (secondaryBuffer.isActive()) {
+		secondaryBuffer.setupForRender(delayWorkingState.userDelayRate);
+	}
+
+	bool wrapped = false;
+
+	std::span<StereoSample> delayWorkingBuffer{reinterpret_cast<StereoSample*>(spareRenderingBuffer[0]), buffer.size()};
+
+	GeneralMemoryAllocator::get().checkStack("delay");
+
+	StereoSample* primaryBufferOldPos;
+	uint32_t primaryBufferOldLongPos;
+	uint8_t primaryBufferOldLastShortPos;
+
+	// If nothing to read yet, easy
+	if (!primaryBuffer.isActive()) {
+		std::fill(delayWorkingBuffer.begin(), delayWorkingBuffer.end(), StereoSample{0, 0});
+	}
+
+	// Or...
+	else {
+
+		primaryBufferOldPos = &primaryBuffer.current();
+		primaryBufferOldLongPos = primaryBuffer.longPos;
+		primaryBufferOldLastShortPos = primaryBuffer.lastShortPos;
+
+		// Native read
+		if (!primaryBuffer.isResampling()) {
+			for (StereoSample& sample : delayWorkingBuffer) {
+				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
+				sample = primaryBuffer.current();
+			}
+		}
+
+		// Or, resampling read
+		else {
+
+			for (StereoSample& sample : delayWorkingBuffer) {
+				// Move forward, and clear buffer as we go
+				int32_t primaryStrength2 = primaryBuffer.advance([&] {
+					wrapped = primaryBuffer.clearAndMoveOn() || wrapped; //<
+				});
+
+				int32_t primaryStrength1 = 65536 - primaryStrength2;
+
+				StereoSample* nextPos = &primaryBuffer.current() + 1;
+				if (nextPos == primaryBuffer.end()) {
+					nextPos = primaryBuffer.begin();
+				}
+				StereoSample fromDelay1 = primaryBuffer.current();
+				StereoSample fromDelay2 = *nextPos;
+
+				sample.l = (multiply_32x32_rshift32(fromDelay1.l, primaryStrength1 << 14)
+				            + multiply_32x32_rshift32(fromDelay2.l, primaryStrength2 << 14))
+				           << 2;
+				sample.r = (multiply_32x32_rshift32(fromDelay1.r, primaryStrength1 << 14)
+				            + multiply_32x32_rshift32(fromDelay2.r, primaryStrength2 << 14))
+				           << 2;
+			}
+		}
+	}
+
+	if (analog) {
+
+		for (StereoSample& sample : delayWorkingBuffer) {
+			impulseResponseProcessor.process(sample, sample);
+		}
+
+		for (StereoSample& sample : delayWorkingBuffer) {
+			// impulseResponseProcessor.process(sample, sample);
+
+			// Reduce headroom, since this sounds ok with analog sim
+			sample.l = getTanHUnknown(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount),
+			                          analogDelaySaturationAmount)
+			           << 2;
+			sample.r = getTanHUnknown(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount),
+			                          analogDelaySaturationAmount)
+			           << 2;
+		}
+	}
+
+	else {
+		for (StereoSample& sample : delayWorkingBuffer) {
+			// Leave more headroom, because making it clip sounds bad with pure digital
+			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount))
+			           << 2;
+			sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount))
+			           << 2;
+		}
+	}
+
+	// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
+	// repetitions
+	for (StereoSample& sample : delayWorkingBuffer) {
+		int32_t distanceToGoL = sample.l - postLPFL;
+		postLPFL += distanceToGoL >> 11;
+		sample.l -= postLPFL;
+
+		int32_t distanceToGoR = sample.r - postLPFR;
+		postLPFR += distanceToGoR >> 11;
+		sample.r -= postLPFR;
+	}
+
+	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
+	// into the delay
+	StereoSample* outputSample = buffer.data();
+	for (StereoSample& sample : delayWorkingBuffer) {
+		// Feedback calculation, and combination with input
+		if (pingPong && AudioEngine::renderInStereo) {
+			sample.l = sample.r;
+			sample.r = ((outputSample->l + outputSample->r) >> 1) + sample.l;
+		}
+		else {
+			sample.l = outputSample->l + sample.l;
+			sample.r = outputSample->r + sample.r;
+		}
+
+		// Output
+		outputSample->l += sample.l;
+		outputSample->r += sample.r;
+
+		outputSample++;
+	}
+
+	// And actually feedback being applied back into the actual delay primary buffer...
+	if (primaryBuffer.isActive()) {
+
+		// Native
+		if (!primaryBuffer.isResampling()) {
+			StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
+			if (writePos < primaryBuffer.begin()) {
+				writePos += primaryBuffer.sizeIncludingExtra;
+			}
+
+			for (StereoSample sample : delayWorkingBuffer) {
+				primaryBuffer.writeNativeAndMoveOn(sample, &writePos);
+			}
+		}
+
+		// Resampling
+		else {
+			primaryBuffer.setCurrent(primaryBufferOldPos);
+			primaryBuffer.longPos = primaryBufferOldLongPos;
+			primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
+
+			for (StereoSample sample : delayWorkingBuffer) {
+				// Move forward
+				int32_t primaryStrength2 = primaryBuffer.advance([&] {
+					primaryBuffer.moveOn(); //<
+				});
+				int32_t primaryStrength1 = 65536 - primaryStrength2;
+
+				primaryBuffer.writeResampled(sample, primaryStrength1, primaryStrength2);
+			}
+		}
+	}
+
+	// And secondary buffer
+	// If secondary buffer active, we need to tick it along and write to it too
+	if (secondaryBuffer.isActive()) {
+
+		// We want to disregard whatever the primary buffer told us, and just use the secondary one now
+		wrapped = false;
+
+		// Native
+		if (!secondaryBuffer.isResampling()) {
+			for (StereoSample sample : delayWorkingBuffer) {
+				wrapped = secondaryBuffer.clearAndMoveOn() || wrapped;
+				sizeLeftUntilBufferSwap--;
+
+				// Write to secondary buffer
+				secondaryBuffer.writeNative(sample);
+			};
+		}
+
+		// Resampled
+		else {
+
+			for (StereoSample sample : delayWorkingBuffer) {
+				// Move forward, and clear buffer as we go
+				int32_t secondaryStrength2 = secondaryBuffer.advance([&] {
+					wrapped = secondaryBuffer.clearAndMoveOn() || wrapped; //<
+					sizeLeftUntilBufferSwap--;
+				});
+
+				int32_t secondaryStrength1 = 65536 - secondaryStrength2;
+
+				// Write to secondary buffer
+				secondaryBuffer.writeResampled(sample, secondaryStrength1, secondaryStrength2);
+			}
+		}
+
+		if (sizeLeftUntilBufferSwap < 0) {
+			copySecondaryToPrimary();
+		}
+	}
+
+	if (wrapped) {
+		hasWrapped();
+	}
 }
