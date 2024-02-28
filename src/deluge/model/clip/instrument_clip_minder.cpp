@@ -335,21 +335,15 @@ yesSaveInstrument:
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-
+		OutputType out;
 		if (b == SYNTH) {
-			Browser::outputTypeToLoad = OutputType::SYNTH;
-
-yesLoadInstrument:
-			loadInstrumentPresetUI.instrumentToReplace = getCurrentInstrument();
-			loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentInstrumentClip();
-			loadInstrumentPresetUI.loadingSynthToKitRow = false;
-			openUI(&loadInstrumentPresetUI);
+			out = OutputType::SYNTH;
 		}
-
 		else if (b == KIT) {
-			Browser::outputTypeToLoad = OutputType::KIT;
-			goto yesLoadInstrument;
+			out = OutputType::KIT;
 		}
+		loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
+		openUI(&loadInstrumentPresetUI);
 	}
 
 	// Select button, without shift

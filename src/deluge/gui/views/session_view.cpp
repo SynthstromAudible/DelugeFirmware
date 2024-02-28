@@ -523,14 +523,8 @@ changeOutputType:
 
 						currentUIMode = UI_MODE_NONE;
 						selectedClipYDisplay = 255;
-
-						Browser::outputTypeToLoad = newOutputType;
-						loadInstrumentPresetUI.instrumentToReplace = instrument;
-
-						// Not supplying an instrument will make it replace the output for all clips
-						loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-
-						loadInstrumentPresetUI.loadingSynthToKitRow = false;
+						
+						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
 					}
 

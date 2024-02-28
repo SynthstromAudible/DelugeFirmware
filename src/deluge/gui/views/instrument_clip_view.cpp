@@ -831,20 +831,16 @@ someError:
 	Kit* kit = getCurrentKit();
 	if (drumType == DrumType::SOUND) {
 		Browser::outputTypeToLoad = OutputType::SYNTH;
-		loadInstrumentPresetUI.loadingSynthToKitRow = true;
-		loadInstrumentPresetUI.instrumentToReplace = nullptr;
 
-		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
-		if (noteRow->drum && noteRow->drum->type == drumType) {
-			loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)noteRow->drum;
+		SoundDrum* drum;
+		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+			drum = (SoundDrum*)noteRow->drum;
 		}
 		else {
-			loadInstrumentPresetUI.soundDrumToReplace = nullptr;
+			drum = nullptr;
 		}
 
-		loadInstrumentPresetUI.kitToLoadFor = kit;
-		loadInstrumentPresetUI.noteRow = noteRow;
-		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
+		loadInstrumentPresetUI.setupLoadSynthToKit(drum, kit, noteRow, noteRowIndex);
 		openUI(&loadInstrumentPresetUI);
 	}
 

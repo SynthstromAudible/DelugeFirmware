@@ -987,7 +987,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
-	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	Error error = storageManager.loadSynthToDrum(currentSong, getCurrentInstrumentClip(), false, &soundDrumToReplace,
 	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
@@ -1000,12 +1000,12 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
 
 	ParamManager* paramManager =
-	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, getCurrentInstrumentClip());
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
 		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
-		                 false);
+		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, getCurrentInstrumentClip(),
+		                 paramManager, false);
 		kitToLoadFor->beenEdited();
 	}
 	else {

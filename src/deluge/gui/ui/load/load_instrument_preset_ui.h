@@ -55,17 +55,27 @@ public:
 	                                                                          Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
-
-	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
-	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
-
-	// these are all necessary to setup a sound drum
-	bool loadingSynthToKitRow;
-	SoundDrum* soundDrumToReplace;
-	Kit* kitToLoadFor;
-	int32_t noteRowIndex;
-	NoteRow* noteRow;
-
+	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
+	                         InstrumentClip* instrumentClipToLoadFor_) {
+		Browser::outputTypeToLoad = newOutputType;
+		instrumentToReplace = instrumentToReplace_;
+		instrumentClipToLoadFor = instrumentClipToLoadFor_;
+		loadingSynthToKitRow = false;
+		soundDrumToReplace = nullptr;
+		kitToLoadFor = nullptr;
+		noteRowIndex = 255; // (not set value for note rows)
+		noteRow = nullptr;
+	}
+	void setupLoadSynthToKit(SoundDrum* drum, Kit* kit, NoteRow* row, int32_t rowIndex) {
+		Browser::outputTypeToLoad = OutputType::SYNTH;
+		instrumentToReplace = nullptr;
+		instrumentClipToLoadFor = nullptr;
+		loadingSynthToKitRow = true;
+		soundDrumToReplace = drum;
+		kitToLoadFor = kit;
+		noteRowIndex = rowIndex; // (not set value for note rows)
+		noteRow = row;
+	}
 	// ui
 	UIType getUIType() { return UIType::LOAD_INSTRUMENT_PRESET; }
 
@@ -83,6 +93,15 @@ private:
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
 
+	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
+	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
+
+	// these are all necessary to setup a sound drum
+	bool loadingSynthToKitRow;
+	SoundDrum* soundDrumToReplace;
+	Kit* kitToLoadFor;
+	int32_t noteRowIndex;
+	NoteRow* noteRow;
 	Error currentInstrumentLoadError;
 
 	int16_t initialChannel;
