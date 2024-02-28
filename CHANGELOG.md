@@ -9,9 +9,10 @@
 
 ### User Interface
 
-- Added feature to load automatically projects at startup.
-To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
-Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+- Added feature to automatically load song projects at startup.
+    - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
+    - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
 
 ## c1.1.0 Beethoven
 
