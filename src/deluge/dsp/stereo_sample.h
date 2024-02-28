@@ -39,6 +39,13 @@ struct StereoSample {
 		r += sampleValueR;
 	}
 
+	[[gnu::always_inline]] constexpr StereoSample operator+(const StereoSample& rhs) const { return {l + rhs.l, r + rhs.r}; }
+	[[gnu::always_inline]] constexpr StereoSample& operator+=(const StereoSample& rhs) {
+		l = l + rhs.l;
+		r = r + rhs.r;
+		return *this;
+	}
+
 	// Amplitude is probably Q2.29?
 	inline void addPannedStereo(q31_t sampleValueL, q31_t sampleValueR, int32_t amplitudeL, int32_t amplitudeR) {
 		l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);

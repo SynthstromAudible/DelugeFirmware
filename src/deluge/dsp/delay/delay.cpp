@@ -23,6 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include <cstdlib>
+#include <ranges>
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -368,23 +369,18 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
 	// into the delay
-	StereoSample* outputSample = buffer.data();
-	for (StereoSample& sample : delayWorkingBuffer) {
+	for (auto [input, output] : std::views::zip(delayWorkingBuffer, buffer)) {
 		// Feedback calculation, and combination with input
 		if (pingPong && AudioEngine::renderInStereo) {
-			sample.l = sample.r;
-			sample.r = ((outputSample->l + outputSample->r) >> 1) + sample.l;
+			input.l = input.r;
+			input.r = ((output.l + output.r) >> 1) + input.l;
 		}
 		else {
-			sample.l = outputSample->l + sample.l;
-			sample.r = outputSample->r + sample.r;
+			input += output;
 		}
 
 		// Output
-		outputSample->l += sample.l;
-		outputSample->r += sample.r;
-
-		outputSample++;
+		output += input;
 	}
 
 	// And actually feedback being applied back into the actual delay primary buffer...
