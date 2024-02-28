@@ -46,6 +46,20 @@ public:
 
 	void discard();
 
+	template <typename C>
+	[[gnu::always_inline]] constexpr int32_t advance(C callback) {
+		longPos += resample_config_.value().actualSpinRate;
+		uint8_t newShortPos = longPos >> 24;
+		uint8_t shortPosDiff = newShortPos - lastShortPos;
+		lastShortPos = newShortPos;
+
+		while (shortPosDiff > 0) {
+			callback();
+			shortPosDiff--;
+		}
+		return (longPos >> 8) & 65535;
+	}
+
 	void setupForRender(int32_t rate);
 
 	static std::pair<int32_t, bool> getIdealBufferSizeFromRate(uint32_t rate);
@@ -161,7 +175,10 @@ public:
 				writePos->l += multiply_32x32_rshift32(toDelay.l, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelay.r, strengthThisWrite) << 3;
 
-				if (--writePos == start_ - 1) {
+				--writePos;
+
+				// loop around
+				if (writePos == start_ - 1) {
 					writePos = end_ - 1;
 				}
 				distanceFromMainWrite += 65536;
@@ -214,7 +231,11 @@ public:
 				if (--i < 0) {
 					break;
 				}
-				if (--writePos == start_ - 1) {
+
+				--writePos;
+
+				// loop around
+				if (writePos == start_ - 1) {
 					writePos = end_ - 1;
 				}
 			}

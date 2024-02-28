@@ -23,7 +23,7 @@ set_target_properties(deluge_dsp
         CXX_STANDARD ${DELUGE_CXX_STANDARD}
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        UNITY_BUILD true
+        #UNITY_BUILD true
 )
 
 target_link_libraries(deluge_dsp PRIVATE
