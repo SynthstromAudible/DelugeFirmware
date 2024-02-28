@@ -285,6 +285,13 @@ void PerformanceSessionView::graphicsRoutine() {
 		}
 	}
 
+	// if we're not currently selecting a clip
+	if (!((currentSong->lastClipInstanceEnteredStartPos != -1) && arrangerView.getClipForSelection())) {
+		if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
+			PadLEDs::sendOutSidebarColours();
+		}
+	}
+
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
 
