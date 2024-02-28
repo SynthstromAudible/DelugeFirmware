@@ -142,7 +142,7 @@ void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimel
 		unconditionalRelease();
 	}
 }
-/// resets time to give drone notes a lower likelihood of being bulled, since they'll stay in sustain as they loop
+/// resets time to give drone notes a lower likelihood of being culled, since they'll stay in sustain as they loop
 void Envelope::resetTimeEntered() {
 	if (state == EnvelopeStage::SUSTAIN) {
 		timeEnteredState = AudioEngine::nextVoiceState++;
