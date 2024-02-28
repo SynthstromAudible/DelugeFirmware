@@ -27,6 +27,7 @@ class ModelStackWithTimelineCounter;
 class SoundDrum final : public Sound, public Drum {
 public:
 	String name;
+	String path;
 	bool nameIsDiscardable;
 
 	ArpeggiatorForDrum arpeggiator;

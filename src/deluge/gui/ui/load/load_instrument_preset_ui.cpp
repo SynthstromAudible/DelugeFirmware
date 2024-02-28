@@ -179,6 +179,15 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				goto useDefaultFolder;
 			}
 		}
+		else if (loadingSynthToKitRow) {
+			String* backedUpName = &soundDrumToReplace->name;
+			enteredText.set(backedUpName);
+			searchFilename.set(backedUpName);
+			currentDir.set(&soundDrumToReplace->path);
+			if (currentDir.isEmpty()) {
+				goto useDefaultFolder;
+			}
+		}
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
@@ -987,6 +996,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
+	// swaps out the drum pointed to by soundDrumToReplace
 	Error error = storageManager.loadSynthToDrum(currentSong, getCurrentInstrumentClip(), false, &soundDrumToReplace,
 	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
@@ -998,7 +1008,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
-
+	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, getCurrentInstrumentClip());
 	if (paramManager) {

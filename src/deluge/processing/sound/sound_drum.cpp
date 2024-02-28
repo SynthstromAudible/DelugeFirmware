@@ -54,6 +54,10 @@ bool SoundDrum::readTagFromFile(char const* tagName) {
 		storageManager.readTagOrAttributeValueString(&name);
 		storageManager.exitTag("name");
 	}
+	else if (!strcmp(tagName, "path")) {
+		storageManager.readTagOrAttributeValueString(&path);
+		storageManager.exitTag("path");
+	}
 
 	else if (readDrumTagFromFile(tagName)) {}
 	else {
@@ -143,7 +147,7 @@ void SoundDrum::prepareForHibernation() {
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeAttribute("name", name.get());
-
+	storageManager.writeAttribute("path", path.get());
 	Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {
