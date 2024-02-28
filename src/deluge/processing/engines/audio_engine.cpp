@@ -122,7 +122,7 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-stereo approxRMSLevel{0};
+StereoFloatSample approxRMSLevel{0};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 

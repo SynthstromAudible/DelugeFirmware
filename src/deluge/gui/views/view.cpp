@@ -105,8 +105,8 @@ View::View() {
 	clipArmFlashOn = false;
 	displayVUMeter = false;
 	renderedVUMeter = false;
-	cachedMaxYDisplayForVUMeter.l = 255;
-	cachedMaxYDisplayForVUMeter.r = 255;
+	cachedMaxYDisplayForVUMeterL = 255;
+	cachedMaxYDisplayForVUMeterR = 255;
 }
 
 void View::focusRegained() {
@@ -120,8 +120,8 @@ void View::focusRegained() {
 
 	// when switching between UI's we want to start with a fresh VU meter render
 	renderedVUMeter = false;
-	cachedMaxYDisplayForVUMeter.l = 255;
-	cachedMaxYDisplayForVUMeter.r = 255;
+	cachedMaxYDisplayForVUMeterL = 255;
+	cachedMaxYDisplayForVUMeterR = 255;
 }
 
 void View::setTripletsLedState() {
@@ -1469,19 +1469,18 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
-		vuMeter maxYDisplayForVUMeter;
-		maxYDisplayForVUMeter.l = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
-		maxYDisplayForVUMeter.r = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
+		int32_t maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
+		int32_t maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
 
 		// if we haven't yet rendered
 		// or previously rendered VU meter was rendered to a different maxYDisplay
 		// then we want to refresh the VU meter rendered in the sidebar
 		// if we've already rendered and maxYDisplay hasn't changed, no need to refresh sidebar image
-		if (!renderedVUMeter || (maxYDisplayForVUMeter.l != cachedMaxYDisplayForVUMeter.l)
-		    || (maxYDisplayForVUMeter.r != cachedMaxYDisplayForVUMeter.r)) {
+		if (!renderedVUMeter || (maxYDisplayForVUMeterL != cachedMaxYDisplayForVUMeterL)
+		    || (maxYDisplayForVUMeterR != cachedMaxYDisplayForVUMeterR)) {
 			// save maxYDisplay about to be rendered
-			cachedMaxYDisplayForVUMeter.l = maxYDisplayForVUMeter.l;
-			cachedMaxYDisplayForVUMeter.r = maxYDisplayForVUMeter.r;
+			cachedMaxYDisplayForVUMeterL = maxYDisplayForVUMeterL;
+			cachedMaxYDisplayForVUMeterR = maxYDisplayForVUMeterR;
 
 			// erase current image as it will be refreshed
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -1490,13 +1489,13 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 			}
 
 			// render left VU meter
-			if (maxYDisplayForVUMeter.l != 255) {
-				renderVUMeter(maxYDisplayForVUMeter.l, kDisplayWidth, image);
+			if (maxYDisplayForVUMeterL != 255) {
+				renderVUMeter(maxYDisplayForVUMeterL, kDisplayWidth, image);
 			}
 
 			// render right VU meter
-			if (maxYDisplayForVUMeter.r != 255) {
-				renderVUMeter(maxYDisplayForVUMeter.r, kDisplayWidth + 1, image);
+			if (maxYDisplayForVUMeterR != 255) {
+				renderVUMeter(maxYDisplayForVUMeterR, kDisplayWidth + 1, image);
 			}
 			// save the VU meter rendering status so that grid can be refreshed later if required
 			// (e.g. if you switch mod buttons or turn off affect entire)

@@ -37,12 +37,12 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
-stereo AbsValueFollower::calcApproxRMS(StereoSample* buffer, uint16_t numSamples) {
+StereoFloatSample AbsValueFollower::calcApproxRMS(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t l = 0;
 	q31_t r = 0;
-	stereo logMean;
+	StereoFloatSample logMean;
 
 	do {
 		l += std::abs(thisSample->l);

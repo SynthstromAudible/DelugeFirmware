@@ -24,11 +24,6 @@
 #include "modulation/params/param.h"
 #include <cstdint>
 
-struct vuMeter {
-	int32_t l;
-	int32_t r;
-};
-
 class InstrumentClip;
 class NoteRow;
 class UI;
@@ -149,7 +144,8 @@ private:
 
 	// vu meter rendering
 	int32_t getMaxYDisplayForVUMeter(float level);
-	vuMeter cachedMaxYDisplayForVUMeter;
+	int32_t cachedMaxYDisplayForVUMeterL;
+	int32_t cachedMaxYDisplayForVUMeterR;
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
 };
