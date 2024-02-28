@@ -138,6 +138,13 @@ To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP S
     - `TEMPLATE` : it will load `DEFAULT.XML` project that will be saved automatically when you select this mode, and will enable you to edit it later on and to replace the default blank song by a user-defined template.
     - `LAST OPENED SONG` : it will load the last long that you `OPENED` before shutting down the Deluge.
     - `LAST SAVED SONG` : it will load the least songs that you `SAVED` before shutting down the Deluge.
+    
+#### 3.13 - Preserve Pad Brightness Preference Through Power Cycle
+
+- ([#1312]) Save user-defined pad brightness level and restore it at startup.
+To use this feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > PAD BRIGHTNESS`.
+  - Default : Full brightness (`25`).
+  - Min value `1`, Max Value `25`.
 
 ## 4. New Features Added
 

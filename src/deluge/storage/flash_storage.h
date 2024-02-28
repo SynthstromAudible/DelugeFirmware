@@ -58,6 +58,7 @@ extern bool automationNudgeNote;
 extern bool automationDisableAuditionPadShortcuts;
 
 extern StartupSongMode defaultStartupSongMode;
+extern uint8_t defaultPadBrightness;
 
 void readSettings();
 void writeSettings();

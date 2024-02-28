@@ -531,7 +531,6 @@ extern "C" int32_t deluge_main(void) {
 	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
-
 	PIC::setMinInterruptInterval(8);
 	PIC::setFlashLength(6);
 
@@ -720,7 +719,7 @@ extern "C" int32_t deluge_main(void) {
 	runtimeFeatureSettings.readSettingsFromFile();
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
-
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupStartupSong();
 
 #ifdef TEST_BST
