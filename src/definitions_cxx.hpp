@@ -56,86 +56,6 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
-// FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0
-// release correspondingly, we should probably we storing the semver version in three bytes in the flash rather than
-// trying to compress it all to one (see above class)
-enum FirmwareVersion : uint8_t {
-	FIRMWARE_OLD = 0,
-	FIRMWARE_1P2P0 = 1,
-	FIRMWARE_1P3P0_PRETEST = 2,
-	FIRMWARE_1P3P0_BETA = 3,
-	FIRMWARE_1P3P0 = 4,
-	FIRMWARE_1P3P1 = 5,
-	FIRMWARE_1P3P2 = 6,
-	FIRMWARE_1P4P0_PRETEST = 7,
-	FIRMWARE_1P4P0_BETA = 8,
-	FIRMWARE_1P4P0 = 9,
-	FIRMWARE_1P5P0_PREBETA = 10,
-	FIRMWARE_2P0P0_BETA = 11,
-	FIRMWARE_2P0P0 = 12,
-	FIRMWARE_2P0P1_BETA = 13,
-	FIRMWARE_2P0P1 = 14,
-	FIRMWARE_2P0P2_BETA = 15,
-	FIRMWARE_2P0P2 = 16,
-	FIRMWARE_2P0P3 = 17,
-	FIRMWARE_2P1P0_BETA = 18,
-	FIRMWARE_2P1P0 = 19,
-	FIRMWARE_2P1P1_BETA = 20,
-	FIRMWARE_2P1P1 = 21,
-	FIRMWARE_2P1P2_BETA = 22,
-	FIRMWARE_2P1P2 = 23,
-	FIRMWARE_2P1P3_BETA = 24,
-	FIRMWARE_2P1P3 = 25,
-	FIRMWARE_2P1P4_BETA = 26,
-	FIRMWARE_2P1P4 = 27,
-	FIRMWARE_3P0P0_ALPHA = 28,
-	FIRMWARE_3P0P0_BETA = 29,
-	FIRMWARE_3P0P0 = 30,
-	FIRMWARE_3P0P1_BETA = 31,
-	FIRMWARE_3P0P1 = 32,
-	FIRMWARE_3P0P2 = 33,
-	FIRMWARE_3P0P3_ALPHA = 34,
-	FIRMWARE_3P0P3_BETA = 35,
-	FIRMWARE_3P0P3 = 36,
-	FIRMWARE_3P0P4 = 37,
-	FIRMWARE_3P0P5_BETA = 38,
-	FIRMWARE_3P0P5 = 39,
-	FIRMWARE_3P1P0_ALPHA = 40,
-	FIRMWARE_3P1P0_ALPHA2 = 41,
-	FIRMWARE_3P1P0_BETA = 42,
-	FIRMWARE_3P1P0 = 43,
-	FIRMWARE_3P1P1_BETA = 44,
-	FIRMWARE_3P1P1 = 45,
-	FIRMWARE_3P1P2_BETA = 46,
-	FIRMWARE_3P1P2 = 47,
-	FIRMWARE_3P1P3_BETA = 48,
-	FIRMWARE_3P1P3 = 49,
-	FIRMWARE_3P1P4_BETA = 50,
-	FIRMWARE_3P1P4 = 51,
-	FIRMWARE_3P1P5_BETA = 52,
-	FIRMWARE_3P1P5 = 53,
-	FIRMWARE_3P2P0_ALPHA = 54,
-	FIRMWARE_4P0P0_BETA = 55,
-	FIRMWARE_4P0P0 = 56,
-	FIRMWARE_4P0P1_BETA = 57,
-	FIRMWARE_4P0P1 = 58,
-	FIRMWARE_4P1P0_ALPHA = 59,
-	FIRMWARE_4P1P0_BETA = 60,
-	FIRMWARE_4P1P0 = 61,
-	FIRMWARE_4P1P1_ALPHA = 62,
-	FIRMWARE_4P1P1 = 63,
-	FIRMWARE_4P1P2 = 64,
-	FIRMWARE_4P1P3_ALPHA = 65,
-	FIRMWARE_4P1P3_BETA = 66,
-	FIRMWARE_4P1P3 = 67,
-	FIRMWARE_4P1P4_ALPHA = 68,
-	FIRMWARE_4P1P4_BETA = 69,
-	FIRMWARE_4P1P4 = 70,
-	COMMUNITY_1P1 = 71,
-	FIRMWARE_TOO_NEW = 255,
-};
-constexpr FirmwareVersion kCurrentFirmwareVersion = COMMUNITY_1P1;
-
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
@@ -1023,6 +943,12 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// See Figure 19.1 in the RZ/A1L TRM R01UH0437EJ0600 Rev.6.00 and the rest of section 19, Serial Sound Interface for
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
+
+// The Deluge deals with 24-bit PCM audio
+constexpr uint32_t kBitDepth = 24;
+
+// The maximum value a (24-bit) sample can hold
+constexpr uint32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
 
 /// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)

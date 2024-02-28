@@ -587,7 +587,7 @@ void WaveformRenderer::getColBarPositions(int32_t xDisplay, WaveformRenderData* 
 	*max24 = ((int64_t)(data->maxPerCol[xDisplay] - valueCentrePoint) << 24) / valueSpan;
 
 	// Ensure we're going to draw at least 1 pixel's width
-	if (*max24 - *min24 < 16777216) {
+	if (*max24 - *min24 < kMaxSampleValue) {
 		int32_t midPoint = (*max24 >> 1) + (*min24 >> 1);
 		*max24 = midPoint + 8388608;
 		*min24 = midPoint - 8388608;

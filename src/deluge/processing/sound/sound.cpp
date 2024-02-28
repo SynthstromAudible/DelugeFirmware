@@ -52,6 +52,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <math.h>
@@ -296,7 +297,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P0P0_BETA) {
+	if (storageManager.firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
 
 		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
 		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
@@ -679,7 +680,8 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+			else if (!strcmp(tagName, "mode")
+			         && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
@@ -3068,7 +3070,7 @@ Error Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t rea
 
 	// If we actually got a paramManager, we can do resonance compensation on it
 	if (paramManager.containsAnyMainParamCollections()) {
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0) {
+		if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})) {
 			compensateVolumeForResonance(modelStack->addParamManager(&paramManager));
 		}
 
@@ -3107,7 +3109,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 && synthMode != SynthMode::FM) {
+	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}

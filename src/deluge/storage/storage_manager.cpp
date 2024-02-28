@@ -36,6 +36,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/firmware_version.h"
+#include "version.h.in"
 #include <string.h>
 
 extern "C" {
@@ -1191,7 +1193,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTag
 	fileBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	firmwareVersionOfFileBeingRead = FIRMWARE_OLD;
+	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
@@ -1220,15 +1222,15 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTag
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 
 	if (!strcmp(tagName, "firmwareVersion")) {
-		char const* firmwareVersionString = readTagOrAttributeValue();
-		firmwareVersionOfFileBeingRead = stringToFirmwareVersion(firmwareVersionString);
+		char const* firmware_version_string = readTagOrAttributeValue();
+		firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
-	else if (!strcmp(tagName,
-	                 "earliestCompatibleFirmware")) { // If this tag doesn't exist, it's from old firmware so is ok
-		char const* firmwareVersionString = readTagOrAttributeValue();
-		int32_t earliestFirmware = stringToFirmwareVersion(firmwareVersionString);
-		if (earliestFirmware > kCurrentFirmwareVersion && !ignoreIncorrectFirmware) {
+	// If this tag doesn't exist, it's from old firmware so is ok
+	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+		char const* firmware_version_string = readTagOrAttributeValue();
+		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
+		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
 			f_close(&fileSystemStuff.currentFile);
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
@@ -1273,7 +1275,7 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", "c1.1.0");
+	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -1408,7 +1410,7 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
+		if (firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error != Error::NONE) {
@@ -1433,8 +1435,9 @@ paramManagersMissing:
 		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum,
-				                                                            NULL)) { // If no backedUpParamManager...
+
+				// If no backedUpParamManager...
+				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) {
 					goto paramManagersMissing;
 				}
 			}
