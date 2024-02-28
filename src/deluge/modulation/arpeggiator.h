@@ -29,13 +29,14 @@ public:
 	ArpeggiatorSettings();
 
 	void cloneFrom(ArpeggiatorSettings* other) {
+		preset = other->preset;
+		mode = other->mode;
+		octaveMode = other->octaveMode;
+		noteMode = other->noteMode;
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
-		preset = other->preset;
-		mode = other->mode;
-		noteMode = other->noteMode;
-		octaveMode = other->octaveMode;
+		rhythm = other->rhythm;
 		mpeVelocity = other->mpeVelocity;
 	}
 
@@ -95,18 +96,28 @@ public:
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
-	// Settings
+	// Main settings
 	ArpPreset preset{ArpPreset::OFF};
 	ArpMode mode{ArpMode::OFF};
-	ArpNoteMode noteMode{ArpNoteMode::UP};
-	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
 
+	// Sequence settings
+	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
+	ArpNoteMode noteMode{ArpNoteMode::UP};
+
+	// Octave settings
 	uint8_t numOctaves{2};
+
+	// Sync settings
 	SyncLevel syncLevel;
 	SyncType syncType;
 
+	// Rhythm settings
+	uint8_t rhythm{0};
+
+	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
 
+	// Temporary flags
 	bool flagForceArpRestart{false};
 };
 
@@ -163,6 +174,9 @@ public:
 	uint32_t notesPlayedFromSequence = 0;
 	uint32_t randomNotesPlayedFromOctave = 0;
 
+	// Rhythm state
+	uint32_t notesPlayedFromRhythm = 0;
+
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
@@ -178,6 +192,7 @@ protected:
 	void resetRatchet();
 	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
+	bool evaluateRhythm(ArpeggiatorSettings* settings);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);

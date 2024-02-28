@@ -583,6 +583,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
+    - **`Rhythm`** (RHYT): This parameter will play silences in some of the notes. This menu option show zeroes
+      and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
+      0 (default, play all notes), 00-, 0-0, 000-, 00-0, 0-00, 00-- and 0--0.
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
