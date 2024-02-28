@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"

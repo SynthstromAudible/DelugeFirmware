@@ -143,6 +143,18 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
+void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
+	storageManager.writeOpeningTagBeginning("sound");
+	storageManager.writeFirmwareVersion();
+	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+
+	if (savingSong) {
+		Drum::writeMIDICommandsToFile();
+	}
+
+	storageManager.writeClosingTag("sound");
+}
 
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");

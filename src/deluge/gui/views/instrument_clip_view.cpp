@@ -29,6 +29,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -511,7 +512,15 @@ doOther:
 			}
 		}
 	}
-
+	else if (b == SAVE && currentUIMode == UI_MODE_AUDITIONING) {
+		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, nullptr);
+		if (noteRow->drum->type == DrumType::SOUND) {
+			saveKitRowUI.setup((SoundDrum*)noteRow->drum, &noteRow->paramManager);
+			AudioEngine::stopAnyPreviewing();
+			cancelAllAuditioning();
+			openUI(&saveKitRowUI);
+		}
+	}
 	// Save / delete button if NoteRow held down
 	else if (b == SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
