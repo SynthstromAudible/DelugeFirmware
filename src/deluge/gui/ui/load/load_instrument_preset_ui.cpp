@@ -129,7 +129,11 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	if (outputTypeToLoad == OutputType::SYNTH) {
+	if (loadingSynthToKitRow) {
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
+	else if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
@@ -139,7 +143,12 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	if (display->haveOLED()) {
 		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                   : deluge::hid::display::OLED::kitIcon;
-		title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+		if (loadingSynthToKitRow) {
+			title = "Synth To Row";
+		}
+		else {
+			title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+		}
 	}
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
