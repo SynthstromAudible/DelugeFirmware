@@ -86,8 +86,7 @@ void DelayBuffer::makeNativeRatePrecise() {
 void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(const DelayBuffer& otherBuffer) {
 	double otherBufferAmountTooFast =
 	    (double)otherBuffer.native_rate_ * (double)otherBuffer.size_ / ((double)kNeutralSize * (double)kMaxSampleValue);
-	native_rate_ =
-	    round((double)kNeutralSize * (double)kMaxSampleValue * otherBufferAmountTooFast / (double)size_);
+	native_rate_ = round((double)kNeutralSize * (double)kMaxSampleValue * otherBufferAmountTooFast / (double)size_);
 }
 
 void DelayBuffer::discard() {
@@ -142,8 +141,8 @@ void DelayBuffer::setupForRender(int32_t userDelayRate) {
 	uint32_t writeSizeAdjustment;
 
 	actualSpinRate =
-	    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)native_rate_);      // 1 is represented as 16777216
-	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8)); // 1 is represented as 65536
+	    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)native_rate_); // 1 is represented as 16777216
+	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8));  // 1 is represented as 65536
 
 	// If buffer spinning slow
 	if (actualSpinRate < kMaxSampleValue) {

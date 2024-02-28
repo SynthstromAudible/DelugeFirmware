@@ -39,7 +39,12 @@ struct StereoSample {
 		r += sampleValueR;
 	}
 
-	[[gnu::always_inline]] constexpr StereoSample operator+(const StereoSample& rhs) const { return {l + rhs.l, r + rhs.r}; }
+	[[gnu::always_inline]] constexpr StereoSample operator+(const StereoSample& rhs) const {
+		return StereoSample{
+		    .l = l + rhs.l,
+		    .r = r + rhs.r,
+		};
+	}
 	[[gnu::always_inline]] constexpr StereoSample& operator+=(const StereoSample& rhs) {
 		l = l + rhs.l;
 		r = r + rhs.r;

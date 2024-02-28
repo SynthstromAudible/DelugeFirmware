@@ -537,7 +537,6 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 	// Delay ----------------------------------------------------------------------------------
 	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState, analogDelaySaturationAmount);
-
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
