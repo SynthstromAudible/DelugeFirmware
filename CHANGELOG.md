@@ -14,6 +14,8 @@
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
 - Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
 
+- Added a feature save user-defined pad brightness level and restore it at startup.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine
