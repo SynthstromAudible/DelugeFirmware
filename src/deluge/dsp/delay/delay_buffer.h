@@ -102,7 +102,7 @@ public:
 
 	[[gnu::always_inline]] void write(StereoSample toDelay, int32_t strength1, int32_t strength2) {
 		// If no speed adjustment
-		if (!isResampling()) {
+		if (isNative()) {
 			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
 			if (writePos < start_) {
 				writePos += sizeIncludingExtra;
@@ -242,7 +242,8 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr bool isResampling() const { return resample_config_.has_value(); }
+	[[nodiscard]] constexpr bool isNative() const { return !resample_config_.has_value(); }
+	[[nodiscard]] constexpr bool resampling() const { return resample_config_.has_value(); }
 	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
 
 	// Iterator access

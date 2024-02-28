@@ -123,9 +123,9 @@ void DelayBuffer::setupResample() {
 	writePos->r -= writePosPlusOne->r;
 }
 
-void DelayBuffer::setupForRender(int32_t userDelayRate) {
-	if (!isResampling()) {
-		if (userDelayRate == native_rate_ || start_ == nullptr) {
+void DelayBuffer::setupForRender(int32_t rate) {
+	if (resampling()) {
+		if (rate == native_rate_ || start_ == nullptr) {
 			// Can't/won't resample if the rate is native or the buffer is discarded
 			return;
 		}
@@ -141,7 +141,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate) {
 	uint32_t writeSizeAdjustment;
 
 	actualSpinRate =
-	    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)native_rate_); // 1 is represented as 16777216
+	    (uint64_t)((double)((uint64_t)rate << 24) / (double)native_rate_); // 1 is represented as 16777216
 	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8));  // 1 is represented as 65536
 
 	// If buffer spinning slow

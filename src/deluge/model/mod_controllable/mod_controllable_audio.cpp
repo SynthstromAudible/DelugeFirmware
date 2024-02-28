@@ -735,7 +735,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			// First, tick it along, as if we were reading from it
 
 			// Non-resampling tick-along
-			if (!stutterer.buffer.isResampling()) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.clearAndMoveOn();
 				stutterer.sizeLeftUntilRecordFinished--;
 
@@ -772,7 +772,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			int32_t strength2;
 
 			// Non-resampling read
-			if (!stutterer.buffer.isResampling()) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.moveOn();
 				thisSample->l = stutterer.buffer.current().l;
 				thisSample->r = stutterer.buffer.current().r;

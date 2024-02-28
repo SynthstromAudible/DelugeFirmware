@@ -238,7 +238,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 	if (!secondaryBuffer.isActive()) {
 
 		// If resampling previously recorded as happening, or just about to be recorded as happening
-		if (primaryBuffer.isResampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
+		if (primaryBuffer.resampling() || delayWorkingState.userDelayRate != primaryBuffer.nativeRate()) {
 
 			// If delay speed has settled for a split second...
 			if (countCyclesWithoutChange >= (kSampleRate >> 5)) {
@@ -291,7 +291,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 		primaryBufferOldLastShortPos = primaryBuffer.lastShortPos;
 
 		// Native read
-		if (!primaryBuffer.isResampling()) {
+		if (primaryBuffer.isNative()) {
 			for (StereoSample& sample : working_buffer) {
 				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
 				sample = primaryBuffer.current();
@@ -387,7 +387,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 	if (primaryBuffer.isActive()) {
 
 		// Native
-		if (!primaryBuffer.isResampling()) {
+		if (primaryBuffer.isNative()) {
 			StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
 			if (writePos < primaryBuffer.begin()) {
 				writePos += primaryBuffer.sizeIncludingExtra;
@@ -424,7 +424,7 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 		wrapped = false;
 
 		// Native
-		if (!secondaryBuffer.isResampling()) {
+		if (secondaryBuffer.isNative()) {
 			for (StereoSample sample : working_buffer) {
 				wrapped = secondaryBuffer.clearAndMoveOn() || wrapped;
 				sizeLeftUntilBufferSwap--;
