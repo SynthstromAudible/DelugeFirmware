@@ -52,9 +52,7 @@ setupSecondaryBuffer:
 		if (!primaryBuffer.isActive() && secondaryBuffer.isActive()
 		    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
-			int32_t idealBufferSize = DelayBuffer::getIdealBufferSizeFromRate(userDelayRate);
-			idealBufferSize = std::min(idealBufferSize, (int32_t)DelayBuffer::kMaxSize);
-			idealBufferSize = std::max(idealBufferSize, (int32_t)DelayBuffer::kMinSize);
+			auto [idealBufferSize, clamped] = DelayBuffer::getIdealBufferSizeFromRate(userDelayRate);
 
 			if (idealBufferSize != secondaryBuffer.size()) {
 

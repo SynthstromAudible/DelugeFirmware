@@ -48,7 +48,7 @@ public:
 
 	void setupForRender(int32_t rate);
 
-	static int32_t getIdealBufferSizeFromRate(uint32_t newRate);
+	static std::pair<int32_t, bool> getIdealBufferSizeFromRate(uint32_t rate);
 
 	[[nodiscard]] constexpr bool isActive() const { return (start_ != nullptr); }
 

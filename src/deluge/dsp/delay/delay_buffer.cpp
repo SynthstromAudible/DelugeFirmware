@@ -26,23 +26,13 @@
 Error DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
 
 	// Uart::println("init buffer");
+	auto [size, make_precise] = getIdealBufferSizeFromRate(native_rate_);
+
 	native_rate_ = newRate;
-	size_ = getIdealBufferSizeFromRate(native_rate_);
+	size_ = size;
 
 	// Uart::print("buffer size_: ");
 	// Uart::println(size_);
-
-	bool make_precise = false;
-
-	if (size_ > kMaxSize) {
-		size_ = kMaxSize;
-		make_precise = true;
-	}
-
-	if (size_ < kMinSize) {
-		size_ = kMinSize;
-		make_precise = true;
-	}
 
 	if (size_ == failIfThisSize) {
 		return Error::UNSPECIFIED;
@@ -71,8 +61,22 @@ void DelayBuffer::clear() {
 	resample_config_ = std::nullopt;
 }
 
-int32_t DelayBuffer::getIdealBufferSizeFromRate(uint32_t newRate) {
-	return (uint64_t)kNeutralSize * kMaxSampleValue / newRate;
+std::pair<int32_t, bool> DelayBuffer::getIdealBufferSizeFromRate(uint32_t newRate) {
+	int32_t buffer_size = (uint64_t)kNeutralSize * kMaxSampleValue / newRate;
+
+	bool clamped = false;
+
+	if (buffer_size > kMaxSize) {
+		buffer_size = kMaxSize;
+		clamped = true;
+	}
+
+	if (buffer_size < kMinSize) {
+		buffer_size = kMinSize;
+		clamped = true;
+	}
+
+	return std::make_pair(buffer_size, clamped);
 }
 
 void DelayBuffer::makeNativeRatePrecise() {
