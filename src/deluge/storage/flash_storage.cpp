@@ -16,6 +16,7 @@
  */
 
 #include "storage/flash_storage.h"
+#include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
@@ -25,7 +26,10 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
+#include "util/firmware_version.h"
+#include "util/functions.h"
 #include "util/misc.h"
+#include <cstdint>
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
@@ -42,6 +46,24 @@ extern gui::menu_item::IntegerRange defaultSwingMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace FlashStorage {
+
+// Static declarations
+static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer);
+static bool areAutomationSettingsValid(std::span<uint8_t> buffer);
+
+enum Entries {
+	FIRMWARE_TYPE = 0,
+	VERSION_MAJOR = 1,
+	VERSION_MINOR = 2,
+	VERSION_PATCH = 3,
+
+	CV_MODE = 10,
+	CV_VOLTS_PER_OCTAVE = 12,
+	CV_TRANSPOSE = 14,
+	CV_CENTS = 18,
+
+	GATE_TYPE = 22,
+};
 
 /* Settings as stored in flash memory, byte by byte:
 
@@ -158,7 +180,6 @@ uint8_t defaultVelocity;
 int8_t defaultMagnitude;
 
 bool settingsBeenRead; // Whether the settings have been read from the flash chip yet
-uint8_t ramSize;       // Deprecated
 
 uint8_t defaultBendRange[2] = {2, 48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI,
                                        // because it's editable, whereas for MPE it's meant to always stay at 2.
@@ -235,7 +256,7 @@ void resetSettings() {
 	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
 
 	audioClipRecordMargins = true;
-	playbackHandler.countInEnabled = false;
+	playbackHandler.countInBars = 0;
 	keyboardLayout = KeyboardLayout::QWERTY;
 	sampleBrowserPreviewMode = PREVIEW_ONLY_WHILE_NOT_PLAYING;
 
@@ -287,34 +308,39 @@ void resetAutomationSettings() {
 }
 
 void readSettings() {
-	uint8_t* buffer = (uint8_t*)miscStringBuffer;
-	R_SFLASH_ByteRead(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
-	                  SPIBSC_OUTPUT_ADDR_24);
+	std::span buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
+	R_SFLASH_ByteRead(0x80000 - 0x1000, buffer.data(), kFilenameBufferSize, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE,
+	                  SPIBSC_1BIT, SPIBSC_OUTPUT_ADDR_24);
 
 	settingsBeenRead = true;
 
-	int32_t previouslySavedByFirmwareVersion = buffer[0];
+	FirmwareVersion::Type firmwareType{buffer[FIRMWARE_TYPE]};
 
 	// If no settings were previously saved, get out
-	if (previouslySavedByFirmwareVersion == 0xFF) {
+	if (firmwareType == FirmwareVersion::Type::UNKNOWN) {
 		resetSettings();
 		return;
 	}
 
-	ramSize = buffer[2];
+	FirmwareVersion savedVersion = (firmwareType != FirmwareVersion::Type::COMMUNITY)
+	                                   ? FirmwareVersion(firmwareType, {0, 0, 0})
+	                                   : FirmwareVersion::community({
+	                                       .major = buffer[VERSION_MAJOR],
+	                                       .minor = buffer[VERSION_MINOR],
+	                                       .patch = buffer[VERSION_PATCH],
+	                                   });
 
-	cvEngine.setCVVoltsPerOctave(0, buffer[12]);
-	cvEngine.setCVVoltsPerOctave(1, buffer[13]);
-
-	cvEngine.setCVTranspose(0, buffer[14], buffer[18]);
-	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
+	for (int chan = 0; chan < NUM_CV_CHANNELS; ++chan) {
+		cvEngine.setCVVoltsPerOctave(chan, buffer[CV_VOLTS_PER_OCTAVE + chan]);
+		cvEngine.setCVTranspose(chan, buffer[CV_TRANSPOSE + chan], buffer[CV_CENTS + chan]);
+	}
 
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
-		if (buffer[22 + i] >= kNumGateTypes) {
+		if (buffer[GATE_TYPE + i] >= kNumGateTypes) {
 			cvEngine.setGateType(i, GateType::V_TRIG);
 		}
 		else {
-			cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
+			cvEngine.setGateType(i, GateType{buffer[GATE_TYPE + i]});
 		}
 	}
 
@@ -324,15 +350,10 @@ void readSettings() {
 	playbackHandler.analogInTicksPPQN = buffer[32];
 	playbackHandler.analogOutTicksPPQN = buffer[33];
 	playbackHandler.midiOutClockEnabled = buffer[34];
-	playbackHandler.midiInClockEnabled = (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA) ? true : buffer[52];
+	playbackHandler.midiInClockEnabled = buffer[52];
 	playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
 
-	if (previouslySavedByFirmwareVersion < FIRMWARE_1P3P1) {
-		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
-	}
-	else {
-		PadLEDs::flashCursor = buffer[36];
-	}
+	PadLEDs::flashCursor = buffer[36];
 
 	midiEngine.midiThru = buffer[37];
 
@@ -358,44 +379,42 @@ void readSettings() {
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
 
-	if (previouslySavedByFirmwareVersion >= FIRMWARE_3P2P0_ALPHA) {
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
-		/* buffer[81]  \
-		   buffer[82]   device reference above occupies 4 bytes
-		   buffer[83] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAY, &buffer[84]);
-		/* buffer[85]  \
-		   buffer[86]   device reference above occupies 4 bytes
-		   buffer[87] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::RECORD, &buffer[88]);
-		/* buffer[89]  \
-		   buffer[90]   device reference above occupies 4 bytes
-		   buffer[91] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TAP, &buffer[92]);
-		/* buffer[93]  \
-		   buffer[94]   device reference above occupies 4 bytes
-		   buffer[95] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP, &buffer[96]);
-		/* buffer[97]  \
-		   buffer[98]   device reference above occupies 4 bytes
-		   buffer[99] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
-		/* buffer[101]  \
-		   buffer[102]   device reference above occupies 4 bytes
-		   buffer[103] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
-		/* buffer[105]  \
-		   buffer[106]   device reference above occupies 4 bytes
-		   buffer[107] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
-		/* buffer[109]  \
-		   buffer[110]   device reference above occupies 4 bytes
-		   buffer[111] */
-		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
-		/* buffer[117]  \
-		   buffer[118]   device reference above occupies 4 bytes
-		   buffer[119] */
-	}
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
+	/* buffer[81]  \
+	   buffer[82]   device reference above occupies 4 bytes
+	   buffer[83] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAY, &buffer[84]);
+	/* buffer[85]  \
+	   buffer[86]   device reference above occupies 4 bytes
+	   buffer[87] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::RECORD, &buffer[88]);
+	/* buffer[89]  \
+	   buffer[90]   device reference above occupies 4 bytes
+	   buffer[91] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TAP, &buffer[92]);
+	/* buffer[93]  \
+	   buffer[94]   device reference above occupies 4 bytes
+	   buffer[95] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP, &buffer[96]);
+	/* buffer[97]  \
+	   buffer[98]   device reference above occupies 4 bytes
+	   buffer[99] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING, &buffer[100]);
+	/* buffer[101]  \
+	   buffer[102]   device reference above occupies 4 bytes
+	   buffer[103] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::UNDO, &buffer[104]);
+	/* buffer[105]  \
+	   buffer[106]   device reference above occupies 4 bytes
+	   buffer[107] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::REDO, &buffer[108]);
+	/* buffer[109]  \
+	   buffer[110]   device reference above occupies 4 bytes
+	   buffer[111] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
+	/* buffer[117]  \
+	   buffer[118]   device reference above occupies 4 bytes
+	   buffer[119] */
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
 		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
@@ -409,7 +428,7 @@ void readSettings() {
 		recordQuantizeLevel = 8; // Since I've deprecated the ZOOM option
 	}
 
-	if (previouslySavedByFirmwareVersion < FIRMWARE_2P1P0_BETA || !buffer[53]) { // Remove the true!
+	if (buffer[53] == 0u) { // Remove the true!
 		defaultTempoMenu.lower = 120;
 		defaultTempoMenu.upper = 120;
 
@@ -450,82 +469,31 @@ void readSettings() {
 		}
 	}
 
-	soundEditor.setShortcutsVersion((previouslySavedByFirmwareVersion < FIRMWARE_2P1P3_BETA) ? SHORTCUTS_VERSION_1
-	                                                                                         : buffer[60]);
+	soundEditor.setShortcutsVersion(buffer[60]);
+	audioClipRecordMargins = buffer[61];
+	playbackHandler.countInBars = buffer[62];
+	keyboardLayout =
+	    (buffer[69] >= kNumKeyboardLayouts) ? KeyboardLayout::QWERTY : static_cast<KeyboardLayout>(buffer[69]);
 
-	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_ALPHA) {
-		audioClipRecordMargins = true;
-		playbackHandler.countInEnabled = false;
-		keyboardLayout = KeyboardLayout::QWERTY;
-	}
-	else {
-		audioClipRecordMargins = buffer[61];
-		playbackHandler.countInEnabled = buffer[62];
-		if (buffer[69] >= kNumKeyboardLayouts) {
-			keyboardLayout = KeyboardLayout::QWERTY;
-		}
-		else {
-			keyboardLayout = static_cast<KeyboardLayout>(buffer[69]);
-		}
-	}
-
-	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
-		sampleBrowserPreviewMode = PREVIEW_ON;
-	}
-	else {
-		sampleBrowserPreviewMode = buffer[72];
-	}
+	sampleBrowserPreviewMode = buffer[72];
 
 	defaultVelocity = buffer[73];
 	if (defaultVelocity >= 128 || defaultVelocity <= 0) {
 		defaultVelocity = 64;
 	}
 
-	if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
-		gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
-		gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
-		gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
-		gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
+	gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
+	gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
+	gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
+	gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
 
-		defaultMagnitude = 2;
+	defaultMagnitude = buffer[78];
 
-		MIDIDeviceManager::differentiatingInputsByDevice = false;
-	}
-	else {
-		gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
-		gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
-		gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
-		gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
+	MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
 
-		defaultMagnitude = buffer[78];
-
-		MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
-
-		if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
-			if (!gui::menu_item::activeColourMenu.value) {
-				gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN;
-			}
-			if (!gui::menu_item::mutedColourMenu.value) {
-				gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW;
-			}
-			if (!gui::menu_item::soloColourMenu.value) {
-				gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;
-			}
-
-			if (!defaultMagnitude) {
-				defaultMagnitude = 2;
-			}
-		}
-	}
-
-	if (previouslySavedByFirmwareVersion < FIRMWARE_3P2P0_ALPHA) {
-		defaultBendRange[BEND_RANGE_MAIN] = 12; // This was the old default
-	}
-	else {
-		defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
-		if (!defaultBendRange[BEND_RANGE_MAIN]) {
-			defaultBendRange[BEND_RANGE_MAIN] = 12;
-		}
+	defaultBendRange[BEND_RANGE_MAIN] = buffer[112];
+	if (!defaultBendRange[BEND_RANGE_MAIN]) {
+		defaultBendRange[BEND_RANGE_MAIN] = 12;
 	}
 
 	if (buffer[113] >= kNumMIDITakeoverModes) {
@@ -598,7 +566,7 @@ void readSettings() {
 
 	midiEngine.midiSelectKitRow = buffer[147];
 
-	if (previouslySavedByFirmwareVersion < FIRMWARE_4P1P4_ALPHA) {
+	if (savedVersion.type() != FirmwareVersion::Type::COMMUNITY) {
 		resetAutomationSettings();
 	}
 	else {
@@ -641,7 +609,7 @@ void readSettings() {
 	defaultPadBrightness = buffer[164] == false ? kMaxLedBrightness : buffer[164];
 }
 
-bool areMidiFollowSettingsValid(uint8_t* buffer) {
+static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone
 	if ((buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) && buffer[126] != MIDI_CHANNEL_NONE) {
 		return false;
@@ -678,7 +646,7 @@ bool areMidiFollowSettingsValid(uint8_t* buffer) {
 	return true;
 }
 
-bool areAutomationSettingsValid(uint8_t* buffer) {
+static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
 	// automationInterpolate
 	if (buffer[149] != false && buffer[149] != true) {
 		return false;
@@ -704,12 +672,13 @@ bool areAutomationSettingsValid(uint8_t* buffer) {
 }
 
 void writeSettings() {
-	uint8_t* buffer = (uint8_t*)miscStringBuffer;
-	memset(buffer, 0, kFilenameBufferSize);
+	std::span<uint8_t> buffer{(uint8_t*)miscStringBuffer, kFilenameBufferSize};
+	std::fill(buffer.begin(), buffer.end(), 0);
 
-	buffer[0] = kCurrentFirmwareVersion;
-
-	buffer[2] = ramSize;
+	buffer[FIRMWARE_TYPE] = util::to_underlying(FirmwareVersion::current().type());
+	buffer[VERSION_MAJOR] = FirmwareVersion::current().version().major;
+	buffer[VERSION_MINOR] = FirmwareVersion::current().version().minor;
+	buffer[VERSION_PATCH] = FirmwareVersion::current().version().patch;
 
 	buffer[12] = cvEngine.cvChannels[0].voltsPerOctave;
 	buffer[13] = cvEngine.cvChannels[1].voltsPerOctave;
@@ -812,7 +781,7 @@ void writeSettings() {
 	buffer[60] = soundEditor.shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
-	buffer[62] = playbackHandler.countInEnabled;
+	buffer[62] = playbackHandler.countInBars;
 
 	buffer[69] = util::to_underlying(keyboardLayout);
 	buffer[72] = sampleBrowserPreviewMode;
@@ -887,7 +856,7 @@ void writeSettings() {
 	buffer[164] = defaultPadBrightness;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
-	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
+	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
 	                     SPIBSC_OUTPUT_ADDR_24);
 }
 

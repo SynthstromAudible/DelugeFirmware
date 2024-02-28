@@ -241,6 +241,17 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
+- ([#970]) Streamline recording new clips while Deluge is playing
+    - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
+    - The following steps enable you to quickly create and arm new clips for recording.
+  	1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+	2. Exit Settings menu to save settings
+	3. In Grid view, make sure you are in Green mode.
+	4. Press `PLAY` to start playback and press `RECORD` to enable recording.
+	5. Short-press any empty pad in an existing Instrument column to create and arm a new clip for recording
+	6. The new clip that was just created will be selected and start recording at the beginning of the next bar
+	7. You can press `RECORD` to stop recording or press that new clip to stop recording.
+	8. Repeat steps 4-7 as required.
 
 #### 4.1.6 - Performance View
 
@@ -276,6 +287,26 @@ Here is a list of features that have been added to the firmware as a list, group
     - After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
     - Does not affect audio clips or kit clips.
     - Works in Song Row/Grid View, Arranger View, Arranger Automation View and Performance View.
+
+### 4.1.8 - Added VU Meter rendering to Song / Arranger View
+
+- ([#1344]) Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
+    - To display the VU meter:
+      - turn `Affect Entire` on
+      - select the `Volume mod button`
+      - press the `Volume mod button` again to toggle the VU Meter on / off. 
+    - The VU meter will stop rendering if you switch mod button selections, turn affect entire off, select a clip, or exit Song/Arranger views.      
+    - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red. 
+      - Red indicates clipping and is rendered on the top row of the grid. 
+      - Each row on the grid corresponds to the following decibels below clipping values:
+        - y7 = clipping (0 or higher)
+        - y6 = -4.4 to -0.1
+        - y5 = -8.8 to -4.5
+        - y4 = -13.2 to -8.9
+        - y3 = -17.6 to -13.3
+        - y2 = -22.0 to -17.7
+        - y1 = -26.4 to -22.1
+        - y0 = -30.8 to -26.5      
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -984,6 +1015,8 @@ different firmware
 
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
 
+[#970]: https://github.com/SynthstromAudible/DelugeFirmware/pull/970
+
 [#976]: https://github.com/SynthstromAudible/DelugeFirmware/pull/976
 
 [#991]: https://github.com/SynthstromAudible/DelugeFirmware/pull/991
@@ -1011,6 +1044,10 @@ different firmware
 [#1198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1198
 
 [#1251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1251
+
+[#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
+
+[#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

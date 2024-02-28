@@ -514,6 +514,10 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			drawMuteSquare(i, image[i]);
@@ -2980,6 +2984,11 @@ void ArrangerView::graphicsRoutine() {
 		}
 	}
 
+	// if we're not currently selecting a clip
+	if (!getClipForSelection() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
+	}
+
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 
 		int32_t newTickSquare;
@@ -3246,4 +3255,17 @@ void ArrangerView::clipNeedsReRendering(Clip* clip) {
 			break;
 		}
 	}
+}
+
+Clip* ArrangerView::getClipForSelection() {
+	Clip* clip = nullptr;
+	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && lastInteractedClipInstance) {
+		clip = lastInteractedClipInstance->clip;
+	}
+	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		Output* output = outputsOnScreen[yPressedEffective];
+		clip = currentSong->getClipWithOutput(output);
+	}
+	return clip;
 }

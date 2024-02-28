@@ -9,9 +9,10 @@
 
 ### User Interface
 
-- Added feature to load automatically projects at startup.
-To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
-Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+- Added feature to automatically load song projects at startup.
+    - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`. 
+    - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
 
 - Added a feature save user-defined pad brightness level and restore it at startup.
 
@@ -56,7 +57,7 @@ Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
   Affect Entire enabled.
 - Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will
   automatically be set on the keyboard.
-- Short-press of empty clip pads in Grid mode while REC is enabled automatically creates a new clip and queues it for
+- Streamlined recording new clips in Grid mode while Deluge is playing. Short-press empty clip pads in Grid green mode while recording is enabled to automatically create a new clip and queue it for
   recording at the start of the next bar.
 - Fixed a bug preventing clip selection while Shift was held.
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
@@ -69,6 +70,7 @@ Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
 - Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
+- Updated the count-in setting to allow specifying the number of bars (1-4).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

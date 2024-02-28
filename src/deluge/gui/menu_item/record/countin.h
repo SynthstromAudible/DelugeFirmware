@@ -15,16 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/sync_level/relative_to_song.h"
-#include "storage/flash_storage.h"
+#include "gui/menu_item/integer.h"
+#include "playback/playback_handler.h"
 
 namespace deluge::gui::menu_item::record {
-class Quantize final : public sync_level::RelativeToSong {
+class CountIn final : public IntegerWithOff {
 public:
-	using RelativeToSong::RelativeToSong;
-	// can't do triplets/dots for quantize
-	size_t size() override { return SYNC_TYPE_TRIPLET; }
-	void readCurrentValue() { this->setValue(FlashStorage::recordQuantizeLevel); }
-	void writeCurrentValue() { FlashStorage::recordQuantizeLevel = this->getValue(); }
+	using IntegerWithOff::IntegerWithOff;
+	void readCurrentValue() override { this->setValue(playbackHandler.countInBars); }
+	void writeCurrentValue() override { playbackHandler.countInBars = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 4; }
 };
 } // namespace deluge::gui::menu_item::record

@@ -3,6 +3,7 @@
 // Reverb.
 
 #pragma once
+#include "definitions_cxx.hpp"
 #include "dsp/reverb/base.hpp"
 #include "fx_engine.hpp"
 #include <array>
@@ -130,25 +131,25 @@ public:
 	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
 private:
-	static constexpr float sample_rate = 44100.f;
+	static constexpr float sample_rate = kSampleRate;
 
 	std::array<float, kBufferSize> buffer_{};
 	FxEngine engine_{buffer_, {0.5f / sample_rate, 0.3f / sample_rate}};
 
-	float input_gain_{0.2};
+	float input_gain_ = 0.2;
 
 	// size
-	float reverb_time_{0.665f};
+	float reverb_time_ = 0.665f;
 
 	// width
-	float diffusion_{0.625f};
+	float diffusion_ = 0.625f;
 
 	// damping
-	float lp_{0.7f};
+	float lp_ = 0.7f;
 
 	// These are the state variables for the low-pass filters
-	float lp_decay_1_{0};
-	float lp_decay_2_{0};
+	float lp_decay_1_ = 0;
+	float lp_decay_2_ = 0;
 };
 
 } // namespace deluge::dsp::reverb

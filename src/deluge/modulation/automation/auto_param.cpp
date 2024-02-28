@@ -1106,7 +1106,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 
 	// Or, playing reversed...
 	else {
-		if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+		if constexpr (ALPHA_OR_BETA_VERSION) {
 			if (startPos < posAtWhichClipWillCut) {
 				FREEZE_WITH_ERROR("E445");
 			}

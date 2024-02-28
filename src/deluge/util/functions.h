@@ -403,7 +403,6 @@ int32_t fastPythag(int32_t x, int32_t y);
 int32_t strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
@@ -505,3 +504,8 @@ extern char miscStringBuffer[];
 
 constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
+
+struct StereoFloatSample {
+	float l;
+	float r;
+};
