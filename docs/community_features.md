@@ -314,12 +314,13 @@ Here is a list of features that have been added to the firmware as a list, group
 
 - ([#103] and [#336]) Adds 2 new state variable filters to both `LPF dB/OCT` and `HPF dB/OCT`. This filter has
   significantly less distortion than the ladder filters, think sequential vs. moog.
-- The `MORPH` parameter (pads under both `LPF dB/OCT` and `HPF dB/OCT`) adjusts smoothly from lowpass ->
-  bandpass/notch -> highpass. `MORPH` is inverted in the `HPF MORPH` slot so that at 0 the filter is highpass and at 50
-  it is lowpassed.
-    - The `MORPH` param is also effective to the ladder filters. In `12 LADDER/24 LADDER/DRIVE` filters it smoothly
-      increases drive and in the `HP LADDER` it adds filter FM. This param is modulatable and automatable.
-    - `FILTER ROUTE` is accessible via the `SOUND` menu only and adjusts the filter order
+- Two `MORPH` parameters, `DRIVE` and `FM`, were added to the Filters Sound menu for LPF and HPF respectively. Note: these parameters are not yet available in the Affect-Entire Sound menu's (e.g. Song, Audio Clips, and Kits). They are available for Synth clips and Kit rows only.
+    - The `DRIVE` parameter (pad under `LPF dB/OCT`) adjusts smoothly from lowpass -> bandpass/notch -> highpass
+    	- When any of the ladder filters are selected,  `12dB LADDER/24dB LADDER/DRIVE`, it smoothly increases drive.
+    - The `FM` parameter (pad under `HPF dB/OCT`) adjusts smoothly from highpass -> bandpass/notch -> lowpass
+	- When the `HP LADDER` is selected, it smoothly adds filter FM.
+    - The `MORPH` parameters are modulatable and automatable.
+- `FILTER ROUTE` is accessible via the `SOUND` menu only and adjusts the filter order
       from `HPF TO LPF`, `LPF TO HPF`, or `PARALLEL`.
 
 #### 4.2.2 - Stereo Chorus
