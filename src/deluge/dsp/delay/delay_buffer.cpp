@@ -20,6 +20,7 @@
 #include "mem_functions.h"
 #include "memory/memory_allocator_interface.h"
 #include <cmath>
+#include <optional>
 
 // Returns error status
 Error DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeExtraSpace) {
@@ -67,7 +68,7 @@ Error DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includeE
 void DelayBuffer::clear() {
 	memset(start_, 0, sizeof(StereoSample) * (delaySpaceBetweenReadAndWrite + 2));
 	current_ = start_ + delaySpaceBetweenReadAndWrite;
-	is_resampling_ = false;
+	resample_config_ = std::nullopt;
 }
 
 int32_t DelayBuffer::getIdealBufferSizeFromRate(uint32_t newRate) {
@@ -94,7 +95,6 @@ void DelayBuffer::discard() {
 
 void DelayBuffer::setupResample() {
 	// Prep for resample
-	is_resampling_ = true;
 	longPos = 0;
 	lastShortPos = 0;
 
@@ -120,8 +120,8 @@ void DelayBuffer::setupResample() {
 	writePos->r -= writePosPlusOne->r;
 }
 
-void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBuffer::Config& setup) {
-	if (!is_resampling_) {
+void DelayBuffer::setupForRender(int32_t userDelayRate) {
+	if (!isResampling()) {
 		if (userDelayRate == native_rate_ || start_ == nullptr) {
 			// Can't/won't resample if the rate is native or the buffer is discarded
 			return;
@@ -131,20 +131,25 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBuffer::Config& set
 		setupResample();
 	}
 
-	setup.actualSpinRate =
-	    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)native_rate_); // 1 is represented as 16777216
-	setup.divideByRate =
-	    (uint32_t)((double)0xFFFFFFFF / (double)(setup.actualSpinRate >> 8)); // 1 is represented as 65536
+	int32_t actualSpinRate;
+	int32_t spinRateForSpedUpWriting;
+	uint32_t divideByRate;
+	int32_t rateMultiple;
+	uint32_t writeSizeAdjustment;
+
+	actualSpinRate =
+	    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)native_rate_);      // 1 is represented as 16777216
+	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8)); // 1 is represented as 65536
 
 	// If buffer spinning slow
-	if (setup.actualSpinRate < kMaxSampleValue) {
+	if (actualSpinRate < kMaxSampleValue) {
 
-		uint32_t timesSlowerRead = setup.divideByRate >> 16;
+		uint32_t timesSlowerRead = divideByRate >> 16;
 
 		// This seems to be the best option. speedMultiple is set to the smallest multiple of delay.speed which is
 		// greater than 65536. Means the "triangles" link up, and are at least as wide as a frame of the write
 		// buffer. Does that make sense?
-		setup.rateMultiple = (setup.actualSpinRate >> 8) * (timesSlowerRead + 1);
+		rateMultiple = (actualSpinRate >> 8) * (timesSlowerRead + 1);
 
 		// This was tricky to work out. Needs to go up with delay.speed because this means less "density". And
 		// squarely down with writeRateMultiple because more of that means more "triangle area", or more stuff
@@ -153,8 +158,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBuffer::Config& set
 		// (uint32_t)(speedMultiple >> 2)) >> 11));
 
 		// Equivalent to one order of magnitude bigger than the above line
-		setup.writeSizeAdjustment =
-		    (uint32_t)((double)0xFFFFFFFF / (double)(setup.rateMultiple * (timesSlowerRead + 1)));
+		writeSizeAdjustment = (uint32_t)((double)0xFFFFFFFF / (double)(rateMultiple * (timesSlowerRead + 1)));
 	}
 
 	// If buffer spinning fast
@@ -162,7 +166,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBuffer::Config& set
 
 		// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster
 		// takes longer). No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
-		setup.spinRateForSpedUpWriting = std::min(setup.actualSpinRate, (int32_t)kMaxSampleValue * 8);
+		spinRateForSpedUpWriting = std::min(actualSpinRate, (int32_t)kMaxSampleValue * 8);
 
 		// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
 		// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing
@@ -172,8 +176,11 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBuffer::Config& set
 		// the fact that the actual writes below are <<3 instead of <<4.
 
 		// Woah, did I mean to write "<<=" ?
-		setup.spinRateForSpedUpWriting = setup.spinRateForSpedUpWriting <<= 1;
+		spinRateForSpedUpWriting = spinRateForSpedUpWriting <<= 1;
 		// We may change this because sped up writing is the only thing it'll be used for
-		setup.divideByRate >>= 1;
+		divideByRate >>= 1;
 	}
+	resample_config_ = DelayBuffer::ResampleConfig{
+	    actualSpinRate, spinRateForSpedUpWriting, divideByRate, rateMultiple, writeSizeAdjustment,
+	};
 }

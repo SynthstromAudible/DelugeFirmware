@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include <cstdint>
 #include <expected>
+#include <optional>
 
 class StereoSample;
 
@@ -31,14 +32,6 @@ public:
 	constexpr static size_t kMaxSize = 88200;
 	constexpr static size_t kMinSize = 1;
 	constexpr static size_t kNeutralSize = 16384;
-
-	struct Config {
-		int32_t actualSpinRate;           // 1 is represented as 16777216
-		int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
-		uint32_t divideByRate;            // 1 is represented as 65536
-		int32_t rateMultiple;
-		uint32_t writeSizeAdjustment;
-	};
 
 	DelayBuffer() = default;
 	~DelayBuffer() { discard(); }
@@ -53,7 +46,7 @@ public:
 
 	void discard();
 
-	void setupForRender(int32_t rate, Config& setup);
+	void setupForRender(int32_t rate);
 
 	static int32_t getIdealBufferSizeFromRate(uint32_t newRate);
 
@@ -93,9 +86,9 @@ public:
 		}
 	}
 
-	[[gnu::always_inline]] void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
-	                                  const DelayBuffer::Config& setup) { // If no speed adjustment
-		if (!is_resampling_) {
+	[[gnu::always_inline]] void write(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2) {
+		// If no speed adjustment
+		if (!isResampling()) {
 			StereoSample* writePos = current_ - delaySpaceBetweenReadAndWrite;
 			if (writePos < start_) {
 				writePos += sizeIncludingExtra;
@@ -105,13 +98,13 @@ public:
 			return;
 		}
 
-		writeResampled(toDelayL, toDelayR, strength1, strength2, setup);
+		writeResampled(toDelayL, toDelayR, strength1, strength2);
 	}
 
-	[[gnu::always_inline]] void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
-	                                           const DelayBuffer::Config& setup) {
+	[[gnu::always_inline]] void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1,
+	                                           int32_t strength2) {
 		// If delay buffer spinning above sample rate...
-		if (setup.actualSpinRate >= kMaxSampleValue) {
+		if (resample_config_.value().actualSpinRate >= kMaxSampleValue) {
 
 			// An improvement on that could be to only do the triangle-widening when we're down near the native rate -
 			// i.e. set a minimum width of double the native rate rather than always doubling the width. The difficulty
@@ -122,7 +115,7 @@ public:
 			// For efficiency, we start far-right, then traverse to far-left.
 
 			// I rearranged some algebra to get this from the strengthThisWrite equation
-			int32_t howFarRightToStart = (strength2 + (setup.spinRateForSpedUpWriting >> 8)) >> 16;
+			int32_t howFarRightToStart = (strength2 + (resample_config_.value().spinRateForSpedUpWriting >> 8)) >> 16;
 
 			// This variable represents one "step" of the delay buffer as 65536.
 			// Always positive - absolute distance
@@ -141,7 +134,7 @@ public:
 			while (distanceFromMainWrite != 0) { // For as long as we haven't reached the "main" pos...
 				// Check my notebook for a rudimentary diagram
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * setup.divideByRate);
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite - strength2) >> 4) * resample_config_.value().divideByRate);
 
 				writePos->l += multiply_32x32_rshift32(toDelayL, strengthThisWrite) << 3;
 				writePos->r += multiply_32x32_rshift32(toDelayR, strengthThisWrite) << 3;
@@ -156,7 +149,7 @@ public:
 			// Do all writes to the left of (and including) the main write pos
 			while (true) {
 				int32_t strengthThisWrite =
-				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * setup.divideByRate);
+				    (0xFFFFFFFF >> 4) - (((distanceFromMainWrite + strength2) >> 4) * resample_config_.value().divideByRate);
 				if (strengthThisWrite <= 0) {
 					break; // And stop when we've got far enough left that we shouldn't be squirting any more juice here
 				}
@@ -197,8 +190,8 @@ public:
 
 			int32_t strength[4];
 
-			strength[1] = strength1 + setup.rateMultiple - 65536; // For the "main" pos
-			strength[2] = strength2 + setup.rateMultiple - 65536; // For the "main + 1" pos
+			strength[1] = strength1 + resample_config_.value().rateMultiple - 65536; // For the "main" pos
+			strength[2] = strength2 + resample_config_.value().rateMultiple - 65536; // For the "main + 1" pos
 
 			// Strengths for the further 1 write in each direction
 			strength[0] = strength[1] - 65536;
@@ -207,9 +200,9 @@ public:
 			int8_t i = 3;
 			while (true) {
 				if (strength[i] > 0) {
-					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * setup.writeSizeAdjustment)
+					writePos->l += multiply_32x32_rshift32(toDelayL, (strength[i] >> 2) * resample_config_.value().writeSizeAdjustment)
 					               << 2;
-					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * setup.writeSizeAdjustment)
+					writePos->r += multiply_32x32_rshift32(toDelayR, (strength[i] >> 2) * resample_config_.value().writeSizeAdjustment)
 					               << 2;
 				}
 				if (--i < 0) {
@@ -222,7 +215,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr bool isResampling() const { return is_resampling_; }
+	[[nodiscard]] constexpr bool isResampling() const { return resample_config_.has_value(); }
 	[[nodiscard]] constexpr uint32_t nativeRate() const { return native_rate_; }
 
 	// Iterator access
@@ -243,9 +236,17 @@ public:
 	size_t sizeIncludingExtra;
 
 private:
+	struct ResampleConfig {
+		int32_t actualSpinRate;           // 1 is represented as 16777216
+		int32_t spinRateForSpedUpWriting; // Normally the same as actualSpinRate, but subject to some limits for safety
+		uint32_t divideByRate;            // 1 is represented as 65536
+		int32_t rateMultiple;
+		uint32_t writeSizeAdjustment;
+	};
+
 	void setupResample();
 
-	bool is_resampling_ = false;
+
 	uint32_t native_rate_ = 0;
 
 	StereoSample* start_ = nullptr;
@@ -253,4 +254,6 @@ private:
 	StereoSample* current_;
 
 	size_t size_;
+public:
+	std::optional<ResampleConfig> resample_config_{};
 };

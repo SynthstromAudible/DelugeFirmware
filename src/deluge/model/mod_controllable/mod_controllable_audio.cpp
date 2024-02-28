@@ -535,8 +535,6 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	DelayBuffer::Config delayPrimarySetup{};
-	DelayBuffer::Config delaySecondarySetup{};
 
 	if (delayWorkingState.doDelay) {
 
@@ -576,11 +574,11 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 		}
 
 		// Figure some stuff out for the primary buffer
-		delay.primaryBuffer.setupForRender(delayWorkingState.userDelayRate, delayPrimarySetup);
+		delay.primaryBuffer.setupForRender(delayWorkingState.userDelayRate);
 
 		// Figure some stuff out for the secondary buffer - only if it's active
 		if (delay.secondaryBuffer.isActive()) {
-			delay.secondaryBuffer.setupForRender(delayWorkingState.userDelayRate, delaySecondarySetup);
+			delay.secondaryBuffer.setupForRender(delayWorkingState.userDelayRate);
 		}
 
 		bool wrapped = false;
@@ -626,7 +624,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				int32_t* workingBufferPos = delayWorkingBuffer;
 				do {
 					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
+					delay.primaryBuffer.longPos += delay.primaryBuffer.resample_config_.value().actualSpinRate;
 					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
 					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
 					delay.primaryBuffer.lastShortPos = newShortPos;
@@ -813,7 +811,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				do {
 
 					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
+					delay.primaryBuffer.longPos += delay.primaryBuffer.resample_config_.value().actualSpinRate;
 					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
 					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
 					delay.primaryBuffer.lastShortPos = newShortPos;
@@ -827,7 +825,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t primaryStrength1 = 65536 - primaryStrength2;
 
 					delay.primaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], primaryStrength1,
-					                                   primaryStrength2, delayPrimarySetup);
+					                                   primaryStrength2);
 
 					workingBufferPos += 2;
 				} while (workingBufferPos != workingBufferEnd);
@@ -862,7 +860,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				int32_t* workingBufferPos = delayWorkingBuffer;
 				do {
 					// Move forward, and clear buffer as we go
-					delay.secondaryBuffer.longPos += delaySecondarySetup.actualSpinRate;
+					delay.secondaryBuffer.longPos += delay.secondaryBuffer.resample_config_.value().actualSpinRate;
 					uint8_t newShortPos = delay.secondaryBuffer.longPos >> 24;
 					uint8_t shortPosDiff = newShortPos - delay.secondaryBuffer.lastShortPos;
 					delay.secondaryBuffer.lastShortPos = newShortPos;
@@ -878,7 +876,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 					// Write to secondary buffer
 					delay.secondaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], secondaryStrength1,
-					                                     secondaryStrength2, delaySecondarySetup);
+					                                     secondaryStrength2);
 
 					workingBufferPos += 2;
 				} while (workingBufferPos != workingBufferEnd);
@@ -1077,11 +1075,9 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 	StereoSample* thisSample = buffer;
 
-	DelayBuffer::Config delayBufferSetup;
-
 	int32_t rate = getStutterRate(paramManager);
 
-	stutterer.buffer.setupForRender(rate, delayBufferSetup);
+	stutterer.buffer.setupForRender(rate);
 
 	if (stutterer.status == STUTTERER_STATUS_RECORDING) {
 
@@ -1104,7 +1100,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			else {
 
 				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
+				stutterer.buffer.longPos += stutterer.buffer.resample_config_.value().actualSpinRate;
 				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
 				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
 				stutterer.buffer.lastShortPos = newShortPos;
@@ -1122,7 +1118,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				// &delayBufferSetup);
 			}
 
-			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, delayBufferSetup);
+			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2);
 
 		} while (++thisSample != bufferEnd);
 
@@ -1149,7 +1145,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			else {
 
 				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
+				stutterer.buffer.longPos += stutterer.buffer.resample_config_.value().actualSpinRate;
 				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
 				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
 				stutterer.buffer.lastShortPos = newShortPos;
