@@ -791,7 +791,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				}
 
 				do {
-					delay.primaryBuffer.writeNativeAndMoveOn(workingBufferPos->l, workingBufferPos->r, &writePos);
+					delay.primaryBuffer.writeNativeAndMoveOn(*workingBufferPos, &writePos);
 
 					workingBufferPos++;
 				} while (workingBufferPos != workingBufferEnd);
@@ -821,7 +821,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
 					int32_t primaryStrength1 = 65536 - primaryStrength2;
 
-					delay.primaryBuffer.writeResampled(workingBufferPos->l, workingBufferPos->r, primaryStrength1,
+					delay.primaryBuffer.writeResampled(*workingBufferPos, primaryStrength1,
 					                                   primaryStrength2);
 
 					workingBufferPos++;
@@ -845,7 +845,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					delay.sizeLeftUntilBufferSwap--;
 
 					// Write to secondary buffer
-					delay.secondaryBuffer.writeNative(workingBufferPos->l, workingBufferPos->r);
+					delay.secondaryBuffer.writeNative(*workingBufferPos);
 
 					workingBufferPos++;
 				} while (workingBufferPos != workingBufferEnd);
@@ -872,7 +872,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 					int32_t secondaryStrength1 = 65536 - secondaryStrength2;
 
 					// Write to secondary buffer
-					delay.secondaryBuffer.writeResampled(workingBufferPos->l, workingBufferPos->r, secondaryStrength1,
+					delay.secondaryBuffer.writeResampled(*workingBufferPos, secondaryStrength1,
 					                                     secondaryStrength2);
 
 					workingBufferPos++;
@@ -1115,7 +1115,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				// &delayBufferSetup);
 			}
 
-			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2);
+			stutterer.buffer.write(*thisSample, strength1, strength2);
 
 		} while (++thisSample != bufferEnd);
 
@@ -1159,16 +1159,14 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 				if (nextPos == stutterer.buffer.end()) {
 					nextPos = stutterer.buffer.begin();
 				}
-				int32_t fromDelay1L = stutterer.buffer.current()->l;
-				int32_t fromDelay1R = stutterer.buffer.current()->r;
-				int32_t fromDelay2L = nextPos->l;
-				int32_t fromDelay2R = nextPos->r;
+				StereoSample& fromDelay1 = *stutterer.buffer.current();
+				StereoSample& fromDelay2 = *nextPos;
 
-				thisSample->l = (multiply_32x32_rshift32(fromDelay1L, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2L, strength2 << 14))
+				thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
 				                << 2;
-				thisSample->r = (multiply_32x32_rshift32(fromDelay1R, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2R, strength2 << 14))
+				thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 				                << 2;
 			}
 		} while (++thisSample != bufferEnd);
