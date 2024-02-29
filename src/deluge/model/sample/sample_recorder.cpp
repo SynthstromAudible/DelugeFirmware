@@ -692,8 +692,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 				if (firstSampleCluster->sdAddress == 0) {
 					FREEZE_WITH_ERROR("E268");
 				}
-				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.database)
-				    & (fileSystemStuff.fileSystem.csize - 1)) {
+				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem->database)
+				    & (fileSystemStuff.fileSystem->csize - 1)) {
 					FREEZE_WITH_ERROR("E269");
 				}
 
@@ -766,7 +766,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
 	                   // allocate new SampleClusters and move them around!
 
 	// Grab the SD address, for later
-	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file.clust);
+	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem.value(), file.clust);
 	return Error::NONE;
 }
 
@@ -1268,7 +1268,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 			if (sdAddress == 0) {
 				FREEZE_WITH_ERROR("E268");
 			}
-			if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+			if ((sdAddress - fileSystemStuff.fileSystem->database) & (fileSystemStuff.fileSystem->csize - 1)) {
 				FREEZE_WITH_ERROR("E275");
 			}
 
@@ -1443,7 +1443,7 @@ writeFailed:
 		if (sdAddress == 0) {
 			FREEZE_WITH_ERROR("E268");
 		}
-		if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+		if ((sdAddress - fileSystemStuff.fileSystem->database) & (fileSystemStuff.fileSystem->csize - 1)) {
 			FREEZE_WITH_ERROR("E276");
 		}
 

@@ -18,8 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "fatfs/fatfs.hpp"
 #include "util/firmware_version.h"
 #include <cstdint>
+#include <optional>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -28,7 +30,7 @@ extern "C" {
 extern void deleteOldSongBeforeLoadingNew();
 
 struct FileSystemStuff {
-	FATFS fileSystem; /* File system object */
+	std::optional<FatFS::Filesystem> fileSystem; /* File system object */
 	FIL currentFile;  /* File object */
 };
 

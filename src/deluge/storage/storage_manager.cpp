@@ -37,7 +37,9 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/firmware_version.h"
+#include "util/functions.h"
 #include "version.h"
+#include "util/try.h"
 #include <string.h>
 
 extern "C" {
@@ -912,8 +914,8 @@ void StorageManager::exitTag(char const* exitTagName) {
 }
 
 Error StorageManager::checkSpaceOnCard() {
-	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
-	return fileSystemStuff.fileSystem.free_clst
+	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem->free_clst);
+	return fileSystemStuff.fileSystem->free_clst
 	           ? Error::NONE
 	           : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
@@ -1301,7 +1303,9 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	result = f_mount(&fileSystemStuff.fileSystem, "", 1);
+	fileSystemStuff.fileSystem = D_TRY_CATCH(FatFS::mount("", 1).transform_error(fatfsErrorToDelugeError), error, {
+		return error;
+	});
 
 	return fresultToDelugeErrorCode(result);
 }
@@ -1326,8 +1330,8 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 
 	fileSystemStuff.currentFile.obj.sclust = fp->sclust;
 	fileSystemStuff.currentFile.obj.objsize = fp->objsize;
-	fileSystemStuff.currentFile.obj.fs = &fileSystemStuff.fileSystem; /* Validate the file object */
-	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem.id;
+	fileSystemStuff.currentFile.obj.fs = &fileSystemStuff.fileSystem.value(); /* Validate the file object */
+	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem->id;
 
 	fileSystemStuff.currentFile.flag = FA_READ; /* Set file access mode */
 	fileSystemStuff.currentFile.err = 0;        /* Clear error flag */
