@@ -93,7 +93,7 @@ public:
 	[[nodiscard]] constexpr uintptr_t tell() const { return file_.fptr; }
 	[[nodiscard]] constexpr size_t size() const { return file_.obj.objsize; }
 
-	constexpr auto rewind() { return lseek(0); }
+	auto rewind() { return lseek(0); }
 
 	FIL& inner() { return file_; }
 private:

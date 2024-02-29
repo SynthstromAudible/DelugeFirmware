@@ -490,7 +490,7 @@ void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char cons
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 Error fresultToDelugeErrorCode(FRESULT result);
 namespace FatFS {
-	enum class Error;
+enum class Error;
 }
 Error fatfsErrorToDelugeError(FatFS::Error result);
 

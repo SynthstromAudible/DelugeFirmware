@@ -17,7 +17,7 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
-#include "fatfs.hpp"
+#include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -2123,7 +2123,6 @@ Error fatfsErrorToDelugeError(FatFS::Error result) {
 		return Error::SD_CARD;
 	}
 }
-
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
