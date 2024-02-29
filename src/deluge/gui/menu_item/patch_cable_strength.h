@@ -41,6 +41,9 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	void selectAutomationViewParameter(bool clipMinder);
 
+	deluge::modulation::params::Kind getParamKind();
+	uint32_t getParamIndex();
+
 	// OLED Only
 	void renderOLED();
 
