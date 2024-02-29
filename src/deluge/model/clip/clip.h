@@ -190,6 +190,7 @@ public:
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	OutputType lastSelectedOutputType;
+	PatchSource lastSelectedPatchSource;
 	// END ~ new Automation Clip View Variables
 
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,

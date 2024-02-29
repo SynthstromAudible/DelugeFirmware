@@ -65,7 +65,13 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Stutter** Rate
 
-4. Automatable CC's for MIDI Clips
+4. Automatable Patch Cables and Modulation Depths
+
+You can automate all patch cables and modulation depths.
+
+Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable.
+
+5. Automatable CC's for MIDI Clips
 
 >You can automate MIDI CC's 0-119, along with Pitch Bend and After Touch. Note: Mod Wheel is MIDI CC 1.
 >In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
@@ -93,6 +99,8 @@ A more detailed break-down of the above sections is found below.
 The Automation Arranger View can be accessed from the Arranger View by pressing the Shift + Song buttons.
 
 The Automation Clip View can be accessed from the Clip View by pressing on the Clip button. The Clip button will flash when you are in the Automation Clip View
+
+Automation View can also be accessed from the Sound menu for any automatable parameter, patch cable, modulation depth. While in the menu, press Clip (if you're in a clip) or Song (if you're in arranger) to exit out of the menu and enter the Automation Editor for that parameter.
 
 Some additional things to note:
 
@@ -182,6 +190,18 @@ The Automation Editor **will:**
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
 <img width="347" alt="Screenshot 2023-12-25 at 4 53 23 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/a95c7e5f-5a77-4280-b159-26364d29def2">
+
+> **Note** For patch cables / modulation depth, the grid value ranges for each pad have been adapted to accomodate the full -50 to +50 range.
+>
+> The bottom pad in the grid will set the value to -50 and the top pad in the grid will set the value to +50.
+>
+> You can set the value to 0 by pressing and holding the two middle pads.
+>
+> The LED indicators for the mod encoders have been updated to show the full -50 to +50 range as well.
+> 
+> This diagram shows the updated value ranges for the pads when automating a patch cable / modulation depth.
+
+<img width="315" alt="Screenshot 2024-02-28 at 7 43 23 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/ca78acb1-4aaf-4ff0-83a6-ea730da8d76d">
 
 - enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
