@@ -124,7 +124,7 @@ void DelayBuffer::setupResample() {
 }
 
 void DelayBuffer::setupForRender(int32_t rate) {
-	if (resampling()) {
+	if (!resampling()) {
 		if (rate == native_rate_ || start_ == nullptr) {
 			// Can't/won't resample if the rate is native or the buffer is discarded
 			return;
