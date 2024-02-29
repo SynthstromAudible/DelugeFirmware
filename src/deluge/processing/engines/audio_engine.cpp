@@ -122,7 +122,7 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-float rmsLevel{0};
+StereoFloatSample approxRMSLevel{0};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
@@ -713,7 +713,7 @@ startAgain:
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
 	// around the mutable noise floor, ~70dB from peak
-	reverbOn |= (rmsLevel > 9);
+	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -800,7 +800,7 @@ startAgain:
 
 	metronome.render(renderingBuffer.data(), numSamples);
 
-	rmsLevel = envelopeFollower.calcRMS(renderingBuffer.data(), numSamples);
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
