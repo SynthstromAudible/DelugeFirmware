@@ -328,12 +328,12 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 // Automation View constants
 constexpr int32_t kNoSelection = 255;
-constexpr int32_t kNumNonGlobalParamsForAutomation = 57;
-constexpr int32_t kNumGlobalParamsForAutomation = 23;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableSinglePadPress = 30;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableDisplay = 32;
 constexpr int32_t kParamNodeWidth = 3;
 //
 
