@@ -342,11 +342,11 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 
 enum class EnvelopeStage : uint8_t {
 	ATTACK,
+	HOLD,
 	DECAY,
 	SUSTAIN,
 	RELEASE,
 	FAST_RELEASE,
-	HOLD,
 	OFF,
 };
 constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;

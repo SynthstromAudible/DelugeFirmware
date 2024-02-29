@@ -475,7 +475,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 	return &arpeggiator;
 }
 
-bool SoundInstrument::noteIsOn(int32_t noteCode) {
+bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -502,6 +502,9 @@ bool SoundInstrument::noteIsOn(int32_t noteCode) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
+			if (resetTimeEntered) {
+				thisVoice->envelopes[0].resetTimeEntered();
+			}
 			return true;
 		}
 	}
