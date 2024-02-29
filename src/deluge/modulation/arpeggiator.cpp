@@ -454,9 +454,13 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		currentOctave = getRandom255() % settings->numOctaves;
 		currentOctaveDirection = 1;
 
+		if (!playedFirstArpeggiatedNoteYet) {
+			notesPlayedFromSequence = 0;
+			notesPlayedFromRhythm = 0;
+		}
 		// Must set all these variables here, even though RANDOM
 		// doesn't use them, in case user changes arp mode.
-		notesPlayedFromSequence = 0;
+		currentOctaveDirection = 1;
 	}
 	// Or not RANDOM
 	else {
@@ -554,11 +558,14 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
 		currentOctave = getRandom255() % settings->numOctaves;
 
+		if (!playedFirstArpeggiatedNoteYet) {
+			notesPlayedFromSequence = 0;
+			notesPlayedFromRhythm = 0;
+		}
 		// Must set all these variables here, even though RANDOM
 		// doesn't use them, in case user changes arp mode.
-		notesPlayedFromSequence = 0;
-		randomNotesPlayedFromOctave = 0;
 		currentOctaveDirection = 1;
+		randomNotesPlayedFromOctave = 0;
 		currentDirection = 1;
 	}
 
