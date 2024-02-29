@@ -30,13 +30,17 @@ enum class Error {
 	INVALID_PARAMETER = FR_INVALID_PARAMETER
 };
 
+using Filesystem = FATFS;
+
 using FileAccessMode = uint8_t;
 
 class File {
 public:
 	File(File&) = default;  // Copy constructor
 	File(File&&) = default; // Move constructor
-	~File() { (void)close(); }
+	File& operator=(File const& other) = default;
+
+	~File() { f_close(&file_); }
 
 	/* Open or create a file */
 	static std::expected<File, Error> open(std::string_view path, FileAccessMode mode);
@@ -91,6 +95,7 @@ public:
 
 	constexpr auto rewind() { return lseek(0); }
 
+	FIL& inner() { return file_; }
 private:
 	File() = default;
 
@@ -103,16 +108,22 @@ class Directory {
 public:
 	Directory(Directory&) = default;  // Copy constructor
 	Directory(Directory&&) = default; // Move constructor
-	~Directory() { (void)close(); }
+	~Directory() { f_closedir(&dir_); }
 
 	/* Open a directory */
-	static std::expected<Directory, Error> open(std::string_view path);
+	[[nodiscard]] static std::expected<Directory, Error> open(std::string_view path);
 
 	/* Close an open directory */
 	std::expected<void, Error> close();
 
 	/* Read a directory item */
-	[[nodiscard]] std::expected<FileInfo, Error> read() const;
+	[[nodiscard]] std::expected<FileInfo, Error> read();
+
+	[[nodiscard]] std::expected<std::pair<FileInfo, FilePointer>, Error> read_and_get_filepointer();
+
+	[[nodiscard]] std::expected<void, Error> create_name(const char** path);
+
+	[[nodiscard]] std::expected<void, Error> find();
 
 #if FF_USE_FIND >= 1 and FF_FS_MINIMIZE <= 1
 	/* Find first file */
@@ -125,6 +136,8 @@ public:
 	std::expected<void, Error> rewind();
 
 	// constexpr unmount(auto path) { f_mount(0, path, 0); }
+
+	constexpr DIR& inner() { return dir_; }
 
 private:
 	Directory() = default;
@@ -187,7 +200,7 @@ std::expected<void, Error> set_label(std::string_view label);
 #endif
 
 /* Mount/Unmount a logical drive */
-std::expected<void, Error> mount(FATFS* fs, std::string_view path, BYTE opt);
+std::expected<Filesystem, Error> mount(std::string_view path, BYTE opt);
 
 #if FF_USE_MKFS
 /* Create a FAT volume */

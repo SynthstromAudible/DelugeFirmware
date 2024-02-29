@@ -1,5 +1,10 @@
 #include "fatfs.hpp"
 #include "ff.h"
+extern "C" {
+	FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
+                                  FILINFO* fno, /* Pointer to file information to return */
+                                  FilePointer* filePointer);
+}
 
 #define FF_TRY(expr)                                                                                                   \
 	do {                                                                                                               \
@@ -7,12 +12,12 @@
 		if (error != FR_OK) {                                                                                          \
 			return std::unexpected(FatFS::Error(error));                                                               \
 		}                                                                                                              \
-	} while (0);
+	} while (0)
 
 namespace FatFS {
 
 std::expected<File, Error> File::open(std::string_view path, FileAccessMode mode) {
-	File file;
+	File file{};
 	FF_TRY(f_open(&file.file_, path.data(), mode));
 	return file;
 }
@@ -24,7 +29,7 @@ std::expected<void, Error> File::close() {
 
 std::expected<std::span<std::byte>, Error> File::read(std::span<std::byte> buffer) {
 	unsigned int num_bytes_read = 0;
-	FF_TRY(f_read(&file_, buffer.data(), buffer.size_bytes(), &num_bytes_read))
+	FF_TRY(f_read(&file_, buffer.data(), buffer.size_bytes(), &num_bytes_read));
 	return std::span{buffer.data(), num_bytes_read};
 }
 
@@ -44,9 +49,43 @@ std::expected<void, Error> File::sync() {
 	return {};
 }
 
+std::expected<void, Error> File::lseek(size_t offset) {
+	FF_TRY(f_lseek(&file_, offset));
+	return {};
+}
+
+std::expected<Directory, Error> Directory::open(std::string_view path)  {
+	Directory dir{};
+	FF_TRY(f_opendir(&dir.dir_, path.data()));
+	return dir;
+}
+
 std::expected<void, Error> Directory::close() {
 	FF_TRY(f_closedir(&dir_));
 	return{};
+}
+
+std::expected<FileInfo, Error> Directory::read() {
+	FileInfo info;
+	FF_TRY(f_readdir(&dir_, &info));
+	return info;
+}
+
+std::expected<std::pair<FileInfo, FilePointer>, Error> Directory::read_and_get_filepointer() {
+	FileInfo info;
+	FilePointer fp;
+	FF_TRY(f_readdir_get_filepointer(&dir_, &info, &fp));
+	return std::make_pair(info, fp);
+}
+
+std::expected<void, Error> Directory::create_name(const char** path) {
+	FF_TRY(::create_name(&dir_, path));
+	return {};
+}
+
+std::expected<void, Error> Directory::find() {
+	FF_TRY(dir_find(&dir_));
+	return {};
 }
 
 std::expected<void, Error> Directory::rewind() {
@@ -82,5 +121,11 @@ std::expected<FileInfo, Error> stat(std::string_view path) {
 	return info;
 }
 #endif
+
+std::expected<Filesystem, Error> mount(std::string_view path, BYTE opt) {
+	FATFS fs{};
+	FF_TRY(f_mount(&fs, path.data(), opt));
+	return fs;
+}
 
 } // namespace FatFS
