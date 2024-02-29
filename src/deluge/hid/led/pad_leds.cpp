@@ -37,6 +37,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+
 #include <cstring>
 #include <limits>
 
@@ -687,6 +688,10 @@ void setGreyoutAmount(float newAmount) {
 
 int32_t refreshTime = 23;
 int32_t dimmerInterval = 0;
+
+void setBrightnessLevel(uint8_t offset) {
+	return setDimmerInterval(kMaxLedBrightness - offset);
+}
 
 void setRefreshTime(int32_t newTime) {
 	PIC::setRefreshTime(newTime);

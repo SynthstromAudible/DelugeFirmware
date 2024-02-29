@@ -64,6 +64,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedOutputType = OutputType::NONE;
+	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
 #if HAVE_SEQUENCE_STEP_CONTROL

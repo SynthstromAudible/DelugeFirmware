@@ -114,6 +114,9 @@ constexpr int32_t kNumBytesInMainPadRedraw = (kNumBytesInColUpdateMessage * 8);
 constexpr int32_t kDefaultClipLength = 96; // You'll want to <<displayWidthMagnitude this each time used
 constexpr int32_t kDefaultArrangerZoom = (kDefaultClipLength >> 1);
 
+constexpr int32_t kMinLedBrightness = 1;
+constexpr int32_t kMaxLedBrightness = 25;
+
 struct Pin {
 	uint8_t port;
 	uint8_t pin;
@@ -262,11 +265,11 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 
 enum class EnvelopeStage : uint8_t {
 	ATTACK,
+	HOLD,
 	DECAY,
 	SUSTAIN,
 	RELEASE,
 	FAST_RELEASE,
-	HOLD,
 	OFF,
 };
 constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
@@ -325,12 +328,12 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 // Automation View constants
 constexpr int32_t kNoSelection = 255;
-constexpr int32_t kNumNonGlobalParamsForAutomation = 57;
-constexpr int32_t kNumGlobalParamsForAutomation = 23;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableSinglePadPress = 30;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableDisplay = 32;
 constexpr int32_t kParamNodeWidth = 3;
 //
 
@@ -943,6 +946,12 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// See Figure 19.1 in the RZ/A1L TRM R01UH0437EJ0600 Rev.6.00 and the rest of section 19, Serial Sound Interface for
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
+
+// The Deluge deals with 24-bit PCM audio
+constexpr uint32_t kBitDepth = 24;
+
+// The maximum value a (24-bit) sample can hold
+constexpr uint32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
 
 /// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)

@@ -79,7 +79,7 @@ void setRefreshTime(int32_t newTime);
 void changeRefreshTime(int32_t offset);
 void changeDimmerInterval(int32_t offset);
 void setDimmerInterval(int32_t newInterval);
-
+void setBrightnessLevel(uint8_t level);
 void renderZoom();
 void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
                             uint8_t* outerImage, int32_t innerImageLeftEdge, int32_t outerImageLeftEdge,

@@ -138,7 +138,7 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 }
 
 // Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself
-// moving forward) and runs out of audio Only valid if phaseIncrement > 16777216
+// moving forward) and runs out of audio Only valid if phaseIncrement > kMaxSampleValue
 int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos,
                                                                 LiveInputBuffer* liveInputBuffer,
                                                                 int32_t phaseIncrement) {
@@ -158,7 +158,7 @@ int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitch
 		return 2147483647; // It'd never run out
 	}
 
-	uint64_t estimate = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216);
+	uint64_t estimate = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - kMaxSampleValue);
 	if (estimate >= 2147483647) {
 		return 2147483647;
 	}

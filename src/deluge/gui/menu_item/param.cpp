@@ -87,7 +87,7 @@ void Param::selectAutomationViewParameter(bool clipMinder) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 
-	int32_t p = getP();
+	int32_t p = modelStack->paramId;
 	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
 	Clip* clip = getCurrentClip();
 

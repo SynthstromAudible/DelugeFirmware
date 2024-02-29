@@ -286,9 +286,10 @@ bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlayback
 	                                                     // in weShouldBeTimeStretchingNow() - better safe than sorry.
 	int32_t playSample = divide_round_negative(playByte, sample->numChannels * sample->byteDepth);
 
-	bool success = timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels,
-	                                   phaseIncrement, 16777216, playDirection, priorityRating, numSamplesTilLoop,
-	                                   LoopType::NONE); // Tell it no looping
+	bool success =
+	    timeStretcher->init(sample, this, guide, (int64_t)playSample << 24, sample->numChannels, phaseIncrement,
+	                        kMaxSampleValue, playDirection, priorityRating, numSamplesTilLoop,
+	                        LoopType::NONE); // Tell it no looping
 	if (!success) {
 		D_PRINTLN("fudging FAIL!!!!");
 		return false; // It's too late to salvage anything - our play pos has probably been mucked around
@@ -346,7 +347,7 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 	// Otherwise, go real easy on CPU
 	int32_t maxNumSamplesToProcess = numSamples * ((cache && writingToCache) ? 32 : 6);
 
-	if (timeStretchRatio != 16777216) {
+	if (timeStretchRatio != kMaxSampleValue) {
 		sample->fillPercCache(timeStretcher, playSample, playSample + (phaseIncrement >> 10) * playDirection,
 		                      playDirection, maxNumSamplesToProcess);
 	}
@@ -431,11 +432,11 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 		// If relevant params have changed since before, we have to stop using the cache which those params previously
 		// described
 		if (phaseIncrement != cache->phaseIncrement || timeStretchRatio != cache->timeStretchRatio
-		    || (phaseIncrement != 16777216
+		    || (phaseIncrement != kMaxSampleValue
 		        && (desiredInterpolationMode != InterpolationMode::SMOOTH
 		            || (interpolationBufferSize <= 2 && writingToCache)))) {
 
-			bool needToAvoidClick = (!writingToCache && cache->timeStretchRatio != 16777216);
+			bool needToAvoidClick = (!writingToCache && cache->timeStretchRatio != kMaxSampleValue);
 			SampleCache* oldCache = cache;
 			bool success = stopUsingCache(guide, sample, priorityRating, loopingType == LoopType::LOW_LEVEL);
 			if (!success) {
@@ -478,7 +479,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 				// If cache is time-stretched and we're almost at the end of what was written, we'd better switch out of
 				// cache-reading mode now so we can use that last little bit of the cache to crossfade smoothly out of
 				// it
-				if (timeStretchRatio != 16777216 && cache->writeBytePos < cacheEndPointBytes
+				if (timeStretchRatio != kMaxSampleValue && cache->writeBytePos < cacheEndPointBytes
 				    && cache->writeBytePos < cacheLoopEndPointBytes
 				    && cache->writeBytePos
 				           < cacheBytePos
@@ -506,7 +507,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					// which case we can't continue to write to it, and there's nothing else we want it for, so forget
 					// about it. Also can't continue to write if doing linear interpolation now
 					if (cache->writeBytePos < cacheBytePos
-					    || (phaseIncrement != 16777216 && interpolationBufferSize != kInterpolationMaxNumSamples)) {
+					    || (phaseIncrement != kMaxSampleValue
+					        && interpolationBufferSize != kInterpolationMaxNumSamples)) {
 						cache = NULL;
 					}
 
@@ -527,7 +529,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 	if (!cache || writingToCache) {
 
 		// If we should be time stretching now...
-		if (timeStretchRatio != 16777216) {
+		if (timeStretchRatio != kMaxSampleValue) {
 			bool stillGoing = weShouldBeTimeStretchingNow(sample, guide, numSamples, phaseIncrement, timeStretchRatio,
 			                                              playDirection, priorityRating, loopingType);
 			if (!stillGoing) {
@@ -603,7 +605,7 @@ timeStretchingConsidered:
 	amplitudeIncrement <<= 3;
 
 	// If pitch adjusting
-	if (phaseIncrement != 16777216) {
+	if (phaseIncrement != kMaxSampleValue) {
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
 
@@ -652,11 +654,11 @@ readCachedWindow:
 
 			// D_PRINTLN("Reached end of what's been cached");
 
-			// If we're here, then timeStretchRatio should be 16777216, and phaseIncrement should *not*
-			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != 16777216) {
+			// If we're here, then timeStretchRatio should be kMaxSampleValue, and phaseIncrement should *not*
+			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != kMaxSampleValue) {
 				FREEZE_WITH_ERROR("E240"); // This should have been caught and dealt with above
 			}
-			if (ALPHA_OR_BETA_VERSION && phaseIncrement == 16777216) {
+			if (ALPHA_OR_BETA_VERSION && phaseIncrement == kMaxSampleValue) {
 				FREEZE_WITH_ERROR("E241"); // If this were the case, there'd be no reason to have a cache
 			}
 
@@ -1074,7 +1076,7 @@ readNonTimestretched:
 			}
 
 			// No pitch adjustment - in which case we know we're not writing to cache either
-			if (phaseIncrement == 16777216) {
+			if (phaseIncrement == kMaxSampleValue) {
 
 				readSamplesNative((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
 				                  jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, &amplitude,
@@ -1205,8 +1207,8 @@ readTimestretched:
 			int32_t newerAmplitudeIncrementNow;
 			int32_t olderSourceAmplitudeNow;
 			int32_t olderAmplitudeIncrementNow;
-			bool olderPlayHeadAudibleHere =
-			    (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER] && timeStretcher->crossfadeProgress < 16777216);
+			bool olderPlayHeadAudibleHere = (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]
+			                                 && timeStretcher->crossfadeProgress < kMaxSampleValue);
 
 			bool didShortening1 = false;
 #if TIME_STRETCH_ENABLE_BUFFER
@@ -1369,7 +1371,7 @@ readOlderHeadUnbuffered:
 				}
 
 				// If just stopped being active...
-				if (timeStretcher->crossfadeProgress >= 16777216
+				if (timeStretcher->crossfadeProgress >= kMaxSampleValue
 #if TIME_STRETCH_ENABLE_BUFFER
 				    && !(timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER
 				         && !timeStretcher->newerHeadReadingFromBuffer)
@@ -1754,7 +1756,7 @@ void VoiceSample::switchToReadingCacheFromWriting() {
 bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
                                      int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType) {
 
-	if (phaseIncrement == 16777216) {
+	if (phaseIncrement == kMaxSampleValue) {
 		return true;
 	}
 	if (guide->sequenceSyncLengthTicks && (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {

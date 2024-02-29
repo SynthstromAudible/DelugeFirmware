@@ -57,7 +57,7 @@ protected:
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                  OutputType outputType, int32_t analogDelaySaturationAmount);
+	                  OutputType outputType);
 
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,

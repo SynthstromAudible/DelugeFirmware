@@ -71,6 +71,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -632,6 +633,8 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
                                int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
                                int32_t xZoom) {
 
+	int32_t valueForKnobPosComparison;
+
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
@@ -639,7 +642,19 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 
 		RGB& pixel = image[xDisplay];
 
-		if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
+		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			if (yDisplay == 0) {
+				valueForKnobPosComparison = -kMaxKnobPos;
+			}
+			else {
+				valueForKnobPosComparison = (yDisplay - 4) * kParamValueIncrementForAutomationPatchCableDisplay;
+			}
+		}
+		else {
+			valueForKnobPosComparison = yDisplay * kParamValueIncrementForAutomationDisplay;
+		}
+
+		if (knobPos > valueForKnobPosComparison) {
 			if (isAutomated) { // automated, render bright colour
 				pixel = rowColour[yDisplay];
 			}
@@ -650,8 +665,7 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 		}
 
 		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
-
-			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
+			if (knobPos > valueForKnobPosComparison) {
 				pixel = rowBlurColour[yDisplay];
 			}
 			else {
@@ -818,8 +832,9 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentredShrinkIfNecessary(
+		    parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		    kTextSpacingY);
 
 		// display automation status
 		yPos = yPos + 12;
@@ -963,6 +978,7 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 	    || outputType == OutputType::AUDIO) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
+		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (onArrangerView) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;
 			lastSelectedParamID = currentSong->lastSelectedParamID;
@@ -970,8 +986,23 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else {
 			lastSelectedParamKind = clip->lastSelectedParamKind;
 			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
-		strncpy(parameterName, getParamDisplayName(lastSelectedParamKind, lastSelectedParamID), 29);
+		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			DEF_STACK_STRING_BUF(paramDisplayName, 30);
+			paramDisplayName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
+			if (display->haveOLED()) {
+				paramDisplayName.append(" -> ");
+			}
+			else {
+				paramDisplayName.append(" - ");
+			}
+			paramDisplayName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
+			strncpy(parameterName, paramDisplayName.c_str(), 29);
+		}
+		else {
+			strncpy(parameterName, getParamDisplayName(lastSelectedParamKind, lastSelectedParamID), 29);
+		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
@@ -3069,6 +3100,7 @@ void AutomationView::initParameterSelection() {
 		clip->lastSelectedParamKind = params::Kind::NONE;
 		clip->lastSelectedParamShortcutX = kNoSelection;
 		clip->lastSelectedParamShortcutY = kNoSelection;
+		clip->lastSelectedPatchSource = PatchSource::NONE;
 	}
 
 	// if we're going back to the Automation Overview, set the display to show "Automation Overview"
@@ -3294,6 +3326,12 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
 void AutomationView::setKnobIndicatorLevels(int32_t knobPos) {
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (!onArrangerView && (getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
+		float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
+		knobPos = static_cast<int32_t>(floatKnobPos);
+	}
 
 	indicator_leds::setKnobIndicatorLevel(0, knobPos);
 	indicator_leds::setKnobIndicatorLevel(1, knobPos);
@@ -3481,13 +3519,43 @@ int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType,
 
 	int32_t newKnobPos = 0;
 
-	// if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
+	// if you press bottom pad, value is 0 (or -128 for patch cables)
+	/* for all other pads except for the top pad:
+	    - for non-patch cables: value = row Y * 18
+	        - except when you're holding two pads in the column, where it takes the min and max of each pads range
+	    - for patch cables: value = row Y - 4 * 30
+	        0 - 128 is compressed to top 4 pads
+	        -128 to -1 is compressed to bottom 4 pads
+	*/
 	if (yDisplay < 7) {
-		if (middlePadPressSelected) {
-			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
+		// patch cable
+		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			int32_t yDisplayForPatchCableKnobPosCalculation = yDisplay - 4;
+			if (middlePadPressSelected) {
+				newKnobPos = ((yDisplayForPatchCableKnobPosCalculation + 1)
+				              * kParamValueIncrementForAutomationPatchCableDisplay);
+			}
+			else {
+				if (yDisplay == 0) {
+					newKnobPos = -kMaxKnobPos;
+				}
+				else {
+					if (yDisplay > 3) {
+						yDisplayForPatchCableKnobPosCalculation += 1;
+					}
+					newKnobPos = yDisplayForPatchCableKnobPosCalculation
+					             * kParamValueIncrementForAutomationPatchCableSinglePadPress;
+				}
+			}
 		}
+		// non patch cable
 		else {
-			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+			if (middlePadPressSelected) {
+				newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
+			}
+			else {
+				newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+			}
 		}
 	}
 	// if you are pressing the top pad, set the value to max (128)
@@ -3502,10 +3570,22 @@ int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType,
 	}
 	if (middlePadPressSelected) {
 		if (leftPadSelectedY == 0) {
-			newKnobPos = newKnobPos / 2;
+			if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+				newKnobPos = (newKnobPos + -kMaxKnobPos) / 2;
+			}
+			else {
+				newKnobPos = newKnobPos / 2;
+			}
 		}
 		else {
-			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
+			if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+				newKnobPos =
+				    (newKnobPos + (((leftPadSelectedY - 4) * kParamValueIncrementForAutomationPatchCableDisplay) + 1))
+				    / 2;
+			}
+			else {
+				newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
+			}
 		}
 	}
 
@@ -3678,6 +3758,17 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 		}
 
 		// update LED indicators
+		// if you're dealing with a patch cable which has a -128 to +128 range
+		// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+		if (!onArrangerView && (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
+			float floatKnobPosLeft =
+			    kMaxKnobPos * ((static_cast<float>(knobPosLeft) + kMaxKnobPos) / (kMaxKnobPos * 2));
+			knobPosLeft = static_cast<int32_t>(floatKnobPosLeft);
+
+			float floatKnobPosRight =
+			    kMaxKnobPos * ((static_cast<float>(knobPosRight) + kMaxKnobPos) / (kMaxKnobPos * 2));
+			knobPosRight = static_cast<int32_t>(floatKnobPosRight);
+		}
 		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
 		indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
 
@@ -3695,7 +3786,20 @@ int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32
 	int32_t newKnobPos = 0;
 
 	if ((knobPos + offset) < 0) {
-		newKnobPos = knobPos;
+		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			if ((knobPos + offset) >= -kMaxKnobPos) {
+				newKnobPos = knobPos + offset;
+			}
+			else if ((knobPos + offset) < -kMaxKnobPos) {
+				newKnobPos = -kMaxKnobPos;
+			}
+			else {
+				newKnobPos = knobPos;
+			}
+		}
+		else {
+			newKnobPos = knobPos;
+		}
 	}
 	else if ((knobPos + offset) <= kMaxKnobPos) {
 		newKnobPos = knobPos + offset;
