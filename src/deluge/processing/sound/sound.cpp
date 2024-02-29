@@ -2218,7 +2218,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 
 	// Setup delay
-	DelayWorkingState delayWorkingState;
+	Delay::State delayWorkingState{};
 	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
@@ -2226,7 +2226,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	delay.setupWorkingState(&delayWorkingState, timePerTickInverse, numVoicesAssigned != 0);
+	delay.setupWorkingState(delayWorkingState, timePerTickInverse, numVoicesAssigned != 0);
+	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);
@@ -2357,8 +2358,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
-	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, &delayWorkingState,
-	          &postFXVolume, paramManager, 8);
+	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
+	          &postFXVolume, paramManager);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
@@ -2812,7 +2813,7 @@ void Sound::doneReadingFromFile() {
 	}
 }
 
-bool Sound::hasAnyVoices() {
+bool Sound::hasAnyVoices(bool resetTimeEntered) {
 	return (numVoicesAssigned != 0);
 }
 

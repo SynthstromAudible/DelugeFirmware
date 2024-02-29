@@ -43,7 +43,10 @@ considerEnvelopeStage:
 		lastValue = 2147483647 - getDecay4(pos, 23); // Makes curved attack
 		lastValue = std::max(lastValue, (int32_t)1);
 		break;
-
+		// TODO: this would be cool
+		//	case EnvelopeStage::HOLD:
+		//		lastValue = 2147483647;
+		//		break;
 	case EnvelopeStage::DECAY:
 		lastValue = sustain + (uint32_t)multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - sustain) * 2;
 
@@ -137,6 +140,12 @@ void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimel
 	else if (state < EnvelopeStage::RELEASE) { // Could we ever have already been in release state? Probably not, but
 		                                       // just in case
 		unconditionalRelease();
+	}
+}
+/// resets time to give drone notes a lower likelihood of being culled, since they'll stay in sustain as they loop
+void Envelope::resetTimeEntered() {
+	if (state == EnvelopeStage::SUSTAIN) {
+		timeEnteredState = AudioEngine::nextVoiceState++;
 	}
 }
 

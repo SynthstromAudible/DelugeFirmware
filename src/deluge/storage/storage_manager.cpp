@@ -37,7 +37,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/firmware_version.h"
-#include "version.h.in"
+#include "version.h"
 #include <string.h>
 
 extern "C" {

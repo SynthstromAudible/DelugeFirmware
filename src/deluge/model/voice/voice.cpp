@@ -3263,6 +3263,7 @@ bool Voice::hasReleaseStage() {
 	return (paramFinalValues[params::LOCAL_ENV_0_RELEASE] <= 18359);
 }
 
+// if more added, need to change the shifts around
 static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 

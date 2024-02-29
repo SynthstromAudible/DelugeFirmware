@@ -43,7 +43,7 @@ void Integer::writeCurrentValue() {
 	view.sendMidiFollowFeedback(modelStack, knobPos);
 
 	if (getRootUI() == &automationView) {
-		int32_t p = getP();
+		int32_t p = modelStack->paramId;
 		modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
