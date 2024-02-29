@@ -210,7 +210,7 @@ public:
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
-	bool hasAnyVoices();
+	bool hasAnyVoices(bool resetTimeEntered);
 	void setupAsBlankSynth(ParamManager* paramManager);
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;

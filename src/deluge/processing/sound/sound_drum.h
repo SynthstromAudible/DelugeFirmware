@@ -61,4 +61,5 @@ public:
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+	void resetTimeEnteredState();
 };

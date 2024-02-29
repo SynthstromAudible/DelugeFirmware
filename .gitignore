@@ -24,7 +24,7 @@ __pycache__
 /tests/_deps/*
 *.a
 *.jdebug.user
-
+.idea
 # vim
 .*.swp
 .*.swo
