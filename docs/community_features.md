@@ -1096,6 +1096,8 @@ different firmware
 
 [#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
 
+[#1312]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1312
+
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
 [#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374

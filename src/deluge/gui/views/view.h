@@ -72,6 +72,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
