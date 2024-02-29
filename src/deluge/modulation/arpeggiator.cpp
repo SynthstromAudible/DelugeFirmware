@@ -534,7 +534,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 		return;
 	}
-	D_PRINTLN("r play %d", notesPlayedFromRhythm);
 
 	gateCurrentlyActive = true;
 
