@@ -1018,9 +1018,9 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace
-	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
-	if (error != Error::NONE) {
+	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
+	if (error != NO_ERROR) {
 		return error;
 	}
 	// kitToLoadFor->addDrum(soundDrumToReplace);
@@ -1040,7 +1040,7 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 		kitToLoadFor->beenEdited();
 	}
 	else {
-		error = ErrorType::ERROR_FILE_CORRUPTED;
+		error = ERROR_FILE_CORRUPTED;
 	}
 
 	display->removeLoadingAnimation();

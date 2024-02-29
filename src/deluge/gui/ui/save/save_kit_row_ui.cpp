@@ -77,8 +77,8 @@ tryDefaultDir:
 
 	filePrefix = "SYNT";
 
-	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
-	if (error != Error::NONE) {
+	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	if (error != NO_ERROR) {
 gotError:
 		display->displayError(error);
 		goto doReturnFalse;
@@ -107,8 +107,8 @@ bool SaveKitRowUI::performSave(bool mayOverwrite) {
 	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.get());
 
 	String filePath;
-	Error error = getCurrentFilePath(&filePath);
-	if (error != Error::NONE) {
+	int32_t error = getCurrentFilePath(&filePath);
+	if (error != NO_ERROR) {
 fail:
 		display->displayError(error);
 		return false;
@@ -116,7 +116,7 @@ fail:
 
 	error = storageManager.createXMLFile(filePath.get(), mayOverwrite, false);
 
-	if (error == Error::FILE_ALREADY_EXISTS) {
+	if (error == ERROR_FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
 
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
@@ -127,12 +127,12 @@ fail:
 			return true;
 		}
 		else {
-			error = Error::UNSPECIFIED;
+			error = ERROR_UNSPECIFIED;
 			goto fail;
 		}
 	}
 
-	else if (error != Error::NONE) {
+	else if (error != NO_ERROR) {
 		goto fail;
 	}
 
@@ -147,7 +147,7 @@ fail:
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
+	if (error != NO_ERROR) {
 		goto fail;
 	}
 

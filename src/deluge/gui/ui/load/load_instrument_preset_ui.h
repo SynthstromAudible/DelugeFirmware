@@ -99,7 +99,7 @@ private:
 	SoundDrum* soundDrumToReplace;
 	int32_t noteRowIndex;
 	NoteRow* noteRow;
-	Error currentInstrumentLoadError;
+	int32_t currentInstrumentLoadError;
 
 	int16_t initialChannel;
 	int8_t initialChannelSuffix;
