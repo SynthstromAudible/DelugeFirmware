@@ -205,11 +205,15 @@ std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
 	"0",
 	"00-",
 	"0-0",
+	"-00",
 	"000-",
 	"00-0",
 	"0-00",
+	"-000",
 	"00--",
 	"0--0",
+	"--00",
+	"-00-",
 };
 
 deluge::l10n::String presetReverbNames[] = {
@@ -299,11 +303,15 @@ const uint8_t arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS][5] = {
 		{1, 1, 1, 1, 1},
 		{3, 1, 1, 0, 1},
 		{3, 1, 0, 1, 1},
+		{3, 0, 1, 1, 1},
 		{4, 1, 1, 1, 0},
 		{4, 1, 1, 0, 1},
 		{4, 1, 0, 1, 1},
+		{4, 0, 1, 1, 1},
 		{4, 1, 1, 0, 0},
 		{4, 1, 0, 0, 1},
+		{4, 0, 0, 1, 1},
+		{4, 0, 1, 1, 0},
 };
 
 

@@ -190,9 +190,10 @@ public:
 
 protected:
 	void resetRatchet();
+	void resetRhythm();
 	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(ArpeggiatorSettings* settings);
+	bool evaluateRhythm(ArpeggiatorSettings* settings, bool isRatchet);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
