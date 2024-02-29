@@ -511,6 +511,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           provide the ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
           press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter
           the `AUTOMATION VIEW EDITOR`.
+    - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable / Modulation Depth.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -1029,6 +1030,8 @@ different firmware
 [#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
 
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
+
+[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
