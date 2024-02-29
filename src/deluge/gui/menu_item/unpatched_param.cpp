@@ -55,7 +55,7 @@ void UnpatchedParam::writeCurrentValue() {
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 
 	if (getRootUI() == &automationView) {
-		int32_t p = getP();
+		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}

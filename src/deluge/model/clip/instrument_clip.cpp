@@ -2286,6 +2286,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
+		storageManager.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
 	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
@@ -2559,6 +2560,10 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
 			lastSelectedOutputType = static_cast<OutputType>(storageManager.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
+			lastSelectedPatchSource = static_cast<PatchSource>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
