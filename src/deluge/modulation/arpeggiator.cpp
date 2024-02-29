@@ -495,7 +495,7 @@ finishDrumSwitchNoteOn:
 		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
 		break;
 	case ArpMpeModSource::MPE_Y:
-		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		arpNote.velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >> 8;
 		break;
 	}
 	// Fix velocity if it's too low
