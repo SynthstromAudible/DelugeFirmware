@@ -2421,11 +2421,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		}
 	}
 
-	DelayWorkingState delayWorkingState;
-	globalEffectable.setupDelayWorkingState(&delayWorkingState, &paramManager);
+	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              &delayWorkingState, 8);
+	                                              delayWorkingState);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =

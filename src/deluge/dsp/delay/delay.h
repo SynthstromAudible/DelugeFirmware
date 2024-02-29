@@ -17,50 +17,69 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
 #include <cstdint>
-
-struct DelayWorkingState {
-	bool doDelay;
-	int32_t userDelayRate;
-	int32_t delayFeedbackAmount;
-};
+#include <span>
 
 class Delay {
 public:
-	Delay();
-	void cloneFrom(Delay* other);
-	bool isActive();
+	struct State {
+		bool doDelay;
+		int32_t userDelayRate;
+		int32_t delayFeedbackAmount;
+		int32_t analog_saturation = 8;
+	};
+
+	Delay() = default;
+	Delay(const Delay& other) = delete;
+
+	// was originally cloneFrom
+	Delay& operator=(const Delay& rhs) {
+		pingPong = rhs.pingPong;
+		analog = rhs.analog;
+		syncLevel = rhs.syncLevel;
+		return *this;
+	}
+
+	[[nodiscard]] constexpr bool isActive() const { return (primaryBuffer.isActive() || secondaryBuffer.isActive()); }
+
 	void informWhetherActive(bool newActive, int32_t userDelayRate = 0);
 	void copySecondaryToPrimary();
 	void copyPrimaryToSecondary();
-	void setupWorkingState(DelayWorkingState* workingState, uint32_t timePerInternalTickInverse,
-	                       bool anySoundComingIn = true);
+	void initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
+	void setupWorkingState(State& workingState, uint32_t timePerInternalTickInverse, bool anySoundComingIn = true);
 	void discardBuffers();
-	void setTimeToAbandon(DelayWorkingState* workingState);
+	void setTimeToAbandon(const State& workingState);
 	void hasWrapped();
 
 	DelayBuffer primaryBuffer;
 	DelayBuffer secondaryBuffer;
-	ImpulseResponseProcessor impulseResponseProcessor;
+	ImpulseResponseProcessor ir_processor;
 
 	uint32_t countCyclesWithoutChange;
 	int32_t userRateLastTime;
-	bool pingPong;
-	bool analog;
-	SyncType syncType;
-	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
+	bool pingPong = true;
+	bool analog = false;
+
+	SyncType syncType = SYNC_TYPE_EVEN;
+
+	// Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
+	SyncLevel syncLevel = SYNC_LEVEL_16TH;
+
 	int32_t sizeLeftUntilBufferSwap;
 
 	int32_t postLPFL;
 	int32_t postLPFR;
 
-	int32_t prevFeedback;
+	int32_t prevFeedback = 0;
 
-	uint8_t repeatsUntilAbandon; // 0 means never abandon
+	uint8_t repeatsUntilAbandon = 0; // 0 means never abandon
+
+	void process(std::span<StereoSample> buffer, const State& delayWorkingState);
 
 private:
 	void prepareToBeginWriting();
-	int32_t getAmountToWriteBeforeReadingBegins();
+	[[nodiscard]] constexpr int32_t getAmountToWriteBeforeReadingBegins() const { return secondaryBuffer.size(); }
 };
