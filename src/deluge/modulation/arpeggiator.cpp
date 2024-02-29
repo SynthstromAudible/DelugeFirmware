@@ -425,9 +425,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// if no note should be played, that is, this is a Rest, don't do anything
 		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
 		playedFirstArpeggiatedNoteYet = true;
-		// And also, even if a silence, we always must increment notesPlayedFromRhythm for the next note, only if not
-		// ratchet
+		// And also, even if a silence, we always must increment sequence and rhythm indexes, but only if not ratchet
 		if (!isRatchet) {
+			notesPlayedFromSequence++;
 			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
 		}
 		return;
@@ -523,8 +523,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// if no note should be played, that is, this is a Rest, don't do anything
 		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
 		playedFirstArpeggiatedNoteYet = true;
-		// And also, even if a silence, we always must increment notesPlayedFromRhythm, only if not ratchet
+		// And also, even if a silence, we always must increment sequence and rhythm indexes, but only if not ratchet
 		if (!isRatchet) {
+			notesPlayedFromSequence++;
 			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
 		}
 		return;
