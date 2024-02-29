@@ -140,9 +140,8 @@ void DelayBuffer::setupForRender(int32_t rate) {
 	int32_t rateMultiple;
 	uint32_t writeSizeAdjustment;
 
-	actualSpinRate =
-	    (uint64_t)((double)((uint64_t)rate << 24) / (double)native_rate_); // 1 is represented as 16777216
-	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8));  // 1 is represented as 65536
+	actualSpinRate = (uint64_t)((double)((uint64_t)rate << 24) / (double)native_rate_); // 1 is represented as 16777216
+	divideByRate = (uint32_t)((double)0xFFFFFFFF / (double)(actualSpinRate >> 8));      // 1 is represented as 65536
 
 	// If buffer spinning slow
 	if (actualSpinRate < kMaxSampleValue) {
