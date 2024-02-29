@@ -54,6 +54,10 @@ bool SoundDrum::readTagFromFile(char const* tagName) {
 		storageManager.readTagOrAttributeValueString(&name);
 		storageManager.exitTag("name");
 	}
+	else if (!strcmp(tagName, "path")) {
+		storageManager.readTagOrAttributeValueString(&path);
+		storageManager.exitTag("path");
+	}
 
 	else if (readDrumTagFromFile(tagName)) {}
 	else {
@@ -139,11 +143,23 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
+void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
+	storageManager.writeOpeningTagBeginning("sound");
+	storageManager.writeFirmwareVersion();
+	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+
+	if (savingSong) {
+		Drum::writeMIDICommandsToFile();
+	}
+
+	storageManager.writeClosingTag("sound");
+}
 
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeAttribute("name", name.get());
-
+	storageManager.writeAttribute("path", path.get());
 	Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {
