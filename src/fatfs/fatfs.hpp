@@ -36,7 +36,7 @@ class File {
 public:
 	File(File&) = default;  // Copy constructor
 	File(File&&) = default; // Move constructor
-	~File() { close(); }
+	~File() { (void)close(); }
 
 	/* Open or create a file */
 	static std::expected<File, Error> open(std::string_view path, FileAccessMode mode);
@@ -103,7 +103,7 @@ class Directory {
 public:
 	Directory(Directory&) = default;  // Copy constructor
 	Directory(Directory&&) = default; // Move constructor
-	~Directory() { close(); }
+	~Directory() { (void)close(); }
 
 	/* Open a directory */
 	static std::expected<Directory, Error> open(std::string_view path);

@@ -1,4 +1,5 @@
 #include "fatfs.hpp"
+#include "ff.h"
 
 #define FF_TRY(expr)                                                                                                   \
 	do {                                                                                                               \
@@ -43,6 +44,11 @@ std::expected<void, Error> File::sync() {
 	return {};
 }
 
+std::expected<void, Error> Directory::close() {
+	FF_TRY(f_closedir(&dir_));
+	return{};
+}
+
 std::expected<void, Error> Directory::rewind() {
 	FF_TRY(f_readdir(&dir_, nullptr));
 	return {};
@@ -54,7 +60,7 @@ std::expected<void, Error> mkdir(std::string_view path) {
 }
 
 std::expected<Directory, Error> mkdir_and_open(std::string_view path) {
-	Directory dir;
+	Directory dir{};
 	FF_TRY(f_mkdir_and_open(&dir.dir_, path.data()));
 	return dir;
 }
