@@ -26,11 +26,11 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorRatchetAmount + 2147483648;
+		int64_t value = (int64_t)current_clip->arpeggiatorRatchetAmount;
 		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = (uint32_t)this->getValue() * 85899345;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
