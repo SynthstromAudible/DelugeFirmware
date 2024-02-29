@@ -1071,7 +1071,7 @@ different firmware
 
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
-[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
+[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

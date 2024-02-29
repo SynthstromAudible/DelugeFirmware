@@ -58,7 +58,11 @@ ParamSet* PatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getPatchedParamSet();
 }
 
-uint8_t PatchedParam::getPatchedParamIndex() {
+deluge::modulation::params::Kind PatchedParam::getParamKind() {
+	return deluge::modulation::params::Kind::PATCHED;
+}
+
+uint32_t PatchedParam::getParamIndex() {
 	return this->getP();
 }
 
