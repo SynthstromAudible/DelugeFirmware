@@ -252,7 +252,7 @@ ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on) {
 	bool clipMinder = rootUIIsClipMinderScreen();
 	RootUI* rootUI = getRootUI();
 
-	// Clip or Song button
+	// Clip button
 	// Used to enter automation view from sound editor
 	if (b == CLIP_VIEW && clipMinder) {
 		if (on) {
