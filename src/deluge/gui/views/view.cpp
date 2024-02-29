@@ -983,6 +983,13 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
+				// if you're dealing with a patch cable which has a -128 to +128 range
+				// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+				if (kind == params::Kind::PATCH_CABLE) {
+					newKnobPos =
+					    view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+				}
+
 				if (newKnobPos == 0
 				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
 					indicator_leds::blinkKnobIndicator(whichModEncoder);
@@ -1162,7 +1169,6 @@ void View::setKnobIndicatorLevels() {
 }
 
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
-
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
@@ -1206,18 +1212,33 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		knobPos += kKnobPosOffset;
 
 		if (kind == params::Kind::PATCH_CABLE) {
-			float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
-			knobPos = static_cast<int32_t>(floatKnobPos);
+			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
 		}
 	}
 	else {
-		knobPos =
-		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
-		knobPos += kKnobPosOffset;
-		;
+		// is it not just a param? then its a patch cable
+		if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+			// default value for patch cable
+			// (equals 0 (midpoint) in -128 to +128 range)
+			knobPos = 64;
+		}
+		else {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
 	}
 
 	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos);
+}
+
+/// if you're dealing with a patch cable which has a -128 to +128 range
+/// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
+	float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
+	knobPos = static_cast<int32_t>(floatKnobPos);
+
+	return knobPos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
