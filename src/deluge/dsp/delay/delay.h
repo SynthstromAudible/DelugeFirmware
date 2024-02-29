@@ -29,6 +29,7 @@ public:
 		bool doDelay;
 		int32_t userDelayRate;
 		int32_t delayFeedbackAmount;
+		int32_t analog_saturation = 8;
 	};
 
 	Delay() = default;
@@ -76,7 +77,7 @@ public:
 
 	uint8_t repeatsUntilAbandon = 0; // 0 means never abandon
 
-	void process(std::span<StereoSample> buffer, State delayWorkingState, int32_t analogDelaySaturationAmount);
+	void process(std::span<StereoSample> buffer, const State& delayWorkingState);
 
 private:
 	void prepareToBeginWriting();

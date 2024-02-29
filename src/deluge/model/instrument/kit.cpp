@@ -641,7 +641,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums

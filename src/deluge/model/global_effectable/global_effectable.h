@@ -36,8 +36,8 @@ public:
 	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
-	                                  ParamManager* paramManager, Delay::State& delayWorkingState,
-	                                  int32_t analogDelaySaturationAmount, bool grainHadInput = true);
+	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
+	                                  bool grainHadInput = true);
 
 	void writeAttributesToFile(bool writeToFile);
 	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);

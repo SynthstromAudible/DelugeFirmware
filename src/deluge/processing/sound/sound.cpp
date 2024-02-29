@@ -2221,6 +2221,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, numVoicesAssigned != 0);
+	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
 	bool renderingInStereo = renderingVoicesInStereo(modelStackWithSoundFlags);
@@ -2352,7 +2353,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
 	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager, 8);
+	          &postFXVolume, paramManager);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,

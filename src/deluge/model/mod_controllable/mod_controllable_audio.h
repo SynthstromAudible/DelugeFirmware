@@ -173,8 +173,7 @@ private:
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               int32_t analogDelaySaturationAmount);
+	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager);
 	int32_t getStutterRate(ParamManager* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();

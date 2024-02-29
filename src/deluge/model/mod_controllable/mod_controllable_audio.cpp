@@ -172,8 +172,8 @@ void ModControllableAudio::setWrapsToShutdown() {
 }
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, int32_t analogDelaySaturationAmount) {
+                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
+                                     ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -536,7 +536,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState, analogDelaySaturationAmount);
+	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,

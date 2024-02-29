@@ -220,8 +220,7 @@ void Delay::initializeSecondaryBuffer(int32_t newNativeRate, bool makeNativeRate
 	sizeLeftUntilBufferSwap = secondaryBuffer.size() + 5;
 }
 
-void Delay::process(std::span<StereoSample> buffer, const State delayWorkingState,
-                    const int32_t analogDelaySaturationAmount) {
+void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingState) {
 	if (!delayWorkingState.doDelay) {
 		return;
 	}
@@ -337,10 +336,10 @@ void Delay::process(std::span<StereoSample> buffer, const State delayWorkingStat
 
 			// Reduce headroom, since this sounds ok with analog sim
 			sample.l = getTanHUnknown(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount),
-			                          analogDelaySaturationAmount)
+			                          delayWorkingState.analog_saturation)
 			           << 2;
 			sample.r = getTanHUnknown(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount),
-			                          analogDelaySaturationAmount)
+			                          delayWorkingState.analog_saturation)
 			           << 2;
 		}
 	}

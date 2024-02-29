@@ -1051,8 +1051,8 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
-                                                    Delay::State& delayWorkingState,
-                                                    int32_t analogDelaySaturationAmount, bool grainHadInput) {
+                                                    const Delay::State& delayWorkingState,
+                                                    bool grainHadInput) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -1125,5 +1125,5 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager, analogDelaySaturationAmount);
+	          paramManager);
 }

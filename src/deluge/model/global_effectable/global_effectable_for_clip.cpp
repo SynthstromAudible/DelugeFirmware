@@ -50,8 +50,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
                                            StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive, OutputType outputType,
-                                           int32_t analogDelaySaturationAmount) {
+                                           bool shouldLimitDelayFeedback, bool isClipActive, OutputType outputType) {
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -79,6 +78,9 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 
 	Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	if (outputType == OutputType::AUDIO) {
+		delayWorkingState.analog_saturation = 5;
+	}
 
 	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
@@ -174,7 +176,7 @@ doNormal:
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-		                             delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
+		                             delayWorkingState, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
