@@ -1621,6 +1621,10 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
 					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 				}
+
+				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
+				}
 			}
 		}
 	}

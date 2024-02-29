@@ -38,6 +38,8 @@ public:
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
+	void selectAutomationViewParameter(bool clipMinder);
 
 	// OLED Only
 	void renderOLED();
