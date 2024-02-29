@@ -45,7 +45,8 @@
   Affect Entire enabled.
 - Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will
   automatically be set on the keyboard.
-- Streamlined recording new clips in Grid mode while Deluge is playing. Short-press empty clip pads in Grid green mode while recording is enabled to automatically create a new clip and queue it for
+- Streamlined recording new clips in Grid mode while Deluge is playing. Short-press empty clip pads in Grid green mode
+  while recording is enabled to automatically create a new clip and queue it for
   recording at the start of the next bar.
 - Fixed a bug preventing clip selection while Shift was held.
 - Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
@@ -59,7 +60,8 @@
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
 - Updated the count-in setting to allow specifying the number of bars (1-4).
-- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views. 
+- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
+- Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

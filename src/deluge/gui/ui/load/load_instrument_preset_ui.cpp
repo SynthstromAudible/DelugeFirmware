@@ -129,7 +129,11 @@ int32_t LoadInstrumentPresetUI::setupForOutputType() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	if (outputTypeToLoad == OutputType::SYNTH) {
+	if (loadingSynthToKitRow) {
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
+	else if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
 	else {
@@ -139,7 +143,12 @@ int32_t LoadInstrumentPresetUI::setupForOutputType() {
 	if (display->haveOLED()) {
 		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                   : deluge::hid::display::OLED::kitIcon;
-		title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+		if (loadingSynthToKitRow) {
+			title = "Synth To Row";
+		}
+		else {
+			title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+		}
 	}
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
@@ -167,9 +176,27 @@ int32_t LoadInstrumentPresetUI::setupForOutputType() {
 
 	// Or if the Instruments are different types...
 	else {
+		if (loadingSynthToKitRow) {
 
+			if (&soundDrumToReplace->name) {
+				String* name = &soundDrumToReplace->name;
+				enteredText.set(name);
+				searchFilename.set(name);
+			}
+
+			if (&soundDrumToReplace->path) {
+				currentDir.set(&soundDrumToReplace->path);
+				if (currentDir.isEmpty()) {
+					goto useDefaultFolder;
+				}
+			}
+
+			else {
+				goto useDefaultFolder;
+			}
+		}
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
-		if (instrumentClipToLoadFor) {
+		else if (instrumentClipToLoadFor) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
 			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
 			enteredText.set(backedUpName);
@@ -179,6 +206,7 @@ int32_t LoadInstrumentPresetUI::setupForOutputType() {
 				goto useDefaultFolder;
 			}
 		}
+
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
@@ -970,7 +998,7 @@ giveUsedError:
 
 int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	FileItem* currentFileItem = getCurrentFileItem();
-
+	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
 		return display->haveOLED() ? ERROR_FILE_NOT_FOUND
 		                           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for
@@ -981,16 +1009,18 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return NO_ERROR;
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
+	// swaps out the drum pointed to by soundDrumToReplace
 	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
-	if (error) {
+	if (error != NO_ERROR) {
 		return error;
 	}
 	// kitToLoadFor->addDrum(soundDrumToReplace);
@@ -999,7 +1029,7 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
-
+	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
@@ -1010,7 +1040,7 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 		kitToLoadFor->beenEdited();
 	}
 	else {
-		error = ErrorType::ERROR_FILE_CORRUPTED;
+		error = ERROR_FILE_CORRUPTED;
 	}
 
 	display->removeLoadingAnimation();
