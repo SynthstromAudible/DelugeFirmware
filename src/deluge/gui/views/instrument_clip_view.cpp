@@ -518,6 +518,7 @@ doOther:
 			saveKitRowUI.setup((SoundDrum*)noteRow->drum, &noteRow->paramManager);
 			AudioEngine::stopAnyPreviewing();
 			cancelAllAuditioning();
+			display->cancelPopup();
 			openUI(&saveKitRowUI);
 		}
 	}
