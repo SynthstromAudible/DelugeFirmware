@@ -299,10 +299,7 @@ doChangeOutputType:
 					currentUIMode = UI_MODE_NONE;
 					endAudition(output);
 
-					Browser::outputTypeToLoad = newOutputType;
-					loadInstrumentPresetUI.instrumentToReplace = (Instrument*)output;
-					loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-					loadInstrumentPresetUI.loadingSynthToKitRow = false;
+					loadInstrumentPresetUI.setupLoadInstrument(newOutputType, (Instrument*)output, nullptr);
 					openUI(&loadInstrumentPresetUI);
 				}
 

@@ -524,20 +524,7 @@ changeOutputType:
 						currentUIMode = UI_MODE_NONE;
 						selectedClipYDisplay = 255;
 
-						Browser::outputTypeToLoad = newOutputType;
-						loadInstrumentPresetUI.instrumentToReplace = instrument;
-						switch (currentSong->sessionLayout) {
-						case SessionLayoutType::SessionLayoutTypeRows: {
-							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
-							break;
-						}
-						case SessionLayoutType::SessionLayoutTypeGrid: {
-							// Not supplying an instrument will make it replace the output for all clips
-							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-							break;
-						}
-						}
-						loadInstrumentPresetUI.loadingSynthToKitRow = false;
+						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
 					}
 

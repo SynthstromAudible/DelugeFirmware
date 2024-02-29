@@ -27,6 +27,7 @@ class ModelStackWithTimelineCounter;
 class SoundDrum final : public Sound, public Drum {
 public:
 	String name;
+	String path;
 	bool nameIsDiscardable;
 
 	ArpeggiatorForDrum arpeggiator;
@@ -47,6 +48,7 @@ public:
 	int32_t loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
 	void writeToFile(bool savingSong, ParamManager* paramManager);
+	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
 	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);
