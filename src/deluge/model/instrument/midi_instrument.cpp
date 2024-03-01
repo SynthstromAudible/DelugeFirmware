@@ -284,7 +284,7 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 	// call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
-	if (editedByUser) { // Otherwise, there'll be nothing in here
+	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
 		storageManager.writeOpeningTagEnd();
 		storageManager.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
