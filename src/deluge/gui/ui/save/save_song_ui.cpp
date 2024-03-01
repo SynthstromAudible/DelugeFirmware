@@ -334,18 +334,14 @@ failAfterOpeningSourceFile:
 				}
 
 				// Create file to write
-				auto created = storageManager.createFile(destFilePath, false);
-				if (!created) {
-					if (created.error() == Error::FILE_ALREADY_EXISTS) {
-						// No problem - the audio file was already there from
-						// before, so we don't need to copy it again now.
-					}
-					else {
-						goto failAfterOpeningSourceFile;
-					}
-				}
+				error = storageManager.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
+				if (error == Error::FILE_ALREADY_EXISTS) {
+				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
+				else if (error != Error::NONE) {
+					goto failAfterOpeningSourceFile;
 
-				// Or if everything's fine and we're ready to write / copy...
+					// Or if everything's fine and we're ready to write / copy...
+				}
 				else {
 
 					// Copy
@@ -356,6 +352,7 @@ failAfterOpeningSourceFile:
 						if (result) {
 							D_PRINTLN("read fail");
 fail3:
+							f_close(&recorderFileSystemStuff.currentFile);
 							error = Error::UNSPECIFIED;
 							goto failAfterOpeningSourceFile;
 						}
@@ -363,8 +360,10 @@ fail3:
 							break; // Stop, on rare case where file ended right at end of last cluster
 						}
 
-						auto written = created->write({(std::byte*)storageManager.fileClusterBuffer, bytesRead});
-						if (!written || written.value() != bytesRead) {
+						UINT bytesWritten;
+						result = f_write(&recorderFileSystemStuff.currentFile, storageManager.fileClusterBuffer,
+						                 bytesRead, &bytesWritten);
+						if (result || bytesWritten != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;
 						}
@@ -373,6 +372,8 @@ fail3:
 							break; // Stop - file clearly ended part-way through cluster
 						}
 					}
+
+					f_close(&recorderFileSystemStuff.currentFile); // Close destination file
 				}
 
 				f_close(&fileSystemStuff.currentFile); // Close source file
