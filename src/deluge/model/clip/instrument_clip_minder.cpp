@@ -336,6 +336,9 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		else if (b == KIT) {
 			out = OutputType::KIT;
 		}
+		else if (b == MIDI) {
+			out = OutputType::MIDI_OUT;
+		}
 		loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
 		openUI(&loadInstrumentPresetUI);
 	}

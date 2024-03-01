@@ -473,7 +473,8 @@ doOther:
 		}
 	}
 
-	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON) {
+	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

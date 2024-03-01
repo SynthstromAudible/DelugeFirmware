@@ -31,6 +31,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -894,9 +895,17 @@ giveUsedError:
 		Error error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
-		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
-		                                              &currentDir);
+		if (outputTypeToLoad == OutputType::MIDI_OUT) {
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
+			newInstrument = new (memory) MIDIInstrument();
+			error = newInstrument->readFromFile(currentSong, NULL, 0);
+		}
+		else {
+			// synth or kit
+			error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+			                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
+			                                              &currentDir);
+		}
 
 		if (error != Error::NONE) {
 			return error;
