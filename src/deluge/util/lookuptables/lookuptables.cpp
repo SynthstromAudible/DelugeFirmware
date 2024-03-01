@@ -203,6 +203,8 @@ std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 
 std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
 	"0",
+	"0-",
+	"0--",
 	"00-",
 	"0-0",
 	"000-",
@@ -297,6 +299,8 @@ const int16_t oldResonanceCompensation[] = {
 // First number in the array is the number of steps of the pattern, the rest are the steps themselves, 1 = play note, 0 = rest
 const uint8_t arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS][5] = {
 		{1, 1, 1, 1, 1},
+		{2, 1, 0, 1, 1},
+		{3, 1, 0, 0, 1},
 		{3, 1, 1, 0, 1},
 		{3, 1, 0, 1, 1},
 		{4, 1, 1, 1, 0},
