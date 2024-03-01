@@ -489,10 +489,6 @@ void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char cons
                                     bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
 Error fresultToDelugeErrorCode(FRESULT result);
-namespace FatFS {
-enum class Error;
-}
-Error fatfsErrorToDelugeError(FatFS::Error result);
 
 [[gnu::always_inline]] inline void writeInt16(char** address, uint16_t number) {
 	*(uint16_t*)*address = number;
