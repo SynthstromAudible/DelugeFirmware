@@ -314,8 +314,10 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 		storageManager.closeTag();
 	}
 	else {
-		if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
-			return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
+			// since then it's the whole tag
+			return false;
 		}
 
 		storageManager.writeOpeningTagEnd();

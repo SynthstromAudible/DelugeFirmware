@@ -1949,8 +1949,10 @@ loadOutput:
 						defaultDirPath = "KITS";
 						goto setDirPathFirst;
 					}
-
-					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
+					// old firmwares used midiChannel or mpeZone depending on the type, but this distinction is never
+					// used. The distinction is later in a different tag which can be "midiChannel" or "zone"
+					else if (!strcmp(tagName, "midi") || !strcmp(tagName, "midiChannel")
+					         || !strcmp(tagName, "mpeZone")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;

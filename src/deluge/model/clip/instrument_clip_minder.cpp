@@ -318,17 +318,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
-		if (b == SYNTH) {
-			if (getCurrentOutputType() == OutputType::SYNTH) {
-yesSaveInstrument:
-				openUI(&saveInstrumentPresetUI);
-			}
-		}
-
-		else if (b == KIT) {
-			if (getCurrentOutputType() == OutputType::KIT) {
-				goto yesSaveInstrument;
-			}
+		if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
+		    || b == KIT && getCurrentOutputType() == OutputType::KIT
+		    || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+			openUI(&saveInstrumentPresetUI);
 		}
 	}
 
