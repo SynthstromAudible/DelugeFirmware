@@ -18,10 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
 #include "util/firmware_version.h"
 #include <cstdint>
-#include <optional>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -30,8 +28,8 @@ extern "C" {
 extern void deleteOldSongBeforeLoadingNew();
 
 struct FileSystemStuff {
-	std::optional<FatFS::Filesystem> fileSystem; /* File system object */
-	FIL currentFile;                             /* File object */
+	FATFS fileSystem; /* File system object */
+	FIL currentFile;  /* File object */
 };
 
 extern struct FileSystemStuff fileSystemStuff;
@@ -68,7 +66,7 @@ public:
 	void exitTag(char const* exitTagName = NULL);
 	char const* readTagOrAttributeValue();
 
-	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
+	Error createFile(FIL* file, char const* filePath, bool mayOverwrite);
 	Error createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
