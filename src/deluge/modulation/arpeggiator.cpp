@@ -311,7 +311,6 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		resetRatchet();
 		resetRhythm();
 		playedFirstArpeggiatedNoteYet = false;
-		D_PRINTLN("Reset all");
 	}
 }
 
@@ -527,14 +526,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
 		randomNotesPlayedFromOctave = 0;
-		D_PRINTLN("Reset randIdx %d seqIdx %d, rhyIdx %d ratch %d", randomNotesPlayedFromOctave,
-		          notesPlayedFromSequence, notesPlayedFromRhythm, isRatchet);
 	}
 	bool shouldPlayNote = evaluateRhythm(settings, isRatchet);
 	if (!shouldPlayNote) {
 		// if no note should be played, that is, this is a Rest, change indexes as if a note had played
-		D_PRINTLN("NOPLAY randIdx %d seqIdx %d, rhyIdx %d ratch %d", randomNotesPlayedFromOctave,
-		          notesPlayedFromSequence, notesPlayedFromRhythm, isRatchet);
 
 		// Even if a silence, we always must increment sequence and rhythm indexes (but only if not ratchet)
 		if (!isRatchet) {
@@ -548,8 +543,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		playedFirstArpeggiatedNoteYet = true;
 		return;
 	}
-	D_PRINTLN("  PLAY randIdx %d seqIdx %d, rhyIdx %d ratch %d", randomNotesPlayedFromOctave, notesPlayedFromSequence,
-	          notesPlayedFromRhythm, isRatchet);
 
 	// Set Gate as active
 	gateCurrentlyActive = true;
