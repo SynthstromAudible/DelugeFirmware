@@ -74,7 +74,7 @@ void AudioFileManager::init() {
 
 	Error error = storageManager.initSD();
 	if (error == Error::NONE) {
-		setClusterSize(fileSystemStuff.fileSystem->csize * 512);
+		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 
 		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
 		cardEjected = false;
@@ -110,10 +110,10 @@ void AudioFileManager::cardReinserted() {
 	}
 
 	// If cluster size has increased, we're in trouble
-	if (fileSystemStuff.fileSystem->csize * 512 > clusterSize) {
+	if (fileSystemStuff.fileSystem.csize * 512 > clusterSize) {
 
 		// But, if it's still not as big as it was when we booted up, that's still manageable
-		if (fileSystemStuff.fileSystem->csize * 512 <= clusterSizeAtBoot) {
+		if (fileSystemStuff.fileSystem.csize * 512 <= clusterSizeAtBoot) {
 			goto clusterSizeChangedButItsOk;
 		}
 
@@ -124,7 +124,7 @@ void AudioFileManager::cardReinserted() {
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble
 	// really...
-	else if (fileSystemStuff.fileSystem->csize * 512 < clusterSize) {
+	else if (fileSystemStuff.fileSystem.csize * 512 < clusterSize) {
 
 clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
@@ -148,7 +148,7 @@ clusterSizeChangedButItsOk:
 		}
 
 		// That was all a pain, but now we can update the cluster size
-		setClusterSize(fileSystemStuff.fileSystem->csize * 512);
+		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
 	}
 
 	// Or if cluster size stayed the same...
@@ -182,7 +182,7 @@ clusterSizeChangedButItsOk:
 					}
 
 					uint32_t firstSector =
-					    clst2sect(&fileSystemStuff.fileSystem.value(), fileSystemStuff.currentFile.obj.sclust);
+					    clst2sect(&fileSystemStuff.fileSystem, fileSystemStuff.currentFile.obj.sclust);
 
 					f_close(&fileSystemStuff.currentFile);
 
@@ -668,7 +668,7 @@ tryNextAlternate:
 			}
 
 			// Ok, found file - in the alternate location.
-			effectiveFilePointer.sclust = ld_clust(&fileSystemStuff.fileSystem.value(), alternateLoadDir.dir);
+			effectiveFilePointer.sclust = ld_clust(&fileSystemStuff.fileSystem, alternateLoadDir.dir);
 			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
 
 			usingAlternateLocation.set(&alternateAudioFileLoadPath);
@@ -789,14 +789,14 @@ ramError:
 		while (true) {
 
 			((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->sdAddress =
-			    clst2sect(&fileSystemStuff.fileSystem.value(), currentSDCluster);
+			    clst2sect(&fileSystemStuff.fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
 				break;
 			}
 
-			currentSDCluster = get_fat_from_fs(&fileSystemStuff.fileSystem.value(), currentSDCluster);
+			currentSDCluster = get_fat_from_fs(&fileSystemStuff.fileSystem, currentSDCluster);
 
 			if (currentSDCluster == 0xFFFFFFFF || currentSDCluster < 2) {
 				break;
