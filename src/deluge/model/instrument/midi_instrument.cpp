@@ -338,9 +338,11 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "aftertouch")) {
 				collapseAftertouch = (bool)storageManager.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else if (!strcmp(tagName, "mpe")) {
 				collapseMPE = (bool)storageManager.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else
 				break;
