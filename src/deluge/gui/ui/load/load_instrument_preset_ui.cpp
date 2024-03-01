@@ -137,6 +137,9 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	else if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
+	else if (outputTypeToLoad == OutputType::MIDI_OUT) {
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
+	}
 	else {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
@@ -904,17 +907,11 @@ giveUsedError:
 		Error error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
-		if (outputTypeToLoad == OutputType::MIDI_OUT) {
-			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
-			newInstrument = new (memory) MIDIInstrument();
-			error = newInstrument->readFromFile(currentSong, NULL, 0);
-		}
-		else {
-			// synth or kit
-			error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-			                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
-			                                              &currentDir);
-		}
+
+		// synth or kit
+		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
+		                                              &currentDir);
 
 		if (error != Error::NONE) {
 			return error;

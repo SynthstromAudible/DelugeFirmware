@@ -1350,6 +1350,9 @@ Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* fil
 		firstTagName = "sound";
 		altTagName = "synth"; // Compatibility with old xml files
 	}
+	else if (outputType == OutputType::MIDI_OUT) {
+		firstTagName = "midi";
+	}
 	else {
 		firstTagName = "kit";
 	}
@@ -1420,6 +1423,9 @@ deleteInstrumentAndGetOut:
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
 			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
+		}
+		else if (outputType == OutputType::MIDI_OUT) {
+			// midi instruments make the param manager later
 		}
 		else {
 paramManagersMissing:
@@ -1513,6 +1519,10 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 		instrumentSize = sizeof(SoundInstrument);
 	}
 
+	else if (newOutputType == OutputType::MIDI_OUT) {
+		instrumentSize = sizeof(MIDIInstrument);
+	}
+
 	// Kit
 	else {
 		instrumentSize = sizeof(Kit);
@@ -1539,6 +1549,10 @@ paramManagerSetupError:
 			Sound::initParams(paramManager);
 		}
 		newInstrument = new (instrumentMemory) SoundInstrument();
+	}
+
+	else if (newOutputType == OutputType::MIDI_OUT) {
+		newInstrument = new (instrumentMemory) MIDIInstrument();
 	}
 
 	// Kit
