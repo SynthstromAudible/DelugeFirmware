@@ -915,8 +915,8 @@ void StorageManager::exitTag(char const* exitTagName) {
 }
 
 Error StorageManager::checkSpaceOnCard() {
-	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem->free_clst);
-	return fileSystemStuff.fileSystem->free_clst
+	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.value().free_clst);
+	return fileSystemStuff.fileSystem.value().free_clst
 	           ? Error::NONE
 	           : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
@@ -1333,7 +1333,7 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileSystemStuff.currentFile.obj.sclust = fp->sclust;
 	fileSystemStuff.currentFile.obj.objsize = fp->objsize;
 	fileSystemStuff.currentFile.obj.fs = &fileSystemStuff.fileSystem.value(); /* Validate the file object */
-	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem->id;
+	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem.value().id;
 
 	fileSystemStuff.currentFile.flag = FA_READ; /* Set file access mode */
 	fileSystemStuff.currentFile.err = 0;        /* Clear error flag */

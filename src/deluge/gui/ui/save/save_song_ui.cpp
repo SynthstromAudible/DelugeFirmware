@@ -341,6 +341,7 @@ failAfterOpeningSourceFile:
 						// before, so we don't need to copy it again now.
 					}
 					else {
+						error = created.error();
 						goto failAfterOpeningSourceFile;
 					}
 				}

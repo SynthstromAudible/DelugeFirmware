@@ -696,8 +696,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 				if (firstSampleCluster->sdAddress == 0) {
 					FREEZE_WITH_ERROR("E268");
 				}
-				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem->database)
-				    & (fileSystemStuff.fileSystem->csize - 1)) {
+				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.value().database)
+				    & (fileSystemStuff.fileSystem.value().csize - 1)) {
 					FREEZE_WITH_ERROR("E269");
 				}
 
@@ -1270,7 +1270,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 			if (sdAddress == 0) {
 				FREEZE_WITH_ERROR("E268");
 			}
-			if ((sdAddress - fileSystemStuff.fileSystem->database) & (fileSystemStuff.fileSystem->csize - 1)) {
+			if ((sdAddress - fileSystemStuff.fileSystem.value().database)
+			    & (fileSystemStuff.fileSystem.value().csize - 1)) {
 				FREEZE_WITH_ERROR("E275");
 			}
 
@@ -1445,7 +1446,8 @@ writeFailed:
 		if (sdAddress == 0) {
 			FREEZE_WITH_ERROR("E268");
 		}
-		if ((sdAddress - fileSystemStuff.fileSystem->database) & (fileSystemStuff.fileSystem->csize - 1)) {
+		if ((sdAddress - fileSystemStuff.fileSystem.value().database)
+		    & (fileSystemStuff.fileSystem.value().csize - 1)) {
 			FREEZE_WITH_ERROR("E276");
 		}
 
