@@ -1015,7 +1015,7 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 		}
 		return created.error();
 	}
-	fileSystemStuff.currentFile = created.value().inner();
+	fileSystemStuff.currentFile = created->inner();
 
 	fileBufferCurrentPos = 0;
 	fileTotalBytesWritten = 0;
