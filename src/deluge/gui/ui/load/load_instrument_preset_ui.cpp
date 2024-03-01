@@ -148,7 +148,16 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			title = "Synth To Row";
 		}
 		else {
-			title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+			switch (outputTypeToLoad) {
+			case OutputType::SYNTH:
+				title = "Load synth";
+				break;
+			case OutputType::KIT:
+				title = "Load kit";
+				break;
+			case OutputType::MIDI_OUT:
+				title = "Load midi";
+			}
 		}
 	}
 
