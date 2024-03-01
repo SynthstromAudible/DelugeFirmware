@@ -53,10 +53,6 @@ extern "C" {
 void oledRoutine();
 }
 
-// We keep a separate FIL object here so we can be recording to a file at the same time as another file is open for
-// reading. It no longer needs to be in this struct
-struct RecorderFileSystemStuff recorderFileSystemStuff;
-
 AudioRecorder::AudioRecorder() {
 	recordingSource = AudioInputChannel::NONE;
 	recorder = NULL;
