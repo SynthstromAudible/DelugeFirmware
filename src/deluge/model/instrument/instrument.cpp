@@ -62,34 +62,39 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 }
 
 bool Instrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
-
+	// midi channels are always saved, either to the midi preset or the song
+	if (type == OutputType::MIDI_OUT) {
+		char const* slotXMLTag = getSlotXMLTag();
+		if (((MIDIInstrument*)this)->sendsToMPE()) {
+			storageManager.writeAttribute(
+			    slotXMLTag, (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
+		}
+		else if (((MIDIInstrument*)this)->sendsToInternal()) {
+			switch (((NonAudioInstrument*)this)->channel) {
+			case MIDI_CHANNEL_TRANSPOSE:
+				storageManager.writeAttribute(slotXMLTag, "transpose");
+				break;
+			default:
+				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+			}
+		}
+		else {
+			storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+		}
+		char const* subSlotTag = getSubSlotXMLTag();
+		if (subSlotTag) {
+			storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+		}
+	}
+	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (!name.isEmpty()) {
 			storageManager.writeAttribute("presetName", name.get());
 		}
-		else {
+		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
-			if (type == OutputType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToMPE()) {
-				storageManager.writeAttribute(
-				    slotXMLTag,
-				    (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
-			}
-			else if (type == OutputType::MIDI_OUT && ((MIDIInstrument*)this)->sendsToInternal()) {
-				switch (((NonAudioInstrument*)this)->channel) {
-				case MIDI_CHANNEL_TRANSPOSE:
-					storageManager.writeAttribute(slotXMLTag, "transpose");
-					break;
-				default:
-					storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
-				}
-			}
-			else {
-				storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
-			}
-			char const* subSlotTag = getSubSlotXMLTag();
-			if (subSlotTag) {
-				storageManager.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
-			}
+
+			storageManager.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 		}
 		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
 			storageManager.writeAttribute("presetFolder", dirPath.get());
