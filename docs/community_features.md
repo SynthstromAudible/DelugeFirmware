@@ -162,6 +162,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and
   Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
+#### 3.12 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
+- ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
+  - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -672,17 +676,17 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
       messages from norns.
     - The functionality of the grid changes with each norns script.
 
-  **1.** Connect Deluge to norns with a USB cable for MIDI.  
+  **1.** Connect Deluge to norns with a USB cable for MIDI.
   **2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on
-  your norns, turn on the mod, set to 128 grid size.  
+  your norns, turn on the mod, set to 128 grid size.
   **3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight
-  Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+  Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.
   **4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16
-  by turning the `SELECT` encoder.  
+  by turning the `SELECT` encoder.
   **5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to
-  select "Norns Layout" (NORN).  
+  select "Norns Layout" (NORN).
   **6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg,
-  rudiments, ... ).  
+  rudiments, ... ).
   **7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a
   pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.
 
@@ -1069,9 +1073,13 @@ different firmware
 
 [#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
 
+[#1312]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1312
+
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
-[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
+[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
+
+[#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

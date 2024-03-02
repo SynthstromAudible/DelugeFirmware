@@ -71,7 +71,7 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
 	}
 	// Select encoder button, used to change current parameter selection in automation view
 	// if you are already in automation view and entered an automatable parameter menu
-	else if (b == SELECT_ENC && (clipMinder || arrangerView)) {
+	else if ((b == SELECT_ENC || b == BACK) && (clipMinder || arrangerView)) {
 		if (on) {
 			if (rootUI == &automationView) {
 				selectAutomationViewParameter(clipMinder);
@@ -89,6 +89,7 @@ void Param::selectAutomationViewParameter(bool clipMinder) {
 
 	int32_t p = modelStack->paramId;
 	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
+
 	Clip* clip = getCurrentClip();
 
 	if (clipMinder) {

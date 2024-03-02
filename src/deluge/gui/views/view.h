@@ -72,6 +72,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
@@ -129,7 +130,8 @@ public:
 	uint32_t modLength;
 
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
-	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
+	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
+	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
 

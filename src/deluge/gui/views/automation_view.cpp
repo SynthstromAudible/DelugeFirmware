@@ -3329,8 +3329,7 @@ void AutomationView::setKnobIndicatorLevels(int32_t knobPos) {
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (!onArrangerView && (getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
-		float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
-		knobPos = static_cast<int32_t>(floatKnobPos);
+		knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
 	}
 
 	indicator_leds::setKnobIndicatorLevel(0, knobPos);
@@ -3761,13 +3760,8 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 		// if you're dealing with a patch cable which has a -128 to +128 range
 		// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 		if (!onArrangerView && (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
-			float floatKnobPosLeft =
-			    kMaxKnobPos * ((static_cast<float>(knobPosLeft) + kMaxKnobPos) / (kMaxKnobPos * 2));
-			knobPosLeft = static_cast<int32_t>(floatKnobPosLeft);
-
-			float floatKnobPosRight =
-			    kMaxKnobPos * ((static_cast<float>(knobPosRight) + kMaxKnobPos) / (kMaxKnobPos * 2));
-			knobPosRight = static_cast<int32_t>(floatKnobPosRight);
+			knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+			knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 		}
 		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
 		indicator_leds::setKnobIndicatorLevel(1, knobPosRight);

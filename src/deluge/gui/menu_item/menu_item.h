@@ -66,7 +66,8 @@ public:
 	                                                     MultiRange** currentRange);
 	virtual void readValueAgain() {}
 	virtual bool selectEncoderActionEditsInstrument() { return false; }
-	virtual uint8_t getPatchedParamIndex() { return 255; }
+	virtual deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::NONE; }
+	virtual uint32_t getParamIndex() { return 255; }
 	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
 	virtual uint8_t shouldDrawDotOnName() { return 255; }
 	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
