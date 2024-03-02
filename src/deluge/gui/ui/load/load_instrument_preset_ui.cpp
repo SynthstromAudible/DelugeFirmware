@@ -189,7 +189,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 
 	// Or if the Instruments are different types...
 	else {
-		if (loadingSynthToKitRow) {
+		if (loadingSynthToKitRow && soundDrumToReplace) {
 
 			if (&soundDrumToReplace->name) {
 				String* name = &soundDrumToReplace->name;
