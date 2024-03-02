@@ -909,7 +909,6 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
-			char const* overviewText;
 			if (!onArrangerView
 			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 			        && !((Kit*)clip->output)->selectedDrum)) {
