@@ -886,13 +886,20 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
 
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-				int32_t lowerLimit = std::min(-64_i32, knobPos);
+				int32_t lowerLimit;
+
+				if (kind == params::Kind::PATCH_CABLE) {
+					lowerLimit = std::min(-192_i32, knobPos);
+				}
+				else {
+					lowerLimit = std::min(-64_i32, knobPos);
+				}
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 				// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change
@@ -917,8 +924,27 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				if (!editingParamInPerformanceView) {
-					displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				// let's see if we're editing the same param in the menu, if so, don't show pop-up
+				bool editingParamInMenu = false;
+				if (getCurrentUI() == &soundEditor) {
+					if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
+					    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
+						editingParamInMenu = true;
+					}
+				}
+
+				if (!editingParamInPerformanceView && !editingParamInMenu) {
+					PatchSource source1 = PatchSource::NONE;
+					PatchSource source2 = PatchSource::NONE;
+					if (kind == params::Kind::PATCH_CABLE) {
+						ParamDescriptor paramDescriptor;
+						paramDescriptor.data = modelStackWithParam->paramId;
+						source1 = paramDescriptor.getBottomLevelSource();
+						if (!paramDescriptor.hasJustOneSource()) {
+							source2 = paramDescriptor.getTopLevelSource();
+						}
+					}
+					displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
 				}
 
 				if (newKnobPos == knobPos) {
@@ -957,6 +983,13 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
+				// if you're dealing with a patch cable which has a -128 to +128 range
+				// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+				if (kind == params::Kind::PATCH_CABLE) {
+					newKnobPos =
+					    view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+				}
+
 				if (newKnobPos == 0
 				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
 					indicator_leds::blinkKnobIndicator(whichModEncoder);
@@ -982,15 +1015,30 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos) {
+void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
+                                       PatchSource source2) {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
-		const char* name = getParamDisplayName(kind, paramID);
-		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-			popupMsg.append(name);
+		if (kind == params::Kind::PATCH_CABLE) {
+			popupMsg.append(getSourceDisplayNameForOLED(source1));
+			popupMsg.append("\n");
+			popupMsg.append("-> ");
+			if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
+				popupMsg.append(getSourceDisplayNameForOLED(source2));
+				popupMsg.append("\n");
+				popupMsg.append("-> ");
+			}
+			popupMsg.append(modulation::params::getPatchedParamShortName(paramID));
 			popupMsg.append(": ");
+		}
+		else {
+			const char* name = getParamDisplayName(kind, paramID);
+			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+				popupMsg.append(name);
+				popupMsg.append(": ");
+			}
 		}
 	}
 
@@ -1121,7 +1169,6 @@ void View::setKnobIndicatorLevels() {
 }
 
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
-
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
@@ -1133,16 +1180,19 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	if (modelStackWithParam->autoParam) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
+		params::Kind kind = paramCollection->getParamKind();
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-		if (knobPos < -64) {
-			knobPos = -64;
-		}
-		else if (knobPos > 64) {
-			knobPos = 64;
-		}
+		int32_t lowerLimit;
 
-		if (isParamQuantizedStutter(paramCollection->getParamKind(), modelStackWithParam->paramId)
-		    && !isUIModeActive(UI_MODE_STUTTERING)) {
+		if (kind == params::Kind::PATCH_CABLE) {
+			lowerLimit = std::min(-192_i32, knobPos);
+		}
+		else {
+			lowerLimit = std::min(-64_i32, knobPos);
+		}
+		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
+
+		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId) && !isUIModeActive(UI_MODE_STUTTERING)) {
 			if (knobPos < -39) { // 4ths stutter: no leds turned on
 				knobPos = -64;
 			}
@@ -1159,13 +1209,36 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 				knobPos = 64;
 			}
 		}
+		knobPos += kKnobPosOffset;
+
+		if (kind == params::Kind::PATCH_CABLE) {
+			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+		}
 	}
 	else {
-		knobPos =
-		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
+		// is it not just a param? then its a patch cable
+		if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+			// default value for patch cable
+			// (equals 0 (midpoint) in -128 to +128 range)
+			knobPos = 64;
+		}
+		else {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos);
+}
+
+/// if you're dealing with a patch cable which has a -128 to +128 range
+/// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
+	float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
+	knobPos = static_cast<int32_t>(floatKnobPos);
+
+	return knobPos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,

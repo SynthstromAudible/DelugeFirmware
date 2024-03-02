@@ -65,10 +65,29 @@ public:
 	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                                     MultiRange** currentRange);
 	virtual void readValueAgain() {}
-	virtual bool selectEncoderActionEditsInstrument() { return false; }
-	virtual uint8_t getPatchedParamIndex() { return 255; }
+
+	/// @}
+	/// @name Patching support
+	/// @{
+
+	/// @return the parameter index (\ref deluge::modulation::params) that the SoundEditor should look for in
+	/// paramShortcutsForSounds.
 	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
-	virtual uint8_t shouldDrawDotOnName() { return 255; }
+	/// Declares which parameter we intend to edit. SoundEditor uses this to find which shortcut pad to blink based on
+	/// paramShortcutsForSounds.
+	///
+	/// @return the parameter kind (\ref deluge::modulation::params::Kind) we edit if we're a patched param, otherwise
+	/// Kind::NONE
+	virtual deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::NONE; }
+	///
+	/// @return the parameter index (\ref deluge::modulation::params) we edit if we're a patched param, otherwise 255.
+	virtual uint32_t getParamIndex() { return 255; }
+
+	/// Get the frequency at which this pad should blink the given source.
+	///
+	/// @param colour Output parameter for the colour to use when blinking.
+	///
+	/// @return Blink time period (higher means more delay between flashes), or 255 if we shouldn't blink.
 	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
 
 	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
