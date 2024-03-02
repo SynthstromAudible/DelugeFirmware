@@ -5,11 +5,13 @@
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
 #include "gui/menu_item/arpeggiator/mode.h"
+#include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/arpeggiator/rate.h"
+#include "gui/menu_item/arpeggiator/rhythm.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/reverse.h"
@@ -29,8 +31,10 @@
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/metronome_volume.h"
+#include "gui/menu_item/defaults/pad_brightness.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
+#include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -99,6 +103,7 @@
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/patched_param/pan.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/menu_item/record/countin.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/model.h"
@@ -309,6 +314,7 @@ arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRIN
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RYTHM_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
@@ -328,6 +334,10 @@ arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RAT
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
+// Arp: MPE
+arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
+Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
@@ -340,12 +350,14 @@ submenu::Arpeggiator arpMenu{
         &arpOctavesMenu,
         &arpOctaveModeMenu,
         &arpNoteModeMenu,
+        &arpRhythmMenu,
         &arpSequenceLengthMenu,
         &arpSequenceLengthMenuMIDIOrCV,
         &arpRatchetAmountMenu,
         &arpRatchetAmountMenuMIDIOrCV,
         &arpRatchetProbabilityMenu,
         &arpRatchetProbabilityMenuMIDIOrCV,
+        &arpMpeMenu,
     },
 };
 
@@ -812,7 +824,7 @@ Submenu padsSubmenu{
 // Record submenu
 record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
 ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, FlashStorage::audioClipRecordMargins};
-ToggleBool recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN, playbackHandler.countInEnabled};
+record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
 monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
 
 Submenu recordSubmenu{
@@ -1100,7 +1112,10 @@ defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_V
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
 defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
-
+defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
+defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
+                                             STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1114,6 +1129,8 @@ Submenu defaultsSubmenu{
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
         &defaultMetronomeVolumeMenu,
+        &defaultStartupSongMenu,
+        &defaultPadBrightness,
     },
 };
 

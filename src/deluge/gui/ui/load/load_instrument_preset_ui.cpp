@@ -31,6 +31,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -129,8 +130,15 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 
-	if (outputTypeToLoad == OutputType::SYNTH) {
+	if (loadingSynthToKitRow) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+		indicator_leds::blinkLed(IndicatorLED::KIT);
+	}
+	else if (outputTypeToLoad == OutputType::SYNTH) {
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+	}
+	else if (outputTypeToLoad == OutputType::MIDI_OUT) {
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
 	}
 	else {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
@@ -139,7 +147,21 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	if (display->haveOLED()) {
 		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                   : deluge::hid::display::OLED::kitIcon;
-		title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+		if (loadingSynthToKitRow) {
+			title = "Synth To Row";
+		}
+		else {
+			switch (outputTypeToLoad) {
+			case OutputType::SYNTH:
+				title = "Load synth";
+				break;
+			case OutputType::KIT:
+				title = "Load kit";
+				break;
+			case OutputType::MIDI_OUT:
+				title = "Load midi";
+			}
+		}
 	}
 
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
@@ -167,9 +189,27 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 
 	// Or if the Instruments are different types...
 	else {
+		if (loadingSynthToKitRow) {
 
+			if (&soundDrumToReplace->name) {
+				String* name = &soundDrumToReplace->name;
+				enteredText.set(name);
+				searchFilename.set(name);
+			}
+
+			if (&soundDrumToReplace->path) {
+				currentDir.set(&soundDrumToReplace->path);
+				if (currentDir.isEmpty()) {
+					goto useDefaultFolder;
+				}
+			}
+
+			else {
+				goto useDefaultFolder;
+			}
+		}
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
-		if (instrumentClipToLoadFor) {
+		else if (instrumentClipToLoadFor && outputTypeToLoad != OutputType::MIDI_OUT) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
 			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
 			enteredText.set(backedUpName);
@@ -179,6 +219,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 				goto useDefaultFolder;
 			}
 		}
+
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
@@ -866,6 +907,8 @@ giveUsedError:
 		Error error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
+
+		// synth or kit
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);
@@ -970,7 +1013,7 @@ giveUsedError:
 
 Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	FileItem* currentFileItem = getCurrentFileItem();
-
+	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
 		// Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
@@ -980,13 +1023,15 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		return Error::NONE;
 	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
+	// swaps out the drum pointed to by soundDrumToReplace
 	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
@@ -998,7 +1043,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
-
+	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {

@@ -54,6 +54,10 @@ bool SoundDrum::readTagFromFile(char const* tagName) {
 		storageManager.readTagOrAttributeValueString(&name);
 		storageManager.exitTag("name");
 	}
+	else if (!strcmp(tagName, "path")) {
+		storageManager.readTagOrAttributeValueString(&path);
+		storageManager.exitTag("path");
+	}
 
 	else if (readDrumTagFromFile(tagName)) {}
 	else {
@@ -72,7 +76,18 @@ bool SoundDrum::anyNoteIsOn() {
 }
 
 bool SoundDrum::hasAnyVoices() {
-	return Sound::hasAnyVoices();
+	return Sound::hasAnyVoices(false);
+}
+
+void SoundDrum::resetTimeEnteredState() {
+
+	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		thisVoice->envelopes[0].resetTimeEntered();
+	}
 }
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
@@ -139,11 +154,23 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
+void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
+	storageManager.writeOpeningTagBeginning("sound");
+	storageManager.writeFirmwareVersion();
+	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+
+	if (savingSong) {
+		Drum::writeMIDICommandsToFile();
+	}
+
+	storageManager.writeClosingTag("sound");
+}
 
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeAttribute("name", name.get());
-
+	storageManager.writeAttribute("path", path.get());
 	Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {

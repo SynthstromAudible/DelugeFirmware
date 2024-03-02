@@ -20,9 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -446,6 +449,52 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+/// Can only happen after settings, which includes default settings, have been read
+void setupStartupSong() {
+	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
+
+	switch (startupSongMode) {
+	case StartupSongMode::TEMPLATE: {
+		if (!storageManager.fileExists(defaultSongFullPath)) {
+			setupBlankSong();
+			currentSong->writeTemplateSong(defaultSongFullPath);
+		}
+	}
+		[[fallthrough]];
+	case StartupSongMode::LASTOPENED:
+		[[fallthrough]];
+	case StartupSongMode::LASTSAVED: {
+		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
+		                                                             : runtimeFeatureSettings.getStartupSong();
+		if (!storageManager.fileExists(filename)) {
+			filename = defaultSongFullPath;
+			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
+				setupBlankSong();
+				return;
+			}
+		}
+		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+		currentSong = new (songMemory) Song();
+		currentSong->setSongFullPath(filename);
+		if (openUI(&loadSongUI)) {
+			loadSongUI.performLoad();
+			if (startupSongMode == StartupSongMode::TEMPLATE) {
+				// Wipe the name so the Save action asks you for a new song
+				currentSong->name.clear();
+			}
+		}
+		else {
+			setupBlankSong();
+		}
+	} break;
+	case StartupSongMode::BLANK:
+		[[fallthrough]];
+	default:
+		setupBlankSong();
+	}
+}
+
 void setupOLED() {
 	// delayMS(10);
 
@@ -489,7 +538,6 @@ extern "C" int32_t deluge_main(void) {
 	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
-
 	PIC::setMinInterruptInterval(8);
 	PIC::setFlashLength(6);
 
@@ -678,8 +726,8 @@ extern "C" int32_t deluge_main(void) {
 	runtimeFeatureSettings.readSettingsFromFile();
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
-
-	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+	setupStartupSong();
 
 #ifdef TEST_BST
 	BST bst;

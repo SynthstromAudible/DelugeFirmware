@@ -641,7 +641,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
@@ -892,7 +892,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0
+	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -1620,6 +1620,10 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 
 				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
 					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+				}
+
+				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
 				}
 			}
 		}

@@ -284,7 +284,7 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 	// call
 	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
 
-	if (editedByUser) { // Otherwise, there'll be nothing in here
+	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
 		storageManager.writeOpeningTagEnd();
 		storageManager.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
@@ -314,8 +314,10 @@ bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) 
 		storageManager.closeTag();
 	}
 	else {
-		if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
-			return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
+			// since then it's the whole tag
+			return false;
 		}
 
 		storageManager.writeOpeningTagEnd();
@@ -338,9 +340,11 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "aftertouch")) {
 				collapseAftertouch = (bool)storageManager.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else if (!strcmp(tagName, "mpe")) {
 				collapseMPE = (bool)storageManager.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else
 				break;
@@ -779,10 +783,8 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	else if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
-		if (!collapseAftertouch) {
-			midiEngine.sendPolyphonicAftertouch(channel, 0, noteCodePostArp, kMIDIOutputFilterNoMPE);
-		}
-		else {
+		if (collapseAftertouch) {
+
 			combineMPEtoMono(0, Z_PRESSURE);
 		}
 		// this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
@@ -999,8 +1001,11 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			// casting down will truncate
 			value32 = (int32_t)fbend;
 		}
-		lastCombinedPolyExpression[whichExpressionDimension] = value32;
-		sendMonophonicExpressionEvent(whichExpressionDimension);
+		// if it's changed, we need to update the outputs
+		if (value32 != lastCombinedPolyExpression[whichExpressionDimension]) {
+			lastCombinedPolyExpression[whichExpressionDimension] = value32;
+			sendMonophonicExpressionEvent(whichExpressionDimension);
+		}
 	}
 }
 

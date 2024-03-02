@@ -31,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -39,6 +40,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -86,7 +88,7 @@ gotError:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 
-	if (!searchFilename.isEmpty()) {
+	if (!searchFilename.isEmpty() && !searchFilename.contains(".XML")) {
 		error = searchFilename.concatenate(".XML");
 		if (error != Error::NONE) {
 			goto gotError;
@@ -157,6 +159,9 @@ void LoadSongUI::enterKeyPress() {
 	else {
 		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
 		performLoad();           // May fail
+		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+			runtimeFeatureSettings.writeSettingsToFile();
+		}
 	}
 }
 

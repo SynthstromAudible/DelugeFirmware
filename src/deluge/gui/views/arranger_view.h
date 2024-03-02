@@ -121,6 +121,8 @@ public:
 	// ui
 	UIType getUIType() { return UIType::ARRANGER_VIEW; }
 
+	Clip* getClipForSelection();
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();

@@ -33,7 +33,7 @@ public:
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void cutAllSound();
-	bool noteIsOn(int32_t noteCode);
+	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
@@ -81,6 +81,5 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	ArpeggiatorBase* getArp();
 	char const* getXMLTag() { return "sound"; }
-
 	ArpeggiatorSettings defaultArpSettings;
 };

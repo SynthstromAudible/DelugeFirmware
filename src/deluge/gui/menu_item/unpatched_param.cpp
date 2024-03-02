@@ -55,7 +55,7 @@ void UnpatchedParam::writeCurrentValue() {
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
 
 	if (getRootUI() == &automationView) {
-		int32_t p = getP();
+		int32_t p = modelStackWithParam->paramId;
 		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
 	}
@@ -81,6 +81,15 @@ ParamDescriptor UnpatchedParam::getLearningThing() {
 
 ParamSet* UnpatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getUnpatchedParamSet();
+}
+
+deluge::modulation::params::Kind UnpatchedParam::getParamKind() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	return getModelStack(modelStackMemory)->paramCollection->getParamKind();
+}
+
+uint32_t UnpatchedParam::getParamIndex() {
+	return this->getP();
 }
 
 // ---------------------------------------

@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -28,6 +29,7 @@
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -179,6 +181,12 @@ void PatchCableStrength::writeCurrentValue() {
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+
+	if (getRootUI() == &automationView) {
+		int32_t p = modelStackWithParam->paramId;
+		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+	}
 }
 
 MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
@@ -221,6 +229,14 @@ uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
+deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
+	return deluge::modulation::params::Kind::PATCH_CABLE;
+}
+
+uint32_t PatchCableStrength::getParamIndex() {
+	return getLearningThing().data;
+}
+
 MenuItem* PatchCableStrength::selectButtonPress() {
 
 	// If shift held down, delete automation
@@ -237,5 +253,50 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
 	return nullptr; // Navigate back
+}
+
+ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+
+	bool clipMinder = rootUIIsClipMinderScreen();
+	RootUI* rootUI = getRootUI();
+
+	// Clip button
+	// Used to enter automation view from sound editor
+	if (b == CLIP_VIEW && clipMinder) {
+		if (on) {
+			if (rootUI != &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				swapOutRootUILowLevel(&automationView);
+				automationView.initializeView();
+				automationView.openedInBackground();
+			}
+			soundEditor.exitCompletely();
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	// Select encoder button, used to change current parameter selection in automation view
+	// if you are already in automation view and entered an automatable parameter menu
+	else if ((b == SELECT_ENC || b == BACK) && clipMinder) {
+		if (on) {
+			if (rootUI == &automationView) {
+				selectAutomationViewParameter(clipMinder);
+				uiNeedsRendering(rootUI);
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+
+void PatchCableStrength::selectAutomationViewParameter(bool clipMinder) {
+	Clip* clip = getCurrentClip();
+
+	if (clipMinder) {
+		clip->lastSelectedParamID = getParamIndex();
+		clip->lastSelectedParamKind = getParamKind();
+		clip->lastSelectedOutputType = clip->output->type;
+		clip->lastSelectedPatchSource = getS();
+	}
 }
 } // namespace deluge::gui::menu_item

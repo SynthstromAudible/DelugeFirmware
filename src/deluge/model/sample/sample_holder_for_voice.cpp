@@ -207,7 +207,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 		// Prior to V2.1.x, sample markers were stored as milliseconds. Try loading those now. Note - V2.1.x did still
 		// write these values in addition to the new, sample-based ones, for backward compatibility. But we have to 100%
 		// ignore these, cos it seems they were sometimes written incorrectly!
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+		if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 			bool convertedMSecValues = false;
 

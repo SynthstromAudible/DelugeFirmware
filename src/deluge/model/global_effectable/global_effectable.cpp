@@ -30,6 +30,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -897,8 +898,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
 		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
 		// reduces the saved song volume by approximately 21% (889516852 / 4294967295)
-		if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_4P1P4_ALPHA
-		    && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+		if (storageManager.firmware_version >= FirmwareVersion::official({4, 1, 4, "alpha"})
+		    && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
 		}
 		storageManager.exitTag("volume");
@@ -1026,29 +1027,31 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	return modFXTypeNow;
 }
 
-void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-                                              bool shouldLimitDelayFeedback, bool soundComingIn) {
+Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
+                                                       bool soundComingIn) {
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	Delay::State delayWorkingState;
+	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState->delayFeedbackAmount = getFinalParameterValueLinear(
+	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
 	    paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
 	if (shouldLimitDelayFeedback) {
-		delayWorkingState->delayFeedbackAmount =
-		    std::min(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+		delayWorkingState.delayFeedbackAmount =
+		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState->userDelayRate =
+	delayWorkingState.userDelayRate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
+
+	return delayWorkingState;
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
-                                                    DelayWorkingState* delayWorkingState,
-                                                    int32_t analogDelaySaturationAmount, bool grainHadInput) {
+                                                    const Delay::State& delayWorkingState, bool grainHadInput) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -1121,5 +1124,5 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager, analogDelaySaturationAmount);
+	          paramManager);
 }

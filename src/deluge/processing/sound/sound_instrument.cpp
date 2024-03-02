@@ -359,6 +359,13 @@ lookAtArpNote:
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 		}
 	}
+	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
+	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+		}
+	}
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
@@ -468,7 +475,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 	return &arpeggiator;
 }
 
-bool SoundInstrument::noteIsOn(int32_t noteCode) {
+bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -495,6 +502,9 @@ bool SoundInstrument::noteIsOn(int32_t noteCode) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
+			if (resetTimeEntered) {
+				thisVoice->envelopes[0].resetTimeEntered();
+			}
 			return true;
 		}
 	}

@@ -43,6 +43,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 #include <cmath>
 #include <new>
 
@@ -2287,6 +2288,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
+		storageManager.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
 	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
@@ -2339,6 +2341,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+			storageManager.writeAttribute("rhythm", arpSettings.rhythm);
+			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
@@ -2561,6 +2565,10 @@ someError:
 			lastSelectedOutputType = static_cast<OutputType>(storageManager.readTagOrAttributeValueInt());
 		}
 
+		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
+			lastSelectedPatchSource = static_cast<PatchSource>(storageManager.readTagOrAttributeValueInt());
+		}
+
 		else if (!strcmp(tagName, "affectEntire")) {
 			affectEntire = storageManager.readTagOrAttributeValueInt();
 		}
@@ -2623,11 +2631,16 @@ someError:
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
 				}
+				else if (!strcmp(tagName, "rhythm")) {
+					arpSettings.rhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
+				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("syncLevel");
 				}
-				else if (!strcmp(tagName, "mode") && storageManager.firmwareVersionOfFileBeingRead < COMMUNITY_1P1) {
+				else if (!strcmp(tagName, "mode")
+				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
@@ -2650,6 +2663,10 @@ someError:
 					arpSettings.noteMode = stringToArpNoteMode(storageManager.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
 					storageManager.exitTag("noteMode");
+				}
+				else if (!strcmp(tagName, "mpeVelocity")) {
+					arpSettings.mpeVelocity = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeVelocity");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();
@@ -2747,7 +2764,8 @@ loadInstrument:
 			outputTypeWhileLoading = OutputType::SYNTH;
 
 			// Normal case - load in brand new ParamManager
-			if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_1P2P0 || !output) {
+
+			if (storageManager.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
 createNewParamManager:
 				error = paramManager.setupWithPatching();
 				if (error != Error::NONE) {
@@ -2948,7 +2966,7 @@ doReadBendRange:
 
 	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
 	// and was always 12.
-	if (storageManager.firmwareVersionOfFileBeingRead <= FIRMWARE_3P2P0_ALPHA
+	if (storageManager.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
 	    && !paramManager.getExpressionParamSet()) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -3032,7 +3050,7 @@ expressionParam:
 							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (storageManager.firmwareVersionOfFileBeingRead < FirmwareVersion::COMMUNITY_1P1) {
+								if (storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
@@ -3963,7 +3981,7 @@ haveNoDrum:
 				if (thisNoteRow->drum) {
 
 					// If saved before V2.1, see if we need linear interpolation
-					if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+					if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 						if (thisNoteRow->drum->type == DrumType::SOUND) {
 							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
 
@@ -4041,7 +4059,7 @@ haveNoDrum:
 	compensateVolumeForResonance(modelStack);
 
 	// If saved before V2.1....
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+	if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* sound = (SoundInstrument*)output;
@@ -4056,7 +4074,7 @@ haveNoDrum:
 
 		// For songs saved before V2.0, ensure that non-square oscillators have PW set to 0 (cos PW in this case didn't
 		// have an effect then but it will now)
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA) {
+		if (storageManager.firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
 			if (output->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)output;
 

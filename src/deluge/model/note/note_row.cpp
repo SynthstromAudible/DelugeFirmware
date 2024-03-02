@@ -2285,7 +2285,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 				// Special case for Sounds
 				if (output->type == OutputType::SYNTH) {
-					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
+					if (((SoundInstrument*)output)->noteIsOn(getNoteCode(), true)
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
 					               modelStack
@@ -2320,7 +2320,8 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
 					pendingNoteOnList->count++;
 				}
-
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
+				// without culling
 				// Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
@@ -2358,6 +2359,9 @@ storePendingNoteOn:
 			if (noteMightBeConstant && drum->hasAnyVoices()
 			    && drum->allowNoteTails(modelStackWithThreeMainThings->addSoundFlags())) {
 				// Alright yup the note's still sounding from before - no need to do anything
+				if (drum->type == DrumType::SOUND) {
+					((SoundDrum*)drum)->resetTimeEnteredState();
+				}
 			}
 			else {
 
@@ -2365,6 +2369,8 @@ storePendingNoteOn:
 				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 					goto storePendingNoteOn;
 				}
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
+				// without culling
 				// Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
@@ -2984,7 +2990,7 @@ Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* son
 
 			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that already had
 			// some loading done by the Drum
-			if (storageManager.firmwareVersionOfFileBeingRead == FIRMWARE_OLD && parentClip->output) {
+			if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
 				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
 

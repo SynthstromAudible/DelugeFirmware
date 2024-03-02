@@ -524,20 +524,7 @@ changeOutputType:
 						currentUIMode = UI_MODE_NONE;
 						selectedClipYDisplay = 255;
 
-						Browser::outputTypeToLoad = newOutputType;
-						loadInstrumentPresetUI.instrumentToReplace = instrument;
-						switch (currentSong->sessionLayout) {
-						case SessionLayoutType::SessionLayoutTypeRows: {
-							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
-							break;
-						}
-						case SessionLayoutType::SessionLayoutTypeGrid: {
-							// Not supplying an instrument will make it replace the output for all clips
-							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-							break;
-						}
-						}
-						loadInstrumentPresetUI.loadingSynthToKitRow = false;
+						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
 					}
 
@@ -1384,6 +1371,10 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridRenderSidebar(whichRows, image, occupancyMask);
 	}
@@ -2028,6 +2019,11 @@ void SessionView::graphicsRoutine() {
 		}
 	}
 
+	// if we're not currently selecting a clip
+	if (!getClipForLayout() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
+	}
+
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
 
@@ -2385,7 +2381,6 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 // Returns false if can't because in card routine
 bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	if (clip) {

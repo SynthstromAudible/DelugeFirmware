@@ -18,6 +18,7 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
+#include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_session_view.h"
@@ -119,7 +120,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	filterRoute = other->filterRoute;
 	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
-	delay.cloneFrom(&other->delay);
+	delay = other->delay;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -171,8 +172,8 @@ void ModControllableAudio::setWrapsToShutdown() {
 }
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, DelayWorkingState* delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, int32_t analogDelaySaturationAmount) {
+                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
+                                     ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -535,364 +536,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	DelayBufferSetup delayPrimarySetup;
-	DelayBufferSetup delaySecondarySetup;
-
-	if (delayWorkingState->doDelay) {
-
-		if (delayWorkingState->userDelayRate != delay.userRateLastTime) {
-			delay.userRateLastTime = delayWorkingState->userDelayRate;
-			delay.countCyclesWithoutChange = 0;
-		}
-		else {
-			delay.countCyclesWithoutChange += numSamples;
-		}
-
-		// If just a single buffer is being used for reading and writing, we can consider making a 2nd buffer
-		if (!delay.secondaryBuffer.isActive()) {
-
-			// If resampling previously recorded as happening, or just about to be recorded as happening
-			if (delay.primaryBuffer.isResampling
-			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
-
-				// If delay speed has settled for a split second...
-				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					// D_PRINTLN("settling");
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
-				}
-
-				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
-				// (smaller) buffer at our new rate
-				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate << 1)) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, false);
-				}
-
-				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
-				// rate is half our current rate (double the quality)
-				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate >> 1, false);
-				}
-			}
-		}
-
-		// Figure some stuff out for the primary buffer
-		delay.primaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delayPrimarySetup);
-
-		// Figure some stuff out for the secondary buffer - only if it's active
-		if (delay.secondaryBuffer.isActive()) {
-			delay.secondaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delaySecondarySetup);
-		}
-
-		bool wrapped = false;
-
-		int32_t* delayWorkingBuffer = spareRenderingBuffer[0];
-
-		GeneralMemoryAllocator::get().checkStack("delay");
-
-		int32_t* workingBufferEnd = delayWorkingBuffer + numSamples * 2;
-
-		StereoSample* primaryBufferOldPos;
-		uint32_t primaryBufferOldLongPos;
-		uint8_t primaryBufferOldLastShortPos;
-
-		// If nothing to read yet, easy
-		if (!delay.primaryBuffer.isActive()) {
-			memset(delayWorkingBuffer, 0, numSamples * 2 * sizeof(int32_t));
-		}
-
-		// Or...
-		else {
-
-			primaryBufferOldPos = delay.primaryBuffer.bufferCurrentPos;
-			primaryBufferOldLongPos = delay.primaryBuffer.longPos;
-			primaryBufferOldLastShortPos = delay.primaryBuffer.lastShortPos;
-
-			// Native read
-			if (!delay.primaryBuffer.isResampling) {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					wrapped = delay.primaryBuffer.clearAndMoveOn() || wrapped;
-					workingBufferPos[0] = delay.primaryBuffer.bufferCurrentPos->l;
-					workingBufferPos[1] = delay.primaryBuffer.bufferCurrentPos->r;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Or, resampling read
-			else {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
-					delay.primaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						wrapped = delay.primaryBuffer.clearAndMoveOn() || wrapped;
-						shortPosDiff--;
-					}
-
-					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
-					int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-					StereoSample* nextPos = delay.primaryBuffer.bufferCurrentPos + 1;
-					if (nextPos == delay.primaryBuffer.bufferEnd) {
-						nextPos = delay.primaryBuffer.bufferStart;
-					}
-					int32_t fromDelay1L = delay.primaryBuffer.bufferCurrentPos->l;
-					int32_t fromDelay1R = delay.primaryBuffer.bufferCurrentPos->r;
-					int32_t fromDelay2L = nextPos->l;
-					int32_t fromDelay2R = nextPos->r;
-
-					workingBufferPos[0] = (multiply_32x32_rshift32(fromDelay1L, primaryStrength1 << 14)
-					                       + multiply_32x32_rshift32(fromDelay2L, primaryStrength2 << 14))
-					                      << 2;
-					workingBufferPos[1] = (multiply_32x32_rshift32(fromDelay1R, primaryStrength1 << 14)
-					                       + multiply_32x32_rshift32(fromDelay2R, primaryStrength2 << 14))
-					                      << 2;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		if (delay.analog) {
-
-			{
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					delay.impulseResponseProcessor.process(workingBufferPos[0], workingBufferPos[1],
-					                                       &workingBufferPos[0], &workingBufferPos[1]);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			{
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					int32_t fromDelayL = workingBufferPos[0];
-					int32_t fromDelayR = workingBufferPos[1];
-
-					// delay.impulseResponseProcessor.process(fromDelayL, fromDelayR, &fromDelayL, &fromDelayR);
-
-					// Reduce headroom, since this sounds ok with analog sim
-					workingBufferPos[0] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount),
-					                   analogDelaySaturationAmount)
-					    << 2;
-					workingBufferPos[1] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
-					                   analogDelaySaturationAmount)
-					    << 2;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		else {
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			do {
-				// Leave more headroom, because making it clip sounds bad with pure digital
-				workingBufferPos[0] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[0], delayWorkingState->delayFeedbackAmount))
-				                      << 2;
-				workingBufferPos[1] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[1], delayWorkingState->delayFeedbackAmount))
-				                      << 2;
-
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-		// repetitions
-		{
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			do {
-				int32_t distanceToGoL = workingBufferPos[0] - delay.postLPFL;
-				delay.postLPFL += distanceToGoL >> 11;
-				workingBufferPos[0] -= delay.postLPFL;
-
-				int32_t distanceToGoR = workingBufferPos[1] - delay.postLPFR;
-				delay.postLPFR += distanceToGoR >> 11;
-				workingBufferPos[1] -= delay.postLPFR;
-
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		{
-			StereoSample* currentSample = buffer;
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
-			// into the delay
-			do {
-
-				int32_t fromDelayL = workingBufferPos[0];
-				int32_t fromDelayR = workingBufferPos[1];
-
-				/*
-				if (delay.analog) {
-				    // Reduce headroom, since this sounds ok with analog sim
-				    fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 8)
-				<< 2; fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
-				8) << 2;
-				}
-
-				else {
-				    fromDelayL =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) <<
-				2; fromDelayR =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) <<
-				2;
-				}
-				*/
-
-				/*
-				// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-				repetitions int32_t distanceToGoL = fromDelayL - delay.postLPFL; delay.postLPFL += distanceToGoL >> 11;
-				fromDelayL -= delay.postLPFL;
-
-				int32_t distanceToGoR = fromDelayR - delay.postLPFR;
-				delay.postLPFR += distanceToGoR >> 11;
-				fromDelayR -= delay.postLPFR;
-				*/
-
-				// Feedback calculation, and combination with input
-				if (delay.pingPong && AudioEngine::renderInStereo) {
-					workingBufferPos[0] = fromDelayR;
-					workingBufferPos[1] = ((currentSample->l + currentSample->r) >> 1) + fromDelayL;
-				}
-				else {
-					workingBufferPos[0] = currentSample->l + fromDelayL;
-					workingBufferPos[1] = currentSample->r + fromDelayR;
-				}
-
-				// Output
-				currentSample->l += fromDelayL;
-				currentSample->r += fromDelayR;
-
-				currentSample++;
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		// And actually feedback being applied back into the actual delay primary buffer...
-		if (delay.primaryBuffer.isActive()) {
-
-			// Native
-			if (!delay.primaryBuffer.isResampling) {
-				int32_t* workingBufferPos = delayWorkingBuffer;
-
-				StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
-				if (writePos < delay.primaryBuffer.bufferStart) {
-					writePos += delay.primaryBuffer.sizeIncludingExtra;
-				}
-
-				do {
-					delay.primaryBuffer.writeNativeAndMoveOn(workingBufferPos[0], workingBufferPos[1], &writePos);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Resampling
-			else {
-				delay.primaryBuffer.bufferCurrentPos = primaryBufferOldPos;
-				delay.primaryBuffer.longPos = primaryBufferOldLongPos;
-				delay.primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-
-				do {
-
-					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
-					delay.primaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						delay.primaryBuffer.moveOn();
-						shortPosDiff--;
-					}
-
-					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
-					int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-					delay.primaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], primaryStrength1,
-					                                   primaryStrength2, &delayPrimarySetup);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		// And secondary buffer
-		// If secondary buffer active, we need to tick it along and write to it too
-		if (delay.secondaryBuffer.isActive()) {
-
-			wrapped =
-			    false; // We want to disregard whatever the primary buffer told us, and just use the secondary one now
-
-			// Native
-			if (!delay.secondaryBuffer.isResampling) {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					wrapped = delay.secondaryBuffer.clearAndMoveOn() || wrapped;
-					delay.sizeLeftUntilBufferSwap--;
-
-					// Write to secondary buffer
-					delay.secondaryBuffer.writeNative(workingBufferPos[0], workingBufferPos[1]);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Resampled
-			else {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					// Move forward, and clear buffer as we go
-					delay.secondaryBuffer.longPos += delaySecondarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.secondaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.secondaryBuffer.lastShortPos;
-					delay.secondaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						wrapped = delay.secondaryBuffer.clearAndMoveOn() || wrapped;
-						delay.sizeLeftUntilBufferSwap--;
-						shortPosDiff--;
-					}
-
-					int32_t secondaryStrength2 = (delay.secondaryBuffer.longPos >> 8) & 65535;
-					int32_t secondaryStrength1 = 65536 - secondaryStrength2;
-
-					// Write to secondary buffer
-					delay.secondaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], secondaryStrength1,
-					                                     secondaryStrength2, &delaySecondarySetup);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			if (delay.sizeLeftUntilBufferSwap < 0) {
-				delay.copySecondaryToPrimary();
-			}
-		}
-
-		if (wrapped) {
-			delay.hasWrapped();
-		}
-	}
+	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
@@ -1077,11 +721,9 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 	StereoSample* thisSample = buffer;
 
-	DelayBufferSetup delayBufferSetup;
-
 	int32_t rate = getStutterRate(paramManager);
 
-	stutterer.buffer.setupForRender(rate, &delayBufferSetup);
+	stutterer.buffer.setupForRender(rate);
 
 	if (stutterer.status == STUTTERER_STATUS_RECORDING) {
 
@@ -1093,7 +735,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			// First, tick it along, as if we were reading from it
 
 			// Non-resampling tick-along
-			if (!stutterer.buffer.isResampling) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.clearAndMoveOn();
 				stutterer.sizeLeftUntilRecordFinished--;
 
@@ -1102,27 +744,18 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 			// Or, resampling tick-along
 			else {
-
 				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
-				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
-				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
-				stutterer.buffer.lastShortPos = newShortPos;
-
-				while (shortPosDiff > 0) {
-					stutterer.buffer.clearAndMoveOn();
+				strength2 = stutterer.buffer.advance([&] {
+					stutterer.buffer.clearAndMoveOn(); //<
 					stutterer.sizeLeftUntilRecordFinished--;
-					shortPosDiff--;
-				}
-
-				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
+				});
 				strength1 = 65536 - strength2;
 
 				// stutterer.buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2,
 				// &delayBufferSetup);
 			}
 
-			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, &delayBufferSetup);
+			stutterer.buffer.write(*thisSample, strength1, strength2);
 
 		} while (++thisSample != bufferEnd);
 
@@ -1139,43 +772,32 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			int32_t strength2;
 
 			// Non-resampling read
-			if (!stutterer.buffer.isResampling) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.moveOn();
-				thisSample->l = stutterer.buffer.bufferCurrentPos->l;
-				thisSample->r = stutterer.buffer.bufferCurrentPos->r;
+				thisSample->l = stutterer.buffer.current().l;
+				thisSample->r = stutterer.buffer.current().r;
 			}
 
 			// Or, resampling read
 			else {
-
-				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
-				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
-				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
-				stutterer.buffer.lastShortPos = newShortPos;
-
-				while (shortPosDiff > 0) {
-					stutterer.buffer.moveOn();
-					shortPosDiff--;
-				}
-
-				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
+				// Move forward
+				strength2 = stutterer.buffer.advance([&] {
+					stutterer.buffer.moveOn(); //<
+				});
 				strength1 = 65536 - strength2;
 
-				StereoSample* nextPos = stutterer.buffer.bufferCurrentPos + 1;
-				if (nextPos == stutterer.buffer.bufferEnd) {
-					nextPos = stutterer.buffer.bufferStart;
+				StereoSample* nextPos = &stutterer.buffer.current() + 1;
+				if (nextPos == stutterer.buffer.end()) {
+					nextPos = stutterer.buffer.begin();
 				}
-				int32_t fromDelay1L = stutterer.buffer.bufferCurrentPos->l;
-				int32_t fromDelay1R = stutterer.buffer.bufferCurrentPos->r;
-				int32_t fromDelay2L = nextPos->l;
-				int32_t fromDelay2R = nextPos->r;
+				StereoSample& fromDelay1 = stutterer.buffer.current();
+				StereoSample& fromDelay2 = *nextPos;
 
-				thisSample->l = (multiply_32x32_rshift32(fromDelay1L, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2L, strength2 << 14))
+				thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
 				                << 2;
-				thisSample->r = (multiply_32x32_rshift32(fromDelay1R, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2R, strength2 << 14))
+				thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 				                << 2;
 			}
 		} while (++thisSample != bufferEnd);
@@ -1210,27 +832,6 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 		rate <<= lShiftAmount;
 	}
 	return rate;
-}
-
-void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
-                                                          bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	Error result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
-	if (result != Error::NONE) {
-		return;
-	}
-	D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
-
-	// 2 different options here for different scenarios. I can't very clearly remember how to describe the
-	// difference
-	if (makeNativeRatePreciseRelativeToOtherBuffer) {
-		// D_PRINTLN("making precise");
-		delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
-	}
-	else {
-		delay.primaryBuffer.makeNativeRatePrecise();
-		delay.secondaryBuffer.makeNativeRatePrecise();
-	}
-	delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size + 5;
 }
 
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
@@ -2281,9 +1882,9 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
 	// sound as good if not better (in terms of ticking / crackling)...
 	Error error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
-	if (error != Error::NONE) {
+	if (error == Error::NONE) {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
-		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size;
+		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size();
 		enterUIMode(UI_MODE_STUTTERING);
 	}
 }

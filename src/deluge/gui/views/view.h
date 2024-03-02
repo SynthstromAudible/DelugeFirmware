@@ -72,6 +72,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
@@ -129,14 +130,26 @@ public:
 	uint32_t modLength;
 
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
-	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
+	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
+	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
+
+	// vu meter rendering
+	bool displayVUMeter;
+	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
 
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
+
+	// vu meter rendering
+	int32_t getMaxYDisplayForVUMeter(float level);
+	int32_t cachedMaxYDisplayForVUMeterL;
+	int32_t cachedMaxYDisplayForVUMeterR;
+	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
+	bool renderedVUMeter;
 };
 
 extern View view;

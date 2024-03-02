@@ -261,6 +261,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				else {
 					goUpOneLevel();
 				}
+				// potentially refresh automation view if entering a new param menu
 				getCurrentMenuItem()->buttonAction(b, on);
 			}
 		}
@@ -281,13 +282,19 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				else {
 					goUpOneLevel();
 				}
+				// if we back out of a patch cable menu
+				// (e.g. LFO -> Velocity -> Level back out to Velocity -> Level)
+				// or if you back out of a patch cable menu back to a regular param menu
+				// (e.g. Velocity -> Level back out to Level)
+				// potentially refresh automation view
+				getCurrentMenuItem()->buttonAction(b, on);
 			}
 		}
 	}
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu()
 		    && getCurrentClip()->type != ClipType::AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -400,6 +407,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
+		// potentially exit out of param / patch cable menu into automation view
 		return getCurrentMenuItem()->buttonAction(b, on);
 	}
 
@@ -459,7 +467,7 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 	for (int32_t x = 0; x < 15; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
-			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex() == paramLookingFor) {
+			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getParamIndex() == paramLookingFor) {
 
 				*xout = x;
 				*yout = y;
@@ -925,6 +933,12 @@ doSetup:
 					else {
 						display->setNextTransitionDirection(0);
 						beginScreen();
+
+						if (getRootUI() == &automationView) {
+							// if automation view is open in the background
+							// potentially refresh grid if opening a new parameter menu
+							getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on);
+						}
 					}
 				}
 			}

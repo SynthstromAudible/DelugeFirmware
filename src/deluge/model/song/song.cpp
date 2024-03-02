@@ -53,6 +53,7 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
+#include <stdint.h>
 
 extern "C" {}
 
@@ -1268,6 +1269,17 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 	}
 }
 
+void Song::writeTemplateSong(const char* templatePath) {
+	name.set("DEFAULT");
+	Error error = storageManager.createXMLFile(templatePath, false, false);
+	if (error != Error::NONE) {
+		return;
+	}
+	writeToFile();
+	storageManager.closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                     "\n</song>\n");
+}
+
 void Song::writeToFile() {
 
 	setupClipIndexesForSaving();
@@ -1462,7 +1474,7 @@ Error Song::readFromFile() {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	// reverb mode
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_4P1P4_ALPHA) {
+	if (storageManager.firmware_version < FirmwareVersion::official({4, 1, 4})) {
 		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 	}
 
@@ -1937,8 +1949,10 @@ loadOutput:
 						defaultDirPath = "KITS";
 						goto setDirPathFirst;
 					}
-
-					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
+					// old firmwares used midiChannel or mpeZone depending on the type, but this distinction is never
+					// used. The distinction is later in a different tag which can be "midiChannel" or "zone"
+					else if (!strcmp(tagName, "midi") || !strcmp(tagName, "midiChannel")
+					         || !strcmp(tagName, "mpeZone")) {
 						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
@@ -2002,7 +2016,7 @@ loadOutput:
 		}
 	}
 
-	if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_3P1P0_ALPHA2) {
+	if (storageManager.firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
 		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
 		// know we have enough info to do the conversion
@@ -2045,7 +2059,7 @@ traverseClips:
 
 		// Correct different non-synced rates of old song files
 		// In a perfect world, we'd do this for Kits, MIDI and CV too
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P5P0_PREBETA
+		if (storageManager.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
 		    && thisClip->output->type == OutputType::SYNTH) {
 			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
@@ -2127,7 +2141,7 @@ skipInstance:
 		}
 
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+		if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 			if (thisOutput->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)thisOutput;
 
@@ -2168,7 +2182,7 @@ skipInstance:
 	}
 
 	// Pre V1.2...
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0) {
+	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
 		deleteAllBackedUpParamManagers(true); // Before V1.2, lots of extras of these could be created during loading
 		globalEffectable.compensateVolumeForResonance(&paramManager);
@@ -2409,11 +2423,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		}
 	}
 
-	DelayWorkingState delayWorkingState;
-	globalEffectable.setupDelayWorkingState(&delayWorkingState, &paramManager);
+	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              &delayWorkingState, 8);
+	                                              delayWorkingState);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -2903,36 +2916,18 @@ const char* Song::getScaleName(int32_t scale) {
 
 int32_t Song::cycleThroughScales() {
 	int32_t currentScale = getCurrentPresetScale();
-	if (currentScale >= NUM_PRESET_SCALES) {
-		// If we are currently in a CUSTOM scale, we can't cycle to normal scales
-		return 255;
-	}
 	int32_t newScale = currentScale + 1; // next scale
 	if (newScale >= NUM_PRESET_SCALES) {
 		// If past the last scale, start from the beginning
 		newScale = 0;
 	}
-	// Set it, it will
 	return setPresetScale(newScale);
 }
 
-// Returns 255 if it can't be done
+/// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
 int32_t Song::setPresetScale(int32_t newScale) {
-	if (numModeNotes < 5 || numModeNotes > 7) {
-		return 255;
-	}
-
-	int32_t numNotesInCurrentScale = 7;
+	int32_t numNotesInCurrentScale = numModeNotes;
 	int32_t numNotesInNewScale = 7;
-
-	// Get num of notes of current scale
-	int32_t currentScale = getCurrentPresetScale();
-	if (currentScale >= FIRST_5_NOTE_SCALE_INDEX) {
-		numNotesInCurrentScale = 5;
-	}
-	else if (currentScale >= FIRST_6_NOTE_SCALE_INDEX) {
-		numNotesInCurrentScale = 6;
-	}
 
 	// Get num of notes of new scale
 	if (newScale >= FIRST_5_NOTE_SCALE_INDEX) {
@@ -2948,10 +2943,8 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	}
 
 	if (numNotesInCurrentScale > numNotesInNewScale) {
-		// We are trying to pass from 7-note scale to 6-note scale, or 6-note scale to 5-note scale
-		// First we need to check if, among all the clips, there are only 6 or 5 notes being used from the scale
-		// If there are more than can fit in the new scale, we have to cycle back to the beginning of the list
-		// (Major scale)
+		// We are trying to pass from source scale with more notes than the target scale.
+		// We need to check the real number of notes used to see if we can convert it.
 
 		// All InstrumentClips in session and arranger
 		ClipArray* clipArray = &sessionClips;
@@ -2981,9 +2974,17 @@ traverseClips3:
 	}
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if ((newScale >= FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
+	if ((newScale >= 0 && notesWithinOctavePresentCount > 7)
+	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
 	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
-		return 255;
+		if (notesWithinOctavePresentCount <= 7) {
+			// We can cycle back to Major scale, becasue number of notes allows it
+			newScale = 0;
+			numNotesInNewScale = 7;
+		}
+		else {
+			return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+		}
 	}
 
 	// The new scale can perfectly fit all notes from the old one, so mark all notes to be transposed
@@ -3033,10 +3034,10 @@ traverseClips3:
 	return newScale;
 }
 
-// Returns 255 if none
+// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
 int32_t Song::getCurrentPresetScale() {
-	if (numModeNotes < 5 || numModeNotes > 7) {
-		return 255;
+	if (numModeNotes > 7) {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
 
 	int32_t numPresetScales = NUM_PRESET_SCALES;
@@ -3057,7 +3058,7 @@ int32_t Song::getCurrentPresetScale() {
 notThisOne: {}
 	}
 
-	return 255;
+	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 }
 
 // What does this do exactly, again?
@@ -5779,6 +5780,31 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	}
 
 	return fileValue;
+}
+
+String Song::getSongFullPath() {
+	String fullPath;
+	fullPath.concatenate(&dirPath);
+	fullPath.concatenate("/");
+	fullPath.concatenate(&name);
+	fullPath.concatenate(".XML");
+	return fullPath;
+}
+
+void Song::setSongFullPath(const char* fullPath) {
+	if (char* filename = strrchr((char*)fullPath, '/')) {
+		auto fullPathLength = strlen(fullPath);
+		char* dir = new char[sizeof(char) * fullPathLength + 1];
+
+		memset(dir, 0, sizeof(char) * fullPathLength + 1);
+		strncpy(dir, fullPath, fullPathLength - strlen(filename));
+
+		dirPath.set(dir);
+		name.set(++filename);
+	}
+	else {
+		name.set(fullPath);
+	}
 }
 
 void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,

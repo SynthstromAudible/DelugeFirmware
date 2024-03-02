@@ -148,7 +148,7 @@ void BidirectionalLinkedListNode::remove() {
 }
 
 void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode) {
-	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+	if constexpr (ALPHA_OR_BETA_VERSION) {
 		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to
 		// break. This happened!
 		if (!list) {
@@ -166,7 +166,7 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 
 // Ok this is a little bit dangerous - you'd better make damn sure list is set before calling this!
 bool BidirectionalLinkedListNode::isLast() {
-	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+	if constexpr (ALPHA_OR_BETA_VERSION) {
 		if (!list) {
 			FREEZE_WITH_ERROR("E444");
 		}

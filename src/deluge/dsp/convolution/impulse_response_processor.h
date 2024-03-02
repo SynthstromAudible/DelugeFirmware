@@ -21,28 +21,32 @@
 #include "util/fixedpoint.h"
 #include <cstdint>
 
-extern const int32_t ir[];
-
-#define IR_SIZE 26
-#define IR_BUFFER_SIZE (IR_SIZE - 1)
-
 class ImpulseResponseProcessor {
+	constexpr static size_t IR_SIZE = 26;
+	constexpr static size_t IR_BUFFER_SIZE = (IR_SIZE - 1);
+
+	constexpr static std::array<int32_t, IR_SIZE> ir = {
+	    -3203916,   8857848,   24813136,  41537808, 35217472,  15195632,  -27538592, -61984128, 1944654848,
+	    1813580928, 438462784, 101125088, 6042048,  -22429488, -46218864, -56638560, -64785312, -52108528,
+	    -37256992,  -11863856, 1390352,   14663296, 12784464,  14254800,  5690912,   4490736,
+	};
+
 public:
-	ImpulseResponseProcessor();
+	ImpulseResponseProcessor() = default;
 
-	StereoSample buffer[IR_BUFFER_SIZE];
+	inline void process(const StereoSample input, StereoSample& output) {
+		output.l = buffer_[0].l + multiply_32x32_rshift32_rounded(input.l, ir[0]);
+		output.r = buffer_[0].r + multiply_32x32_rshift32_rounded(input.r, ir[0]);
 
-	inline void process(int32_t inputL, int32_t inputR, int32_t* outputL, int32_t* outputR) {
-
-		*outputL = buffer[0].l + multiply_32x32_rshift32_rounded(inputL, ir[0]);
-		*outputR = buffer[0].r + multiply_32x32_rshift32_rounded(inputR, ir[0]);
-
-		for (int32_t i = 1; i != IR_BUFFER_SIZE; i++) {
-			buffer[i - 1].l = buffer[i].l + multiply_32x32_rshift32_rounded(inputL, ir[i]);
-			buffer[i - 1].r = buffer[i].r + multiply_32x32_rshift32_rounded(inputR, ir[i]);
+		for (int32_t i = 1; i < IR_BUFFER_SIZE; i++) {
+			buffer_[i - 1].l = buffer_[i].l + multiply_32x32_rshift32_rounded(input.l, ir[i]);
+			buffer_[i - 1].r = buffer_[i].r + multiply_32x32_rshift32_rounded(input.r, ir[i]);
 		}
 
-		buffer[IR_BUFFER_SIZE - 1].l = multiply_32x32_rshift32_rounded(inputL, ir[IR_BUFFER_SIZE]);
-		buffer[IR_BUFFER_SIZE - 1].r = multiply_32x32_rshift32_rounded(inputR, ir[IR_BUFFER_SIZE]);
+		buffer_[IR_BUFFER_SIZE - 1].l = multiply_32x32_rshift32_rounded(input.l, ir[IR_BUFFER_SIZE]);
+		buffer_[IR_BUFFER_SIZE - 1].r = multiply_32x32_rshift32_rounded(input.r, ir[IR_BUFFER_SIZE]);
 	}
+
+private:
+	std::array<StereoSample, IR_BUFFER_SIZE> buffer_;
 };

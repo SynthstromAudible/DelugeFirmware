@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -317,17 +318,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
-		if (b == SYNTH) {
-			if (getCurrentOutputType() == OutputType::SYNTH) {
-yesSaveInstrument:
-				openUI(&saveInstrumentPresetUI);
-			}
-		}
-
-		else if (b == KIT) {
-			if (getCurrentOutputType() == OutputType::KIT) {
-				goto yesSaveInstrument;
-			}
+		if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
+		    || b == KIT && getCurrentOutputType() == OutputType::KIT
+		    || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+			openUI(&saveInstrumentPresetUI);
 		}
 	}
 
@@ -335,21 +329,18 @@ yesSaveInstrument:
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-
+		OutputType out;
 		if (b == SYNTH) {
-			Browser::outputTypeToLoad = OutputType::SYNTH;
-
-yesLoadInstrument:
-			loadInstrumentPresetUI.instrumentToReplace = getCurrentInstrument();
-			loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentInstrumentClip();
-			loadInstrumentPresetUI.loadingSynthToKitRow = false;
-			openUI(&loadInstrumentPresetUI);
+			out = OutputType::SYNTH;
 		}
-
 		else if (b == KIT) {
-			Browser::outputTypeToLoad = OutputType::KIT;
-			goto yesLoadInstrument;
+			out = OutputType::KIT;
 		}
+		else if (b == MIDI) {
+			out = OutputType::MIDI_OUT;
+		}
+		loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
+		openUI(&loadInstrumentPresetUI);
 	}
 
 	// Select button, without shift

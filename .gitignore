@@ -1,5 +1,5 @@
 .DS_Store
-/.vscode
+.vscode
 /Release*/*
 /HardwareDebug*/*
 /.settings/*
@@ -25,7 +25,7 @@ __pycache__
 /tests/build
 *.a
 *.jdebug.user
-
+.idea
 # vim
 .*.swp
 .*.swo

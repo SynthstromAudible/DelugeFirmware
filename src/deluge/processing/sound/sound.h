@@ -147,7 +147,7 @@ public:
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
 	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
-	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = 16777216);
+	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue);
 	void unassignAllVoices();
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
@@ -210,7 +210,7 @@ public:
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
-	bool hasAnyVoices();
+	bool hasAnyVoices(bool resetTimeEntered);
 	void setupAsBlankSynth(ParamManager* paramManager);
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;

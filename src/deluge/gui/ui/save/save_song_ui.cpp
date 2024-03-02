@@ -24,8 +24,10 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
@@ -463,6 +465,9 @@ cardError:
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);
 
+	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
+		runtimeFeatureSettings.writeSettingsToFile();
+	}
 	// While we're at it, save MIDI devices if there's anything new to save.
 	MIDIDeviceManager::writeDevicesToFile();
 

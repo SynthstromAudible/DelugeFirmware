@@ -21,21 +21,52 @@
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/resizeable_array.h"
 
+#include <array>
+
 class PostArpTriggerable;
 class ParamManagerForTimeline;
+
+typedef struct {
+	uint8_t length; // the number of steps to use, between 1 and 4
+	bool steps[4];  // the steps, whether they should play a note or a silence
+} ArpRhythm;
+
+#define NUM_PRESET_ARP_RHYTHMS 8
+const ArpRhythm arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS] = {
+    {1, {1, 1, 1, 1}}, // <-
+    {3, {1, 1, 0, 1}}, // <-
+    {3, {1, 0, 1, 1}}, // <-
+    {4, {1, 1, 1, 0}}, // <-
+    {4, {1, 1, 0, 1}}, // <-
+    {4, {1, 0, 1, 1}}, // <-
+    {4, {1, 1, 0, 0}}, // <-
+    {4, {1, 0, 0, 1}}, // <-
+};
+const std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
+    "0",    // <-
+    "00-",  // <-
+    "0-0",  // <-
+    "000-", // <-
+    "00-0", // <-
+    "0-00", // <-
+    "00--", // <-
+    "0--0", // <-
+};
 
 class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
 
 	void cloneFrom(ArpeggiatorSettings* other) {
+		preset = other->preset;
+		mode = other->mode;
+		octaveMode = other->octaveMode;
+		noteMode = other->noteMode;
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
-		preset = other->preset;
-		mode = other->mode;
-		noteMode = other->noteMode;
-		octaveMode = other->octaveMode;
+		rhythm = other->rhythm;
+		mpeVelocity = other->mpeVelocity;
 	}
 
 	void updatePresetFromCurrentSettings() {
@@ -83,21 +114,40 @@ public:
 			octaveMode = ArpOctaveMode::RANDOM;
 			noteMode = ArpNoteMode::RANDOM;
 		}
+		else if (preset == ArpPreset::CUSTOM) {
+			mode = ArpMode::ARP;
+			// Although CUSTOM has octaveMode and noteMode freely setable, when we select CUSTOM from the preset menu
+			// shortcut, we can provide here some default starting settings that user can change later with the menus.
+			octaveMode = ArpOctaveMode::UP;
+			noteMode = ArpNoteMode::UP;
+		}
 	}
 
 	uint32_t getPhaseIncrement(int32_t arpRate);
 
-	// Settings
-	ArpPreset preset;
-	ArpMode mode;
-	ArpNoteMode noteMode;
-	ArpOctaveMode octaveMode;
+	// Main settings
+	ArpPreset preset{ArpPreset::OFF};
+	ArpMode mode{ArpMode::OFF};
 
-	uint8_t numOctaves;
+	// Sequence settings
+	ArpOctaveMode octaveMode{ArpOctaveMode::UP};
+	ArpNoteMode noteMode{ArpNoteMode::UP};
+
+	// Octave settings
+	uint8_t numOctaves{2};
+
+	// Sync settings
 	SyncLevel syncLevel;
 	SyncType syncType;
 
-	bool flagForceArpRestart;
+	// Rhythm settings
+	uint8_t rhythm{0};
+
+	// MPE settings
+	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
+
+	// Temporary flags
+	bool flagForceArpRestart{false};
 };
 
 struct ArpNote {
@@ -135,11 +185,8 @@ public:
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
-	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
-	void resetRatchet();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 
 	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive;
@@ -156,6 +203,9 @@ public:
 	uint32_t notesPlayedFromSequence = 0;
 	uint32_t randomNotesPlayedFromOctave = 0;
 
+	// Rhythm state
+	uint32_t notesPlayedFromRhythm = 0;
+
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
@@ -168,6 +218,11 @@ public:
 	uint32_t ratchetAmount = 0;
 
 protected:
+	void resetRatchet();
+	void resetRhythm();
+	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
+	bool evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
