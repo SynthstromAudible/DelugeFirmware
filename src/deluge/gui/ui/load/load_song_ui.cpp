@@ -88,7 +88,7 @@ gotError:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 
-	if (!searchFilename.isEmpty()) {
+	if (!searchFilename.isEmpty() && !searchFilename.contains(".XML")) {
 		error = searchFilename.concatenate(".XML");
 		if (error != Error::NONE) {
 			goto gotError;

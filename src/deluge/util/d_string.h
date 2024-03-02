@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 #include <cstring>
+
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -61,6 +62,7 @@ public:
 	Error concatenate(char const* newChars);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);
+	bool contains(const char* otherChars) { return strstr(stringMemory, otherChars) != NULL; }
 
 	inline bool equals(String* otherString) {
 		if (stringMemory == otherString->stringMemory) {

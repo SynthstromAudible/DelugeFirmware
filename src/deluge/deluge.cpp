@@ -452,23 +452,30 @@ void setupBlankSong() {
 /// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
 
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
-		auto templatePath = "SONGS/DEFAULT.XML";
-		setupBlankSong();
-		if (!storageManager.fileExists(templatePath)) {
-			currentSong->writeTemplateSong(templatePath);
+		if (!storageManager.fileExists(defaultSongFullPath)) {
+			setupBlankSong();
+			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
 		[[fallthrough]];
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
 	case StartupSongMode::LASTSAVED: {
+		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
+		                                                             : runtimeFeatureSettings.getStartupSong();
+		if (!storageManager.fileExists(filename)) {
+			filename = defaultSongFullPath;
+			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
+				setupBlankSong();
+				return;
+			}
+		}
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong = new (songMemory) Song();
-		auto filename =
-		    startupSongMode == StartupSongMode::TEMPLATE ? "DEFAULT" : runtimeFeatureSettings.getStartupSong();
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
