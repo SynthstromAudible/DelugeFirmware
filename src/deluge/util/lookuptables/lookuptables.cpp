@@ -201,17 +201,6 @@ std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 	"HIRAJOSHI",
 };
 
-std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
-	"0",
-	"00-",
-	"0-0",
-	"000-",
-	"00-0",
-	"0-00",
-	"00--",
-	"0--0",
-};
-
 deluge::l10n::String presetReverbNames[] = {
 	deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB, //<
 	deluge::l10n::String::STRING_FOR_MEDIUM_ROOM_REVERB, //<
@@ -293,19 +282,6 @@ const int16_t oldResonanceCompensation[] = {
 		1024,
 		0, 0, 0, 0, 0
 };
-
-// First number in the array is the number of steps of the pattern, the rest are the steps themselves, 1 = play note, 0 = rest
-const uint8_t arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS][5] = {
-		{1, 1, 1, 1, 1},
-		{3, 1, 1, 0, 1},
-		{3, 1, 0, 1, 1},
-		{4, 1, 1, 1, 0},
-		{4, 1, 1, 0, 1},
-		{4, 1, 0, 1, 1},
-		{4, 1, 1, 0, 0},
-		{4, 1, 0, 0, 1},
-};
-
 
 // Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {

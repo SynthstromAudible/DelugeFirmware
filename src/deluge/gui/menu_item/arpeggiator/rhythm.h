@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "util/lookuptables/lookuptables.h"
+#include "modulation/arpeggiator.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class Rhythm final : public Integer {

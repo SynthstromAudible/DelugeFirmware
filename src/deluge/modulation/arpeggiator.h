@@ -21,8 +21,38 @@
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/resizeable_array.h"
 
+#include <array>
+
 class PostArpTriggerable;
 class ParamManagerForTimeline;
+
+typedef struct
+{
+    uint8_t length; // the number of steps to use, between 1 and 4
+	bool steps[4]; // the steps, whether they should play a note or a silence
+} ArpRhythm;
+
+#define NUM_PRESET_ARP_RHYTHMS 8
+const ArpRhythm arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS] = {
+		{1, {1, 1, 1, 1}},
+		{3, {1, 1, 0, 1}},
+		{3, {1, 0, 1, 1}},
+		{4, {1, 1, 1, 0}},
+		{4, {1, 1, 0, 1}},
+		{4, {1, 0, 1, 1}},
+		{4, {1, 1, 0, 0}},
+		{4, {1, 0, 0, 1}},
+};
+const std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
+	"0",
+	"00-",
+	"0-0",
+	"000-",
+	"00-0",
+	"0-00",
+	"00--",
+	"0--0",
+};
 
 class ArpeggiatorSettings {
 public:
@@ -193,7 +223,7 @@ protected:
 	void resetRhythm();
 	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(ArpeggiatorSettings* settings, bool isRatchet);
+	bool evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);

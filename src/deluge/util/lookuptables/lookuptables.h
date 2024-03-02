@@ -145,10 +145,6 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 #define OFFSET_6_NOTE_SCALE 64
 #define OFFSET_5_NOTE_SCALE 128
 
-#define NUM_PRESET_ARP_RHYTHMS 8
-extern const uint8_t arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS][5];
-extern std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames;
-
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};

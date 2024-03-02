@@ -17,7 +17,6 @@
 
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
-#include "io/debug/log.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
@@ -352,16 +351,10 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 }
 
 // Returns if the note should be played or not
-bool ArpeggiatorBase::evaluateRhythm(ArpeggiatorSettings* settings, bool isRatchet) {
-	int32_t index = notesPlayedFromRhythm;
-	if (isRatchet) {
-		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
-		index--;
-		if (index < 0) {
-			index = arpRhythmPatterns[settings->rhythm][0] - 1;
-		}
-	}
-	return arpRhythmPatterns[settings->rhythm][(index % arpRhythmPatterns[settings->rhythm][0]) + 1] != 0;
+bool ArpeggiatorBase::evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex) {
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index
+	return arpRhythmPatterns[settings->rhythm].steps[rhythmPatternIndex];
 }
 
 void ArpeggiatorBase::carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
@@ -421,7 +414,16 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
 	}
-	bool shouldPlayNote = evaluateRhythm(settings, isRatchet);
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
+	if (isRatchet) {
+		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
+		rhythmPatternIndex--;
+		if (rhythmPatternIndex < 0) {
+			rhythmPatternIndex = numberOfRhythmSteps - 1;
+		}
+	}
+	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
 	if (!shouldPlayNote) {
 		// if no note should be played, that is, this is a Rest, change indexes as if a note had played
 
@@ -430,7 +432,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			if (maxSequenceLength > 0) {
 				notesPlayedFromSequence++;
 			}
-			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
+			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
 		}
 		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
 		playedFirstArpeggiatedNoteYet = true;
@@ -486,7 +488,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	if (maxSequenceLength > 0) {
 		notesPlayedFromSequence++;
 	}
-	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
 
 finishDrumSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
@@ -527,7 +529,16 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		notesPlayedFromRhythm = 0;
 		randomNotesPlayedFromOctave = 0;
 	}
-	bool shouldPlayNote = evaluateRhythm(settings, isRatchet);
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
+	if (isRatchet) {
+		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
+		rhythmPatternIndex--;
+		if (rhythmPatternIndex < 0) {
+			rhythmPatternIndex = numberOfRhythmSteps - 1;
+		}
+	}
+	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
 	if (!shouldPlayNote) {
 		// if no note should be played, that is, this is a Rest, change indexes as if a note had played
 
@@ -536,7 +547,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			if (maxSequenceLength > 0) {
 				notesPlayedFromSequence++;
 			}
-			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
+			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
 			randomNotesPlayedFromOctave++;
 		}
 		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
@@ -702,7 +713,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	if (maxSequenceLength > 0) {
 		notesPlayedFromSequence++;
 	}
-	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm][0];
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
 	randomNotesPlayedFromOctave++;
 
 finishSwitchNoteOn:
