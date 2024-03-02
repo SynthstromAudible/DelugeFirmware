@@ -31,6 +31,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -136,6 +137,9 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	else if (outputTypeToLoad == OutputType::SYNTH) {
 		indicator_leds::blinkLed(IndicatorLED::SYNTH);
 	}
+	else if (outputTypeToLoad == OutputType::MIDI_OUT) {
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
+	}
 	else {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
@@ -147,7 +151,16 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			title = "Synth To Row";
 		}
 		else {
-			title = (outputTypeToLoad == OutputType::SYNTH) ? "Load synth" : "Load kit";
+			switch (outputTypeToLoad) {
+			case OutputType::SYNTH:
+				title = "Load synth";
+				break;
+			case OutputType::KIT:
+				title = "Load kit";
+				break;
+			case OutputType::MIDI_OUT:
+				title = "Load midi";
+			}
 		}
 	}
 
@@ -196,7 +209,7 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 			}
 		}
 		// If we've got a Clip, we can see if it used to use another Instrument of this new type...
-		else if (instrumentClipToLoadFor) {
+		else if (instrumentClipToLoadFor && outputTypeToLoad != OutputType::MIDI_OUT) {
 			const size_t outputTypeToLoadAsIdx = static_cast<size_t>(outputTypeToLoad);
 			String* backedUpName = &instrumentClipToLoadFor->backedUpInstrumentName[outputTypeToLoadAsIdx];
 			enteredText.set(backedUpName);
@@ -894,6 +907,8 @@ giveUsedError:
 		Error error;
 		// check if the file pointer matches the current file item
 		// Browser::checkFP();
+
+		// synth or kit
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);

@@ -94,7 +94,7 @@ public:
 	int32_t lastCombinedPolyExpression[3]{0};
 	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
 	int16_t lastOutputMonoExpression[3]{0};
-	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
+	char const* getXMLTag() { return "midi"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "midiChannel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
 

@@ -74,8 +74,19 @@ tryDefaultDir:
 		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                   : deluge::hid::display::OLED::kitIcon;
 		title = (outputTypeToLoad == OutputType::SYNTH) ? "Save synth" : "Save kit";
-	}
 
+		switch (outputTypeToLoad) {
+		case OutputType::SYNTH:
+			title = "Save synth";
+			break;
+		case OutputType::KIT:
+			title = "Save kit";
+			break;
+		case OutputType::MIDI_OUT:
+			title = "Save midi";
+		}
+	}
+	// not used for midi
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
 	Error error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
@@ -163,7 +174,17 @@ fail:
 
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
-	char const* endString = (outputTypeToLoad == OutputType::SYNTH) ? "\n</sound>\n" : "\n</kit>\n";
+	char const* endString;
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
+		endString = "\n</sound>\n";
+		break;
+	case OutputType::KIT:
+		endString = "\n</kit>\n";
+		break;
+	case OutputType::MIDI_OUT:
+		endString = "\n</midi>\n";
+	}
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
