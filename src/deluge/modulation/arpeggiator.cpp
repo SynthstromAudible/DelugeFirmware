@@ -22,6 +22,7 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 
 #define MIN_MPE_MODULATED_VELOCITY 10
 
@@ -64,6 +65,10 @@ void ArpeggiatorBase::resetRatchet() {
 	ratchetNotesMultiplier = 0;
 	ratchetNotesNumber = 0;
 	ratchetNotesIndex = 0;
+}
+
+void ArpeggiatorBase::resetRhythm() {
+	notesPlayedFromRhythm = 0;
 }
 
 void Arpeggiator::reset() {
@@ -292,7 +297,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesNumber || !playbackHandler.isEitherClockActive())) {
 				// If it was ratcheting but it reached the last note in the ratchet or play was stopped
-				// then we can reset the ratchet temp values.
+				// then we can reset the ratchet temp values in advance
 
 				resetRatchet();
 			}
@@ -300,7 +305,11 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	}
 
 	if (notes.getNumElements() == 0) {
+		// Playback was stopped, or, at least, all notes have been released
+		// so we can reset the ratchet temp values and the rhythm temp values
 		resetRatchet();
+		resetRhythm();
+		playedFirstArpeggiatedNoteYet = false;
 	}
 }
 
@@ -313,6 +322,7 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	}
 }
 
+// Sets up the ratchet state if the probability is met
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
 	isRatcheting = ratchetProbability >= randomChance
@@ -338,6 +348,13 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 		ratchetNotesNumber = 0;
 	}
 	ratchetNotesIndex = 0;
+}
+
+// Returns if the note should be played or not
+bool ArpeggiatorBase::evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex) {
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index
+	return arpRhythmPatterns[settings->rhythm].steps[rhythmPatternIndex];
 }
 
 void ArpeggiatorBase::carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings) {
@@ -390,6 +407,37 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
 	//  We only need to account for octaveMode as it is always a 1-note arpeggio.
 	//  Besides, behavior of OctaveMode::UP_DOWN is equal to OctaveMode::ALTERNATE
+	if (!isRatchet
+	    && (!playedFirstArpeggiatedNoteYet
+	        || (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength))) {
+		playedFirstArpeggiatedNoteYet = false;
+		notesPlayedFromSequence = 0;
+		notesPlayedFromRhythm = 0;
+	}
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
+	if (isRatchet) {
+		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
+		rhythmPatternIndex--;
+		if (rhythmPatternIndex < 0) {
+			rhythmPatternIndex = numberOfRhythmSteps - 1;
+		}
+	}
+	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
+	if (!shouldPlayNote) {
+		// if no note should be played, that is, this is a Rest, change indexes as if a note had played
+
+		// Even if a silence, we always must increment sequence and rhythm indexes (but only if not ratchet)
+		if (!isRatchet) {
+			if (maxSequenceLength > 0) {
+				notesPlayedFromSequence++;
+			}
+			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
+		}
+		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
+		playedFirstArpeggiatedNoteYet = true;
+		return;
+	}
 
 	gateCurrentlyActive = true;
 
@@ -411,16 +459,14 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	if (settings->octaveMode == ArpOctaveMode::RANDOM) {
 		currentOctave = getRandom255() % settings->numOctaves;
 		currentOctaveDirection = 1;
+		// Must set all these variables here, even though RANDOM
+		// doesn't use them, in case user changes arp mode.
+		currentOctaveDirection = 1;
 	}
 	// Or not RANDOM
 	else {
-		if (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength) {
-			playedFirstArpeggiatedNoteYet = false;
-		}
-
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
-			notesPlayedFromSequence = 0;
 			// Set the initial octave
 			if (settings->octaveMode == ArpOctaveMode::DOWN) {
 				currentOctave = settings->numOctaves - 1;
@@ -439,12 +485,13 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 
 	// Only increase steps played from the sequence for normal notes (not for ratchet notes)
-	notesPlayedFromSequence++;
+	if (maxSequenceLength > 0) {
+		notesPlayedFromSequence++;
+	}
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
 
 finishDrumSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
-
-	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
 	// Check if we need to update velocity with some MPE value
 	switch (settings->mpeVelocity) {
@@ -452,7 +499,7 @@ finishDrumSwitchNoteOn:
 		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
 		break;
 	case ArpMpeModSource::MPE_Y:
-		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+		arpNote.velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >> 8;
 		break;
 	}
 	// Fix velocity if it's too low
@@ -460,11 +507,55 @@ finishDrumSwitchNoteOn:
 		arpNote.velocity = MIN_MPE_MODULATED_VELOCITY;
 	}
 
-	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
-	instruction->arpNoteOn = &arpNote;
+	if (shouldPlayNote) {
+		// Play the note
+		noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
+		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+		instruction->arpNoteOn = &arpNote;
+	}
+	else {
+		// Rhythm silence: Don't play the note
+		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
+		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
+	}
 }
 
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
+	if (!isRatchet
+	    && (!playedFirstArpeggiatedNoteYet
+	        || (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength))) {
+		playedFirstArpeggiatedNoteYet = false;
+		notesPlayedFromSequence = 0;
+		notesPlayedFromRhythm = 0;
+		randomNotesPlayedFromOctave = 0;
+	}
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
+	if (isRatchet) {
+		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
+		rhythmPatternIndex--;
+		if (rhythmPatternIndex < 0) {
+			rhythmPatternIndex = numberOfRhythmSteps - 1;
+		}
+	}
+	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
+	if (!shouldPlayNote) {
+		// if no note should be played, that is, this is a Rest, change indexes as if a note had played
+
+		// Even if a silence, we always must increment sequence and rhythm indexes (but only if not ratchet)
+		if (!isRatchet) {
+			if (maxSequenceLength > 0) {
+				notesPlayedFromSequence++;
+			}
+			notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
+			randomNotesPlayedFromOctave++;
+		}
+		// As first note in the rhythm could be a silence, we must take it as if a note had already played anyways
+		playedFirstArpeggiatedNoteYet = true;
+		return;
+	}
+
+	// Set Gate as active
 	gateCurrentlyActive = true;
 
 	// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -481,33 +572,25 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		goto finishSwitchNoteOn;
 	}
 
-	// If FULL-RANDOM (RANDOM for both Note and Octave), we do the same thing whether playedFirstArpeggiatedNoteYet or
-	// not
+	// If FULL-RANDOM (RANDOM for both Note and Octave)
+	// we do the same thing whether playedFirstArpeggiatedNoteYet or not
 	if (settings->noteMode == ArpNoteMode::RANDOM && settings->octaveMode == ArpOctaveMode::RANDOM) {
 		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
 		currentOctave = getRandom255() % settings->numOctaves;
-
 		// Must set all these variables here, even though RANDOM
 		// doesn't use them, in case user changes arp mode.
-		notesPlayedFromSequence = 0;
-		randomNotesPlayedFromOctave = 0;
 		currentOctaveDirection = 1;
+		randomNotesPlayedFromOctave = 0;
 		currentDirection = 1;
 	}
 
 	// Or not FULL-RANDOM
 	else {
-		if (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength) {
-			playedFirstArpeggiatedNoteYet = false;
-		}
-
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
 			// Set initial values for note and octave
 
 			// NOTE
-			notesPlayedFromSequence = 0;
-			randomNotesPlayedFromOctave = 0;
 			if (settings->noteMode == ArpNoteMode::RANDOM) {
 				// Note: Random
 				whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
@@ -626,12 +709,15 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 	}
 
-	// Only increase steps played from the sequence for normal notes (not for ratchet notes)
-	notesPlayedFromSequence++;
+	// Only increase steps played from the sequence or rhythm for normal notes (not for ratchet notes)
+	if (maxSequenceLength > 0) {
+		notesPlayedFromSequence++;
+	}
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % numberOfRhythmSteps;
+	randomNotesPlayedFromOctave++;
 
 finishSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
-	randomNotesPlayedFromOctave++;
 
 #if ALPHA_OR_BETA_VERSION
 	if (whichNoteCurrentlyOnPostArp < 0 || whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
@@ -661,11 +747,18 @@ finishSwitchNoteOn:
 		arpNote->velocity = MIN_MPE_MODULATED_VELOCITY;
 	}
 
-	noteCodeCurrentlyOnPostArp =
-	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
-
-	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
-	instruction->arpNoteOn = arpNote;
+	if (shouldPlayNote) {
+		// Play the note
+		noteCodeCurrentlyOnPostArp =
+		    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
+		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+		instruction->arpNoteOn = arpNote;
+	}
+	else {
+		// Rhythm silence: Don't play the note
+		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
+		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
+	}
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
@@ -737,6 +830,7 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		}
 		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
 		else if (!syncedNow && gatePos >= maxGate) {
+			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 		}
 	}
@@ -770,10 +864,10 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
 			switchAnyNoteOff(instruction);
+			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this
-			gatePos = 0;
 		}
 		howFarIntoPeriod = ticksPerPeriod;
 	}
