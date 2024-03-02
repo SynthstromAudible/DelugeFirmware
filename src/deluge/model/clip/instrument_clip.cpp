@@ -2339,6 +2339,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+			storageManager.writeAttribute("rhythm", arpSettings.rhythm);
 			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
@@ -2627,6 +2628,10 @@ someError:
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
+				}
+				else if (!strcmp(tagName, "rhythm")) {
+					arpSettings.rhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();

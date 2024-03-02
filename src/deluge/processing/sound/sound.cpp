@@ -641,6 +641,12 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("numOctaves");
 			}
+			else if (!strcmp(tagName, "rhythm")) {
+				if (arpSettings) {
+					arpSettings->rhythm = storageManager.readTagOrAttributeValueInt();
+				}
+				storageManager.exitTag("rhythm");
+			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
 					arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
@@ -3922,6 +3928,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
+		storageManager.writeAttribute("rhythm", arpSettings->rhythm);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		storageManager.closeTag();
