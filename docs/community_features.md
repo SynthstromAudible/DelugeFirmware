@@ -180,6 +180,10 @@ Here is a list of general improvements that have been made, ordered from newest 
     - Default : Full brightness (`25`).
     - Min value `1`, Max Value `25`.
 
+#### 3.14 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
+- ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
+  - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1095,9 +1099,13 @@ different firmware
 
 [#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
 
+[#1312]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1312
+
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
-[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
+[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
+
+[#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
