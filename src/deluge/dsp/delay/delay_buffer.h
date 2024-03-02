@@ -48,7 +48,7 @@ public:
 
 	template <typename C>
 	[[gnu::always_inline]] constexpr int32_t advance(C callback) {
-		longPos += resample_config_->actualSpinRate;
+		longPos += resample_config_.value().actualSpinRate;
 		uint8_t newShortPos = longPos >> 24;
 		uint8_t shortPosDiff = newShortPos - lastShortPos;
 		lastShortPos = newShortPos;
