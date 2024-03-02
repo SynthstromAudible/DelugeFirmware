@@ -118,8 +118,12 @@ public:
 	/// Declares which parameter we intend to edit. SoundEditor uses this to find which shortcut pad to blink based on
 	/// paramShortcutsForSounds.
 	///
+	/// @return the parameter kind (\ref deluge::modulation::params::Kind) we edit if we're a patched param, otherwise
+	/// Kind::NONE
+	virtual deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::NONE; }
+	///
 	/// @return the parameter index (\ref deluge::modulation::params) we edit if we're a patched param, otherwise 255.
-	virtual uint8_t getPatchedParamIndex() { return 255; }
+	virtual uint32_t getParamIndex() { return 255; }
 
 	/// Get the frequency at which this pad should blink the given source.
 	///

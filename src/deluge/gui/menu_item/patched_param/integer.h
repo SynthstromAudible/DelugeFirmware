@@ -42,7 +42,8 @@ public:
 	// is likely a multi-inheritance issue that needs to be resolved
 	ActionResult buttonAction(deluge::hid::Button b, bool on) final { return PatchedParam::buttonAction(b, on); }
 
-	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
+	deluge::modulation::params::Kind getParamKind() final { return PatchedParam::getParamKind(); }
+	uint32_t getParamIndex() final { return PatchedParam::getParamIndex(); }
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
