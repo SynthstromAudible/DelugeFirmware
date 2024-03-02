@@ -36,9 +36,9 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpeggiatorGate + 2147483648;
-			uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability + 2147483648;
-			uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount + 2147483648;
-			uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength + 2147483648;
+			uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
+			uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+			uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
