@@ -5787,6 +5787,7 @@ String Song::getSongFullPath() {
 	fullPath.concatenate(&dirPath);
 	fullPath.concatenate("/");
 	fullPath.concatenate(&name);
+	fullPath.concatenate(".XML");
 	return fullPath;
 }
 
