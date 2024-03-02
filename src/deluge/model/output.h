@@ -124,7 +124,6 @@ public:
 	virtual void prepareForHibernationOrDeletion() {}
 
 	virtual char const* getXMLTag() = 0;
-
 	virtual ParamManager* getParamManager(Song* song);
 
 	virtual char const* getNameXMLTag() { return "name"; }

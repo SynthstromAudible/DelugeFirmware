@@ -287,7 +287,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu()
 		    && getCurrentClip()->type != ClipType::AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

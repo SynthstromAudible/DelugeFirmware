@@ -80,6 +80,5 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	ArpeggiatorBase* getArp();
 	char const* getXMLTag() { return "sound"; }
-
 	ArpeggiatorSettings defaultArpSettings;
 };
