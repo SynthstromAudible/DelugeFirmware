@@ -162,28 +162,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and
   Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
-#### 3.12 - Automatically load the last open/saved song or user-defined template at startup.
-
-- ([#1272]) Added feature to load automatically projects at startup.
-  To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
-- Four modes are available :
-    - `NEW SONG` : default mode, empty project on clip view with default synth.
-    - `TEMPLATE` : it will load `DEFAULT.XML` project that will be saved automatically when you select this mode, and
-      will enable you to edit it later on and to replace the default blank song by a user-defined template.
-    - `LAST OPENED SONG` : it will load the last long that you `OPENED` before shutting down the Deluge.
-    - `LAST SAVED SONG` : it will load the least songs that you `SAVED` before shutting down the Deluge.
-
-#### 3.13 - Preserve Pad Brightness Preference Through Power Cycle
-
-- ([#1312]) Save user-defined pad brightness level and restore it at startup.
-  To use this feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > PAD BRIGHTNESS`.
-    - Default : Full brightness (`25`).
-    - Min value `1`, Max Value `25`.
-
-#### 3.14 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
-- ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
-  - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
-
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1091,13 +1069,9 @@ different firmware
 
 [#1272]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1272
 
-[#1312]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1312
-
 [#1344]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
-[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
-
-[#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
+[#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1344
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

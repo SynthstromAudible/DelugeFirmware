@@ -83,15 +83,6 @@ ParamSet* UnpatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getUnpatchedParamSet();
 }
 
-deluge::modulation::params::Kind UnpatchedParam::getParamKind() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	return getModelStack(modelStackMemory)->paramCollection->getParamKind();
-}
-
-uint32_t UnpatchedParam::getParamIndex() {
-	return this->getP();
-}
-
 // ---------------------------------------
 
 // ---------------------------------------

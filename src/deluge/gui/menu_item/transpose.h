@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const final { return -9600; }
 	[[nodiscard]] int32_t getMaxValue() const final { return 9600; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
-	uint32_t getParamIndex() final { return PatchedParam::getParamIndex(); }
+	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 
 	void drawValue() final { Decimal::drawValue(); }

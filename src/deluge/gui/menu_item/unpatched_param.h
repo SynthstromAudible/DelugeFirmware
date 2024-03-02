@@ -49,8 +49,6 @@ public:
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	deluge::modulation::params::Kind getParamKind();
-	uint32_t getParamIndex();
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 

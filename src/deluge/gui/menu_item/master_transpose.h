@@ -36,7 +36,7 @@ public:
 	}
 	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }
 	uint8_t shouldDrawDotOnName() override { return PatchedParam::shouldDrawDotOnName(); }
-	uint32_t getParamIndex() override { return deluge::modulation::params::LOCAL_PITCH_ADJUST; }
+	uint8_t getPatchedParamIndex() override { return deluge::modulation::params::LOCAL_PITCH_ADJUST; }
 	uint8_t getP() override { return deluge::modulation::params::LOCAL_PITCH_ADJUST; }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);

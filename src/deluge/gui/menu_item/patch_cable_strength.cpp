@@ -29,7 +29,6 @@
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -229,14 +228,6 @@ uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
-	return deluge::modulation::params::Kind::PATCH_CABLE;
-}
-
-uint32_t PatchCableStrength::getParamIndex() {
-	return getLearningThing().data;
-}
-
 MenuItem* PatchCableStrength::selectButtonPress() {
 
 	// If shift held down, delete automation
@@ -277,7 +268,7 @@ ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on) {
 	}
 	// Select encoder button, used to change current parameter selection in automation view
 	// if you are already in automation view and entered an automatable parameter menu
-	else if ((b == SELECT_ENC || b == BACK) && clipMinder) {
+	else if (b == SELECT_ENC && clipMinder) {
 		if (on) {
 			if (rootUI == &automationView) {
 				selectAutomationViewParameter(clipMinder);
@@ -290,11 +281,16 @@ ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 void PatchCableStrength::selectAutomationViewParameter(bool clipMinder) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory, true);
+
+	int32_t p = modelStack->paramId;
+	modulation::params::Kind kind = modelStack->paramCollection->getParamKind();
 	Clip* clip = getCurrentClip();
 
 	if (clipMinder) {
-		clip->lastSelectedParamID = getParamIndex();
-		clip->lastSelectedParamKind = getParamKind();
+		clip->lastSelectedParamID = p;
+		clip->lastSelectedParamKind = kind;
 		clip->lastSelectedOutputType = clip->output->type;
 		clip->lastSelectedPatchSource = getS();
 	}

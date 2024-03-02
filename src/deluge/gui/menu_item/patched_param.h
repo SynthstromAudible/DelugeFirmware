@@ -40,8 +40,7 @@ public:
 	virtual void drawValue() = 0;
 
 	ParamDescriptor getLearningThing() override;
-	virtual deluge::modulation::params::Kind getParamKind();
-	virtual uint32_t getParamIndex();
+	virtual uint8_t getPatchedParamIndex();
 	virtual uint8_t shouldDrawDotOnName();
 
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour);

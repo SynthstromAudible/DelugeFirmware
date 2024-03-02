@@ -62,11 +62,10 @@
 - Updated the count-in setting to allow specifying the number of bars (1-4).
 - Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
 - Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
-- Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (e.g. from -50 to +50).
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
-- Added parameter name (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
+- Added parameter name to Mod (Gold) Encoder popups.
 - `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
 - Added a new community setting which allows emulating the 7SEG style on the OLED display.
