@@ -26,32 +26,31 @@
 class PostArpTriggerable;
 class ParamManagerForTimeline;
 
-typedef struct
-{
-    uint8_t length; // the number of steps to use, between 1 and 4
-	bool steps[4]; // the steps, whether they should play a note or a silence
+typedef struct {
+	uint8_t length; // the number of steps to use, between 1 and 4
+	bool steps[4];  // the steps, whether they should play a note or a silence
 } ArpRhythm;
 
 #define NUM_PRESET_ARP_RHYTHMS 8
 const ArpRhythm arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS] = {
-		{1, {1, 1, 1, 1}},
-		{3, {1, 1, 0, 1}},
-		{3, {1, 0, 1, 1}},
-		{4, {1, 1, 1, 0}},
-		{4, {1, 1, 0, 1}},
-		{4, {1, 0, 1, 1}},
-		{4, {1, 1, 0, 0}},
-		{4, {1, 0, 0, 1}},
+    {1, {1, 1, 1, 1}}, // <-
+    {3, {1, 1, 0, 1}}, // <-
+    {3, {1, 0, 1, 1}}, // <-
+    {4, {1, 1, 1, 0}}, // <-
+    {4, {1, 1, 0, 1}}, // <-
+    {4, {1, 0, 1, 1}}, // <-
+    {4, {1, 1, 0, 0}}, // <-
+    {4, {1, 0, 0, 1}}, // <-
 };
 const std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
-	"0",
-	"00-",
-	"0-0",
-	"000-",
-	"00-0",
-	"0-00",
-	"00--",
-	"0--0",
+    "0",    // <-
+    "00-",  // <-
+    "0-0",  // <-
+    "000-", // <-
+    "00-0", // <-
+    "0-00", // <-
+    "00--", // <-
+    "0--0", // <-
 };
 
 class ArpeggiatorSettings {
