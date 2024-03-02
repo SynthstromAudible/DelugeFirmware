@@ -134,10 +134,10 @@ void DelayBuffer::setupForRender(int32_t rate) {
 		setupResample();
 	}
 
-	int32_t actualSpinRate;
-	int32_t spinRateForSpedUpWriting;
+	uint32_t actualSpinRate;
+	uint32_t spinRateForSpedUpWriting;
 	uint32_t divideByRate;
-	int32_t rateMultiple;
+	uint32_t rateMultiple;
 	uint32_t writeSizeAdjustment;
 
 	actualSpinRate = (uint64_t)((double)((uint64_t)rate << 24) / (double)native_rate_); // 1 is represented as 16777216
@@ -168,7 +168,7 @@ void DelayBuffer::setupForRender(int32_t rate) {
 
 		// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster
 		// takes longer). No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
-		spinRateForSpedUpWriting = std::min(actualSpinRate, (int32_t)kMaxSampleValue * 8);
+		spinRateForSpedUpWriting = std::min(actualSpinRate, kMaxSampleValue * 8);
 
 		// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
 		// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing
@@ -177,12 +177,15 @@ void DelayBuffer::setupForRender(int32_t rate) {
 		// the two. This does mean we lose half the bandwidth. That's done with the following 2 lines of code, and
 		// the fact that the actual writes below are <<3 instead of <<4.
 
-		// Woah, did I mean to write "<<=" ?
-		spinRateForSpedUpWriting = spinRateForSpedUpWriting <<= 1;
+		spinRateForSpedUpWriting <<= 1;
 		// We may change this because sped up writing is the only thing it'll be used for
 		divideByRate >>= 1;
 	}
 	resample_config_ = DelayBuffer::ResampleConfig{
-	    actualSpinRate, spinRateForSpedUpWriting, divideByRate, rateMultiple, writeSizeAdjustment,
+	    .actualSpinRate = actualSpinRate,
+	    .spinRateForSpedUpWriting = spinRateForSpedUpWriting,
+	    .divideByRate = divideByRate,
+	    .rateMultiple = rateMultiple,
+	    .writeSizeAdjustment = writeSizeAdjustment,
 	};
 }
