@@ -453,7 +453,19 @@ void setupBlankSong() {
 void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-
+	auto filename =
+	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+	String failSafePath;
+	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
+	failSafePath.concatenate(replace_char(filename, '/', '_'));
+	if (storageManager.fileExists(failSafePath.get())) {
+		setupBlankSong();
+		String msgReason;
+		msgReason.concatenate("STARTUP OFF, reason: ");
+		msgReason.concatenate(filename);
+		display->displayPopup(msgReason.get());
+		return;
+	}
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
 		if (!storageManager.fileExists(defaultSongFullPath)) {
@@ -465,8 +477,14 @@ void setupStartupSong() {
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
 	case StartupSongMode::LASTSAVED: {
-		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
-		                                                             : runtimeFeatureSettings.getStartupSong();
+		FIL f;
+		if (f_open(&f, failSafePath.get(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
+			f_close(&f);
+		}
+		else {
+			setupBlankSong(); // something wrong creating canary file, failsafe.
+			return;
+		}
 		if (!storageManager.fileExists(filename)) {
 			filename = defaultSongFullPath;
 			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
@@ -487,6 +505,7 @@ void setupStartupSong() {
 		else {
 			setupBlankSong();
 		}
+		f_unlink(failSafePath.get());
 	} break;
 	case StartupSongMode::BLANK:
 		[[fallthrough]];
