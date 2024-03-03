@@ -51,6 +51,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the
   ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you
   are in a clip) or Song (if you are in arranger) to exit out of the menu and enter the `AUTOMATION VIEW EDITOR`.
+- Added configuration of the number of count-in bars under `SETTINGS > RECORDING > COUNT-IN BARS`
 - Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type,
   Reverb Room Size, Compressor Mode, ModFX Type and Param).
 - Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
