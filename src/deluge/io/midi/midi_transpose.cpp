@@ -48,6 +48,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 				uiNeedsRendering(&instrumentClipView);
+				uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 			}
 		}
 		else {
