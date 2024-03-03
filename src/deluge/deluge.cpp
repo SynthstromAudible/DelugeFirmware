@@ -65,6 +65,7 @@
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
+#include <sys/_stdint.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
@@ -453,7 +454,28 @@ void setupBlankSong() {
 void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
+	auto failSafePath = "AUTOLOAD_OFF__open_file_for_reason__remove_file_to_reactivate_autoload";
 
+	if (storageManager.fileExists(failSafePath)) {
+		setupBlankSong();
+		String msgReason;
+		msgReason.concatenate("AUTOLOAD OFF, reason: ");
+		FIL f;
+		if (f_open(&f, failSafePath, FA_READ) == FR_OK) {
+			uint32_t maxBufSize = 256;
+			char reason[maxBufSize];
+			memset(reason, 0, maxBufSize);
+			UINT read;
+			f_read(&f, &reason, maxBufSize, &read);
+			f_close(&f);
+			msgReason.concatenate(reason);
+		}
+		else {
+			msgReason.concatenate("UNKNOWN");
+		}
+		display->displayPopup(msgReason.get());
+		return;
+	}
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
 		if (!storageManager.fileExists(defaultSongFullPath)) {
@@ -467,6 +489,16 @@ void setupStartupSong() {
 	case StartupSongMode::LASTSAVED: {
 		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
 		                                                             : runtimeFeatureSettings.getStartupSong();
+		FIL f;
+		if (f_open(&f, failSafePath, FA_CREATE_ALWAYS) == FR_OK) {
+			UINT written;
+			f_write(&f, filename, strlen(filename) + 1, &written);
+			f_close(&f);
+		}
+		else {
+			setupBlankSong(); // something wrong creating canary file, failsafe.
+			return;
+		}
 		if (!storageManager.fileExists(filename)) {
 			filename = defaultSongFullPath;
 			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
@@ -487,6 +519,7 @@ void setupStartupSong() {
 		else {
 			setupBlankSong();
 		}
+		f_unlink(failSafePath);
 	} break;
 	case StartupSongMode::BLANK:
 		[[fallthrough]];
