@@ -57,5 +57,10 @@ public:
 			soundEditor.currentSource->setReversed(this->getValue());
 		}
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		Source* source = &sound->sources[whichThing];
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	}
 };
 } // namespace deluge::gui::menu_item::sample

@@ -15,12 +15,16 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
+	auto start = current_item_;
+	bool wrapped = false;
 	// loop through non-null items until we find a relevant one
 	while ((*current_item_ != nullptr)
-	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)
+	       && !(wrapped && current_item_ == start)) {
 		current_item_++;
 		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
 			current_item_ = items.begin();
+			wrapped = true;
 		}
 	}
 	if (display->have7SEG()) {
