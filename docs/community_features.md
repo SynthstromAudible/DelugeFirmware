@@ -129,6 +129,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#118]) Shift LED feedback can now be toggled manually, however it will turn ON or OFF in conjunction with Sticky
   Shift (adjust SHIFT LED FEEDBACK afterwards).
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#1305]) Number of count-in bars is now configurable under `SETTINGS > RECORDING > COUNT-IN BARS`.
 
 #### 3.7 - Mod Wheel
 
