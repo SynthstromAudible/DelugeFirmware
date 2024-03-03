@@ -215,7 +215,7 @@ submenu::Filter hpfMenu{
 // Filter Route Menu ----------------------------------------------------------------------------------------------
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 
-Submenu soundFiltersMenu{
+submenu::Filter soundFiltersMenu{
     STRING_FOR_FILTERS,
     {
         &lpfMenu,
