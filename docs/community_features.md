@@ -76,9 +76,8 @@ Here is a list of general improvements that have been made, ordered from newest 
           go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
     - **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently
       playing notes. If this is done from a MIDI clip, it can cut off notes right at the start so they are never heard.
-      To avoid this, move the MIDI clip with sequenced transposition events to the bottom of the list in Song View (Rows
-      mode), since the clips seem to be handled bottom to top. Instrument clips above the transposition clip will then
-      play correctly with the new root note.
+      Clip playback ensures transpose clips play first to affect new notes starting at the same position correctly, 
+      but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
   clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
@@ -108,6 +107,7 @@ Here is a list of general improvements that have been made, ordered from newest 
   update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by
   updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
   feedback enabled, this will also send updated cc feedback for the new kit row selection.
+
 
 #### 3.4 - Tempo
 
