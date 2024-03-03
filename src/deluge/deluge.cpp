@@ -453,12 +453,12 @@ void setupBlankSong() {
 void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-	auto failSafePath = "AUTOLOAD_OFF__open_file_for_reason__remove_file_to_reactivate_autoload";
+	auto failSafePath = "STARTUP_OFF__open_file_for_reason__remove_file_to_reactivate_STARTUP";
 
 	if (storageManager.fileExists(failSafePath)) {
 		setupBlankSong();
 		String msgReason;
-		msgReason.concatenate("AUTOLOAD OFF, reason: ");
+		msgReason.concatenate("STARTUP OFF, reason: ");
 		FIL f;
 		if (f_open(&f, failSafePath, FA_READ) == FR_OK) {
 			uint32_t maxBufSize = 256;
@@ -489,7 +489,7 @@ void setupStartupSong() {
 		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
 		                                                             : runtimeFeatureSettings.getStartupSong();
 		FIL f;
-		if (f_open(&f, failSafePath, FA_CREATE_ALWAYS) == FR_OK) {
+		if (f_open(&f, failSafePath, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
 			UINT written;
 			f_write(&f, filename, strlen(filename) + 1, &written);
 			f_close(&f);
