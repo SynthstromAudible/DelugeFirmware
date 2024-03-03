@@ -65,7 +65,6 @@
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
-#include <sys/_stdint.h>
 
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
