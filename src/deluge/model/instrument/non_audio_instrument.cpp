@@ -239,3 +239,7 @@ bool NonAudioInstrument::readTagFromFile(char const* tagName) {
 	storageManager.exitTag();
 	return true;
 }
+
+bool NonAudioInstrument::needsEarlyPlayback() const {
+	return (type == OutputType::MIDI_OUT && channel == MIDI_CHANNEL_TRANSPOSE);
+}
