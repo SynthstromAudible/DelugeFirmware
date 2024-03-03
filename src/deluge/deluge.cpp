@@ -457,7 +457,7 @@ void setupStartupSong() {
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
-	failSafePath.concatenate(replace_char((char*)filename, '/', '_'));
+	failSafePath.concatenate(replace_char(filename, '/', '_'));
 	if (storageManager.fileExists(failSafePath.get())) {
 		setupBlankSong();
 		String msgReason;
