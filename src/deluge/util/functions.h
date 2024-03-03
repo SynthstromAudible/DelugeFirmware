@@ -125,6 +125,8 @@ template <uint8_t lshift>
 	}
 }
 
+char* replace_char(const char* str, char find, char replace);
+
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
