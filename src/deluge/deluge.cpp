@@ -453,25 +453,16 @@ void setupBlankSong() {
 void setupStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-	auto failSafePath = "STARTUP_OFF__open_file_for_reason__remove_file_to_reactivate_STARTUP";
-
-	if (storageManager.fileExists(failSafePath)) {
+	auto filename =
+	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+	String failSafePath;
+	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
+	failSafePath.concatenate(replace_char((char*)filename, '/', '_'));
+	if (storageManager.fileExists(failSafePath.get())) {
 		setupBlankSong();
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
-		FIL f;
-		if (f_open(&f, failSafePath, FA_READ) == FR_OK) {
-			uint32_t maxBufSize = 256;
-			char reason[maxBufSize];
-			memset(reason, 0, maxBufSize);
-			UINT read;
-			f_read(&f, &reason, maxBufSize, &read);
-			f_close(&f);
-			msgReason.concatenate(reason);
-		}
-		else {
-			msgReason.concatenate("UNKNOWN");
-		}
+		msgReason.concatenate(filename);
 		display->displayPopup(msgReason.get());
 		return;
 	}
@@ -486,12 +477,8 @@ void setupStartupSong() {
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
 	case StartupSongMode::LASTSAVED: {
-		auto filename = startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath
-		                                                             : runtimeFeatureSettings.getStartupSong();
 		FIL f;
-		if (f_open(&f, failSafePath, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
-			UINT written;
-			f_write(&f, filename, strlen(filename) + 1, &written);
+		if (f_open(&f, failSafePath.get(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
 			f_close(&f);
 		}
 		else {
@@ -518,7 +505,7 @@ void setupStartupSong() {
 		else {
 			setupBlankSong();
 		}
-		f_unlink(failSafePath);
+		f_unlink(failSafePath.get());
 	} break;
 	case StartupSongMode::BLANK:
 		[[fallthrough]];

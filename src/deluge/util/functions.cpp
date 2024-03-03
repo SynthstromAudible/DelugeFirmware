@@ -1762,6 +1762,18 @@ doNormal:
 	}
 }
 
+char* replace_char(const char* str, char find, char replace) {
+	char* copy = new char[sizeof(char) * strlen(str) + 1];
+
+	strcpy(copy, str);
+	char* current_pos = strchr(copy, find);
+	while (current_pos) {
+		*current_pos = replace;
+		current_pos = strchr(current_pos, find);
+	}
+	return copy;
+}
+
 bool charCaseEqual(char firstChar, char secondChar) {
 	// Make lowercase
 	if (firstChar >= 'A' && firstChar <= 'Z') {
