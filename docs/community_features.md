@@ -184,8 +184,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - ([#1312]) Save user-defined pad brightness level and restore it at startup.
   To use this feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > PAD BRIGHTNESS`.
-    - Default : Full brightness (`25`).
-    - Min value `1`, Max Value `25`.
+    - Default : Full brightness (`100`).
+    - Min value `4`, Max Value `100`.
 
 #### 3.14 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
 - ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
