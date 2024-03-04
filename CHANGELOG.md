@@ -13,6 +13,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added feature to automatically load song projects at startup.
     - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+    - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 
 - Added a feature save user-defined pad brightness level and restore it at startup.
 
