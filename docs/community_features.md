@@ -76,9 +76,8 @@ Here is a list of general improvements that have been made, ordered from newest 
           go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
     - **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently
       playing notes. If this is done from a MIDI clip, it can cut off notes right at the start so they are never heard.
-      To avoid this, move the MIDI clip with sequenced transposition events to the bottom of the list in Song View (Rows
-      mode), since the clips seem to be handled bottom to top. Instrument clips above the transposition clip will then
-      play correctly with the new root note.
+      Clip playback ensures transpose clips play first to affect new notes starting at the same position correctly, 
+      but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
   clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
@@ -109,6 +108,7 @@ Here is a list of general improvements that have been made, ordered from newest 
   updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
   feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
+
 #### 3.4 - Tempo
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -129,6 +129,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#118]) Shift LED feedback can now be toggled manually, however it will turn ON or OFF in conjunction with Sticky
   Shift (adjust SHIFT LED FEEDBACK afterwards).
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#1305]) Number of count-in bars is now configurable under `SETTINGS > RECORDING > COUNT-IN BARS`.
 
 #### 3.7 - Mod Wheel
 

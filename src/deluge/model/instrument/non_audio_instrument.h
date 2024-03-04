@@ -58,6 +58,7 @@ public:
 	int32_t channel = 0;
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2];
+	bool needsEarlyPlayback() const override;
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,

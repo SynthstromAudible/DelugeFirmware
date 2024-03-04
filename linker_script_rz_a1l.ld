@@ -302,7 +302,7 @@ SECTIONS
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
 	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data);
 	. = ALIGN(4);
-
+    . = ALIGN(0xFFFF);
 	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
 	/* end is also used by glibc as start of heap and might be reinitialized */
 	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
