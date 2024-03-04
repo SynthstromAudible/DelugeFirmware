@@ -190,7 +190,7 @@ If you'd like to use our suggested config, just copy the folder from IDE_configs
 To use this feature, you will need to first flash a build via the SD card that has been built with `ENABLE_SYSEX_LOAD=YES`.
 
 ```shell
-./dbt configure -DENABLE_SYSEX_LOAD
+./dbt configure -DENABLE_SYSEX_LOAD=YES
 ./dbt build release
 # copy build/Release/deluge.bin to an SD card and flash it
 ```
