@@ -679,6 +679,31 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("mpeVelocity");
 			}
+			else if (!strcmp(tagName, "mpeGate")) {
+				if (arpSettings) {
+					arpSettings->mpeGate = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("mpeGate");
+			}
+			else if (!strcmp(tagName, "mpeOctaves")) {
+				if (arpSettings) {
+					arpSettings->mpeOctaves = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("mpeOctaves");
+			}
+			else if (!strcmp(tagName, "mpeRatchetAmount")) {
+				if (arpSettings) {
+					arpSettings->mpeRatchetAmount = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("mpeRatchetAmount");
+			}
+			else if (!strcmp(tagName, "mpeRatchetProbability")) {
+				if (arpSettings) {
+					arpSettings->mpeRatchetProbability =
+					    stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+				}
+				storageManager.exitTag("mpeRatchetProbability");
+			}
 			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
 					arpSettings->mode = stringToArpMode(storageManager.readTagOrAttributeValue());
@@ -3927,6 +3952,11 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
+		storageManager.writeAttribute("mpeGate", arpMpeModSourceToString(arpSettings->mpeGate));
+		storageManager.writeAttribute("mpeOctaves", arpMpeModSourceToString(arpSettings->mpeOctaves));
+		storageManager.writeAttribute("mpeRatchetAmount", arpMpeModSourceToString(arpSettings->mpeRatchetAmount));
+		storageManager.writeAttribute("mpeRatchetProbability",
+		                              arpMpeModSourceToString(arpSettings->mpeRatchetProbability));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
 		storageManager.writeAttribute("rhythm", arpSettings->rhythm);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);

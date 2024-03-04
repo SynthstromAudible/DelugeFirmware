@@ -182,9 +182,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODFX_DEPTH, "MOD-FX depth"},
         {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
 
-        // Arp Gate
-        {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp. gate"},
-
         // Portamento
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
@@ -708,6 +705,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "Arp ratc prob"},
         {STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, "Arp seq length"},
         {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp rate"},
+        {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp gate"},
         {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, "FM Mod* tran."},
         {STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "FM Mod* level"},
         {STRING_FOR_FM_MOD_FBACK_MENU_TITLE, "FM Mod* f.back"},

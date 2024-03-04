@@ -2343,6 +2343,12 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 			storageManager.writeAttribute("rhythm", arpSettings.rhythm);
 			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+			storageManager.writeAttribute("mpeGate", (char*)arpMpeModSourceToString(arpSettings.mpeGate));
+			storageManager.writeAttribute("mpeOctaves", (char*)arpMpeModSourceToString(arpSettings.mpeOctaves));
+			storageManager.writeAttribute("mpeRatchetAmount",
+			                              (char*)arpMpeModSourceToString(arpSettings.mpeRatchetAmount));
+			storageManager.writeAttribute("mpeRatchetProbability",
+			                              (char*)arpMpeModSourceToString(arpSettings.mpeRatchetProbability));
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
@@ -2667,6 +2673,23 @@ someError:
 				else if (!strcmp(tagName, "mpeVelocity")) {
 					arpSettings.mpeVelocity = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
 					storageManager.exitTag("mpeVelocity");
+				}
+				else if (!strcmp(tagName, "mpeGate")) {
+					arpSettings.mpeGate = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeGate");
+				}
+				else if (!strcmp(tagName, "mpeOctaves")) {
+					arpSettings.mpeOctaves = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeOctaves");
+				}
+				else if (!strcmp(tagName, "mpeRatchetAmount")) {
+					arpSettings.mpeRatchetAmount = stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeRatchetAmount");
+				}
+				else if (!strcmp(tagName, "mpeRatchetProbability")) {
+					arpSettings.mpeRatchetProbability =
+					    stringToArpMpeModSource(storageManager.readTagOrAttributeValue());
+					storageManager.exitTag("mpeRatchetProbability");
 				}
 				else if (!strcmp(tagName, "gate")) {
 					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();

@@ -67,6 +67,10 @@ public:
 		syncLevel = other->syncLevel;
 		rhythm = other->rhythm;
 		mpeVelocity = other->mpeVelocity;
+		mpeGate = other->mpeGate;
+		mpeRatchetAmount = other->mpeRatchetAmount;
+		mpeRatchetProbability = other->mpeRatchetProbability;
+		mpeOctaves = other->mpeOctaves;
 	}
 
 	void updatePresetFromCurrentSettings() {
@@ -145,6 +149,10 @@ public:
 
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
+	ArpMpeModSource mpeOctaves{ArpMpeModSource::OFF};
+	ArpMpeModSource mpeGate{ArpMpeModSource::OFF};
+	ArpMpeModSource mpeRatchetAmount{ArpMpeModSource::OFF};
+	ArpMpeModSource mpeRatchetProbability{ArpMpeModSource::OFF};
 
 	// Temporary flags
 	bool flagForceArpRestart{false};
@@ -213,9 +221,19 @@ public:
 	bool isRatcheting = false;
 
 	// Unpatched Automated Params
+	uint16_t ratchetAmount = 0;
 	uint16_t ratchetProbability = 0;
+	uint32_t gate = 1 << 23; // Default Gate: 25 (0-50)
+
+	uint32_t modulatedVelocity = 0; // This is the modulated velocity (once any MPE modulations are applied)
+	uint32_t modulatedRatchetProbability =
+	    0; // This is the modulated ratchet probability (once any MPE modulations are applied)
+	uint32_t modulatedRatchetAmount = 0; // This is the modulated ratchet amount (once any MPE modulations are applied)
+	uint32_t modulatedGate = gate;       // This is the modulated gate threshold (once any MPE modulations are applied)
+	uint32_t modulatedOctaveOffset =
+	    0; // This is the modulated octave number to offset the notes (once any MPE modulations are applied)
+
 	uint32_t maxSequenceLength = 0;
-	uint32_t ratchetAmount = 0;
 
 protected:
 	void resetRatchet();
@@ -223,6 +241,9 @@ protected:
 	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex);
+	uint32_t calculateSingleMpeModulatedParameter(ArpMpeModSource source, int16_t zPressure, int16_t ySlideTimbre,
+	                                              int32_t baseValue, int32_t maxValue);
+	void calculateAllMpeModulatedParameters(ArpeggiatorSettings* settings, int16_t zPressure, int16_t ySlideTimbre);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);

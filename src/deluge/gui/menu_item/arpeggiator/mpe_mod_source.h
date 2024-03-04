@@ -26,13 +26,17 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class ArpMpeVelocity final : public Selection {
+class ArpMpeModSourceSelection : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mpeVelocity); }
-	void writeCurrentValue() override {
-		soundEditor.currentArpSettings->mpeVelocity = this->getValue<ArpMpeModSource>();
+
+	ArpMpeModSourceSelection(l10n::String newName, l10n::String title, ArpMpeModSource* (*getSelectionPtr)())
+	    : Selection(newName, title) {
+		getSPtr = getSelectionPtr;
 	}
+
+	void readCurrentValue() override { this->setValue(*(getSPtr())); }
+	void writeCurrentValue() override { *(getSPtr()) = this->getValue<ArpMpeModSource>(); }
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
@@ -42,5 +46,7 @@ public:
 		    l10n::getView(STRING_FOR_PATCH_SOURCE_Y),          //<
 		};
 	}
+
+	ArpMpeModSource* (*getSPtr)();
 };
 } // namespace deluge::gui::menu_item::arpeggiator

@@ -21,6 +21,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 
@@ -322,15 +323,94 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	}
 }
 
+/// Calculate a single modulated arpeggiator parameter value based on some MPE value
+uint32_t ArpeggiatorBase::calculateSingleMpeModulatedParameter(ArpMpeModSource source, int16_t zPressure,
+                                                               int16_t ySlideTimbre, int32_t baseValue,
+                                                               int32_t maxValue) {
+	switch (source) {
+	case ArpMpeModSource::AFTERTOUCH:
+		return (uint32_t)((multiply_32x32_rshift32(zPressure << 16, maxValue - baseValue) << 1) + baseValue);
+	case ArpMpeModSource::MPE_Y:
+		return (uint32_t)((multiply_32x32_rshift32(ySlideTimbre << 16, maxValue - baseValue) << 1) + baseValue);
+	default:
+		return (uint32_t)baseValue;
+	}
+}
+
+/// Calculate all the modulated arpeggiator parameters based on the MPE values
+void ArpeggiatorBase::calculateAllMpeModulatedParameters(ArpeggiatorSettings* settings, int16_t zPressure,
+                                                         int16_t ySlideTimbre) {
+
+	// Check if we need to update Ratchet Amount with some MPE value
+	modulatedRatchetAmount = calculateSingleMpeModulatedParameter(settings->mpeRatchetAmount, zPressure, ySlideTimbre,
+	                                                              ratchetAmount, ((1 << 16) - 1));
+
+	// Check if we need to update Ratchet Probability with some MPE value
+	modulatedRatchetProbability = calculateSingleMpeModulatedParameter(
+	    settings->mpeRatchetProbability, zPressure, ySlideTimbre, ratchetProbability, ((1 << 16) - 1));
+
+	// Check if we need to update Gate with some MPE value
+	modulatedGate =
+	    calculateSingleMpeModulatedParameter(settings->mpeGate, zPressure, ySlideTimbre, gate, ((1 << 24) - 1));
+
+	// Check if we need to update Velocity with some MPE value (this is calculated differently)
+	modulatedVelocity = 0;
+	switch (settings->mpeVelocity) {
+	case ArpMpeModSource::AFTERTOUCH:
+		modulatedVelocity = zPressure >> 8; // Transform to range 0 - 127
+		// Fix velocity if it's too low
+		if (modulatedVelocity < MIN_MPE_MODULATED_VELOCITY) {
+			modulatedVelocity = MIN_MPE_MODULATED_VELOCITY;
+		}
+		break;
+	case ArpMpeModSource::MPE_Y:
+		modulatedVelocity = ySlideTimbre >> 8; // Transform to range 0 - 127
+		// Fix velocity if it's too low
+		if (modulatedVelocity < MIN_MPE_MODULATED_VELOCITY) {
+			modulatedVelocity = MIN_MPE_MODULATED_VELOCITY;
+		}
+		break;
+	}
+
+	// Check if we need to update Octave with some MPE value (this is calculated differently)
+	int32_t maxOctaveMpeOffset = ((1 << 16) - 1);
+	modulatedOctaveOffset = 0;
+	switch (settings->mpeOctaves) {
+	case ArpMpeModSource::AFTERTOUCH:
+		// By shifting this 14 bits we will end up with a value which can be: 0, 1, 2 or 3 which is the range we want
+		modulatedOctaveOffset = (uint32_t)(multiply_32x32_rshift32(zPressure << 16, maxOctaveMpeOffset) << 1) >> 14;
+		break;
+	case ArpMpeModSource::MPE_Y:
+		// By shifting this 14 bits we will end up with a value which can be: 0, 1, 2 or 3 which is the range we want
+		modulatedOctaveOffset = (uint32_t)(multiply_32x32_rshift32(ySlideTimbre << 16, maxOctaveMpeOffset) << 1) >> 14;
+		break;
+	}
+}
+
 // Sets up the ratchet state if the probability is met
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	int32_t randomChance = random(65535);
-	isRatcheting = ratchetProbability >= randomChance
-	               && ratchetAmount > 0
+
+	int32_t ratchets = 0;
+	if (modulatedRatchetAmount > 45874) { // > 35 -> 50
+		ratchets = 3;
+	}
+	else if (modulatedRatchetAmount > 26214) { // > 20 -> 34
+		ratchets = 2;
+	}
+	else if (modulatedRatchetAmount > 6553) { // > 5 -> 19
+		ratchets = 1;
+	}
+	else { // > 0 -> 4
+		ratchets = 0;
+	}
+
+	isRatcheting = modulatedRatchetProbability >= randomChance
+	               && ratchets > 0
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH);
 	if (isRatcheting) {
-		ratchetNotesMultiplier = random(65535) % (ratchetAmount + 1);
+		ratchetNotesMultiplier = random(65535) % (ratchets + 1);
 		ratchetNotesNumber = 1 << ratchetNotesMultiplier;
 		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
 			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
@@ -442,16 +522,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	gateCurrentlyActive = true;
 
 	// Increment ratchet note index if we are ratcheting when entering switchNoteOn
-	if (isRatcheting) {
+	if (isRatchet) {
 		ratchetNotesIndex++;
-	}
-
-	if (!isRatchet) {
-		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet burst
-		maybeSetupNewRatchet(settings);
-	}
-
-	if (ratchetNotesIndex > 0) {
 		goto finishDrumSwitchNoteOn;
 	}
 
@@ -493,31 +565,26 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 finishDrumSwitchNoteOn:
 	playedFirstArpeggiatedNoteYet = true;
 
-	// Check if we need to update velocity with some MPE value
-	switch (settings->mpeVelocity) {
-	case ArpMpeModSource::AFTERTOUCH:
-		arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
-		break;
-	case ArpMpeModSource::MPE_Y:
-		arpNote.velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >> 8;
-		break;
-	}
-	// Fix velocity if it's too low
-	if (arpNote.velocity < MIN_MPE_MODULATED_VELOCITY) {
-		arpNote.velocity = MIN_MPE_MODULATED_VELOCITY;
+	int16_t zPressure = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)]; // Range 0 - 32767
+	int16_t ySlideTimbre = (arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1)
+	                       + (1 << 14); // Transformed to range 0 - 32767
+
+	calculateAllMpeModulatedParameters(settings, zPressure, ySlideTimbre);
+
+	if (settings->mpeVelocity != ArpMpeModSource::OFF) {
+		// If MPE->Velocity modulation is enabled, we apply it here
+		arpNote.velocity = modulatedVelocity;
 	}
 
-	if (shouldPlayNote) {
-		// Play the note
-		noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
-		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
-		instruction->arpNoteOn = &arpNote;
+	if (!isRatchet) {
+		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet burst
+		maybeSetupNewRatchet(settings);
 	}
-	else {
-		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
-		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
-	}
+
+	// Play the note
+	noteCodeCurrentlyOnPostArp = kNoteForDrum + (((int32_t)currentOctave) + ((int32_t)modulatedOctaveOffset)) * 12;
+	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+	instruction->arpNoteOn = &arpNote;
 }
 
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
@@ -559,16 +626,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	gateCurrentlyActive = true;
 
 	// Increment ratchet note index if we are ratcheting when entering switchNoteOn
-	if (isRatcheting) {
+	if (isRatchet) {
 		ratchetNotesIndex++;
-	}
-
-	if (!isRatchet) {
-		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet burst
-		maybeSetupNewRatchet(settings);
-	}
-
-	if (ratchetNotesIndex > 0) {
 		goto finishSwitchNoteOn;
 	}
 
@@ -732,33 +791,28 @@ finishSwitchNoteOn:
 	else {
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
+	int16_t zPressure = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)]; // Range 0 - 32767
+	int16_t ySlideTimbre = (arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1)
+	                       + (1 << 14); // Transformed to range 0 - 32767
 
-	// Check if we need to update velocity with some MPE value
-	switch (settings->mpeVelocity) {
-	case ArpMpeModSource::AFTERTOUCH:
-		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
-		break;
-	case ArpMpeModSource::MPE_Y:
-		arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
-		break;
-	}
-	// Fix velocity if it's too low
-	if (arpNote->velocity < MIN_MPE_MODULATED_VELOCITY) {
-		arpNote->velocity = MIN_MPE_MODULATED_VELOCITY;
+	calculateAllMpeModulatedParameters(settings, zPressure, ySlideTimbre);
+
+	if (settings->mpeVelocity != ArpMpeModSource::OFF) {
+		// If MPE->Velocity modulation is enabled, we apply it here
+		arpNote->velocity = modulatedVelocity;
 	}
 
-	if (shouldPlayNote) {
-		// Play the note
-		noteCodeCurrentlyOnPostArp =
-		    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
-		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
-		instruction->arpNoteOn = arpNote;
+	if (!isRatchet) {
+		// If this is a normal switchNoteOn event (not ratchet) we take here the opportunity to setup a ratchet
+		// burst
+		maybeSetupNewRatchet(settings);
 	}
-	else {
-		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
-		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
-	}
+
+	// Play the note
+	noteCodeCurrentlyOnPostArp = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]
+	                             + (((int32_t)currentOctave) + ((int32_t)modulatedOctaveOffset)) * 12;
+	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
+	instruction->arpNoteOn = arpNote;
 }
 
 bool Arpeggiator::hasAnyInputNotesActive() {
@@ -772,32 +826,27 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t ratchAmount, uint32_t ratchProb,
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t ratchAm, uint32_t ratchProb,
                              ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
+		// Save some CPU by an early return if arp is off or no notes are active
 		return;
 	}
 
-	// Update live Sequence Length value with the most up to date value from automation
-	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
+	// Update live values from automation
+	{
+		// Update live Gate value with the most up to date value from automation
+		gate = gateThreshold >> 8;
 
-	// Update live ratchetProbability value with the most up to date value from automation
-	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
+		// Update live Sequence Length value with the most up to date value from automation
+		maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
 
-	// Update live ratchetAmount value with the most up to date value from automation
-	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
-	uint16_t amount = ratchAmount >> 16;
-	if (amount > 45874) { // > 35 -> 50
-		ratchetAmount = 3;
-	}
-	else if (amount > 26214) { // > 20 -> 34
-		ratchetAmount = 2;
-	}
-	else if (amount > 6553) { // > 5 -> 19
-		ratchetAmount = 1;
-	}
-	else { // > 0 -> 4
-		ratchetAmount = 0;
+		// Update live ratchetProbability value with the most up to date value from automation
+		ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
+
+		// Update live ratchetAmount value with the most up to date value from automation
+		// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
+		ratchetAmount = ratchAm >> 16;
 	}
 
 	if (settings->flagForceArpRestart) {
@@ -828,7 +877,8 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 			// Switch on next note in the ratchet
 			switchNoteOn(settings, instruction, true);
 		}
-		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
+		// And maybe (if not syncing) the gatePos is also far enough along
+		// that we also want to switch a normal note on?
 		else if (!syncedNow && gatePos >= maxGate) {
 			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
@@ -876,8 +926,9 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 			howFarIntoPeriod = ticksPerPeriod - howFarIntoPeriod;
 		}
 	}
-	return howFarIntoPeriod; // Normally we will have modified this variable above, and it no longer represents what its
-	                         // name says.
+	// Normally we will have modified this variable above, and it
+	// no longer represents what its name says.
+	return howFarIntoPeriod;
 }
 
 uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {

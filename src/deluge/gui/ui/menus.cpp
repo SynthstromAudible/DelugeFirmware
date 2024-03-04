@@ -1,3 +1,4 @@
+#include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
@@ -5,7 +6,7 @@
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
 #include "gui/menu_item/arpeggiator/mode.h"
-#include "gui/menu_item/arpeggiator/mpe_velocity.h"
+#include "gui/menu_item/arpeggiator/mpe_mod_source.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
@@ -335,8 +336,38 @@ arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 // Arp: MPE
-arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
-Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+ArpMpeModSource* getArpSettingsMpeVelocity() {
+	return &(soundEditor.currentArpSettings->mpeVelocity);
+}
+ArpMpeModSource* getArpSettingsMpeGate() {
+	return &(soundEditor.currentArpSettings->mpeGate);
+}
+ArpMpeModSource* getArpSettingsMpeOctaves() {
+	return &(soundEditor.currentArpSettings->mpeOctaves);
+}
+ArpMpeModSource* getArpSettingsMpeRatchetAmount() {
+	return &(soundEditor.currentArpSettings->mpeRatchetAmount);
+}
+ArpMpeModSource* getArpSettingsMpeRatchetProbability() {
+	return &(soundEditor.currentArpSettings->mpeRatchetProbability);
+}
+arpeggiator::ArpMpeModSourceSelection arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY,
+                                                         getArpSettingsMpeVelocity};
+arpeggiator::ArpMpeModSourceSelection arpMpeGateMenu{STRING_FOR_GATE, STRING_FOR_GATE, getArpSettingsMpeGate};
+arpeggiator::ArpMpeModSourceSelection arpMpeOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_NUMBER_OF_OCTAVES,
+                                                        getArpSettingsMpeOctaves};
+arpeggiator::ArpMpeModSourceSelection arpMpeRatchetAmountMenu{
+    STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_NUMBER_OF_RATCHETS, getArpSettingsMpeRatchetAmount};
+arpeggiator::ArpMpeModSourceSelection arpMpeRatchetProbabilityMenu{
+    STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_RATCHET_PROBABILITY, getArpSettingsMpeRatchetProbability};
+Submenu arpMpeMenu{STRING_FOR_MPE,
+                   {
+                       &arpMpeVelocityMenu,
+                       &arpMpeGateMenu,
+                       &arpMpeOctavesMenu,
+                       &arpMpeRatchetAmountMenu,
+                       &arpMpeRatchetProbabilityMenu,
+                   }};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
