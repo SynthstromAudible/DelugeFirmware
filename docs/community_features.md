@@ -173,6 +173,12 @@ Here is a list of general improvements that have been made, ordered from newest 
       will enable you to edit it later on and to replace the default blank song by a user-defined template.
     - `LAST OPENED SONG` : it will load the last long that you `OPENED` before shutting down the Deluge.
     - `LAST SAVED SONG` : it will load the least songs that you `SAVED` before shutting down the Deluge.
+- In case of issue loading a song, a failsafe mode will be triggered :
+    - If a crash occurs at startup loading a song, it will automatically deactivate the feature and will show you at startup which song is having issues.
+    - the feature will be deactivated until either:
+      - the canary file `SONGS/_STARTUP_OFF_CHECK{SONG}` is removed from UI song browser or from the sd card.
+      - `LAST OPENED SONG`/ `LAST SAVED SONG` / `TEMPLATE` refers to another song, in which case previous canary file will be ignored (but still needs to be manually removed).
+- In case of the crash still persists, you can always factory reset by holding `SELECT` while powering on the Deluge, which will force to boot up on `NEW SONG`.
 
 #### 3.13 - Preserve Pad Brightness Preference Through Power Cycle
 
