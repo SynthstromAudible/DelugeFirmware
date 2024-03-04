@@ -148,8 +148,10 @@ lookAtArpNote:
 			}
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
-			                                         arpNote);
+			if (settings->noteMode != ArpNoteMode::AS_PLAYED) {
+				polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
+				                                         arpNote);
+			}
 		}
 	}
 	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
@@ -183,8 +185,10 @@ lookAtArpNote:
 			}
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
-			                                         arpNote);
+			if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
+				polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
+				                                         arpNote);
+			}
 		}
 	}
 }
