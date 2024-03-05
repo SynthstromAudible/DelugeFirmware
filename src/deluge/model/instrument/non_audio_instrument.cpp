@@ -181,10 +181,6 @@ lookAtArpNote:
 				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still
 				// be sounding on the connected synth, so this probably makes sense
 			}
-
-			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
-			                                         arpNote);
 		}
 	}
 }
