@@ -402,50 +402,50 @@ The Song menu is accessible from Arranger View and Song View by pressing on the 
 The Song menu contains the following menu hierarchy:
 
 <blockquote>
-<details><summary>Master</summary>
+<details><summary>Master (MASTR)</summary>
 
-	- Volume
+	- Volume (VOLU)
 	- Pan
 </details>
-<details><summary>Filters</summary>
+<details><summary>Filters (FLTR)</summary>
 
 	- LPF
-		- Frequency
-		- Resonance
-		- Mode
-			- 12DB Ladder
-			- 24DB Ladder
-			- Drive
-			- SVF Bandpass
-			- SVF Notch
+		- Frequency (FREQ)
+		- Resonance (RESO)
+		- Mode (MODE)
+			- 12DB Ladder (LA12)
+			- 24DB Ladder (LA24)
+			- Drive (DRIV)
+			- SVF Bandpass (SV_B)
+			- SVF Notch (SV_N)
 	- HPF
-		- Frequency
-		- Resonance
-		- Mode
-			- SVF Bandpass
-			- SVF Notch
-			- HP Ladder
-	- Filter Route
-		- HPF2LPF
-		- LPF2HPF
-		- PARALLEL
+		- Frequency (FREQ)
+		- Resonance (RESO)
+		- Mode (MODE)
+			- SVF Bandpass (SV_B)
+			- SVF Notch (SV_N)
+			- HP Ladder (HP_L)
+	- Filter Route (ROUT)
+		- HPF2LPF (HPF2)
+		- LPF2HPF (LPF2)
+		- PARALLEL (PARA)
 </details>
 <details><summary>FX</summary>
 
 	- EQ
 		- Bass
-		- Treble
-		- Bass Frequency
-		- Treble Frequency
-	- Delay
-		- Amount
+		- Treble (TREB)
+		- Bass Frequency (BAFR)
+		- Treble Frequency (TRFR)
+	- Delay (DELA)
+		- Amount (AMOU)
 		- Rate
-		- Pingpong
-			- Disabled
-			- Enabled
+		- Pingpong (PING)
+			- Disabled (OFF)
+			- Enabled (ON)
 		- Type
-			- Digital
-			- Analog
+			- Digital (DIGI)
+			- Analog (ANA)
 		- Sync
 		NOTE: These options can change depending on how your default resolution is set
 				
@@ -477,36 +477,38 @@ The Song menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Reverb
-		- Amount
-		- Model
-		- Room Size (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping
-		- Width (if Freeverb is Selected) or Diffusion (if Mutable is Selected)
+	- Reverb (REVE)
+		- Amount (AMOU)
+  			- Freeverb (FVRB)
+     			- Mutable (MTBL)
+		- Model (MODE)
+		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+		- Damping (DAMP)
+		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
 		- Pan
-		- Reverb Sidechain
-			- Volume Ducking
+		- Reverb Sidechain (SIDE)
+			- Volume Ducking (VOLU)
 	
-	- Mod-FX
+	- Mod-FX (MODU)
 		- Type
-			- Disabled
-			- Flanger
-			- Chorus
-			- Phaser
-			- Stereo Chorus
-			- Grain (if enabled in Community Features menu)
+			- Disabled (OFF)
+			- Flanger (FLAN)
+			- Chorus (CHOR)
+			- Phaser (PHAS)
+			- Stereo Chorus (S.CHO)
+			- Grain (GRAI) (if enabled in Community Features menu)
 		- Rate
-		- Depth (if Chorus, Phaser or Grain is selected)
-		- Feedback (if Flanger, Phaser or Grain is selected)
-		- Offset (if Chorus or Grain is selected)
-	- Distortion
-		- Decimation
-		- Bitcrush
+		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
+		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
+		- Offset (OFFS) (if Chorus or Grain is selected)
+	- Distortion (DIST)
+		- Decimation (DECI)
+		- Bitcrush (CRUS)
 </details>
-<details><summary>MIDI Loopback</summary>
+<details><summary>MIDI Loopback (M LP)</summary>
 
-		- Disabled
-		- Enabled
+		- Disabled (OFF)
+		- Enabled (ON)
 
 </details>		
 
