@@ -187,6 +187,14 @@ If you'd like to use our suggested config, just copy the folder from IDE_configs
 
 ### Flashing the firmware via USB (loadfw)
 
+To use this feature, you will need to first flash a build via the SD card that has been built with `ENABLE_SYSEX_LOAD=YES`.
+
+```shell
+./dbt configure -DENABLE_SYSEX_LOAD=YES
+./dbt build release
+# copy build/Release/deluge.bin to an SD card and flash it
+```
+
 You can load the firmware over USB. As this could be a security risk, it must be enabled in community feature settings
 on the Deluge. There you will see a key that you need to use in the command to authenticate with the Deluge.
 `./dbt loadfw <port_number> <hex_key> <firmware_file_path>`
