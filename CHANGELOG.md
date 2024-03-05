@@ -8,15 +8,6 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 
 - Insert changes for next release here
 
-### User Interface
-
-- Added feature to automatically load song projects at startup.
-    - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
-    - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
-    - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
-
-- Added a feature save user-defined pad brightness level and restore it at startup.
-
 ## c1.1.0 Beethoven
 
 ### Sound Engine
@@ -78,6 +69,11 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
 - Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
 - Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (e.g. from -50 to +50).
+- Added feature to automatically load song projects at startup.
+    - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
+    - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
+    - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
+- Added a feature save user-defined pad brightness level and restore it at startup.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
