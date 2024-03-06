@@ -294,16 +294,16 @@ Here is a list of features that have been added to the firmware as a list, group
             - Section pads (left sidebar column) will allow changing repeat count while held
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
-    - The following steps enable you to quickly create and arm new clips for recording.
+    - To use this feature you will need to enable it in the menu:
         1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
-
-    2. Exit Settings menu to save settings
-    3. In Grid view, make sure you are in Green mode.
-    4. Press `PLAY` to start playback and press `RECORD` to enable recording.
-    5. Short-press any empty pad in an existing Instrument column to create and arm a new clip for recording
-    6. The new clip that was just created will be selected and start recording at the beginning of the next bar
-    7. You can press `RECORD` to stop recording or press that new clip to stop recording.
-    8. Repeat steps 4-7 as required.
+        2. Exit Settings menu to save settings
+    - The following steps enable you to quickly create and arm new clips for recording:
+        1. In Grid view, make sure you are in Green mode.
+        2. Press `PLAY` to start playback and press `RECORD` to enable recording.
+        3. Short-press any empty pad in an existing Instrument column to create and arm a new clip for recording
+        4. The new clip that was just created will be selected and start recording at the beginning of the next bar
+        5. You can press `RECORD` to stop recording or press that new clip to stop recording.
+        6. Repeat steps as required.
 
 #### 4.1.6 - Performance View
 
