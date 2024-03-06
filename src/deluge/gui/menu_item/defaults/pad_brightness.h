@@ -23,12 +23,21 @@ namespace deluge::gui::menu_item::defaults {
 class PadBrightness final : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int32_t getMinValue() const override { return kMinLedBrightness; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxLedBrightness; }
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultPadBrightness); }
-	void writeCurrentValue() override {
-		FlashStorage::defaultPadBrightness = this->getValue();
-		PadLEDs::setBrightnessLevel(this->getValue());
+	void selectEncoderAction(int32_t offset) override {
+		offset = offset * 4;
+		Integer::selectEncoderAction(offset);
 	}
+	[[nodiscard]] int32_t getMinValue() const override { return to_ui(kMinLedBrightness); }
+	[[nodiscard]] int32_t getMaxValue() const override { return to_ui(kMaxLedBrightness); }
+	void readCurrentValue() override { this->setValue(to_ui(FlashStorage::defaultPadBrightness)); }
+	void writeCurrentValue() override {
+		int32_t normalizedValue = to_internal(this->getValue());
+		FlashStorage::defaultPadBrightness = normalizedValue;
+		PadLEDs::setBrightnessLevel(normalizedValue);
+	}
+
+private:
+	int32_t to_internal(int32_t value) const { return value >> 2; }
+	int32_t to_ui(int32_t value) const { return value << 2; }
 };
 } // namespace deluge::gui::menu_item::defaults
