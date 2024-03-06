@@ -1,4 +1,3 @@
-import sys
 import time
 import binascii
 import argparse
@@ -42,7 +41,7 @@ def argparser():
     return parser
 
 
-def pack87(src, dstsize):
+def pack_8_to_7_bits(src, dstsize):
     packets = (len(src) + 6) // 7
     dst = bytearray(dstsize)
     for i in range(packets):
@@ -57,59 +56,85 @@ def pack87(src, dstsize):
     return dst
 
 
+def deluge_sysex_message_firmware_segment(segment_number, segment_data, handshake):
+    data = bytearray(601)
+
+    data[0] = 0xF0  # Sysex Start
+
+    data[1] = 0x00  # Deluge SysEx ID
+    data[2] = 0x21  # Deluge SysEx ID
+    data[3] = 0x7B  # Deluge SysEx ID
+    data[4] = 0x01  # Deluge SysEx ID
+
+    data[5] = 3  # Deluge Debug
+    data[6] = 1  # Deluge Send Firmware
+
+    data[7:12] = pack_8_to_7_bits(
+        handshake.to_bytes(4, byteorder="little"), 5
+    )  # Packed Handshake
+
+    data[12] = segment_number & 0x7F  # Position Low
+    data[13] = (segment_number >> 7) & 0x7F  # Position High
+
+    data[14:-1] = pack_8_to_7_bits(segment_data, 586)  # Packed Data
+
+    data[-1] = 0xF7  # Sysex End
+
+    return data
+
+
+def deluge_sysex_message_firmware_load(checksum, length, handshake):
+    data = bytearray(22)
+
+    data[0] = 0xF0  # Sysex Start
+
+    data[1] = 0x00  # Deluge SysEx ID
+    data[2] = 0x21  # Deluge SysEx ID
+    data[3] = 0x7B  # Deluge SysEx ID
+    data[4] = 0x01  # Deluge SysEx ID
+
+    data[5] = 3  # Deluge Debug
+    data[6] = 2  # Deluge Load Firmware
+
+    data[7:21] = pack_8_to_7_bits(
+        handshake.to_bytes(4, byteorder="little")
+        + length.to_bytes(4, byteorder="little")
+        + checksum.to_bytes(4, byteorder="little"),
+        14,
+    )
+
+    data[21] = 0xF7  # Sysex End
+
+    return data
+
+
+def binary_to_indexed_512_byte_chunks(binary):
+    return list(
+        enumerate((binary[pos : pos + 512] for pos in range(0, len(binary), 512)))
+    )
+
+
 def load_fw(port, handshake, file, delay_ms=2):
+
     with open(file, "rb") as f:
         binary = f.read()
     checksum = binascii.crc32(binary)
+    length = len(binary)
+
     midiout = rtmidi.MidiOut()
     midiout.open_port(port)
     with midiout:
-        data = bytearray(598)
-        for i, segment in util.progressbar(
-            list(
-                enumerate(
-                    (binary[pos : pos + 512] for pos in range(0, len(binary), 512))
-                )
-            ),
-            "Firmware Upload ",
-        ):
-            data[0] = 0xF0  # Sysex Start
-            #            data[1] = 0x7D  # Deluge
-            data[1] = 0x00
-            data[2] = 0x21
-            data[3] = 0x7B
-            data[4] = 0x01
 
-            #           data[2] = 3  # Debug
-            data[5] = 3  # Debug
-            #           data[3] = 1  # Send Firmware
-            data[6] = 1  # Send Firmware
-            #           data[4:9] = pack87(handshake.to_bytes(4, byteorder="little"), 5)
-            data[7:12] = pack87(handshake.to_bytes(4, byteorder="little"), 5)
-            #           data[9] = i & 0x7F  # Position Low
-            data[12] = i & 0x7F  # Position Low
-            #           data[10] = (i >> 7) & 0x7F  # Position High
-            data[13] = (i >> 7) & 0x7F  # Position High
-            #           data[11:-1] = pack87(segment, 586)
-            data[14:-1] = pack87(segment, 586)
-            #           data[-1] = 0xF7  # Sysex End
-            data[-1] = 0xF7  # Sysex End
-            midiout.send_message(data)
+        for i, segment in util.progressbar(
+            binary_to_indexed_512_byte_chunks(binary), "Firmware Upload "
+        ):
+
+            msg = deluge_sysex_message_firmware_segment(i, segment, handshake)
+            midiout.send_message(msg)
             time.sleep(0.001 * delay_ms)
-        #         data = data[:19]
-        data = data[:22]
-        #       data[3] = 2  # Load Firmware
-        data[6] = 2  # Load Firmware
-        #        data[4:18] = pack87(
-        data[7:21] = pack87(
-            handshake.to_bytes(4, byteorder="little")
-            + len(binary).to_bytes(4, byteorder="little")
-            + checksum.to_bytes(4, byteorder="little"),
-            14,
-        )
-        #       data[18] = 0xF7
-        data[21] = 0xF7
-        midiout.send_message(data)
+
+        msg = deluge_sysex_message_firmware_load(checksum, length, handshake)
+        midiout.send_message(msg)
 
 
 def main():
