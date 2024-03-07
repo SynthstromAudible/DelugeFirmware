@@ -168,7 +168,7 @@ void DelayBuffer::setupForRender(int32_t rate) {
 
 		// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster
 		// takes longer). No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
-		spinRateForSpedUpWriting = std::min(actualSpinRate, kMaxSampleValue * 8);
+		spinRateForSpedUpWriting = std::min(actualSpinRate, (uint32_t)kMaxSampleValue * 8);
 
 		// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
 		// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing
