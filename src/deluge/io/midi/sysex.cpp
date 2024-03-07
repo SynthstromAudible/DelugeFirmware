@@ -101,8 +101,8 @@ static size_t load_codesize;
 
 static void firstPacket(uint8_t* data, int32_t len) {
 	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
-	//	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
-	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a); // was 11, now 9
+
+	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a);
 	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
 	uint32_t user_code_end = *(uint32_t*)(tmpbuf + OFF_USER_CODE_END);
 	load_codesize = (int32_t)(user_code_end - user_code_start);
@@ -118,7 +118,11 @@ static void firstPacket(uint8_t* data, int32_t len) {
 			return;
 		}
 	}
+
+	// Pad LED Progress Bar Init
 	PadLEDs::clearAllPadsWithoutSending();
+	PadLEDs::sendOutMainPadColours();
+	PadLEDs::sendOutSidebarColours();
 	deluge::hid::display::OLED::clearMainImage();
 	deluge::hid::display::OLED::sendMainImage();
 }
@@ -136,13 +140,12 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	}
 
 	uint32_t handshake_received;
-	// unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 4, 5);
-	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5); // was 4, now 2
+	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5);
 	if (handshake != handshake_received) {
 		return;
 	}
-	//  int pos = 512 * (data[9] + 0x80 * data[10]);
-	int pos = 512 * (data[7] + 0x80 * data[8]); // 9, 10, now 7, 8
+
+	int pos = 512 * (data[7] + 0x80 * data[8]);
 
 	if (pos == 0) {
 		firstPacket(data, len);
@@ -154,7 +157,8 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 
 	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size);
 
-	uint32_t pad = (18 * 8 * pos) / load_bufsize;
+	// Pad LED Progress Bar Step
+	uint32_t pad = (18 * 8 * pos) / (load_bufsize - 0xffff);
 	uint8_t col = pad % 18;
 	uint8_t row = pad / 18;
 	PadLEDs::image[row][col][0] = (255 / 7) * row;
@@ -178,19 +182,16 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 
 	uint32_t fields[3];
 
-	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14); // Is this offset correct now?
+	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14);
 
 	if (handshake != fields[0]) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BAD_KEY));
 		return;
 	}
 
-	if (load_codesize != fields[1]) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_WRONG_SIZE));
-		return;
-	}
+	uint32_t code_file_size = fields[1];
 
-	uint32_t checksum = get_crc(load_buf, load_codesize);
+	uint32_t checksum = get_crc(load_buf, code_file_size);
 
 	if (checksum != fields[2]) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL));
