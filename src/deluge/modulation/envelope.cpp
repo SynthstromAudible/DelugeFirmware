@@ -154,6 +154,10 @@ void Envelope::setState(EnvelopeStage newState) {
 	timeEnteredState = AudioEngine::nextVoiceState++;
 }
 
+void Envelope::unconditionalOff() {
+	lastValuePreCurrentStage = lastValue;
+	setState(EnvelopeStage::OFF);
+}
 void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFastReleaseIncrement) {
 	setState(typeOfRelease);
 	pos = 0;

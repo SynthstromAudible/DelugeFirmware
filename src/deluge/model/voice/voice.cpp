@@ -3259,6 +3259,20 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
+/// Sets envelope to off (will interpolate through this render window).
+/// Returns whether voice should still be left active
+bool Voice::doImmediateRelease() {
+	if (doneFirstRender) {
+		envelopes[0].unconditionalOff();
+		return true;
+	}
+
+	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
+	else {
+		return false;
+	}
+}
+
 bool Voice::hasReleaseStage() {
 	return (paramFinalValues[params::LOCAL_ENV_0_RELEASE] <= 18359);
 }
