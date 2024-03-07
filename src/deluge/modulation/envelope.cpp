@@ -159,9 +159,11 @@ void Envelope::unconditionalOff() {
 	setState(EnvelopeStage::OFF);
 }
 void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFastReleaseIncrement) {
-	setState(typeOfRelease);
-	pos = 0;
-	lastValuePreCurrentStage = lastValue;
+	if (state != typeOfRelease) {
+		setState(typeOfRelease);
+		pos = 0;
+		lastValuePreCurrentStage = lastValue;
+	}
 
 	if (typeOfRelease == EnvelopeStage::FAST_RELEASE) {
 		fastReleaseIncrement = newFastReleaseIncrement;
