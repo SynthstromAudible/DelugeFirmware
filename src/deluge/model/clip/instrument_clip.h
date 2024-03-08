@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
+#include "model/note/note_row.h"
 #include "model/note/note_row_vector.h"
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator.h"
@@ -251,11 +252,13 @@ protected:
 	void pingpongOccurred(ModelStackWithTimelineCounter* modelStack);
 
 private:
+	PendingNoteOnList skippedNoteOns;
 	InstrumentClip* instrumentWasLoadedByReferenceFromClip;
 
 	void deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStackWithTimelineCounter* modelStack,
 	                                    bool mustKeepLastOne = true, bool keepOnesWithMIDIInput = true);
 	void sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
+	void storePendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn);
 	Error undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack);
 	void deleteBackedUpParamManagerMIDI();
 	bool possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoDrum, Song* song, bool onlyIfNonNumeric = false,

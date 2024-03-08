@@ -258,7 +258,8 @@ constexpr int32_t kNumVoicesStatic = 24;
 constexpr int32_t kNumVoiceSamplesStatic = 20;
 constexpr int32_t kNumTimeStretchersStatic = 6;
 
-constexpr int32_t kMaxNumNoteOnsPending = 64;
+// used to be 64 - it's pretty sketchy to render more than 8 at once though, so maybe we can let them get delayed a tick
+constexpr int32_t kMaxNumNoteOnsPending = 32;
 
 constexpr int32_t kNumUnsignedIntegersToRepPatchCables = 1;
 constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 32);

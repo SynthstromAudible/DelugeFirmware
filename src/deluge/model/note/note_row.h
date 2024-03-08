@@ -59,8 +59,21 @@ struct PendingNoteOn {
 };
 
 struct PendingNoteOnList {
-	PendingNoteOn pendingNoteOns[kMaxNumNoteOnsPending];
-	uint8_t count;
+	PendingNoteOn pendingNoteOns[kMaxNumNoteOnsPending] = {0};
+	uint8_t count = 0;
+	void push(PendingNoteOn note) {
+		count = std::min<uint8_t>(count + 1, kMaxNumNoteOnsPending);
+		pendingNoteOns[count - 1] = note;
+	}
+	// must ensure one is present before calling
+	PendingNoteOn* pop() {
+		if (count > 0) {
+			return &pendingNoteOns[--count];
+		}
+		return &pendingNoteOns[0];
+	}
+	bool hasSpace() { return count < kMaxNumNoteOnsPending; }
+	uint8_t length() { return count; }
 };
 
 constexpr int32_t kQuantizationPrecision = 10;

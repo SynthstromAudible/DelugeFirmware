@@ -888,7 +888,10 @@ doNewProbability:
 			}
 
 			if (conditionPassed) {
-				sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+				if (i == 0) {
+					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+				}
+				storePendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 			}
 			else {
 				pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
@@ -899,10 +902,24 @@ doNewProbability:
 	if (ticksTilNextNoteRowEvent < playbackHandler.swungTicksTilNextEvent) {
 		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
 	}
+	uint8_t numPending = skippedNoteOns.length();
+	for (int i = 0; i < 2 && i < numPending; i++) {
+		sendPendingNoteOn(modelStack, skippedNoteOns.pop());
+	}
+}
+
+void InstrumentClip::storePendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {
+	if (skippedNoteOns.hasSpace()) {
+		skippedNoteOns.push(*pendingNoteOn);
+	}
+	sendPendingNoteOn(modelStack, pendingNoteOn);
 }
 
 void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {
 
+	if (!pendingNoteOn || !(pendingNoteOn->noteRow)) {
+		freezeWithError("no note row");
+	}
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
 
