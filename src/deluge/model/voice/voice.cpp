@@ -3246,7 +3246,6 @@ storePhase:
 	}
 }
 
-// Returns whether voice should still be left active
 bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
@@ -3259,8 +3258,6 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
-/// Sets envelope to off (will interpolate through this render window).
-/// Returns whether voice should still be left active
 bool Voice::doImmediateRelease() {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalOff();
