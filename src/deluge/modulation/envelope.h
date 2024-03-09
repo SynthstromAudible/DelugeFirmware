@@ -42,6 +42,7 @@ public:
 	               const uint16_t* releaseTable);
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
 	                          uint32_t newFastReleaseIncrement = 4096);
+	void unconditionalOff();
 	void resumeAttack(int32_t oldLastValue);
 	void resetTimeEntered();
 
