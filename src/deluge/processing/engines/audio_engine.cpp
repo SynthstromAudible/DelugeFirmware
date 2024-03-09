@@ -279,7 +279,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		if (justDoFastRelease) {
-			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE
+			    || bestVoice->envelopes[0].fastReleaseIncrement < 65536) {
 				bool stillGoing = bestVoice->doFastRelease(65536);
 
 				if (!stillGoing) {
@@ -293,7 +294,11 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 			}
 
 			else if (definitelyCull) {
-				unassignVoice(bestVoice, bestVoice->assignedToSound);
+				bool stillGoing = bestVoice->doImmediateRelease();
+
+				if (!stillGoing) {
+					unassignVoice(bestVoice, bestVoice->assignedToSound);
+				}
 #if ALPHA_OR_BETA_VERSION
 				D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 				          getNumVoices(), getNumAudio());

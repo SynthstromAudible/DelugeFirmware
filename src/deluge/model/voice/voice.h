@@ -96,7 +96,7 @@ public:
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
 	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
-	bool doFastRelease(uint32_t releaseIncrement = 4096);
+
 	void randomizeOscPhases(Sound* sound);
 	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
@@ -105,6 +105,14 @@ public:
 	uint32_t getPriorityRating();
 	void expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s);
 	void expressionEventSmooth(int32_t newValue, int32_t s);
+
+	/// Release immediately with provided release rate
+	/// Returns whether voice should still be left active
+	bool doFastRelease(uint32_t releaseIncrement = 4096);
+
+	/// Sets envelope to off (will interpolate through this render window).
+	/// Returns whether voice should still be left active
+	bool doImmediateRelease();
 
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
