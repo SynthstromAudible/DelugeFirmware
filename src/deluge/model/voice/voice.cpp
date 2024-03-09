@@ -3246,10 +3246,21 @@ storePhase:
 	}
 }
 
-// Returns whether voice should still be left active
 bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
+		return true;
+	}
+
+	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
+	else {
+		return false;
+	}
+}
+
+bool Voice::doImmediateRelease() {
+	if (doneFirstRender) {
+		envelopes[0].unconditionalOff();
 		return true;
 	}
 
