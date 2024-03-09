@@ -197,6 +197,7 @@ std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 	"ARABIAN",
 	"WHOLE TONE",
 	"BLUES",
+	"CELTIC",
 	"PENTATONIC MINOR",
 	"HIRAJOSHI",
 };
@@ -305,6 +306,7 @@ const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		// 6-note scales
 		{0, 2, 4, 6, 8, 10, 0}, // WHOL Whole Tone (matches Launchpad and Lumi scale)
 		{0, 3, 5, 6, 7, 10, 0}, // BLUE Blues Minor (matches Launchpad and Lumi BLUES scale)
+		{0, 2, 3, 5, 7, 10, 0}, // CELT Celtic Minor
 		// 5-note scales
 		{0, 3, 5, 7, 10, 0, 0}, // PENT Pentatonic Minor (matches Launchpad and Lumi scale)
 		{0, 2, 3, 7, 8, 0, 0},  // HIRA Hirajoshi (matches Launchpad scale)
