@@ -2,13 +2,14 @@ import time
 import binascii
 import argparse
 import util
+import itertools
 import rtmidi
 
 
 def argparser():
     midiout = rtmidi.MidiOut()
     available_ports = midiout.get_ports()
-    s = "\nusage example: dbt loadfw 123 abcd1243 /path/deluge.bin"
+    s = "\n\nusage example: dbt loadfw 123 abcd1243 /path/deluge.bin"
     s += "\n\nloads /path/deluge.bin to the deluge with key abcd1243, connected on MIDI port # 123"
     s += "\n\nAvailable MIDI ports:\n\n"
     for i, p in enumerate(available_ports):
@@ -24,8 +25,7 @@ def argparser():
     parser.group = "Development"
     parser.add_argument(
         "port_number",
-        help="MIDI port number (example: 123) use 'dbt loadfw -h' to list available ports",
-        type=int,
+        help="MIDI port number (example: 123). Use 'dbt loadfw -h' to list available ports.",
     )
     parser.add_argument("hex_key", help="8-digit Deluge Hex Key (example 1234abcd)")
     parser.add_argument(
@@ -36,8 +36,14 @@ def argparser():
         "-d",
         default=2,
         type=int,
-        help="Delay in milliseconds between SysEx packets. Default is 2. Increase in case of checksum errors.",
+        help="Delay in ms between SysEx packets. Default is 2. Increase in case of checksum errors.",
     )
+    parser.add_argument(
+        "-o",
+        action="store_true",
+        help="Output SysEx data to file. Specify filename instead of port number.",
+    )
+
     return parser
 
 
@@ -69,12 +75,10 @@ def deluge_sysex_message_firmware_segment(segment_number, segment_data, handshak
     data[5] = 3  # Deluge Debug
     data[6] = 1  # Deluge Send Firmware
 
-    data[7:12] = pack_8_to_7_bits(
-        handshake.to_bytes(4, byteorder="little"), 5
-    )  # Packed Handshake
+    data[7:12] = pack_8_to_7_bits(handshake.to_bytes(4, byteorder="little"), 5)
 
-    data[12] = segment_number & 0x7F  # Position Low
-    data[13] = (segment_number >> 7) & 0x7F  # Position High
+    data[12] = segment_number & 0x7F  # Position Lower 7 bits
+    data[13] = (segment_number >> 7) & 0x7F  # Position Upper 7 bits
 
     data[14:-1] = pack_8_to_7_bits(segment_data, 586)  # Packed Data
 
@@ -108,39 +112,41 @@ def deluge_sysex_message_firmware_load(checksum, length, handshake):
     return data
 
 
-def binary_to_indexed_512_byte_chunks(binary):
-    return list(
-        enumerate((binary[pos : pos + 512] for pos in range(0, len(binary), 512)))
-    )
-
-
-def load_fw(port, handshake, file, delay_ms=2):
-
-    with open(file, "rb") as f:
-        binary = f.read()
+def make_sysex_messages(binary, handshake):
     checksum = binascii.crc32(binary)
     length = len(binary)
+    messages = []
+    for i, segment in enumerate(itertools.batched(binary, 512)):
+        messages.append(deluge_sysex_message_firmware_segment(i, segment, handshake))
+    messages.append(deluge_sysex_message_firmware_load(checksum, length, handshake))
+    return messages
 
-    midiout = rtmidi.MidiOut()
-    midiout.open_port(port)
-    with midiout:
 
-        for i, segment in util.progressbar(
-            binary_to_indexed_512_byte_chunks(binary), "Firmware Upload "
-        ):
+def load_fw(port, handshake, file, delay_ms=2, output_to_file=False):
+    with open(file, "rb") as f:
+        binary = f.read()
 
-            msg = deluge_sysex_message_firmware_segment(i, segment, handshake)
-            midiout.send_message(msg)
-            time.sleep(0.001 * delay_ms)
+    sysex_data = make_sysex_messages(binary, handshake)
 
-        msg = deluge_sysex_message_firmware_load(checksum, length, handshake)
-        midiout.send_message(msg)
+    if output_to_file:
+        with open(port, "wb") as f:
+            text = f"Writing SysEx File '{f.name}': "
+            for msg in util.progressbar(sysex_data, text):
+                f.write(msg)
+
+    else:
+        midiout = rtmidi.MidiOut()
+        midiout.open_port(int(port))
+        with midiout:
+            for msg in util.progressbar(sysex_data, "Firmware Upload: "):
+                midiout.send_message(msg)
+                time.sleep(0.001 * delay_ms)
 
 
 def main():
     parser = argparser()
     args = parser.parse_args()
-    load_fw(args.port_number, int(args.hex_key, 16), args.firmware_file, args.d)
+    load_fw(args.port_number, int(args.hex_key, 16), args.firmware_file, args.d, args.o)
 
 
 if __name__ == "__main__":
