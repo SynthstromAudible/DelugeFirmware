@@ -182,24 +182,83 @@ void KeyboardScreen::updateActiveNotes() {
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
+	// Map from the current index of a note to its index in the previous note state.
+	//
+	// -1 if the note was not present in the previous
+	std::array<size_t, kMaxNumActiveNotes> currentToLastIdx;
+	{
+		size_t currentIdx;
+		for (currentIdx = 0; currentIdx < currentNotesState.count; ++currentIdx) {
+			auto& currentNote = currentNotesState.notes[currentIdx];
+			size_t lastIdx;
+
+			// Minor optimization: if we know the note can't be enabled, immediately write -1 and go next
+			if (!lastNotesState.noteEnabled(currentNote.note)) {
+				currentToLastIdx[currentIdx] = -1;
+				continue;
+			}
+
+			static_assert(kMaxNumActiveNotes < 12, "N2 loop below, performance will suffer");
+			for (lastIdx = 0; lastIdx < lastNotesState.count; ++lastIdx) {
+				auto& lastNote = lastNotesState.notes[lastIdx];
+
+				if (lastNote.note == currentNote.note) {
+					currentToLastIdx[currentIdx] = lastIdx;
+					break;
+				}
+			}
+
+			if (lastIdx == lastNotesState.count) {
+				// Failed to find in previous notes
+				currentToLastIdx[currentIdx] = -1;
+			}
+		}
+
+		for (; currentIdx < currentToLastIdx.size(); ++currentIdx) {
+			currentToLastIdx[currentIdx] = -1;
+		}
+	}
+
+	// Send note-offs for things we're going to retrigger
+	for (auto idx = 0; idx < currentNotesState.count; ++idx) {
+		if (currentToLastIdx[idx] < 0) {
+			// Note was not on in the last pass, can not require retriggering.
+			continue;
+		}
+		auto& currentNote = currentNotesState.notes[idx];
+		auto& oldNote = lastNotesState.notes[currentToLastIdx[idx]];
+		if (oldNote.activationCount < currentNote.activationCount) {
+			// Retrigger required.
+			noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, currentNote.note);
+		}
+	}
+
 	// Handle added notes
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
-		uint8_t newNote = currentNotesState.notes[idx].note;
-		if (lastNotesState.noteEnabled(newNote)) {
-			continue; // Note was enabled before
-		}
+		auto& newNoteState = currentNotesState.notes[idx];
+		auto newNote = newNoteState.note;
 
-		// Flash Song button if another clip with the same instrument is currently playing
-		if (!clipIsActiveOnInstrument && currentNotesState.count > 0) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
-		}
+		if (currentToLastIdx[idx] == -1) {
+			// This is a completely new note, handle stuff that we don't want to do for retriggers
+			//
+			// Flash Song button if another clip with the same instrument is currently playing
+			if (!clipIsActiveOnInstrument && currentNotesState.count > 0) {
+				indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
+			}
 
-		// If note range menu is open and row is
-		if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
-		    && activeInstrument->type == OutputType::SYNTH) {
-			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-				menu_item::multiRangeMenu.noteOnToChangeRange(newNote
-				                                              + ((SoundInstrument*)activeInstrument)->transpose);
+			// If note range menu is open and row is
+			if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
+			    && activeInstrument->type == OutputType::SYNTH) {
+				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+					menu_item::multiRangeMenu.noteOnToChangeRange(newNote
+					                                              + ((SoundInstrument*)activeInstrument)->transpose);
+				}
+			}
+		}
+		else {
+			NoteState& oldNote = lastNotesState.notes[currentToLastIdx[idx]];
+			if (oldNote.activationCount >= newNoteState.activationCount) {
+				continue;
 			}
 		}
 
@@ -221,16 +280,19 @@ void KeyboardScreen::updateActiveNotes() {
 			                              currentNotesState.notes[idx].mpeValues);
 		}
 
-		if (!currentNotesState.notes[idx].generatedNote) {
-			drawNoteCode(newNote);
-		}
-		enterUIMode(UI_MODE_AUDITIONING);
+		// Post sound logic for non-retrigger events
+		if (currentToLastIdx[idx] == -1) {
+			if (!currentNotesState.notes[idx].generatedNote) {
+				drawNoteCode(newNote);
+			}
+			enterUIMode(UI_MODE_AUDITIONING);
 
-		// Begin resampling - yup this is even allowed if we're in the card routine!
-		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
-		    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-			audioRecorder.beginOutputRecording();
-			Buttons::recordButtonPressUsedUp = true;
+			// Begin resampling - yup this is even allowed if we're in the card routine!
+			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
+			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
+				audioRecorder.beginOutputRecording();
+				Buttons::recordButtonPressUsedUp = true;
+			}
 		}
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
@@ -278,31 +340,7 @@ void KeyboardScreen::updateActiveNotes() {
 			continue;
 		} // Note is still enabled
 
-		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->activeClip)->getNoteRowForYNote(oldNote);
-		if (noteRow) {
-			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
-				continue; // Note was activated by sequence
-			}
-		}
-
-		if (activeInstrument->type == OutputType::KIT) {
-			unscrolledPadAudition(0, oldNote, false);
-		}
-		else {
-			((MelodicInstrument*)activeInstrument)->endAuditioningForNote(modelStack, oldNote);
-		}
-
-		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(getCurrentClip());
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getCurrentInstrumentClip()->getNoteRowForYNote(oldNote, modelStackWithTimelineCounter);
-			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-				getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
-			}
-		}
+		noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, oldNote);
 	}
 
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
@@ -313,6 +351,34 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 		else {
 			redrawNumericDisplay();
+		}
+	}
+}
+
+void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument,
+                             int32_t note) {
+	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.activeClip))->getNoteRowForYNote(note);
+	if (noteRow) {
+		if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			return; // Note was activated by sequence
+		}
+	}
+
+	if (activeInstrument.type == OutputType::KIT) {
+		unscrolledPadAudition(0, note, false);
+	}
+	else {
+		(static_cast<MelodicInstrument*>(&activeInstrument))->endAuditioningForNote(&modelStack, note);
+	}
+
+	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
+	if (activeInstrument.type != OutputType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
+	    && currentSong->isClipActive(getCurrentClip())) {
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack.addTimelineCounter(getCurrentClip());
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    getCurrentInstrumentClip()->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
 		}
 	}
 }

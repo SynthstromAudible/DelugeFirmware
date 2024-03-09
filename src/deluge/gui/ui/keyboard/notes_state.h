@@ -18,8 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "util/misc.h"
+#include <climits>
 #include <cstdint>
 #include <cstring>
+#include <ranges>
 
 constexpr uint8_t kMaxNumActiveNotes = 10;
 
@@ -36,6 +39,9 @@ struct PressedPad : Cartesian {
 
 struct NoteState {
 	uint8_t note = 0;
+	/// Number of times this note has been activated.
+	/// Used to detect retriggers
+	uint8_t activationCount = 0;
 	uint8_t velocity = 0;
 	int16_t mpeValues[3] = {0};
 	/// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
@@ -46,12 +52,28 @@ struct NoteState {
 constexpr uint8_t kLowestKeyboardNote = 0;
 constexpr uint8_t kHighestKeyboardNote = kOctaveSize * 12;
 struct NotesState {
-	uint64_t states[3] = {0};
-	NoteState notes[kMaxNumActiveNotes] = {0};
+	using NoteArray = std::array<NoteState, kMaxNumActiveNotes>;
+
+	uint64_t states[util::div_ceil(size_t{kHighestKeyboardNote}, size_t{64})] = {0};
+	NoteArray notes;
 	uint8_t count = 0;
+
+	[[nodiscard]] NoteArray::iterator begin() { return notes.begin(); }
+
+	[[nodiscard]] NoteArray::iterator end() { return notes.begin() + count; }
+
+	[[nodiscard]] NoteArray::const_iterator begin() const { return notes.begin(); }
+
+	[[nodiscard]] NoteArray::const_iterator end() const { return notes.end() + count; }
 
 	void enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false, int16_t* mpeValues = nullptr) {
 		if (noteEnabled(note)) {
+			for (auto& noteState : *this) {
+				if (noteState.note == note) {
+					noteState.activationCount++;
+					break;
+				}
+			}
 			return;
 		}
 		notes[count].note = note;

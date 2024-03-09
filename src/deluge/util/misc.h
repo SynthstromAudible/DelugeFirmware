@@ -75,6 +75,16 @@ template <typename T>
 [[nodiscard]] constexpr T map(T x, T in_min, T in_max, T out_min, T out_max) {
 	return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
 }
+
+/// Compute (a/b), rounding up.
+///
+/// @param a Numerator. Must be less than std::numeric_limits<T>::max() - (b - 1)
+/// @param b Denominator.
+template <std::integral T>
+[[nodiscard]] constexpr T div_ceil(T a, T b) {
+	return (a + (b - 1)) / b;
+}
+
 } // namespace util
 
 // unsigned literal operators
