@@ -1043,10 +1043,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (getRootUI() == &keyboardScreen) {
-		if (x < kDisplayWidth) {
-			keyboardScreen.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
-		}
+		keyboardScreen.padAction(x, y, on);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Audition pads
