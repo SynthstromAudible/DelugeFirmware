@@ -80,7 +80,7 @@ public:
 	void clipNeedsReRendering(Clip* clip) override;
 	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	void setLedStates();
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);

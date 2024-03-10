@@ -40,7 +40,7 @@ public:
 	Error performLoad(bool doClone = false);
 	Error performLoadSynthToKit();
 	ActionResult timerCallback();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {

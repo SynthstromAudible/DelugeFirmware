@@ -55,7 +55,7 @@ public:
 	bool opened();
 	void focusRegained();
 	void displayOrLanguageChanged() final;
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
 	int8_t currentSourceIndex;
