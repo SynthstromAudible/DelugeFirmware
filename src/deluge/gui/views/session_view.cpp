@@ -1826,12 +1826,6 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
-		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
-	}
-
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
 	}
