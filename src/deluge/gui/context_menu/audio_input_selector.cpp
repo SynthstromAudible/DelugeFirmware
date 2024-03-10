@@ -112,7 +112,7 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 	return true;
 }
 
-bool AudioInputSelector::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool AudioInputSelector::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*rows = getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput);
 	return true;
 }

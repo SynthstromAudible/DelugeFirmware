@@ -54,7 +54,7 @@ bool RenameOutputUI::opened() {
 	return true;
 }
 
-bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool RenameOutputUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b11;
 	return true;
 }

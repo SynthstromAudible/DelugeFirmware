@@ -120,7 +120,7 @@ public:
 		return false;
 	} // Returns whether it was used, I think?
 
-	virtual bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+	virtual bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 		return false;
 	} // Returning false means obey UI under me
 
@@ -163,7 +163,7 @@ void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
 bool rootUIIsTimelineView();
 bool rootUIIsClipMinderScreen();
-std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols();
+std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();
 
 void uiNeedsRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
