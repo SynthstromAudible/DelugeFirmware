@@ -3353,6 +3353,11 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 						renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 					}
 				}
+				else {
+					// Some other top-level view currently, don't overwrite the active ModControllable but do request
+					// rendering
+					renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
+				}
 			}
 		}
 	}
@@ -4247,6 +4252,12 @@ drawNormally:
 
 		// Kit - draw "selected Drum"
 		if (getCurrentOutputType() == OutputType::KIT) {
+			if (getCurrentUI() != this) {
+				// we're not the top-level UI, just turn the pad off
+				thisColour = colours::black;
+				return;
+			}
+
 			NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 			if (noteRow != NULL && noteRow->drum != NULL && noteRow->drum == getCurrentKit()->selectedDrum) {
 
