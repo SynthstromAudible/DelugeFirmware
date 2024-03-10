@@ -209,7 +209,7 @@ public:
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
-	uint32_t ratchetNotesNumber = 0;
+	uint32_t ratchetNotesCount = 0;
 	bool isRatcheting = false;
 
 	// Unpatched Automated Params
@@ -220,7 +220,8 @@ public:
 protected:
 	void resetRatchet();
 	void resetRhythm();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
+	void increaseSequenceAndRhythmIndexes(ArpeggiatorSettings* settings);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
@@ -238,6 +239,8 @@ public:
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 
 protected:
+	void calculateNextOctave(ArpeggiatorSettings* settings);
+	void setInitialOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 	bool hasAnyInputNotesActive();
 };
@@ -260,5 +263,7 @@ public:
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:
+	void calculateNextNoteAndOrOctave(ArpeggiatorSettings *settings);
+	void setInitialNoteAndOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 };
