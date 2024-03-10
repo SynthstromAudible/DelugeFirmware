@@ -40,7 +40,7 @@ public:
 		return soundEditor.editingCVOrMIDIClip();
 	}
 
-	void drawValue() override { display->setText(arpRhythmPatternNames[this->getValue()]); }
+	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		deluge::hid::display::OLED::drawStringCentred(

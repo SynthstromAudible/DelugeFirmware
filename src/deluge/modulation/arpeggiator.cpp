@@ -764,8 +764,8 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
-                             uint32_t ratchProb, ArpReturnInstruction* instruction) {
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
+                             uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}

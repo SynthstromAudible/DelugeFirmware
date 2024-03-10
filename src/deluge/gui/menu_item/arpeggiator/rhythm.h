@@ -29,7 +29,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_PRESET_ARP_RHYTHMS - 1; }
 
-	void drawValue() override { display->setText(arpRhythmPatternNames[this->getValue()]); }
+	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		deluge::hid::display::OLED::drawStringCentred(
