@@ -34,7 +34,7 @@ public:
 	SampleMarkerEditor();
 
 	bool opened();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	void selectEncoderAction(int8_t offset);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
