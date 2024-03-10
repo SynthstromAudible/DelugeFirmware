@@ -49,7 +49,7 @@ bool RenameDrumUI::opened() {
 	return true;
 }
 
-bool RenameDrumUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool RenameDrumUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b11;
 	return true;
 }

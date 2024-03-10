@@ -62,7 +62,7 @@ AudioRecorder::AudioRecorder() {
 	recorder = NULL;
 }
 
-bool AudioRecorder::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }

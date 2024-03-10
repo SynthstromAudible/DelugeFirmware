@@ -52,7 +52,7 @@ LoadInstrumentPresetUI loadInstrumentPresetUI{};
 LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
 }
 
-bool LoadInstrumentPresetUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
 		*cols = 0b10;
 	}
