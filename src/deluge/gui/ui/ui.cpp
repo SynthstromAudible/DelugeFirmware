@@ -333,7 +333,7 @@ void doAnyPendingUIRendering() {
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
 	// Clear the overall instructions - so it may now be written to again during this function call
-	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	clearPendingUIRendering();
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 
