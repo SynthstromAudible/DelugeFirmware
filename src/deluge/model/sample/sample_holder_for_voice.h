@@ -34,9 +34,12 @@ public:
 	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
 
-	// In samples. 0 means not set
+	/// In samples. 0 means not set.
 	uint32_t loopStartPos;
-	uint32_t loopEndPos; // Unlike endPos, this may not be beyond the waveform ever!
+	/// In samples, 0 means no looping active.
+	///
+	/// Unlike endPos, this may not be beyond the waveform ever!
+	uint32_t loopEndPos;
 
 	int16_t transpose;
 	int8_t cents;
