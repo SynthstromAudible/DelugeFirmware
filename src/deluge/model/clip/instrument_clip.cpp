@@ -55,6 +55,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
 	arpeggiatorSequenceLength = 0;
+	arpeggiatorRhythm = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -145,6 +146,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
+	arpeggiatorRhythm = otherInstrumentClip->arpeggiatorRhythm;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2341,7 +2343,6 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-			storageManager.writeAttribute("rhythm", arpSettings.rhythm);
 			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
 
@@ -2351,6 +2352,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 				storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+				storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
 			}
 			storageManager.closeTag();
 		}
@@ -2627,13 +2629,13 @@ someError:
 					arpeggiatorSequenceLength = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("sequenceLength");
 				}
+				else if (!strcmp(tagName, "rhythm")) {
+					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("numOctaves");
-				}
-				else if (!strcmp(tagName, "rhythm")) {
-					arpSettings.rhythm = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();

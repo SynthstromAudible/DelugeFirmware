@@ -15,19 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Rhythm final : public UnpatchedParam {
+namespace deluge::gui::menu_item::arpeggiator::midi_cv {
+class Rhythm final : public Integer {
 public:
-	using UnpatchedParam::UnpatchedParam;
-
-	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	using Integer::Integer;
+	void readCurrentValue() override {
+		auto* current_clip = getCurrentInstrumentClip();
+		int64_t value = (int64_t)current_clip->arpeggiatorRhythm;
+		this->setValue((value * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32);
+	}
+	void writeCurrentValue() override {
+		getCurrentInstrumentClip()->arpeggiatorRhythm = (uint32_t)this->getValue() * 85899345;
+	}
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_PRESET_ARP_RHYTHMS - 1; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return soundEditor.editingCVOrMIDIClip();
+	}
 
 	void drawValue() override { display->setText(arpRhythmPatternNames[this->getValue()]); }
 
@@ -36,10 +47,5 @@ public:
 		    arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL,
 		    deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
 	}
-
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip();
-	}
 };
-
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator::midi_cv

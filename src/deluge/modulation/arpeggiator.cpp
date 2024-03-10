@@ -340,7 +340,7 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 		else if (settings->syncLevel == SyncLevel::SYNC_LEVEL_64TH) {
 			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
 			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
-			ratchetNotesNumber = std::max(4_u32, ratchetNotesNumber);
+			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
 		}
 	}
 	else {
@@ -351,10 +351,10 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 }
 
 // Returns if the note should be played or not
-bool ArpeggiatorBase::evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex) {
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+bool ArpeggiatorBase::evaluateRhythm(int32_t rhythmPatternIndex) {
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
 	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index
-	return arpRhythmPatterns[settings->rhythm].steps[rhythmPatternIndex];
+	return arpRhythmPatterns[rhythm].steps[rhythmPatternIndex];
 }
 
 void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
@@ -403,11 +403,11 @@ void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
 }
 
 // Increase sequence and rhythm indexes
-void ArpeggiatorBase::increaseSequenceAndRhythmIndexes(ArpeggiatorSettings* settings) {
+void ArpeggiatorBase::increaseSequenceAndRhythmIndexes() {
 	if (maxSequenceLength > 0) {
 		notesPlayedFromSequence++;
 	}
-	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[settings->rhythm].length;
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
 }
 
 void ArpeggiatorForDrum::calculateNextOctave(ArpeggiatorSettings* settings) {
@@ -461,7 +461,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		notesPlayedFromRhythm = 0;
 	}
 
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
 	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
 	if (isRatchet) {
 		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
@@ -470,7 +470,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			rhythmPatternIndex = numberOfRhythmSteps - 1;
 		}
 	}
-	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
+	bool shouldPlayNote = evaluateRhythm(rhythmPatternIndex);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -488,7 +488,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseSequenceAndRhythmIndexes(settings);
+		increaseSequenceAndRhythmIndexes();
 	}
 
 	if (shouldPlayNote) {
@@ -681,7 +681,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[settings->rhythm].length;
+	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
 	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
 	if (isRatchet) {
 		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
@@ -690,7 +690,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			rhythmPatternIndex = numberOfRhythmSteps - 1;
 		}
 	}
-	bool shouldPlayNote = evaluateRhythm(settings, rhythmPatternIndex);
+	bool shouldPlayNote = evaluateRhythm(rhythmPatternIndex);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -708,7 +708,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseSequenceAndRhythmIndexes(settings);
+		increaseSequenceAndRhythmIndexes();
 	}
 
 	// Clamp the index to real range
@@ -764,14 +764,17 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t ratchAmount, uint32_t ratchProb,
-                             ArpReturnInstruction* instruction) {
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
+                             uint32_t ratchProb, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
+
+	// Update live Sequence Length value with the most up to date value from automation
+	rhythm = (((int64_t)rhythmValue) * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32; // in the range 0-50
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
