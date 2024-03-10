@@ -252,3 +252,4 @@ private:
 
 extern PlaybackHandler playbackHandler;
 extern int noteOnsThisTick;
+extern int maxNoteOnsThisTick;

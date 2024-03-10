@@ -900,7 +900,7 @@ doNewProbability:
 		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
 	}
 	uint8_t numPending = skippedNoteOns.length();
-	for (int i = 0; i < numPending && noteOnsThisTick < 1; i++) {
+	for (int i = 0; i < numPending && noteOnsThisTick < maxNoteOnsThisTick; i++) {
 		sendPendingNoteOn(modelStack, skippedNoteOns.pop());
 	}
 	if (skippedNoteOns.length() > 0) {

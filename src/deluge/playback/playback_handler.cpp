@@ -717,8 +717,10 @@ void PlaybackHandler::doMIDIClockOutTick() {
 }
 
 int noteOnsThisTick = 0;
+int maxNoteOnsThisTick = 0;
 void PlaybackHandler::actionSwungTick() {
 	noteOnsThisTick = 0;
+	maxNoteOnsThisTick = std::max<int>(1, 14 - AudioEngine::cpuDireness);
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
