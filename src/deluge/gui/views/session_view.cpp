@@ -88,7 +88,7 @@ SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		switch (currentSong->sessionLayout) {
 		case SessionLayoutType::SessionLayoutTypeRows: {

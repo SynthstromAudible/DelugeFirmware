@@ -37,7 +37,7 @@ class AudioRecorder final : public UI {
 public:
 	AudioRecorder();
 	bool opened();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();

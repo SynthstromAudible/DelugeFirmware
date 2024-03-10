@@ -39,7 +39,7 @@ public:
 
 	virtual Sized<char const**> getOptions() = 0;
 
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool setupAndCheckAvailability();
 

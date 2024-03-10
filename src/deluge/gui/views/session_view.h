@@ -44,7 +44,7 @@ extern const uint8_t defaultClipGroupColours[];
 class SessionView final : public ClipNavigationTimelineView {
 public:
 	SessionView();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
 
