@@ -72,7 +72,7 @@ struct PendingNoteOnList {
 		}
 		return &pendingNoteOns[0];
 	}
-	bool hasSpace() { return count < kMaxNumNoteOnsPending; }
+	bool hasSpace() { return (count + 1) < kMaxNumNoteOnsPending; }
 	uint8_t length() { return count; }
 };
 
