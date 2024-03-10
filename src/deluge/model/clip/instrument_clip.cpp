@@ -888,9 +888,6 @@ doNewProbability:
 			}
 
 			if (conditionPassed) {
-				if (i == 0) {
-					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
-				}
 				storePendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 			}
 			else {
@@ -903,8 +900,13 @@ doNewProbability:
 		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
 	}
 	uint8_t numPending = skippedNoteOns.length();
-	for (int i = 0; i < 2 && i < numPending; i++) {
+	for (int i = 0; i < numPending && noteOnsThisTick < 1; i++) {
 		sendPendingNoteOn(modelStack, skippedNoteOns.pop());
+	}
+	if (skippedNoteOns.length() > 0) {
+		// come back immediately to start the skipped note
+		playbackHandler.swungTicksTilNextEvent = 1;
+		D_PRINTLN("skipped %d notes", skippedNoteOns.length());
 	}
 }
 
@@ -912,7 +914,9 @@ void InstrumentClip::storePendingNoteOn(ModelStackWithTimelineCounter* modelStac
 	if (skippedNoteOns.hasSpace()) {
 		skippedNoteOns.push(*pendingNoteOn);
 	}
-	sendPendingNoteOn(modelStack, pendingNoteOn);
+	else {
+		sendPendingNoteOn(modelStack, pendingNoteOn);
+	}
 }
 
 void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {

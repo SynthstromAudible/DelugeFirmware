@@ -27,6 +27,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -100,6 +101,7 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 
 	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
 	              fromMIDIChannel);
+	noteOnsThisTick += 1;
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);

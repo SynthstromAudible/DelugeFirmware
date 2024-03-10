@@ -251,3 +251,4 @@ private:
 };
 
 extern PlaybackHandler playbackHandler;
+extern int noteOnsThisTick;

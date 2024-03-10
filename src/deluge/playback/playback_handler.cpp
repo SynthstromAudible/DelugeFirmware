@@ -716,8 +716,9 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	midiEngine.sendClock(true);
 }
 
+int noteOnsThisTick = 0;
 void PlaybackHandler::actionSwungTick() {
-
+	noteOnsThisTick = 0;
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
@@ -789,6 +790,7 @@ void PlaybackHandler::actionSwungTick() {
 	swungTicksTilNextEvent = 2147483647;
 
 	if (isEitherClockActive()) { // Occasionally, considerLaunchEvent() will stop playback
+
 		currentPlaybackMode->doTickForward(swungTickIncrement);
 
 		if (isEitherClockActive()) { // Occasionally, doTickForward() will stop playback
