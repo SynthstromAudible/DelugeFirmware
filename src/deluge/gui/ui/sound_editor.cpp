@@ -142,7 +142,7 @@ bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
-bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}

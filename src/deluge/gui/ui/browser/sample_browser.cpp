@@ -502,7 +502,7 @@ gotError:
 	return Error::NONE;
 }
 
-bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
 		*cols = 0b10;
