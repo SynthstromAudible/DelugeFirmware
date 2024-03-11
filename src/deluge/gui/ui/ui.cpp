@@ -61,13 +61,13 @@ UI* lastUIBeforeNullifying = nullptr;
  *
  * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
  */
-std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols() {
+std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 	uint32_t cols = 0;
 	uint32_t rows = 0;
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(&cols, &rows);
+		bool useThis = uiNavigationHierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
 		if (useThis) {
-			return std::make_pair(rows, cols);
+			return std::make_pair(cols, rows);
 		}
 	}
 	return std::make_pair(0, 0);
@@ -333,7 +333,7 @@ void doAnyPendingUIRendering() {
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
 	// Clear the overall instructions - so it may now be written to again during this function call
-	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	clearPendingUIRendering();
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 

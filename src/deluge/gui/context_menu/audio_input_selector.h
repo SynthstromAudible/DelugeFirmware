@@ -28,7 +28,7 @@ class AudioInputSelector final : public ContextMenu {
 
 public:
 	AudioInputSelector() = default;
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }

@@ -88,7 +88,7 @@ SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		switch (currentSong->sessionLayout) {
 		case SessionLayoutType::SessionLayoutTypeRows: {
@@ -1826,12 +1826,6 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
-		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
-	}
-
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
 	}

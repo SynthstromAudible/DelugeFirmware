@@ -79,7 +79,7 @@ SampleControls* getCurrentSampleControls() {
 	}
 }
 
-bool SampleMarkerEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SampleMarkerEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b10;
 	return true;
 }
@@ -157,7 +157,8 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	else if (markerTypeNow == MarkerType::LOOP_END) {
 		if (loopLocked) {
 			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
-			if (intendedLoopStartPos >= 0
+			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
+			if (intendedLoopStartPos >= 1
 			    && static_cast<uint64_t>(intendedLoopStartPos) >= getCurrentSampleHolder()->startPos) {
 				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;

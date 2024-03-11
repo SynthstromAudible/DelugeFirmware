@@ -142,7 +142,7 @@ bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
-bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
@@ -1043,10 +1043,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (getRootUI() == &keyboardScreen) {
-		if (x < kDisplayWidth) {
-			keyboardScreen.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
-		}
+		keyboardScreen.padAction(x, y, on);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Audition pads

@@ -3200,7 +3200,7 @@ void ArrangerView::notifyPlaybackBegun() {
 	}
 }
 
-bool ArrangerView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool ArrangerView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		*cols = 0xFFFFFFFD;
 		*rows = 0;

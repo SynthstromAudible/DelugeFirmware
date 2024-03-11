@@ -25,7 +25,7 @@
 
 namespace deluge::gui {
 
-bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool ContextMenu::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
 	return true;
 }

@@ -369,17 +369,19 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
 	// into the delay
 	for (auto [input, output] : std::views::zip(working_buffer, buffer)) {
+		StereoSample current = input;
+
 		// Feedback calculation, and combination with input
 		if (pingPong && AudioEngine::renderInStereo) {
-			input.l = input.r;
-			input.r = ((output.l + output.r) >> 1) + input.l;
+			input.l = current.r;
+			input.r = ((output.l + output.r) >> 1) + current.l;
 		}
 		else {
 			input += output;
 		}
 
 		// Output
-		output += input;
+		output += current;
 	}
 
 	// And actually feedback being applied back into the actual delay primary buffer...

@@ -38,7 +38,7 @@ class Sample;
 class SampleBrowser final : public Browser {
 public:
 	SampleBrowser();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
