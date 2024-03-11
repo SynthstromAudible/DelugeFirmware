@@ -28,6 +28,10 @@ bool isParamPan(params::Kind kind, int32_t paramID) {
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
 }
 
+bool isParamArpRhythm(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
+}
+
 bool isParamPitch(params::Kind kind, int32_t paramID) {
 	if (kind == Kind::PATCHED) {
 		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)

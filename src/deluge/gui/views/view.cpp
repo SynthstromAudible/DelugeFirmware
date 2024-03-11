@@ -1061,6 +1061,14 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			popupMsg.append("64ths");
 		}
 	}
+	// if turning arpeggiator rhythm mod encoder
+	else if (isParamArpRhythm(kind, paramID)) {
+		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+		}
+		popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
+	}
 	else {
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		popupMsg.appendInt(valueForDisplay);
