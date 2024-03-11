@@ -1095,12 +1095,12 @@ doReadPatchedParam:
 
 			else if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.pingPong = std::max((int32_t)0, std::min((int32_t)1, contents));
+				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				storageManager.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.analog = std::max((int32_t)0, std::min((int32_t)1, contents));
+				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
 				storageManager.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
