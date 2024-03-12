@@ -288,6 +288,7 @@ public:
 
 	// Rhythm state
 	uint32_t notesPlayedFromRhythm = 0;
+	uint32_t lastNormalNotePlayedFromRhythm = 0;
 
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
@@ -307,7 +308,7 @@ protected:
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
 	void increaseSequenceAndRhythmIndexes();
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(int32_t rhythmPatternIndex);
+	bool evaluateRhythm(bool isRatchet);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);

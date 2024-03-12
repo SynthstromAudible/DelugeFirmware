@@ -69,6 +69,7 @@ void ArpeggiatorBase::resetRatchet() {
 
 void ArpeggiatorBase::resetRhythm() {
 	notesPlayedFromRhythm = 0;
+	lastNormalNotePlayedFromRhythm = 0;
 }
 
 void Arpeggiator::reset() {
@@ -350,10 +351,12 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	ratchetNotesIndex = 0;
 }
 
-// Returns if the note should be played or not
-bool ArpeggiatorBase::evaluateRhythm(int32_t rhythmPatternIndex) {
+// Returns if the note arpeggiator should advance to next note or not
+bool ArpeggiatorBase::evaluateRhythm(bool isRatchet) {
+	// If it is a rachet, use the last normal note played index, but it it is not a ratchet, play the new rhythm index
+	int32_t rhythmPatternIndex = isRatchet ? lastNormalNotePlayedFromRhythm : notesPlayedFromRhythm;
 	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
-	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index
+	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index just in case
 	return arpRhythmPatterns[rhythm].steps[rhythmPatternIndex];
 }
 
@@ -459,18 +462,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Reset indexes
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
+		lastNormalNotePlayedFromRhythm = 0;
 	}
 
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
-	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
-	if (isRatchet) {
-		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
-		rhythmPatternIndex--;
-		if (rhythmPatternIndex < 0) {
-			rhythmPatternIndex = numberOfRhythmSteps - 1;
-		}
-	}
-	bool shouldPlayNote = evaluateRhythm(rhythmPatternIndex);
+	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -479,19 +474,22 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	else {
 		// If this is a normal switchNoteOn event (not ratchet, and not silent) we take here the opportunity to setup a
 		// ratchet burst and also make all the necessary calculations for the next note to be played
-		if (shouldPlayNote) {
+		if (shouldCarryOnRhythmNote) {
 			// Setup ratchet
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
 			calculateNextOctave(settings);
+
+			// Save last note played from rhythm
+			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
 		increaseSequenceAndRhythmIndexes();
 	}
 
-	if (shouldPlayNote) {
+	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
 
@@ -677,20 +675,12 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		// Reset indexes
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
+		lastNormalNotePlayedFromRhythm = 0;
 		randomNotesPlayedFromOctave = 0;
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
-	int32_t rhythmPatternIndex = notesPlayedFromRhythm;
-	if (isRatchet) {
-		// if it is a rachet we must evaluate not this new note, but the previous one before incrementing the index
-		rhythmPatternIndex--;
-		if (rhythmPatternIndex < 0) {
-			rhythmPatternIndex = numberOfRhythmSteps - 1;
-		}
-	}
-	bool shouldPlayNote = evaluateRhythm(rhythmPatternIndex);
+	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -699,12 +689,15 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	else {
 		// If this is a normal switchNoteOn event (not ratchet, and not silent) we take here the opportunity to setup a
 		// ratchet burst and also make all the necessary calculations for the next note to be played
-		if (shouldPlayNote) {
+		if (shouldCarryOnRhythmNote) {
 			// Setup ratchet
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
 			calculateNextNoteAndOrOctave(settings);
+
+			// Save last note played from rhythm
+			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -722,7 +715,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
 
-	if (shouldPlayNote) {
+	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
 
