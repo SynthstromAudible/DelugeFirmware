@@ -29,7 +29,6 @@ import util
 
 
 def setup():
-
     if sys.platform == "win32" or (sys.platform == "cosmo" and cosmo.kernel == "nt"):
         dbtenvcmd = str(SCRIPTS_DIR / "toolchain" / "dbtenv.cmd").replace(
             os.sep, ntpath.sep
@@ -41,10 +40,11 @@ def setup():
         subprocess.run([b"bash", dbtenvcmd])
 
 
-
-def setup_vscode():
+def setup_ide_configs():
     if not os.path.exists(".vscode"):
         copy_tree("IDE_Configs/vscode", ".vscode")
+    if not os.path.exists(".idea"):
+        copy_tree("IDE_Configs/clion", ".idea")
 
 
 def print_tasks_usage(tasks):
@@ -98,7 +98,7 @@ def main() -> int:
     task_files = TASKS_DIR.glob("task-*.py")
 
     # copy vscode config to .vscode if it doesn't exist
-    setup_vscode()
+    setup_ide_configs()
 
     tasks = {}
     for task_file in task_files:
