@@ -1147,7 +1147,8 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					playbackStopped = false;
 				}
 
-				setKnobIndicatorLevels(modelStackWithParam, knobPos + kKnobPosOffset);
+				knobPos = knobPos + kKnobPosOffset;
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 		}
 	}
@@ -2785,9 +2786,9 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 			}
 
 			if (!playbackHandler.isEitherClockActive()) {
-				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
-
-				setKnobIndicatorLevels(modelStackWithParam, newKnobPos + kKnobPosOffset);
+				int32_t knobPos = newKnobPos + kKnobPosOffset;
+				renderDisplay(knobPos, kNoSelection, true);
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 
 			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
@@ -3382,8 +3383,9 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 
 	// in a multi pad press, no need to display all the values calculated
 	if (!multiPadPressSelected) {
-		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
-		setKnobIndicatorLevels(modelStack, knobPos + kKnobPosOffset);
+		int32_t newKnobPos = knobPos + kKnobPosOffset;
+		renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
+		setKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
 	}
 
 	// midi follow and midi feedback enabled
@@ -3403,13 +3405,7 @@ void AutomationView::setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 	if (kind == params::Kind::PATCH_CABLE) {
 		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
-		if (knobPosRight != kNoSelection) {
-			knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
-		}
-	}
-
-	if (knobPosRight == kNoSelection) {
-		knobPosRight = knobPosLeft;
+		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 	}
 
 	if (!indicator_leds::isKnobIndicatorBlinking(0)) {
@@ -3440,7 +3436,7 @@ void AutomationView::updateModPosition(ModelStackWithAutoParam* modelStack, uint
 				}
 
 				if (updateIndicatorLevels) {
-					setKnobIndicatorLevels(modelStack, knobPos);
+					setKnobIndicatorLevels(modelStack, knobPos, knobPos);
 				}
 			}
 		}
@@ -3845,8 +3841,7 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 			}
 		}
 
-		setKnobIndicatorLevels(modelStackWithParam, knobPosLeft,
-		                       knobPosLeft == knobPosRight ? kNoSelection : knobPosRight);
+		setKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 
 		// update position of mod controllable stack
 		updateModPosition(modelStackWithParam, squareStart, false, false);

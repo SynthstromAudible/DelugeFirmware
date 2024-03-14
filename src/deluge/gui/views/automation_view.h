@@ -221,8 +221,7 @@ private:
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);
-	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
-	                            int32_t knobPosRight = kNoSelection);
+	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
 	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
 	                       bool updateIndicatorLevels = true);
 
