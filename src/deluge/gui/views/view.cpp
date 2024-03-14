@@ -1254,18 +1254,17 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 /// if you're dealing with a patch cable which has a -128 to +128 range
 /// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
-	float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
+	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
 	// adjustment to make sure that when knobPos returned is 64, it's really 64
 	// the knob LED indicator is centred around 64
 	// so the knob pos returned from this function is used to blink the LED when it reaches 64
 	// so to make sure it doesn't blink twice (e.g. when the value is 64 and in between 64 and 65)
 	// we adjust it here so it only returns 64 once
-	if (floatKnobPos > 64 && floatKnobPos < 65) {
-		floatKnobPos = 65;
+	if (newKnobPos == 64 && knobPos != 0) {
+		newKnobPos += knobPos;
 	}
-	knobPos = static_cast<int32_t>(floatKnobPos); // this truncates the decimals (e.g. round down)
 
-	return knobPos;
+	return newKnobPos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
