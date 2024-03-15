@@ -111,9 +111,7 @@ public:
 	void writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine = true);
 
 private:
-
 public:
-
 	bool fileAccessFailedDuring;
 
 	FirmwareVersion firmware_version = FirmwareVersion::current();

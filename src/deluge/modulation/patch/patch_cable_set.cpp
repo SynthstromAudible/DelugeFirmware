@@ -794,7 +794,7 @@ done:
 	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
 }
 
-void PatchCableSet::readPatchCablesFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos) {
+void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 
 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
@@ -818,8 +818,8 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager &bdsm, int32_t readAu
 					source = stringToSource(bdsm.readTagOrAttributeValue());
 				}
 				else if (!strcmp(tagName, "destination")) {
-					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
-					    params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue()));
+					destinationParamDescriptor.setToHaveParamOnly(
+					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue()));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(bdsm, readAutomationUpToPos);
@@ -828,8 +828,7 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager &bdsm, int32_t readAu
 					rangeAdjustable = bdsm.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "depthControlledBy")) {
-					while (*(tagName = bdsm.readNextTagOrAttributeName())
-					       && numPatchCables < kMaxNumPatchCables - 1) {
+					while (*(tagName = bdsm.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables - 1) {
 						if (!strcmp(tagName, "patchCable")) {
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
@@ -926,7 +925,7 @@ abandonThisCable:
 	}
 }
 
-void PatchCableSet::writePatchCablesToFile(StorageManager &bdsm, bool writeAutomation) {
+void PatchCableSet::writePatchCablesToFile(StorageManager& bdsm, bool writeAutomation) {
 	if (!numPatchCables) {
 		return;
 	}
@@ -942,9 +941,9 @@ void PatchCableSet::writePatchCablesToFile(StorageManager &bdsm, bool writeAutom
 
 		bdsm.writeOpeningTagBeginning("patchCable");
 		bdsm.writeAttribute("source", sourceToString(patchCables[c].from));
-		bdsm.writeAttribute(
-		    "destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                            patchCables[c].destinationParamDescriptor.getJustTheParam()));
+		bdsm.writeAttribute("destination",
+		                    params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                             patchCables[c].destinationParamDescriptor.getJustTheParam()));
 
 		bdsm.write("\n");
 		bdsm.printIndents();

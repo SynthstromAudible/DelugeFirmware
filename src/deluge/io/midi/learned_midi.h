@@ -64,20 +64,26 @@ public:
 	// You must have determined that isForMPEZone() == true before calling this.
 	inline int32_t getMasterChannel() { return (channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE) * 15; }
 
-	void writeAttributesToFile(StorageManager &bdsm, int32_t midiMessageType);
-	void writeToFile(StorageManager &bdsm, char const* commandName,
+	void writeAttributesToFile(StorageManager& bdsm, int32_t midiMessageType);
+	void writeToFile(StorageManager& bdsm, char const* commandName,
 	                 int32_t midiMessageType); // Writes the actual tag in addition to the attributes
-	void readFromFile(StorageManager &bdsm, int32_t midiMessageType);
+	void readFromFile(StorageManager& bdsm, int32_t midiMessageType);
 
-	inline void writeNoteToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_NOTE); }
-	inline void writeCCToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_CC); }
-	inline void writeChannelToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_NONE); }
+	inline void writeNoteToFile(StorageManager& bdsm, char const* commandName) {
+		writeToFile(bdsm, commandName, MIDI_MESSAGE_NOTE);
+	}
+	inline void writeCCToFile(StorageManager& bdsm, char const* commandName) {
+		writeToFile(bdsm, commandName, MIDI_MESSAGE_CC);
+	}
+	inline void writeChannelToFile(StorageManager& bdsm, char const* commandName) {
+		writeToFile(bdsm, commandName, MIDI_MESSAGE_NONE);
+	}
 
-	inline void readNoteFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NOTE); }
-	inline void readCCFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_CC); }
-	inline void readChannelFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NONE); }
+	inline void readNoteFromFile(StorageManager& bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NOTE); }
+	inline void readCCFromFile(StorageManager& bdsm) { readFromFile(bdsm, MIDI_MESSAGE_CC); }
+	inline void readChannelFromFile(StorageManager& bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NONE); }
 
-	void readMPEZone(StorageManager &bdsm);
+	void readMPEZone(StorageManager& bdsm);
 
 	MIDIDevice* device;
 	// In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or

@@ -642,7 +642,7 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
 	return true;
 }
 
-void Clip::writeToFile(StorageManager &bdsm, Song* song) {
+void Clip::writeToFile(StorageManager& bdsm, Song* song) {
 
 	char const* xmlTag = getXMLTag();
 
@@ -653,7 +653,7 @@ void Clip::writeToFile(StorageManager &bdsm, Song* song) {
 	bdsm.writeClosingTag(xmlTag);
 }
 
-void Clip::writeDataToFile(StorageManager &bdsm, Song* song) {
+void Clip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("isPlaying", activeIfNoSolo);
 	bdsm.writeAttribute("isSoloing", soloingInSessionMode);
@@ -688,7 +688,7 @@ void Clip::writeDataToFile(StorageManager &bdsm, Song* song) {
 	muteMIDICommand.writeNoteToFile(bdsm, "muteMidiCommand");
 }
 
-void Clip::readTagFromFile(StorageManager &bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
+void Clip::readTagFromFile(StorageManager& bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
 
 	if (!strcmp(tagName, "isPlaying")) {
 		activeIfNoSolo = bdsm.readTagOrAttributeValueInt();

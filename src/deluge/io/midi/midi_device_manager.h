@@ -99,15 +99,15 @@ struct ConnectedUSBMIDIDevice {
 namespace MIDIDeviceManager {
 
 void slowRoutine();
-MIDIDevice* readDeviceReferenceFromFile(StorageManager &bdsm);
+MIDIDevice* readDeviceReferenceFromFile(StorageManager& bdsm);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
-void writeDevicesToFile(StorageManager &bdsm);
-void readAHostedDeviceFromFile(StorageManager &bdsm);
-void readDevicesFromFile(StorageManager &bdsm);
+void writeDevicesToFile(StorageManager& bdsm);
+void readAHostedDeviceFromFile(StorageManager& bdsm);
+void readDevicesFromFile(StorageManager& bdsm);
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;

@@ -49,7 +49,7 @@ Drum* SoundDrum::clone() {
 }
 */
 
-bool SoundDrum::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool SoundDrum::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
 		bdsm.readTagOrAttributeValueString(&name);
 		bdsm.exitTag("name");
@@ -154,7 +154,7 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-void SoundDrum::writeToFileAsInstrument(StorageManager &bdsm, bool savingSong, ParamManager* paramManager) {
+void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("sound");
 	bdsm.writeFirmwareVersion();
 	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
@@ -167,7 +167,7 @@ void SoundDrum::writeToFileAsInstrument(StorageManager &bdsm, bool savingSong, P
 	bdsm.writeClosingTag("sound");
 }
 
-void SoundDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* paramManager) {
+void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("sound");
 	bdsm.writeAttribute("name", name.get());
 	bdsm.writeAttribute("path", path.get());
@@ -183,7 +183,7 @@ void SoundDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager*
 void SoundDrum::getName(char* buffer) {
 }
 
-Error SoundDrum::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);

@@ -220,7 +220,7 @@ ParamManager* NonAudioInstrument::getParamManager(Song* song) {
 	}
 }
 
-bool NonAudioInstrument::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool NonAudioInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 

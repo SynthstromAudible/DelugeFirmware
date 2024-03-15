@@ -1281,7 +1281,7 @@ void Song::writeTemplateSong(const char* templatePath) {
 	                                     "\n</song>\n");
 }
 
-void Song::writeToFile(StorageManager &bdsm) {
+void Song::writeToFile(StorageManager& bdsm) {
 
 	setupClipIndexesForSaving();
 
@@ -1335,8 +1335,7 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
 	bdsm.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
 	bdsm.writeAttribute("rootNote", rootNote);
-	bdsm.writeAttribute("inputTickMagnitude",
-	                              insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	bdsm.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	bdsm.writeAttribute("swingAmount", swingAmount);
 	bdsm.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
 
@@ -1358,8 +1357,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	globalEffectable.writeAttributesToFile(bdsm, false);
 
-	bdsm
-	    .writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
+	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
 	bdsm.writeOpeningTag("modeNotes");
 	for (int32_t i = 0; i < numModeNotes; i++) {
@@ -1459,7 +1457,7 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeClosingTag("song");
 }
 
-Error Song::readFromFile(StorageManager &bdsm) {
+Error Song::readFromFile(StorageManager& bdsm) {
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
@@ -1699,8 +1697,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "timePerTimerTick")) {
-				newTimePerTimerTick = (newTimePerTimerTick & (uint64_t)0xFFFFFFFF)
-				                      | ((uint64_t)bdsm.readTagOrAttributeValueInt() << 32);
+				newTimePerTimerTick =
+				    (newTimePerTimerTick & (uint64_t)0xFFFFFFFF) | ((uint64_t)bdsm.readTagOrAttributeValueInt() << 32);
 				bdsm.exitTag("timePerTimerTick");
 			}
 
@@ -2220,7 +2218,7 @@ skipInstance:
 	return Error::NONE;
 }
 
-Error Song::readClipsFromFile(StorageManager &bdsm, ClipArray* clipArray) {
+Error Song::readClipsFromFile(StorageManager& bdsm, ClipArray* clipArray) {
 	char const* tagName;
 
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {

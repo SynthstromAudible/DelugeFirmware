@@ -1002,12 +1002,12 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(StorageManager &bdsm, Song* song) {
+void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("trackName", output->name.get());
 
-	bdsm.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
-	                                                                 : sampleHolder.filePath.get());
+	bdsm.writeAttribute("filePath",
+	                    sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get() : sampleHolder.filePath.get());
 	bdsm.writeAttribute("startSamplePos", sampleHolder.startPos);
 	bdsm.writeAttribute("endSamplePos", sampleHolder.endPos);
 	bdsm.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
@@ -1048,7 +1048,7 @@ void AudioClip::writeDataToFile(StorageManager &bdsm, Song* song) {
 	bdsm.writeClosingTag("params");
 }
 
-Error AudioClip::readFromFile(StorageManager &bdsm, Song* song) {
+Error AudioClip::readFromFile(StorageManager& bdsm, Song* song) {
 
 	Error error;
 

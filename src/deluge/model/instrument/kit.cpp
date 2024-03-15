@@ -85,7 +85,7 @@ Drum* Kit::getPrevDrum(Drum* fromDrum) {
 	return thisDrum;
 }
 
-bool Kit::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
@@ -106,7 +106,7 @@ bool Kit::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, S
 	GlobalEffectableForClip::writeAttributesToFile(bdsm, clipForSavingOutputOnly == NULL);
 
 	bdsm.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                                     // Attributes end
+	                           // Attributes end
 
 	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, clipForSavingOutputOnly == NULL);
 
@@ -212,8 +212,8 @@ bool Kit::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, S
 			}
 		}
 
-		writeDrumToFile(bdsm, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex, &drumIndex,
-		                song);
+		writeDrumToFile(bdsm, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex,
+		                &drumIndex, song);
 
 moveOn:
 		prevPointer = &thisDrum->next;
@@ -231,7 +231,7 @@ moveOn:
 	return true;
 }
 
-void Kit::writeDrumToFile(StorageManager &bdsm, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+void Kit::writeDrumToFile(StorageManager& bdsm, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
                           int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;
@@ -241,7 +241,7 @@ void Kit::writeDrumToFile(StorageManager &bdsm, Drum* thisDrum, ParamManager* pa
 	(*drumIndex)++;
 }
 
-Error Kit::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Kit::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	int32_t selectedDrumIndex = -1;
 
@@ -313,7 +313,8 @@ doReadDrum:
 	return Error::NONE;
 }
 
-Error Kit::readDrumFromFile(StorageManager &bdsm, Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
+Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
+                            int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = bdsm.createNewDrum(drumType);
 	if (!newDrum) {
@@ -321,7 +322,8 @@ Error Kit::readDrumFromFile(StorageManager &bdsm, Song* song, Clip* clip, DrumTy
 	}
 
 	Error error = newDrum->readFromFile(
-	    bdsm, song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
+	    bdsm, song, clip,
+	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();

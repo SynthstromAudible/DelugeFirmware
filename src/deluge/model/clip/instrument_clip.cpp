@@ -2264,7 +2264,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(StorageManager &bdsm, Song* song) {
+void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("inKeyMode", inScaleMode);
 	bdsm.writeAttribute("yScroll", yScroll);
@@ -2402,7 +2402,7 @@ void InstrumentClip::writeDataToFile(StorageManager &bdsm, Song* song) {
 	}
 }
 
-Error InstrumentClip::readFromFile(StorageManager &bdsm, Song* song) {
+Error InstrumentClip::readFromFile(StorageManager& bdsm, Song* song) {
 
 	Error error;
 
@@ -2585,7 +2585,7 @@ someError:
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
 			if (!output) {
 				output = bdsm.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
-				                                                    instrumentPresetSubSlot);
+				                                          instrumentPresetSubSlot);
 
 				if (!output) {
 					goto ramError;
@@ -2598,7 +2598,8 @@ someError:
 				return error;
 			}
 
-			error = ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(bdsm, readAutomationUpToPos, &paramManager);
+			error =
+			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(bdsm, readAutomationUpToPos, &paramManager);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -2639,8 +2640,7 @@ someError:
 					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();
 					bdsm.exitTag("syncLevel");
 				}
-				else if (!strcmp(tagName, "mode")
-				         && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
@@ -3006,7 +3006,7 @@ doReadBendRange:
 	return Error::NONE;
 }
 
-Error InstrumentClip::readMIDIParamsFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos) {
+Error InstrumentClip::readMIDIParamsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 

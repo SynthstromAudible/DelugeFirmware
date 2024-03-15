@@ -279,9 +279,9 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
-bool MIDIInstrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
-	// NonAudioInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the below
-	// call
+bool MIDIInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+	// NonAudioInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+	// below call
 	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
 
 	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
@@ -327,13 +327,14 @@ bool MIDIInstrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOu
 	return true;
 }
 
-bool MIDIInstrument::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, "modKnobs")) {
-		readModKnobAssignmentsFromFile(bdsm, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I think it'd
-		                         // only be relevant for pre-V2.0 song file... maybe?
+		readModKnobAssignmentsFromFile(
+		    bdsm, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I
+		                               // think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
 		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
@@ -380,7 +381,7 @@ bool MIDIInstrument::readTagFromFile(StorageManager &bdsm, char const* tagName) 
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos,
+Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
@@ -391,8 +392,8 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager &bdsm, int32
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
-			Error error = bdsm.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                                   &modKnobCCAssignments[m]);
+			Error error =
+			    bdsm.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
 			if (error != Error::NONE) {
 				return error;
 			}

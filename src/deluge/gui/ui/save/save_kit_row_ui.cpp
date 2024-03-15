@@ -90,7 +90,7 @@ gotError:
 	return true;
 }
 
-bool SaveKitRowUI::performSave(StorageManager &bdsm, bool mayOverwrite) {
+bool SaveKitRowUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -144,8 +144,7 @@ fail:
 
 	char const* endString = "\n</sound>\n";
 
-	error =
-	    bdsm.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error = bdsm.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;

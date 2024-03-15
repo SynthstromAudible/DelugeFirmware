@@ -165,8 +165,8 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 	ParamCollection::setPlayPos(pos, modelStack, reversed);
 }
 
-void ParamSet::writeParamAsAttribute(StorageManager &bdsm, char const* name, int32_t p, bool writeAutomation, bool onlyIfContainsSomething,
-                                     int32_t* valuesForOverride) {
+void ParamSet::writeParamAsAttribute(StorageManager& bdsm, char const* name, int32_t p, bool writeAutomation,
+                                     bool onlyIfContainsSomething, int32_t* valuesForOverride) {
 	if (onlyIfContainsSomething && !params[p].containsSomething()) {
 		return;
 	}
@@ -181,7 +181,8 @@ void ParamSet::writeParamAsAttribute(StorageManager &bdsm, char const* name, int
 	bdsm.write("\"");
 }
 
-void ParamSet::readParam(StorageManager &bdsm, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos) {
+void ParamSet::readParam(StorageManager& bdsm, ParamCollectionSummary* summary, int32_t p,
+                         int32_t readAutomationUpToPos) {
 	params[p].readFromFile(bdsm, readAutomationUpToPos);
 	if (params[p].isAutomated()) {
 		paramHasAutomationNow(summary, p);
@@ -608,7 +609,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
-bool ExpressionParamSet::writeToFile(StorageManager &bdsm, bool mustWriteOpeningTagEndFirst) {
+bool ExpressionParamSet::writeToFile(StorageManager& bdsm, bool mustWriteOpeningTagEndFirst) {
 
 	bool writtenAnyYet = false;
 
@@ -634,7 +635,8 @@ bool ExpressionParamSet::writeToFile(StorageManager &bdsm, bool mustWriteOpening
 	return writtenAnyYet;
 }
 
-void ExpressionParamSet::readFromFile(StorageManager &bdsm, ParamCollectionSummary* summary, int32_t readAutomationUpToPos) {
+void ExpressionParamSet::readFromFile(StorageManager& bdsm, ParamCollectionSummary* summary,
+                                      int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 

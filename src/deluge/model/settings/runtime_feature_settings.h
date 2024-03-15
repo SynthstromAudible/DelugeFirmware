@@ -95,8 +95,8 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
-	void readSettingsFromFile(StorageManager &bdsm);
-	void writeSettingsToFile(StorageManager &bdsm);
+	void readSettingsFromFile(StorageManager& bdsm);
+	void writeSettingsToFile(StorageManager& bdsm);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

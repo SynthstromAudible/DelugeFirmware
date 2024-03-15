@@ -42,12 +42,12 @@ Drum::Drum(DrumType newType) : type(newType) {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-void Drum::writeMIDICommandsToFile(StorageManager &bdsm) {
+void Drum::writeMIDICommandsToFile(StorageManager& bdsm) {
 	midiInput.writeNoteToFile(bdsm, "midiInput");
 	muteMIDICommand.writeNoteToFile(bdsm, "midiMuteCommand");
 }
 
-bool Drum::readDrumTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool Drum::readDrumTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	if (!strcmp(tagName, "midiMuteCommand")) {
 		muteMIDICommand.readNoteFromFile(bdsm);

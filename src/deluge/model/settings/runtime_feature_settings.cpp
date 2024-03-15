@@ -21,7 +21,6 @@
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
-#include "storage/storage_manager.h"
 #include <cstring>
 #include <string_view>
 
@@ -171,7 +170,7 @@ void RuntimeFeatureSettings::init() {
 	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile(StorageManager &bdsm) {
+void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	FilePointer fp;
 	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
@@ -238,7 +237,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager &bdsm) {
 	bdsm.closeFile();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile(StorageManager &bdsm) {
+void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);

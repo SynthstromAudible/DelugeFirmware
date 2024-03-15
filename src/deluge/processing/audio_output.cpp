@@ -297,7 +297,7 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
 // be NULL
-bool AudioOutput::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool AudioOutput::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	bdsm.writeAttribute("name", name.get());
 
@@ -325,7 +325,7 @@ bool AudioOutput::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutpu
 }
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
-Error AudioOutput::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error AudioOutput::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;

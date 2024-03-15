@@ -286,7 +286,7 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 	}
 }
 
-void MIDIParamCollection::writeToFile(StorageManager &bdsm) {
+void MIDIParamCollection::writeToFile(StorageManager& bdsm) {
 	if (params.getNumElements()) {
 
 		bdsm.writeOpeningTag("midiParams");

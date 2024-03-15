@@ -867,7 +867,7 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 	}
 }
 
-void ModControllableAudio::writeAttributesToFile(StorageManager &bdsm) {
+void ModControllableAudio::writeAttributesToFile(StorageManager& bdsm) {
 	bdsm.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
 	bdsm.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	bdsm.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
@@ -877,7 +877,7 @@ void ModControllableAudio::writeAttributesToFile(StorageManager &bdsm) {
 	}
 }
 
-void ModControllableAudio::writeTagsToFile(StorageManager &bdsm) {
+void ModControllableAudio::writeTagsToFile(StorageManager& bdsm) {
 	// Delay
 	bdsm.writeOpeningTagBeginning("delay");
 	bdsm.writeAttribute("pingPong", delay.pingPong);
@@ -909,19 +909,18 @@ void ModControllableAudio::writeTagsToFile(StorageManager &bdsm) {
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
 			bdsm.writeOpeningTagBeginning("midiKnob");
-			knob->midiInput.writeAttributesToFile(bdsm,
+			knob->midiInput.writeAttributesToFile(
+			    bdsm,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
 			bdsm.writeAttribute("relative", knob->relative);
-			bdsm.writeAttribute(
-			    "controlsParam",
-			    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
+			bdsm.writeAttribute("controlsParam",
+			                    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
-				bdsm.writeAttribute("patchAmountFromSource",
-				                              sourceToString(knob->paramDescriptor.getTopLevelSource()));
+				bdsm.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
 				if (knob->paramDescriptor.hasSecondSource()) {
 					bdsm.writeAttribute("patchAmountFromSecondSource",
-					                              sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+					                    sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
 
@@ -940,8 +939,8 @@ void ModControllableAudio::writeTagsToFile(StorageManager &bdsm) {
 	}
 }
 
-void ModControllableAudio::writeParamAttributesToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
-                                                      int32_t* valuesForOverride) {
+void ModControllableAudio::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
+                                                      bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute(bdsm, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
@@ -952,29 +951,30 @@ void ModControllableAudio::writeParamAttributesToFile(StorageManager &bdsm, Para
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
+	                                       false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }
 
-void ModControllableAudio::writeParamTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
+void ModControllableAudio::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	bdsm.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute(bdsm, "bass", params::UNPATCHED_BASS, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "bass", params::UNPATCHED_BASS, writeAutomation, false,
+	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "treble", params::UNPATCHED_TREBLE, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
+	                                       false, valuesForOverride);
 	bdsm.closeTag();
 }
 
-bool ModControllableAudio::readParamTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
-                                                int32_t readAutomationUpToPos) {
+bool ModControllableAudio::readParamTagFromFile(StorageManager& bdsm, char const* tagName,
+                                                ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
@@ -985,11 +985,13 @@ bool ModControllableAudio::readParamTagFromFile(StorageManager &bdsm, char const
 				bdsm.exitTag("bass");
 			}
 			else if (!strcmp(tagName, "treble")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("treble");
 			}
 			else if (!strcmp(tagName, "bassFrequency")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("bassFrequency");
 			}
 			else if (!strcmp(tagName, "trebleFrequency")) {
@@ -1018,12 +1020,14 @@ bool ModControllableAudio::readParamTagFromFile(StorageManager &bdsm, char const
 	}
 
 	else if (!strcmp(tagName, "modFXOffset")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET,
+		                           readAutomationUpToPos);
 		bdsm.exitTag("modFXOffset");
 	}
 
 	else if (!strcmp(tagName, "modFXFeedback")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK,
+		                           readAutomationUpToPos);
 		bdsm.exitTag("modFXFeedback");
 	}
 	else if (!strcmp(tagName, "compressorThreshold")) {
@@ -1040,8 +1044,9 @@ bool ModControllableAudio::readParamTagFromFile(StorageManager &bdsm, char const
 }
 
 // paramManager is optional
-Error ModControllableAudio::readTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
-                                            int32_t readAutomationUpToPos, Song* song) {
+Error ModControllableAudio::readTagFromFile(StorageManager& bdsm, char const* tagName,
+                                            ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+                                            Song* song) {
 
 	int32_t p;
 

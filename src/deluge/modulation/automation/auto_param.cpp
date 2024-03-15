@@ -1841,7 +1841,7 @@ addNewNodeAt0IfNecessary:
 	}
 }
 
-void AutoParam::writeToFile(StorageManager &bdsm, bool writeAutomation, int32_t* valueForOverride) {
+void AutoParam::writeToFile(StorageManager& bdsm, bool writeAutomation, int32_t* valueForOverride) {
 	char buffer[9];
 
 	bdsm.write("0x");
@@ -1871,7 +1871,7 @@ void AutoParam::writeToFile(StorageManager &bdsm, bool writeAutomation, int32_t*
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos) {
+Error AutoParam::readFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.

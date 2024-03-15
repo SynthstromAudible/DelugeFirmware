@@ -564,7 +564,7 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile(StorageManager &bdsm) {
+void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	// MidiFollow.xml
 	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
@@ -622,7 +622,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile(StorageManager &bdsm) {
+void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -664,7 +664,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager &bdsm) {
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiFollow::readDefaultMappingsFromFile(StorageManager &bdsm) {
+void MidiFollow::readDefaultMappingsFromFile(StorageManager& bdsm) {
 	char const* tagName;
 	bool foundParam;
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {

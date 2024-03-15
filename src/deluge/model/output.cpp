@@ -176,7 +176,7 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 }
 
-void Output::writeToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	char const* tagName = getXMLTag();
 	bdsm.writeOpeningTagBeginning(tagName);
@@ -196,7 +196,7 @@ void Output::writeToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, So
 	}
 }
 
-bool Output::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool Output::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
 		if (mutedInArrangementMode) {
@@ -248,7 +248,7 @@ bool Output::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-Error Output::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Output::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
@@ -263,7 +263,7 @@ Error Output::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t
 }
 
 // If this returns false, the caller has to call storageManager.exitTag();
-bool Output::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool Output::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
 		mutedInArrangementMode = bdsm.readTagOrAttributeValueInt();

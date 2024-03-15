@@ -37,7 +37,7 @@ Clip* getSelectedClip(bool useActiveClip = false);
 class MidiFollow final {
 public:
 	MidiFollow();
-	void readDefaultsFromFile(StorageManager &bdsm);
+	void readDefaultsFromFile(StorageManager& bdsm);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -87,12 +87,12 @@ private:
 	bool isFeedbackEnabled();
 
 	// saving
-	void writeDefaultsToFile(StorageManager &bdsm);
+	void writeDefaultsToFile(StorageManager& bdsm);
 	void writeDefaultMappingsToFile();
 
 	// loading
 	bool successfullyReadDefaultsFromFile;
-	void readDefaultMappingsFromFile(StorageManager &bdsm);
+	void readDefaultMappingsFromFile(StorageManager& bdsm);
 };
 
 extern MidiFollow midiFollow;

@@ -747,7 +747,7 @@ void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) 
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
-void GlobalEffectable::writeAttributesToFile(StorageManager &bdsm, bool writeAutomation) {
+void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
 
 	ModControllableAudio::writeAttributesToFile(bdsm);
 
@@ -755,7 +755,7 @@ void GlobalEffectable::writeAttributesToFile(StorageManager &bdsm, bool writeAut
 	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 }
 
-void GlobalEffectable::writeTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
 
 	ModControllableAudio::writeTagsToFile(bdsm);
 
@@ -768,20 +768,21 @@ void GlobalEffectable::writeTagsToFile(StorageManager &bdsm, ParamManager* param
 	}
 }
 
-void GlobalEffectable::writeParamAttributesToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
-                                                  int32_t* valuesForOverride) {
+void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
+                                                  bool writeAutomation, int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation,
+	                                       false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false,
+	                                       valuesForOverride);
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
-		unpatchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation, false,
-		                                       valuesForOverride);
+		unpatchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
+		                                       false, valuesForOverride);
 	}
 
 	if (unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
@@ -800,7 +801,7 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager &bdsm, ParamMan
 	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::writeParamTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
+void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -829,7 +830,8 @@ void GlobalEffectable::writeParamTagsToFile(StorageManager &bdsm, ParamManager* 
 	ModControllableAudio::writeParamTagsToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::readParamsFromFile(StorageManager &bdsm, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+void GlobalEffectable::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+                                          int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
@@ -840,8 +842,8 @@ void GlobalEffectable::readParamsFromFile(StorageManager &bdsm, ParamManagerForT
 	}
 }
 
-bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
-                                            int32_t readAutomationUpToPos) {
+bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* tagName,
+                                            ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
@@ -849,7 +851,8 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 	if (!strcmp(tagName, "delay")) {
 		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "rate")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
@@ -864,11 +867,13 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 	else if (!strcmp(tagName, "lpf")) {
 		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_RES, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_RES,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
 		}
@@ -878,11 +883,13 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 	else if (!strcmp(tagName, "hpf")) {
 		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_RES, readAutomationUpToPos);
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
+				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
 		}
@@ -890,7 +897,8 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
+		                           readAutomationUpToPos);
 		bdsm.exitTag("reverbAmount");
 	}
 
@@ -906,12 +914,14 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME,
+		                           readAutomationUpToPos);
 		bdsm.exitTag("sidechainCompressorVolume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorShape")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
+		                           readAutomationUpToPos);
 		bdsm.exitTag("sidechainCompressorShape");
 	}
 
@@ -945,8 +955,9 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager &bdsm, char const* ta
 }
 
 // paramManager is optional
-Error GlobalEffectable::readTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
-                                        int32_t readAutomationUpToPos, Song* song) {
+Error GlobalEffectable::readTagFromFile(StorageManager& bdsm, char const* tagName,
+                                        ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+                                        Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	// if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager,

@@ -38,10 +38,10 @@ namespace params = deluge::modulation::params;
 SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
-bool SoundInstrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool SoundInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	// MelodicInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the below
-	// call
+	// MelodicInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+	// below call
 	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
@@ -74,7 +74,7 @@ bool SoundInstrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingO
 
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and
 // won't store any arp stuff
-Error SoundInstrument::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundInstrument::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
@@ -409,7 +409,7 @@ ArpeggiatorSettings* SoundInstrument::getArpSettings(InstrumentClip* clip) {
 	return MelodicInstrument::getArpSettings(clip);
 }
 
-bool SoundInstrument::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool SoundInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 	return MelodicInstrument::readTagFromFile(bdsm, tagName);
 }
 

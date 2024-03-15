@@ -49,8 +49,8 @@ public:
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
-	Error readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
-	bool writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;

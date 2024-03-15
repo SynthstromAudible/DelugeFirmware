@@ -157,8 +157,8 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
-		performLoad(storageManager);           // May fail
+		LoadUI::enterKeyPress();     // Converts name to numeric-only if it was typed as text
+		performLoad(storageManager); // May fail
 		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
 			runtimeFeatureSettings.writeSettingsToFile(storageManager);
 		}
@@ -227,7 +227,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad(StorageManager &bdsm) {
+void LoadSongUI::performLoad(StorageManager& bdsm) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -698,7 +698,7 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::drawSongPreview(StorageManager &bdsm, bool toStore) {
+void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {

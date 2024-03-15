@@ -45,7 +45,7 @@ void MIDIDrum::unassignAllVoices() {
 	}
 }
 
-void MIDIDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* paramManager) {
+void MIDIDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("midiOutput");
 
 	bdsm.writeAttribute("channel", channel, false);
@@ -61,7 +61,7 @@ void MIDIDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* 
 	}
 }
 
-Error MIDIDrum::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error MIDIDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {

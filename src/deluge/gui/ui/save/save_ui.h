@@ -26,7 +26,8 @@ public:
 	SaveUI();
 	bool opened();
 
-	virtual bool performSave(StorageManager &bdsm, bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with
+	virtual bool performSave(StorageManager& bdsm,
+	                         bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with
 	                                                         // (e.g. "overwrite" context menu brought up)
 	void focusRegained();
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,

@@ -61,7 +61,7 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	}
 }
 
-bool Instrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool Instrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
@@ -105,7 +105,7 @@ bool Instrument::writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutput
 	return Output::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 }
 
-bool Instrument::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool Instrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 	char const* subSlotXMLTag = getSubSlotXMLTag();

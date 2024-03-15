@@ -65,7 +65,7 @@ char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {
 // If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag
 // for device - that can't be just an attribute. You should be sure that containsSomething() == true before calling
 // this.
-void LearnedMIDI::writeAttributesToFile(StorageManager &bdsm, int32_t midiMessageType) {
+void LearnedMIDI::writeAttributesToFile(StorageManager& bdsm, int32_t midiMessageType) {
 
 	if (isForMPEZone()) {
 		char const* zoneText = (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
@@ -82,7 +82,7 @@ void LearnedMIDI::writeAttributesToFile(StorageManager &bdsm, int32_t midiMessag
 	}
 }
 
-void LearnedMIDI::writeToFile(StorageManager &bdsm, char const* commandName, int32_t midiMessageType) {
+void LearnedMIDI::writeToFile(StorageManager& bdsm, char const* commandName, int32_t midiMessageType) {
 	if (!containsSomething()) {
 		return;
 	}
@@ -100,7 +100,7 @@ void LearnedMIDI::writeToFile(StorageManager &bdsm, char const* commandName, int
 	}
 }
 
-void LearnedMIDI::readFromFile(StorageManager &bdsm, int32_t midiMessageType) {
+void LearnedMIDI::readFromFile(StorageManager& bdsm, int32_t midiMessageType) {
 
 	char const* tagName;
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
@@ -122,7 +122,7 @@ void LearnedMIDI::readFromFile(StorageManager &bdsm, int32_t midiMessageType) {
 	}
 }
 
-void LearnedMIDI::readMPEZone(StorageManager &bdsm) {
+void LearnedMIDI::readMPEZone(StorageManager& bdsm) {
 	char const* text = bdsm.readTagOrAttributeValue();
 	if (!strcmp(text, "lower")) {
 		channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;

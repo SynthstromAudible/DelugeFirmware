@@ -25,12 +25,12 @@ Note::Note() {
 /*
 
 void Note::writeToFile(StorageManager &bdsm) {
-	bdsm.writeOpeningTag((char*)"note");
+    bdsm.writeOpeningTag((char*)"note");
 
-	bdsm.writeTag((char*)"length", length);
-	bdsm.writeTag((char*)"velocity", velocity);
-	bdsm.writeTag((char*)"pos", pos);
+    bdsm.writeTag((char*)"length", length);
+    bdsm.writeTag((char*)"velocity", velocity);
+    bdsm.writeTag((char*)"pos", pos);
 
-	bdsm.writeClosingTag((char*)"note");
+    bdsm.writeClosingTag((char*)"note");
 }
 */

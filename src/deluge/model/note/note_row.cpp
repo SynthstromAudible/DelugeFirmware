@@ -2926,7 +2926,8 @@ uint32_t NoteRow::getNumNotes() {
 	return notes.getNumElements();
 }
 
-Error NoteRow::readFromFile(StorageManager &bdsm, int32_t* minY, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+Error NoteRow::readFromFile(StorageManager& bdsm, int32_t* minY, InstrumentClip* parentClip, Song* song,
+                            int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
@@ -2952,9 +2953,8 @@ Error NoteRow::readFromFile(StorageManager &bdsm, int32_t* minY, InstrumentClip*
 		}
 
 		else if (!strcmp(tagName, "drumIndex")) {
-			drum = (Drum*)bdsm
-			           .readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer, then
-			                                          // swap it back to something meaningful later
+			drum = (Drum*)bdsm.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
+			                                                 // then swap it back to something meaningful later
 		}
 
 		else if (!strcmp(tagName, "gateOutput")) {
@@ -3198,7 +3198,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(StorageManager &bdsm, int32_t drumIndex, InstrumentClip* clip) {
+void NoteRow::writeToFile(StorageManager& bdsm, int32_t drumIndex, InstrumentClip* clip) {
 	bdsm.writeOpeningTagBeginning("noteRow");
 
 	bool forKit = (clip->output->type == OutputType::KIT);

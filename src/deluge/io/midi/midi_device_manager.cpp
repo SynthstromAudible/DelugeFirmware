@@ -320,7 +320,7 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 }
 
 // Returns NULL if insufficient details found, or not enough RAM to create
-MIDIDevice* readDeviceReferenceFromFile(StorageManager &bdsm) {
+MIDIDevice* readDeviceReferenceFromFile(StorageManager& bdsm) {
 
 	uint16_t vendorId = 0;
 	uint16_t productId = 0;
@@ -448,7 +448,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile(StorageManager &bdsm) {
+void writeDevicesToFile(StorageManager& bdsm) {
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -526,7 +526,7 @@ worthIt:
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile(StorageManager &bdsm) {
+void readDevicesFromFile(StorageManager& bdsm) {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
@@ -575,7 +575,7 @@ void readDevicesFromFile(StorageManager &bdsm) {
 	successfullyReadDevicesFromFile = true;
 }
 
-void readAHostedDeviceFromFile(StorageManager &bdsm) {
+void readAHostedDeviceFromFile(StorageManager& bdsm) {
 	MIDIDeviceUSBHosted* device = NULL;
 
 	String name;
@@ -607,7 +607,8 @@ checkDevice:
 			}
 
 			if (device) {
-				device->ports[whichPort].readFromFile(bdsm, (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
+				device->ports[whichPort].readFromFile(bdsm,
+				                                      (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
 			}
 		}
 		else if (!strcmp(tagName, "output")) {

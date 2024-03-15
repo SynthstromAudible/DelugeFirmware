@@ -51,7 +51,7 @@ public:
 	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
 	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
 
-	bool readTagFromFile(StorageManager &bdsm, char const* tagName);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	ModControllable* toModControllable() { return this; }
 

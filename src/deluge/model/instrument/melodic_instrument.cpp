@@ -37,7 +37,8 @@
 #include "storage/storage_manager.h"
 #include <cstring>
 
-bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly,
+                                                               Song* song) {
 	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 	if (!clipForSavingOutputOnly) {
 
@@ -57,7 +58,8 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager &b
 	return false;
 }
 
-void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly,
+                                                         Song* song) {
 
 	if (!clipForSavingOutputOnly) {
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
@@ -70,7 +72,7 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager &bdsm, C
 	}
 }
 
-bool MelodicInstrument::readTagFromFile(StorageManager &bdsm, char const* tagName) {
+bool MelodicInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 	if (!strcmp(tagName, "inputMidiChannel")) {

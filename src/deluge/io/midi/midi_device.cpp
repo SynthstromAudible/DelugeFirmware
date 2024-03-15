@@ -43,7 +43,7 @@ MIDIDevice::MIDIDevice() {
 	mpeZoneBendRanges[MPE_ZONE_UPPER_NUMBERED_FROM_0][BEND_RANGE_FINGER_LEVEL] = 48;
 }
 
-void MIDIDevice::writeReferenceToFile(StorageManager &bdsm, char const* tagName) {
+void MIDIDevice::writeReferenceToFile(StorageManager& bdsm, char const* tagName) {
 	bdsm.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(bdsm);
 	bdsm.closeTag();
@@ -180,14 +180,14 @@ bool MIDIDevice::worthWritingToFile() {
 	        || !sendClock);
 }
 
-void MIDIDevice::writePorts(StorageManager &bdsm) {
+void MIDIDevice::writePorts(StorageManager& bdsm) {
 	ports[MIDI_DIRECTION_INPUT_TO_DELUGE].writeToFile(bdsm, "input");
 	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile(bdsm, "output");
 }
 
 // Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and
 // ids.
-void MIDIDevice::readFromFile(StorageManager &bdsm) {
+void MIDIDevice::readFromFile(StorageManager& bdsm) {
 	char const* tagName;
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
@@ -208,14 +208,14 @@ void MIDIDevice::readFromFile(StorageManager &bdsm) {
 	}
 }
 
-void MIDIDevice::writeDefinitionAttributesToFile(StorageManager &bdsm) { // These only go into MIDIDEVICES.XML.
+void MIDIDevice::writeDefinitionAttributesToFile(StorageManager& bdsm) { // These only go into MIDIDEVICES.XML.
 	if (hasDefaultVelocityToLevelSet()) {
 		bdsm.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
 	bdsm.writeAttribute("sendClock", sendClock);
 }
 
-void MIDIDevice::writeToFile(StorageManager &bdsm, char const* tagName) {
+void MIDIDevice::writeToFile(StorageManager& bdsm, char const* tagName) {
 	bdsm.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(bdsm);
 	writeDefinitionAttributesToFile(bdsm);
@@ -266,7 +266,7 @@ void MIDIPort::moveLowerZoneOutOfWayOfUpperZone() {
 	}
 }
 
-void MIDIPort::writeToFile(StorageManager &bdsm, char const* tagName) {
+void MIDIPort::writeToFile(StorageManager& bdsm, char const* tagName) {
 
 	int32_t numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
 
@@ -288,7 +288,7 @@ void MIDIPort::writeToFile(StorageManager &bdsm, char const* tagName) {
 	}
 }
 
-void MIDIPort::readFromFile(StorageManager &bdsm, MIDIDevice* deviceToSendMCMsOn) {
+void MIDIPort::readFromFile(StorageManager& bdsm, MIDIDevice* deviceToSendMCMsOn) {
 	char const* tagName;
 	bool sentMPEConfig = false;
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
@@ -464,7 +464,7 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(StorageManager &bdsm) {
+void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(StorageManager& bdsm) {
 	bdsm.writeAttribute("name", name.get());
 	bdsm.writeAttributeHex("vendorId", vendorId, 4);
 	bdsm.writeAttributeHex("productId", productId, 4);
@@ -519,7 +519,7 @@ void MIDIDeviceUSBHosted::callHook(Hook hook) {
 	}
 }
 
-void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(StorageManager &bdsm) {
+void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(StorageManager& bdsm) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
 	bdsm.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false);
 }
@@ -542,7 +542,7 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 	}
 }
 
-void MIDIDeviceDINPorts::writeReferenceAttributesToFile(StorageManager &bdsm) {
+void MIDIDeviceDINPorts::writeReferenceAttributesToFile(StorageManager& bdsm) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
 	bdsm.writeAttribute("port", "din", false);
 }
@@ -574,7 +574,7 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceLoopback::writeReferenceAttributesToFile(StorageManager &bdsm) {
+void MIDIDeviceLoopback::writeReferenceAttributesToFile(StorageManager& bdsm) {
 	bdsm.writeAttribute("port", "loopbackMidi", false);
 }
 

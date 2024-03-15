@@ -39,16 +39,17 @@ public:
 	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
 	                                  bool grainHadInput = true);
 
-	void writeAttributesToFile(StorageManager &bdsm, bool writeToFile);
-	void writeTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeToFile);
-	Error readTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                      Song* song);
-	static void writeParamAttributesToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
+	void writeAttributesToFile(StorageManager& bdsm, bool writeToFile);
+	void writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeToFile);
+	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	                      int32_t readAutomationUpToPos, Song* song);
+	static void writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
-	static void readParamsFromFile(StorageManager &bdsm, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	static void readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+	                               int32_t readAutomationUpToPos);
+	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
 	                                     bool soundComingIn = true);

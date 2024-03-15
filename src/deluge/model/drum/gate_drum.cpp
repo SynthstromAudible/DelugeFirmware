@@ -35,7 +35,7 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	state = false;
 }
 
-void GateDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* paramManager) {
+void GateDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("gateOutput");
 
 	bdsm.writeAttribute("channel", channel, false);
@@ -50,7 +50,7 @@ void GateDrum::writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* 
 	}
 }
 
-Error GateDrum::readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error GateDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = bdsm.readNextTagOrAttributeName())) {

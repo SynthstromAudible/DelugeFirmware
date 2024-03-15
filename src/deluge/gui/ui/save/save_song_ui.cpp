@@ -107,7 +107,7 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
-bool SaveSongUI::performSave(StorageManager &bdsm, bool mayOverwrite) {
+bool SaveSongUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E316");
@@ -361,8 +361,8 @@ fail3:
 						}
 
 						UINT bytesWritten;
-						result = f_write(&recorderFileSystemStuff.currentFile, bdsm.fileClusterBuffer,
-						                 bytesRead, &bytesWritten);
+						result = f_write(&recorderFileSystemStuff.currentFile, bdsm.fileClusterBuffer, bytesRead,
+						                 &bytesWritten);
 						if (result || bytesWritten != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;
@@ -433,8 +433,8 @@ fail3:
 
 	currentSong->writeToFile(bdsm);
 
-	error = bdsm.closeFileAfterWriting(filePathDuringWrite.get(),
-	                                             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	error = bdsm.closeFileAfterWriting(filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                   "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
