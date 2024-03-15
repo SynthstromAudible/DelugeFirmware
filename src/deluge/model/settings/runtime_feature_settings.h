@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/l10n/strings.h"
 #include "util/container/array/resizeable_array.h"
 #include "util/containers.h"
 #include "util/d_string.h"
@@ -68,7 +69,7 @@ struct RuntimeFeatureSettingOption {
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	std::string_view displayName;
+	deluge::l10n::String displayName;
 	std::string_view xmlName;
 	uint32_t value;
 	// Limited to safe memory
