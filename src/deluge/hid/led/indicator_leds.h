@@ -93,8 +93,9 @@ uint8_t getLedBlinkerIndex(LED led);
 void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int32_t whichKnob);
-int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t level, int32_t brightness);
-int32_t getUnipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness);
+int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness,
+                                        int32_t bipolarLevel);
+int32_t getBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness);
 
 } // namespace indicator_leds
 

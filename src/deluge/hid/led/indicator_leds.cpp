@@ -198,15 +198,18 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 		}
 	}
 
-	int32_t numIndicatorLedsFullyOn = level >> 5;
+	int32_t numIndicatorLedsFullyOn;
 
 	int32_t brightness;
 	int32_t bipolarLevel = level - kKnobPosOffset;
 	if (isBipolar) {
+		int32_t absLevel = std::abs(bipolarLevel);
+		numIndicatorLedsFullyOn = absLevel >> 5;
 		// convert level to negative to positive range for bipolar brightness calculation
-		brightness = (std::abs(bipolarLevel) & 31) << 3;
+		brightness = (absLevel & 31) << 3;
 	}
 	else {
+		numIndicatorLedsFullyOn = level >> 5;
 		brightness = (level & 31) << 3;
 	}
 	brightness = (brightness * brightness) >> 8; // Square it
@@ -233,11 +236,12 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 			}
 			// if not blinking, get brightness value
 			else {
-				brightnessOutputValue = getBipolarBrightnessOutputValue(i, bipolarLevel, brightness);
+				brightnessOutputValue =
+				    getBipolarBrightnessOutputValue(i, numIndicatorLedsFullyOn, brightness, bipolarLevel);
 			}
 		}
 		else {
-			brightnessOutputValue = getUnipolarBrightnessOutputValue(i, numIndicatorLedsFullyOn, brightness);
+			brightnessOutputValue = getBrightnessOutputValue(i, numIndicatorLedsFullyOn, brightness);
 		}
 
 		indicator.at(i) = brightnessOutputValue;
@@ -249,62 +253,29 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 
 /// return brightness value for current LED indicator being looked at
 /// by converting bipolar knob level to brightness value
-int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t level, int32_t brightness) {
-	int32_t maxIndicatorValue = 0;
+int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness,
+                                        int32_t bipolarLevel) {
 	int32_t brightnessOutputValue = 0;
-
-	// is it one of the top 2 led indicators?
-	if ((whichIndicator + 1) > (kNumGoldKnobIndicatorLEDs / 2)) {
-		maxIndicatorValue = ((whichIndicator + 1) * kMaxGoldKnobIndicatorLEDValue) - kKnobPosOffset;
+	// indicator 3, 2 (top to bottom)
+	// numIndicatorLedsFullyOn 0, 1, 2
+	if (bipolarLevel > 0 && whichIndicator > 1) {
+		// convert indicator to 0, 1 for comparison to num LED's fully on
+		whichIndicator = whichIndicator - 2;
+		brightnessOutputValue = getBrightnessOutputValue(whichIndicator, numIndicatorLedsFullyOn, brightness);
 	}
-	// if no, then it is one of the bottom 2 led indicators
-	else {
-		maxIndicatorValue =
-		    ((whichIndicator + 1) * kMaxGoldKnobIndicatorLEDValue) - kKnobPosOffset - kMaxGoldKnobIndicatorLEDValue;
-	}
-
-	// there are four LED indicators and these are the bipolar value ranges for these indicators
-	// the above maxIndicatorValue calculation will result in the maximum value for the indicator
-	// as shown here:
-	// 3 = 33 to 64
-	// 2 = 1 to 32
-	// 1 = -1 to -32
-	// 0 = -33 to -64
-
-	// positive = top 2 indicators
-	if (maxIndicatorValue > 0) {
-		// if level is greater or equal to current indicators maximum, set indicator to max brightness
-		if (level >= maxIndicatorValue) {
-			brightnessOutputValue = 255;
-		}
-		// if level is not maximum and is greater than previous indicators's maximum
-		// then the level falls within the current indicators value range
-		// so set the brightness previously calculated
-		else if (level > (maxIndicatorValue - kMaxGoldKnobIndicatorLEDValue)) {
-			brightnessOutputValue = brightness;
-		}
-	}
-	// negative = bottom 2 indicators
-	else {
-		// if level is less than or equal to current indicators maximum, set indicator to max brightness
-		// in this case less or equal than means the value exceeds current indicators range
-		// so set indicator to max brightness
-		if (level <= maxIndicatorValue) {
-			brightnessOutputValue = 255;
-		}
-		// if level is not greater or equal to current indicators value range maximum
-		// then the level falls within the current indicators value range
-		// so set the brightness previously calculated
-		else if (level < (maxIndicatorValue + kMaxGoldKnobIndicatorLEDValue)) {
-			brightnessOutputValue = brightness;
-		}
+	// indicator 1, 0 (top to bottom)
+	// numIndicatorLedsFullyOn 0, 1, 2
+	else if (bipolarLevel < 0 && whichIndicator < 2) {
+		// swap indicator's to 0, 1 (top to bottom)
+		whichIndicator = (whichIndicator * -1) + 1;
+		brightnessOutputValue = getBrightnessOutputValue(whichIndicator, numIndicatorLedsFullyOn, brightness);
 	}
 	return brightnessOutputValue;
 }
 
 /// return brightness value for current LED indicator being looked at
-/// by converting unipolar knob level to brightness value
-int32_t getUnipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness) {
+/// by converting number of indicator LEDs fully on to brightness output value
+int32_t getBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness) {
 	int32_t brightnessOutputValue = 0;
 	if (whichIndicator < numIndicatorLedsFullyOn) {
 		brightnessOutputValue = 255;

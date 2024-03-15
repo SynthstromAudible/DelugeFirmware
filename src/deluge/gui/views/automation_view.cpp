@@ -3408,10 +3408,10 @@ void AutomationView::setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack,
 		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 	}
 
-	if (!indicator_leds::isKnobIndicatorBlinking(0)) {
+	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
+
+	if (!isBlinking) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft, isBipolar);
-	}
-	if (!indicator_leds::isKnobIndicatorBlinking(1)) {
 		indicator_leds::setKnobIndicatorLevel(1, knobPosRight, isBipolar);
 	}
 }
