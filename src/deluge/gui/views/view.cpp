@@ -51,6 +51,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -1067,7 +1068,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		if (display->haveOLED()) {
 			popupMsg.append("\n");
 		}
-		popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
+		char name[12];
+		snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
+		popupMsg.append(name);
 	}
 	else {
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);

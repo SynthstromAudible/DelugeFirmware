@@ -87,7 +87,7 @@ const ArpRhythm arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS] = {
 };
 
 const std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
-    "0", // <- 0, No rhythm: play all notes
+    "None", // <- 0, No rhythm: play all notes
 
     // 3 steps
     "0--", // <- 1
