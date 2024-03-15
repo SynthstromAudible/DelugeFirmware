@@ -41,8 +41,8 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, std::string_view displayName, std::string_view xmlName,
-                              RuntimeFeatureStateToggle def) {
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                              std::string_view xmlName, RuntimeFeatureStateToggle def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
@@ -59,7 +59,7 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, std::string_view d
 	};
 }
 
-static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
                                           std::string_view xmlName, RuntimeFeatureStateSyncScalingAction def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
@@ -77,7 +77,7 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::s
 	};
 }
 
-static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
                                         std::string_view xmlName, RuntimeFeatureStateEmulatedDisplay def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
@@ -104,70 +104,64 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, std::str
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), "drumRandomizer",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER,
+	                  "drumRandomizer", RuntimeFeatureStateToggle::On);
 	// Quantize
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "quantize",
 	                  RuntimeFeatureStateToggle::On);
 	// FineTempoKnob
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB), "fineTempoKnob",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
+	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS), "modDepthDecimals",
+	                  STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "modDepthDecimals",
 	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES), "catchNotes",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
+	                  "catchNotes", RuntimeFeatureStateToggle::On);
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS), "deleteUnusedKitRows",
+	                  STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "deleteUnusedKitRows",
 	                  RuntimeFeatureStateToggle::On);
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS), "altGoldenKnobDelayParams",
+	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
 	// QuantizedStutterRate
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER), "quantizedStutterRate",
+	                  STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
+	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
 	// SyncScalingAction
 	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction],
-	                              deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION),
-	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
+	                              STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "syncScalingAction",
+	                              RuntimeFeatureStateSyncScalingAction::SyncScaling);
 	// HighlightIncomingNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES),
-	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::On);
+	                  STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "highlightIncomingNotes",
+	                  RuntimeFeatureStateToggle::On);
 	// DisplayNornsLayout
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT), "displayNornsLayout",
-	                  RuntimeFeatureStateToggle::Off);
+	                  STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 
 	// ShiftIsSticky
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], "Sticky Shift", "stickyShift",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT,
+	                  "stickyShift", RuntimeFeatureStateToggle::Off);
 
 	// LightShiftLed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
+	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
 	// EnableGrainFX
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX), "enableGrainFX",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX], STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX,
+	                  "enableGrainFX", RuntimeFeatureStateToggle::Off);
 
 	// EmulatedDisplay
-	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay], "Emulated Display",
-	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
+	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay],
+	                            STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY, "emulatedDisplay",
+	                            RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
