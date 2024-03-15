@@ -1067,10 +1067,15 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		if (display->haveOLED()) {
 			popupMsg.append("\n");
+
+			char name[12];
+			// Index: Name
+			snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
+			popupMsg.append(name);
 		}
-		char name[12];
-		snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
-		popupMsg.append(name);
+		else {
+			popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
+		}
 	}
 	else {
 		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);

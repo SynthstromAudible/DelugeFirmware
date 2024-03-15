@@ -34,6 +34,7 @@ public:
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		char name[12];
+		// Index: Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
 		deluge::hid::display::OLED::drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL,
 		                                              deluge::hid::display::OLED::oledMainImage[0],
