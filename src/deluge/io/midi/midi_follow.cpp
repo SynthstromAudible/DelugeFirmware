@@ -564,28 +564,28 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile() {
+void MidiFollow::writeDefaultsToFile(StorageManager &bdsm) {
 	// MidiFollow.xml
-	Error error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	//<defaults>
-	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
+	bdsm.writeOpeningTagEnd();
 
 	//<defaultCCMappings>
-	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
+	bdsm.writeOpeningTagEnd();
 
 	writeDefaultMappingsToFile();
 
-	storageManager.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+	bdsm.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
 
-	storageManager.writeClosingTag(MIDI_DEFAULTS_TAG);
+	bdsm.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	storageManager.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML
@@ -622,7 +622,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile() {
+void MidiFollow::readDefaultsFromFile(StorageManager &bdsm) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -633,41 +633,41 @@ void MidiFollow::readDefaultsFromFile() {
 
 	FilePointer fp;
 	// MIDIFollow.XML
-	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
+	bool success = bdsm.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
-		writeDefaultsToFile();
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	//<defaults>
-	Error error = storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile();
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
-			readDefaultMappingsFromFile();
+			readDefaultMappingsFromFile(bdsm);
 		}
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
-	storageManager.closeFile();
+	bdsm.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
 }
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiFollow::readDefaultMappingsFromFile() {
+void MidiFollow::readDefaultMappingsFromFile(StorageManager &bdsm) {
 	char const* tagName;
 	bool foundParam;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		foundParam = false;
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -688,7 +688,7 @@ void MidiFollow::readDefaultMappingsFromFile() {
 				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
 					// tag name matches the param shortcut, so we can load the cc mapping for that param
 					// into the paramToCC grid shortcut array which holds the cc value for each param
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+					paramToCC[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt();
 					// now that we've handled this tag, we need to break out of these for loops
 					// as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
 					foundParam = true;
@@ -701,6 +701,6 @@ void MidiFollow::readDefaultMappingsFromFile() {
 			}
 		}
 		// exit out of this tag so you can check the next tag
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 }

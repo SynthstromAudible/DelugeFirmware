@@ -274,7 +274,7 @@ void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 		currentInstrumentLoadError = performLoadSynthToKit();
 	}
 	else {
-		currentInstrumentLoadError = performLoad();
+		currentInstrumentLoadError = performLoad(storageManager);
 	}
 	currentUIMode = UI_MODE_NONE;
 	//}
@@ -306,7 +306,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 				currentInstrumentLoadError = performLoadSynthToKit();
 			}
 			else {
-				currentInstrumentLoadError = performLoad();
+				currentInstrumentLoadError = performLoad(storageManager);
 			}
 			if (currentInstrumentLoadError != Error::NONE) {
 				display->displayError(currentInstrumentLoadError);
@@ -489,11 +489,11 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
-		performLoad();
+		performLoad(storageManager);
 	}
 }
 
-void LoadInstrumentPresetUI::revertToInitialPreset() {
+void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager &bdsm) {
 
 	// Can only do this if we've changed Instrument in one of the two ways, but not both.
 	// TODO: that's very limiting, and I can't remember why I mandated this, or what would be so hard about allowing
@@ -562,7 +562,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 			// Otherwise, create a new one
 			initialInstrument =
-			    storageManager.createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
+			    bdsm.createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
 			if (!initialInstrument) {
 				return;
 			}
@@ -599,12 +599,12 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				FilePointer tempFilePointer;
 
-				bool success = storageManager.fileExists(filePath.get(), &tempFilePointer);
+				bool success = bdsm.fileExists(filePath.get(), &tempFilePointer);
 				if (!success) {
 					return;
 				}
 
-				error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
+				error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
 				                                              false, &initialInstrument, &tempFilePointer, &initialName,
 				                                              &initialDirPath);
 				if (error != Error::NONE) {
@@ -829,7 +829,7 @@ addNumber:
 }
 
 // I thiiink you're supposed to check currentFileExists before calling this?
-Error LoadInstrumentPresetUI::performLoad(bool doClone) {
+Error LoadInstrumentPresetUI::performLoad(StorageManager &bdsm, bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
@@ -909,7 +909,7 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+		error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);
 
@@ -1062,7 +1062,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
-	revertToInitialPreset();
+	revertToInitialPreset(storageManager);
 	LoadUI::exitAction();
 }
 

@@ -867,60 +867,60 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 	}
 }
 
-void ModControllableAudio::writeAttributesToFile() {
-	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
-	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
-	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
+void ModControllableAudio::writeAttributesToFile(StorageManager &bdsm) {
+	bdsm.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	bdsm.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
+	bdsm.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	bdsm.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
-		storageManager.writeAttribute("clippingAmount", clippingAmount);
+		bdsm.writeAttribute("clippingAmount", clippingAmount);
 	}
 }
 
-void ModControllableAudio::writeTagsToFile() {
+void ModControllableAudio::writeTagsToFile(StorageManager &bdsm) {
 	// Delay
-	storageManager.writeOpeningTagBeginning("delay");
-	storageManager.writeAttribute("pingPong", delay.pingPong);
-	storageManager.writeAttribute("analog", delay.analog);
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("delay");
+	bdsm.writeAttribute("pingPong", delay.pingPong);
+	bdsm.writeAttribute("analog", delay.analog);
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
+	bdsm.closeTag();
 
 	// Sidechain
-	storageManager.writeOpeningTagBeginning("sidechain");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	storageManager.writeAttribute("attack", sidechain.attack);
-	storageManager.writeAttribute("release", sidechain.release);
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("sidechain");
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	bdsm.writeAttribute("attack", sidechain.attack);
+	bdsm.writeAttribute("release", sidechain.release);
+	bdsm.closeTag();
 
 	// Audio compressor
-	storageManager.writeOpeningTagBeginning("audioCompressor");
-	storageManager.writeAttribute("attack", compressor.getAttack());
-	storageManager.writeAttribute("release", compressor.getRelease());
-	storageManager.writeAttribute("thresh", compressor.getThreshold());
-	storageManager.writeAttribute("ratio", compressor.getRatio());
-	storageManager.writeAttribute("compHPF", compressor.getSidechain());
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("audioCompressor");
+	bdsm.writeAttribute("attack", compressor.getAttack());
+	bdsm.writeAttribute("release", compressor.getRelease());
+	bdsm.writeAttribute("thresh", compressor.getThreshold());
+	bdsm.writeAttribute("ratio", compressor.getRatio());
+	bdsm.writeAttribute("compHPF", compressor.getSidechain());
+	bdsm.closeTag();
 
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
-		storageManager.writeOpeningTag("midiKnobs");
+		bdsm.writeOpeningTag("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
-			storageManager.writeOpeningTagBeginning("midiKnob");
-			knob->midiInput.writeAttributesToFile(
+			bdsm.writeOpeningTagBeginning("midiKnob");
+			knob->midiInput.writeAttributesToFile(bdsm,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
-			storageManager.writeAttribute("relative", knob->relative);
-			storageManager.writeAttribute(
+			bdsm.writeAttribute("relative", knob->relative);
+			bdsm.writeAttribute(
 			    "controlsParam",
 			    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
-				storageManager.writeAttribute("patchAmountFromSource",
+				bdsm.writeAttribute("patchAmountFromSource",
 				                              sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
 				if (knob->paramDescriptor.hasSecondSource()) {
-					storageManager.writeAttribute("patchAmountFromSecondSource",
+					bdsm.writeAttribute("patchAmountFromSecondSource",
 					                              sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
@@ -928,108 +928,108 @@ void ModControllableAudio::writeTagsToFile() {
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
 			if (knob->midiInput.device) {
-				storageManager.writeOpeningTagEnd();
-				knob->midiInput.device->writeReferenceToFile();
-				storageManager.writeClosingTag("midiKnob");
+				bdsm.writeOpeningTagEnd();
+				knob->midiInput.device->writeReferenceToFile(bdsm);
+				bdsm.writeClosingTag("midiKnob");
 			}
 			else {
-				storageManager.closeTag();
+				bdsm.closeTag();
 			}
 		}
-		storageManager.writeClosingTag("midiKnobs");
+		bdsm.writeClosingTag("midiKnobs");
 	}
 }
 
-void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
+void ModControllableAudio::writeParamAttributesToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
                                                       int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
+	unpatchedParams->writeParamAsAttribute(bdsm, "sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
+	unpatchedParams->writeParamAsAttribute(bdsm, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }
 
-void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+void ModControllableAudio::writeParamTagsToFile(StorageManager &bdsm, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	storageManager.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute("bass", params::UNPATCHED_BASS, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("treble", params::UNPATCHED_TREBLE, writeAutomation, false,
+	bdsm.writeOpeningTagBeginning("equalizer");
+	unpatchedParams->writeParamAsAttribute(bdsm, "bass", params::UNPATCHED_BASS, writeAutomation, false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "treble", params::UNPATCHED_TREBLE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	storageManager.closeTag();
+	bdsm.closeTag();
 }
 
-bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+bool ModControllableAudio::readParamTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
                                                 int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "equalizer")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
-				storageManager.exitTag("bass");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
+				bdsm.exitTag("bass");
 			}
 			else if (!strcmp(tagName, "treble")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE, readAutomationUpToPos);
-				storageManager.exitTag("treble");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE, readAutomationUpToPos);
+				bdsm.exitTag("treble");
 			}
 			else if (!strcmp(tagName, "bassFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ, readAutomationUpToPos);
-				storageManager.exitTag("bassFrequency");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ, readAutomationUpToPos);
+				bdsm.exitTag("bassFrequency");
 			}
 			else if (!strcmp(tagName, "trebleFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
 				                           readAutomationUpToPos);
-				storageManager.exitTag("trebleFrequency");
+				bdsm.exitTag("trebleFrequency");
 			}
 		}
-		storageManager.exitTag("equalizer");
+		bdsm.exitTag("equalizer");
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
-		storageManager.exitTag("stutterRate");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
+		bdsm.exitTag("stutterRate");
 	}
 
 	else if (!strcmp(tagName, "sampleRateReduction")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 		                           readAutomationUpToPos);
-		storageManager.exitTag("sampleRateReduction");
+		bdsm.exitTag("sampleRateReduction");
 	}
 
 	else if (!strcmp(tagName, "bitCrush")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
-		storageManager.exitTag("bitCrush");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
+		bdsm.exitTag("bitCrush");
 	}
 
 	else if (!strcmp(tagName, "modFXOffset")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET, readAutomationUpToPos);
-		storageManager.exitTag("modFXOffset");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET, readAutomationUpToPos);
+		bdsm.exitTag("modFXOffset");
 	}
 
 	else if (!strcmp(tagName, "modFXFeedback")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
-		storageManager.exitTag("modFXFeedback");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
+		bdsm.exitTag("modFXFeedback");
 	}
 	else if (!strcmp(tagName, "compressorThreshold")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
 		                           readAutomationUpToPos);
-		storageManager.exitTag("compressorThreshold");
+		bdsm.exitTag("compressorThreshold");
 	}
 
 	else {
@@ -1040,27 +1040,27 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 }
 
 // paramManager is optional
-Error ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+Error ModControllableAudio::readTagFromFile(StorageManager &bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
                                             int32_t readAutomationUpToPos, Song* song) {
 
 	int32_t p;
 
 	if (!strcmp(tagName, "lpfMode")) {
-		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("lpfMode");
+		lpfMode = stringToLPFType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("lpfMode");
 	}
 	else if (!strcmp(tagName, "hpfMode")) {
-		hpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("hpfMode");
+		hpfMode = stringToLPFType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("hpfMode");
 	}
 	else if (!strcmp(tagName, "filterRoute")) {
-		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("filterRoute");
+		filterRoute = stringToFilterRoute(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("filterRoute");
 	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
-		clippingAmount = storageManager.readTagOrAttributeValueInt();
-		storageManager.exitTag("clippingAmount");
+		clippingAmount = bdsm.readTagOrAttributeValueInt();
+		bdsm.exitTag("clippingAmount");
 	}
 
 	else if (!strcmp(tagName, "delay")) {
@@ -1068,7 +1068,7 @@ Error ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerFor
 		delay.syncType = SYNC_TYPE_EVEN;
 		delay.syncLevel = SYNC_LEVEL_NONE;
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
 			if (!strcmp(tagName, "feedback")) {
@@ -1083,10 +1083,10 @@ doReadPatchedParam:
 					}
 					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
+					patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
 					                         readAutomationUpToPos);
 				}
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 			else if (!strcmp(tagName, "rate")) {
 				p = params::GLOBAL_DELAY_RATE;
@@ -1094,62 +1094,62 @@ doReadPatchedParam:
 			}
 
 			else if (!strcmp(tagName, "pingPong")) {
-				int32_t contents = storageManager.readTagOrAttributeValueInt();
+				int32_t contents = bdsm.readTagOrAttributeValueInt();
 				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				storageManager.exitTag("pingPong");
+				bdsm.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
-				int32_t contents = storageManager.readTagOrAttributeValueInt();
+				int32_t contents = bdsm.readTagOrAttributeValueInt();
 				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
-				storageManager.exitTag("analog");
+				bdsm.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				delay.syncType = storageManager.readSyncTypeFromFile(song);
-				storageManager.exitTag("syncType");
+				delay.syncType = bdsm.readSyncTypeFromFile(song);
+				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
-				storageManager.exitTag("syncLevel");
+				delay.syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
+				bdsm.exitTag("syncLevel");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("delay");
+		bdsm.exitTag("delay");
 	}
 
 	else if (!strcmp(tagName, "audioCompressor")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorAttack = bdsm.readTagOrAttributeValueInt();
 				compressor.setAttack(masterCompressorAttack);
-				storageManager.exitTag("attack");
+				bdsm.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRelease = bdsm.readTagOrAttributeValueInt();
 				compressor.setRelease(masterCompressorRelease);
-				storageManager.exitTag("release");
+				bdsm.exitTag("release");
 			}
 			else if (!strcmp(tagName, "thresh")) {
-				q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorThresh = bdsm.readTagOrAttributeValueInt();
 				compressor.setThreshold(masterCompressorThresh);
-				storageManager.exitTag("thresh");
+				bdsm.exitTag("thresh");
 			}
 			else if (!strcmp(tagName, "ratio")) {
-				q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRatio = bdsm.readTagOrAttributeValueInt();
 				compressor.setRatio(masterCompressorRatio);
-				storageManager.exitTag("ratio");
+				bdsm.exitTag("ratio");
 			}
 			else if (!strcmp(tagName, "compHPF")) {
-				q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorSidechain = bdsm.readTagOrAttributeValueInt();
 				compressor.setSidechain(masterCompressorSidechain);
-				storageManager.exitTag("compHPF");
+				bdsm.exitTag("compHPF");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("AudioCompressor");
+		bdsm.exitTag("AudioCompressor");
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
@@ -1158,33 +1158,33 @@ doReadPatchedParam:
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				sidechain.attack = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("attack");
+				sidechain.attack = bdsm.readTagOrAttributeValueInt();
+				bdsm.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				sidechain.release = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("release");
+				sidechain.release = bdsm.readTagOrAttributeValueInt();
+				bdsm.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				sidechain.syncType = storageManager.readSyncTypeFromFile(song);
-				storageManager.exitTag("syncType");
+				sidechain.syncType = bdsm.readSyncTypeFromFile(song);
+				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				sidechain.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
-				storageManager.exitTag("syncLevel");
+				sidechain.syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
+				bdsm.exitTag("syncLevel");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag(name);
+		bdsm.exitTag(name);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "midiKnob")) {
 
 				MIDIDevice* device = nullptr;
@@ -1195,29 +1195,29 @@ doReadPatchedParam:
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
-				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+				while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
-						device = MIDIDeviceManager::readDeviceReferenceFromFile();
+						device = MIDIDeviceManager::readDeviceReferenceFromFile(bdsm);
 					}
 					else if (!strcmp(tagName, "channel")) {
-						channel = storageManager.readTagOrAttributeValueInt();
+						channel = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = storageManager.readTagOrAttributeValueInt();
+						ccNumber = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "relative")) {
-						relative = storageManager.readTagOrAttributeValueInt();
+						relative = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, bdsm.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(storageManager.readTagOrAttributeValue());
+						s = stringToSource(bdsm.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(storageManager.readTagOrAttributeValue());
+						s2 = stringToSource(bdsm.readTagOrAttributeValue());
 					}
-					storageManager.exitTag();
+					bdsm.exitTag();
 				}
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
@@ -1240,9 +1240,9 @@ doReadPatchedParam:
 					}
 				}
 			}
-			storageManager.exitTag();
+			bdsm.exitTag();
 		}
-		storageManager.exitTag("midiKnobs");
+		bdsm.exitTag("midiKnobs");
 	}
 
 	else {

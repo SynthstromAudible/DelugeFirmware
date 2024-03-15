@@ -39,6 +39,7 @@ class ModelStackWithAutoParam;
 class MIDIDevice;
 class LearnedMIDI;
 class ParamManager;
+class StorageManager;
 
 class Output {
 public:
@@ -107,11 +108,11 @@ public:
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
 
 	// FIXME:I think that supplying clip here is only a hangover from old pre-2.0 files...
-	virtual Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	virtual Error readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 
-	virtual bool readTagFromFile(char const* tagName);
-	void writeToFile(Clip* clipForSavingOutputOnly, Song* song);
-	virtual bool writeDataToFile(Clip* clipForSavingOutputOnly,
+	virtual bool readTagFromFile(StorageManager &bdsm, char const* tagName);
+	void writeToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	virtual bool writeDataToFile(StorageManager &bdsm, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
 	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles) { return Error::NONE; }

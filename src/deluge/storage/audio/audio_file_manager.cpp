@@ -204,7 +204,7 @@ clusterSizeChangedButItsOk:
 		}
 	}
 
-	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can do this now. It'll only happen if it wasn't able to do
+	MIDIDeviceManager::readDevicesFromFile(storageManager); // Hopefully we can do this now. It'll only happen if it wasn't able to do
 	                                          // it before.
 }
 

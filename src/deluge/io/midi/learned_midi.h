@@ -18,6 +18,7 @@
 #pragma once
 
 #include "io/midi/midi_device_manager.h"
+#include "storage/storage_manager.h"
 #include <cstdint>
 
 #define MIDI_MESSAGE_NONE 0
@@ -63,20 +64,20 @@ public:
 	// You must have determined that isForMPEZone() == true before calling this.
 	inline int32_t getMasterChannel() { return (channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE) * 15; }
 
-	void writeAttributesToFile(int32_t midiMessageType);
-	void writeToFile(char const* commandName,
+	void writeAttributesToFile(StorageManager &bdsm, int32_t midiMessageType);
+	void writeToFile(StorageManager &bdsm, char const* commandName,
 	                 int32_t midiMessageType); // Writes the actual tag in addition to the attributes
-	void readFromFile(int32_t midiMessageType);
+	void readFromFile(StorageManager &bdsm, int32_t midiMessageType);
 
-	inline void writeNoteToFile(char const* commandName) { writeToFile(commandName, MIDI_MESSAGE_NOTE); }
-	inline void writeCCToFile(char const* commandName) { writeToFile(commandName, MIDI_MESSAGE_CC); }
-	inline void writeChannelToFile(char const* commandName) { writeToFile(commandName, MIDI_MESSAGE_NONE); }
+	inline void writeNoteToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_NOTE); }
+	inline void writeCCToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_CC); }
+	inline void writeChannelToFile(StorageManager &bdsm, char const* commandName) { writeToFile(bdsm, commandName, MIDI_MESSAGE_NONE); }
 
-	inline void readNoteFromFile() { readFromFile(MIDI_MESSAGE_NOTE); }
-	inline void readCCFromFile() { readFromFile(MIDI_MESSAGE_CC); }
-	inline void readChannelFromFile() { readFromFile(MIDI_MESSAGE_NONE); }
+	inline void readNoteFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NOTE); }
+	inline void readCCFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_CC); }
+	inline void readChannelFromFile(StorageManager &bdsm) { readFromFile(bdsm, MIDI_MESSAGE_NONE); }
 
-	void readMPEZone();
+	void readMPEZone(StorageManager &bdsm);
 
 	MIDIDevice* device;
 	// In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or

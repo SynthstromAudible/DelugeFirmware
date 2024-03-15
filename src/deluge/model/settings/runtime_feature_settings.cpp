@@ -21,6 +21,7 @@
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
+#include "storage/storage_manager.h"
 #include <cstring>
 #include <string_view>
 
@@ -170,14 +171,14 @@ void RuntimeFeatureSettings::init() {
 	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile() {
+void RuntimeFeatureSettings::readSettingsFromFile(StorageManager &bdsm) {
 	FilePointer fp;
-	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	Error error = bdsm.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -186,30 +187,30 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
 
-	while (*(currentTag = storageManager.readNextTagOrAttributeName())) {
+	while (*(currentTag = bdsm.readNextTagOrAttributeName())) {
 
 		if (strcmp(currentTag, "startupSong") == 0) {
-			storageManager.readTagOrAttributeValueString(&startupSong);
+			bdsm.readTagOrAttributeValueString(&startupSong);
 		}
 		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
 			// Read name
-			currentTag = storageManager.readNextTagOrAttributeName();
+			currentTag = bdsm.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
 				display->displayPopup("Community file err");
 				break;
 			}
-			storageManager.readTagOrAttributeValueString(&currentName);
-			storageManager.exitTag();
+			bdsm.readTagOrAttributeValueString(&currentName);
+			bdsm.exitTag();
 
 			// Read value
-			currentTag = storageManager.readNextTagOrAttributeName();
+			currentTag = bdsm.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
 				display->displayPopup("Community file err");
 				break;
 			}
 
-			currentValue = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag();
+			currentValue = bdsm.readTagOrAttributeValueInt();
+			bdsm.exitTag();
 
 			bool found = false;
 			for (auto& setting : settings) {
@@ -232,43 +233,43 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				unknownSetting->value = currentValue;
 			}
 		}
-		storageManager.exitTag(currentTag);
+		bdsm.exitTag(currentTag);
 	}
-	storageManager.closeFile();
+	bdsm.closeFile();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile() {
+void RuntimeFeatureSettings::writeSettingsToFile(StorageManager &bdsm) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error != Error::NONE) {
 		return;
 	}
 
-	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
-	storageManager.writeFirmwareVersion();
-	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
-	storageManager.writeAttribute("startupSong", currentSong->getSongFullPath().get());
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.3");
+	bdsm.writeAttribute("startupSong", currentSong->getSongFullPath().get());
+	bdsm.writeOpeningTagEnd();
 
 	for (auto& setting : settings) {
-		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
-		storageManager.writeOpeningTagEnd(false);
-		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
+		bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
+		bdsm.writeOpeningTagEnd(false);
+		bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}
 
 	// Write unknown elements
 	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
 		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
-		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
-		storageManager.writeOpeningTagEnd(false);
-		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
+		bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
+		bdsm.writeOpeningTagEnd(false);
+		bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}
 
-	storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	storageManager.closeFileAfterWriting();
+	bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
+	bdsm.closeFileAfterWriting();
 }

@@ -642,103 +642,103 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
 	return true;
 }
 
-void Clip::writeToFile(Song* song) {
+void Clip::writeToFile(StorageManager &bdsm, Song* song) {
 
 	char const* xmlTag = getXMLTag();
 
-	storageManager.writeOpeningTagBeginning(xmlTag);
+	bdsm.writeOpeningTagBeginning(xmlTag);
 
-	writeDataToFile(song);
+	writeDataToFile(bdsm, song);
 
-	storageManager.writeClosingTag(xmlTag);
+	bdsm.writeClosingTag(xmlTag);
 }
 
-void Clip::writeDataToFile(Song* song) {
+void Clip::writeDataToFile(StorageManager &bdsm, Song* song) {
 
-	storageManager.writeAttribute("isPlaying", activeIfNoSolo);
-	storageManager.writeAttribute("isSoloing", soloingInSessionMode);
-	storageManager.writeAttribute("isArmedForRecording", armedForRecording);
-	storageManager.writeAttribute("length", loopLength);
+	bdsm.writeAttribute("isPlaying", activeIfNoSolo);
+	bdsm.writeAttribute("isSoloing", soloingInSessionMode);
+	bdsm.writeAttribute("isArmedForRecording", armedForRecording);
+	bdsm.writeAttribute("length", loopLength);
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
-		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+		bdsm.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
-	storageManager.writeAttribute("colourOffset", colourOffset);
+	bdsm.writeAttribute("colourOffset", colourOffset);
 	if (section != 255) {
-		storageManager.writeAttribute("section", section);
+		bdsm.writeAttribute("section", section);
 	}
 
-	// storageManager.writeTag("activeModFunction", modKnobMode);
+	// bdsm.writeTag("activeModFunction", modKnobMode);
 
 	if (getCurrentClip() == this) {
 		if (getRootUI()->toClipMinder()) {
-			storageManager.writeAttribute("beingEdited", "1");
+			bdsm.writeAttribute("beingEdited", "1");
 		}
 		else {
-			storageManager.writeAttribute("selected", "1");
+			bdsm.writeAttribute("selected", "1");
 		}
 	}
 	if (song->getSyncScalingClip() == this) {
-		storageManager.writeAttribute("isSyncScaleClip", "1");
+		bdsm.writeAttribute("isSyncScaleClip", "1");
 	}
 	if (launchStyle != LaunchStyle::DEFAULT) {
-		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+		bdsm.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagEnd();
 
-	muteMIDICommand.writeNoteToFile("muteMidiCommand");
+	muteMIDICommand.writeNoteToFile(bdsm, "muteMidiCommand");
 }
 
-void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
+void Clip::readTagFromFile(StorageManager &bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
 
 	if (!strcmp(tagName, "isPlaying")) {
-		activeIfNoSolo = storageManager.readTagOrAttributeValueInt();
+		activeIfNoSolo = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isSoloing")) {
-		soloingInSessionMode = storageManager.readTagOrAttributeValueInt();
+		soloingInSessionMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isArmedForRecording")) {
-		armedForRecording = storageManager.readTagOrAttributeValueInt();
+		armedForRecording = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "status")) { // For backwards compatibility
 		soloingInSessionMode = false;
-		int32_t newStatus = storageManager.readTagOrAttributeValueInt();
+		int32_t newStatus = bdsm.readTagOrAttributeValueInt();
 		activeIfNoSolo = (newStatus == 2);
 	}
 
 	else if (!strcmp(tagName, "section")) {
-		section = storageManager.readTagOrAttributeValueInt();
+		section = bdsm.readTagOrAttributeValueInt();
 		section = std::min(section, (uint8_t)(kMaxNumSections - 1));
 	}
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
-		loopLength = storageManager.readTagOrAttributeValueInt();
+		loopLength = bdsm.readTagOrAttributeValueInt();
 		loopLength = std::max((int32_t)1, loopLength);
 		*readAutomationUpToPos = loopLength;
 	}
 
 	else if (!strcmp(tagName, "colourOffset")) {
-		colourOffset = storageManager.readTagOrAttributeValueInt();
+		colourOffset = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "beingEdited")) {
-		if (storageManager.readTagOrAttributeValueInt()) {
+		if (bdsm.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
-		if (storageManager.readTagOrAttributeValueInt()) {
+		if (bdsm.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = false;
 		}
 	}
 
 	else if (!strcmp(tagName, "isSyncScaleTrack") || !strcmp(tagName, "isSyncScaleClip")) {
-		bool is = storageManager.readTagOrAttributeValueInt();
+		bool is = bdsm.readTagOrAttributeValueInt();
 
 		// This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold
 		// this Clip for now, and then in song.cpp this gets made right in a moment...
@@ -748,20 +748,20 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 	}
 
 	else if (!strcmp(tagName, "muteMidiCommand")) {
-		muteMIDICommand.readNoteFromFile();
+		muteMIDICommand.readNoteFromFile(bdsm);
 	}
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
-		sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+		sequenceDirectionMode = stringToSequenceDirectionMode(bdsm.readTagOrAttributeValue());
 	}
 
 	else if (!strcmp(tagName, "launchStyle")) {
-		launchStyle = stringToLaunchStyle(storageManager.readTagOrAttributeValue());
+		launchStyle = stringToLaunchStyle(bdsm.readTagOrAttributeValue());
 	}
 
 	/*
 	else if (!strcmp(tagName, "activeModFunction")) {
-	    //modKnobMode = stringToInt(storageManager.readTagContents());
+	    //modKnobMode = stringToInt(bdsm.readTagContents());
 	    //modKnobMode = std::min(modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
 	}
 	*/

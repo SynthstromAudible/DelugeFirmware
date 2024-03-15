@@ -21,6 +21,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 #include "modulation/params/param.h"
+#include "storage/storage_manager.h"
 
 class Editor;
 class InstrumentClip;
@@ -151,19 +152,19 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values
-	void writeDefaultsToFile();
-	void writeDefaultFXValuesToFile();
-	void writeDefaultFXParamToFile(int32_t xDisplay);
-	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
-	void writeDefaultFXHoldStatusToFile(int32_t xDisplay);
+	void writeDefaultsToFile(StorageManager &bdsm);
+	void writeDefaultFXValuesToFile(StorageManager &bdsm);
+	void writeDefaultFXParamToFile(StorageManager &bdsm, int32_t xDisplay);
+	void writeDefaultFXRowValuesToFile(StorageManager &bdsm, int32_t xDisplay);
+	void writeDefaultFXHoldStatusToFile(StorageManager &bdsm, int32_t xDisplay);
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
-	void readDefaultsFromFile();
-	void readDefaultFXValuesFromFile();
-	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
-	void readDefaultFXParamFromFile(int32_t xDisplay);
-	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
-	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
+	void readDefaultsFromFile(StorageManager &bdsm);
+	void readDefaultFXValuesFromFile(StorageManager &bdsm);
+	void readDefaultFXParamAndRowValuesFromFile(StorageManager &bdsm, int32_t xDisplay);
+	void readDefaultFXParamFromFile(StorageManager &bdsm, int32_t xDisplay);
+	void readDefaultFXRowNumberValuesFromFile(StorageManager &bdsm, int32_t xDisplay);
+	void readDefaultFXHoldStatusFromFile(StorageManager &bdsm, int32_t xDisplay);
 	void initializeHeldFX(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;

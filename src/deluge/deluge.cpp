@@ -257,7 +257,7 @@ bool readButtonsAndPads() {
 
 		QwertyUI::enteredText.set("T001");
 
-		saveSongUI.performSave(true);
+		saveSongUI.performSave(storageManager, true);
 	}
 #endif
 
@@ -496,7 +496,7 @@ void setupStartupSong() {
 		currentSong = new (songMemory) Song();
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad();
+			loadSongUI.performLoad(storageManager);
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
@@ -742,9 +742,9 @@ extern "C" int32_t deluge_main(void) {
 	usbLock = 0;
 
 	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
+	runtimeFeatureSettings.readSettingsFromFile(storageManager);
+	MIDIDeviceManager::readDevicesFromFile(storageManager);
+	midiFollow.readDefaultsFromFile(storageManager);
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupStartupSong();
 

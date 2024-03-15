@@ -164,8 +164,8 @@ public:
 	void unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumNames,
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
-	Error readFromFile(Song* song);
-	void writeDataToFile(Song* song);
+	Error readFromFile(StorageManager &bdsm, Song* song);
+	void writeDataToFile(StorageManager &bdsm, Song* song);
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
 	int16_t getTopYNote();
@@ -262,7 +262,7 @@ private:
 	                                bool keepIfHasMIDIInput = true);
 	void actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStack);
 	void prepareToEnterKitMode(Song* song);
-	Error readMIDIParamsFromFile(int32_t readAutomationUpToPos);
+	Error readMIDIParamsFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos);
 
 	bool lastProbabilities[kNumProbabilityValues];
 	int32_t lastProbabiltyPos[kNumProbabilityValues];

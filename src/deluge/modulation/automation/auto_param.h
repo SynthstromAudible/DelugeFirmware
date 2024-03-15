@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
+#include "storage/storage_manager.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -65,8 +66,8 @@ public:
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
-	void writeToFile(bool writeAutomation, int32_t* valueForOverride = NULL);
-	Error readFromFile(int32_t readAutomationUpToPos);
+	void writeToFile(StorageManager &bdsm, bool writeAutomation, int32_t* valueForOverride = NULL);
+	Error readFromFile(StorageManager &bdsm, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(int32_t offset);

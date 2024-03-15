@@ -41,7 +41,7 @@ public:
 
 	inline int32_t getProbability() { return probability; }
 
-	void writeToFile();
+//	void writeToFile();
 
 	int32_t length;
 	uint8_t velocity;

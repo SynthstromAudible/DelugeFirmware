@@ -44,13 +44,13 @@ public:
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
 	void unassignAllVoices();
 	void setupPatchingForAllParamManagers(Song* song);
-	bool readTagFromFile(char const* tagName);
+	bool readTagFromFile(StorageManager &bdsm, char const* tagName);
 	Error loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
-	void writeToFile(bool savingSong, ParamManager* paramManager);
-	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
+	void writeToFile(StorageManager &bdsm, bool savingSong, ParamManager* paramManager);
+	void writeToFileAsInstrument(StorageManager &bdsm, bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
-	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(StorageManager &bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);
 	void setSkippingRendering(bool newSkipping);
 	uint8_t* getModKnobMode();
