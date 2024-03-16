@@ -155,6 +155,39 @@ const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2
 
 const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
 
+// lookup tables for the values that are set when you press the pads in each row of the grid
+const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
+
+// lookup tables for the min value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
+const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
+
+// lookup tables for the max value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
+const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
+
+// summary of pad ranges and press values (format: MIN < PRESS < MAX)
+// patch cable:
+// y = 7 ::   97 <  128 < 128
+// y = 6 ::   65 <   90 <  96
+// y = 5 ::   33 <   60 <  64
+// y = 4 ::    1 <   30 <  32
+// y = 3 ::  -32 <  -30 <  -1
+// y = 2 ::  -64 <  -60 < -33
+// y = 1 ::  -96 <  -90 < -65
+// y = 0 :: -128 < -128 < -97
+
+// non-patch cable:
+// y = 7 :: 113 < 128 < 128
+// y = 6 ::  97 < 110 < 112
+// y = 5 ::  81 <  91 <  96
+// y = 4 ::  65 <  73 <  80
+// y = 3 ::  49 <  55 <  64
+// y = 2 ::  33 <  37 <  48
+// y = 1 ::  17 <  18 <  32
+// y = 0 ::  0  <   0 <  16
+
 AutomationView automationView{};
 
 AutomationView::AutomationView() {
@@ -3586,93 +3619,73 @@ void AutomationView::handleParameterAutomationChange(ModelStackWithAutoParam* mo
 			// use default interpolation settings
 			initInterpolation();
 
-			int32_t newKnobPos = calculateKnobPosForSinglePadPress(modelStackWithParam, outputType, yDisplay);
+			int32_t newKnobPos = calculateKnobPosForPadPress(modelStackWithParam, outputType, yDisplay);
 			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom);
 		}
 	}
 }
 
-// calculates what the new parameter value is when you press a single pad
-int32_t AutomationView::calculateKnobPosForSinglePadPress(ModelStackWithAutoParam* modelStackWithParam,
-                                                          OutputType outputType, int32_t yDisplay) {
+int32_t AutomationView::calculateKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
+                                                    int32_t yDisplay) {
 
-	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 	int32_t newKnobPos = 0;
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	// if you press bottom pad, value is 0 (or -128 for patch cables)
-	/* for all other pads except for the top pad:
-	    - for non-patch cables: value = row Y * 18
-	        - except when you're holding two pads in the column, where it takes the min and max of each pads range
-	    - for patch cables: value = row Y - 4 * 30
-	        0 - 128 is compressed to top 4 pads
-	        -128 to -1 is compressed to bottom 4 pads
-	*/
-	if (yDisplay < 7) {
-		// patch cable
-		if (kind == params::Kind::PATCH_CABLE) {
-			int32_t yDisplayForPatchCableKnobPosCalculation = yDisplay - 4;
-			if (middlePadPressSelected) {
-				newKnobPos = ((yDisplayForPatchCableKnobPosCalculation + 1)
-				              * kParamValueIncrementForAutomationPatchCableDisplay);
-			}
-			else {
-				if (yDisplay == 0) {
-					newKnobPos = -kMaxKnobPos;
-				}
-				else {
-					if (yDisplay > 3) {
-						yDisplayForPatchCableKnobPosCalculation += 1;
-					}
-					newKnobPos = yDisplayForPatchCableKnobPosCalculation
-					             * kParamValueIncrementForAutomationPatchCableSinglePadPress;
-				}
-			}
-		}
-		// non patch cable
-		else {
-			if (middlePadPressSelected) {
-				newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
-			}
-			else {
-				newKnobPos =
-				    static_cast<int32_t>(std::round((float)yDisplay * kParamValueIncrementForAutomationSinglePadPress));
-			}
-		}
-	}
-	// if you are pressing the top pad, set the value to max (128)
-	else {
-		// for Midi Clips, maxKnobPos = 127
-		if (outputType == OutputType::MIDI_OUT) {
-			newKnobPos = kMaxKnobPos - 1; // 128 - 1 = 127
-		}
-		else {
-			newKnobPos = kMaxKnobPos;
-		}
-	}
 	if (middlePadPressSelected) {
-		if (leftPadSelectedY == 0) {
-			if (kind == params::Kind::PATCH_CABLE) {
-				newKnobPos = (newKnobPos + -kMaxKnobPos) / 2;
-			}
-			else {
-				newKnobPos = newKnobPos / 2;
-			}
-		}
-		else {
-			if (kind == params::Kind::PATCH_CABLE) {
-				newKnobPos =
-				    (newKnobPos + (((leftPadSelectedY - 4) * kParamValueIncrementForAutomationPatchCableDisplay) + 1))
-				    / 2;
-			}
-			else {
-				newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
-			}
-		}
+		newKnobPos = calculateKnobPosForMiddlePadPress(kind, yDisplay);
+	}
+	else {
+		newKnobPos = calculateKnobPosForSinglePadPress(kind, yDisplay);
+	}
+
+	// for Midi Clips, maxKnobPos = 127
+	if (outputType == OutputType::MIDI_OUT && newKnobPos == kMaxKnobPos) {
+		newKnobPos -= 1; // 128 - 1 = 127
 	}
 
 	// in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
 	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a second pad in the same column
+// middle value is calculated by taking average of min and max value of the range for the two pad presses
+int32_t AutomationView::calculateKnobPosForMiddlePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	int32_t yMin = yDisplay < leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t yMax = yDisplay > leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t minKnobPos = 0;
+	int32_t maxKnobPos = 0;
+
+	if (kind == params::Kind::PATCH_CABLE) {
+		minKnobPos = patchCableMinPadDisplayValues[yMin];
+		maxKnobPos = patchCableMaxPadDisplayValues[yMax];
+	}
+	else {
+		minKnobPos = nonPatchCableMinPadDisplayValues[yMin];
+		maxKnobPos = nonPatchCableMaxPadDisplayValues[yMax];
+	}
+
+	newKnobPos = (minKnobPos + maxKnobPos) >> 1;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a single pad
+int32_t AutomationView::calculateKnobPosForSinglePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	// patch cable
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = patchCablePadPressValues[yDisplay];
+	}
+	// non patch cable
+	else {
+		newKnobPos = nonPatchCablePadPressValues[yDisplay];
+	}
 
 	return newKnobPos;
 }
@@ -3707,10 +3720,8 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		// otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 		else {
 			OutputType outputType = clip->output->type;
-			firstPadValue =
-			    calculateKnobPosForSinglePadPress(modelStackWithParam, outputType, firstPadY) + kKnobPosOffset;
-			secondPadValue =
-			    calculateKnobPosForSinglePadPress(modelStackWithParam, outputType, secondPadY) + kKnobPosOffset;
+			firstPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, firstPadY) + kKnobPosOffset;
+			secondPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, secondPadY) + kKnobPosOffset;
 		}
 
 		// converting variables to float for more accurate interpolation calculation
