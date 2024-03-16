@@ -2315,7 +2315,9 @@ void Session::doTickForward(int32_t posIncrement) {
 
 		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
-
+			if (!(clip->output)) {
+				continue;
+			}
 			if (clip->output->needsEarlyPlayback() == (iPass > 1)) {
 				continue; // 1st/2nd time through, skip anything but priority clips, which must take effect first
 				          // 3rd/4th time through, skip the priority clips already actioned.
