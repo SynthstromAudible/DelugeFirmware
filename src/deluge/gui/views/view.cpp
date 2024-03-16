@@ -983,13 +983,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				// if you're dealing with a patch cable which has a -128 to +128 range
-				// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-				if (kind == params::Kind::PATCH_CABLE) {
-					newKnobPos =
-					    view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
-				}
-
 				// if the newKnobPos == 0, and we're dealing with a param that param that should
 				// indicate (blink) middle value
 				// then blink that middle value and make it harder to turn the knob past middle
@@ -1014,11 +1007,18 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 // and make it harder to turn the knob past the middle value
 void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
                                              int32_t newKnobPos) {
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+	}
+
 	bool shouldParamIndicateMiddleValue =
 	    modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam);
 
 	if (newKnobPos == 0 && shouldParamIndicateMiddleValue) {
-		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 		bool isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 
 		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
