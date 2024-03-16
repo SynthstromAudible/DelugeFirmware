@@ -2316,6 +2316,7 @@ void Session::doTickForward(int32_t posIncrement) {
 		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 			if (!(clip->output)) {
+				// possible while swapping songs and render is called between deallocating the output and its clips
 				continue;
 			}
 			if (clip->output->needsEarlyPlayback() == (iPass > 1)) {
