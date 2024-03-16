@@ -643,7 +643,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the notes. This menu option show zeroes
       and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
-      <blockquote>
       <details><summary>Rhythm Options</summary>
         -  0: None (play all notes)
         -  1: 0--
@@ -697,7 +696,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - 49: 0-0--0
         - 50: 00-0-0
       </details>
-      </blockquote>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
