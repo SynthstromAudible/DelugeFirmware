@@ -674,103 +674,140 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::mod
 	return false;
 }
 
-// this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with
-// "nodes" it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative
-// rendering method which always works. hoping to bring back the other code once I've worked out the bugs.
+/// render each square in each row of the automation editor grid
 void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
                                int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
                                int32_t xZoom, params::Kind kind, bool isBipolar) {
 
+	// iterate through each square
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		RGB& pixel = image[xDisplay];
-
 		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
 		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
+		if (isBipolar) {
+			renderBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
+		}
+		else {
+			renderUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
+		}
+	}
+}
+
+/// render column for bipolar params - e.g. pan, pitch, patch cable
+void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                         bool isAutomated, params::Kind kind, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
+
+	int32_t middleKnobPos;
+
+	// for patch cable that has a range of -128 to + 128, the middle point is 0
+	if (kind == params::Kind::PATCH_CABLE) {
+		middleKnobPos = 0;
+	}
+	// for non-patch cable that has a range of 0 to 128, the middle point is 64
+	else {
+		middleKnobPos = 64;
+	}
+
+	// if it's bipolar, only render grid rows above or below middle value
+	if ((knobPos > middleKnobPos) && (yDisplay < 4)) {
+		return;
+	}
+	else if ((knobPos < middleKnobPos) && (yDisplay > 3)) {
+		return;
+	}
+
+	bool doRender = false;
+
+	// determine whether or not you should render a row based on current value
+	if (knobPos != middleKnobPos) {
 		if (kind == params::Kind::PATCH_CABLE) {
-			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
-		}
-
-		// if it's bipolar, only render grid rows above or below middle value
-		if (isBipolar) {
-			if ((knobPos > 64) && (yDisplay < 4)) {
-				continue;
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= patchCableMinPadDisplayValues[yDisplay]);
 			}
-			else if ((knobPos < 64) && (yDisplay > 3)) {
-				continue;
-			}
-		}
-
-		int32_t valueForKnobPosComparison = yDisplay * kParamValueIncrementForAutomationDisplay;
-
-		bool doRender = false;
-
-		// determine whether or not you should render a row based on current value
-		// and it's relativity to the row Y position value calculated above
-		if (isBipolar) {
-			if (knobPos > 64) {
-				doRender = (knobPos > valueForKnobPosComparison);
-			}
-			else if (knobPos < 64) {
-				// when it's negative, we check to see if the knobPos
-				// is less or equal to the maximum of the current row value range
-				valueForKnobPosComparison += kParamValueIncrementForAutomationDisplay;
-				doRender = (knobPos <= valueForKnobPosComparison);
+			else {
+				doRender = (knobPos <= patchCableMaxPadDisplayValues[yDisplay]);
 			}
 		}
 		else {
-			doRender = (knobPos > valueForKnobPosComparison);
-		}
-
-		if (doRender) {
-			if (isAutomated) { // automated, render bright colour
-				if (isBipolar) {
-					if (knobPos > 64) {
-						pixel = rowBipolarDownColour[-yDisplay + 7];
-					}
-					else if (knobPos < 64) {
-						pixel = rowBipolarDownColour[yDisplay];
-					}
-				}
-				else {
-					pixel = rowColour[yDisplay];
-				}
-			}
-			else { // not automated, render less bright tail colour
-				if (isBipolar) {
-					if (knobPos > 64) {
-						pixel = rowBipolarDownTailColour[-yDisplay + 7];
-					}
-					else if (knobPos < 64) {
-						pixel = rowBipolarDownTailColour[yDisplay];
-					}
-				}
-				else {
-					pixel = rowTailColour[yDisplay];
-				}
-			}
-			occupancyMask[xDisplay] = 64;
-		}
-
-		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
-			if (doRender) {
-				if (isBipolar) {
-					if (knobPos > 64) {
-						pixel = rowBipolarDownBlurColour[-yDisplay + 7];
-					}
-					else if (knobPos < 64) {
-						pixel = rowBipolarDownBlurColour[yDisplay];
-					}
-				}
-				else {
-					pixel = rowBlurColour[yDisplay];
-				}
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
 			}
 			else {
-				pixel = colours::grey;
+				doRender = (knobPos <= nonPatchCableMaxPadDisplayValues[yDisplay]);
 			}
-			occupancyMask[xDisplay] = 64;
 		}
+	}
+
+	// render automation lane
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownColour[yDisplay];
+			}
+		}
+		else { // not automated, render less bright tail colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownTailColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownTailColour[yDisplay];
+			}
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownBlurColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownBlurColour[yDisplay];
+			}
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+}
+
+/// render column for unipolar params (e.g. not pan, pitch, or patch cables)
+void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                          bool isAutomated, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
+
+	// determine whether or not you should render a row based on current value
+	bool doRender = false;
+	if (knobPos != 0) {
+		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+	}
+
+	// render square
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			pixel = rowColour[yDisplay];
+		}
+		else { // not automated, render less bright tail colour
+			pixel = rowTailColour[yDisplay];
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			pixel = rowBlurColour[yDisplay];
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
 	}
 }
 

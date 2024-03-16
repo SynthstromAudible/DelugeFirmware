@@ -175,6 +175,10 @@ private:
 	void renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
 	               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom,
 	               deluge::modulation::params::Kind kind, bool isBipolar);
+	void renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+	                         deluge::modulation::params::Kind kind, int32_t knobPos);
+	void renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+	                          int32_t knobPos);
 	void renderUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
 	                         int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
