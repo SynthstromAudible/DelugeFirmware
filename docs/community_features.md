@@ -643,59 +643,61 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the notes. This menu option show zeroes
       and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
+      <blockquote>
       <details><summary>Rhythm Options</summary>
-        -  0: None (play all notes)
-        -  1: 0--
-        -  2: 00-
-        -  3: 0-0
-        -  4: 0-00
-        -  5: 00--
-        -  6: 000-
-        -  7: 0--0
-        -  8: 00-0
-        -  9: 0----
-        - 10: 0-000
-        - 11: 00---
-        - 12: 0000-
-        - 13: 0---0
-        - 14: 00-00
-        - 15: 0-0--
-        - 16: 000-0
-        - 17: 0--0-
-        - 18: 0--00
-        - 19: 000--
-        - 20: 00--0
-        - 21: 0-00-
-        - 22: 00-0-
-        - 23: 0-0-0
-        - 24: 0-----
-        - 25: 0-0000
-        - 26: 00----
-        - 27: 00000-
-        - 28: 0----0
-        - 29: 00-000
-        - 30: 0-0---
-        - 31: 0000-0
-        - 32: 0---0-
-        - 33: 000-00
-        - 34: 0--000
-        - 35: 000---
-        - 36: 0000--
-        - 37: 0---00
-        - 38: 00--00
-        - 39: 0-00--
-        - 40: 000--0
-        - 41: 0--00-
-        - 42: 0-0-00
-        - 43: 00-0--
-        - 44: 000-0-
-        - 45: 0--0-0
-        - 46: 0-000-
-        - 47: 00---0
-        - 48: 00--0-
-        - 49: 0-0--0
-        - 50: 00-0-0
+ 0: None
+ 1: 0--
+ 2: 00-
+ 3: 0-0
+ 4: 0-00
+ 5: 00--
+ 6: 000-
+ 7: 0--0
+ 8: 00-0
+ 9: 0----
+10: 0-000
+11: 00---
+12: 0000-
+13: 0---0
+14: 00-00
+15: 0-0--
+16: 000-0
+17: 0--0-
+18: 0--00
+19: 000--
+20: 00--0
+21: 0-00-
+22: 00-0-
+23: 0-0-0
+24: 0-----
+25: 0-0000
+26: 00----
+27: 00000-
+28: 0----0
+29: 00-000
+30: 0-0---
+31: 0000-0
+32: 0---0-
+33: 000-00
+34: 0--000
+35: 000---
+36: 0000--
+37: 0---00
+38: 00--00
+39: 0-00--
+40: 000--0
+41: 0--00-
+42: 0-0-00
+43: 00-0--
+44: 000-0-
+45: 0--0-0
+46: 0-000-
+47: 00---0
+48: 00--0-
+49: 0-0--0
+50: 00-0-0
       </details>
+      </blockquote>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
