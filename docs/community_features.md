@@ -645,13 +645,11 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
       and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
       <details>
       <summary>Rhythm Options</summary>
-      <!--
         <ul>
         <li>>0: None</li>
         <li>* 1: 0--</li>
         <li>* 2: 00-</li>
         </ul>
-      -->
       </details>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
