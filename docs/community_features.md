@@ -641,8 +641,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
     - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
-      This parameter will play silences in some of the notes. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
+      This parameter will play silences in some of the steps. This menu option show zeroes
+      and dashes, "0" means "play note", and "-" means "don't play note (or play a silence)".
+      The available options are:
       <details>
       <summary>Rhythm Options</summary>
         <ul>
