@@ -646,9 +646,57 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
       <details>
       <summary>Rhythm Options</summary>
         <ul>
-        <li>>0: None</li>
-        <li>* 1: 0--</li>
-        <li>* 2: 00-</li>
+          <li> 0: None</li>
+          <li> 1: 0--</li>
+          <li> 2: 00-</li>
+          <li> 3: 0-0</li>
+          <li> 4: 0-00</li>
+          <li> 5: 00--</li>
+          <li> 6: 000-</li>
+          <li> 7: 0--0</li>
+          <li> 8: 00-0</li>
+          <li> 9: 0----</li>
+          <li>10: 0-000</li>
+          <li>11: 00---</li>
+          <li>12: 0000-</li>
+          <li>13: 0---0</li>
+          <li>14: 00-00</li>
+          <li>15: 0-0--</li>
+          <li>16: 000-0</li>
+          <li>17: 0--0-</li>
+          <li>18: 0--00</li>
+          <li>19: 000--</li>
+          <li>20: 00--0</li>
+          <li>21: 0-00-</li>
+          <li>22: 00-0-</li>
+          <li>23: 0-0-0</li>
+          <li>24: 0-----</li>
+          <li>25: 0-0000</li>
+          <li>26: 00----</li>
+          <li>27: 00000-</li>
+          <li>28: 0----0</li>
+          <li>29: 00-000</li>
+          <li>30: 0-0---</li>
+          <li>31: 0000-0</li>
+          <li>32: 0---0-</li>
+          <li>33: 000-00</li>
+          <li>34: 0--000</li>
+          <li>35: 000---</li>
+          <li>36: 0000--</li>
+          <li>37: 0---00</li>
+          <li>38: 00--00</li>
+          <li>39: 0-00--</li>
+          <li>40: 000--0</li>
+          <li>41: 0--00-</li>
+          <li>42: 0-0-00</li>
+          <li>43: 00-0--</li>
+          <li>44: 000-0-</li>
+          <li>45: 0--0-0</li>
+          <li>46: 0-000-</li>
+          <li>47: 00---0</li>
+          <li>48: 00--0-</li>
+          <li>49: 0-0--0</li>
+          <li>50: 00-0-0</li>
         </ul>
       </details>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
