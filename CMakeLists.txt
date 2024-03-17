@@ -253,6 +253,7 @@ target_link_options(deluge PUBLIC
 
     # Enabled to generate a full ELF, objcopy will do the stripping
     # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
+
     -nostartfiles # Don't emit startfiles
 
     # Print details
