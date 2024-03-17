@@ -606,8 +606,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 #### 4.3.8 - Advanced Arpeggiator
 
 - ([#1198]) Added new features to the arpeggiator, which include:
-    - Splitted the old `Mode` setting into separate settings `Mode` (Off or Arpeggiator) `Octave Mode` (Up, Down,
-      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random) settings, so you can setup
+    - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
+      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
     - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
         - `Off` will disable arpeggiator.
@@ -619,7 +619,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - **`Mode (MODE):`**
         - `Off` disables the arpeggiator.
         - `Arpeggiator` (ARP) enables the arpeggiator.
-    - **`Octave Modes (OMOD):`**
+    - **`Octave Mode (OMOD):`**
         - `Up` (UP) will walk the octaves up.
         - `Down` (DOWN) will walk the octaves down.
         - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
@@ -628,7 +628,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           the old `Both` mode.
         - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
           Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Modes (NMOD):`**
+    - **`Note Mode (NMOD):`**
         - `Up` (UP) will walk the notes up.
         - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
           Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
@@ -638,17 +638,75 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           all the way up (with notes as played), and then down reversing the order of played notes.
         - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
           different than Random, then the pattern will play, in the same octave, the same number of random
-          notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
+          notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Rhythm`** (RHYT): This parameter will play silences in some of the notes. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
-      0 (default, play all notes), 00-, 0-0, 000-, 00-0, 0-00, 00-- and 0--0.
+    - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
+      This parameter will play silences in some of the steps. This menu option show zeroes
+      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
+      The available options are:
+      <details>
+      <summary>Rhythm Options</summary>
+        <ul>
+          <li> 0: None</li>
+          <li> 1: 0--</li>
+          <li> 2: 00-</li>
+          <li> 3: 0-0</li>
+          <li> 4: 0-00</li>
+          <li> 5: 00--</li>
+          <li> 6: 000-</li>
+          <li> 7: 0--0</li>
+          <li> 8: 00-0</li>
+          <li> 9: 0----</li>
+          <li>10: 0-000</li>
+          <li>11: 00---</li>
+          <li>12: 0000-</li>
+          <li>13: 0---0</li>
+          <li>14: 00-00</li>
+          <li>15: 0-0--</li>
+          <li>16: 000-0</li>
+          <li>17: 0--0-</li>
+          <li>18: 0--00</li>
+          <li>19: 000--</li>
+          <li>20: 00--0</li>
+          <li>21: 0-00-</li>
+          <li>22: 00-0-</li>
+          <li>23: 0-0-0</li>
+          <li>24: 0-----</li>
+          <li>25: 0-0000</li>
+          <li>26: 00----</li>
+          <li>27: 00000-</li>
+          <li>28: 0----0</li>
+          <li>29: 00-000</li>
+          <li>30: 0-0---</li>
+          <li>31: 0000-0</li>
+          <li>32: 0---0-</li>
+          <li>33: 000-00</li>
+          <li>34: 0--000</li>
+          <li>35: 000---</li>
+          <li>36: 0000--</li>
+          <li>37: 0---00</li>
+          <li>38: 00--00</li>
+          <li>39: 0-00--</li>
+          <li>40: 000--0</li>
+          <li>41: 0--00-</li>
+          <li>42: 0-0-00</li>
+          <li>43: 00-0--</li>
+          <li>44: 000-0-</li>
+          <li>45: 0--0-0</li>
+          <li>46: 0-000-</li>
+          <li>47: 00---0</li>
+          <li>48: 00--0-</li>
+          <li>49: 0-0--0</li>
+          <li>50: 00-0-0</li>
+        </ul>
+      </details>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning.
+          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
+          to create longer and more complex rhythm patterns.
     - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several time in the same time interval that the
+      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
       original note has to play.
         - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
           could have (each step will randomize the number of ratchet notes between 1 and max value).
@@ -659,8 +717,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
             - Being 0 (0%), no ratchets at all
             - And 50 (100%), all notes will evaluate to be ratcheted.
-    - `MPE` settings:
-      = `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
+    - **`MPE`** settings:
+      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
       velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
