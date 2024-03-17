@@ -30,6 +30,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
   pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable / Modulation Depth.
+- Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. Positive values are shown in the top four pads, Negative value in the bottom four pads, and the Middle value is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
   Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
@@ -74,6 +75,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 - Added a feature save user-defined pad brightness level and restore it at startup.
+- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

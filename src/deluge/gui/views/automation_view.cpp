@@ -140,17 +140,53 @@ const uint32_t love[kDisplayWidth][kDisplayHeight] = {
 
 // VU meter style colours for the automation editor
 
-const RGB rowColour[kDisplayHeight] = {
-    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0},
-};
+const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
+                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
 
-const RGB rowTailColour[kDisplayHeight] = {
-    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2},
-};
+const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
+                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
 
-const RGB rowBlurColour[kDisplayHeight] = {
-    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39},
-};
+const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
+                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
+
+const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
+
+const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
+
+const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
+
+// lookup tables for the values that are set when you press the pads in each row of the grid
+const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
+
+// lookup tables for the min value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
+const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
+
+// lookup tables for the max value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
+const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
+
+// summary of pad ranges and press values (format: MIN < PRESS < MAX)
+// patch cable:
+// y = 7 ::   97 <  128 < 128
+// y = 6 ::   65 <   90 <  96
+// y = 5 ::   33 <   60 <  64
+// y = 4 ::    1 <   30 <  32
+// y = 3 ::  -32 <  -30 <  -1
+// y = 2 ::  -64 <  -60 < -33
+// y = 1 ::  -96 <  -90 < -65
+// y = 0 :: -128 < -128 < -97
+
+// non-patch cable:
+// y = 7 :: 113 < 128 < 128
+// y = 6 ::  97 < 110 < 112
+// y = 5 ::  81 <  91 <  96
+// y = 4 ::  65 <  73 <  80
+// y = 3 ::  49 <  55 <  64
+// y = 2 ::  33 <  37 <  48
+// y = 1 ::  17 <  18 <  32
+// y = 0 ::  0  <   0 <  16
 
 AutomationView automationView{};
 
@@ -477,6 +513,18 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
+	params::Kind kind = params::Kind::NONE;
+	bool isBipolar = false;
+
+	// if we have a valid model stack with param
+	// get the param Kind and param bipolar status
+	// so that it can be passed through the automation editor rendering
+	// calls below
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		kind = modelStackWithParam->paramCollection->getParamKind();
+		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+	}
+
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
@@ -491,7 +539,7 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 				if (!isOnAutomationOverview()) {
 					renderAutomationEditor(modelStackWithParam, clip, image + (yDisplay * imageWidth),
 					                       occupancyMaskOfRow, renderWidth, xScroll, xZoom, effectiveLength, yDisplay,
-					                       drawUndefinedArea);
+					                       drawUndefinedArea, kind, isBipolar);
 				}
 
 				// if not editing a parameter, show Automation Overview
@@ -593,11 +641,11 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
                                             uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
                                             uint32_t xZoom, int32_t effectiveLength, int32_t yDisplay,
-                                            bool drawUndefinedArea) {
+                                            bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 		renderRow(modelStackWithParam, image, occupancyMask, effectiveLength, yDisplay,
-		          modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom);
+		          modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
 
 		if (drawUndefinedArea) {
 			renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
@@ -626,53 +674,140 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::mod
 	return false;
 }
 
-// this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with
-// "nodes" it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative
-// rendering method which always works. hoping to bring back the other code once I've worked out the bugs.
+/// render each square in each row of the automation editor grid
 void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
                                int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
-                               int32_t xZoom) {
+                               int32_t xZoom, params::Kind kind, bool isBipolar) {
 
-	int32_t valueForKnobPosComparison;
-
+	// iterate through each square
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
 		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
 		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
-		RGB& pixel = image[xDisplay];
+		if (isBipolar) {
+			renderBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
+		}
+		else {
+			renderUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
+		}
+	}
+}
 
-		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-			if (yDisplay == 0) {
-				valueForKnobPosComparison = -kMaxKnobPos;
+/// render column for bipolar params - e.g. pan, pitch, patch cable
+void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                         bool isAutomated, params::Kind kind, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
+
+	int32_t middleKnobPos;
+
+	// for patch cable that has a range of -128 to + 128, the middle point is 0
+	if (kind == params::Kind::PATCH_CABLE) {
+		middleKnobPos = 0;
+	}
+	// for non-patch cable that has a range of 0 to 128, the middle point is 64
+	else {
+		middleKnobPos = 64;
+	}
+
+	// if it's bipolar, only render grid rows above or below middle value
+	if ((knobPos > middleKnobPos) && (yDisplay < 4)) {
+		return;
+	}
+	else if ((knobPos < middleKnobPos) && (yDisplay > 3)) {
+		return;
+	}
+
+	bool doRender = false;
+
+	// determine whether or not you should render a row based on current value
+	if (knobPos != middleKnobPos) {
+		if (kind == params::Kind::PATCH_CABLE) {
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= patchCableMinPadDisplayValues[yDisplay]);
 			}
 			else {
-				valueForKnobPosComparison = (yDisplay - 4) * kParamValueIncrementForAutomationPatchCableDisplay;
+				doRender = (knobPos <= patchCableMaxPadDisplayValues[yDisplay]);
 			}
 		}
 		else {
-			valueForKnobPosComparison = yDisplay * kParamValueIncrementForAutomationDisplay;
-		}
-
-		if (knobPos > valueForKnobPosComparison) {
-			if (isAutomated) { // automated, render bright colour
-				pixel = rowColour[yDisplay];
-			}
-			else { // not automated, render less bright tail colour
-				pixel = rowTailColour[yDisplay];
-			}
-			occupancyMask[xDisplay] = 64;
-		}
-
-		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
-			if (knobPos > valueForKnobPosComparison) {
-				pixel = rowBlurColour[yDisplay];
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
 			}
 			else {
-				pixel = colours::grey;
+				doRender = (knobPos <= nonPatchCableMaxPadDisplayValues[yDisplay]);
 			}
-			occupancyMask[xDisplay] = 64;
 		}
+	}
+
+	// render automation lane
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownColour[yDisplay];
+			}
+		}
+		else { // not automated, render less bright tail colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownTailColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownTailColour[yDisplay];
+			}
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownBlurColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownBlurColour[yDisplay];
+			}
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+}
+
+/// render column for unipolar params (e.g. not pan, pitch, or patch cables)
+void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                          bool isAutomated, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
+
+	// determine whether or not you should render a row based on current value
+	bool doRender = false;
+	if (knobPos != 0) {
+		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+	}
+
+	// render square
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			pixel = rowColour[yDisplay];
+		}
+		else { // not automated, render less bright tail colour
+			pixel = rowTailColour[yDisplay];
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			pixel = rowBlurColour[yDisplay];
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
 	}
 }
 
@@ -1082,7 +1217,8 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					playbackStopped = false;
 				}
 
-				setKnobIndicatorLevels(knobPos + kKnobPosOffset);
+				knobPos = knobPos + kKnobPosOffset;
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 		}
 	}
@@ -2648,7 +2784,7 @@ bool AutomationView::modEncoderActionForSelectedPad(ModelStackWithAutoParam* mod
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
 
-			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
 			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
@@ -2663,6 +2799,8 @@ bool AutomationView::modEncoderActionForSelectedPad(ModelStackWithAutoParam* mod
 
 			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom, true);
+
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on
 			// revised start/ending values
@@ -2694,7 +2832,7 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
-			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
 			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
@@ -2718,9 +2856,12 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 			}
 
 			if (!playbackHandler.isEitherClockActive()) {
-				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
-				setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
+				int32_t knobPos = newKnobPos + kKnobPosOffset;
+				renderDisplay(knobPos, kNoSelection, true);
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
+
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// midi follow and midi feedback enabled
 			// re-send midi cc because learned parameter value has changed
@@ -3312,8 +3453,9 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 
 	// in a multi pad press, no need to display all the values calculated
 	if (!multiPadPressSelected) {
-		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
-		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
+		int32_t newKnobPos = knobPos + kKnobPosOffset;
+		renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
+		setKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
 	}
 
 	// midi follow and midi feedback enabled
@@ -3324,15 +3466,24 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 // sets both knob indicators to the same value when pressing single pad,
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
-void AutomationView::setKnobIndicatorLevels(int32_t knobPos) {
+void AutomationView::setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+                                            int32_t knobPosRight) {
+	params::Kind kind = modelStack->paramCollection->getParamKind();
+	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
+
 	// if you're dealing with a patch cable which has a -128 to +128 range
 	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-	if (!onArrangerView && (getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
-		knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+	if (kind == params::Kind::PATCH_CABLE) {
+		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
 	}
 
-	indicator_leds::setKnobIndicatorLevel(0, knobPos);
-	indicator_leds::setKnobIndicatorLevel(1, knobPos);
+	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
+
+	if (!isBlinking) {
+		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft, isBipolar);
+		indicator_leds::setKnobIndicatorLevel(1, knobPosRight, isBipolar);
+	}
 }
 
 // updates the position that the active mod controllable stack is pointing to
@@ -3355,7 +3506,7 @@ void AutomationView::updateModPosition(ModelStackWithAutoParam* modelStack, uint
 				}
 
 				if (updateIndicatorLevels) {
-					setKnobIndicatorLevels(knobPos);
+					setKnobIndicatorLevels(modelStack, knobPos, knobPos);
 				}
 			}
 		}
@@ -3505,90 +3656,73 @@ void AutomationView::handleParameterAutomationChange(ModelStackWithAutoParam* mo
 			// use default interpolation settings
 			initInterpolation();
 
-			int32_t newKnobPos = calculateKnobPosForSinglePadPress(outputType, yDisplay);
+			int32_t newKnobPos = calculateKnobPosForPadPress(modelStackWithParam, outputType, yDisplay);
 			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom);
 		}
 	}
 }
 
-// calculates what the new parameter value is when you press a single pad
-int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay) {
+int32_t AutomationView::calculateKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
+                                                    int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	// if you press bottom pad, value is 0 (or -128 for patch cables)
-	/* for all other pads except for the top pad:
-	    - for non-patch cables: value = row Y * 18
-	        - except when you're holding two pads in the column, where it takes the min and max of each pads range
-	    - for patch cables: value = row Y - 4 * 30
-	        0 - 128 is compressed to top 4 pads
-	        -128 to -1 is compressed to bottom 4 pads
-	*/
-	if (yDisplay < 7) {
-		// patch cable
-		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-			int32_t yDisplayForPatchCableKnobPosCalculation = yDisplay - 4;
-			if (middlePadPressSelected) {
-				newKnobPos = ((yDisplayForPatchCableKnobPosCalculation + 1)
-				              * kParamValueIncrementForAutomationPatchCableDisplay);
-			}
-			else {
-				if (yDisplay == 0) {
-					newKnobPos = -kMaxKnobPos;
-				}
-				else {
-					if (yDisplay > 3) {
-						yDisplayForPatchCableKnobPosCalculation += 1;
-					}
-					newKnobPos = yDisplayForPatchCableKnobPosCalculation
-					             * kParamValueIncrementForAutomationPatchCableSinglePadPress;
-				}
-			}
-		}
-		// non patch cable
-		else {
-			if (middlePadPressSelected) {
-				newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
-			}
-			else {
-				newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
-			}
-		}
-	}
-	// if you are pressing the top pad, set the value to max (128)
-	else {
-		// for Midi Clips, maxKnobPos = 127
-		if (outputType == OutputType::MIDI_OUT) {
-			newKnobPos = kMaxKnobPos - 1; // 128 - 1 = 127
-		}
-		else {
-			newKnobPos = kMaxKnobPos;
-		}
-	}
 	if (middlePadPressSelected) {
-		if (leftPadSelectedY == 0) {
-			if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-				newKnobPos = (newKnobPos + -kMaxKnobPos) / 2;
-			}
-			else {
-				newKnobPos = newKnobPos / 2;
-			}
-		}
-		else {
-			if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-				newKnobPos =
-				    (newKnobPos + (((leftPadSelectedY - 4) * kParamValueIncrementForAutomationPatchCableDisplay) + 1))
-				    / 2;
-			}
-			else {
-				newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
-			}
-		}
+		newKnobPos = calculateKnobPosForMiddlePadPress(kind, yDisplay);
+	}
+	else {
+		newKnobPos = calculateKnobPosForSinglePadPress(kind, yDisplay);
+	}
+
+	// for Midi Clips, maxKnobPos = 127
+	if (outputType == OutputType::MIDI_OUT && newKnobPos == kMaxKnobPos) {
+		newKnobPos -= 1; // 128 - 1 = 127
 	}
 
 	// in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
 	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a second pad in the same column
+// middle value is calculated by taking average of min and max value of the range for the two pad presses
+int32_t AutomationView::calculateKnobPosForMiddlePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	int32_t yMin = yDisplay < leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t yMax = yDisplay > leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t minKnobPos = 0;
+	int32_t maxKnobPos = 0;
+
+	if (kind == params::Kind::PATCH_CABLE) {
+		minKnobPos = patchCableMinPadDisplayValues[yMin];
+		maxKnobPos = patchCableMaxPadDisplayValues[yMax];
+	}
+	else {
+		minKnobPos = nonPatchCableMinPadDisplayValues[yMin];
+		maxKnobPos = nonPatchCableMaxPadDisplayValues[yMax];
+	}
+
+	newKnobPos = (minKnobPos + maxKnobPos) >> 1;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a single pad
+int32_t AutomationView::calculateKnobPosForSinglePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	// patch cable
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = patchCablePadPressValues[yDisplay];
+	}
+	// non patch cable
+	else {
+		newKnobPos = nonPatchCablePadPressValues[yDisplay];
+	}
 
 	return newKnobPos;
 }
@@ -3623,8 +3757,8 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		// otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 		else {
 			OutputType outputType = clip->output->type;
-			firstPadValue = calculateKnobPosForSinglePadPress(outputType, firstPadY) + kKnobPosOffset;
-			secondPadValue = calculateKnobPosForSinglePadPress(outputType, secondPadY) + kKnobPosOffset;
+			firstPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, firstPadY) + kKnobPosOffset;
+			secondPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, secondPadY) + kKnobPosOffset;
 		}
 
 		// converting variables to float for more accurate interpolation calculation
@@ -3755,15 +3889,7 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 			}
 		}
 
-		// update LED indicators
-		// if you're dealing with a patch cable which has a -128 to +128 range
-		// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-		if (!onArrangerView && (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE)) {
-			knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
-			knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
-		}
-		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
-		indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+		setKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 
 		// update position of mod controllable stack
 		updateModPosition(modelStackWithParam, squareStart, false, false);
@@ -3771,7 +3897,8 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 }
 
 // used to calculate new knobPos when you turn the mod encoders (gold knobs)
-int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset) {
+int32_t AutomationView::calculateKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+                                                          int32_t offset) {
 
 	// adjust the current knob so that it is within the range of 0-128 for calculation purposes
 	knobPos = knobPos + kKnobPosOffset;
@@ -3779,7 +3906,8 @@ int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32
 	int32_t newKnobPos = 0;
 
 	if ((knobPos + offset) < 0) {
-		if (!onArrangerView && getCurrentClip()->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		if (kind == params::Kind::PATCH_CABLE) {
 			if ((knobPos + offset) >= -kMaxKnobPos) {
 				newKnobPos = knobPos + offset;
 			}
