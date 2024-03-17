@@ -51,6 +51,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -1075,6 +1076,21 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		else { // 64ths stutter: all 4 leds turned on
 			popupMsg.append("64ths");
+		}
+	}
+	// if turning arpeggiator rhythm mod encoder
+	else if (isParamArpRhythm(kind, paramID)) {
+		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+
+			char name[12];
+			// Index: Name
+			snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
+			popupMsg.append(name);
+		}
+		else {
+			popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
 		}
 	}
 	else {
