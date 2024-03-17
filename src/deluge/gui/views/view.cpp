@@ -1183,7 +1183,8 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		automationView.displayAutomation();
 		return;
 	}
 
@@ -1297,7 +1298,8 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	UI* currentUI = getCurrentUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((currentUI == &automationView) && !automationView.isOnAutomationOverview()) {
+	if (((currentUI == &automationView) || (getRootUI() == &automationView))
+	    && !automationView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1513,7 +1515,7 @@ void View::setModLedStates() {
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {

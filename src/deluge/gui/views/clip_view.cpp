@@ -222,8 +222,11 @@ doReRender:
 	else if ((isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::Y_ENC))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
-		if (sdRoutineLock)
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+		// Just be safe - maybe not necessary
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
 		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int32_t shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();

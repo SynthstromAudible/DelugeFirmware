@@ -189,6 +189,7 @@ public:
 	deluge::modulation::params::Kind lastSelectedParamKind;
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
 	OutputType lastSelectedOutputType;
 	PatchSource lastSelectedPatchSource;
 	// END ~ new Automation Clip View Variables
