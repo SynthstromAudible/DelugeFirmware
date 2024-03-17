@@ -351,13 +351,21 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	ratchetNotesIndex = 0;
 }
 
-// Returns if the note arpeggiator should advance to next note or not
+// Returns if the arpeggiator should advance to next note or not
 bool ArpeggiatorBase::evaluateRhythm(bool isRatchet) {
 	// If it is a rachet, use the last normal note played index, but it it is not a ratchet, play the new rhythm index
 	int32_t rhythmPatternIndex = isRatchet ? lastNormalNotePlayedFromRhythm : notesPlayedFromRhythm;
 	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
 	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index just in case
 	return arpRhythmPatterns[rhythm].steps[rhythmPatternIndex];
+}
+
+// Returns if the arpeggiator should play the next note or not
+bool ArpeggiatorBase::evaluateNoteProbability(bool isRatchet) {
+	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
+	int32_t randomChance = random(65535);
+	bool calculatedNoteProbabilityShouldPlay = noteProbability >= randomChance;
+	return isRatchet ? lastNormalNotePlayedFromNoteProbability : calculatedNoteProbabilityShouldPlay;
 }
 
 void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
@@ -467,6 +475,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
+	bool shouldPlayNote =
+	    evaluateNoteProbability(isRatchet)
+	    || !playedFirstArpeggiatedNoteYet; // If first note ever, always play to get the renderer into running state
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -484,13 +495,16 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
 		increaseSequenceAndRhythmIndexes();
 	}
 
-	if (shouldCarryOnRhythmNote) {
+	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
 
@@ -682,6 +696,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
+	bool shouldPlayNote =
+	    evaluateNoteProbability(isRatchet)
+	    || !playedFirstArpeggiatedNoteYet; // If first note ever, always play to get the renderer into running state
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -699,6 +716,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -716,7 +736,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
 
-	if (shouldCarryOnRhythmNote) {
+	if (shouldCarryOnRhythmNote && shouldPlayNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
 
@@ -758,7 +778,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
                              uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
@@ -769,6 +789,9 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 
 	// Update live Sequence Length value with the most up to date value from automation
 	rhythm = (((int64_t)rhythmValue) * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32; // in the range 0-50
+
+	// Update live noteProbability value with the most up to date value from automation
+	noteProbability = noteProb >> 16; // just 16 bits is enough resolution for probability
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability

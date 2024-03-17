@@ -296,8 +296,8 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
-	            uint32_t sequenceLength, uint32_t rhythm, uint32_t ratchetAmount, uint32_t ratchetProbability,
-	            ArpReturnInstruction* instruction);
+	            uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb, uint32_t ratchAmount,
+	            uint32_t ratchProb, ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
 	virtual bool hasAnyInputNotesActive() = 0;
@@ -322,6 +322,9 @@ public:
 	uint32_t notesPlayedFromRhythm = 0;
 	uint32_t lastNormalNotePlayedFromRhythm = 0;
 
+	// Note probability state
+	bool lastNormalNotePlayedFromNoteProbability = true;
+
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
@@ -329,6 +332,7 @@ public:
 	bool isRatcheting = false;
 
 	// Unpatched Automated Params
+	uint16_t noteProbability = 0;
 	uint16_t ratchetProbability = 0;
 	uint32_t maxSequenceLength = 0;
 	uint32_t rhythm = 0;
@@ -341,6 +345,7 @@ protected:
 	void increaseSequenceAndRhythmIndexes();
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(bool isRatchet);
+	bool evaluateNoteProbability(bool isRatchet);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
