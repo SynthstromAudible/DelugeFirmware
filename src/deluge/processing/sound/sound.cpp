@@ -174,6 +174,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -641,12 +642,6 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("numOctaves");
 			}
-			else if (!strcmp(tagName, "rhythm")) {
-				if (arpSettings) {
-					arpSettings->rhythm = storageManager.readTagOrAttributeValueInt();
-				}
-				storageManager.exitTag("rhythm");
-			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
 					arpSettings->syncType = storageManager.readSyncTypeFromFile(song);
@@ -742,6 +737,12 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
 		storageManager.exitTag("sequenceLength");
+	}
+
+	else if (!strcmp(tagName, "rhythm")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		storageManager.exitTag("rhythm");
 	}
 
 	else if (!strcmp(tagName,
@@ -2197,10 +2198,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
 		uint32_t sequenceLength =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, ratchetAmount,
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm, ratchetAmount,
 		                 ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
@@ -3567,6 +3569,10 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		                           readAutomationUpToPos);
 		storageManager.exitTag("sequenceLength");
 	}
+	else if (!strcmp(tagName, "rhythm")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		storageManager.exitTag("rhythm");
+	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		storageManager.exitTag("portamento");
@@ -3782,6 +3788,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
@@ -3928,7 +3935,6 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
-		storageManager.writeAttribute("rhythm", arpSettings->rhythm);
 		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		storageManager.closeTag();
