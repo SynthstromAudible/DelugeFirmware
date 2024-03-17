@@ -186,10 +186,10 @@ The Automation Editor **will:**
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
-- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
+- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128). 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-<img width="347" alt="Screenshot 2023-12-25 at 4 53 23 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/a95c7e5f-5a77-4280-b159-26364d29def2">
+<img width="297" alt="Screenshot 2024-03-16 at 5 13 50 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e">
 
 > **Note** For patch cables / modulation depth, the grid value ranges for each pad have been adapted to accomodate the full -50 to +50 range.
 >
@@ -201,7 +201,7 @@ The Automation Editor **will:**
 > 
 > This diagram shows the updated value ranges for the pads when automating a patch cable / modulation depth.
 
-<img width="315" alt="Screenshot 2024-02-28 at 7 43 23 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/ca78acb1-4aaf-4ff0-83a6-ea730da8d76d">
+<img width="293" alt="Screenshot 2024-03-16 at 5 07 36 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/e6f853f7-56bc-4102-8cc3-9b5a86bd4bfb">
 
 - enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad

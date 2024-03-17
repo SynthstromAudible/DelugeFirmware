@@ -191,6 +191,14 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
   - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
 
+#### 3.15 - Make Mod (Gold) Encoders LED indicators bipolar
+- ([#1480]) As a follow-up to [#1382] which enabled Gold Knobs to access the full range of a Patch cable, the LED indicators for gold knobs editing bipolar params (e.g. Pan, Pitch, Patch Cable), are now bipolar. The lights of a bipolar LED indicator are lit up as follows
+  - Middle value = No lights lit
+  - Maximum value = Top two lights fully lit
+    - Between middle and maximum the top two lights will be lit up proportionately to the value in that range
+  - Minimum value = Bottom two lights fully lit
+    - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -585,6 +593,12 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter
           the `AUTOMATION VIEW EDITOR`.
     - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable / Modulation Depth.
+    - ([#1480]) As a follow-up to [#1374] which enabled enabled patch cables to be edited in Automation View, the Automation Editor has now been modified to display param values according to whether the Param is bipolar or not. If it's a bipolar param, the grid will light up as follows:
+      - Middle value = no pads lit up
+      - Positive value = top 4 pads lit up according to position in middle to maximum value rnage
+      - Negative value = bottom 4 pads lit up according to position in middle to minimum value range
+      - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
+      - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -1171,6 +1185,8 @@ different firmware
 [#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
 
 [#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
+
+[#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
