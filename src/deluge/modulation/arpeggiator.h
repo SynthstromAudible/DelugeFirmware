@@ -28,29 +28,148 @@ class ParamManagerForTimeline;
 
 typedef struct {
 	uint8_t length; // the number of steps to use, between 1 and 4
-	bool steps[4];  // the steps, whether they should play a note or a silence
+	bool steps[6];  // the steps, whether they should play a note or a silence
 } ArpRhythm;
 
-#define NUM_PRESET_ARP_RHYTHMS 8
+#define NUM_PRESET_ARP_RHYTHMS 51
 const ArpRhythm arpRhythmPatterns[NUM_PRESET_ARP_RHYTHMS] = {
-    {1, {1, 1, 1, 1}}, // <-
-    {3, {1, 1, 0, 1}}, // <-
-    {3, {1, 0, 1, 1}}, // <-
-    {4, {1, 1, 1, 0}}, // <-
-    {4, {1, 1, 0, 1}}, // <-
-    {4, {1, 0, 1, 1}}, // <-
-    {4, {1, 1, 0, 0}}, // <-
-    {4, {1, 0, 0, 1}}, // <-
+    {1, {1, 1, 1, 1, 1, 1}}, // <- 1 step
+    {3, {1, 0, 0, 1, 1, 1}}, // <- 3 steps
+    {3, {1, 1, 0, 1, 1, 1}}, // <-
+    {3, {1, 0, 1, 1, 1, 1}}, // <-
+    {4, {1, 0, 1, 1, 1, 1}}, // <- 4 steps
+    {4, {1, 1, 0, 0, 1, 1}}, // <-
+    {4, {1, 1, 1, 0, 1, 1}}, // <-
+    {4, {1, 0, 0, 1, 1, 1}}, // <-
+    {4, {1, 1, 0, 1, 1, 1}}, // <-
+    {5, {1, 0, 0, 0, 0, 1}}, // <- 5 steps
+    {5, {1, 0, 1, 1, 1, 1}}, // <-
+    {5, {1, 1, 0, 0, 0, 1}}, // <-
+    {5, {1, 1, 1, 1, 0, 1}}, // <-
+    {5, {1, 0, 0, 0, 1, 1}}, // <-
+    {5, {1, 1, 0, 1, 1, 1}}, // <-
+    {5, {1, 0, 1, 0, 0, 1}}, // <-
+    {5, {1, 1, 1, 0, 1, 1}}, // <-
+    {5, {1, 0, 0, 1, 0, 1}}, // <-
+    {5, {1, 0, 0, 1, 1, 1}}, // <-
+    {5, {1, 1, 1, 0, 0, 1}}, // <-
+    {5, {1, 1, 0, 0, 1, 1}}, // <-
+    {5, {1, 0, 1, 1, 0, 1}}, // <-
+    {5, {1, 1, 0, 1, 0, 1}}, // <-
+    {5, {1, 0, 1, 0, 1, 1}}, // <-
+    {6, {1, 0, 0, 0, 0, 0}}, // <- 6 steps
+    {6, {1, 0, 1, 1, 1, 1}}, // <-
+    {6, {1, 1, 0, 0, 0, 0}}, // <-
+    {6, {1, 1, 1, 1, 1, 0}}, // <-
+    {6, {1, 0, 0, 0, 0, 1}}, // <-
+    {6, {1, 1, 0, 1, 1, 1}}, // <-
+    {6, {1, 0, 1, 0, 0, 0}}, // <-
+    {6, {1, 1, 1, 1, 0, 1}}, // <-
+    {6, {1, 0, 0, 0, 1, 0}}, // <-
+    {6, {1, 1, 1, 0, 1, 1}}, // <-
+    {6, {1, 0, 0, 1, 1, 1}}, // <-
+    {6, {1, 1, 1, 0, 0, 0}}, // <-
+    {6, {1, 1, 1, 1, 0, 0}}, // <-
+    {6, {1, 0, 0, 0, 1, 1}}, // <-
+    {6, {1, 1, 0, 0, 1, 1}}, // <-
+    {6, {1, 0, 1, 1, 0, 0}}, // <-
+    {6, {1, 1, 1, 0, 0, 1}}, // <-
+    {6, {1, 0, 0, 1, 1, 0}}, // <-
+    {6, {1, 0, 1, 0, 1, 1}}, // <-
+    {6, {1, 1, 0, 1, 0, 0}}, // <-
+    {6, {1, 1, 1, 0, 1, 0}}, // <-
+    {6, {1, 0, 0, 1, 0, 1}}, // <-
+    {6, {1, 0, 1, 1, 1, 0}}, // <-
+    {6, {1, 1, 0, 0, 0, 1}}, // <-
+    {6, {1, 1, 0, 0, 1, 0}}, // <-
+    {6, {1, 0, 1, 0, 0, 1}}, // <-
+    {6, {1, 1, 0, 1, 0, 1}}, // <-
 };
+
 const std::array<char const*, NUM_PRESET_ARP_RHYTHMS> arpRhythmPatternNames = {
-    "0",    // <-
-    "00-",  // <-
-    "0-0",  // <-
-    "000-", // <-
-    "00-0", // <-
-    "0-00", // <-
-    "00--", // <-
-    "0--0", // <-
+    "None", // <- 0, No rhythm: play all notes
+
+    // 3 steps
+    "0--", // <- 1
+
+    "00-", // <- 2
+    "0-0", // <- 3
+
+    // 4 steps
+    "0-00", // <- 4
+    "00--", // <- 5
+
+    "000-", // <- 6
+    "0--0", // <- 7
+
+    "00-0", // <- 8
+
+    // 5 steps
+    "0----", // <- 9
+
+    "0-000", // <- 10
+    "00---", // <- 11
+
+    "0000-", // <- 12
+    "0---0", // <- 13
+
+    "00-00", // <- 14
+    "0-0--", // <- 15
+
+    "000-0", // <- 16
+    "0--0-", // <- 17
+
+    "0--00", // <- 18
+    "000--", // <- 19
+
+    "00--0", // <- 20
+    "0-00-", // <- 21
+
+    "00-0-", // <- 22
+    "0-0-0", // <- 23
+
+    // 6 steps
+    "0-----", // <- 24
+
+    "0-0000", // <- 25
+    "00----", // <- 26
+
+    "00000-", // <- 27
+    "0----0", // <- 28
+
+    "00-000", // <- 29
+    "0-0---", // <- 30
+
+    "0000-0", // <- 31
+    "0---0-", // <- 32
+
+    "000-00", // <- 33
+
+    "0--000", // <- 34
+    "000---", // <- 35
+
+    "0000--", // <- 36
+    "0---00", // <- 37
+
+    "00--00", // <- 38
+    "0-00--", // <- 39
+
+    "000--0", // <- 40
+    "0--00-", // <- 41
+
+    "0-0-00", // <- 42
+    "00-0--", // <- 43
+
+    "000-0-", // <- 44
+    "0--0-0", // <- 45
+
+    "0-000-", // <- 46
+    "00---0", // <- 47
+
+    "00--0-", // <- 48
+    "0-0--0", // <- 49
+    "00-0-0", // <- 50
+
 };
 
 class ArpeggiatorSettings {
@@ -65,7 +184,6 @@ public:
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
-		rhythm = other->rhythm;
 		mpeVelocity = other->mpeVelocity;
 	}
 
@@ -140,9 +258,6 @@ public:
 	SyncLevel syncLevel;
 	SyncType syncType;
 
-	// Rhythm settings
-	uint8_t rhythm{0};
-
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
 
@@ -181,7 +296,7 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
-	            uint32_t sequenceLength, uint32_t ratchetAmount, uint32_t ratchetProbability,
+	            uint32_t sequenceLength, uint32_t rhythm, uint32_t ratchetAmount, uint32_t ratchetProbability,
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
@@ -205,24 +320,27 @@ public:
 
 	// Rhythm state
 	uint32_t notesPlayedFromRhythm = 0;
+	uint32_t lastNormalNotePlayedFromRhythm = 0;
 
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
-	uint32_t ratchetNotesNumber = 0;
+	uint32_t ratchetNotesCount = 0;
 	bool isRatcheting = false;
 
 	// Unpatched Automated Params
 	uint16_t ratchetProbability = 0;
 	uint32_t maxSequenceLength = 0;
+	uint32_t rhythm = 0;
 	uint32_t ratchetAmount = 0;
 
 protected:
 	void resetRatchet();
 	void resetRhythm();
-	void carryOnOctaveSequenceForSingleNoteArpeggio(ArpeggiatorSettings* settings);
+	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
+	void increaseSequenceAndRhythmIndexes();
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
-	bool evaluateRhythm(ArpeggiatorSettings* settings, int32_t rhythmPatternIndex);
+	bool evaluateRhythm(bool isRatchet);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
@@ -238,6 +356,8 @@ public:
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 
 protected:
+	void calculateNextOctave(ArpeggiatorSettings* settings);
+	void setInitialOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 	bool hasAnyInputNotesActive();
 };
@@ -260,5 +380,7 @@ public:
 	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:
+	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings);
+	void setInitialNoteAndOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 };
