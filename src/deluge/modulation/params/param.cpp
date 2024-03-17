@@ -23,6 +23,10 @@
 
 namespace deluge::modulation::params {
 
+bool isParamBipolar(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+}
+
 bool isParamPan(params::Kind kind, int32_t paramID) {
 	return (kind == params::Kind::PATCHED && paramID == LOCAL_PAN)
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);

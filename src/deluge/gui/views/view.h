@@ -132,6 +132,8 @@ public:
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
+	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
+	                                       int32_t newKnobPos);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
 
