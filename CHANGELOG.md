@@ -29,7 +29,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by
   pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
-- Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable / Modulation Depth.
+- Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. Positive values are shown in the top four pads, Negative value in the bottom four pads, and the Middle value is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
@@ -41,9 +41,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
   now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
 - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
 - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
-- Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the
-  ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you
-  are in a clip) or Song (if you are in arranger) to exit out of the menu and enter the `AUTOMATION VIEW EDITOR`.
+- Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
 - Added configuration of the number of count-in bars under `SETTINGS > RECORDING > COUNT-IN BARS`
 - Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type,
   Reverb Room Size, Compressor Mode, ModFX Type and Param).

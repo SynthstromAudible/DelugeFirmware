@@ -132,9 +132,14 @@ void UITimerManager::routine() {
 				}
 
 				case TimerName::DISPLAY_AUTOMATION:
-					if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))
+					    && !automationView.isOnAutomationOverview()) {
 
 						automationView.displayAutomation();
+
+						if (getCurrentUI() == &soundEditor) {
+							soundEditor.getCurrentMenuItem()->readValueAgain();
+						}
 					}
 
 					else {
