@@ -63,7 +63,9 @@ public:
 	///
 	/// This is called with `(b == SELECT_ENC && on)` immediately after the menu is entered, or after
 	/// \ref selectButtonPress is called and returns `(MenuItem*)0xFFFFFFFF`.
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on) { return ActionResult::NOT_DEALT_WITH; }
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 	/// @brief Handle horizontal encoder movement.
 	///
 	/// @param offset must be either -1 or 1, jumping is not supported by many children.
