@@ -996,7 +996,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		// when this feature is enabled, interpolation is enforced on manual automation editing in the automation
 		// instrument clip view
 
-		if (getCurrentUI() == &automationView) {
+		if (getRootUI() == &automationView) {
 			firstI = homogenizeRegion(modelStack, pos, length, value, automationView.interpolationBefore,
 			                          automationView.interpolationAfter, effectiveLength, false);
 		}
