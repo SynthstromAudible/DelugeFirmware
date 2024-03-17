@@ -90,7 +90,7 @@ public:
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads = false,
+	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads = false,
 	                                          bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
