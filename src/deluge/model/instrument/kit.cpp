@@ -90,9 +90,12 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
+	// saving preset
 	if (clipForSavingOutputOnly) {
+
 		paramManager = &clipForSavingOutputOnly->paramManager;
 	}
+	// saving song
 	else {
 		paramManager = NULL;
 
@@ -107,7 +110,12 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 	storageManager.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
 	                                     // Attributes end
-
+	// saving song
+	if (!clipForSavingOutputOnly) {
+		if (midiInput.containsSomething()) {
+			midiInput.writeNoteToFile("MIDIInput");
+		}
+	}
 	GlobalEffectableForClip::writeTagsToFile(paramManager, clipForSavingOutputOnly == NULL);
 
 	storageManager.writeOpeningTag("soundSources"); // TODO: change this?
@@ -280,6 +288,10 @@ doReadDrum:
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
 			selectedDrumIndex = storageManager.readTagOrAttributeValueInt();
 			storageManager.exitTag("selectedDrumIndex");
+		}
+		else if (!strcmp(tagName, "MIDIInput")) {
+			midiInput.readNoteFromFile();
+			storageManager.exitTag();
 		}
 		else {
 			Error result =
