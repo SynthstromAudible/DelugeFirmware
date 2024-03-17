@@ -226,8 +226,10 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type
-  selection menu. The options are:
+- ([#196] and [#1018]) In Song View (Rows mode), holding the status pad (mute pad) for a clip and pressing `SELECT`
+  brings up a clip type selection menu. For Grid Mode there is a dedicated Config
+  
+  The options are:
     - **`Default (DEFA)`** - the default Deluge clip type.
     - **`Fill (FILL)`** - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule
       itself to
@@ -260,7 +262,7 @@ Here is a list of features that have been added to the firmware as a list, group
     - The data model of rows and grid mode are compatible, you can switch between them freely
     - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make
       them visible move the clips to other sections
-    - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks
+    - The colored column on the right are all available sections, the columns are automatically filled with the tracks
       in the same order as in arrangement mode
     - In song view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
     - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
@@ -292,6 +294,13 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
+        - `Yellow mode`
+            - Clips can be configured by holding their pad and pressing the Select encoder to reach the launch style
+              menu, see [#413fill-clips-and-once-clips](Fill Clips and Once Clips)
+            - Pad colour in yellow mode indicates the clip type:
+              - If inactive, fill clips are dull orange by default. Once clips are purple by default.
+              - Active clips are green, or whatever colour is set for active pads.
+              - The colours can be changed in `SETTINGS > PADS > COLOURS > FILL/ONCE`
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
