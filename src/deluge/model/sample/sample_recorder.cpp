@@ -400,12 +400,16 @@ aborted:
 				mayOverwrite = false;
 			}
 
-			error = storageManager.createFile(&file, filePathCreated.get(),
-			                                  mayOverwrite); // Recording could finish or abort during this!
-			if (error != Error::NONE) {
+			// Recording could finish or abort during this!
+			auto created = storageManager.createFile(filePathCreated.get(), mayOverwrite);
+			if (!created) {
 				filePathCreated.clear();
 				goto gotError;
 			}
+			else {
+				this->file = created.value();
+			}
+
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
 			}
@@ -631,8 +635,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 	// If some processing of the recorded audio data needs to happen...
 	if (lshiftAmount || action != MonitoringAction::NONE) {
 
-		FRESULT result = f_close(&file);
-		if (result) {
+		auto closed = this->file->close();
+		if (!closed) {
 			return Error::SD_CARD;
 		}
 
@@ -655,8 +659,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 			Error error = truncateFileDownToSize(correctLength);
 		}
 
-		FRESULT result = f_close(&file);
-		if (result) {
+		auto closed = this->file->close();
+		if (!closed) {
 			return Error::SD_CARD;
 		}
 
@@ -735,24 +739,22 @@ void SampleRecorder::updateDataLengthInFirstCluster(Cluster* cluster) {
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
-Error SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
+Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 	// D_PRINTLN("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
 
-	UINT numBytesWritten;
-	FRESULT result = f_write(&file, sampleCluster->cluster->data, numBytes, &numBytesWritten);
-
-	if (result || numBytes != numBytesWritten) {
+	auto written = file->write({(std::byte*)sampleCluster->cluster->data, numBytes});
+	if (!written || numBytes != written.value()) {
 		return Error::SD_CARD;
 	}
 
-	sampleCluster = sample->clusters.getElement(
-	    clusterIndex); // MUST re-get this - while writing above, the audio routine is being called, and that could
-	                   // allocate new SampleClusters and move them around!
+	// MUST re-get this - while writing above, the audio routine is being called, and that could
+	// allocate new SampleClusters and move them around!
+	sampleCluster = sample->clusters.getElement(clusterIndex);
 
 	// Grab the SD address, for later
-	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file.clust);
+	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file->inner().clust);
 	return Error::NONE;
 }
 
@@ -1451,8 +1453,9 @@ writeFailed:
 
 		if (action != MonitoringAction::NONE || capturedTooMuch) {
 
-			FRESULT fres = f_open(&file, sample->filePath.get(), FA_WRITE);
-			if (fres) {
+			auto opened = this->file->open(sample->filePath.get(), FA_WRITE);
+
+			if (!opened) {
 				return Error::SD_CARD;
 			}
 
@@ -1461,8 +1464,8 @@ writeFailed:
 				return error;
 			}
 
-			fres = f_close(&file);
-			if (fres) {
+			auto closed = this->file->close();
+			if (!closed) {
 				return Error::SD_CARD;
 			}
 		}
@@ -1498,12 +1501,12 @@ Error SampleRecorder::truncateFileDownToSize(uint32_t newFileSize) {
 	}
 
 	// Truncate file size
-	FRESULT fres = f_lseek(&file, newFileSize);
-	if (fres) {
+	auto seeked = file->lseek(newFileSize);
+	if (!seeked) {
 		return Error::SD_CARD;
 	}
-	fres = f_truncate(&file);
-	if (fres) {
+	auto truncated = file->truncate();
+	if (!truncated) {
 		return Error::SD_CARD;
 	}
 
