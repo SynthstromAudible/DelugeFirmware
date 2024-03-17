@@ -1535,7 +1535,9 @@ bool Kit::isAnyAuditioningHappening() {
 // activeClip. Drum must not be NULL - check first if not sure!
 void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
                                   int16_t const* mpeValues, int32_t fromMIDIChannel) {
-
+	if (!drum) {
+		return;
+	}
 	ParamManager* paramManagerForDrum = NULL;
 
 	if (modelStack->getNoteRowAllowNull()) {
