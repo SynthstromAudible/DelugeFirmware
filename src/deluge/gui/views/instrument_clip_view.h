@@ -141,7 +141,7 @@ public:
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
-	void createNewInstrument(OutputType instrumentType);
+	void createNewInstrument(OutputType instrumentType, bool is_fm = false);
 	void changeOutputType(OutputType newOutputType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
@@ -216,7 +216,6 @@ private:
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-
 	void adjustProbability(int32_t offset);
 	void setRowProbability(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);

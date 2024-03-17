@@ -690,6 +690,9 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::INPUT_STEREO:
 		return "inStereo";
 
+	case OscType::DX7:
+		return "dx7";
+
 	default:
 		__builtin_unreachable();
 	}
@@ -726,6 +729,9 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "inStereo")) {
 		return OscType::INPUT_STEREO;
+	}
+	else if (!strcmp(string, "dx7")) {
+		return OscType::DX7;
 	}
 	else {
 		return OscType::TRIANGLE;

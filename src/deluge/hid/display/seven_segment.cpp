@@ -195,7 +195,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 }
 
 NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
-                                                          int32_t initialDelay) {
+                                                          int32_t initialDelay, int count) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
@@ -213,8 +213,14 @@ NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, i
 
 	newLayer->currentPos = startAtEncodedPos;
 	newLayer->initialDelay = initialDelay;
+	newLayer->scrollsCount = count;
 
-	transitionToNewLayer(newLayer);
+	if (count < 0) {
+		transitionToNewLayer(newLayer);
+	}
+	else {
+		setTopLayer(newLayer);
+	}
 
 	return newLayer;
 }

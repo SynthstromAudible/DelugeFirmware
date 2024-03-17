@@ -111,6 +111,7 @@ public:
 	void selectEncoderAction(int8_t offset);
 	bool canSeeViewUnderneath() { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
+	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
 	bool editingReverbSidechain();
@@ -120,6 +121,7 @@ public:
 	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
+	void enterSubmenu(MenuItem* newItem);
 	bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program);
 	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
 	void markInstrumentAsEdited();

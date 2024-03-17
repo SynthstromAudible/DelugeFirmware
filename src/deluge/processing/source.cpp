@@ -17,6 +17,7 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
+#include "dsp/dx/engine.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample.h"
@@ -42,6 +43,7 @@ Source::Source() {
 	timeStretchAmount = 0;
 
 	defaultRangeI = -1;
+	dxPatch = NULL;
 }
 
 Source::~Source() {
@@ -283,6 +285,13 @@ doChangeType:
 
 	oscType = newType;
 }
+
+DxPatch* Source::ensureDxPatch() {
+	if (dxPatch == nullptr) {
+		dxPatch = getDxEngine()->newPatch();
+	}
+	return dxPatch;
+};
 
 /*
     for (int32_t e = 0; e < ranges.getNumElements(); e++) {

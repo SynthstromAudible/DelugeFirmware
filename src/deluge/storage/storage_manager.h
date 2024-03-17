@@ -54,6 +54,7 @@ public:
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true);
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true);
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true);
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
 	void writeTag(char const* tag, int32_t number);
 	void writeTag(char const* tag, char const* contents);
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true);
@@ -103,6 +104,7 @@ public:
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();
 	int32_t readTagOrAttributeValueHex(int32_t errorValue);
+	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen);
 
 	Error readTagOrAttributeValueString(String* string);
 	Error checkSpaceOnCard();
@@ -153,6 +155,7 @@ private:
 	Error readAttributeValueString(String* string);
 	void restoreBackedUpCharIfNecessary();
 	void xmlReadDone();
+	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 
 	Error writeBufferToFile();
 };

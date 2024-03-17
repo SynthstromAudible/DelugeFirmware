@@ -438,7 +438,10 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isButtonPressed(MOD7)) { // FM
+				createNewInstrument(OutputType::SYNTH, true);
+			}
+			else if (Buttons::isNewOrShiftButtonPressed()) {
 				createNewInstrument(OutputType::SYNTH);
 			}
 			else {
@@ -650,6 +653,10 @@ void KeyboardScreen::openedInBackground() {
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
+}
+
+void KeyboardScreen::checkNewInstrument(Instrument* newInstrument) {
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->checkNewInstrument(newInstrument);
 }
 
 bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
