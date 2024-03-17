@@ -411,6 +411,7 @@ void ArpeggiatorBase::increaseSequenceAndRhythmIndexes() {
 		notesPlayedFromSequence++;
 	}
 	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
+	randomNotesPlayedFromOctave++;
 }
 
 void ArpeggiatorForDrum::calculateNextOctave(ArpeggiatorSettings* settings) {
