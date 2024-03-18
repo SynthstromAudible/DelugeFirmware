@@ -180,6 +180,7 @@ enum UnpatchedShared : ParamType {
 /// Unpatched params which are only used for Sounds
 enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_GATE = UNPATCHED_NUM_SHARED,
+	UNPATCHED_ARP_NOTE_PROBABILITY,
 	UNPATCHED_ARP_RATCHET_PROBABILITY,
 	UNPATCHED_ARP_RATCHET_AMOUNT,
 	UNPATCHED_ARP_SEQUENCE_LENGTH,

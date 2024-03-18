@@ -171,6 +171,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_ARP_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
@@ -730,6 +731,13 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
 		storageManager.exitTag("ratchetProbability");
+	}
+
+	else if (!strcmp(tagName, "noteProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("noteProbability");
 	}
 
 	else if (!strcmp(tagName, "sequenceLength")) {
@@ -2199,11 +2207,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t sequenceLength =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
 		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+		uint32_t noteProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm, ratchetAmount,
-		                 ratchetProbability, &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
+		                 noteProbability, ratchetAmount, ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3555,6 +3565,11 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		storageManager.exitTag("arpeggiatorGate");
 	}
+	else if (!strcmp(tagName, "noteProbability")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		storageManager.exitTag("noteProbability");
+	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
@@ -3784,6 +3799,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("noteProbability", params::UNPATCHED_ARP_NOTE_PROBABILITY, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
