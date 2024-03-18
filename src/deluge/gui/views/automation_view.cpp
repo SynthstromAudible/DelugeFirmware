@@ -173,11 +173,13 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    {params::Kind::PATCHED, params::GLOBAL_ARP_RATE}, // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length
+    {params::Kind::PATCHED,
+     params::GLOBAL_ARP_RATE}, // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},             // Noise
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},   // Portamento
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate
