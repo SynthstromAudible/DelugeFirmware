@@ -183,6 +183,7 @@ enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_RATCHET_PROBABILITY,
 	UNPATCHED_ARP_RATCHET_AMOUNT,
 	UNPATCHED_ARP_SEQUENCE_LENGTH,
+	UNPATCHED_ARP_RHYTHM,
 	UNPATCHED_PORTAMENTO,
 	UNPATCHED_SOUND_MAX_NUM,
 };
@@ -230,8 +231,10 @@ constexpr ParamType kUnpatchedAndPatchedMaximum = kMaxNumUnpatchedParams + UNPAT
 
 static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED parameters, (collision with STATIC)");
 
+bool isParamBipolar(Kind kind, int32_t paramID);
 bool isParamPan(Kind kind, int32_t paramID);
 bool isParamPitch(Kind kind, int32_t paramID);
+bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID);
 

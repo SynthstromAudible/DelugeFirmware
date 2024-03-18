@@ -38,6 +38,7 @@ uint8_t knobIndicatorLevels[NUM_LEVEL_INDICATORS];
 uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
 uint8_t levelIndicatorBlinksLeft;
+bool levelIndicatorBipolar;
 
 uint8_t whichKnobMetering;
 
@@ -178,15 +179,15 @@ void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 
 // Level is out of 128
 // Set level and block metering for 500ms
-void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
+void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar) {
 	if (whichKnob == whichKnobMetering) {
 		uiTimerManager.setTimer(TimerName::METER_INDICATOR_BLINK, 500);
 	}
-	actuallySetKnobIndicatorLevel(whichKnob, level);
+	actuallySetKnobIndicatorLevel(whichKnob, level, isBipolar);
 }
 
 // Just set level
-void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
+void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar) {
 	// If this indicator was blinking, stop it
 	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
@@ -197,9 +198,20 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		}
 	}
 
-	int32_t numIndicatorLedsFullyOn = level >> 5;
+	int32_t numIndicatorLedsFullyOn;
 
-	int32_t brightness = (level & 31) << 3;
+	int32_t brightness;
+	int32_t bipolarLevel = level - kKnobPosOffset;
+	if (isBipolar) {
+		int32_t absLevel = std::abs(bipolarLevel);
+		numIndicatorLedsFullyOn = absLevel >> 5;
+		// convert level to negative to positive range for bipolar brightness calculation
+		brightness = (absLevel & 31) << 3;
+	}
+	else {
+		numIndicatorLedsFullyOn = level >> 5;
+		brightness = (level & 31) << 3;
+	}
 	brightness = (brightness * brightness) >> 8; // Square it
 
 	std::array<uint8_t, kNumGoldKnobIndicatorLEDs> indicator{};
@@ -207,11 +219,29 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	for (size_t i = 0; i < kNumGoldKnobIndicatorLEDs; i++) {
 		int32_t brightnessOutputValue = 0;
 
-		if (i < numIndicatorLedsFullyOn) {
-			brightnessOutputValue = 255;
+		// is it a bipolar indicator
+		if (isBipolar) {
+			// is the indicator currently blinking
+			// if so, blink the two middle LED's
+			if (levelIndicatorBlinkOn && (levelIndicatorBlinksLeft > 1)) {
+				switch (i) {
+				case 0:
+					break;
+				case 3:
+					break;
+				default:
+					brightnessOutputValue = 255;
+					break;
+				}
+			}
+			// if not blinking, get brightness value
+			else {
+				brightnessOutputValue =
+				    getBipolarBrightnessOutputValue(i, numIndicatorLedsFullyOn, brightness, bipolarLevel);
+			}
 		}
-		else if (i == numIndicatorLedsFullyOn) {
-			brightnessOutputValue = brightness;
+		else {
+			brightnessOutputValue = getBrightnessOutputValue(i, numIndicatorLedsFullyOn, brightness);
 		}
 
 		indicator.at(i) = brightnessOutputValue;
@@ -221,17 +251,53 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	knobIndicatorLevels[whichKnob] = level;
 }
 
-void blinkKnobIndicator(int32_t whichKnob) {
+/// return brightness value for current LED indicator being looked at
+/// by converting bipolar knob level to brightness value
+int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness,
+                                        int32_t bipolarLevel) {
+	int32_t brightnessOutputValue = 0;
+	// indicator 3, 2 (top to bottom)
+	// numIndicatorLedsFullyOn 0, 1, 2
+	if (bipolarLevel > 0 && whichIndicator > 1) {
+		// convert indicator to 0, 1 for comparison to num LED's fully on
+		whichIndicator = whichIndicator - 2;
+		brightnessOutputValue = getBrightnessOutputValue(whichIndicator, numIndicatorLedsFullyOn, brightness);
+	}
+	// indicator 1, 0 (top to bottom)
+	// numIndicatorLedsFullyOn 0, 1, 2
+	else if (bipolarLevel < 0 && whichIndicator < 2) {
+		// swap indicator's to 0, 1 (top to bottom)
+		whichIndicator = (whichIndicator * -1) + 1;
+		brightnessOutputValue = getBrightnessOutputValue(whichIndicator, numIndicatorLedsFullyOn, brightness);
+	}
+	return brightnessOutputValue;
+}
+
+/// return brightness value for current LED indicator being looked at
+/// by converting number of indicator LEDs fully on to brightness output value
+int32_t getBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness) {
+	int32_t brightnessOutputValue = 0;
+	if (whichIndicator < numIndicatorLedsFullyOn) {
+		brightnessOutputValue = 255;
+	}
+	else if (whichIndicator == numIndicatorLedsFullyOn) {
+		brightnessOutputValue = brightness;
+	}
+	return brightnessOutputValue;
+}
+
+void blinkKnobIndicator(int32_t whichKnob, bool isBipolar) {
 	if (uiTimerManager.isTimerSet(TimerName::LEVEL_INDICATOR_BLINK)) {
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 		if (whichLevelIndicatorBlinking != whichKnob) {
-			setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64);
+			setKnobIndicatorLevel(whichLevelIndicatorBlinking, 64, levelIndicatorBipolar);
 		}
 	}
 
 	whichLevelIndicatorBlinking = whichKnob;
 	levelIndicatorBlinkOn = false;
 	levelIndicatorBlinksLeft = 26;
+	levelIndicatorBipolar = isBipolar;
 	blinkKnobIndicatorLevelTimeout();
 }
 
@@ -243,7 +309,8 @@ void stopBlinkingKnobIndicator(int32_t whichKnob) {
 }
 
 void blinkKnobIndicatorLevelTimeout() {
-	setKnobIndicatorLevel(whichLevelIndicatorBlinking, levelIndicatorBlinkOn ? 64 : 0);
+	setKnobIndicatorLevel(whichLevelIndicatorBlinking, levelIndicatorBlinkOn ? 64 : 0,
+	                      levelIndicatorBlinkOn ? levelIndicatorBipolar : false);
 
 	levelIndicatorBlinkOn = !levelIndicatorBlinkOn;
 	if (--levelIndicatorBlinksLeft) {

@@ -327,10 +327,12 @@ constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 // Automation View constants
+constexpr int32_t kNumNonGlobalParamsForAutomation = 59;
+constexpr int32_t kNumGlobalParamsForAutomation = 23;
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
-constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr float kParamValueIncrementForAutomationSinglePadPress = 18.2857142857143; // 128 / 7
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 constexpr int32_t kParamValueIncrementForAutomationPatchCableSinglePadPress = 30;
 constexpr int32_t kParamValueIncrementForAutomationPatchCableDisplay = 32;
@@ -449,6 +451,7 @@ constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 
 
 constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
+constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
 constexpr int32_t kMaxNumSections = 12;
 

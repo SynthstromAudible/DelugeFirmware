@@ -188,6 +188,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	lastSelectedParamKind = params::Kind::NONE;
 	lastSelectedParamShortcutX = kNoSelection;
 	lastSelectedParamShortcutY = kNoSelection;
+	lastSelectedParamArrayPosition = 0;
 	// end initialize of automation arranger view variables
 
 	masterTransposeInterval = 0;
@@ -1353,6 +1354,7 @@ weAreInArrangementEditorOrInClipInstance:
 		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		bdsm.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
 	globalEffectable.writeAttributesToFile(bdsm, false);
@@ -1776,6 +1778,11 @@ unknownTag:
 			else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
 				lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
 				bdsm.exitTag("lastSelectedParamShortcutY");
+			}
+
+			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
 
 			// legacy section, read as part of global effectable (songParams tag) post c1.1

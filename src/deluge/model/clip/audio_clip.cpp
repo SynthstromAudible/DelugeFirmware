@@ -1037,6 +1037,7 @@ void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		bdsm.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
 	Clip::writeDataToFile(bdsm, song);
@@ -1141,6 +1142,10 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
 			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else {

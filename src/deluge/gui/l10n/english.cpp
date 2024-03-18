@@ -538,6 +538,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "Highlight Incoming Notes"},
         {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "Display Norns Layout"},
         {STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX, "Enable Grain FX"},
+        {STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, "Sticky Shift"},
+        {STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, "Light Shift"},
+        {STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY, "Emulated Display"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
@@ -701,7 +704,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ARP_MODE_MENU_TITLE, "Arp mode"},
         {STRING_FOR_ARP_SYNC_MENU_TITLE, "Arp sync"},
         {STRING_FOR_ARP_OCTAVES_MENU_TITLE, "Arp octaves"},
-        {STRING_FOR_ARP_RYTHM_MENU_TITLE, "Arp rhythm"},
+        {STRING_FOR_ARP_RHYTHM_MENU_TITLE, "Arp rhythm"},
         {STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE, "Arp octave mode"},
         {STRING_FOR_ARP_NOTE_MODE_MENU_TITLE, "Arp note mode"},
         {STRING_FOR_ARP_RATCHETS_MENU_TITLE, "Arp ratc amount"},

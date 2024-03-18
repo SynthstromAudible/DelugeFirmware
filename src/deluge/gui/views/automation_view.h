@@ -91,10 +91,6 @@ public:
 
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	bool modEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
-	                                    int32_t offset, int32_t effectiveLength);
-	void modEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
-	                                      int32_t offset, int32_t effectiveLength);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
@@ -103,7 +99,9 @@ public:
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset);
-	void getLastSelectedParamShortcut(Clip* clip);
+	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
+	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
+	bool multiPadPressSelected;                         // public so menu can access it
 
 	// called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
@@ -133,6 +131,13 @@ public:
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
 
+	// public so menu can access it
+	bool onMenuView;
+	UI* previousUI; // previous UI so you can swap back UI after exiting menu
+	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
+	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
+	void resetInterpolationShortcutBlinking();
+
 private:
 	// button action functions
 	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
@@ -148,6 +153,7 @@ private:
 	bool handleBackAndHorizontalEncoderButtonComboAction(Clip* clip, bool on);
 	void handleVerticalEncoderButtonAction(bool on);
 	void handleSelectEncoderButtonAction(bool on);
+	void handleAffectEntireButtonAction(bool on);
 
 	// audition pad action
 	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
@@ -174,9 +180,15 @@ private:
 	                              OutputType outputType, RGB* image, uint8_t occupancyMask[], int32_t yDisplay);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
 	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
-	                            int32_t effectiveLength, int32_t yDisplay, bool drawUndefinedArea);
+	                            int32_t effectiveLength, int32_t yDisplay, bool drawUndefinedArea,
+	                            deluge::modulation::params::Kind kind, bool isBipolar);
 	void renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
-	               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom);
+	               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom,
+	               deluge::modulation::params::Kind kind, bool isBipolar);
+	void renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+	                         deluge::modulation::params::Kind kind, int32_t knobPos);
+	void renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
+	                          int32_t knobPos);
 	void renderUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
 	                         int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
@@ -194,6 +206,12 @@ private:
 	                                 int32_t effectiveLength);
 
 	// Mod Encoder Action
+	bool modEncoderActionForSelectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
+	                                    int32_t offset, int32_t effectiveLength);
+	void modEncoderActionForUnselectedPad(ModelStackWithAutoParam* modelStackWithParam, int32_t whichModEncoder,
+	                                      int32_t offset, int32_t effectiveLength);
+
+	// Mod Encoder Button Action
 	void copyAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xScroll, int32_t xZoom);
 	void pasteAutomation(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t effectiveLength,
 	                     int32_t xScroll, int32_t xZoom);
@@ -202,6 +220,10 @@ private:
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
 	void selectMIDICC(int32_t offset, Clip* clip);
+	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
+	                                          int32_t numParams);
+	void getLastSelectedNonGlobalParamArrayPosition(Clip* clip);
+	void getLastSelectedGlobalParamArrayPosition(Clip* clip);
 
 	// Automation Lanes Functions
 	void initPadSelection();
@@ -211,13 +233,11 @@ private:
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	void getParameterName(Clip* clip, OutputType outputType, char* parameterName);
-	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                 bool modEncoderAction = false);
-	void setKnobIndicatorLevels(int32_t knobPos);
 	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
 	                       bool updateIndicatorLevels = true);
 
@@ -229,7 +249,10 @@ private:
 	void handleParameterAutomationChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
 	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
-	int32_t calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay);
+	int32_t calculateKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
+	                                    int32_t yDisplay);
+	int32_t calculateKnobPosForMiddlePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(deluge::modulation::params::Kind kind, int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, int32_t effectiveLength,
@@ -238,12 +261,12 @@ private:
 	                                   int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
 	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
-	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
+	int32_t calculateKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+	                                          int32_t offset);
 	void displayCVErrorMessage();
 	void blinkShortcuts();
 	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
-	void resetInterpolationShortcutBlinking();
 
 	bool encoderAction;
 	bool parameterShortcutBlinking;
@@ -253,7 +276,6 @@ private:
 	uint8_t interpolationShortcutY;
 
 	bool padSelectionOn;
-	bool multiPadPressSelected;
 	bool multiPadPressActive;
 	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;

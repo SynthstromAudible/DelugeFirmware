@@ -83,16 +83,19 @@ void blinkLed(LED led, uint8_t numBlinks = 255, uint8_t blinkingType = 0, bool i
 void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool resetToState = true);
 void indicateAlertOnLed(LED led);
 void setMeterLevel(uint8_t whichKnob, uint8_t level);
-void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
-void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
+void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar = false);
+void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipolar = false);
 void clearKnobIndicatorLevels();
-void blinkKnobIndicator(int32_t whichKnob);
+void blinkKnobIndicator(int32_t whichKnob, bool isBipolar);
 void stopBlinkingKnobIndicator(int32_t whichKnob);
 void blinkKnobIndicatorLevelTimeout();
 uint8_t getLedBlinkerIndex(LED led);
 void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
 bool isKnobIndicatorBlinking(int32_t whichKnob);
+int32_t getBipolarBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness,
+                                        int32_t bipolarLevel);
+int32_t getBrightnessOutputValue(int32_t whichIndicator, int32_t numIndicatorLedsFullyOn, int32_t brightness);
 
 } // namespace indicator_leds
 

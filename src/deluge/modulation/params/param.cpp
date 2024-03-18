@@ -23,9 +23,17 @@
 
 namespace deluge::modulation::params {
 
+bool isParamBipolar(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+}
+
 bool isParamPan(params::Kind kind, int32_t paramID) {
 	return (kind == params::Kind::PATCHED && paramID == LOCAL_PAN)
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+}
+
+bool isParamArpRhythm(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
 }
 
 bool isParamPitch(params::Kind kind, int32_t paramID) {
@@ -206,6 +214,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_ARP_RATCHET_PROBABILITY - unc] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
 		    [UNPATCHED_ARP_RATCHET_AMOUNT - unc] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH - unc] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
+		    [UNPATCHED_ARP_RHYTHM - unc] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
 		return l10n::get(NAMES[p - unc]);
@@ -285,6 +294,9 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 
 		case UNPATCHED_ARP_SEQUENCE_LENGTH:
 			return "sequenceLength";
+
+		case UNPATCHED_ARP_RHYTHM:
+			return "rhythm";
 
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";

@@ -174,6 +174,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -645,12 +646,6 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				}
 				bdsm.exitTag("numOctaves");
 			}
-			else if (!strcmp(tagName, "rhythm")) {
-				if (arpSettings) {
-					arpSettings->rhythm = bdsm.readTagOrAttributeValueInt();
-				}
-				bdsm.exitTag("rhythm");
-			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
 					arpSettings->syncType = bdsm.readSyncTypeFromFile(song);
@@ -747,6 +742,12 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
 		bdsm.exitTag("sequenceLength");
+	}
+
+	else if (!strcmp(tagName, "rhythm")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		storageManager.exitTag("rhythm");
 	}
 
 	else if (!strcmp(tagName,
@@ -2211,10 +2212,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
 		uint32_t sequenceLength =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, ratchetAmount,
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm, ratchetAmount,
 		                 ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
@@ -3584,6 +3586,10 @@ bool Sound::readParamTagFromFile(StorageManager& bdsm, char const* tagName, Para
 		                           readAutomationUpToPos);
 		bdsm.exitTag("sequenceLength");
 	}
+	else if (!strcmp(tagName, "rhythm")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		storageManager.exitTag("rhythm");
+	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		bdsm.exitTag("portamento");
@@ -3804,6 +3810,7 @@ void Sound::writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, 
 	unpatchedParams->writeParamAsAttribute(bdsm, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
+
 	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(bdsm, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,

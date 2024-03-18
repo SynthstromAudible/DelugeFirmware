@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths, Kits with affect entire DISABLED
 
->The 56 parameters that can be edited are:
+>The 59 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -31,7 +31,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **LFO 1** Rate
 > - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Rate, Gate
+> - **Arp** Rate, Gate, Ratchet Probability, Ratchet Amount, Sequence Length
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate
@@ -135,7 +135,7 @@ The Automation Overview **will:**
 
 > **Note 3:** In a Kit clip, if you press and hold an audition pad and turn the vertical encoder, you can quickly scroll through all automation overview's for kit clip's rows
 
-- enable you to quickly access the Automation Editor for any automatable parameter by pressing any of the pads that are illuminated
+- enable you to quickly access the Automation Editor for any automatable parameter by pressing any of the pads that are illuminated or by turning select
 - enable you to clear all automations using the current combo of pressing down on Horizontal Encoder at the same time as pressing the Back button (note: for kit clip the behaviour will operate differently than usual: with affect entire enabled you will only clear all kit level automations. with affect entire disabled it will clear all kit row level automations).
 
 > **Note:** When automations are cleared, Parameters are reset to the current value in the Sound Editor. E.g. if an automation playing back and you deleted it mid playback, the parameter value would be set to the last played back value. Or if you just edited the automation by pressing on the grid, the last value would be the value corresponding to the last pad you pressed.
@@ -158,12 +158,14 @@ The Automation Overview **will not allow you to:**
 
 ## Parameter Selection
 
-You can select the Parameter that you want to edit in three ways:
+You can select the Parameter that you want to edit in four ways:
 
 1. From the Automation Overview by pressing any of the illuminated pads
-2. From the menu by selecting a parameter for editing and then pressing song (if you're in arranger) or clip (if you're in a clip)
-3. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
-4. Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
+2. By turning select
+3. From the menu by selecting a parameter for editing and then pressing song (if you're in arranger) or clip (if you're in a clip)
+4. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
+
+Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
 
 > **Note:** This information is saved with the song.
 
@@ -181,15 +183,15 @@ The Automation Editor **will:**
 
 - show you visually whether automation is enabled on a parameter by dimming the pads when automation is off, and increasing the brightness when automation is on
 - display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for MIDI clips)
-- enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn). You can also use the select encoder to change the value of the parameter in focus.
-- enable you to quickly change parameters in focus for editing by using shift + shortcut pad or going back to automation overview using affect entire or shift/audition pad + clip
+- enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
+- enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad or going back to automation overview using affect entire or shift/audition pad + clip
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
-- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
+- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128). 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-<img width="347" alt="Screenshot 2023-12-25 at 4 53 23 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/a95c7e5f-5a77-4280-b159-26364d29def2">
+<img width="297" alt="Screenshot 2024-03-16 at 5 13 50 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e">
 
 > **Note** For patch cables / modulation depth, the grid value ranges for each pad have been adapted to accomodate the full -50 to +50 range.
 >
@@ -201,7 +203,7 @@ The Automation Editor **will:**
 > 
 > This diagram shows the updated value ranges for the pads when automating a patch cable / modulation depth.
 
-<img width="315" alt="Screenshot 2024-02-28 at 7 43 23 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/ca78acb1-4aaf-4ff0-83a6-ea730da8d76d">
+<img width="293" alt="Screenshot 2024-03-16 at 5 07 36 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/e6f853f7-56bc-4102-8cc3-9b5a86bd4bfb">
 
 - enable you to press two pads in a single automation column to set the value to the middle point between those two pads
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad

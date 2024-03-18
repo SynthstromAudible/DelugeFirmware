@@ -51,6 +51,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -983,23 +984,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				// if you're dealing with a patch cable which has a -128 to +128 range
-				// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-				if (kind == params::Kind::PATCH_CABLE) {
-					newKnobPos =
-					    view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
-				}
-
-				if (newKnobPos == 0
-				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
-					indicator_leds::blinkKnobIndicator(whichModEncoder);
-
-					// Make it harder to turn that knob away from its centred position
-					encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
-				}
-				else {
-					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
-				}
+				// if the newKnobPos == 0, and we're dealing with a param that param that should
+				// indicate (blink) middle value
+				// then blink that middle value and make it harder to turn the knob past middle
+				potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 				// if you're updating a param's value while in the sound editor menu
 				// and it's the same param displayed in the automation editor open underneath
@@ -1012,6 +1000,35 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		}
 
 		instrumentBeenEdited();
+	}
+}
+
+// for param's that are bipolar / should indicate middle value
+// this will blink the middle value when middle knob pos is reached
+// and make it harder to turn the knob past the middle value
+void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
+                                             int32_t newKnobPos) {
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+	}
+
+	bool shouldParamIndicateMiddleValue =
+	    modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam);
+
+	if (newKnobPos == 0 && shouldParamIndicateMiddleValue) {
+		bool isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+
+		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
+
+		// Make it harder to turn that knob away from its centred position
+		deluge::hid::encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
+	}
+	else {
+		indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
 	}
 }
 
@@ -1059,6 +1076,21 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		else { // 64ths stutter: all 4 leds turned on
 			popupMsg.append("64ths");
+		}
+	}
+	// if turning arpeggiator rhythm mod encoder
+	else if (isParamArpRhythm(kind, paramID)) {
+		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+
+			char name[12];
+			// Index: Name
+			snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
+			popupMsg.append(name);
+		}
+		else {
+			popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
 		}
 	}
 	else {
@@ -1151,7 +1183,8 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		automationView.displayAutomation();
 		return;
 	}
 
@@ -1176,11 +1209,13 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	        whichModEncoder, &activeModControllableModelStack, false);
 
 	int32_t knobPos;
+	bool isBipolar = false;
 
 	if (modelStackWithParam->autoParam) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
 		params::Kind kind = paramCollection->getParamKind();
+		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 		int32_t lowerLimit;
 
@@ -1221,6 +1256,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 			// default value for patch cable
 			// (equals 0 (midpoint) in -128 to +128 range)
 			knobPos = 64;
+			isBipolar = true;
 		}
 		else {
 			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
@@ -1229,16 +1265,23 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos);
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
 }
 
 /// if you're dealing with a patch cable which has a -128 to +128 range
 /// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
 int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
-	float floatKnobPos = kMaxKnobPos * ((static_cast<float>(knobPos) + kMaxKnobPos) / (kMaxKnobPos * 2));
-	knobPos = static_cast<int32_t>(floatKnobPos);
+	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
+	// adjustment to make sure that when knobPos returned is 64, it's really 64
+	// the knob LED indicator is centred around 64
+	// so the knob pos returned from this function is used to blink the LED when it reaches 64
+	// so to make sure it doesn't blink twice (e.g. when the value is 64 and in between 64 and 65)
+	// we adjust it here so it only returns 64 once
+	if (newKnobPos == 64 && knobPos != 0) {
+		newKnobPos += knobPos;
+	}
 
-	return knobPos;
+	return newKnobPos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
@@ -1255,7 +1298,8 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	UI* currentUI = getCurrentUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((currentUI == &automationView) && !automationView.isOnAutomationOverview()) {
+	if (((currentUI == &automationView) || (getRootUI() == &automationView))
+	    && !automationView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1471,7 +1515,7 @@ void View::setModLedStates() {
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		else {

@@ -90,9 +90,12 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
+	// saving preset
 	if (clipForSavingOutputOnly) {
+
 		paramManager = &clipForSavingOutputOnly->paramManager;
 	}
+	// saving song
 	else {
 		paramManager = NULL;
 
@@ -107,7 +110,12 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 
 	bdsm.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
 	                           // Attributes end
-
+	// saving song
+	if (!clipForSavingOutputOnly) {
+		if (midiInput.containsSomething()) {
+			midiInput.writeNoteToFile("MIDIInput");
+		}
+	}
 	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, clipForSavingOutputOnly == NULL);
 
 	bdsm.writeOpeningTag("soundSources"); // TODO: change this?
@@ -280,6 +288,10 @@ doReadDrum:
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
 			selectedDrumIndex = bdsm.readTagOrAttributeValueInt();
 			bdsm.exitTag("selectedDrumIndex");
+		}
+		else if (!strcmp(tagName, "MIDIInput")) {
+			midiInput.readNoteFromFile();
+			storageManager.exitTag();
 		}
 		else {
 			Error result =
@@ -1525,7 +1537,9 @@ bool Kit::isAnyAuditioningHappening() {
 // activeClip. Drum must not be NULL - check first if not sure!
 void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
                                   int16_t const* mpeValues, int32_t fromMIDIChannel) {
-
+	if (!drum) {
+		return;
+	}
 	ParamManager* paramManagerForDrum = NULL;
 
 	if (modelStack->getNoteRowAllowNull()) {

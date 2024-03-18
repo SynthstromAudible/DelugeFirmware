@@ -55,6 +55,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
 	arpeggiatorSequenceLength = 0;
+	arpeggiatorRhythm = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -145,6 +146,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
+	arpeggiatorRhythm = otherInstrumentClip->arpeggiatorRhythm;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
@@ -2351,6 +2353,7 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 				bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 				bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 				bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+				bdsm.storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
 			}
 			bdsm.closeTag();
 		}
@@ -2561,6 +2564,10 @@ someError:
 			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
 		}
 
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+		}
+
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
 			lastSelectedOutputType = static_cast<OutputType>(bdsm.readTagOrAttributeValueInt());
 		}
@@ -2628,13 +2635,13 @@ someError:
 					arpeggiatorSequenceLength = bdsm.readTagOrAttributeValueInt();
 					bdsm.exitTag("sequenceLength");
 				}
+				else if (!strcmp(tagName, "rhythm")) {
+					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = bdsm.readTagOrAttributeValueInt();
 					bdsm.exitTag("numOctaves");
-				}
-				else if (!strcmp(tagName, "rhythm")) {
-					arpSettings.rhythm = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();

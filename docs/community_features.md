@@ -191,6 +191,14 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
   - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
 
+#### 3.15 - Make Mod (Gold) Encoders LED indicators bipolar
+- ([#1480]) As a follow-up to [#1382] which enabled Gold Knobs to access the full range of a Patch cable, the LED indicators for gold knobs editing bipolar params (e.g. Pan, Pitch, Patch Cable), are now bipolar. The lights of a bipolar LED indicator are lit up as follows
+  - Middle value = No lights lit
+  - Maximum value = Top two lights fully lit
+    - Between middle and maximum the top two lights will be lit up proportionately to the value in that range
+  - Minimum value = Bottom two lights fully lit
+    - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -581,10 +589,16 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
         - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
         - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to
-          provide the ability to enter the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
-          press Clip (if you are in a clip) or Song (if you are in arranger) to exit out of the menu and enter
-          the `AUTOMATION VIEW EDITOR`.
-    - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to enter Automation View for that specific Patch Cable / Modulation Depth.
+          provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
+          press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
+    - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
+    - ([#1456]) Added an in-between-layer in the Deluge menu system to be able to access and interact with the `AUTOMATION VIEW EDITOR` while you are still in the menu from the regular `ARRANGER / CLIP VIEW`. When you exit the menu you will be returned to the View you were in prior to entering the menu. Press Clip (if you are in a clip) or Song (if you are in arranger) to temporarily open the `AUTOMATION VIEW EDITOR` while you are still in the menu.    
+    - ([#1480]) As a follow-up to [#1374] which enabled enabled patch cables to be edited in Automation View, the Automation Editor has now been modified to display param values according to whether the Param is bipolar or not. If it's a bipolar param, the grid will light up as follows:
+      - Middle value = no pads lit up
+      - Positive value = top 4 pads lit up according to position in middle to maximum value rnage
+      - Negative value = bottom 4 pads lit up according to position in middle to minimum value range
+      - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
+      - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -606,8 +620,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 #### 4.3.8 - Advanced Arpeggiator
 
 - ([#1198]) Added new features to the arpeggiator, which include:
-    - Splitted the old `Mode` setting into separate settings `Mode` (Off or Arpeggiator) `Octave Mode` (Up, Down,
-      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random) settings, so you can setup
+    - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
+      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
     - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
         - `Off` will disable arpeggiator.
@@ -619,7 +633,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
     - **`Mode (MODE):`**
         - `Off` disables the arpeggiator.
         - `Arpeggiator` (ARP) enables the arpeggiator.
-    - **`Octave Modes (OMOD):`**
+    - **`Octave Mode (OMOD):`**
         - `Up` (UP) will walk the octaves up.
         - `Down` (DOWN) will walk the octaves down.
         - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
@@ -628,7 +642,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           the old `Both` mode.
         - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
           Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Modes (NMOD):`**
+    - **`Note Mode (NMOD):`**
         - `Up` (UP) will walk the notes up.
         - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
           Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
@@ -638,17 +652,75 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           all the way up (with notes as played), and then down reversing the order of played notes.
         - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
           different than Random, then the pattern will play, in the same octave, the same number of random
-          notes as notes are in the held chord and then move to a different scale based on the Octave Mode.
+          notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Rhythm`** (RHYT): This parameter will play silences in some of the notes. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note". The available options are:
-      0 (default, play all notes), 00-, 0-0, 000-, 00-0, 0-00, 00-- and 0--0.
+    - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
+      This parameter will play silences in some of the steps. This menu option show zeroes
+      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
+      The available options are:
+      <details>
+      <summary>Rhythm Options</summary>
+        <ul>
+          <li> 0: None</li>
+          <li> 1: 0--</li>
+          <li> 2: 00-</li>
+          <li> 3: 0-0</li>
+          <li> 4: 0-00</li>
+          <li> 5: 00--</li>
+          <li> 6: 000-</li>
+          <li> 7: 0--0</li>
+          <li> 8: 00-0</li>
+          <li> 9: 0----</li>
+          <li>10: 0-000</li>
+          <li>11: 00---</li>
+          <li>12: 0000-</li>
+          <li>13: 0---0</li>
+          <li>14: 00-00</li>
+          <li>15: 0-0--</li>
+          <li>16: 000-0</li>
+          <li>17: 0--0-</li>
+          <li>18: 0--00</li>
+          <li>19: 000--</li>
+          <li>20: 00--0</li>
+          <li>21: 0-00-</li>
+          <li>22: 00-0-</li>
+          <li>23: 0-0-0</li>
+          <li>24: 0-----</li>
+          <li>25: 0-0000</li>
+          <li>26: 00----</li>
+          <li>27: 00000-</li>
+          <li>28: 0----0</li>
+          <li>29: 00-000</li>
+          <li>30: 0-0---</li>
+          <li>31: 0000-0</li>
+          <li>32: 0---0-</li>
+          <li>33: 000-00</li>
+          <li>34: 0--000</li>
+          <li>35: 000---</li>
+          <li>36: 0000--</li>
+          <li>37: 0---00</li>
+          <li>38: 00--00</li>
+          <li>39: 0-00--</li>
+          <li>40: 000--0</li>
+          <li>41: 0--00-</li>
+          <li>42: 0-0-00</li>
+          <li>43: 00-0--</li>
+          <li>44: 000-0-</li>
+          <li>45: 0--0-0</li>
+          <li>46: 0-000-</li>
+          <li>47: 00---0</li>
+          <li>48: 00--0-</li>
+          <li>49: 0-0--0</li>
+          <li>50: 00-0-0</li>
+        </ul>
+      </details>
     - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning.
+          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
+          to create longer and more complex rhythm patterns.
     - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several time in the same time interval that the
+      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
       original note has to play.
         - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
           could have (each step will randomize the number of ratchet notes between 1 and max value).
@@ -659,8 +731,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
             - Being 0 (0%), no ratchets at all
             - And 50 (100%), all notes will evaluate to be ratcheted.
-    - `MPE` settings:
-      = `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
+    - **`MPE`** settings:
+      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
       velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
@@ -1113,6 +1185,10 @@ different firmware
 [#1374]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1374
 
 [#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
+
+[#1456]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1456
+
+[#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
