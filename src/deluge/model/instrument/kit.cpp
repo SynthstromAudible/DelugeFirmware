@@ -113,7 +113,7 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
-			midiInput.writeNoteToFile("MIDIInput");
+			midiInput.writeNoteToFile(bdsm, "MIDIInput");
 		}
 	}
 	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, clipForSavingOutputOnly == NULL);
@@ -290,7 +290,7 @@ doReadDrum:
 			bdsm.exitTag("selectedDrumIndex");
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
-			midiInput.readNoteFromFile();
+			midiInput.readNoteFromFile(bdsm);
 			storageManager.exitTag();
 		}
 		else {

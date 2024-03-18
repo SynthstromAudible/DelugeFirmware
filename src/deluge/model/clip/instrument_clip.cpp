@@ -2343,7 +2343,6 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 			bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 			bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-			bdsm.writeAttribute("rhythm", arpSettings.rhythm);
 			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
 
@@ -2353,7 +2352,7 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 				bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 				bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 				bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-				bdsm.storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
+				bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 			}
 			bdsm.closeTag();
 		}

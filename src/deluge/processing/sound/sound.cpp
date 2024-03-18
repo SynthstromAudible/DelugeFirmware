@@ -746,7 +746,7 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 
 	else if (!strcmp(tagName, "rhythm")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		storageManager.exitTag("rhythm");
 	}
 
@@ -3587,7 +3587,7 @@ bool Sound::readParamTagFromFile(StorageManager& bdsm, char const* tagName, Para
 		bdsm.exitTag("sequenceLength");
 	}
 	else if (!strcmp(tagName, "rhythm")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		storageManager.exitTag("rhythm");
 	}
 	else if (!strcmp(tagName, "portamento")) {
@@ -3968,7 +3968,6 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 		bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
-		bdsm.writeAttribute("rhythm", arpSettings->rhythm);
 		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		bdsm.closeTag();
