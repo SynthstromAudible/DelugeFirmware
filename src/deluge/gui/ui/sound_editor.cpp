@@ -972,13 +972,19 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
-					// let's check if we're entering a parameter / patch cable menu
+					// if we're in the menu and automation view is the root (background) UI
+					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
 					MenuItem* newItem;
 					newItem = (MenuItem*)item;
-					deluge::modulation::params::Kind kind = newItem->getParamKind();
-					if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-					    && getRootUI() == &automationView) {
-						return ActionResult::DEALT_WITH;
+					// need to make sure we're already in the menu
+					// because at this point menu may not have been setup yet
+					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
+					if (getCurrentUI() == &soundEditor) {
+						deluge::modulation::params::Kind kind = newItem->getParamKind();
+						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+						    && getRootUI() == &automationView) {
+							return ActionResult::DEALT_WITH;
+						}
 					}
 
 					if (display->haveOLED()) {
