@@ -29,6 +29,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -556,6 +557,11 @@ void routine_() {
 		smoothedSamples = numSamples;
 	}
 	setDireness(smoothedSamples);
+
+	// when playback is enabled, blink play button to indicate high cpu usage
+	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
+		indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
+	}
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
