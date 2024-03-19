@@ -308,9 +308,27 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Song view button
 	else if (b == SESSION_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
+				timeSongButtonPressed = AudioEngine::audioSampleTimer;
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			}
+		}
+		else {
+			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				return ActionResult::DEALT_WITH;
+			}
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
+
+			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+				return ActionResult::DEALT_WITH;
 			}
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
@@ -1588,6 +1606,16 @@ doRegularEditPadActionProbably:
 				return ActionResult::DEALT_WITH;
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+		}
+		else if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (!velocity) {
+				// TODO: long press..
+				view.activateMacro(y);
+			}
+			return ActionResult::DEALT_WITH;
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && lastAuditionedYDisplay == y
 		         && isUIModeActive(UI_MODE_AUDITIONING) && getNumNoteRowsAuditioning() == 1) {
@@ -4412,11 +4440,22 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 		return true;
 	}
 
+	int32_t macroColumn = kDisplayWidth;
+	bool armed = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
-			drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong), image[i], occupancyMask[i]);
+			if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				armed |= view.renderMacros(macroColumn, i, -1, image, occupancyMask);
+			}
+			else {
+				drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong), image[i],
+				               occupancyMask[i]);
+			}
 			drawAuditionSquare(i, image[i]);
 		}
+	}
+	if (armed) {
+		view.flashPlayEnable();
 	}
 
 	return true;

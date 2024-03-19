@@ -200,9 +200,18 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 		return true;
 	}
 
+	int32_t macroColumn = kDisplayWidth;
+	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		RGB* const start = &image[y][kDisplayWidth];
 		std::fill(start, start + kSideBarWidth, colours::black);
+
+		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			armed |= view.renderMacros(macroColumn, y, -1, image, occupancyMask);
+		}
+	}
+	if (armed) {
+		view.flashPlayEnable();
 	}
 
 	return true;
@@ -282,9 +291,26 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	// Song view button
 	if (b == SESSION_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
+				timeSongButtonPressed = AudioEngine::audioSampleTimer;
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			}
+		}
+		else {
+			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				return ActionResult::DEALT_WITH;
+			}
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
+			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+				return ActionResult::DEALT_WITH;
 			}
 
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -500,6 +526,17 @@ needRendering:
 					}
 				}
 			}
+		}
+	}
+	else if (x == kDisplayWidth) {
+		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (!on) {
+				view.activateMacro(y);
+			}
+			return ActionResult::DEALT_WITH;
 		}
 	}
 

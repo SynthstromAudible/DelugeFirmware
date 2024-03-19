@@ -1232,6 +1232,10 @@ probablyDoFlashPlayEnable:
 			}
 		}
 	}
+	else {
+		// TODO: only if sidebar visible!
+		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+	}
 }
 
 void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {

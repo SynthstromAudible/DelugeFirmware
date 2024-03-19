@@ -241,6 +241,7 @@ private:
 	uint8_t yDisplayOfNewNoteRow;
 
 	int32_t quantizeAmount;
+	uint32_t timeSongButtonPressed;
 
 	std::array<RGB, kDisplayHeight> rowColour;
 	std::array<RGB, kDisplayHeight> rowTailColour;
