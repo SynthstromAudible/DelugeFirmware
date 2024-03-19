@@ -38,10 +38,7 @@ void UnpatchedParam::readCurrentValue() {
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	int32_t p = getP();
-	return modelStack->addParam(summary->paramCollection, summary, p,
-	                            &((ParamSet*)summary->paramCollection)->params[p]);
+	return modelStack->getUnpatchedAutoParamFromId(getP());
 }
 
 void UnpatchedParam::writeCurrentValue() {
