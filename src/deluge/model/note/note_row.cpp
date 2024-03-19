@@ -2926,7 +2926,8 @@ uint32_t NoteRow::getNumNotes() {
 	return notes.getNumElements();
 }
 
-Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+Error NoteRow::readFromFile(StorageManager& bdsm, int32_t* minY, InstrumentClip* parentClip, Song* song,
+                            int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
@@ -2934,63 +2935,62 @@ Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* son
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams before we
 	                           // know what kind of Drum (if any) we have.
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 
 		if (!strcmp(tagName, "muted")) {
-			muted = storageManager.readTagOrAttributeValueInt();
+			muted = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "y")) {
-			y = storageManager.readTagOrAttributeValueInt();
+			y = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "colourOffset")) {
-			colourOffset = storageManager.readTagOrAttributeValueInt();
+			colourOffset = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumIndex")) {
-			drum = (Drum*)storageManager
-			           .readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer, then
-			                                          // swap it back to something meaningful later
+			drum = (Drum*)bdsm.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
+			                                                 // then swap it back to something meaningful later
 		}
 
 		else if (!strcmp(tagName, "gateOutput")) {
-			int32_t gateChannel = storageManager.readTagOrAttributeValueInt();
+			int32_t gateChannel = bdsm.readTagOrAttributeValueInt();
 			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS - 1);
 
 			drum = (Drum*)(0xFFFFFFFE - gateChannel);
 		}
 
 		else if (!strcmp(tagName, "muteMidiCommand")) {
-			muteMIDICommand.readNoteFromFile();
+			muteMIDICommand.readNoteFromFile(bdsm);
 		}
 
 		else if (!strcmp(tagName, "soundMidiCommand")) {
-			midiInput.readNoteFromFile();
+			midiInput.readNoteFromFile(bdsm);
 		}
 
 		else if (!strcmp(tagName, "length")) {
-			loopLengthIfIndependent = storageManager.readTagOrAttributeValueInt();
+			loopLengthIfIndependent = bdsm.readTagOrAttributeValueInt();
 			readAutomationUpToPos =
 			    loopLengthIfIndependent; // So we can read automation right up to the actual length of this NoteRow.
 		}
 
 		else if (!strcmp(tagName, "sequenceDirection")) {
-			sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+			sequenceDirectionMode = stringToSequenceDirectionMode(bdsm.readTagOrAttributeValue());
 		}
 
 		else if (!strcmp(tagName, "bendRange")) {
-			newBendRange = storageManager.readTagOrAttributeValueInt();
+			newBendRange = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "soundParams")) {
 
 			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that already had
 			// some loading done by the Drum
-			if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
+			if (bdsm.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
 				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
 
@@ -3011,14 +3011,14 @@ Error NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* son
 			Sound::initParams(&paramManager);
 
 finishedNormalStuff:
-			Sound::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			Sound::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		// Notes stored as XML (before V1.4)
 		else if (!strcmp(tagName, "notes")) {
 			// Read each Note
 			uint32_t minPos = 0;
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "note")) {
 					// Set defaults for this Note
@@ -3027,27 +3027,27 @@ finishedNormalStuff:
 					uint32_t length = 1;
 
 					// Read in this note's data
-					while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+					while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 						if (!strcmp(tagName, "velocity")) {
-							velocity = storageManager.readTagOrAttributeValueInt();
+							velocity = bdsm.readTagOrAttributeValueInt();
 							velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
-							storageManager.exitTag("velocity");
+							bdsm.exitTag("velocity");
 						}
 
 						else if (!strcmp(tagName, "pos")) {
-							pos = storageManager.readTagOrAttributeValueInt();
+							pos = bdsm.readTagOrAttributeValueInt();
 							pos = std::max(minPos, pos);
-							storageManager.exitTag("pos");
+							bdsm.exitTag("pos");
 						}
 
 						else if (!strcmp(tagName, "length")) {
-							length = storageManager.readTagOrAttributeValueInt();
+							length = bdsm.readTagOrAttributeValueInt();
 							length = std::max((uint32_t)1, (uint32_t)length);
-							storageManager.exitTag("length");
+							bdsm.exitTag("length");
 						}
 
 						else {
-							storageManager.exitTag(tagName);
+							bdsm.exitTag(tagName);
 						}
 					}
 
@@ -3067,10 +3067,10 @@ finishedNormalStuff:
 						newNote->setProbability(kNumProbabilityValues);
 					}
 
-					storageManager.exitTag("note");
+					bdsm.exitTag("note");
 				}
 				else {
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
 		}
@@ -3083,12 +3083,12 @@ doReadNoteData:
 
 			int32_t numElementsToAllocateFor = 0;
 
-			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto getOut;
 			}
 
 			{
-				char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
+				char const* firstChars = bdsm.readNextCharsOfTagOrAttributeValue(2);
 				if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
 					goto getOut;
 				}
@@ -3100,7 +3100,7 @@ doReadNoteData:
 				if (numElementsToAllocateFor <= 0) {
 
 					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
+					uint32_t charsRemaining = bdsm.getNumCharsRemainingInValue();
 					if (charsRemaining) {
 
 						// Allocate space for the right number of notes, and remember how long it'll be before we need
@@ -3111,7 +3111,7 @@ doReadNoteData:
 					}
 				}
 
-				char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(noteHexLength);
+				char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(noteHexLength);
 				if (!hexChars) {
 					goto getOut;
 				}
@@ -3178,11 +3178,11 @@ getOut: {}
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readFromFile(summary, readAutomationUpToPos);
+				expressionParams->readFromFile(bdsm, summary, readAutomationUpToPos);
 			}
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	y = std::max(y, (int16_t)*minY);
@@ -3198,33 +3198,33 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
-	storageManager.writeOpeningTagBeginning("noteRow");
+void NoteRow::writeToFile(StorageManager& bdsm, int32_t drumIndex, InstrumentClip* clip) {
+	bdsm.writeOpeningTagBeginning("noteRow");
 
 	bool forKit = (clip->output->type == OutputType::KIT);
 
 	if (!forKit) {
-		storageManager.writeAttribute("y", y);
+		bdsm.writeAttribute("y", y);
 	}
 	if (muted) {
-		storageManager.writeAttribute("muted", muted);
+		bdsm.writeAttribute("muted", muted);
 	}
 
 	if (forKit) {
-		storageManager.writeAttribute("colourOffset", getColourOffset(clip));
+		bdsm.writeAttribute("colourOffset", getColourOffset(clip));
 	}
 
 	if (loopLengthIfIndependent) {
-		storageManager.writeAttribute("length", loopLengthIfIndependent);
+		bdsm.writeAttribute("length", loopLengthIfIndependent);
 	}
 	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
-		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+		bdsm.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 
 	if (notes.getNumElements()) {
-		storageManager.write("\n");
-		storageManager.printIndents();
-		storageManager.write("noteDataWithLift=\"0x");
+		bdsm.write("\n");
+		bdsm.printIndents();
+		bdsm.write("noteDataWithLift=\"0x");
 
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
@@ -3232,54 +3232,54 @@ void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 			char buffer[9];
 
 			intToHex(thisNote->pos, buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getLength(), buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getVelocity(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getLift(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getProbability(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 		}
-		storageManager.write("\"");
+		bdsm.write("\"");
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
 	if (expressionParams && forKit) {
-		storageManager.writeAttribute("bendRange", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+		bdsm.writeAttribute("bendRange", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 	}
 
 	bool closedOurTagYet = false;
 
 	if (drum) {
-		storageManager.writeAttribute("drumIndex", drumIndex);
+		bdsm.writeAttribute("drumIndex", drumIndex);
 
 		if (paramManager.containsAnyMainParamCollections()) {
-			storageManager.writeOpeningTagEnd();
+			bdsm.writeOpeningTagEnd();
 			closedOurTagYet = true;
 
-			storageManager.writeOpeningTagBeginning("soundParams");
-			Sound::writeParamsToFile(&paramManager, true);
-			storageManager.writeClosingTag("soundParams");
+			bdsm.writeOpeningTagBeginning("soundParams");
+			Sound::writeParamsToFile(bdsm, &paramManager, true);
+			bdsm.writeClosingTag("soundParams");
 		}
 	}
 
 	if (expressionParams) {
-		bool wroteAny = expressionParams->writeToFile(!closedOurTagYet);
+		bool wroteAny = expressionParams->writeToFile(bdsm, !closedOurTagYet);
 		closedOurTagYet = closedOurTagYet || wroteAny;
 	}
 
 	if (closedOurTagYet) {
-		storageManager.writeClosingTag("noteRow");
+		bdsm.writeClosingTag("noteRow");
 	}
 
 	else {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 }
 

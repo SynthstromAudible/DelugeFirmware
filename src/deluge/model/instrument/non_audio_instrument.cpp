@@ -221,19 +221,19 @@ ParamManager* NonAudioInstrument::getParamManager(Song* song) {
 	}
 }
 
-bool NonAudioInstrument::readTagFromFile(char const* tagName) {
+bool NonAudioInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		channel = storageManager.readTagOrAttributeValueInt();
+		channel = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else {
-		return MelodicInstrument::readTagFromFile(tagName);
+		return MelodicInstrument::readTagFromFile(bdsm, tagName);
 	}
 
-	storageManager.exitTag();
+	bdsm.exitTag();
 	return true;
 }
 
