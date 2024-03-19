@@ -934,7 +934,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				if (!editingParamInPerformanceView && !editingParamInMenu) {
+				// let's see if we're browsing for a song
+				bool inSongBrowser = getCurrentUI() == &loadSongUI;
+
+				if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
 					PatchSource source1 = PatchSource::NONE;
 					PatchSource source2 = PatchSource::NONE;
 					if (kind == params::Kind::PATCH_CABLE) {
