@@ -500,7 +500,7 @@ void routine_() {
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
-	if (!numSamples) {
+	if (numSamples <= (10 * numRoutines)) {
 		return;
 	}
 #if AUTOMATED_TESTER_ENABLED
