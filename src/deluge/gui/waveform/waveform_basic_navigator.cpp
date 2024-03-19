@@ -29,8 +29,8 @@ WaveformBasicNavigator waveformBasicNavigator{};
 WaveformBasicNavigator::WaveformBasicNavigator() {
 }
 
-void WaveformBasicNavigator::opened(
-    SampleHolder* holder) { // Only if range is provided, grabs navigation from that if possible
+void WaveformBasicNavigator::opened(SampleHolder* holder) {
+	// Only if range is provided, grabs navigation from that if possible
 
 	renderData.xScroll = -1;
 
@@ -38,6 +38,8 @@ void WaveformBasicNavigator::opened(
 	if (holder && holder->waveformViewZoom) {
 		xScroll = holder->waveformViewScroll;
 		xZoom = holder->waveformViewZoom;
+
+		potentiallyAdjustScrollPosition();
 	}
 	else {
 		xScroll = 0;
@@ -168,20 +170,7 @@ bestYet:
 		xScroll = xScroll / xZoom * xZoom;
 	}
 
-	// Make sure not scrolled too far left
-	if (xScroll < 0) {
-		xScroll = 0;
-	}
-	else {
-		if (!shouldAllowExtraScrollRight) {
-			// Make sure not scrolled too far right
-			uint32_t lengthInSamples = sample->lengthInSamples;
-			int32_t scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
-			if (xScroll > scrollLimit) {
-				xScroll = scrollLimit;
-			}
-		}
-	}
+	potentiallyAdjustScrollPosition(shouldAllowExtraScrollRight);
 
 	memcpy(PadLEDs::imageStore[(offset > 0) ? kDisplayHeight : 0], PadLEDs::image,
 	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
@@ -247,4 +236,21 @@ bool WaveformBasicNavigator::scroll(int32_t offset, bool shouldAllowExtraScrollR
 
 bool WaveformBasicNavigator::isZoomedIn() {
 	return (xZoom != getMaxZoom());
+}
+
+void WaveformBasicNavigator::potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight) {
+	// Make sure not scrolled too far left
+	if (xScroll < 0) {
+		xScroll = 0;
+	}
+	else {
+		if (!shouldAllowExtraScrollRight) {
+			// Make sure not scrolled too far right
+			uint32_t lengthInSamples = sample->lengthInSamples;
+			int32_t scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
+			if (xScroll > scrollLimit) {
+				xScroll = scrollLimit;
+			}
+		}
+	}
 }
