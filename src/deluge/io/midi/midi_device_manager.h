@@ -24,6 +24,7 @@ class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
 class MIDIDeviceLoopback;
+class StorageManager;
 
 #else
 #include "definitions.h"
@@ -98,15 +99,15 @@ struct ConnectedUSBMIDIDevice {
 namespace MIDIDeviceManager {
 
 void slowRoutine();
-MIDIDevice* readDeviceReferenceFromFile();
+MIDIDevice* readDeviceReferenceFromFile(StorageManager& bdsm);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
-void writeDevicesToFile();
-void readAHostedDeviceFromFile();
-void readDevicesFromFile();
+void writeDevicesToFile(StorageManager& bdsm);
+void readAHostedDeviceFromFile(StorageManager& bdsm);
+void readDevicesFromFile(StorageManager& bdsm);
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;

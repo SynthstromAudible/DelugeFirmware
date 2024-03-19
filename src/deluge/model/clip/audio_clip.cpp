@@ -1002,54 +1002,54 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(Song* song) {
+void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
-	storageManager.writeAttribute("trackName", output->name.get());
+	bdsm.writeAttribute("trackName", output->name.get());
 
-	storageManager.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
-	                                                                 : sampleHolder.filePath.get());
-	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
-	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
-	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
+	bdsm.writeAttribute("filePath",
+	                    sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get() : sampleHolder.filePath.get());
+	bdsm.writeAttribute("startSamplePos", sampleHolder.startPos);
+	bdsm.writeAttribute("endSamplePos", sampleHolder.endPos);
+	bdsm.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
 	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
-		storageManager.writeAttribute("linearInterpolation", 1);
+		bdsm.writeAttribute("linearInterpolation", 1);
 	}
 	if (sampleControls.reversed) {
-		storageManager.writeAttribute("reversed", "1");
+		bdsm.writeAttribute("reversed", "1");
 	}
-	storageManager.writeAttribute("attack", attack);
-	storageManager.writeAttribute("priority", util::to_underlying(voicePriority));
+	bdsm.writeAttribute("attack", attack);
+	bdsm.writeAttribute("priority", util::to_underlying(voicePriority));
 
 	if (sampleHolder.transpose) {
-		storageManager.writeAttribute("transpose", sampleHolder.transpose);
+		bdsm.writeAttribute("transpose", sampleHolder.transpose);
 	}
 	if (sampleHolder.cents) {
-		storageManager.writeAttribute("cents", sampleHolder.cents);
+		bdsm.writeAttribute("cents", sampleHolder.cents);
 	}
 
-	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
+	bdsm.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
 	if (onAutomationClipView) {
-		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		bdsm.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != kNoSelection) {
-		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		bdsm.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	Clip::writeDataToFile(song);
+	Clip::writeDataToFile(bdsm, song);
 
-	storageManager.writeOpeningTagBeginning("params");
-	GlobalEffectableForClip::writeParamAttributesToFile(&paramManager, true);
-	storageManager.writeOpeningTagEnd();
-	GlobalEffectableForClip::writeParamTagsToFile(&paramManager, true);
-	storageManager.writeClosingTag("params");
+	bdsm.writeOpeningTagBeginning("params");
+	GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
+	bdsm.writeOpeningTagEnd();
+	GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
+	bdsm.writeClosingTag("params");
 }
 
-Error AudioClip::readFromFile(Song* song) {
+Error AudioClip::readFromFile(StorageManager& bdsm, Song* song) {
 
 	Error error;
 
@@ -1065,83 +1065,83 @@ someError:
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
-			storageManager.readTagOrAttributeValueString(&outputNameWhileLoading);
+			bdsm.readTagOrAttributeValueString(&outputNameWhileLoading);
 		}
 
 		else if (!strcmp(tagName, "filePath")) {
-			storageManager.readTagOrAttributeValueString(&sampleHolder.filePath);
+			bdsm.readTagOrAttributeValueString(&sampleHolder.filePath);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {
-			overdubsShouldCloneOutput = storageManager.readTagOrAttributeValueInt();
+			overdubsShouldCloneOutput = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "startSamplePos")) {
-			sampleHolder.startPos = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.startPos = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "endSamplePos")) {
-			sampleHolder.endPos = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.endPos = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
-			sampleControls.pitchAndSpeedAreIndependent = storageManager.readTagOrAttributeValueInt();
+			sampleControls.pitchAndSpeedAreIndependent = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (storageManager.readTagOrAttributeValueInt()) {
+			if (bdsm.readTagOrAttributeValueInt()) {
 				sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 		}
 
 		else if (!strcmp(tagName, "attack")) {
-			attack = storageManager.readTagOrAttributeValueInt();
+			attack = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			voicePriority = static_cast<VoicePriority>(storageManager.readTagOrAttributeValueInt());
+			voicePriority = static_cast<VoicePriority>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "reversed")) {
-			sampleControls.reversed = storageManager.readTagOrAttributeValueInt();
+			sampleControls.reversed = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "transpose")) {
-			sampleHolder.transpose = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.transpose = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cents")) {
-			sampleHolder.cents = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.cents = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			GlobalEffectableForClip::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+			onAutomationClipView = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamID = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutX = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
@@ -1149,10 +1149,10 @@ someError:
 		}
 
 		else {
-			readTagFromFile(tagName, song, &readAutomationUpToPos);
+			readTagFromFile(bdsm, tagName, song, &readAutomationUpToPos);
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	return Error::NONE;

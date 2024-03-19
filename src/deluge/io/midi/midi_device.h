@@ -36,6 +36,7 @@
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
 class MIDIDevice;
+class StorageManager;
 
 class MIDIPort {
 public:
@@ -44,9 +45,9 @@ public:
 		mpeUpperZoneLastMemberChannel = 15;
 	}
 	int32_t channelToZone(int32_t inputChannel);
-	void writeToFile(char const* tagName);
+	void writeToFile(StorageManager& bdsm, char const* tagName);
 	bool worthWritingToFile();
-	void readFromFile(MIDIDevice* deviceToSendMCMsOn);
+	void readFromFile(StorageManager& bdsm, MIDIDevice* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
 	void moveLowerZoneOutOfWayOfUpperZone();
 	bool isMasterChannel(int32_t inputChannel);
@@ -83,16 +84,16 @@ public:
 class MIDIDevice {
 public:
 	MIDIDevice();
-	void writeReferenceToFile(char const* tagName = "device");
+	void writeReferenceToFile(StorageManager& bdsm, char const* tagName = "device");
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;
-	void writeToFile(char const* tagName);
-	void readFromFile();
+	void writeToFile(StorageManager& bdsm, char const* tagName);
+	void readFromFile(StorageManager& bdsm);
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
 	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
 	void sendAllMCMs();
 	bool worthWritingToFile();
-	void writePorts();
+	void writePorts(StorageManager& bdsm);
 
 	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
 
@@ -133,9 +134,10 @@ public:
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void writeReferenceAttributesToFile() = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                                                   // files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile();            // These only go into MIDIDEVICES.XML.
+	virtual void writeReferenceAttributesToFile(
+	    StorageManager& bdsm) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
+	                               // files where there's a reference to this Device.
+	void writeDefinitionAttributesToFile(StorageManager& bdsm); // These only go into MIDIDEVICES.XML.
 };
 
 class MIDIDeviceUSB : public MIDIDevice {
@@ -156,7 +158,7 @@ public:
 class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBHosted() {}
-	void writeReferenceAttributesToFile();
+	void writeReferenceAttributesToFile(StorageManager& bdsm);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 
@@ -224,7 +226,7 @@ public:
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
-	void writeReferenceAttributesToFile();
+	void writeReferenceAttributesToFile(StorageManager& bdsm);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 };
@@ -234,7 +236,7 @@ public:
 	MIDIDeviceDINPorts() {
 		connectionFlags = 1; // DIN ports are always connected
 	}
-	void writeReferenceAttributesToFile();
+	void writeReferenceAttributesToFile(StorageManager& bdsm);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
@@ -245,7 +247,7 @@ public:
 class MIDIDeviceLoopback final : public MIDIDevice {
 public:
 	MIDIDeviceLoopback() { connectionFlags = 1; }
-	void writeReferenceAttributesToFile();
+	void writeReferenceAttributesToFile(StorageManager& bdsm);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);

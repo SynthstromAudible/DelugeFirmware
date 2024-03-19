@@ -237,8 +237,8 @@ public:
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
-	Error readFromFile();
-	void writeToFile();
+	Error readFromFile(StorageManager& bdsm);
+	void writeToFile(StorageManager& bdsm);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
 	uint8_t getYNoteIndexInMode(int32_t yNote);
@@ -394,7 +394,7 @@ private:
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
-	Error readClipsFromFile(ClipArray* clipArray);
+	Error readClipsFromFile(StorageManager& bdsm, ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);
 	void deleteAllBackedUpParamManagers(bool shouldAlsoEmptyVector = true);
 	void deleteAllBackedUpParamManagersWithClips();

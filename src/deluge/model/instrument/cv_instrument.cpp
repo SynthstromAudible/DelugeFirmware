@@ -80,17 +80,17 @@ void CVInstrument::updatePitchBendOutput(bool outputToo) {
 	cvEngine.setCVPitchBend(channel, totalBendAmount, outputToo);
 }
 
-bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool CVInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
-	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
+	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
 
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
 
-	storageManager.writeOpeningTagEnd();
-	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);
+	bdsm.writeOpeningTagEnd();
+	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
 	return true;
 }
 

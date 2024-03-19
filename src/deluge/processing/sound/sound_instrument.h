@@ -30,8 +30,8 @@ class ModelStackWithThreeMainThings;
 class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
-	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	Error readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void cutAllSound();
 	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
@@ -66,7 +66,7 @@ public:
 	              uint32_t samplesLate);
 
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
-	bool readTagFromFile(char const* tagName);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	void prepareForHibernationOrDeletion();
 	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack);

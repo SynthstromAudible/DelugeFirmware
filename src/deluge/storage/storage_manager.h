@@ -77,17 +77,15 @@ public:
 	bool closeFile();
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr);
-	uint32_t readCharXML(char* thisChar);
+
 	void write(char const* output);
-	void writef(char const* format, ...);
-	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
+
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
-	bool readXMLFileCluster();
+
 	int32_t getNumCharsRemainingInValue();
 	Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
 	Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
@@ -140,7 +138,9 @@ private:
 	                      // to finding next useful data.
 	int32_t xmlReadCount;
 
+	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 	void skipUntilChar(char endChar);
+	uint32_t readCharXML(char* thisChar);
 	char const* readTagName();
 	char const* readNextAttributeName();
 	char const* readUntilChar(char endChar);
@@ -151,6 +151,7 @@ private:
 	bool readXMLFileClusterIfNecessary();
 	Error readStringUntilChar(String* string, char endChar);
 	Error readAttributeValueString(String* string);
+	bool readXMLFileCluster();
 	void restoreBackedUpCharIfNecessary();
 	void xmlReadDone();
 

@@ -204,8 +204,8 @@ clusterSizeChangedButItsOk:
 		}
 	}
 
-	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can do this now. It'll only happen if it wasn't able to do
-	                                          // it before.
+	MIDIDeviceManager::readDevicesFromFile(storageManager); // Hopefully we can do this now. It'll only happen if it
+	                                                        // wasn't able to do it before.
 }
 
 // Call this after deleting the current (or in other words previous) Song from memory - meaning there won't be any

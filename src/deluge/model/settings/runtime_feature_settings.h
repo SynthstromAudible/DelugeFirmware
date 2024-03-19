@@ -30,6 +30,7 @@ namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
 class DevSysexSetting;
+
 } // namespace deluge::gui::menu_item::runtime_feature
 
 // State declarations
@@ -76,6 +77,8 @@ struct RuntimeFeatureSetting {
 	deluge::vector<RuntimeFeatureSettingOption> options;
 };
 
+class StorageManager;
+
 /// Encapsulating class
 class RuntimeFeatureSettings {
 public:
@@ -93,8 +96,8 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
-	void readSettingsFromFile();
-	void writeSettingsToFile();
+	void readSettingsFromFile(StorageManager& bdsm);
+	void writeSettingsToFile(StorageManager& bdsm);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

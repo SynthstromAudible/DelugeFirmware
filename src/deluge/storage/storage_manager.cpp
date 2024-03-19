@@ -1173,15 +1173,6 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 	return Error::NONE;
 }
 
-bool StorageManager::lseek(uint32_t pos) {
-	FRESULT result = f_lseek(&fileSystemStuff.currentFile, pos);
-	if (result != FR_OK) {
-		fileAccessFailedDuring = true;
-	}
-
-	return (result == FR_OK);
-}
-
 Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
                                   bool ignoreIncorrectFirmware) {
 
@@ -1386,7 +1377,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(song, clip, 0);
+	error = newInstrument->readFromFile(*this, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -1480,7 +1471,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(song, clip, 0);
+	error = newDrum->readFromFile(*this, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -1662,7 +1653,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(readAutomationUpToPos);
+				Error error = midiParam->param.readFromFile(*this, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
