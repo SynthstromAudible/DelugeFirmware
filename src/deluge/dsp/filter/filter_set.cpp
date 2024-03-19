@@ -28,7 +28,7 @@ FilterSet::FilterSet() {
 	lpladder = LpLadderFilter();
 	hpladder = HpLadderFilter();
 }
-q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
+q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate stereo samples
 
 void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (HPFOn) {
