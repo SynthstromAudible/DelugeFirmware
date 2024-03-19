@@ -41,6 +41,7 @@ const char* functionNames[][2] = {
     /* CHORD       */ {"CHRD", "Chords"},
     /* CHORD_MEM   */ {"CMEM", "Chord Memory"},
     /* SCALE_MODE  */ {"SMOD", "Scales"},
+    /* SESSION     */ {"SESS", "Session parts"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
@@ -148,6 +149,8 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 		return &chordMemColumn;
 	case SCALE_MODE:
 		return &scaleModeColumn;
+	case SESSION:
+		return &sessionColumn;
 	}
 	return nullptr;
 }

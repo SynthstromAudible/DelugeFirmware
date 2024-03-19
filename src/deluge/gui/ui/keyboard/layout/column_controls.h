@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/column_controls/chord_mem.h"
 #include "gui/ui/keyboard/column_controls/mod.h"
 #include "gui/ui/keyboard/column_controls/scale_mode.h"
+#include "gui/ui/keyboard/column_controls/session.h"
 #include "gui/ui/keyboard/column_controls/velocity.h"
 #include "gui/ui/keyboard/layout.h"
 
@@ -38,6 +39,7 @@ enum ColumnControlFunction : int8_t {
 	CHORD,
 	CHORD_MEM,
 	SCALE_MODE,
+	SESSION,
 	// BEAT_REPEAT,
 	COL_CTRL_FUNC_MAX,
 };
@@ -90,6 +92,7 @@ private:
 	ChordColumn chordColumn{};
 	ChordMemColumn chordMemColumn{};
 	ScaleModeColumn scaleModeColumn{};
+	SessionColumn sessionColumn{};
 
 	void renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
 
