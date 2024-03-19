@@ -957,7 +957,7 @@ void AutomationView::renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDi
 	}
 }
 
-// defers to audio clip or instrument clip sidebar render functions
+// defers to arranger, audio clip or instrument clip sidebar render functions
 // depending on the active clip
 bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
@@ -2204,10 +2204,6 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 			Drum* selectedDrum = ((Kit*)output)->selectedDrum;
 			if (selectedDrum != drum) {
-				// But not if we're actually not on this screen
-				if (getCurrentUI() != this) {
-					return;
-				}
 				selectedDrumChanged = true;
 			}
 		}
