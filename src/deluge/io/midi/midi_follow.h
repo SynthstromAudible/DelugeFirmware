@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
+#include "storage/storage_manager.h"
 
 class AudioClip;
 class InstrumentClip;
@@ -36,7 +37,7 @@ Clip* getSelectedClip(bool useActiveClip = false);
 class MidiFollow final {
 public:
 	MidiFollow();
-	void readDefaultsFromFile();
+	void readDefaultsFromFile(StorageManager& bdsm);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -86,12 +87,12 @@ private:
 	bool isFeedbackEnabled();
 
 	// saving
-	void writeDefaultsToFile();
+	void writeDefaultsToFile(StorageManager& bdsm);
 	void writeDefaultMappingsToFile();
 
 	// loading
 	bool successfullyReadDefaultsFromFile;
-	void readDefaultMappingsFromFile();
+	void readDefaultMappingsFromFile(StorageManager& bdsm);
 };
 
 extern MidiFollow midiFollow;

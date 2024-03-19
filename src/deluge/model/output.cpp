@@ -176,43 +176,43 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 }
 
-void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
+void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	char const* tagName = getXMLTag();
-	storageManager.writeOpeningTagBeginning(tagName);
+	bdsm.writeOpeningTagBeginning(tagName);
 
 	if (clipForSavingOutputOnly) {
-		storageManager.writeFirmwareVersion();
-		storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+		bdsm.writeFirmwareVersion();
+		bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
 
-	bool endedOpeningTag = writeDataToFile(clipForSavingOutputOnly, song);
+	bool endedOpeningTag = writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
 	if (endedOpeningTag) {
-		storageManager.writeClosingTag(tagName);
+		bdsm.writeClosingTag(tagName);
 	}
 	else {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 }
 
-bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool Output::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
 		if (mutedInArrangementMode) {
-			storageManager.writeAttribute("isMutedInArrangement", 1);
+			bdsm.writeAttribute("isMutedInArrangement", 1);
 		}
 		if (soloingInArrangementMode) {
-			storageManager.writeAttribute("isSoloingInArrangement", 1);
+			bdsm.writeAttribute("isSoloingInArrangement", 1);
 		}
-		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
-		storageManager.writeAttribute("activeModFunction", modKnobMode);
-		storageManager.writeAttribute("colour", colour);
+		bdsm.writeAttribute("isArmedForRecording", armedForRecording);
+		bdsm.writeAttribute("activeModFunction", modKnobMode);
+		bdsm.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
-			storageManager.write("\n");
-			storageManager.printIndents();
-			storageManager.write("clipInstances=\"0x");
+			bdsm.write("\n");
+			bdsm.printIndents();
+			bdsm.write("clipInstances=\"0x");
 
 			for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 				ClipInstance* thisInstance = clipInstances.getElement(i);
@@ -220,10 +220,10 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				char buffer[9];
 
 				intToHex(thisInstance->pos, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 
 				intToHex(thisInstance->length, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 
 				uint32_t clipCode;
 
@@ -238,9 +238,9 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				}
 
 				intToHex(clipCode, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 			}
-			storageManager.write("\"");
+			bdsm.write("\"");
 		}
 	}
 
@@ -248,14 +248,14 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-Error Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Output::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		bool readAndExited = readTagFromFile(tagName);
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		bool readAndExited = readTagFromFile(bdsm, tagName);
 
 		if (!readAndExited) {
-			storageManager.exitTag();
+			bdsm.exitTag();
 		}
 	}
 
@@ -263,26 +263,26 @@ Error Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 }
 
 // If this returns false, the caller has to call storageManager.exitTag();
-bool Output::readTagFromFile(char const* tagName) {
+bool Output::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
-		mutedInArrangementMode = storageManager.readTagOrAttributeValueInt();
+		mutedInArrangementMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isSoloingInArrangement")) {
-		soloingInArrangementMode = storageManager.readTagOrAttributeValueInt();
+		soloingInArrangementMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isArmedForRecording")) {
-		armedForRecording = storageManager.readTagOrAttributeValueInt();
+		armedForRecording = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "activeModFunction")) {
-		modKnobMode = storageManager.readTagOrAttributeValueInt();
+		modKnobMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "colour")) {
-		colour = storageManager.readTagOrAttributeValueInt();
+		colour = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
@@ -293,12 +293,12 @@ bool Output::readTagFromFile(char const* tagName) {
 
 		int32_t numElementsToAllocateFor = 0;
 
-		if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 			goto getOut;
 		}
 
 		{
-			char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
+			char const* firstChars = bdsm.readNextCharsOfTagOrAttributeValue(2);
 			if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
 				goto getOut;
 			}
@@ -310,7 +310,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			if (numElementsToAllocateFor <= 0) {
 
 				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
+				uint32_t charsRemaining = bdsm.getNumCharsRemainingInValue();
 				if (charsRemaining) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
@@ -321,7 +321,7 @@ bool Output::readTagFromFile(char const* tagName) {
 				}
 			}
 
-			char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(24);
+			char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(24);
 			if (!hexChars) {
 				goto getOut;
 			}
@@ -351,7 +351,7 @@ bool Output::readTagFromFile(char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, getNameXMLTag())) {
-		storageManager.readTagOrAttributeValueString(&name);
+		bdsm.readTagOrAttributeValueString(&name);
 	}
 
 	else {
@@ -359,7 +359,7 @@ bool Output::readTagFromFile(char const* tagName) {
 	}
 
 getOut:
-	storageManager.exitTag();
+	bdsm.exitTag();
 	return true;
 }
 

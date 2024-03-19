@@ -86,7 +86,7 @@ void SaveUI::enterKeyPress() {
 
 	else {
 		SlotBrowser::enterKeyPress();
-		bool dealtWith = performSave(false);
+		bool dealtWith = performSave(storageManager, false);
 
 		if (display->have7SEG()) {
 			if (!dealtWith) {

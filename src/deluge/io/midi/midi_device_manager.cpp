@@ -320,7 +320,7 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 }
 
 // Returns NULL if insufficient details found, or not enough RAM to create
-MIDIDevice* readDeviceReferenceFromFile() {
+MIDIDevice* readDeviceReferenceFromFile(StorageManager& bdsm) {
 
 	uint16_t vendorId = 0;
 	uint16_t productId = 0;
@@ -328,18 +328,18 @@ MIDIDevice* readDeviceReferenceFromFile() {
 	MIDIDevice* device = NULL;
 
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "vendorId")) {
-			vendorId = storageManager.readTagOrAttributeValueHex(0);
+			vendorId = bdsm.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "productId")) {
-			productId = storageManager.readTagOrAttributeValueHex(0);
+			productId = bdsm.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			storageManager.readTagOrAttributeValueString(&name);
+			bdsm.readTagOrAttributeValueString(&name);
 		}
 		else if (!strcmp(tagName, "port")) {
-			char const* port = storageManager.readTagOrAttributeValue();
+			char const* port = bdsm.readTagOrAttributeValue();
 			if (!strcmp(port, "loopbackMidi")) {
 				device = &loopbackMidi;
 			}
@@ -357,7 +357,7 @@ MIDIDevice* readDeviceReferenceFromFile() {
 			}
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	if (device) {
@@ -448,7 +448,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile() {
+void writeDevicesToFile(StorageManager& bdsm) {
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -480,43 +480,43 @@ void writeDevicesToFile() {
 	return;
 
 worthIt:
-	Error error = storageManager.createXMLFile("MIDIDevices.XML", true);
+	Error error = bdsm.createXMLFile("MIDIDevices.XML", true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
 
-	storageManager.writeOpeningTagBeginning("midiDevices");
-	storageManager.writeFirmwareVersion();
-	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning("midiDevices");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.0.0");
+	bdsm.writeOpeningTagEnd();
 
 	if (dinMIDIPorts.worthWritingToFile()) {
-		dinMIDIPorts.writeToFile("dinPorts");
+		dinMIDIPorts.writeToFile(bdsm, "dinPorts");
 	}
 	if (upstreamUSBMIDIDevice_port1.worthWritingToFile()) {
-		upstreamUSBMIDIDevice_port1.writeToFile("upstreamUSBDevice");
+		upstreamUSBMIDIDevice_port1.writeToFile(bdsm, "upstreamUSBDevice");
 	}
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
-		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
+		upstreamUSBMIDIDevice_port2.writeToFile(bdsm, "upstreamUSBDevice2");
 	}
 	if (loopbackMidi.worthWritingToFile()) {
-		loopbackMidi.writeToFile("loopbackMidi");
+		loopbackMidi.writeToFile(bdsm, "loopbackMidi");
 	}
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		if (device->worthWritingToFile()) {
-			device->writeToFile("hostedUSBDevice");
+			device->writeToFile(bdsm, "hostedUSBDevice");
 		}
 		// Stow this for the hook  point later
 		specificMIDIDevice = recastSpecificMidiDevice(device);
 	}
 
-	storageManager.writeClosingTag("midiDevices");
+	bdsm.writeClosingTag("midiDevices");
 
-	storageManager.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 
 	// Hook point for Hosted USB MIDI Device
 	if (specificMIDIDevice != NULL) {
@@ -526,47 +526,47 @@ worthIt:
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile() {
+void readDevicesFromFile(StorageManager& bdsm) {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
 
 	FilePointer fp;
-	bool success = storageManager.fileExists("MIDIDevices.XML", &fp);
+	bool success = bdsm.fileExists("MIDIDevices.XML", &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = storageManager.openXMLFile(&fp, "midiDevices");
+	Error error = bdsm.openXMLFile(&fp, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
 
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
-			dinMIDIPorts.readFromFile();
+			dinMIDIPorts.readFromFile(bdsm);
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice")) {
-			upstreamUSBMIDIDevice_port1.readFromFile();
+			upstreamUSBMIDIDevice_port1.readFromFile(bdsm);
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice2")) {
-			upstreamUSBMIDIDevice_port2.readFromFile();
+			upstreamUSBMIDIDevice_port2.readFromFile(bdsm);
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
-			upstreamUSBMIDIDevice_port3.readFromFile();
+			upstreamUSBMIDIDevice_port3.readFromFile(bdsm);
 		}
 		else if (!strcmp(tagName, "loopbackMidi")) {
-			loopbackMidi.readFromFile();
+			loopbackMidi.readFromFile(bdsm);
 		}
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
-			readAHostedDeviceFromFile();
+			readAHostedDeviceFromFile(bdsm);
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
-	storageManager.closeFile();
+	bdsm.closeFile();
 
 	recountSmallestMPEZones();
 
@@ -575,7 +575,7 @@ void readDevicesFromFile() {
 	successfullyReadDevicesFromFile = true;
 }
 
-void readAHostedDeviceFromFile() {
+void readAHostedDeviceFromFile(StorageManager& bdsm) {
 	MIDIDeviceUSBHosted* device = NULL;
 
 	String name;
@@ -583,18 +583,18 @@ void readAHostedDeviceFromFile() {
 	uint16_t productId;
 
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 		int32_t whichPort;
 
 		if (!strcmp(tagName, "vendorId")) {
-			vendorId = storageManager.readTagOrAttributeValueHex(0);
+			vendorId = bdsm.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "productId")) {
-			productId = storageManager.readTagOrAttributeValueHex(0);
+			productId = bdsm.readTagOrAttributeValueHex(0);
 		}
 		else if (!strcmp(tagName, "name")) {
-			storageManager.readTagOrAttributeValueString(&name);
+			bdsm.readTagOrAttributeValueString(&name);
 		}
 		else if (!strcmp(tagName, "input")) {
 			whichPort = MIDI_DIRECTION_INPUT_TO_DELUGE;
@@ -607,7 +607,8 @@ checkDevice:
 			}
 
 			if (device) {
-				device->ports[whichPort].readFromFile((whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
+				device->ports[whichPort].readFromFile(bdsm,
+				                                      (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
 			}
 		}
 		else if (!strcmp(tagName, "output")) {
@@ -625,11 +626,11 @@ checkDevice:
 			}
 
 			if (device) {
-				device->defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+				device->defaultVelocityToLevel = bdsm.readTagOrAttributeValueInt();
 			}
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	// Hook point!

@@ -1841,29 +1841,29 @@ addNewNodeAt0IfNecessary:
 	}
 }
 
-void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
+void AutoParam::writeToFile(StorageManager& bdsm, bool writeAutomation, int32_t* valueForOverride) {
 	char buffer[9];
 
-	storageManager.write("0x");
+	bdsm.write("0x");
 
 	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
 
 	intToHex(valueNow, buffer);
-	storageManager.write(buffer);
+	bdsm.write(buffer);
 
 	if (writeAutomation) {
 
 		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 			ParamNode* thisNode = nodes.getElement(i);
 			intToHex(thisNode->value, buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			uint32_t pos = thisNode->pos;
 			if (thisNode->interpolated) {
 				pos |= ((uint32_t)1 << 31);
 			}
 			intToHex(pos, buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 		}
 	}
 }
@@ -1871,18 +1871,18 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
+Error AutoParam::readFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
 	deleteAutomationBasicForSetup();
 
-	if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+	if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 		return Error::NONE;
 	}
 
 	// char buffer[12];
-	char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
+	char const* firstChars = bdsm.readNextCharsOfTagOrAttributeValue(2);
 	if (!firstChars) {
 		return Error::NONE;
 	}
@@ -1893,7 +1893,7 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 		buffer[0] = firstChars[0];
 		buffer[1] = firstChars[1];
 
-		for (int32_t i = 2; i < 12 && (buffer[i] = storageManager.readNextCharOfTagOrAttributeValue()); i++) {}
+		for (int32_t i = 2; i < 12 && (buffer[i] = bdsm.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
 		return Error::NONE;
@@ -1902,7 +1902,7 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 	// Or, normal case - hex and automation...
 
 	// First, read currentValue
-	char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(8);
+	char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(8);
 	if (!hexChars) {
 		return Error::NONE;
 	}
@@ -1921,7 +1921,7 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 			if (numElementsToAllocateFor <= 0) {
 
 				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
+				uint32_t charsRemaining = bdsm.getNumCharsRemainingInValue();
 				if (charsRemaining) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
@@ -1932,7 +1932,7 @@ Error AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 				}
 			}
 
-			hexChars = storageManager.readNextCharsOfTagOrAttributeValue(16);
+			hexChars = bdsm.readNextCharsOfTagOrAttributeValue(16);
 			if (!hexChars) {
 				return Error::NONE;
 			}

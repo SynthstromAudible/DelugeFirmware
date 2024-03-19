@@ -297,20 +297,20 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
 // be NULL
-bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool AudioOutput::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	storageManager.writeAttribute("name", name.get());
+	bdsm.writeAttribute("name", name.get());
 
 	if (echoing) {
-		storageManager.writeAttribute("echoingInput", "1");
+		bdsm.writeAttribute("echoingInput", "1");
 	}
-	storageManager.writeAttribute("inputChannel", inputChannelToString(inputChannel));
+	bdsm.writeAttribute("inputChannel", inputChannelToString(inputChannel));
 
-	Output::writeDataToFile(clipForSavingOutputOnly, song);
+	Output::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
-	GlobalEffectableForClip::writeAttributesToFile(clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(bdsm, clipForSavingOutputOnly == NULL);
 
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagEnd();
 
 	ParamManager* paramManager = NULL;
 	// If no activeClip, that means no Clip has this Instrument, so there should be a backedUpParamManager that we
@@ -319,37 +319,37 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		paramManager = song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	}
 
-	GlobalEffectableForClip::writeTagsToFile(paramManager, true);
+	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, true);
 
 	return true;
 }
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
-Error AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error AudioOutput::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "echoingInput")) {
-			echoing = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag("echoingInput");
+			echoing = bdsm.readTagOrAttributeValueInt();
+			bdsm.exitTag("echoingInput");
 		}
 
 		else if (!strcmp(tagName, "inputChannel")) {
-			inputChannel = stringToInputChannel(storageManager.readTagOrAttributeValue());
-			storageManager.exitTag("inputChannel");
+			inputChannel = stringToInputChannel(bdsm.readTagOrAttributeValue());
+			bdsm.exitTag("inputChannel");
 		}
 
-		else if (Output::readTagFromFile(tagName)) {}
+		else if (Output::readTagFromFile(bdsm, tagName)) {}
 
 		else {
 
-			Error result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
+			Error result = GlobalEffectableForClip::readTagFromFile(bdsm, tagName, &paramManager, 0, song);
 			if (result == Error::NONE) {}
 			else if (result == Error::RESULT_TAG_UNUSED) {
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 			else {
 				return result;
