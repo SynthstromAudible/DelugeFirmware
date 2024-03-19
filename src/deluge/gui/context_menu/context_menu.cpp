@@ -91,12 +91,12 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		if (isCurrentOptionAvailable()) {
 			deluge::hid::display::OLED::drawString(options[currentOption], 22, textPixelY, image[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY, 0,
-			                                       OLED_MAIN_WIDTH_PIXELS - 22);
+			                                       OLED_MAIN_WIDTH_PIXELS - 26);
 			if (currentOption == actualCurrentOption) {
 				deluge::hid::display::OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8,
 				                                       &image[0]);
 				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 22,
-				                                              OLED_MAIN_WIDTH_PIXELS - 22, textPixelY, textPixelY + 8,
+				                                              OLED_MAIN_WIDTH_PIXELS - 26, textPixelY, textPixelY + 8,
 				                                              kTextSpacingX, kTextSpacingY, true);
 			}
 			textPixelY += kTextSpacingY;
