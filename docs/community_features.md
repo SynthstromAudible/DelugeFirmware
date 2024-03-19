@@ -108,7 +108,6 @@ Here is a list of general improvements that have been made, ordered from newest 
   updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
   feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
-
 #### 3.4 - Tempo
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -198,6 +197,9 @@ Here is a list of general improvements that have been made, ordered from newest 
     - Between middle and maximum the top two lights will be lit up proportionately to the value in that range
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
+
+#### 3.16 - Heavy CPU Usage (Culling) Indicator
+- ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
 
 ## 4. New Features Added
 
@@ -1189,6 +1191,8 @@ different firmware
 [#1456]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1456
 
 [#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
+
+[#1506]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1506
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
