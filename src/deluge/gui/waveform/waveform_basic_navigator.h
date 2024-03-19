@@ -39,6 +39,7 @@ public:
 	bool zoom(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
 	          MarkerType markerType = MarkerType::NONE);
 	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
+	void potentiallyAdjustScrollPosition(bool shouldAllowExtraScrollRight = false);
 
 	Sample* sample;
 
