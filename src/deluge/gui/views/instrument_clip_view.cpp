@@ -4252,8 +4252,12 @@ drawNormally:
 
 		// Kit - draw "selected Drum"
 		if (getCurrentOutputType() == OutputType::KIT) {
-			if (getCurrentUI() != this) {
-				// we're not the top-level UI, just turn the pad off
+			// only turn selected drum off if we're not currently in that UI and affect entire is on
+			// we turn it off when affect entire is on because the selected drum is not relevant in that context
+			// e.g. if you're in the affect entire menu, you're not editing params for the selected drum
+			UI* currentUI = getCurrentUI();
+			bool isInstrumentClipView = ((currentUI == &instrumentClipView) || (currentUI == &automationView));
+			if (!isInstrumentClipView && instrumentClipView.getAffectEntire()) {
 				thisColour = colours::black;
 				return;
 			}
