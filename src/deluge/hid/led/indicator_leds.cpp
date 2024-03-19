@@ -34,6 +34,7 @@ LedBlinker ledBlinkers[numLedBlinkers];
 bool ledBlinkState[NUM_LEVEL_INDICATORS];
 
 uint8_t knobIndicatorLevels[NUM_LEVEL_INDICATORS];
+bool knobIndicatorBipolar[NUM_LEVEL_INDICATORS];
 
 uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
@@ -193,7 +194,7 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 		uiTimerManager.unsetTimer(TimerName::LEVEL_INDICATOR_BLINK);
 	}
 	else {
-		if (level == knobIndicatorLevels[whichKnob]) {
+		if (level == knobIndicatorLevels[whichKnob] && isBipolar == knobIndicatorBipolar[whichKnob]) {
 			return;
 		}
 	}
@@ -249,6 +250,7 @@ void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool isBipo
 	PIC::setGoldKnobIndicator(whichKnob, indicator);
 
 	knobIndicatorLevels[whichKnob] = level;
+	knobIndicatorBipolar[whichKnob] = isBipolar;
 }
 
 /// return brightness value for current LED indicator being looked at
