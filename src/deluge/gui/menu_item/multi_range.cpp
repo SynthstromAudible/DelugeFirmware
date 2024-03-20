@@ -17,6 +17,7 @@
 
 #include "multi_range.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
@@ -269,6 +270,12 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		else {
 			drawValue();
 		}
+	}
+	RootUI* rootUI = getRootUI();
+	if (rootUI == &keyboardScreen) {
+		// refresh the keyboard grid to show the updated notes included in the multi range that has been edited /
+		// selected
+		uiNeedsRendering(rootUI, 0xFFFFFFFF, 0);
 	}
 }
 
