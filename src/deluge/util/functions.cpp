@@ -377,7 +377,7 @@ char const* sourceToStringShort(PatchSource source) {
 		return "note";
 
 	case PatchSource::SIDECHAIN:
-		return "comp";
+		return "side";
 
 	case PatchSource::RANDOM:
 		return "rand";
