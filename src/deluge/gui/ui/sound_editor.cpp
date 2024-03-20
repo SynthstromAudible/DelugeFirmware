@@ -266,7 +266,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 						}
 						else {
 							MenuPermission result = newItem->checkPermissionToBeginSession(
-								currentModControllable, currentSourceIndex, &currentMultiRange);
+							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
 							if (result != MenuPermission::NO) {
 								if (result == MenuPermission::MUST_SELECT_RANGE) {
