@@ -500,7 +500,10 @@ changeOutputType:
 
 			if (clip != nullptr) {
 				// Don't allow converting audio clip to instrument clip
-				if (clip->type != ClipType::AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
+				}
+				else {
 
 					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 					Instrument* instrument = (Instrument*)instrumentClip->output;
