@@ -75,6 +75,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added a feature save user-defined pad brightness level and restore it at startup.
 - Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
 - The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

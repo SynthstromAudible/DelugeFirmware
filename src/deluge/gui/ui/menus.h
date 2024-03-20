@@ -1,5 +1,6 @@
 #pragma once
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
+#include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/dev_var/dev_var.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/osc/source/wave_index.h"
@@ -21,6 +22,7 @@ extern deluge::gui::menu_item::sample::Start sampleStartMenu;
 extern deluge::gui::menu_item::sample::End sampleEndMenu;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
+extern deluge::gui::menu_item::audio_clip::AudioSourceSelector audioSourceSelectorMenu;
 extern DrumName drumNameMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
