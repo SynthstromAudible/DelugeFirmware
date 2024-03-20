@@ -443,22 +443,23 @@ void MultiRange::drawPixelsForOled() {
 	drawItemsForOled(itemNames, selectedOption);
 
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
-		int32_t hilightStartX = 0;
-		int32_t hilightWidth = 0;
+		int32_t highlightStartX = 0;
+		int32_t highlightWidth = 0;
 
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-			hilightStartX = kTextSpacingX;
-			hilightWidth = kTextSpacingX * 6;
+			highlightStartX = kTextSpacingX;
+			highlightWidth = kTextSpacingX * 6;
 		}
 		else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-			hilightStartX = kTextSpacingX * 10;
-			hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
+			highlightStartX = kTextSpacingX * 10;
+			highlightWidth = OLED_MAIN_WIDTH_PIXELS - highlightStartX;
 		}
 
 		int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
 		baseY += (this->getValue() - soundEditor.menuCurrentScroll) * kTextSpacingY;
-		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY,
+		// -1 adjustment to invert the area 1px around the digits being rendered
+		deluge::hid::display::OLED::invertArea(highlightStartX, highlightWidth, baseY, baseY + kTextSpacingY - 1,
 		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 }
