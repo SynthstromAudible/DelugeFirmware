@@ -203,6 +203,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+  - Not included in c1.1.0
 
 ## 4. New Features Added
 
