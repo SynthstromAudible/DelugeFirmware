@@ -103,7 +103,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_ENV_0_RELEASE]            = "Env1 rel",
 	    [LOCAL_ENV_1_RELEASE]            = "Env2 rel",
 	    [GLOBAL_VOLUME_POST_FX]          = "POSTFXLVL",
-	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "POSTRVLVL",
+	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "Side level",
 	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
 	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",

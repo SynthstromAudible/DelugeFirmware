@@ -524,16 +524,12 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 	bool found = false;
 	for (int32_t x = 0; x < 15; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
-			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getParamIndex() == paramLookingFor) {
+			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
 
 				*xout = x;
 				*yout = y;
 
-				if ((x & 1) == currentSourceIndex) {
-					// check we're on the corretc index
-					return true;
-				}
+				return true;
 			}
 		}
 	}
