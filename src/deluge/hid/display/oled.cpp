@@ -1015,7 +1015,7 @@ struct SideScroller {
 	int32_t stringLengthPixels;
 	int32_t boxLengthPixels;
 	bool finished;
-	bool doHilight;
+	bool doHighlight;
 };
 
 #define NUM_SIDE_SCROLLERS 2
@@ -1023,7 +1023,7 @@ struct SideScroller {
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
+                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
@@ -1042,7 +1042,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->textSpacingX = textSpacingX;
 	scroller->textSizeY = textSizeY;
 	scroller->finished = false;
-	scroller->doHilight = doHilight;
+	scroller->doHighlight = doHighlight;
 
 	sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, 400);
@@ -1107,7 +1107,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			clearAreaExact(scroller->startX, scroller->startY, scroller->endX - 1, scroller->endY, oledMainImage);
 			drawString(scroller->text, scroller->startX, scroller->startY, oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 			           scroller->textSpacingX, scroller->textSizeY, scroller->pos, scroller->endX);
-			if (scroller->doHilight) {
+			if (scroller->doHighlight) {
 				invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY, scroller->endY,
 				           &OLED::oledMainImage[0]);
 			}
