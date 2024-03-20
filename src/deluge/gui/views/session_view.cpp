@@ -3446,6 +3446,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
+				// removes potential stuck pop-up if you're previewing / entering a clip
+				// while holding section pad and repeats popup is displayed
+				deluge::hid::display::OLED::removePopup();
 			}
 		}
 		// Remember the second press down if empty
