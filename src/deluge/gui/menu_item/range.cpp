@@ -189,22 +189,22 @@ void Range::drawPixelsForOled() {
 	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                                       digitWidth, digitHeight);
 
-	int32_t hilightStartX, hilightWidth;
+	int32_t highlightStartX, highlightWidth;
 
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		hilightStartX = stringStartX;
-		hilightWidth = digitWidth * leftLength;
-doHilightJustOneEdge:
+		highlightStartX = stringStartX;
+		highlightWidth = digitWidth * leftLength;
+doHighlightJustOneEdge:
 		// Invert the area 1px around the digits being rendered
 		baseY += OLED_MAIN_TOPMOST_PIXEL - 1;
-		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + digitHeight + 1,
+		deluge::hid::display::OLED::invertArea(highlightStartX, highlightWidth, baseY, baseY + digitHeight + 1,
 		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
 		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
-		hilightWidth = digitWidth * rightLength;
-		hilightStartX = stringEndX - hilightWidth;
-		goto doHilightJustOneEdge;
+		highlightWidth = digitWidth * rightLength;
+		highlightStartX = stringEndX - highlightWidth;
+		goto doHighlightJustOneEdge;
 	}
 }
 } // namespace deluge::gui::menu_item
