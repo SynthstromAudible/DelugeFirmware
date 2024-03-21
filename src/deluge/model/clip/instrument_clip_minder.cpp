@@ -339,8 +339,13 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		else if (b == MIDI) {
 			out = OutputType::MIDI_OUT;
 		}
-		loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
-		openUI(&loadInstrumentPresetUI);
+		// don't allow clip type change if clip is not empty
+		// only impose this restriction if switching to/from kit clip
+		if (!(((getCurrentOutputType() == OutputType::KIT) || (out == OutputType::KIT))
+		      && !getCurrentInstrumentClip()->isEmpty())) {
+			loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
+			openUI(&loadInstrumentPresetUI);
+		}
 	}
 
 	// Select button, without shift
