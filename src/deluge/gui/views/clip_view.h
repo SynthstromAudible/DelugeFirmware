@@ -26,18 +26,17 @@ class ClipView : public ClipNavigationTimelineView {
 public:
 	ClipView();
 
-	uint32_t getMaxZoom();
-	uint32_t getMaxLength();
-	ActionResult horizontalEncoderAction(int32_t offset);
+	uint32_t getMaxZoom() override;
+	uint32_t getMaxLength() override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	int32_t getLengthChopAmount(int32_t square);
 	int32_t getLengthExtendAmount(int32_t square);
-	void focusRegained();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	void focusRegained() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
 protected:
 	int32_t getTickSquare();
 
-private:
 	Action* lengthenClip(int32_t newLength);
 	Action* shortenClip(int32_t newLength);
 };

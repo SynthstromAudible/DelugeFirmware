@@ -46,6 +46,7 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult timerCallback();
 	uint32_t getMaxLength();

@@ -649,6 +649,95 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
 }
 
+ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+
+	// Shift and x pressed - edit length of clip without timestretching
+	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
+		return ActionResult::DEALT_WITH; // do nothing to check logic
+		// If tempoless recording, don't allow
+		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
+			return ActionResult::DEALT_WITH;
+		}
+
+		uint32_t oldLength = getCurrentClip()->loopLength;
+
+		// If we're not scrolled all the way to the right, go there now
+		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		// Or if still here, we've already scrolled far-right
+
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		uint32_t newLength;
+
+		Action* action = NULL;
+
+		bool rightOnSquare;
+		int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
+
+		// Lengthening
+		if (offset == 1) {
+
+			newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
+
+			// If we're still within limits
+			if (newLength <= (uint32_t)kMaxSequenceLength) {
+
+				action = lengthenClip(newLength);
+
+				if (!scrollRightToEndOfLengthIfNecessary(newLength)) {
+doReRender:
+					uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				}
+			}
+		}
+
+		// Shortening
+		else {
+
+			if (!rightOnSquare) {
+				newLength = getPosFromSquare(endSquare);
+			}
+			else {
+				newLength = oldLength - getLengthChopAmount(endSquare);
+			}
+
+			if (newLength > 0) {
+
+				action = shortenClip(newLength);
+
+				// Scroll / zoom as needed
+				if (!scrollLeftIfTooFarRight(newLength)) {
+					// If this zoom level no longer valid...
+					if (zoomToMax(true)) {
+						// editor.displayZoomLevel(true);
+					}
+					else {
+						goto doReRender;
+					}
+				}
+			}
+		}
+
+		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+
+		if (action) {
+			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
+	else {
+		// Otherwise, let parent do scrolling and zooming
+		return ClipView::horizontalEncoderAction(offset);
+	}
+}
+
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
