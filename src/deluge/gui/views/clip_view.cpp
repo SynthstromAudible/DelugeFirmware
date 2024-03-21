@@ -138,7 +138,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
-	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
+	    && Buttons::isShiftButtonPressed()) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
