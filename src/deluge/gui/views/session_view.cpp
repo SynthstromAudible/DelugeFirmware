@@ -499,13 +499,10 @@ changeOutputType:
 			Clip* clip = getClipForLayout();
 
 			if (clip != nullptr) {
-				// If AudioClip, we have to convert back to an InstrumentClip
+				// Don't allow converting audio clip to instrument clip
 				if (clip->type == ClipType::AUDIO) {
-					actionLogger.deleteAllLogs();
-					replaceAudioClipWithInstrumentClip(clip, newOutputType);
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
 				}
-
-				// Or if already an InstrumentClip, changing Instrument type is easier
 				else {
 
 					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -1590,98 +1587,6 @@ doGetInstrument:
 	}
 
 	return newClip;
-}
-
-void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType) {
-	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
-
-	if (!clip || clip->type != ClipType::AUDIO) {
-		return;
-	}
-
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
-	    && currentSong->getClipWithOutput(clip->output, false, clip)) {
-		display->displayPopup(deluge::l10n::get(
-		    deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
-		return;
-	}
-
-	AudioClip* audioClip = (AudioClip*)clip;
-	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
-		return;
-	}
-
-	// Allocate memory for InstrumentClip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
-	if (!clipMemory) {
-ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return;
-	}
-
-	// Create the audio clip and ParamManager
-	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
-
-	// Give the new clip its stuff
-	newClip->cloneFrom(clip);
-	newClip->colourOffset = random(72);
-
-	bool instrumentAlreadyInSong;
-	Error error;
-
-	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-
-		error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-		if (error != Error::NONE) {
-gotError:
-			display->displayError(error);
-gotErrorDontDisplay:
-			newClip->~InstrumentClip();
-			delugeDealloc(clipMemory);
-			return;
-		}
-	}
-
-	else {
-		Instrument* newInstrument = currentSong->getNonAudioInstrumentToSwitchTo(
-		    outputType, Availability::INSTRUMENT_UNUSED, 0, -1, &instrumentAlreadyInSong);
-		if (!newInstrument) {
-			goto gotErrorDontDisplay;
-		}
-
-		error = newClip->setNonAudioInstrument(newInstrument, currentSong);
-		if (error != Error::NONE) {
-			// TODO: we'd really want to deallocate the Instrument
-			goto gotError;
-		}
-	}
-
-	if (!instrumentAlreadyInSong) {
-		currentSong->addOutput(newClip->output);
-	}
-
-	// Possibly want to set this as the active Clip...
-	if (!newClip->output->activeClip) {
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
-
-		newClip->output->setActiveClip(modelStackWithTimelineCounter);
-	}
-
-	newClip->output->colour = clip->output->colour;
-
-	currentSong->swapClips(newClip, clip, clipIndex);
-
-	view.setActiveModControllableTimelineCounter(newClip);
-	view.displayOutputName(newClip->output, true, newClip);
-
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 }
 
 void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
