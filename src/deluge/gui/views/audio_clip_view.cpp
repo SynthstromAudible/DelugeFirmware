@@ -339,16 +339,16 @@ dontDeactivateMarker:
 					Sample* sample = (Sample*)sampleHolder->audioFile;
 					if (sample) {
 						// get sample start position (green waveform marker)
-						uint32_t loopStartSample =
+						int32_t loopStartSample =
 						    (uint32_t)(guide.getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes)
 						    / (uint8_t)(sample->numChannels * sample->byteDepth);
 
 						// get sample end position (red waveform marker)
-						uint32_t loopEndSample =
+						int32_t loopEndSample =
 						    (uint32_t)(guide.getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes)
 						    / (uint8_t)(sample->numChannels * sample->byteDepth);
 
-						uint32_t sampleLengthInSamples = loopEndSample - loopStartSample;
+						uint32_t sampleLengthInSamples = std::abs(loopEndSample - loopStartSample);
 
 						// convert sample length in samples to ticks
 						float loopLength = (float)sampleLengthInSamples / playbackHandler.getTimePerInternalTickFloat();
