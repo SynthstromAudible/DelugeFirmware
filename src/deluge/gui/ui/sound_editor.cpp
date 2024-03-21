@@ -260,20 +260,26 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
-						MenuPermission result = newItem->checkPermissionToBeginSession(
-						    currentModControllable, currentSourceIndex, &currentMultiRange);
+						if (newItem == &audioSourceSelectorMenu) {
+							newItem->selectButtonPress();
+							return ActionResult::DEALT_WITH;
+						}
+						else {
+							MenuPermission result = newItem->checkPermissionToBeginSession(
+							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
-						if (result != MenuPermission::NO) {
-							if (result == MenuPermission::MUST_SELECT_RANGE) {
-								currentMultiRange = nullptr;
-								menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
-								newItem = &menu_item::multiRangeMenu;
+							if (result != MenuPermission::NO) {
+								if (result == MenuPermission::MUST_SELECT_RANGE) {
+									currentMultiRange = nullptr;
+									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
+									newItem = &menu_item::multiRangeMenu;
+								}
+
+								navigationDepth++;
+								menuItemNavigationRecord[navigationDepth] = newItem;
+								display->setNextTransitionDirection(1);
+								beginScreen();
 							}
-
-							navigationDepth++;
-							menuItemNavigationRecord[navigationDepth] = newItem;
-							display->setNextTransitionDirection(1);
-							beginScreen();
 						}
 					}
 				}

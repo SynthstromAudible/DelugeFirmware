@@ -15,6 +15,7 @@
 #include "gui/menu_item/arpeggiator/rhythm.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
+#include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
@@ -723,6 +724,8 @@ Submenu globalSidechainMenu{
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
+audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE};
+
 audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
 
 Submenu audioClipMasterMenu{
@@ -1232,6 +1235,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
+        &audioSourceSelectorMenu,
         &audioClipMasterMenu,
         &audioCompMenu,
         &globalFiltersMenu,
