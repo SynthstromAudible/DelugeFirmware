@@ -1262,6 +1262,13 @@ void InstrumentClipView::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && !getCurrentInstrumentClip()->isEmpty()) {
+		return;
+	}
+
 	InstrumentClipMinder::changeOutputType(newOutputType);
 
 	recalculateColours();

@@ -96,6 +96,7 @@ public:
 	NoteRow* getNoteRowFromId(int32_t id);
 	/// Return true if successfully shifted. Instrument clips always succeed
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
+	bool isEmpty();
 	bool containsAnyNotes();
 	ModelStackWithNoteRow* getNoteRowOnScreen(int32_t yDisplay, ModelStackWithTimelineCounter* modelStack);
 	NoteRow* getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex = NULL);
