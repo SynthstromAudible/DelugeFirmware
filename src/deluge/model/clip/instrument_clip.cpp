@@ -17,6 +17,7 @@
 
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
@@ -3685,6 +3686,14 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 				return false;
 			}
 		}
+	}
+	return true;
+}
+
+bool InstrumentClip::isEmpty() {
+	if (containsAnyNotes() || output->clipHasInstance(this)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		return false;
 	}
 	return true;
 }

@@ -508,6 +508,13 @@ changeOutputType:
 					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 					Instrument* instrument = (Instrument*)instrumentClip->output;
 
+					// don't allow clip type change if clip is not empty
+					// only impose this restriction if switching to/from kit clip
+					if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
+					    && !instrumentClip->isEmpty()) {
+						return ActionResult::DEALT_WITH;
+					}
+
 					// If load button held, go into LoadInstrumentPresetUI
 					if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
@@ -1603,9 +1610,9 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 		return;
 	}
 
+	// don't allow clip type change if clip is not empty
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(clip)) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+	if (!instrumentClip->isEmpty()) {
 		return;
 	}
 
