@@ -39,6 +39,7 @@
 #include "model/consequence/consequence_clip_length.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_playback_guide.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -332,13 +333,32 @@ dontDeactivateMarker:
 				}
 
 				AudioClip* audioClip = getCurrentAudioClip();
-				SampleHolder* sampleHolder = (SampleHolder*)audioClip->guide.audioFileHolder;
+				SamplePlaybackGuide guide = audioClip->guide;
+				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 				if (sampleHolder) {
-					uint32_t sampleLengthInSamples = sampleHolder->getLengthInSamplesAtSystemSampleRate(false);
+					Sample* sample = (Sample*)sampleHolder->audioFile;
+					if (sample) {
+						// get sample start position (green waveform marker)
+						uint32_t loopStartSample =
+						    (uint32_t)(guide.getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes)
+						    / (uint8_t)(sample->numChannels * sample->byteDepth);
 
-					float loopLength = (float)sampleLengthInSamples / playbackHandler.getTimePerInternalTickFloat();
-					audioClip->loopLength = static_cast<int32_t>(loopLength);
-					uiNeedsRendering(this, 0xFFFFFFFF, 0);
+						// get sample end position (red waveform marker)
+						uint32_t loopEndSample =
+						    (uint32_t)(guide.getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes)
+						    / (uint8_t)(sample->numChannels * sample->byteDepth);
+
+						uint32_t sampleLengthInSamples = loopEndSample - loopStartSample;
+
+						// convert sample length in samples to ticks
+						float loopLength = (float)sampleLengthInSamples / playbackHandler.getTimePerInternalTickFloat();
+
+						// set new clip length equal to length of sample in ticks
+						audioClip->loopLength = static_cast<int32_t>(loopLength);
+
+						// refresh clip to show adjusted clip length
+						uiNeedsRendering(this, 0xFFFFFFFF, 0);
+					}
 				}
 			}
 		}
