@@ -201,6 +201,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.16 - Heavy CPU Usage (Culling) Indicator
 - ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
 
+#### 3.17 - Select Audio Clip Source from Audio Clip Menu
+- ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+  - Not included in c1.1.0
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1193,6 +1197,8 @@ different firmware
 [#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
 
 [#1506]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1506
+
+[#1531]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1531
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
