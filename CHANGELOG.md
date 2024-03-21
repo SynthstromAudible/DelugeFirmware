@@ -76,6 +76,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
 - The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
+- Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
