@@ -881,6 +881,13 @@ uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 		        .getTimePerInternalTickInverse(); // multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(),
 		                                          // arpRate);
 		phaseIncrement >>= rightShiftAmount;
+
+		if (syncType == SYNC_TYPE_TRIPLET) {
+			phaseIncrement = phaseIncrement * 3 / 2;
+		}
+		else if (syncType == SYNC_TYPE_DOTTED) {
+			phaseIncrement = phaseIncrement * 2 / 3;
+		}
 	}
 	return phaseIncrement;
 }
