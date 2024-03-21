@@ -6,7 +6,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 
 ## c1.2.0 Unnamed
 
-- Insert changes for next release here
+- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
 
 ## c1.1.0 Beethoven
 
