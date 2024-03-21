@@ -324,7 +324,27 @@ dontDeactivateMarker:
 	}
 
 	else if (b == X_ENC) {
-		goto dontDeactivateMarker;
+		// removing time stretching by re-calculating clip length based on length of audio sample
+		if (Buttons::isShiftButtonPressed()) {
+			if (on && currentUIMode == UI_MODE_NONE) {
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+
+				AudioClip* audioClip = getCurrentAudioClip();
+				SampleHolder* sampleHolder = (SampleHolder*)audioClip->guide.audioFileHolder;
+				if (sampleHolder) {
+					uint32_t sampleLengthInSamples = sampleHolder->getLengthInSamplesAtSystemSampleRate(false);
+
+					float loopLength = (float)sampleLengthInSamples / playbackHandler.getTimePerInternalTickFloat();
+					audioClip->loopLength = static_cast<int32_t>(loopLength);
+					uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				}
+			}
+		}
+		else {
+			goto dontDeactivateMarker;
+		}
 	}
 
 	// Select button, without shift

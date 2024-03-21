@@ -6,7 +6,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 
 ## c1.2.0 Unnamed
 
-- Insert changes for next release here
+- Added new shortcut to remove timestretching from an audio clip. Press `SHIFT` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
 
 ## c1.1.0 Beethoven
 
