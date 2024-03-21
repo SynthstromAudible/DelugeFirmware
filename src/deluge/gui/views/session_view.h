@@ -128,7 +128,6 @@ private:
 	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
-	void replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 
