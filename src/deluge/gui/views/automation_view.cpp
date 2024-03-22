@@ -1467,7 +1467,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Select encoder
 	// if you're not pressing shift and press down on the select encoder, toggle interpolation on/off
-	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC) {
+	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC && currentUIMode == UI_MODE_NONE) {
 		handleSelectEncoderButtonAction(on);
 	}
 
