@@ -20,6 +20,8 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
@@ -94,6 +96,17 @@ int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretchin
 	else {
 		return (lengthInSamples << 24) / neutralPhaseIncrement;
 	}
+}
+
+// returns loop length in ticks from the sample waveform start and end positions selected
+int32_t SampleHolder::getLoopLengthAtSystemSampleRate() {
+	if (audioFile) {
+		double loopLength =
+		    (double)getLengthInSamplesAtSystemSampleRate(false) / playbackHandler.getTimePerInternalTickFloat();
+
+		return static_cast<int32_t>(loopLength);
+	}
+	return getCurrentClip()->loopLength;
 }
 
 void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,

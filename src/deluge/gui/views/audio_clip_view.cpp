@@ -336,29 +336,9 @@ dontDeactivateMarker:
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 				if (sampleHolder) {
-					Sample* sample = (Sample*)sampleHolder->audioFile;
-					if (sample) {
-						// get sample start position (green waveform marker)
-						int32_t loopStartSample =
-						    (uint32_t)(guide.getBytePosToStartPlayback(true) - sample->audioDataStartPosBytes)
-						    / (uint8_t)(sample->numChannels * sample->byteDepth);
-
-						// get sample end position (red waveform marker)
-						int32_t loopEndSample =
-						    (uint32_t)(guide.getBytePosToEndOrLoopPlayback() - sample->audioDataStartPosBytes)
-						    / (uint8_t)(sample->numChannels * sample->byteDepth);
-
-						uint32_t sampleLengthInSamples = std::abs(loopEndSample - loopStartSample);
-
-						// convert sample length in samples to ticks
-						float loopLength = (float)sampleLengthInSamples / playbackHandler.getTimePerInternalTickFloat();
-
-						// set new clip length equal to length of sample in ticks
-						audioClip->loopLength = static_cast<int32_t>(loopLength);
-
-						// refresh clip to show adjusted clip length
-						uiNeedsRendering(this, 0xFFFFFFFF, 0);
-					}
+					audioClip->loopLength = sampleHolder->getLoopLengthAtSystemSampleRate(guide);
+					// refresh clip to show adjusted clip length
+					uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				}
 			}
 		}
