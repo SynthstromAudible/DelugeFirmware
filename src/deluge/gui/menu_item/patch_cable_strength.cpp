@@ -255,7 +255,18 @@ ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
-	Automation::horizontalEncoderAction(offset);
+	int8_t currentEditPos = soundEditor.numberEditPos;
+	// don't adjust patch cable decimal edit pos if you're holding down the horizontal encoder
+	// reserve holding down horizontal encoder for zooming in automation view
+	if (!Buttons::isButtonPressed(hid::button::X_ENC)) {
+		Decimal::horizontalEncoderAction(offset);
+	}
+	// if editPos hasn't changed, then you reached start (far left) or end (far right) of the decimal number
+	// or you're holding down the horizontal encoder because you want to zoom in/out
+	// if this is the case, then you can potentially engage scrolling/zooming of the underlying automation view
+	if (currentEditPos == soundEditor.numberEditPos) {
+		Automation::horizontalEncoderAction(offset);
+	}
 }
 
 } // namespace deluge::gui::menu_item
