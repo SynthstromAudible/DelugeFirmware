@@ -1517,10 +1517,16 @@ void View::setModLedStates() {
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
+		// if you're in a song view and volume mod button is selected and VU meter is enabled
+		// blink volume mod led
+		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+			indicator_leds::blinkLed(indicator_leds::modLed[i]);
+		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		else if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
+		// otherwise update mod led's to reflect current mod led selection
 		else {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
