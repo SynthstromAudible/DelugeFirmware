@@ -336,7 +336,7 @@ dontDeactivateMarker:
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 				if (sampleHolder) {
-					audioClip->loopLength = sampleHolder->getLoopLengthAtSystemSampleRate(guide);
+					audioClip->loopLength = sampleHolder->getLoopLengthAtSystemSampleRate();
 					// refresh clip to show adjusted clip length
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				}
