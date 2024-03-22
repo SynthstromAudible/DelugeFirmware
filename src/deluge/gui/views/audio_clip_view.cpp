@@ -333,21 +333,10 @@ dontDeactivateMarker:
 				}
 
 				AudioClip* audioClip = getCurrentAudioClip();
-
-				uint32_t oldLength = audioClip->loopLength;
-
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
-				Action* action = nullptr;
-				uint32_t newLength = sampleHolder->getLoopLengthAtSystemSampleRate();
-
 				if (sampleHolder) {
-
 					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate());
-				}
-				if (action) {
-					displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
-					action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 				}
 			}
 		}
