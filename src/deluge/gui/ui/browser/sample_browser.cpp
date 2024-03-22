@@ -763,23 +763,7 @@ removeLoadingAnimationAndGetOut:
 		}
 
 		AudioClip* clip = getCurrentAudioClip();
-
-		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
-		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
-		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->timePerTimerTickBig;
-
-		int32_t newLength = 3;
-		while (newLength * 1.41 < sampleLengthInTicks) {
-			newLength <<= 1;
-		}
-
-		int32_t oldLength = clip->loopLength;
-
-		clip->loopLength = newLength;
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		clip->lengthChanged(modelStack, oldLength);
+		audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
 
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;

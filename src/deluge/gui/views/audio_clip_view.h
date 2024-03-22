@@ -22,6 +22,8 @@
 #include "model/clip/clip_minder.h"
 #include <cstdint>
 
+class AudioClip;
+
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
 	AudioClipView();
@@ -46,6 +48,8 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
+	void adjustLoopLength(int32_t newLength);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult timerCallback();
 	uint32_t getMaxLength();
@@ -62,6 +66,8 @@ private:
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
 	bool blinkOn;
+	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength, int32_t oldLength,
+	                                  uint64_t oldLengthSamples) const;
 };
 
 extern AudioClipView audioClipView;

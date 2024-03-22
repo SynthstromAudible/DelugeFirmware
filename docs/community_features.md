@@ -205,6 +205,11 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 
+#### 3.18 - Remove Timestretching From Audio Clip Sample
+- ([#1542]) Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1216,6 +1221,8 @@ different firmware
 [#1506]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1506
 
 [#1531]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1531
+
+[#1542]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1542
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
