@@ -1517,10 +1517,16 @@ void View::setModLedStates() {
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
+		// if you're in a song view and volume mod button is selected and VU meter is enabled
+		// blink volume mod led
+		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+			indicator_leds::blinkLed(indicator_leds::modLed[i]);
+		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		else if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
+		// otherwise update mod led's to reflect current mod led selection
 		else {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
@@ -2287,6 +2293,22 @@ gotAnInstrument:
 		displayOutputName(newInstrument, doBlink);
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::sendMainImage();
+		}
+
+		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
+		// the name will print over the midi channel and we can't see it while changing it
+		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
+			char buffer[12];
+			if (newChannel < 16) {
+				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);
+			}
+			else if (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE || newChannel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				strcpy(buffer, (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper");
+			}
+			else {
+				strcpy(buffer, "Transpose");
+			}
+			display->popupTextTemporary(buffer);
 		}
 	}
 

@@ -1875,6 +1875,11 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		}
 	}
 
+	// don't interact with sidebar if VU Meter is displayed
+	if (onArrangerView && x >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
