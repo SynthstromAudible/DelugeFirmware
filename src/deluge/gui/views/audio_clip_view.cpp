@@ -340,7 +340,7 @@ dontDeactivateMarker:
 				}
 			}
 		}
-		else {
+		else if (!Buttons::isShiftButtonPressed()) {
 			goto dontDeactivateMarker;
 		}
 	}
