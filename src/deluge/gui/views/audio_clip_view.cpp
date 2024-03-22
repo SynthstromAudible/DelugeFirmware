@@ -340,6 +340,7 @@ dontDeactivateMarker:
 				}
 			}
 		}
+		// if shift is pressed then we're resizing the clip without time stretching
 		else if (!Buttons::isShiftButtonPressed()) {
 			goto dontDeactivateMarker;
 		}
