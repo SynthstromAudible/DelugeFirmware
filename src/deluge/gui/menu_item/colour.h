@@ -20,6 +20,7 @@
 
 namespace deluge::gui::menu_item {
 
+constexpr int32_t kNumPadColours = 9;
 class Colour final : public Selection {
 public:
 	enum Option : uint8_t {
@@ -57,5 +58,6 @@ extern Colour activeColourMenu;
 extern Colour stoppedColourMenu;
 extern Colour mutedColourMenu;
 extern Colour soloColourMenu;
-
+extern Colour fillColourMenu;
+extern Colour onceColourMenu;
 } // namespace deluge::gui::menu_item

@@ -437,8 +437,6 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
-				// Clip* clip = getClipOnScreen(selectedClipYDisplay);
-				// contextMenuLaunchStyle.clip = clip;
 				context_menu::launchStyle.setupAndCheckAvailability();
 				openUI(&context_menu::launchStyle);
 			}
@@ -449,9 +447,16 @@ moveAfterClipInstance:
 				Clip* clip = getClipForLayout();
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+					if (gridModeActive == SessionGridModeConfig) {
+						context_menu::launchStyle.clip = clip;
+						context_menu::launchStyle.setupAndCheckAvailability();
+						openUI(&context_menu::launchStyle);
+					}
+					else if (clip != nullptr) {
+						replaceInstrumentClipWithAudioClip(clip);
+					}
 				}
-
-				if (clip != nullptr) {
+				else if (clip != nullptr) {
 					replaceInstrumentClipWithAudioClip(clip);
 				}
 			}
@@ -2772,6 +2777,11 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		modeColour = colours::blue; // Blue
 		break;
 	}
+	case GridMode::YELLOW: {
+		modeActive = (gridModeActive == SessionGridModeConfig);
+		modeColour = colours::yellow; // Yellow
+		break;
+	}
 	case GridMode::PINK: {
 		modeActive = performanceSessionView.gridModeActive;
 		modeColour = colours::magenta; // Pink
@@ -2884,7 +2894,13 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		clip->output->colour = lastColour;
 	}
 
-	RGB resultColour = RGB::fromHue(clip->output->colour);
+	RGB resultColour;
+	if (gridModeActive == SessionGridModeConfig) {
+		resultColour = view.getClipMuteSquareColour(clip, resultColour, true, false);
+	}
+	else {
+		resultColour = RGB::fromHue(clip->output->colour);
+	}
 
 	// If we are not in record arming mode make this clip full color for being soloed
 	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
@@ -3224,6 +3240,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
+			case GridMode::YELLOW: {
+				gridModeActive = SessionGridModeConfig;
+				break;
+			}
 			case GridMode::PINK: {
 				performanceSessionView.gridModeActive = true;
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
@@ -3258,6 +3278,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
+			break;
+		}
+		case SessionGridModeConfig: {
+			modeHandleResult = gridHandlePadsConfig(x, y, on, clip);
 			break;
 		}
 		}
@@ -3499,7 +3523,6 @@ ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, in
 	}
 
 	gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
-
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
@@ -3573,6 +3596,32 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 			gridToggleClipPlay(clip, false);
 		}
 	}
+}
+
+ActionResult SessionView::gridHandlePadsConfig(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (x < kDisplayWidth) {
+		if (on) {
+			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
+				gridFirstPressedX = x;
+				gridFirstPressedY = y;
+			}
+
+			if (clip != nullptr) {
+				currentSong->setCurrentClip(clip);
+				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+				view.displayOutputName(clip->output, true, clip);
+				if (display->haveOLED()) {
+					deluge::hid::display::OLED::sendMainImage();
+				}
+			}
+		}
+		else {
+			if (gridFirstPressedX == x && gridFirstPressedY == y) {
+				clipPressEnded();
+			}
+		}
+	}
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {

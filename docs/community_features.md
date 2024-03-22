@@ -240,22 +240,28 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type
-  selection menu. The options are:
+- ([#196] and [#1018]) In Song View (Rows mode), holding the status pad (mute pad) for a clip and pressing `SELECT`
+  brings up a clip type selection menu. For Grid Mode there is a dedicated Config Mode in which this menu can be
+  reached, see `Yellow Mode` in [Grid View](#415grid-view).
+  
+  The options are:
     - **`Default (DEFA)`** - the default Deluge clip type.
-    - **`Fill (FILL)`** - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule
-      itself to
-      start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the
-      remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest
-      playing clip, or by the total length of a section times the repeat count set for that section.
+    - **`Fill (FILL)`** - Fill clip.
+        - When inactive it appears orange on the status pads in rows view, or in Config Mode in grid view.
+        - When active it will appear green.
+        - When launched it will schedule itself to start at such a time that it _finishes_ at the start of the next
+        loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through.
+        The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section.
         - **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips
           can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills
           never starting since a default type clip has the needed instrument. This can be worked around by cloning the
           instrument to an independent copy.
-    - **`Once (ONCE)`** - Once clip. It appears orange/cyan on the status pads, and when triggered it will schedule
-      itself to
-      start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of
-      clips also work when soloing them, they will solo just for one loop and unsolo after that.
+    - **`Once (ONCE)`** - Once clip.
+        - When inactive it appears purple on the status pads in rows view, or in Config Mode in grid view.
+        - When active it will appear green.
+        - When triggered it will schedule itself to
+        start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of
+        clips also work when soloing them, they will solo just for one loop and unsolo after that.
         - **Limitation**: a Once clip is still subject to the one clip per instrument behavior of the Deluge, A Once
           clip can steal an output from other normal clips, so take that into account when you plan your performance.
 
@@ -274,7 +280,7 @@ Here is a list of features that have been added to the firmware as a list, group
     - The data model of rows and grid mode are compatible, you can switch between them freely
     - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make
       them visible move the clips to other sections
-    - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks
+    - The colored column on the right are all available sections, the columns are automatically filled with the tracks
       in the same order as in arrangement mode
     - In song view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
     - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
@@ -306,6 +312,16 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
+        - `Yellow mode`
+            - Clips can be configured by holding their pad and pressing the Select encoder to reach the launch style
+              menu, see [Fill Clips and Once Clips](#413fill-clips-and-once-clips)
+            - Pad colour in yellow mode indicates the clip type:
+              - If inactive
+                  - Fill clips are dim orange by default
+                  - Once clips are dim purple by default.
+                  - Normal clips are dull grey.
+              - Active clips are green, or whatever colour is set for active pads.
+              - The colours can be changed in `SETTINGS > PADS > COLOURS > FILL/ONCE`
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:

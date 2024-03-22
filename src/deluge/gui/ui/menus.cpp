@@ -815,6 +815,8 @@ Submenu coloursSubmenu{
         &stoppedColourMenu,
         &mutedColourMenu,
         &soloColourMenu,
+        &fillColourMenu,
+        &onceColourMenu,
     },
 };
 

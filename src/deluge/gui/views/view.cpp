@@ -2449,7 +2449,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
-RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2487,37 +2487,31 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	// Or if not soloing...
 	else {
-		if (clip->launchStyle == LaunchStyle::DEFAULT) {
-			// If it's stopped, red.
-			if (!clip->activeIfNoSolo) {
-				if (dimInactivePads) {
-					thisColour = RGB::monochrome(20);
+		if (!clip->activeIfNoSolo) {
+			switch (clip->launchStyle) {
+			case LaunchStyle::FILL:
+				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
+				break;
+			case LaunchStyle::ONCE:
+				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
+				break;
+			default:
+
+				if (whiteInactivePads) {
+					// If grid view + config mode requests it,
+					// Use white to avoid a screen full of red pads
+					// Grid mode itself dims these colours to grey
+					thisColour = colours::white;
 				}
 				else {
+					// If it's stopped, red.
 					thisColour = menu_item::stoppedColourMenu.getRGB();
 				}
 			}
-
-			// Or, green.
-			else {
-				thisColour = menu_item::activeColourMenu.getRGB();
-			}
 		}
 		else {
-			// If it's stopped, orange.
-			if (!clip->activeIfNoSolo) {
-				if (dimInactivePads) {
-					thisColour = RGB(10, 7, 3); // dim red-orange
-				}
-				else {
-					thisColour = colours::red_orange;
-				}
-			}
-
-			// Or, cyan.
-			else {
-				thisColour = colours::cyan;
-			}
+			// Active pads of any type go green (or the active colour from the menu).
+			thisColour = menu_item::activeColourMenu.getRGB();
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
