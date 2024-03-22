@@ -2294,6 +2294,22 @@ gotAnInstrument:
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::sendMainImage();
 		}
+
+		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
+		// the name will print over the midi channel and we can't see it while changing it
+		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
+			char buffer[12];
+			if (newChannel < 16) {
+				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);
+			}
+			else if (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE || newChannel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				strcpy(buffer, (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper");
+			}
+			else {
+				strcpy(buffer, "Transpose");
+			}
+			display->popupTextTemporary(buffer);
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
