@@ -48,6 +48,7 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
+	void adjustLoopLength(int32_t newLength);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult timerCallback();
