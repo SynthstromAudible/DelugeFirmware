@@ -206,9 +206,9 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Not included in c1.1.0
 
 #### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and extend an audio clip without timestretching. 
+- ([#1542]) Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to lengthen the audio clip without timestretching.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 
 ## 4. New Features Added
 
