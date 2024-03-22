@@ -169,6 +169,8 @@ enum Entries {
 162: MIDI Transpose Control method.
 163: default Startup Song Mode
 164: default pad brightness
+165: "fill" colour
+166: "once" colour
 */
 
 uint8_t defaultScale;
@@ -266,6 +268,9 @@ void resetSettings() {
 	gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
 	gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
 	gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
+
+	gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
+	gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 
 	defaultMagnitude = 2;
 
@@ -612,6 +617,25 @@ void readSettings() {
 	}
 
 	defaultPadBrightness = buffer[164] == false ? kMaxLedBrightness : buffer[164];
+
+	if (buffer[165] >= gui::menu_item::kNumPadColours) {
+		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
+	}
+	else {
+		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[165]);
+	}
+	if (buffer[166] >= gui::menu_item::kNumPadColours) {
+		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::MAGENTA;
+	}
+	else {
+		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
+	}
+	if (gui::menu_item::fillColourMenu.value == gui::menu_item::Colour::RED
+	    && gui::menu_item::onceColourMenu.value == gui::menu_item::Colour::RED) {
+		// Reset to default if both red, as they will be first time.
+		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
+		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -859,6 +883,9 @@ void writeSettings() {
 
 	buffer[163] = util::to_underlying(defaultStartupSongMode);
 	buffer[164] = defaultPadBrightness;
+
+	buffer[165] = gui::menu_item::fillColourMenu.value;
+	buffer[166] = gui::menu_item::onceColourMenu.value;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
