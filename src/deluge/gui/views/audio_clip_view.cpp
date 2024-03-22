@@ -333,12 +333,28 @@ dontDeactivateMarker:
 				}
 
 				AudioClip* audioClip = getCurrentAudioClip();
+
+				uint32_t oldLength = audioClip->loopLength;
+
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+				Action* action = nullptr;
+				uint32_t newLength = sampleHolder->getLoopLengthAtSystemSampleRate();
+
 				if (sampleHolder) {
-					audioClip->loopLength = sampleHolder->getLoopLengthAtSystemSampleRate();
+
+					if (newLength > oldLength) {
+						action = lengthenClip(newLength);
+					}
+					else {
+						action = shortenClip(newLength);
+					}
 					// refresh clip to show adjusted clip length
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				}
+				if (action) {
+					displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+					action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 				}
 			}
 		}
@@ -465,112 +481,11 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						Sample* sample = getSample();
 						if (sample) {
 
-							int32_t oldLength = clip->loopLength;
-
 							// Ok, move the marker!
 							int32_t newLength =
 							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
 
-							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-
-							uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1))
-							                            / (uint32_t)oldLength; // Rounded
-
-							uint64_t* valueToChange;
-							int64_t newEndPosSamples;
-
-							// AudioClip reversed
-							if (clip->sampleControls.reversed) {
-
-								newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some
-								// rounding happened along the way and just go with the original
-								if (sample->fileLoopStartSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopStartSamples;
-										goto setTheStartPos;
-									}
-								}
-
-								// Or if very close to actual wave start...
-								{
-									int64_t distanceFromFileEndMarker = newEndPosSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = 0;
-									}
-								}
-
-								// If end pos less than 0, not allowed
-								if (newEndPosSamples < 0) {
-									return ActionResult::DEALT_WITH;
-								}
-setTheStartPos:
-								valueToChange = &clip->sampleHolder.startPos;
-							}
-
-							// AudioClip playing forward
-							else {
-								newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some
-								// rounding happened along the way and just go with the original
-								if (sample->fileLoopEndSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopEndSamples;
-										goto setTheEndPos;
-									}
-								}
-
-								// Or if very close to actual wave length...
-								{
-									int64_t distanceFromWaveformEnd =
-									    newEndPosSamples - (uint64_t)sample->lengthInSamples;
-									if (distanceFromWaveformEnd < 0) {
-										distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
-									}
-									if (distanceFromWaveformEnd < 10) {
-										newEndPosSamples = sample->lengthInSamples;
-									}
-								}
-setTheEndPos:
-								valueToChange = &clip->sampleHolder.endPos;
-							}
-
-							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
-							                                                : ActionType::CLIP_LENGTH_INCREASE;
-
-							// Change sample end-pos value. Must do this before calling setClipLength(), which will end
-							// up reading this value.
-							uint64_t oldValue = *valueToChange;
-							*valueToChange = newEndPosSamples;
-
-							Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-							currentSong->setClipLength(clip, newLength, action);
-
-							if (action) {
-								if (action->firstConsequence
-								    && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
-									ConsequenceClipLength* consequence =
-									    (ConsequenceClipLength*)action->firstConsequence;
-									consequence->pointerToMarkerValue = valueToChange;
-									consequence->markerValueToRevertTo = oldValue;
-								}
-								actionLogger.closeAction(actionType);
-							}
+							changeUnderlyingSampleLength(clip, sample, newLength);
 
 							goto needRendering;
 						}
@@ -592,6 +507,100 @@ needRendering:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength) const {
+	uint64_t* valueToChange;
+	int64_t newEndPosSamples;
+	int32_t oldLength = clip->loopLength;
+	uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
+
+	uint64_t newLengthSamples =
+	    (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength; // Rounded
+	// AudioClip reversed
+	if (clip->sampleControls.reversed) {
+
+		newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
+
+		// If the end pos is very close to the end pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopStartSamples) {
+			int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = sample->fileLoopStartSamples;
+			}
+		}
+
+		// Or if very close to actual wave start...
+		{
+			int64_t distanceFromFileEndMarker = newEndPosSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = 0;
+			}
+		}
+
+		// If end pos less than 0, not allowed
+		if (newEndPosSamples < 0) {
+			newEndPosSamples = 0;
+		}
+
+		valueToChange = &clip->sampleHolder.startPos;
+	}
+
+	// AudioClip playing forward
+	else {
+		newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
+
+		// If the end pos is very close to the end pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopEndSamples) {
+			int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = sample->fileLoopEndSamples;
+			}
+		}
+
+		// Or if very close to actual wave length...
+		{
+			int64_t distanceFromWaveformEnd = newEndPosSamples - (uint64_t)sample->lengthInSamples;
+			if (distanceFromWaveformEnd < 0) {
+				distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
+			}
+			if (distanceFromWaveformEnd < 10) {
+				newEndPosSamples = sample->lengthInSamples;
+			}
+		}
+
+		valueToChange = &clip->sampleHolder.endPos;
+	}
+
+	ActionType actionType =
+	    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
+
+	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
+	// up reading this value.
+	uint64_t oldValue = *valueToChange;
+	*valueToChange = newEndPosSamples;
+
+	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
+	currentSong->setClipLength(clip, newLength, action);
+
+	if (action) {
+		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
+			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
+			consequence->pointerToMarkerValue = valueToChange;
+			consequence->markerValueToRevertTo = oldValue;
+		}
+		actionLogger.closeAction(actionType);
+	}
 }
 
 void AudioClipView::playbackEnded() {

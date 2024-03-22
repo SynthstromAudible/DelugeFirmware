@@ -22,6 +22,8 @@
 #include "model/clip/clip_minder.h"
 #include <cstdint>
 
+class AudioClip;
+
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
 	AudioClipView();
@@ -63,6 +65,7 @@ private:
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
 	bool blinkOn;
+	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength) const;
 };
 
 extern AudioClipView audioClipView;
