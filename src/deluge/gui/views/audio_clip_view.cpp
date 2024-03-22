@@ -687,56 +687,10 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		uint32_t newLength;
-
 		Action* action = NULL;
 
-		bool rightOnSquare;
-		int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
-
-		// Lengthening
-		if (offset == 1) {
-
-			newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
-
-			// If we're still within limits
-			if (newLength <= (uint32_t)kMaxSequenceLength) {
-
-				action = lengthenClip(newLength);
-
-				if (!scrollRightToEndOfLengthIfNecessary(newLength)) {
-doReRender:
-					uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				}
-			}
-		}
-
-		// Shortening
-		else {
-
-			if (!rightOnSquare) {
-				newLength = getPosFromSquare(endSquare);
-			}
-			else {
-				newLength = oldLength - getLengthChopAmount(endSquare);
-			}
-
-			if (newLength > 0) {
-
-				action = shortenClip(newLength);
-
-				// Scroll / zoom as needed
-				if (!scrollLeftIfTooFarRight(newLength)) {
-					// If this zoom level no longer valid...
-					if (zoomToMax(true)) {
-						// editor.displayZoomLevel(true);
-					}
-					else {
-						goto doReRender;
-					}
-				}
-			}
-		}
+		uint32_t newLength = changeClipLength(offset, oldLength, action);
+		
 		AudioClip* audioClip = getCurrentAudioClip();
 		SamplePlaybackGuide guide = audioClip->guide;
 		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
