@@ -66,7 +66,8 @@ private:
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
 	bool blinkOn;
-	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength) const;
+	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength, int32_t oldLength,
+	                                  uint64_t oldLengthSamples) const;
 };
 
 extern AudioClipView audioClipView;

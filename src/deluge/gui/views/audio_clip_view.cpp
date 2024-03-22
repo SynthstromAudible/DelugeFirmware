@@ -477,8 +477,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 							// Ok, move the marker!
 							int32_t newLength =
 							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-
-							changeUnderlyingSampleLength(clip, sample, newLength);
+							int32_t oldLength = clip->loopLength;
+							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
+							changeUnderlyingSampleLength(clip, sample, newLength, oldLength, oldLengthSamples);
 
 							goto needRendering;
 						}
@@ -501,11 +502,10 @@ needRendering:
 
 	return ActionResult::DEALT_WITH;
 }
-void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength) const {
+void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,
+                                                 int32_t oldLength, uint64_t oldLengthSamples) const {
 	uint64_t* valueToChange;
 	int64_t newEndPosSamples;
-	int32_t oldLength = clip->loopLength;
-	uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
 
 	uint64_t newLengthSamples =
 	    (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength; // Rounded
@@ -683,7 +683,9 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		uint32_t oldLength = getCurrentClip()->loopLength;
+		// Ok, move the marker!
+		int32_t oldLength = getCurrentClip()->loopLength;
+		uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
@@ -750,24 +752,9 @@ doReRender:
 		SamplePlaybackGuide guide = audioClip->guide;
 		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 		if (sampleHolder) {
-			// we need to unassign and restart the voice for this to work, same as using the marker editor
-			audioClip->unassignVoiceSample(false);
-
-			// set the end point to be the start point plus the required number of samples
-			float loopLengthSamples = playbackHandler.getTimePerInternalTickFloat() * audioClip->loopLength;
-			uint32_t start = sampleHolder->startPos;
-			sampleHolder->endPos = start + loopLengthSamples;
-
-			// reclaim the sample
-			sampleHolder->claimClusterReasons(audioClip->sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
-
-			// restart playback, since unassigning the sample will have stopped it
-			if (playbackHandler.isEitherClockActive() && currentSong->isClipActive(audioClip)
-			    && audioClip->voiceSample) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				getCurrentClip()->resumePlayback(modelStack, true);
+			Sample* sample = static_cast<Sample*>(sampleHolder->audioFile);
+			if (sample) {
+				changeUnderlyingSampleLength(audioClip, sample, newLength, oldLength, oldLengthSamples);
 			}
 		}
 
