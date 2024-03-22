@@ -715,11 +715,17 @@ doReRender:
 			uint32_t start = sampleHolder->startPos;
 			sampleHolder->endPos = start + loopLengthSamples;
 
-			// restart playback
+			// reclaim the sample
 			sampleHolder->claimClusterReasons(audioClip->sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			getCurrentClip()->resumePlayback(modelStack, true);
+
+			// restart playback, since unassigning the sample will have stopped it
+			if (playbackHandler.isEitherClockActive() && currentSong->isClipActive(audioClip)
+			    && audioClip->voiceSample) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				getCurrentClip()->resumePlayback(modelStack, true);
+			}
 		}
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
