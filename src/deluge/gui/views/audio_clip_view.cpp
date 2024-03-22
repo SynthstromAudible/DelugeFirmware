@@ -633,7 +633,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
-		return ActionResult::DEALT_WITH; // do nothing to check logic
+
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
@@ -702,6 +702,24 @@ doReRender:
 					}
 				}
 			}
+		}
+		AudioClip* audioClip = getCurrentAudioClip();
+		SamplePlaybackGuide guide = audioClip->guide;
+		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+		if (sampleHolder) {
+			// we need to unassign and restart the voice for this to work, same as using the marker editor
+			audioClip->unassignVoiceSample(false);
+
+			// set the end point to be the start point plus the required number of samples
+			float loopLengthSamples = playbackHandler.getTimePerInternalTickFloat() * audioClip->loopLength;
+			uint32_t start = sampleHolder->startPos;
+			sampleHolder->endPos = start + loopLengthSamples;
+
+			// restart playback
+			sampleHolder->claimClusterReasons(audioClip->sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			getCurrentClip()->resumePlayback(modelStack, true);
 		}
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
