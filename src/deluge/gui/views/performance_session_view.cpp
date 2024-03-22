@@ -911,6 +911,10 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			uiNeedsRendering(this); // re-render pads
 		}
 		else if (xDisplay >= kDisplayWidth) {
+			// don't interact with sidebar if VU Meter is displayed
+			if (view.displayVUMeter) {
+				return ActionResult::DEALT_WITH;
+			}
 			// if in arranger view
 			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 				// pressing the first column in sidebar to trigger sections / clips
