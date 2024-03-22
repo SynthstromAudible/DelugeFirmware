@@ -326,7 +326,7 @@ dontDeactivateMarker:
 
 	else if (b == X_ENC) {
 		// removing time stretching by re-calculating clip length based on length of audio sample
-		if (Buttons::isShiftButtonPressed()) {
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 			if (on && currentUIMode == UI_MODE_NONE) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -690,7 +690,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 		Action* action = NULL;
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
-		
+
 		AudioClip* audioClip = getCurrentAudioClip();
 		SamplePlaybackGuide guide = audioClip->guide;
 		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
