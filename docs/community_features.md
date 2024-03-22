@@ -357,6 +357,7 @@ Here is a list of features that have been added to the firmware as a list, group
         - turn `Affect Entire` on
         - select the `Volume mod button`
         - press the `Volume mod button` again to toggle the VU Meter on / off.
+          - note: the `Volume mod button` will blink when the VU meter is on and displayed
     - The VU meter will stop rendering if you switch mod button selections, turn affect entire off, select a clip, or
       exit Song/Arranger views.
     - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red.
