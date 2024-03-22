@@ -930,6 +930,11 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	// don't interact with sidebar if VU Meter is displayed
+	if (x >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
 		return handleAuditionPadAction(y, velocity, this);

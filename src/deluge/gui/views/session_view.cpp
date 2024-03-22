@@ -611,6 +611,11 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	// don't interact with sidebar if VU Meter is displayed
+	if (xDisplay >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
