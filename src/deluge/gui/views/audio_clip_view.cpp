@@ -39,6 +39,7 @@
 #include "model/consequence/consequence_clip_length.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_playback_guide.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -324,7 +325,25 @@ dontDeactivateMarker:
 	}
 
 	else if (b == X_ENC) {
-		goto dontDeactivateMarker;
+		// removing time stretching by re-calculating clip length based on length of audio sample
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			if (on && currentUIMode == UI_MODE_NONE) {
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+
+				AudioClip* audioClip = getCurrentAudioClip();
+				SamplePlaybackGuide guide = audioClip->guide;
+				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+				if (sampleHolder) {
+					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate(true));
+				}
+			}
+		}
+		// if shift is pressed then we're resizing the clip without time stretching
+		else if (!Buttons::isShiftButtonPressed()) {
+			goto dontDeactivateMarker;
+		}
 	}
 
 	// Select button, without shift
@@ -445,112 +464,12 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						Sample* sample = getSample();
 						if (sample) {
 
-							int32_t oldLength = clip->loopLength;
-
 							// Ok, move the marker!
 							int32_t newLength =
 							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
-
+							int32_t oldLength = clip->loopLength;
 							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
-
-							uint64_t newLengthSamples = (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1))
-							                            / (uint32_t)oldLength; // Rounded
-
-							uint64_t* valueToChange;
-							int64_t newEndPosSamples;
-
-							// AudioClip reversed
-							if (clip->sampleControls.reversed) {
-
-								newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some
-								// rounding happened along the way and just go with the original
-								if (sample->fileLoopStartSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopStartSamples;
-										goto setTheStartPos;
-									}
-								}
-
-								// Or if very close to actual wave start...
-								{
-									int64_t distanceFromFileEndMarker = newEndPosSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = 0;
-									}
-								}
-
-								// If end pos less than 0, not allowed
-								if (newEndPosSamples < 0) {
-									return ActionResult::DEALT_WITH;
-								}
-setTheStartPos:
-								valueToChange = &clip->sampleHolder.startPos;
-							}
-
-							// AudioClip playing forward
-							else {
-								newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
-
-								// If the end pos is very close to the end pos marked in the audio file, assume some
-								// rounding happened along the way and just go with the original
-								if (sample->fileLoopEndSamples) {
-									int64_t distanceFromFileEndMarker =
-									    newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
-									if (distanceFromFileEndMarker < 0) {
-										distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
-									}
-									if (distanceFromFileEndMarker < 10) {
-										newEndPosSamples = sample->fileLoopEndSamples;
-										goto setTheEndPos;
-									}
-								}
-
-								// Or if very close to actual wave length...
-								{
-									int64_t distanceFromWaveformEnd =
-									    newEndPosSamples - (uint64_t)sample->lengthInSamples;
-									if (distanceFromWaveformEnd < 0) {
-										distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
-									}
-									if (distanceFromWaveformEnd < 10) {
-										newEndPosSamples = sample->lengthInSamples;
-									}
-								}
-setTheEndPos:
-								valueToChange = &clip->sampleHolder.endPos;
-							}
-
-							ActionType actionType = (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE
-							                                                : ActionType::CLIP_LENGTH_INCREASE;
-
-							// Change sample end-pos value. Must do this before calling setClipLength(), which will end
-							// up reading this value.
-							uint64_t oldValue = *valueToChange;
-							*valueToChange = newEndPosSamples;
-
-							Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-							currentSong->setClipLength(clip, newLength, action);
-
-							if (action) {
-								if (action->firstConsequence
-								    && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
-									ConsequenceClipLength* consequence =
-									    (ConsequenceClipLength*)action->firstConsequence;
-									consequence->pointerToMarkerValue = valueToChange;
-									consequence->markerValueToRevertTo = oldValue;
-								}
-								actionLogger.closeAction(actionType);
-							}
+							changeUnderlyingSampleLength(clip, sample, newLength, oldLength, oldLengthSamples);
 
 							goto needRendering;
 						}
@@ -572,6 +491,99 @@ needRendering:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,
+                                                 int32_t oldLength, uint64_t oldLengthSamples) const {
+	uint64_t* valueToChange;
+	int64_t newEndPosSamples;
+
+	uint64_t newLengthSamples =
+	    (uint64_t)(oldLengthSamples * newLength + (oldLength >> 1)) / (uint32_t)oldLength; // Rounded
+	// AudioClip reversed
+	if (clip->sampleControls.reversed) {
+
+		newEndPosSamples = clip->sampleHolder.getEndPos(true) - newLengthSamples;
+
+		// If the end pos is very close to the end pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopStartSamples) {
+			int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopStartSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = sample->fileLoopStartSamples;
+			}
+		}
+
+		// Or if very close to actual wave start...
+		{
+			int64_t distanceFromFileEndMarker = newEndPosSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = 0;
+			}
+		}
+
+		// If end pos less than 0, not allowed
+		if (newEndPosSamples < 0) {
+			newEndPosSamples = 0;
+		}
+
+		valueToChange = &clip->sampleHolder.startPos;
+	}
+
+	// AudioClip playing forward
+	else {
+		newEndPosSamples = clip->sampleHolder.startPos + newLengthSamples;
+
+		// If the end pos is very close to the end pos marked in the audio file, assume some
+		// rounding happened along the way and just go with the original
+		if (sample->fileLoopEndSamples) {
+			int64_t distanceFromFileEndMarker = newEndPosSamples - (uint64_t)sample->fileLoopEndSamples;
+			if (distanceFromFileEndMarker < 0) {
+				distanceFromFileEndMarker = -distanceFromFileEndMarker; // abs
+			}
+			if (distanceFromFileEndMarker < 10) {
+				newEndPosSamples = sample->fileLoopEndSamples;
+			}
+		}
+
+		// Or if very close to actual wave length...
+		{
+			int64_t distanceFromWaveformEnd = newEndPosSamples - (uint64_t)sample->lengthInSamples;
+			if (distanceFromWaveformEnd < 0) {
+				distanceFromWaveformEnd = -distanceFromWaveformEnd; // abs
+			}
+			if (distanceFromWaveformEnd < 10) {
+				newEndPosSamples = sample->lengthInSamples;
+			}
+		}
+
+		valueToChange = &clip->sampleHolder.endPos;
+	}
+
+	ActionType actionType =
+	    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
+
+	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
+	// up reading this value.
+	uint64_t oldValue = *valueToChange;
+	*valueToChange = newEndPosSamples;
+
+	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
+	currentSong->setClipLength(clip, newLength, action);
+
+	if (action) {
+		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
+			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
+			consequence->pointerToMarkerValue = valueToChange;
+			consequence->markerValueToRevertTo = oldValue;
+		}
+		actionLogger.closeAction(actionType);
+	}
 }
 
 void AudioClipView::playbackEnded() {
@@ -607,6 +619,101 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	}
 
 	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+}
+
+void AudioClipView::adjustLoopLength(int32_t newLength) {
+	int32_t oldLength = getCurrentClip()->loopLength;
+
+	if (oldLength != newLength) {
+		Action* action = NULL;
+
+		if (newLength > oldLength) {
+			// If we're still within limits
+			if (newLength <= (uint32_t)kMaxSequenceLength) {
+
+				action = lengthenClip(newLength);
+doReRender:
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			}
+		}
+		else if (newLength < oldLength) {
+			if (newLength > 0) {
+
+				action = shortenClip(newLength);
+
+				// Scroll / zoom as needed
+				if (!scrollLeftIfTooFarRight(newLength)) {
+					// If this zoom level no longer valid...
+					if (zoomToMax(true)) {
+						// editor.displayZoomLevel(true);
+					}
+					else {
+						goto doReRender;
+					}
+				}
+			}
+		}
+
+		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+
+		if (action) {
+			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
+	}
+}
+
+ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+
+	// Shift and x pressed - edit length of clip without timestretching
+	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
+
+		// If tempoless recording, don't allow
+		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
+			return ActionResult::DEALT_WITH;
+		}
+
+		// Ok, move the marker!
+		int32_t oldLength = getCurrentClip()->loopLength;
+		uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
+
+		// If we're not scrolled all the way to the right, go there now
+		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
+			return ActionResult::DEALT_WITH;
+		}
+
+		// Or if still here, we've already scrolled far-right
+
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
+		Action* action = NULL;
+
+		uint32_t newLength = changeClipLength(offset, oldLength, action);
+
+		AudioClip* audioClip = getCurrentAudioClip();
+		SamplePlaybackGuide guide = audioClip->guide;
+		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+		if (sampleHolder) {
+			Sample* sample = static_cast<Sample*>(sampleHolder->audioFile);
+			if (sample) {
+				changeUnderlyingSampleLength(audioClip, sample, newLength, oldLength, oldLengthSamples);
+			}
+		}
+
+		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+
+		if (action) {
+			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
+	else {
+		// Otherwise, let parent do scrolling and zooming
+		return ClipView::horizontalEncoderAction(offset);
+	}
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
