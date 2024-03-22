@@ -39,4 +39,5 @@ protected:
 
 	Action* lengthenClip(int32_t newLength);
 	Action* shortenClip(int32_t newLength);
+	uint32_t changeClipLength(int32_t offset, uint32_t oldLength, Action*& action);
 };
