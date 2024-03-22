@@ -336,7 +336,7 @@ dontDeactivateMarker:
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 				if (sampleHolder) {
-					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate());
+					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate(true));
 				}
 			}
 		}

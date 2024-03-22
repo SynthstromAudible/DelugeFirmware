@@ -39,7 +39,7 @@ public:
 	void beenClonedFrom(SampleHolder* other, bool reversed);
 	virtual void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
-	int32_t getLoopLengthAtSystemSampleRate();
+	int32_t getLoopLengthAtSystemSampleRate(bool forTimeStretching = false);
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
 	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 

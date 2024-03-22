@@ -99,10 +99,10 @@ int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretchin
 }
 
 // returns loop length in ticks from the sample waveform start and end positions selected
-int32_t SampleHolder::getLoopLengthAtSystemSampleRate() {
+int32_t SampleHolder::getLoopLengthAtSystemSampleRate(bool forTimeStretching) {
 	if (audioFile) {
-		double loopLength =
-		    (double)getLengthInSamplesAtSystemSampleRate(false) / playbackHandler.getTimePerInternalTickFloat();
+		double loopLength = (double)getLengthInSamplesAtSystemSampleRate(forTimeStretching)
+		                    / playbackHandler.getTimePerInternalTickFloat();
 
 		return static_cast<int32_t>(loopLength);
 	}
