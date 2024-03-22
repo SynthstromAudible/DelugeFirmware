@@ -336,9 +336,7 @@ dontDeactivateMarker:
 				SamplePlaybackGuide guide = audioClip->guide;
 				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
 				if (sampleHolder) {
-					audioClip->loopLength = sampleHolder->getLoopLengthAtSystemSampleRate();
-					// refresh clip to show adjusted clip length
-					uiNeedsRendering(this, 0xFFFFFFFF, 0);
+					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate());
 				}
 			}
 		}
@@ -627,6 +625,47 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	}
 
 	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+}
+
+void AudioClipView::adjustLoopLength(int32_t newLength) {
+	int32_t oldLength = getCurrentClip()->loopLength;
+
+	if (oldLength != newLength) {
+		Action* action = NULL;
+
+		if (newLength > oldLength) {
+			// If we're still within limits
+			if (newLength <= (uint32_t)kMaxSequenceLength) {
+
+				action = lengthenClip(newLength);
+doReRender:
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			}
+		}
+		else if (newLength < oldLength) {
+			if (newLength > 0) {
+
+				action = shortenClip(newLength);
+
+				// Scroll / zoom as needed
+				if (!scrollLeftIfTooFarRight(newLength)) {
+					// If this zoom level no longer valid...
+					if (zoomToMax(true)) {
+						// editor.displayZoomLevel(true);
+					}
+					else {
+						goto doReRender;
+					}
+				}
+			}
+		}
+
+		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+
+		if (action) {
+			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
+	}
 }
 
 ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
