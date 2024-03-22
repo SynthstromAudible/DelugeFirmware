@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sample/sample_playback_guide.h"
 #include "storage/audio/audio_file_holder.h"
 #include "util/d_string.h"
 
@@ -38,6 +39,7 @@ public:
 	void beenClonedFrom(SampleHolder* other, bool reversed);
 	virtual void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
+	int32_t getLoopLengthAtSystemSampleRate(bool forTimeStretching = false);
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
 	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 
