@@ -754,9 +754,11 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfMode, lpfMorph, hpfFrequency, hpfResonance,
-	                                    FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
+	FilterMode lpfModeForRender = doLPF ? lpfMode : FilterMode::OFF;
+	FilterMode hpfModeForRender = doHPF ? hpfMode : FilterMode::OFF;
+	*postFXVolume =
+	    filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency, hpfResonance,
+	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
