@@ -542,8 +542,6 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-
 				displayLevel = compressor.setRatio(lshiftAndSaturate<24>(current + 64));
 				break;
 
