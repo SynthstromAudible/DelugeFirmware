@@ -332,7 +332,7 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 			return "lpfResonance";
 		case UNPATCHED_LPF_MORPH:
 			return "lpfMorph";
-			
+
 		case UNPATCHED_HPF_FREQ:
 			return "hpfFrequency";
 		case UNPATCHED_HPF_MORPH:

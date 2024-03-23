@@ -76,7 +76,7 @@ constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsF
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_MORPH, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    
+
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
