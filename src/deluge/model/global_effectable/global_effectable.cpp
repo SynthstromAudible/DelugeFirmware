@@ -64,23 +64,26 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
 	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
+	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+
+	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -818,12 +821,16 @@ void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* 
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 	bdsm.closeTag();
 
 	bdsm.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	bdsm.closeTag();
 

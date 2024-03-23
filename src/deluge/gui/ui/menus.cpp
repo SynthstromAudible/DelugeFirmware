@@ -585,12 +585,13 @@ Submenu kitClipMasterMenu{
 // LPF Menu
 UnpatchedParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::UNPATCHED_LPF_FREQ};
 UnpatchedParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::UNPATCHED_LPF_RES};
-
+UnpatchedParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::UNPATCHED_LPF_MORPH};
 Submenu globalLPFMenu{
     STRING_FOR_LPF,
     {
         &globalLPFFreqMenu,
         &globalLPFResMenu,
+        &globalLPFMorphMenu,
         &lpfModeMenu,
     },
 };
@@ -598,12 +599,14 @@ Submenu globalLPFMenu{
 // HPF Menu
 UnpatchedParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::UNPATCHED_HPF_FREQ};
 UnpatchedParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::UNPATCHED_HPF_RES};
+UnpatchedParam globalHPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, params::UNPATCHED_HPF_MORPH};
 
 Submenu globalHPFMenu{
     STRING_FOR_HPF,
     {
         &globalHPFFreqMenu,
         &globalHPFResMenu,
+        &globalHPFMorphMenu,
         &hpfModeMenu,
     },
 };
