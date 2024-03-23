@@ -1331,7 +1331,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
 
-	bool isUISessionView = isUIPerformanceView || !currentUIIsClipMinderScreen();
+	bool isUISessionView = isUIPerformanceView || !rootUIIsClipMinderScreen();
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (isUISessionView) {
