@@ -755,7 +755,6 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
 
-	// no morph for global effectable
 	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfMode, lpfMorph, hpfFrequency, hpfResonance,
 	                                    FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }

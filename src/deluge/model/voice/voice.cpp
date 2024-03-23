@@ -949,12 +949,14 @@ skipAutoRelease: {}
 
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
+	FilterMode lpfMode = doLPF ? sound->lpfMode : FilterMode::OFF;
+	FilterMode hpfMode = doHPF ? sound->hpfMode : FilterMode::OFF;
 	filterGain = filterSet.setConfig(
-	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], sound->lpfMode,
+	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
 	    paramFinalValues[params::LOCAL_LPF_MORPH], paramFinalValues[params::LOCAL_HPF_FREQ],
 	    (paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-	    sound->hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
-	    sound->filterRoute, false, nullptr); // Level adjustment for unison now happens *before* the filter!
+	    hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1, sound->filterRoute,
+	    false, nullptr); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
