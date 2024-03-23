@@ -21,9 +21,11 @@
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <cstdint>
+
 namespace deluge::dsp::filter {
 constexpr uint32_t ONE_Q31U = 2147483648u;
 constexpr int32_t ONE_Q16 = 134217728;
+extern q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
 /**
  *  Interface for filters in the sound engine
  * This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
@@ -42,7 +44,8 @@ class Filter {
 public:
 	Filter() = default;
 	// returns a gain compensation value
-	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
+	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain,
+	                q31_t dryLevel = 0) {
 		// lpfmorph comes in q28 but we want q31
 		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, lshiftAndSaturate<2>(lpfMorph),
 		                                        filterGain);
@@ -86,6 +89,7 @@ public:
 		fc = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4;
 	}
 	q31_t fc;
+	q31_t dryLevel;
 	q31_t tannedFrequency;
 	q31_t divideBy1PlusTannedFrequency;
 };

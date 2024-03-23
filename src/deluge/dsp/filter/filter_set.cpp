@@ -203,6 +203,5 @@ void FilterSet::reset() {
 	lpsvf.reset();
 	hpsvf.reset();
 	lpladder.reset();
-	noiseLastValue = 0;
 }
 } // namespace deluge::dsp::filter

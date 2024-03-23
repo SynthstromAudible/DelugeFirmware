@@ -48,7 +48,6 @@ public:
 	inline bool isOn() { return HPFOn || LPFOn; }
 
 private:
-	q31_t noiseLastValue;
 	FilterMode lpfMode_;
 	FilterMode lastLPFMode_;
 	FilterMode hpfMode_;
@@ -59,7 +58,6 @@ private:
 	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
 	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
 	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
-	void renderLadderHPF(q31_t* outputSample);
 
 	SVFilter lpsvf;
 	LpLadderFilter lpladder;
