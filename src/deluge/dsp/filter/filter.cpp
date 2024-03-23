@@ -15,4 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "util/fixedpoint.h"
+namespace deluge::dsp::filter {
 q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2] = {0};
+}

@@ -153,14 +153,14 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, FilterM
 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-			if (lastLPFMode_ <= kLastLadder) {
-				lpsvf.reset();
+			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::SVF) {
+				lpsvf.reset(lastLPFMode_ == FilterMode::OFF);
 			}
 			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		else {
-			if (lastLPFMode_ > kLastLadder) {
-				lpladder.reset();
+			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::LP_LADDER) {
+				lpladder.reset(lastLPFMode_ == FilterMode::OFF);
 			}
 			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
@@ -178,7 +178,7 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, FilterM
 		if (hpfMode_ == FilterMode::HPLADDER) {
 			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpladder.reset();
+				hpladder.reset(lastHPFMode_ == FilterMode::OFF);
 			}
 		}
 		// otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
@@ -186,7 +186,7 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, FilterM
 			// invert the morph for the HPF so it goes high-band/notch-low
 			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpsvf.reset();
+				hpsvf.reset(lastHPFMode_ == FilterMode::OFF);
 			}
 		}
 		lastHPFMode_ = hpfMode_;
