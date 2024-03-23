@@ -27,6 +27,9 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 
 protected:
+	virtual int32_t getDisplayValue() { return this->getValue(); }
+	virtual const char* getUnit() { return ""; }
+
 	void drawPixelsForOled();
 	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 
