@@ -523,6 +523,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		int current;
 		int displayLevel;
 		int ledLevel;
+		const char* unit;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
 			current = (compressor.getThreshold() >> 24) - 64;
@@ -532,6 +533,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 			compressor.setThreshold(lshiftAndSaturate<24>(current + 64));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
+			unit = "";
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
@@ -543,6 +545,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 				displayLevel = compressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				unit = " : 1";
 				break;
 
 			case CompParam::ATTACK:
@@ -552,6 +555,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setAttack(lshiftAndSaturate<24>(current + 64));
+				unit = " MS";
 				break;
 
 			case CompParam::RELEASE:
@@ -561,6 +565,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				unit = " MS";
 				break;
 
 			case CompParam::SIDECHAIN:
@@ -570,12 +575,16 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setSidechain(lshiftAndSaturate<24>(current + 64));
+				unit = " HZ";
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
-		char buffer[5];
+		char buffer[12];
 		intToString(displayLevel, buffer);
+		if (display->haveOLED()) {
+			strncat(buffer, unit, 11);
+		}
 		display->displayPopup(buffer);
 
 		return ActionResult::DEALT_WITH;

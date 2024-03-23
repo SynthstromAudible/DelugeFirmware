@@ -22,6 +22,7 @@ public:
 		}
 	}
 	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+	const char* getUnit() override { return " MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
 class Release final : public Integer {
@@ -39,6 +40,7 @@ public:
 		}
 	}
 	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
+	const char* getUnit() override { return " MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
 class Ratio final : public Integer {
@@ -56,6 +58,7 @@ public:
 		}
 	}
 	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
+	const char* getUnit() override { return " : 1"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
 class SideHPF final : public Integer {
@@ -75,6 +78,7 @@ public:
 	int32_t getDisplayValue() override {
 		return soundEditor.currentModControllable->compressor.getSidechainForDisplay();
 	}
+	const char* getUnit() override { return " HZ"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor
