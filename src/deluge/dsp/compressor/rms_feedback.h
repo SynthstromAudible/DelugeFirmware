@@ -67,13 +67,17 @@ public:
 		threshold = 1 - 0.8f * (float(thresholdKnobPos) / ONE_Q31f);
 	}
 	q31_t getRatio() { return ratioKnobPos; }
+	constexpr int32_t getRatioForDisplay() { return (1 / (1 - ratio)); }
 	constexpr int32_t setRatio(q31_t rat) {
 		ratioKnobPos = rat;
 		ratio = 0.5f + (float(ratioKnobPos) / ONE_Q31f) / 2;
 		return 1 / (1 - ratio);
 	}
 	q31_t getSidechain() { return sideChainKnobPos; }
-
+	constexpr int32_t getSidechainForDisplay() { 
+		float fc_hz = (std::exp(1.5 * float(sideChainKnobPos) / ONE_Q31f) - 1) * 30;
+		return fc_hz; 
+	}
 	constexpr int32_t setSidechain(q31_t f) {
 		sideChainKnobPos = f;
 		// this exp will be between 1 and 5ish, half the knob range is about 2

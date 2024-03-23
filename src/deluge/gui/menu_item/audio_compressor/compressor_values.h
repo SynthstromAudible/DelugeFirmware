@@ -23,6 +23,7 @@ public:
 			soundEditor.currentModControllable->compressor.setAttack(knobPos);
 		}
 	}
+	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 class Release final : public Integer {
@@ -41,6 +42,7 @@ public:
 			soundEditor.currentModControllable->compressor.setRelease(knobPos);
 		}
 	}
+	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 class Ratio final : public Integer {
@@ -59,6 +61,7 @@ public:
 			soundEditor.currentModControllable->compressor.setRatio(knobPos);
 		}
 	}
+	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 class SideHPF final : public Integer {
@@ -76,6 +79,9 @@ public:
 			q31_t knobPos = (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) >> 1;
 			soundEditor.currentModControllable->compressor.setSidechain(knobPos);
 		}
+	}
+	int32_t getDisplayValue() override {
+		return soundEditor.currentModControllable->compressor.getSidechainForDisplay();
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
