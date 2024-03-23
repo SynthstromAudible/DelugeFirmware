@@ -72,10 +72,10 @@ using namespace deluge::modulation::params;
 constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_MORPH, 8, 6, colours::red, colours::red.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_MORPH, 8, 5, colours::red, colours::red.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_MORPH, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_MORPH, 9, 5, colours::pastel::orange, colours::pastel::orangeTail},
 
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
