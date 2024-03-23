@@ -54,7 +54,7 @@ public:
 	 * @param sampleIncrement increment between samples
 	 * @param extraSaturation extra saturation value
 	 */
-	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
+	[[gnu::hot]] void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
 		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 	}
 	/**
@@ -63,7 +63,7 @@ public:
 	 * @param endSample pointer to last sample
 	 * @param extraSaturation extra saturation value
 	 */
-	void filterStereo(q31_t* startSample, q31_t* endSample) {
+	[[gnu::hot]] void filterStereo(q31_t* startSample, q31_t* endSample) {
 		static_cast<T*>(this)->doFilterStereo(startSample, endSample);
 		;
 	}

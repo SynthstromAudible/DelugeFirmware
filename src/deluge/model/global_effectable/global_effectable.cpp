@@ -759,7 +759,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	                                    FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+[[gnu::hot]] void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 

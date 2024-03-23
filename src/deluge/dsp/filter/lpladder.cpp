@@ -171,7 +171,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 	return filterGain;
 }
 
-void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+[[gnu::hot]] void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
@@ -239,7 +239,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		}
 	}
 }
-void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 	// Half ladder
 	if (lpfMode == FilterMode::TRANSISTOR_12DB) {

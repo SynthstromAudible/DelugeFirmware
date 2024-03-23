@@ -30,7 +30,7 @@ FilterSet::FilterSet() {
 }
 q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate stereo samples
 
-void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+[[gnu::hot]] void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
 			hpladder.filterMono(startSample, endSample, sampleIncrement);
@@ -40,7 +40,7 @@ void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t samp
 		}
 	}
 }
-void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
 			hpladder.filterStereo(startSample, endSample);
@@ -51,7 +51,7 @@ void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	}
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
+[[gnu::hot]] void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 			lpsvf.filterMono(startSample, endSample, sampleIncrement);
@@ -62,7 +62,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t samp
 	}
 }
 
-void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 
@@ -74,7 +74,8 @@ void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
 		}
 	}
 }
-void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt) {
+[[gnu::hot]] void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples,
+                                        int32_t sampleIncrememt) {
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
 
@@ -105,7 +106,7 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 	}
 }
 // expects to receive an interleaved stereo stream
-void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
