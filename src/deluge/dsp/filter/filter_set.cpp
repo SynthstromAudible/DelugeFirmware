@@ -142,8 +142,8 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
                              int32_t hpfFrequency, int32_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
                              int32_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance,
                              int32_t* overallOscAmplitude) {
-	LPFOn = doLPF;
-	HPFOn = doHPF;
+	LPFOn = lpfmode != FilterMode::OFF;
+	HPFOn = hpfmode != FilterMode::OFF;
 	lpfMode_ = lpfmode;
 	hpfMode_ = hpfmode;
 	routing_ = routing;

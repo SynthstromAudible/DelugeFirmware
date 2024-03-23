@@ -1997,7 +1997,16 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	switch (lpfMode) {
+	case FilterMode::OFF:
+		lpfMode = FilterMode::TRANSISTOR_12DB;
+		break;
+	case lastLpfMode:
+		lpfMode = FilterMode::OFF;
+		break;
+	default:
+		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+	}
 }
 
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
@@ -2012,7 +2021,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 }
 
 char const* ModControllableAudio::getLPFModeDisplayName() {
-	lpfMode = static_cast<FilterMode>(util::to_underlying(lpfMode) % kNumLPFModes);
+
 	using enum deluge::l10n::String;
 	switch (lpfMode) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -2031,12 +2040,17 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 }
 
 void ModControllableAudio::switchHPFMode() {
-	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+
+	switch (hpfMode) {
+	case FilterMode::OFF:
+		hpfMode = firstHPFMode;
+		break;
+	default:
+		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
+	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
-	hpfMode = static_cast<FilterMode>(util::to_underlying(hpfMode) % kNumHPFModes + kFirstHPFMode);
 	using enum deluge::l10n::String;
 	switch (hpfMode) {
 	case FilterMode::HPLADDER:

@@ -35,6 +35,8 @@ constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF);
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 // Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+constexpr FilterMode lastLpfMode = FilterMode::SVF_NOTCH;
+constexpr FilterMode firstHPFMode = FilterMode::SVF_BAND;
 constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
 constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
 enum class FilterRoute {
