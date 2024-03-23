@@ -54,7 +54,7 @@ void IntegerWithOff::drawValue() {
 void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
 	intToString(getDisplayValue(), buffer, 1);
-	strncat(buffer, getUnit(), 11);
+	strncat(buffer, getUnit(), 4);
 	deluge::hid::display::OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL,
 	                                              deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                                              textWidth, textHeight);

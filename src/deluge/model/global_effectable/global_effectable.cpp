@@ -583,7 +583,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		char buffer[12];
 		intToString(displayLevel, buffer);
 		if (display->haveOLED()) {
-			strncat(buffer, unit, 11);
+			strncat(buffer, unit, 4);
 		}
 		display->displayPopup(buffer);
 
