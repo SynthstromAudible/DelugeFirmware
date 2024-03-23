@@ -328,7 +328,7 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 // Automation View constants
 constexpr int32_t kNumNonGlobalParamsForAutomation = 60;
-constexpr int32_t kNumGlobalParamsForAutomation = 23;
+constexpr int32_t kNumGlobalParamsForAutomation = 25;
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
