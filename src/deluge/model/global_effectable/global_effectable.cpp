@@ -828,18 +828,18 @@ void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool wri
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
-	bdsm.closeTag();
+	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute("frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
-	bdsm.closeTag();
+	storageManager.closeTag();
 
 	ModControllableAudio::writeParamTagsToFile(paramManager, writeAutomation, valuesForOverride);
 }
