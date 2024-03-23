@@ -729,21 +729,29 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	int32_t lpfResonance =
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
 	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES)));
-
+	int32_t lpfMorph =
+	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
+	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH)));
 	int32_t hpfFrequency =
 	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ)));
 	int32_t hpfResonance =
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
 	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES)));
+	int32_t hpfMorph =
+	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
+	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
 
 	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602);
-	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) != -2147483648;
+	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
+	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
+	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
+	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
 
 	// no morph for global effectable
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
-	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
+	*postFXVolume =
+	    filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, lpfMorph, hpfFrequency, hpfResonance, doHPF,
+	                        FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
