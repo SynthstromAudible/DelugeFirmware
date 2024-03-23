@@ -2561,6 +2561,14 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
 	case UI_MODE_STUTTERING:
+		// this code is needed to allow users to launch clips while stuttering
+		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
+		// this is because it gets stuck in the stuttering UI mode and can't get out
+		if (on) {
+			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
