@@ -38,11 +38,11 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 2. Automatable Clip View Parameters for Kits with affect entire ENABLED, and Audio Clips
 
->The 23 parameters that can be edited are:
+>The 25 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
-> - **LPF** Frequency, Resonance
-> - **HPF** Frequency, Resonance
+> - **LPF** Frequency, Resonance, Morph
+> - **HPF** Frequency, Resonance, Morph
 > - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
@@ -53,11 +53,11 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 3. Automatable Parameters for Arranger
 
->The 20 parameters that can be edited are:
+>The 22 parameters that can be edited are:
 >
 > - **Master** Level, Pan
-> - **LPF** Frequency, Resonance
-> - **HPF** Frequency, Resonance
+> - **LPF** Frequency, Resonance, Morph
+> - **HPF** Frequency, Resonance, Morph
 > - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
