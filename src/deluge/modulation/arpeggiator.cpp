@@ -482,6 +482,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			// Move indexes to the next note in the sequence
 			calculateNextOctave(settings);
 
+			// As we have set a note and an octave, we can say we have played a note
+			playedFirstArpeggiatedNoteYet = true;
+
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 		}
@@ -515,7 +518,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		noteCodeCurrentlyOnPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
@@ -624,9 +626,6 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 			}
 		}
 	}
-
-	// As we have set a note and an octave, we can say we have played a note
-	playedFirstArpeggiatedNoteYet = true;
 }
 
 // Set initial values for note and octave
@@ -697,6 +696,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			// Move indexes to the next note in the sequence
 			calculateNextNoteAndOrOctave(settings);
 
+			// As we have set a note and an octave, we can say we have played a note
+			playedFirstArpeggiatedNoteYet = true;
+
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 		}
@@ -741,7 +743,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		noteCodeCurrentlyOnPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
