@@ -162,6 +162,7 @@ void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
 bool rootUIIsTimelineView();
+bool currentUIIsClipMinderScreen();
 bool rootUIIsClipMinderScreen();
 std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();
 
