@@ -138,8 +138,8 @@ void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	}
 }
 
-int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t lpfMorph,
-                             int32_t hpfFrequency, int32_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
+int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
+                             int32_t hpfFrequency, int32_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph,
                              int32_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance,
                              int32_t* overallOscAmplitude) {
 	LPFOn = lpfmode != FilterMode::OFF;

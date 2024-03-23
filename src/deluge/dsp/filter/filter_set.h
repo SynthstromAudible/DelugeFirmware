@@ -32,10 +32,10 @@ class FilterSet {
 public:
 	FilterSet();
 	void reset();
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t lpfMorph,
-	                q31_t hpfFrequency, q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
-	                q31_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance = true,
-	                q31_t* overallOscAmplitude = NULL);
+	int32_t setConfig(int32_t lpfFrequency, int32_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
+	                  int32_t hpfFrequency, int32_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph,
+	                  int32_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance,
+	                  int32_t* overallOscAmplitude);
 
 	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
 

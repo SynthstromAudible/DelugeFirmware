@@ -756,9 +756,8 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
 
 	// no morph for global effectable
-	*postFXVolume =
-	    filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, lpfMorph, hpfFrequency, hpfResonance, doHPF,
-	                        FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfMode, lpfMorph, hpfFrequency, hpfResonance,
+	                                    FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
