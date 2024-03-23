@@ -580,10 +580,8 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 		// Find param shortcut
 		currentParamShorcutX = 255;
-		bool isUISessionView =
-		    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
-		if (isUISessionView) {
+		if (!rootUIIsClipMinderScreen()) {
 			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
@@ -868,10 +866,13 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
+	bool isUIPerformanceSessionView =
+	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+
 	bool ignoreAction = false;
 	if (!Buttons::isShiftButtonPressed()) {
 		// if in Performance Session View
-		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
+		if (isUIPerformanceSessionView) {
 			// ignore if you're not in editing mode or if you're in editing mode but editing a param
 			ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
 		}
@@ -895,8 +896,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUISessionView = isUIPerformanceSessionView || !rootUIIsClipMinderScreen();
 
 	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceSessionView)) {
 
@@ -906,8 +906,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		const MenuItem* item = nullptr;
 
-		// performance session view
-		if (isUIPerformanceSessionView) {
+		// session views (arranger, song, performance)
+		if (isUISessionView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
@@ -1328,15 +1328,10 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ModControllableAudio* newModControllable = nullptr;
 
 	UI* currentUI = getCurrentUI();
-	AutomationSubType automationSubType = AutomationSubType::NONE;
-	if (currentUI == &automationView) {
-		automationSubType = automationView.getAutomationSubType();
-	}
 
 	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
 
-	bool isUISessionView = isUIPerformanceView || (currentUI == &sessionView) || (currentUI == &arrangerView)
-	                       || (automationSubType == AutomationSubType::ARRANGER);
+	bool isUISessionView = isUIPerformanceView || !currentUIIsClipMinderScreen();
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (isUISessionView) {
@@ -1600,19 +1595,10 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	RootUI* rootUI = getRootUI();
-	AutomationSubType automationSubType = AutomationSubType::NONE;
-	if (rootUI == &automationView) {
-		automationSubType = automationView.getAutomationSubType();
-	}
-
-	bool isUISessionView = (rootUI == &performanceSessionView) || (rootUI == &sessionView) || (rootUI == &arrangerView)
-	                       || (automationSubType == AutomationSubType::ARRANGER);
-
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
-	if (isUISessionView) {
+	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else if (instrument->type == OutputType::KIT && clip->affectEntire) {

@@ -146,6 +146,11 @@ bool rootUIIsTimelineView() {
 	return (rootUI && rootUI->isTimelineView());
 }
 
+bool currentUIIsClipMinderScreen() {
+	UI* currentUI = getCurrentUI();
+	return (currentUI && currentUI->toClipMinder());
+}
+
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
 	return (rootUI && rootUI->toClipMinder());
