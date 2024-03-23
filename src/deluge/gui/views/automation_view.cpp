@@ -214,9 +214,11 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     // LPF Cutoff, Resonance
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_RES},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_MORPH},
     // HPF Cutoff, Resonance
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_FREQ},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_RES},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH},
     // Bass, Bass Freq
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS_FREQ},
