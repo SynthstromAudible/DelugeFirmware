@@ -2346,6 +2346,7 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
 			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+			bdsm.writeAttribute("syncType", arpSettings.syncType);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				bdsm.writeAttribute("gate", arpeggiatorGate);
@@ -2646,6 +2647,10 @@ someError:
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();
 					bdsm.exitTag("syncLevel");
+				}
+				else if (!strcmp(tagName, "syncType")) {
+					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("syncType");
 				}
 				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
