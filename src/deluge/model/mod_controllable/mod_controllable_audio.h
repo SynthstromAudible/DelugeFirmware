@@ -208,4 +208,6 @@ private:
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
+	void switchHPFModeWithOff();
+	void switchLPFModeWithOff();
 };

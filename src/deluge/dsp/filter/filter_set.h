@@ -28,14 +28,25 @@
 class Sound;
 
 namespace deluge::dsp::filter {
+
+union LowPass {
+	LpLadderFilter ladder;
+	SVFilter svf;
+	LowPass() {}
+};
+
+union HighPass {
+	HpLadderFilter ladder;
+	SVFilter svf;
+	HighPass() {}
+};
+
 class FilterSet {
 public:
-	FilterSet();
 	void reset();
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t lpfMorph,
-	                q31_t hpfFrequency, q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
-	                q31_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance = true,
-	                q31_t* overallOscAmplitude = NULL);
+	int32_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph, q31_t hpfFrequency,
+	                  q31_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph, q31_t filterGain, FilterRoute routing,
+	                  bool adjustVolumeForHPFResonance, q31_t* overallOscAmplitude);
 
 	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
 
@@ -48,7 +59,6 @@ public:
 	inline bool isOn() { return HPFOn || LPFOn; }
 
 private:
-	q31_t noiseLastValue;
 	FilterMode lpfMode_;
 	FilterMode lastLPFMode_;
 	FilterMode hpfMode_;
@@ -59,12 +69,14 @@ private:
 	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
 	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
 	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
-	void renderLadderHPF(q31_t* outputSample);
 
-	SVFilter lpsvf;
-	LpLadderFilter lpladder;
-	HpLadderFilter hpladder;
-	SVFilter hpsvf;
+	// all filters share a state. This is fine since they just hold plain data and initialization is handled by
+	// reset/configure calls.  This is faster than using a variant at the cost of not throwing on incorrect access.
+	// However since there are no invariants to uphold, the worst case scenario is an audio glitch so whatever
+	// This cuts 250 bytes from the size of this class, which is fairly significant since every voice has a filterset
+	LowPass lpfilter;
+	HighPass hpfilter;
+
 	bool LPFOn;
 	bool HPFOn;
 };
