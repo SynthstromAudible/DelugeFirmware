@@ -754,14 +754,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-
-	// no morph for global effectable
+	FilterMode lpfModeForRender = doLPF ? lpfMode : FilterMode::OFF;
+	FilterMode hpfModeForRender = doHPF ? hpfMode : FilterMode::OFF;
 	*postFXVolume =
-	    filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, lpfMorph, hpfFrequency, hpfResonance, doHPF,
-	                        FilterMode::HPLADDER, hpfMorph, *postFXVolume, filterRoute, false, NULL);
+	    filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency, hpfResonance,
+	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+[[gnu::hot]] void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
