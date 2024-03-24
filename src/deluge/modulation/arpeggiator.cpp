@@ -753,15 +753,8 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return arpNote.velocity;
 }
 
-// Check arpeggiator is on before you call this.
-// May switch notes on and/or off.
-void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
-                             uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
-	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
-		return;
-	}
-
+void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue,
+                             uint32_t ratchAmount, uint32_t ratchProb) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
 
@@ -786,6 +779,18 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 	else { // > 0 -> 4
 		ratchetAmount = 0;
 	}
+}
+
+// Check arpeggiator is on before you call this.
+// May switch notes on and/or off.
+void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
+                             uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
+	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
+		return;
+	}
+
+	updateParams(sequenceLength, rhythmValue, ratchAmount, ratchProb);
 
 	if (settings->flagForceArpRestart) {
 		// If flagged to restart sequence, do it now and reset the flag
