@@ -50,6 +50,7 @@ SideChain::SideChain() {
 void SideChain::cloneFrom(SideChain* other) {
 	attack = other->attack;
 	release = other->release;
+	syncType = other->syncType;
 	syncLevel = other->syncLevel;
 }
 
