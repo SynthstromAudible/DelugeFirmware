@@ -85,6 +85,13 @@ template <std::integral T>
 	return (a + (b - 1)) / b;
 }
 
+/// Returns true if `a < b`, when treating `a` and `b` as though they were 31-bit views in to an infinitely large
+/// number, usually a timer. That is, it assumes that if `a < b` but `b - a > (1 << 31)` then then what actually
+/// happened was `a` wrapped and `b` hasn't yet, so `a` actually represents a later point in time.
+[[nodiscard]] constexpr bool infinite_a_lt_b(uint32_t a, uint32_t b) {
+	return ((int32_t)(a - b) < 0);
+}
+
 } // namespace util
 
 // unsigned literal operators

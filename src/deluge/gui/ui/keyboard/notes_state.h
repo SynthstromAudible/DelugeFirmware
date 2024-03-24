@@ -66,25 +66,33 @@ struct NotesState {
 
 	[[nodiscard]] NoteArray::const_iterator end() const { return notes.end() + count; }
 
-	void enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false, int16_t* mpeValues = nullptr) {
+	NoteArray::size_type enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false,
+	                                int16_t* mpeValues = nullptr) {
 		if (noteEnabled(note)) {
-			for (auto& noteState : *this) {
+			for (auto i = 0; i < notes.size(); ++i) {
+				auto& noteState = notes[i];
 				if (noteState.note == note) {
 					noteState.activationCount++;
-					break;
+					return i;
 				}
 			}
-			return;
 		}
-		notes[count].note = note;
-		notes[count].velocity = velocity;
-		notes[count].generatedNote = generatedNote;
+		if (count == kMaxNumActiveNotes) {
+			return count;
+		}
+
+		NoteArray::size_type idx = count++;
+		NoteState& state = notes[idx];
+		state.note = note;
+		state.velocity = velocity;
+		state.generatedNote = generatedNote;
 		if (mpeValues != nullptr) {
-			memcpy(&notes[count].mpeValues, mpeValues, sizeof(notes[count].mpeValues));
+			memcpy(&state.mpeValues, mpeValues, sizeof(state.mpeValues));
 		}
 
 		states[(note / 64)] |= (1ull << (note % 64));
-		count++;
+
+		return idx;
 	}
 
 	bool noteEnabled(uint8_t note) {
