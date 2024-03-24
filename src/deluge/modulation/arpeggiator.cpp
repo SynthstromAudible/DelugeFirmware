@@ -493,8 +493,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
-		// Reset gate position
-		gatePos = 0;
+		if (!isRatchet) {
+			// Reset gate position (only for normal notes)
+			gatePos = 0;
+		}
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -719,8 +721,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
-		// Reset gate position
-		gatePos = 0;
+		if (!isRatchet) {
+			// Reset gate position (only for normal notes)
+			gatePos = 0;
+		}
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -755,8 +759,8 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return arpNote.velocity;
 }
 
-void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue,
-                             uint32_t ratchAmount, uint32_t ratchProb) {
+void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
+                                   uint32_t ratchProb) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
 
@@ -856,7 +860,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
-			switchAnyNoteOff(instruction);
 			switchNoteOn(settings, instruction, false);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this
