@@ -3696,7 +3696,8 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 }
 
 bool InstrumentClip::isEmpty() {
-	if (containsAnyNotes() || output->clipHasInstance(this)) {
+	// does this clip have notes?
+	if (containsAnyNotes()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
 		return false;
 	}
