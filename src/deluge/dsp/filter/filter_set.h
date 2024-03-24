@@ -32,13 +32,13 @@ namespace deluge::dsp::filter {
 union LowPass {
 	LpLadderFilter ladder;
 	SVFilter svf;
-	LowPass() { memset(this, 0, sizeof(LowPass)); }
+	LowPass() {}
 };
 
 union HighPass {
 	HpLadderFilter ladder;
 	SVFilter svf;
-	HighPass() { memset(this, 0, sizeof(HighPass)); }
+	HighPass() {}
 };
 
 class FilterSet {
