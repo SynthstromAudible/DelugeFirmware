@@ -22,12 +22,7 @@
 #include "util/fixedpoint.h"
 
 namespace deluge::dsp::filter {
-FilterSet::FilterSet() {
 
-	lpsvf = SVFilter();
-	lpladder = LpLadderFilter();
-	hpladder = HpLadderFilter();
-}
 q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate stereo samples
 
 [[gnu::hot]] void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {

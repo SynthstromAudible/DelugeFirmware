@@ -28,9 +28,12 @@
 class Sound;
 
 namespace deluge::dsp::filter {
+constexpr size_t lpfilterSize = std::max(sizeof(SVFilter), sizeof(LpLadderFilter));
+constexpr size_t hpfilterSize = std::max(sizeof(SVFilter), sizeof(HpLadderFilter));
+
 class FilterSet {
 public:
-	FilterSet();
+	FilterSet() = default;
 	void reset();
 	int32_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph, q31_t hpfFrequency,
 	                  q31_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph, q31_t filterGain, FilterRoute routing,
@@ -58,10 +61,16 @@ private:
 	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
 	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
 
-	SVFilter lpsvf;
-	LpLadderFilter lpladder;
-	HpLadderFilter hpladder;
-	SVFilter hpsvf;
+	// all filters share a state. This is fine since they just hold plain data and initialization is handled by
+	// reset/configure calls.  This is faster than using a variant at the cost of not throwing on unitialized access.
+	// However since there are no invariants to uphold, the worst case scenario is an audio glitch so whatever
+	// This cuts 250 bytes from the size of this class, which is fairly significant since every voice has a filterset
+	char lpfilterstate[lpfilterSize];
+	char hpfilterstate[hpfilterSize];
+	SVFilter& lpsvf = *(SVFilter*)lpfilterstate;
+	LpLadderFilter& lpladder = *(LpLadderFilter*)lpfilterstate;
+	HpLadderFilter& hpladder = *(HpLadderFilter*)hpfilterstate;
+	SVFilter& hpsvf = *(SVFilter*)hpfilterstate;
 	bool LPFOn;
 	bool HPFOn;
 };
