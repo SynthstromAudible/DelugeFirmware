@@ -17,9 +17,6 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/lpladder.h"
-#include "dsp/filter/svf.h"
-#include "util/fixedpoint.h"
 
 namespace deluge::dsp::filter {
 
@@ -28,20 +25,20 @@ q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate ster
 [[gnu::hot]] void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
-			hpladder.filterMono(startSample, endSample, sampleIncrement);
+			hpfilter.ladder.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
-			hpsvf.filterMono(startSample, endSample, sampleIncrement);
+			hpfilter.svf.filterMono(startSample, endSample, sampleIncrement);
 		}
 	}
 }
 [[gnu::hot]] void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
-			hpladder.filterStereo(startSample, endSample);
+			hpfilter.ladder.filterStereo(startSample, endSample);
 		}
 		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
-			hpsvf.filterStereo(startSample, endSample);
+			hpfilter.svf.filterStereo(startSample, endSample);
 		}
 	}
 }
@@ -49,10 +46,10 @@ q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate ster
 [[gnu::hot]] void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-			lpsvf.filterMono(startSample, endSample, sampleIncrement);
+			lpfilter.svf.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else {
-			lpladder.filterMono(startSample, endSample, sampleIncrement);
+			lpfilter.ladder.filterMono(startSample, endSample, sampleIncrement);
 		}
 	}
 }
@@ -61,11 +58,11 @@ q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2]; // * 2 to accomodate ster
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 
-			lpsvf.filterStereo(startSample, endSample);
+			lpfilter.svf.filterStereo(startSample, endSample);
 		}
 		else {
 
-			lpladder.filterStereo(startSample, endSample);
+			lpfilter.ladder.filterStereo(startSample, endSample);
 		}
 	}
 }
@@ -149,15 +146,15 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::SVF) {
-				lpsvf.reset(lastLPFMode_ == FilterMode::OFF);
+				lpfilter.svf.reset(lastLPFMode_ == FilterMode::OFF);
 			}
-			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
+			filterGain = lpfilter.svf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		else {
 			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::LP_LADDER) {
-				lpladder.reset(lastLPFMode_ == FilterMode::OFF);
+				lpfilter.ladder.reset(lastLPFMode_ == FilterMode::OFF);
 			}
-			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
+			filterGain = lpfilter.ladder.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		lastLPFMode_ = lpfMode_;
 	}
@@ -171,17 +168,18 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	// HPF
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
-			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
+			filterGain = hpfilter.ladder.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpladder.reset(lastHPFMode_ == FilterMode::OFF);
+				hpfilter.ladder.reset(lastHPFMode_ == FilterMode::OFF);
 			}
 		}
 		// otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
 		else {
 			// invert the morph for the HPF so it goes high-band/notch-low
-			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
+			filterGain =
+			    hpfilter.svf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpsvf.reset(lastHPFMode_ == FilterMode::OFF);
+				hpfilter.svf.reset(lastHPFMode_ == FilterMode::OFF);
 			}
 		}
 		lastHPFMode_ = hpfMode_;
@@ -194,9 +192,9 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 }
 
 void FilterSet::reset() {
-	hpladder.reset();
-	lpsvf.reset();
-	hpsvf.reset();
-	lpladder.reset();
+	hpfilter.ladder.reset();
+	lpfilter.svf.reset();
+	hpfilter.svf.reset();
+	lpfilter.ladder.reset();
 }
 } // namespace deluge::dsp::filter
