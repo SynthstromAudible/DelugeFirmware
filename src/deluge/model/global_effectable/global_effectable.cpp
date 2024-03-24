@@ -894,9 +894,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
-				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+				storageManager.exitTag("morph");
 			}
 		}
 		storageManager.exitTag("lpf");
@@ -913,9 +912,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
-				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+				storageManager.exitTag("morph");
 			}
 		}
 		storageManager.exitTag("hpf");
