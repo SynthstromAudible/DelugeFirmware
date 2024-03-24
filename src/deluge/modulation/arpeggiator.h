@@ -295,6 +295,7 @@ class ArpeggiatorBase {
 public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
+	void updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount, uint32_t ratchProb);
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
 	            uint32_t sequenceLength, uint32_t rhythm, uint32_t ratchetAmount, uint32_t ratchetProbability,
 	            ArpReturnInstruction* instruction);
