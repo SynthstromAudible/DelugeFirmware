@@ -105,6 +105,7 @@ public:
 	}
 	/**
 	 * reset the internal filter state to avoid clicks and pops
+	 * All zeroes must be a valid reset state as the filter data will be zeroed by the filterset
 	 */
 	void reset(bool fade = false) {
 		static_cast<T*>(this)->resetFilter();
