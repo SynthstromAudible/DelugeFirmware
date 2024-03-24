@@ -860,6 +860,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
+			switchAnyNoteOff(instruction);
 			switchNoteOn(settings, instruction, false);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this
