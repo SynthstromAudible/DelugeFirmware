@@ -103,7 +103,6 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			gateCurrentlyActive = false;
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
-				gatePos = 0;
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -236,7 +235,6 @@ noteInserted:
 			gateCurrentlyActive = false;
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
-				gatePos = 0;
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -495,6 +493,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
+		// Reset gate position
+		gatePos = 0;
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -719,6 +719,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
+		// Reset gate position
+		gatePos = 0;
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -822,7 +824,6 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		}
 		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
 		else if (!syncedNow && gatePos >= maxGate) {
-			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 		}
 	}
@@ -856,7 +857,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
 			switchAnyNoteOff(instruction);
-			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this
