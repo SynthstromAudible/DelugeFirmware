@@ -103,7 +103,6 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			gateCurrentlyActive = false;
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
-				gatePos = 0;
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -236,7 +235,6 @@ noteInserted:
 			gateCurrentlyActive = false;
 
 			if (!(playbackHandler.isEitherClockActive()) || !settings->syncLevel) {
-				gatePos = 0;
 				switchNoteOn(settings, instruction, false);
 			}
 		}
@@ -316,7 +314,6 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
-		// triggerable->noteOffPostArpeggiator(modelStack, noteCodeCurrentlyOnPostArp);
 		instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
 		gateCurrentlyActive = false;
@@ -496,6 +493,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
+		if (!isRatchet) {
+			// Reset gate position (only for normal notes)
+			gatePos = 0;
+		}
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -518,7 +519,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
 }
@@ -721,6 +721,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	if (shouldCarryOnRhythmNote) {
 		// Set Gate as active
 		gateCurrentlyActive = true;
+		if (!isRatchet) {
+			// Reset gate position (only for normal notes)
+			gatePos = 0;
+		}
 
 		// Check if we need to update velocity with some MPE value
 		switch (settings->mpeVelocity) {
@@ -743,7 +747,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
 }
@@ -756,15 +759,8 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 	return arpNote.velocity;
 }
 
-// Check arpeggiator is on before you call this.
-// May switch notes on and/or off.
-void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
-                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
-                             uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
-	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
-		return;
-	}
-
+void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
+                                   uint32_t ratchProb) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
 
@@ -789,6 +785,18 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 	else { // > 0 -> 4
 		ratchetAmount = 0;
 	}
+}
+
+// Check arpeggiator is on before you call this.
+// May switch notes on and/or off.
+void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
+                             uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue,
+                             uint32_t ratchAmount, uint32_t ratchProb, ArpReturnInstruction* instruction) {
+	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
+		return;
+	}
+
+	updateParams(sequenceLength, rhythmValue, ratchAmount, ratchProb);
 
 	if (settings->flagForceArpRestart) {
 		// If flagged to restart sequence, do it now and reset the flag
@@ -820,7 +828,6 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		}
 		// And maybe (if not syncing) the gatePos is also far enough along that we also want to switch a normal note on?
 		else if (!syncedNow && gatePos >= maxGate) {
-			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 		}
 	}
@@ -854,7 +861,6 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
 			switchAnyNoteOff(instruction);
-			gatePos = 0;
 			switchNoteOn(settings, instruction, false);
 
 			instruction->sampleSyncLengthOn = ticksPerPeriod; // Overwrite this

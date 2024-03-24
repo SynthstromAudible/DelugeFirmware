@@ -192,6 +192,15 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 		return 2147483647;
 	}
 
+	InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
+	if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
+		uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
+		uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
+		uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+		uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
+		arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
+	}
+
 	ArpReturnInstruction instruction;
 
 	int32_t ticksTilNextArpEvent = arpeggiator.doTickForward(&((InstrumentClip*)activeClip)->arpSettings, &instruction,
