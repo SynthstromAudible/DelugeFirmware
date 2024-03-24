@@ -16,7 +16,6 @@
  */
 
 #include "sync_level.h"
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
