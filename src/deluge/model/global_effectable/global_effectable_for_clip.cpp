@@ -47,10 +47,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
-void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-                                           StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
-                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive, OutputType outputType) {
+[[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
+                                                        ParamManager* paramManagerForClip, StereoSample* outputBuffer,
+                                                        int32_t numSamples, int32_t* reverbBuffer,
+                                                        int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                                        bool shouldLimitDelayFeedback, bool isClipActive,
+                                                        OutputType outputType) {
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send

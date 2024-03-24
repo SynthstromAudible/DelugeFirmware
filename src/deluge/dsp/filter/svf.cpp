@@ -17,7 +17,7 @@
 #include "dsp/filter/svf.h"
 
 namespace deluge::dsp::filter {
-void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt) {
+[[gnu::hot]] void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, l);
@@ -26,7 +26,7 @@ void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncr
 		currentSample += sampleIncrememt;
 	} while (currentSample < endSample);
 }
-void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
+[[gnu::hot]] void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, l);

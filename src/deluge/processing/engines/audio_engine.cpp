@@ -485,7 +485,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 }
 
 /// inner loop of audio rendering, deliberately not in header
-void routine_() {
+[[gnu::hot]] void routine_() {
 #if JFTRACE
 	aeCtr.note();
 #endif
