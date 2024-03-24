@@ -202,6 +202,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
     // Stutter Rate
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
+    // Compressor Threshold
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
 // global FX - sorted in the order that Parameters are scrolled through on the display
@@ -243,6 +245,8 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_RATE},
     // Stutter Rate
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE},
+    // Compressor Threshold
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
 // let's render some love <3
@@ -3304,7 +3308,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
-			        || id == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3385,7 +3389,7 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 	}
 	// if you are scrolling left and are at the beginning of the list, go to the end of the list
 	else if ((lastSelectedParamArrayPosition + offset) < 0) {
-		idx = numParams - 1;
+		idx = numParams + offset;
 	}
 	// if you are scrolling right and are at the end of the list, go to the beginning of the list
 	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
