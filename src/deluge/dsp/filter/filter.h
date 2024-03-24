@@ -23,10 +23,8 @@
 #include <cstdint>
 
 namespace deluge::dsp::filter {
-constexpr uint32_t ONE_Q31U = 2147483648u;
 constexpr int32_t ONE_Q16 = 134217728;
-// fade in filter over 1/100th of a second to avoid click
-constexpr q31_t fadeIncrement = 1 * (ONE_Q31 / kSampleRate);
+
 extern q31_t blendBuffer[SSI_TX_BUFFER_NUM_SAMPLES * 2];
 /**
  *  Interface for filters in the sound engine
@@ -117,6 +115,7 @@ public:
 	}
 
 	inline void updateBlend() {
+		// fades over around 500 samples
 		dryFade = dryFade * 0.99;
 		wetLevel = (q31_t)(ONE_Q31 * (1 - dryFade));
 	}
