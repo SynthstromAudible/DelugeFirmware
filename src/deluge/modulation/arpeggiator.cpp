@@ -316,7 +316,6 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 	if (gateCurrentlyActive) {
-		// triggerable->noteOffPostArpeggiator(modelStack, noteCodeCurrentlyOnPostArp);
 		instruction->noteCodeOffPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->outputMIDIChannelOff = outputMIDIChannelForNoteCurrentlyOnPostArp;
 		gateCurrentlyActive = false;
@@ -518,7 +517,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
 }
@@ -743,7 +741,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 	else {
 		// Rhythm silence: Don't play the note
-		instruction->noteCodeOffPostArp = ARP_NOTE_NONE;
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
 }
