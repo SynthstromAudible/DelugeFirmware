@@ -3815,6 +3815,7 @@ void Sound::writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, 
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(bdsm, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(bdsm, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(bdsm, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 

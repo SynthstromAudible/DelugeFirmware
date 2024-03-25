@@ -27,11 +27,35 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 
 	currentNotesState = NotesState{}; // Erase active notes
 
+	static_assert(kMaxNumActiveNotes < 32, "We use a 32-bit integer to represent note active state");
+	uint32_t activeNotes = 0;
+	std::array<int32_t, kMaxNumActiveNotes> noteOnTimes{};
+
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
 			uint8_t velocity = (intensityFromCoords(presses[idxPress].x, presses[idxPress].y) >> 1);
-			currentNotesState.enableNote(note, velocity);
+			auto noteOnIdx = currentNotesState.enableNote(note, velocity);
+
+			// exceeded maximum number of active notes, ignore this note-on
+			if (noteOnIdx == kMaxNumActiveNotes) {
+				continue;
+			}
+
+			if ((activeNotes & (1 << noteOnIdx)) == 0) {
+				activeNotes |= 1 << noteOnIdx;
+				noteOnTimes[noteOnIdx] = presses[idxPress].timeLastPadPress;
+			}
+			else {
+				// this is a retrigger on the same note, see if we should update the velocity
+				auto lastOnTime = noteOnTimes[noteOnIdx];
+				auto thisOnTime = presses[idxPress].timeLastPadPress;
+				if (util::infinite_a_lt_b(lastOnTime, thisOnTime)) {
+					// this press is more recent, use its velocity.
+					currentNotesState.notes[noteOnIdx].velocity = velocity;
+					noteOnTimes[noteOnIdx] = thisOnTime;
+				}
+			}
 		}
 	}
 }
