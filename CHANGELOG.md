@@ -9,11 +9,6 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 ### User Interface
 
 -  Added a new default setting that controls which playback mode new slices of a kit will get. 
-    - To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
-    - every new slice in a kit using the slicer will now get one of the modes by default
-      -  `CUT`, `ONCE`, `LOOP`, `STRETCH`
-    - the setting is persistent after reboot
-    - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 - Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
 - Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.

@@ -641,7 +641,14 @@ void readSettings() {
 		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
 		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
-	defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
+	// defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
+if (buffer[167] >= kNumRepeatModes) {  
+      defaultSliceMode = SampleRepeatMode::ONCE;  
+}  
+else {  
+      defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);  
+} 
+
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
