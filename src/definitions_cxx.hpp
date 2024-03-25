@@ -993,12 +993,7 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
 
-enum SliceModeDefault  {
-	CUT,
-	ONCE,
-	STRETCH,
-	LOOP,
-};
+
 
 // mapping of grid modes to y axis
 enum GridMode : uint8_t {
