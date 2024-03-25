@@ -46,6 +46,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 
 extern "C" {
 extern uint8_t currentlyAccessingCard;
@@ -359,7 +360,18 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
 			getCurrentAudioClip()->clear(action, modelStack);
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
+
+			// New default as part of Automation Clip View Implementation
+			// If this is enabled, then when you are in Audio Clip View, clearing
+			// a clip will only clear the Audio Sample (automations remain intact). If this is enabled, if you want to
+			// clear automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
+			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+			if (FlashStorage::automationClear) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAMPLE_CLEARED));
+			}
+			else {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
+			}
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
