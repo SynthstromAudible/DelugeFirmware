@@ -171,7 +171,12 @@ enum Entries {
 164: default pad brightness
 165: "fill" colour
 166: "once" colour
+167: SliceModeDefault
+
+
 */
+
+
 
 uint8_t defaultScale;
 bool audioClipRecordMargins;
@@ -196,6 +201,8 @@ bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
+
+SliceModeDefault defaultSliceMode;
 
 uint8_t defaultMetronomeVolume;
 uint8_t defaultPadBrightness;
@@ -286,11 +293,15 @@ void resetSettings() {
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
+
+
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
 	resetAutomationSettings();
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
+
+	defaultSliceMode = SliceModedefaultOnce;
 }
 
 void resetMidiFollowSettings() {
@@ -636,6 +647,7 @@ void readSettings() {
 		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
 		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
+	defaultSliceMode == buffer[167];
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -886,6 +898,8 @@ void writeSettings() {
 
 	buffer[165] = gui::menu_item::fillColourMenu.value;
 	buffer[166] = gui::menu_item::onceColourMenu.value;
+
+	buffer[167] = util::to_underlying(defaultSliceMode);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
