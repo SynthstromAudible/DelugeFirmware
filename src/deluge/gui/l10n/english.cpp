@@ -737,8 +737,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_METRO_MENU_TITLE, "Default metro."},
         {STRING_FOR_DEFAULT_PAD_BRIGHTNESS, "PAD BRIGHTNESS"},
         {STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE, "Pad brightness."},
-		{STRING_FOR_DEFAULT_SLICE_MODE, "Sample Slice Mode"},
-		{STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE, "Sample Slice Mode"},
+        {STRING_FOR_DEFAULT_SLICE_MODE, "Sample Slice Mode"},
+        {STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE, "Sample Slice Mode"},
 
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
 

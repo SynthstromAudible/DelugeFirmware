@@ -32,7 +32,7 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
 		    l10n::getView(l10n::String::STRING_FOR_ONCE),
 		    l10n::getView(l10n::String::STRING_FOR_LOOP),
-			l10n::getView(l10n::String::STRING_FOR_STRETCH),
+		    l10n::getView(l10n::String::STRING_FOR_STRETCH),
 
 		};
 	}

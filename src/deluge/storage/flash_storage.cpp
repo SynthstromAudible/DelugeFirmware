@@ -173,7 +173,6 @@ enum Entries {
 166: "once" colour
 167: defaultSliceMode
 */
-
 uint8_t defaultScale;
 bool audioClipRecordMargins;
 KeyboardLayout keyboardLayout;
