@@ -2340,14 +2340,14 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	if (output->type != OutputType::KIT) {
 		if (arpSettings.mode != ArpMode::OFF) {
-			bdsm.writeOpeningTagBeginning("arpeggiator");
-			bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-			bdsm.writeAttribute("syncType", arpSettings.syncType);
+			storageManager.writeOpeningTagBeginning("arpeggiator");
+			storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
+			storageManager.writeAttribute("syncType", arpSettings.syncType);
 
 			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				storageManager.writeAttribute("gate", arpeggiatorGate);
@@ -2649,10 +2649,11 @@ someError:
 					storageManager.exitTag("syncLevel");
 				}
 				else if (!strcmp(tagName, "syncType")) {
-					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("syncType");
+					arpSettings.syncType = (SyncType)storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode")
+				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
