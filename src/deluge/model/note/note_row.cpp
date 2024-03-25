@@ -3542,7 +3542,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
-	// New community feature as part of Automation Clip View Implementation
+	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
 	// will only shift the Notes and MPE data (NON MPE automations remain intact).
 
@@ -3592,7 +3592,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 }
 
 void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
-	// New community feature as part of Automation Clip View Implementation
+	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
 
