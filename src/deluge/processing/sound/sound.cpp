@@ -3786,23 +3786,21 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
-	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
-	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute("oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX, writeAutomation);
+	patchedParams->writeParamAsAttribute("noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "pan", params::LOCAL_PAN, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "waveFold", params::LOCAL_FOLD, writeAutomation);
+	patchedParams->writeParamAsAttribute("volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
+	patchedParams->writeParamAsAttribute("pan", params::LOCAL_PAN, writeAutomation);
+	patchedParams->writeParamAsAttribute("waveFold", params::LOCAL_FOLD, writeAutomation);
 	// Filters
 	patchedParams->writeParamAsAttribute("lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
