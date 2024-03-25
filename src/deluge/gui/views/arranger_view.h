@@ -147,7 +147,6 @@ private:
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
 	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(OutputType newOutputType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);

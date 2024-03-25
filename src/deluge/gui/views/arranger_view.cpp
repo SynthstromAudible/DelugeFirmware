@@ -274,13 +274,19 @@ doChangeOutputType:
 
 			Output* output = outputsOnScreen[yPressedEffective];
 
-			// AudioOutputs - need to replace with Instrument
+			// Don't allow converting audio output to instrument
 			if (output->type == OutputType::AUDIO) {
-				changeOutputToInstrument(newOutputType);
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
 			}
 
 			// Instruments - just change type
 			else {
+				// don't allow clip type change if any clip instances belong to this
+				// output are not empty
+				// only impose this restriction if switching to/from kit clip
+				if (((output->type == OutputType::KIT) || (newOutputType == OutputType::KIT)) && !output->isEmpty()) {
+					return ActionResult::DEALT_WITH;
+				}
 
 				// If load button held, go into LoadInstrumentPresetUI
 				if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
@@ -730,42 +736,6 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 			((MelodicInstrument*)instrument)->endAuditioningForNote(modelStack, note);
 		}
 	}
-}
-
-void ArrangerView::changeOutputToInstrument(OutputType newOutputType) {
-
-	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type != OutputType::AUDIO) {
-		return;
-	}
-
-	if (currentSong->getClipWithOutput(oldOutput)) {
-		display->displayPopup(deluge::l10n::get(
-		    deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
-		return;
-	}
-
-	actionLogger.deleteAllLogs(); // Can't undo past this!
-
-	bool instrumentAlreadyInSong; // Will always end up false
-
-	Instrument* newInstrument = createNewInstrument(newOutputType, &instrumentAlreadyInSong);
-	if (!newInstrument) {
-		return;
-	}
-
-	currentSong->replaceOutputLowLevel(newInstrument, oldOutput);
-
-	outputsOnScreen[yPressedEffective] = newInstrument;
-
-	view.displayOutputName(newInstrument);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
-
-	view.setActiveModControllableTimelineCounter(NULL);
-
-	beginAudition(newInstrument);
 }
 
 // Loads from file, etc - doesn't truly "create"
@@ -2464,7 +2434,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {
 
-	Instrument* oldInstrument = (Instrument*)outputsOnScreen[yPressedEffective];
+	Output* output = outputsOnScreen[yPressedEffective];
+	Instrument* oldInstrument = (Instrument*)output;
 	OutputType oldOutputType = oldInstrument->type;
 
 	if (oldOutputType == newOutputType) {

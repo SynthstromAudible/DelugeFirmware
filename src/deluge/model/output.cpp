@@ -21,6 +21,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -137,6 +138,20 @@ bool Output::clipHasInstance(Clip* clip) {
 	}
 
 	return false;
+}
+
+// check all instrument clip instances belonging to an output to see if they have any notes
+// if so, then we need to check if there are other clip's assigned to that output which have notes
+// because we don't want to change the output type for all the clips assigned to that output if some have notes
+bool Output::isEmpty() {
+	// loop through the output selected to see if any of the clips are not empty
+	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
+		InstrumentClip* clip = (InstrumentClip*)clipInstances.getElement(i)->clip;
+		if (clip && !clip->isEmpty()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {

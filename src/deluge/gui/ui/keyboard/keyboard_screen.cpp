@@ -492,40 +492,48 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
+			bool result;
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(OutputType::KIT);
+				result = createNewInstrument(OutputType::KIT);
 			}
 			else {
-				changeOutputType(OutputType::KIT);
+				result = changeOutputType(OutputType::KIT);
 			}
-			selectLayout(0);
+			if (result) {
+				selectLayout(0);
+			}
 		}
 	}
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
+			bool result;
 			if (Buttons::isNewOrShiftButtonPressed()) {
-				createNewInstrument(OutputType::SYNTH);
+				result = createNewInstrument(OutputType::SYNTH);
 			}
 			else {
-				changeOutputType(OutputType::SYNTH);
+				result = changeOutputType(OutputType::SYNTH);
 			}
-			selectLayout(0);
+			if (result) {
+				selectLayout(0);
+			}
 		}
 	}
 
 	else if (b == MIDI) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeOutputType(OutputType::MIDI_OUT);
+			if (changeOutputType(OutputType::MIDI_OUT)) {
+				selectLayout(0);
+			}
 		}
-		selectLayout(0);
 	}
 
 	else if (b == CV) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeOutputType(OutputType::CV);
+			if (changeOutputType(OutputType::CV)) {
+				selectLayout(0);
+			}
 		}
-		selectLayout(0);
 	}
 
 	else if (b == SELECT_ENC && on && getCurrentInstrumentClip()->inScaleMode
