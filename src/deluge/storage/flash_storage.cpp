@@ -171,7 +171,7 @@ enum Entries {
 164: default pad brightness
 165: "fill" colour
 166: "once" colour
-167: SliceModeDefault
+167: defaultSliceMode
 
 
 */
@@ -203,7 +203,7 @@ bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
 
-enum defaultSliceMode;
+SampleRepeatMode defaultSliceMode;
 
 uint8_t defaultMetronomeVolume;
 uint8_t defaultPadBrightness;
@@ -302,7 +302,7 @@ void resetSettings() {
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
-	defaultSliceMode = SliceModedefaultOnce;
+	defaultSliceMode = SampleRepeatMode::Once;
 }
 
 void resetMidiFollowSettings() {

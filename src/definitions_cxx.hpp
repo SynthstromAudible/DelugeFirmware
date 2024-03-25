@@ -498,7 +498,7 @@ enum class SampleRepeatMode {
 	STRETCH,
 };
 
-enum defaultSliceMode;
+
 
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
@@ -994,11 +994,10 @@ enum GridDefaultActiveMode : uint8_t {
 };
 
 enum SliceModeDefault  {
-	SliceModedefaultCut,
-	SliceModedefaultOnce,
-	SliceModedefaultStretch,
-	SliceModedefaultLoop,
-	SliceModedefaultMaxElement // Keep as boundary
+	CUT,
+	ONCE,
+	STRETCH,
+	LOOP,
 };
 
 // mapping of grid modes to y axis
