@@ -58,9 +58,10 @@ void SyncLevel::getNoteLengthName(StringBuf& buffer) {
 	}
 
 	currentSong->getNoteLengthName(buffer, noteLength, typeStr);
-
 	if (typeStr != nullptr) {
-		if ((value >= SYNC_TYPE_TRIPLET && level <= SYNC_LEVEL_2ND) || display->have7SEG()) {
+		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - currentSong->insideWorldTickMagnitude;
+		if (((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars)
+		    || display->have7SEG()) {
 			// On OLED, getNoteLengthName handles adding this for the non-bar levels. On 7seg, always append it
 			buffer.append(typeStr);
 		}
