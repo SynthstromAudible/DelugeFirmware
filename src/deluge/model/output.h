@@ -89,6 +89,7 @@ public:
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
+	bool isEmpty();
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}
 	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

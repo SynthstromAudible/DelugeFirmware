@@ -1239,20 +1239,20 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 void InstrumentClipView::createNewInstrument(OutputType newOutputType) {
 
-	InstrumentClipMinder::createNewInstrument(newOutputType);
+	if (InstrumentClipMinder::createNewInstrument(newOutputType)) {
+		recalculateColours();
+		uiNeedsRendering(this);
 
-	recalculateColours();
-	uiNeedsRendering(this);
+		if (newOutputType == OutputType::KIT) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	if (newOutputType == OutputType::KIT) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
 
-		NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
-
-		enterDrumCreator(modelStackWithNoteRow);
+			enterDrumCreator(modelStackWithNoteRow);
+		}
 	}
 }
 
@@ -1262,17 +1262,10 @@ void InstrumentClipView::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
-	// don't allow clip type change if clip is not empty
-	// only impose this restriction if switching to/from kit clip
-	if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
-	    && !getCurrentInstrumentClip()->isEmpty()) {
-		return;
+	if (InstrumentClipMinder::changeOutputType(newOutputType)) {
+		recalculateColours();
+		uiNeedsRendering(this);
 	}
-
-	InstrumentClipMinder::changeOutputType(newOutputType);
-
-	recalculateColours();
-	uiNeedsRendering(this);
 }
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {

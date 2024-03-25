@@ -435,6 +435,15 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if (((outputTypeToLoad == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+		return;
+	}
+
 	// If MIDI or CV, we have a different method for this, and the UI will be exited
 	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 
