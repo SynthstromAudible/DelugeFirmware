@@ -75,6 +75,23 @@ template <typename T>
 [[nodiscard]] constexpr T map(T x, T in_min, T in_max, T out_min, T out_max) {
 	return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
 }
+
+/// Compute (a/b), rounding up.
+///
+/// @param a Numerator. Must be less than std::numeric_limits<T>::max() - (b - 1)
+/// @param b Denominator.
+template <std::integral T>
+[[nodiscard]] constexpr T div_ceil(T a, T b) {
+	return (a + (b - 1)) / b;
+}
+
+/// Returns true if `a < b`, when treating `a` and `b` as though they were 31-bit views in to an infinitely large
+/// number, usually a timer. That is, it assumes that if `a < b` but `b - a > (1 << 31)` then then what actually
+/// happened was `a` wrapped and `b` hasn't yet, so `a` actually represents a later point in time.
+[[nodiscard]] constexpr bool infinite_a_lt_b(uint32_t a, uint32_t b) {
+	return ((int32_t)(a - b) < 0);
+}
+
 } // namespace util
 
 // unsigned literal operators

@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths, Kits with affect entire DISABLED
 
->The 60 parameters that can be edited are:
+>The 61 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -35,10 +35,11 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate
+> - **Compressor** Threshold
 
 2. Automatable Clip View Parameters for Kits with affect entire ENABLED, and Audio Clips
 
->The 25 parameters that can be edited are:
+>The 26 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -50,6 +51,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Distortion** Decimation, Bitcrush
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Stutter** Rate
+> - **Compressor** Threshold
 
 3. Automatable Parameters for Arranger
 

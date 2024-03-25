@@ -2000,6 +2000,21 @@ void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
 }
 
+// for future use with FM
+void ModControllableAudio::switchLPFModeWithOff() {
+	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	switch (lpfMode) {
+	case FilterMode::OFF:
+		lpfMode = FilterMode::TRANSISTOR_12DB;
+		break;
+	case lastLpfMode:
+		lpfMode = FilterMode::OFF;
+		break;
+	default:
+		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+	}
+}
+
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
 	switch (currentFilterType) {
 	case FilterType::LPF:
@@ -2012,7 +2027,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 }
 
 char const* ModControllableAudio::getLPFModeDisplayName() {
-	lpfMode = static_cast<FilterMode>(util::to_underlying(lpfMode) % kNumLPFModes);
+
 	using enum deluge::l10n::String;
 	switch (lpfMode) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -2035,8 +2050,18 @@ void ModControllableAudio::switchHPFMode() {
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
 }
 
+// for future use with FM
+void ModControllableAudio::switchHPFModeWithOff() {
+	switch (hpfMode) {
+	case FilterMode::OFF:
+		hpfMode = firstHPFMode;
+		break;
+	default:
+		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
+	}
+}
+
 char const* ModControllableAudio::getHPFModeDisplayName() {
-	hpfMode = static_cast<FilterMode>(util::to_underlying(hpfMode) % kNumHPFModes + kFirstHPFMode);
 	using enum deluge::l10n::String;
 	switch (hpfMode) {
 	case FilterMode::HPLADDER:
