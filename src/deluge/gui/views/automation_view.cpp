@@ -4036,14 +4036,16 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
                                          int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
                                          bool modEncoderAction) {
 
-	int32_t firstPadLeftEdge = getPosFromSquare(firstPadX, xScroll, xZoom);
-	int32_t secondPadRightEdge = getPosFromSquare(secondPadX + 1, xScroll, xZoom);
+	int32_t secondPadLeftEdge = getPosFromSquare(secondPadX, xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadRightEdge > effectiveLength) {
+	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		int32_t firstPadLeftEdge = getPosFromSquare(firstPadX, xScroll, xZoom);
+		int32_t secondPadRightEdge = getPosFromSquare(secondPadX + 1, xScroll, xZoom);
+
 		int32_t firstPadValue = 0;
 		int32_t secondPadValue = 0;
 
@@ -4064,12 +4066,6 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 			secondPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, secondPadY) + kKnobPosOffset;
 		}
 
-		// converting variables to float for more accurate interpolation calculation
-		float firstPadValueFloat = static_cast<float>(firstPadValue);
-		float firstPadXFloat = static_cast<float>(firstPadLeftEdge);
-		float secondPadValueFloat = static_cast<float>(secondPadValue);
-		float secondPadXFloat = static_cast<float>(secondPadRightEdge - kParamNodeWidth);
-
 		// clear existing nodes from long press range
 
 		// reset interpolation settings to default
@@ -4083,6 +4079,12 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		int32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
 		setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
 		                            effectiveLength, xScroll, xZoom);
+
+		// converting variables to float for more accurate interpolation calculation
+		float firstPadValueFloat = static_cast<float>(firstPadValue);
+		float firstPadXFloat = static_cast<float>(firstPadLeftEdge);
+		float secondPadValueFloat = static_cast<float>(secondPadValue);
+		float secondPadXFloat = static_cast<float>(squareStart);
 
 		// loop from first pad to last pad, setting values for nodes in between
 		// these values will serve as "key frames" for the interpolation to flow through
@@ -4156,14 +4158,17 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
                                                    int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
                                                    int32_t xDisplay, bool modEncoderAction) {
-	int32_t firstPadLeftEdge = getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
-	int32_t secondPadRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadRightEdge > effectiveLength) {
+	int32_t secondPadLeftEdge = getPosFromSquare(rightPadSelectedX, xScroll, xZoom);
+
+	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		int32_t firstPadLeftEdge = getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
+		int32_t secondPadRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
+
 		int32_t knobPosLeft = getParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
 		uint32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
