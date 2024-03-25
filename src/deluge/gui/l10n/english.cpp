@@ -375,7 +375,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ARRANGEMENT_CLEARED, "Arrangement cleared"},
         {STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION,
          "Empty clip instances can't be moved to the session"},
-        {STRING_FOR_AUDIO_CLIP_CLEARED, "Audio clip cleared"},
         {STRING_FOR_CANT_EDIT_LENGTH, "Can't edit length"},
         {STRING_FOR_QUANTIZE_ALL_ROW, "QUANTIZE ALL ROW"},
         {STRING_FOR_QUANTIZE, "QUANTIZE"},
@@ -410,7 +409,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_OTHER_SCALE, "Other scale"},
         {STRING_FOR_CANT_CHANGE_SCALE, "Can't change scale"},
         {STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE, "Custom scale with more than 7 notes in use"},
-        {STRING_FOR_CLIP_CLEARED, "Clip cleared"},
         {STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS, "No further unused instrument numbers"},
         {STRING_FOR_CHANNEL_PRESSURE, "Channel pressure"},
         {STRING_FOR_PITCH_BEND, "Pitch bend"},
@@ -812,6 +810,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHECKSUM_FAIL, "Checksum fail"},
         {STRING_FOR_WRONG_SIZE, "Wrong size?"},
         {STRING_FOR_BAD_KEY, "Incorrect Handshake Key"},
+
+        {STRING_FOR_CLIP_CLEARED, "Clip cleared"},
+        {STRING_FOR_SAMPLE_CLEARED, "Sample cleared"},
         {STRING_FOR_NOTES_CLEARED, "Notes cleared"},
         {STRING_FOR_AUTOMATION_CLEARED, "Automation cleared"},
 

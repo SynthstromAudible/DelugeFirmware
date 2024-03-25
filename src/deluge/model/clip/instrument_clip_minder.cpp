@@ -385,7 +385,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			getCurrentInstrumentClip()->clear(action, modelStack);
 
-			// New community feature as part of Automation Clip View Implementation
+			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
 			// a clip will only clear the Notes (automations remain intact). If this is enabled, if you want to clear
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
