@@ -197,6 +197,7 @@ bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
+
 SampleRepeatMode defaultSliceMode;
 
 uint8_t defaultMetronomeVolume;

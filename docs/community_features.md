@@ -210,6 +210,15 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 
+#### 3.19 - Sample Slice Default Mode
+
+- ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get. 
+-  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
+- every new slice in a kit using the slicer will now get one of the modes by default
+  -  `CUT`, `ONCE`, `LOOP`, `STRETCH`
+  - the setting is persistent after reboot
+  - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1223,6 +1232,8 @@ different firmware
 [#1531]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1531
 
 [#1542]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1542
+
+[#1589]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1589
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
