@@ -202,7 +202,8 @@ bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
 
-SliceModeDefault defaultSliceMode;
+
+enum defaultSliceMode;
 
 uint8_t defaultMetronomeVolume;
 uint8_t defaultPadBrightness;

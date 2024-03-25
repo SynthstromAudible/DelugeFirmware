@@ -497,6 +497,9 @@ enum class SampleRepeatMode {
 	LOOP,
 	STRETCH,
 };
+
+enum defaultSliceMode;
+
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 enum class FilterType {
@@ -990,7 +993,7 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
 
-enum SliceModeDefault : uint8_t  {
+enum SliceModeDefault  {
 	SliceModedefaultCut,
 	SliceModedefaultOnce,
 	SliceModedefaultStretch,
