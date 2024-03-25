@@ -2427,6 +2427,13 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 		return false;
 	}
 
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if (((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+		return false;
+	}
+
 	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {
 		return false;
