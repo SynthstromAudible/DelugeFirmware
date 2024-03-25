@@ -174,8 +174,6 @@ enum Entries {
 167: defaultSliceMode
 */
 
-
-
 uint8_t defaultScale;
 bool audioClipRecordMargins;
 KeyboardLayout keyboardLayout;
@@ -641,7 +639,7 @@ void readSettings() {
 		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
 		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
-	defaultSliceMode = buffer[167];
+	defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
