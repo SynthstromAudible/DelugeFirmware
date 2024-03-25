@@ -2420,7 +2420,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {
 
-		if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 			continue;
 		}
 

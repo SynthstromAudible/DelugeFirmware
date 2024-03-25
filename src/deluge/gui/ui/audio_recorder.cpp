@@ -170,7 +170,7 @@ bool AudioRecorder::beginOutputRecording() {
 void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 
 	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) {
+	if (recorder && recorder->status == RecorderStatus::CAPTURING_DATA) {
 		display->displayLoadingAnimationText("Working");
 		recorder->endSyncedRecording(buttonLatency);
 	}
@@ -178,7 +178,7 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 
 void AudioRecorder::slowRoutine() {
 	if (recordingSource == AudioInputChannel::OUTPUT) {
-		if (recorder->status >= RECORDER_STATUS_COMPLETE) {
+		if (recorder->status >= RecorderStatus::COMPLETE) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();
 		}
@@ -202,9 +202,9 @@ void AudioRecorder::process() {
 		AudioEngine::slowRoutine();
 
 		// If recording has finished...
-		if (recorder->status >= RECORDER_STATUS_COMPLETE || recorder->hadCardError) {
+		if (recorder->status >= RecorderStatus::COMPLETE || recorder->hadCardError) {
 
-			if (recorder->status == RECORDER_STATUS_ABORTED || recorder->hadCardError) {}
+			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 
 			else {
 				// We want to attach that Sample to a Source right away...
@@ -270,5 +270,5 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 
 bool AudioRecorder::isCurrentlyResampling() {
 	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder
-	        && recorder->status == RECORDER_STATUS_CAPTURING_DATA);
+	        && recorder->status == RecorderStatus::CAPTURING_DATA);
 }

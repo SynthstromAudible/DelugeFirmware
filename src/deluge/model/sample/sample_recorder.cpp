@@ -45,23 +45,9 @@ extern uint8_t currentlyAccessingCard;
 
 #define MAX_FILE_SIZE_MAGNITUDE 32
 
-SampleRecorder::SampleRecorder() {
-	allowFileAlterationAfter = false;
-	autoDeleteWhenDone = false;
-	currentRecordCluster = NULL;
-	status = RECORDER_STATUS_CAPTURING_DATA;
-	hadCardError = false;
-	reachedMaxFileSize = false;
-	haveAddedSampleToArray = false;
-
-	currentRecordClusterIndex =
-	    -1; // Put things in valid state so if we get destructed before any recording, it's all ok
-	firstUnwrittenClusterIndex = 0;
-}
-
 SampleRecorder::~SampleRecorder() {
 	D_PRINTLN("~SampleRecorder()");
-	if (sample) {
+	if (sample != nullptr) {
 		detachSample();
 	}
 }
@@ -304,14 +290,14 @@ gotError:
 // status, then do the descrutcion and file deletion when we know we're out of the card routine. Also, this gets called
 // in audio routine! So don't do anything drastic.
 void SampleRecorder::abort() {
-	status = RECORDER_STATUS_ABORTED; // Note: it may already equal this!
+	status = RecorderStatus::ABORTED; // Note: it may already equal this!
 }
 
 // Returns error if one occurred just now - not if one was already noted before
 Error SampleRecorder::cardRoutine() {
 
 	// If aborted, delete the file.
-	if (status == RECORDER_STATUS_ABORTED) {
+	if (status == RecorderStatus::ABORTED) {
 
 aborted:
 		if (sample) { // This might get called multiple times, so check we haven't already detached it.
@@ -361,12 +347,12 @@ aborted:
 		// only happen from AudioRecorder. Or if the abort comes from a failure within this class and the AudioClip
 		// hasn't realised yet?
 		if (!pointerHeldElsewhere) {
-			status = RECORDER_STATUS_AWAITING_DELETION;
+			status = RecorderStatus::AWAITING_DELETION;
 		}
 		return Error::NONE;
 	}
 
-	if (status >= RECORDER_STATUS_COMPLETE) {
+	if (status >= RecorderStatus::COMPLETE) {
 		return Error::NONE;
 	}
 
@@ -396,7 +382,7 @@ aborted:
 			error = audioFileManager.getUnusedAudioRecordingFilePath(
 			    &filePath, &tempFilePathForRecording, folderID,
 			    &audioFileNumber); // Recording could finish or abort during this!
-			if (status == RECORDER_STATUS_ABORTED) {
+			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
 			}
 			if (error != Error::NONE) {
@@ -420,7 +406,7 @@ aborted:
 				filePathCreated.clear();
 				goto gotError;
 			}
-			if (status == RECORDER_STATUS_ABORTED) {
+			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
 			}
 
@@ -455,7 +441,7 @@ gotError:
 	}
 
 	// If we've actually finished recording...
-	if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	if (status == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		if (!hadCardError) {
 			error = finalizeRecordedFile();
 			if (error != Error::NONE) {
@@ -469,12 +455,12 @@ gotError:
 				abort();
 			}
 			else {
-				status = RECORDER_STATUS_COMPLETE;
+				status = RecorderStatus::COMPLETE;
 			}
 			error = Error::MAX_FILE_SIZE_REACHED;
 		}
 		else {
-			status = autoDeleteWhenDone ? RECORDER_STATUS_AWAITING_DELETION : RECORDER_STATUS_COMPLETE;
+			status = autoDeleteWhenDone ? RecorderStatus::AWAITING_DELETION : RecorderStatus::COMPLETE;
 		}
 	}
 
@@ -536,7 +522,7 @@ Error SampleRecorder::writeOneCompletedCluster() {
 
 Error SampleRecorder::finalizeRecordedFile() {
 
-	if (ALPHA_OR_BETA_VERSION && (status == RECORDER_STATUS_ABORTED || hadCardError)) {
+	if (ALPHA_OR_BETA_VERSION && (status == RecorderStatus::ABORTED || hadCardError)) {
 		FREEZE_WITH_ERROR("E273");
 	}
 
@@ -836,13 +822,13 @@ Error SampleRecorder::createNextCluster() {
 // Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user action,
 // or after being fed a few more samples to make up for latency.
 void SampleRecorder::finishCapturing() {
-	status = RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING;
+	status = RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
 	if (getRootUI()) {
 		getRootUI()->sampleNeedsReRendering(sample);
 	}
 }
 
-// Only call this after checking that status < RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING
+// Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
 void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSamples, bool applyGain) {
 
@@ -862,7 +848,7 @@ void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSa
 		else {
 			int32_t samplesLeft;
 
-			if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
+			if (status == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
 
 				samplesLeft = sample->lengthInSamples - numSamplesCaptured;
 				if (samplesLeft <= 0) {
@@ -1044,19 +1030,19 @@ doFinishCapturing:
 
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
 #if ALPHA_OR_BETA_VERSION
-	if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
+	if (status == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
 		FREEZE_WITH_ERROR("E272");
 	}
-	else if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+	else if (status == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		FREEZE_WITH_ERROR("E288");
 	}
-	else if (status == RECORDER_STATUS_COMPLETE) {
+	else if (status == RecorderStatus::COMPLETE) {
 		FREEZE_WITH_ERROR("E289");
 	}
-	else if (status == RECORDER_STATUS_ABORTED) {
+	else if (status == RecorderStatus::ABORTED) {
 		FREEZE_WITH_ERROR("E290");
 	}
-	else if (status == RECORDER_STATUS_AWAITING_DELETION) {
+	else if (status == RecorderStatus::AWAITING_DELETION) {
 		FREEZE_WITH_ERROR("E291");
 	}
 #endif
@@ -1083,7 +1069,7 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 		finishCapturing();
 	}
 	else {
-		status = RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP;
+		status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP;
 	}
 }
 

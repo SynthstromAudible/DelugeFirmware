@@ -1096,7 +1096,7 @@ bool doSomeOutputting() {
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
 
-			if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
 			}
 
@@ -1454,7 +1454,7 @@ void doRecorderCardRoutines() {
 		}
 
 		// If complete, discard it
-		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
+		if (recorder->status == RecorderStatus::AWAITING_DELETION) {
 			D_PRINTLN("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
