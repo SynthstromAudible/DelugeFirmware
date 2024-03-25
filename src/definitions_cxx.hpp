@@ -497,9 +497,6 @@ enum class SampleRepeatMode {
 	LOOP,
 	STRETCH,
 };
-
-
-
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
 enum class FilterType {

@@ -48,8 +48,6 @@ extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
-
-
 extern uint8_t defaultMetronomeVolume;
 
 extern bool automationInterpolate;
@@ -60,7 +58,7 @@ extern bool automationDisableAuditionPadShortcuts;
 
 extern StartupSongMode defaultStartupSongMode;
 extern uint8_t defaultPadBrightness;
-extern SliceModeDefault defaultSliceMode;
+extern SampleRepeatMode defaultSliceMode;
 
 void readSettings();
 void writeSettings();

@@ -172,8 +172,6 @@ enum Entries {
 165: "fill" colour
 166: "once" colour
 167: defaultSliceMode
-
-
 */
 
 
@@ -201,8 +199,6 @@ bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
-
-
 SampleRepeatMode defaultSliceMode;
 
 uint8_t defaultMetronomeVolume;
@@ -293,16 +289,13 @@ void resetSettings() {
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
-
-
-
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
 	resetAutomationSettings();
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
-	defaultSliceMode = SampleRepeatMode::Once;
+	defaultSliceMode = SampleRepeatMode::ONCE;
 }
 
 void resetMidiFollowSettings() {
@@ -648,7 +641,7 @@ void readSettings() {
 		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
 		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
-	defaultSliceMode == buffer[167];
+	defaultSliceMode = buffer[167];
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {

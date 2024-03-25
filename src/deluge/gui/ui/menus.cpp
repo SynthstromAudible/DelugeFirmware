@@ -1116,8 +1116,7 @@ Submenu defaultAutomationMenu{
     },
 };
 
-defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE,
-                                     STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
+
 
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
@@ -1132,7 +1131,8 @@ defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAU
                                                      STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
                                              STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
-
+defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE,
+                                     STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {

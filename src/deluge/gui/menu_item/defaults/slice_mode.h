@@ -26,7 +26,7 @@ class SliceMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultSliceMode); }
-	void writeCurrentValue() override { FlashStorage::defaultSliceMode = this->getValue<SliceModeDefault>(); }
+	void writeCurrentValue() override { FlashStorage::defaultSliceMode = this->getValue<SampleRepeatMode>(); }
 	deluge::vector<std::string_view> getOptions() override {
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_CUT),
