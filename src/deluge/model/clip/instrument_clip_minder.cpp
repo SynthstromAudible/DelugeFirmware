@@ -152,12 +152,21 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	}
 }
 #pragma GCC pop
-void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
+bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 	Error error;
 
 	OutputType oldOutputType = getCurrentOutputType();
 
-	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(getCurrentInstrumentClip());
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if ((oldOutputType != newOutputType) && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+		return false;
+	}
+
+	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
@@ -165,7 +174,7 @@ void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
 	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
-		return;
+		return false;
 	}
 
 	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
@@ -175,7 +184,7 @@ gotError:
 
 	if (newName.isEmpty()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
-		return;
+		return false;
 	}
 
 	ParamManagerForTimeline newParamManager;
@@ -198,7 +207,7 @@ gotError:
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E059", "H059");
 
-	getCurrentInstrumentClip()->backupPresetSlot();
+	clip->backupPresetSlot();
 
 	if (newOutputType == OutputType::KIT) {
 		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
@@ -227,8 +236,8 @@ gotError:
 	else {
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
-		Error error = getCurrentInstrumentClip()->changeInstrument(
-		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
+		Error error = clip->changeInstrument(modelStack, newInstrument, &newParamManager,
+		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);
 	}
@@ -239,12 +248,12 @@ gotError:
 	if (newOutputType == OutputType::KIT) {
 		// If we weren't a Kit already...
 		if (oldOutputType != OutputType::KIT) {
-			getCurrentInstrumentClip()->yScroll = 0;
+			clip->yScroll = 0;
 		}
 
 		// Or if we were...
 		else {
-			getCurrentInstrumentClip()->ensureScrollWithinKitBounds();
+			clip->ensureScrollWithinKitBounds();
 		}
 	}
 
@@ -262,6 +271,8 @@ gotError:
 	else {
 		redrawNumericDisplay();
 	}
+
+	return true;
 }
 
 void InstrumentClipMinder::displayOrLanguageChanged() {
@@ -329,21 +340,26 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-		OutputType out;
+		OutputType newOutputType;
 		if (b == SYNTH) {
-			out = OutputType::SYNTH;
+			newOutputType = OutputType::SYNTH;
 		}
 		else if (b == KIT) {
-			out = OutputType::KIT;
+			newOutputType = OutputType::KIT;
 		}
 		else if (b == MIDI) {
-			out = OutputType::MIDI_OUT;
+			newOutputType = OutputType::MIDI_OUT;
 		}
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType oldOutputType = output->type;
+		Instrument* instrument = (Instrument*)output;
 		// don't allow clip type change if clip is not empty
 		// only impose this restriction if switching to/from kit clip
-		if (!(((getCurrentOutputType() == OutputType::KIT) || (out == OutputType::KIT))
-		      && !getCurrentInstrumentClip()->isEmpty())) {
-			loadInstrumentPresetUI.setupLoadInstrument(out, getCurrentInstrument(), getCurrentInstrumentClip());
+		if (!((oldOutputType != newOutputType)
+		      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+		      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
+			loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
 			openUI(&loadInstrumentPresetUI);
 		}
 	}
@@ -385,7 +401,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			getCurrentInstrumentClip()->clear(action, modelStack);
 
-			// New community feature as part of Automation Clip View Implementation
+			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
 			// a clip will only clear the Notes (automations remain intact). If this is enabled, if you want to clear
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
@@ -445,8 +461,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
-
+bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -455,6 +470,8 @@ void InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	if (success) {
 		setLedStates(); // Might need to change the scale LED's state
 	}
+
+	return success;
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {

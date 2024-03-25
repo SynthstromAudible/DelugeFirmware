@@ -34,7 +34,7 @@ public:
 	InstrumentClipMinder();
 	static void redrawNumericDisplay();
 	void displayOrLanguageChanged();
-	void createNewInstrument(OutputType newOutputType);
+	bool createNewInstrument(OutputType newOutputType);
 	void setLedStates();
 	void focusRegained();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -47,7 +47,7 @@ public:
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	void changeOutputType(OutputType newOutputType);
+	bool changeOutputType(OutputType newOutputType);
 	void opened();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
