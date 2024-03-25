@@ -173,6 +173,7 @@ enum Entries {
 166: "once" colour
 167: defaultSliceMode
 */
+
 uint8_t defaultScale;
 bool audioClipRecordMargins;
 KeyboardLayout keyboardLayout;
@@ -285,6 +286,7 @@ void resetSettings() {
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
+
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 

@@ -48,6 +48,7 @@ extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
+
 extern uint8_t defaultMetronomeVolume;
 
 extern bool automationInterpolate;
