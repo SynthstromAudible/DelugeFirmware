@@ -3786,6 +3786,8 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
+	unpatchedParams->writeParamAsAttribute("sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
 	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
