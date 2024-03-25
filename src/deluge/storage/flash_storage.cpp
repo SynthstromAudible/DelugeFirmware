@@ -288,7 +288,7 @@ void resetSettings() {
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
-	
+
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
 	resetAutomationSettings();
