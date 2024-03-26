@@ -201,6 +201,24 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.16 - Heavy CPU Usage (Culling) Indicator
 - ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
 
+#### 3.17 - Select Audio Clip Source from Audio Clip Menu
+- ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+  - Not included in c1.1.0
+
+#### 3.18 - Remove Timestretching From Audio Clip Sample
+- ([#1542]) Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+
+#### 3.19 - Sample Slice Default Mode
+
+- ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get. 
+-  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
+- every new slice in a kit using the slicer will now get one of the modes by default
+  -  `CUT`, `ONCE`, `LOOP`, `STRETCH`
+  - the setting is persistent after reboot
+  - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1194,6 +1212,12 @@ different firmware
 [#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
 
 [#1506]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1506
+
+[#1531]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1531
+
+[#1542]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1542
+
+[#1589]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1589
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
