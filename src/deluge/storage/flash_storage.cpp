@@ -169,8 +169,6 @@ enum Entries {
 162: MIDI Transpose Control method.
 163: default Startup Song Mode
 164: default pad brightness
-165: "fill" colour
-166: "once" colour
 167: defaultSliceMode
 */
 
@@ -620,25 +618,6 @@ void readSettings() {
 
 	defaultPadBrightness = buffer[164] == false ? kMaxLedBrightness : buffer[164];
 
-	if (buffer[165] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
-	}
-	else {
-		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[165]);
-	}
-	if (buffer[166] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::MAGENTA;
-	}
-	else {
-		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
-	}
-	if (gui::menu_item::fillColourMenu.value == gui::menu_item::Colour::RED
-	    && gui::menu_item::onceColourMenu.value == gui::menu_item::Colour::RED) {
-		// Reset to default if both red, as they will be first time.
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
-		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
-	}
-
 	if (buffer[167] >= kNumRepeatModes) {
 		defaultSliceMode = SampleRepeatMode::CUT;
 	}
@@ -892,9 +871,6 @@ void writeSettings() {
 
 	buffer[163] = util::to_underlying(defaultStartupSongMode);
 	buffer[164] = defaultPadBrightness;
-
-	buffer[165] = gui::menu_item::fillColourMenu.value;
-	buffer[166] = gui::menu_item::onceColourMenu.value;
 
 	buffer[167] = util::to_underlying(defaultSliceMode);
 
