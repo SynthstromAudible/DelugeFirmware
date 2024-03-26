@@ -659,9 +659,6 @@ getOut:
 			firstDrum->sources[0].repeatMode = FlashStorage::defaultSliceMode;
 		}
 
-		/*	firstDrum->sources[0].repeatMode =
-		        (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode; */
-
 		firstDrum->sources[0].sampleControls.reversed = false;
 
 #if 1 || ALPHA_OR_BETA_VERSION

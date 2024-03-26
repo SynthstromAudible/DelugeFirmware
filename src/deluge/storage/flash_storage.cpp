@@ -298,7 +298,7 @@ void resetSettings() {
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
-	defaultSliceMode = SampleRepeatMode::ONCE;
+	defaultSliceMode = SampleRepeatMode::CUT;
 	defaultShortSliceMode = true;
 }
 
