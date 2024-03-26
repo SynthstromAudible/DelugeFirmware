@@ -36,6 +36,7 @@
 #include "gui/menu_item/defaults/pad_brightness.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
+#include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
@@ -1127,6 +1128,7 @@ defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAU
                                                      STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
                                              STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
+defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1142,6 +1144,7 @@ Submenu defaultsSubmenu{
         &defaultMetronomeVolumeMenu,
         &defaultStartupSongMenu,
         &defaultPadBrightness,
+        &defaultSliceMode,
     },
 };
 
