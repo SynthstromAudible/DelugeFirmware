@@ -891,7 +891,7 @@ doNewProbability:
 			}
 
 			if (conditionPassed) {
-				sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+				storePendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 			}
 			else {
 				pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
@@ -902,10 +902,31 @@ doNewProbability:
 	if (ticksTilNextNoteRowEvent < playbackHandler.swungTicksTilNextEvent) {
 		playbackHandler.swungTicksTilNextEvent = ticksTilNextNoteRowEvent;
 	}
+	uint8_t numPending = skippedNoteOns.length();
+	for (int i = 0; i < numPending && noteOnsThisTick < maxNoteOnsThisTick; i++) {
+		sendPendingNoteOn(modelStack, skippedNoteOns.pop());
+	}
+	if (skippedNoteOns.length() > 0) {
+		// come back immediately to start the skipped note
+		playbackHandler.swungTicksTilNextEvent = 1;
+		D_PRINTLN("skipped %d notes", skippedNoteOns.length());
+	}
+}
+
+void InstrumentClip::storePendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {
+	if (skippedNoteOns.hasSpace()) {
+		skippedNoteOns.push(*pendingNoteOn);
+	}
+	else {
+		sendPendingNoteOn(modelStack, pendingNoteOn);
+	}
 }
 
 void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack, PendingNoteOn* pendingNoteOn) {
 
+	if (!pendingNoteOn || !(pendingNoteOn->noteRow)) {
+		freezeWithError("no note row");
+	}
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    modelStack->addNoteRow(pendingNoteOn->noteRowId, pendingNoteOn->noteRow);
 

@@ -379,6 +379,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 	if (isOn) {
 		noteOn(modelStack, &arpeggiator, noteCode, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
 		       fromMIDIChannel);
+		noteOnsThisTick += 1;
 	}
 	else {
 		ArpeggiatorSettings* arpSettings = getArpSettings();

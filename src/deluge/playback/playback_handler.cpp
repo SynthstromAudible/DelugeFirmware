@@ -716,8 +716,11 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	midiEngine.sendClock(true);
 }
 
+int noteOnsThisTick = 0;
+int maxNoteOnsThisTick = 0;
 void PlaybackHandler::actionSwungTick() {
-
+	noteOnsThisTick = 0;
+	maxNoteOnsThisTick = std::max<int>(1, 14 - AudioEngine::cpuDireness);
 	currentlyActioningSwungTickOrResettingPlayPos = true;
 
 	swungTickScheduled = false;
@@ -789,6 +792,7 @@ void PlaybackHandler::actionSwungTick() {
 	swungTicksTilNextEvent = 2147483647;
 
 	if (isEitherClockActive()) { // Occasionally, considerLaunchEvent() will stop playback
+
 		currentPlaybackMode->doTickForward(swungTickIncrement);
 
 		if (isEitherClockActive()) { // Occasionally, doTickForward() will stop playback
