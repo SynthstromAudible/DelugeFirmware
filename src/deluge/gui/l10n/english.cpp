@@ -236,6 +236,8 @@ PLACE_SDRAM_DATA Language english{
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "Load all"},
         {STRING_FOR_SLICE, "Slice"},
+		{STRING_FOR_SHORT_SLICE_MODE, "Short Slice Mode"}
+		{STRING_FOR_SHORT_SLICE_MODE_MENU_TITLE, "Short Slice Mode"}
 
         // gui/context_menu/sample_browser/synth.cpp
         {STRING_FOR_MULTISAMPLES, "Multisamples"},
