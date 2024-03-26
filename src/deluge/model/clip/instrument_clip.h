@@ -217,6 +217,7 @@ public:
 	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
+	ParamManagerForTimeline* getCurrentParamManager();
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	char const* getXMLTag() { return "instrumentClip"; }
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
