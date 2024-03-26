@@ -292,7 +292,7 @@ void resetSettings() {
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
-	defaultSliceMode = SampleRepeatMode::ONCE;
+	defaultSliceMode = SampleRepeatMode::CUT;
 }
 
 void resetMidiFollowSettings() {
@@ -640,7 +640,7 @@ void readSettings() {
 	}
 
 	if (buffer[167] >= kNumRepeatModes) {
-		defaultSliceMode = SampleRepeatMode::ONCE;
+		defaultSliceMode = SampleRepeatMode::CUT;
 	}
 	else {
 		defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
