@@ -499,6 +499,8 @@ enum class SampleRepeatMode {
 };
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
+
+
 enum class FilterType {
 	LPF,
 	HPF,
