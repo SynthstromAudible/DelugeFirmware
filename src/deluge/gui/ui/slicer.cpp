@@ -715,8 +715,23 @@ ramError2:
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / numClips;
 			range->sampleHolder.endPos = nextDrumStart;
 
-			newDrum->sources[0].repeatMode =
-			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+			/* newDrum->sources[0].repeatMode =
+			(lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode; */
+
+			if (defaultShortSliceMode == true)
+			{
+				newDrum->sources[0].repeatMode =
+			(lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+			}
+
+			else
+			{
+				newDrum->sources[0].repeatMode =
+			(lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+			}
+
+
+
 
 			range->sampleHolder.filePath.set(&sample->filePath);
 			range->sampleHolder.loadFile(false, false, true);
