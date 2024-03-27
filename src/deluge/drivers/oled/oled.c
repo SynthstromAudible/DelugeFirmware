@@ -22,6 +22,7 @@
 #include "drivers/dmac/dmac.h"
 #include "drivers/oled/oled.h"
 #include "drivers/rspi/rspi.h"
+#include "timers_interrupts.h"
 
 void MainOLED_WCom(char data) {
 	R_RSPI_SendBasic8(SPI_CHANNEL_OLED_MAIN, data);
@@ -151,7 +152,5 @@ void oledDMAInit() {
 	uint32_t dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
 	setDMARS(OLED_SPI_DMA_CHANNEL, dmarsTX);
 
-	R_INTC_RegistIntFunc(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, oledTransferComplete);
-	R_INTC_SetPriority(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13); // Priority is not very important
-	R_INTC_Enable(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL);
+	setupAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
 }

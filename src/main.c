@@ -21,6 +21,7 @@
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
+#include "timers_interrupts.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
@@ -40,13 +41,6 @@ uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
 uint32_t triggerClockRisingEdgesReceived = 0;
 uint32_t triggerClockRisingEdgesProcessed = 0;
 
-static void clearIRQInterrupt(int irqNumber) {
-	uint16_t flagRead = INTC.IRQRR.WORD;
-	if (flagRead & (1 << irqNumber)) {
-		INTC.IRQRR.WORD = flagRead & ~(1 << irqNumber);
-	}
-}
-
 static void triggerClockInputHandler(uint32_t sense) {
 	uint16_t dummy_read;
 
@@ -63,32 +57,6 @@ static void triggerClockInputHandler(uint32_t sense) {
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 }
 
-/// sets up a timer with an interrupt and handler but does not enable the timer
-/// Valid scale values are 1, 4, 16, 64 for all timers 0-4. Timer 1, 3, 4 support 256. Timer 2, 3, 4 support 1024.
-/// resulting frequency is 33.33MHz/scale
-void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority) {
-	disableTimer(timerNo);
-	*TCNT[timerNo] = 0u;
-	timerClearCompareMatchTGRA(timerNo);
-	timerEnableInterruptsTGRA(timerNo);
-	timerControlSetup(timerNo, 1, scale);
-
-	/* The setup process the interrupt IntTgfa function.*/
-	R_INTC_RegistIntFunc(INTC_ID_TGIA[timerNo], handler);
-	R_INTC_SetPriority(INTC_ID_TGIA[timerNo], priority);
-}
-
-void setupRunningClock(int timer, int preScale) {
-	disableTimer(timer);
-	timerControlSetup(timer, 0, preScale);
-	enableTimer(timer);
-}
-void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority) {
-	R_INTC_Disable(interruptID);
-	R_INTC_RegistIntFunc(interruptID, handler);
-	R_INTC_SetPriority(interruptID, priority);
-	R_INTC_Enable(interruptID);
-}
 /******************************************************************************
  * Function Name: main
  * Description  : Displays the sample program information on the terminal

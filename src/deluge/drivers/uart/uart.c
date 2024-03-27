@@ -27,6 +27,7 @@
 #include <math.h>
 
 #include "RTT/SEGGER_RTT.h"
+#include "timers_interrupts.h"
 
 void uartPrintln(char const* output) {
 #if ENABLE_TEXT_OUTPUT
@@ -336,12 +337,9 @@ void initUartDMA() {
 
 		// ---- Software Reset and clear TC bit ----
 		DMACn(txDmaChannel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST | DMAC_CHCTRL_0S_CLRTC;
-
-		// TX DMA-finished interrupt
-		R_INTC_RegistIntFunc(DMA_INTERRUPT_0 + txDmaChannel, txInterruptFunctions[item]);
-		R_INTC_SetPriority(DMA_INTERRUPT_0 + txDmaChannel, txInterruptPriorities[item]);
-		R_INTC_Enable(DMA_INTERRUPT_0 + txDmaChannel);
-
+		
+		setupAndEnableInterrupt(txInterruptFunctions[item], DMA_INTERRUPT_0 + txDmaChannel,
+		                        txInterruptPriorities[item]);
 		// Set up RX DMA channel -----------------------------------------------------------------------
 		int32_t rxDmaChannel = rxDmaChannels[item];
 		uint32_t dmarsRX = (DMARS_FOR_SCIF0_RX) + (sciChannel << 2);
