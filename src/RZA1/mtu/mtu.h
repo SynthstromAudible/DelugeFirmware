@@ -69,7 +69,10 @@ static inline void timerClearCompareMatchTGRA(int timerNo)
 
 static volatile uint8_t* const TCR[] = {&MTU2.TCR_0, &MTU2.TCR_1, &MTU2.TCR_2, &MTU2.TCR_3, &MTU2.TCR_4};
 
-// prescaler is what to divide P0 (33.33MHz) by.
+/// The R7S100 has 5 timers. This sets a timer to either reset  (clearedByTGRA true means it is reset when the timer
+/// matches TGRA) and sets the prescaler value to divide P0 (33.33MHz) by. Valid values are 0, 4, 16 for all timers.
+/// Timer 1, 4, 5 support 256. Timer 2, 4, 5 support 1024. Ref -
+/// https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491#G14.1027450
 static inline void timerControlSetup(int timerNo, int clearedByTGRA, int prescaler)
 {
 

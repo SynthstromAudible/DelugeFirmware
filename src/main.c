@@ -46,7 +46,7 @@ static void clearIRQInterrupt(int irqNumber) {
 	}
 }
 
-static void int_irq6(uint32_t sense) {
+static void triggerClockInput(uint32_t sense) {
 	uint16_t dummy_read;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
@@ -145,7 +145,7 @@ int main(void) {
 	INTC.ICR1 = 0b0101010101010101;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
-	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6, &int_irq6);
+	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6, &triggerClockInput);
 	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 
