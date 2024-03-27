@@ -337,7 +337,7 @@ void initUartDMA() {
 
 		// ---- Software Reset and clear TC bit ----
 		DMACn(txDmaChannel).CHCTRL_n |= DMAC_CHCTRL_0S_SWRST | DMAC_CHCTRL_0S_CLRTC;
-		
+
 		setupAndEnableInterrupt(txInterruptFunctions[item], DMA_INTERRUPT_0 + txDmaChannel,
 		                        txInterruptPriorities[item]);
 		// Set up RX DMA channel -----------------------------------------------------------------------
