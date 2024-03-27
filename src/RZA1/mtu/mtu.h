@@ -50,14 +50,13 @@ static inline void timerClearCompareMatchTGRA(int timerNo)
 {
 
     // Clear the TGFA flag.
-    // Up to and including V3.1.1-RC the dummy_read was done before calling timerGoneOff() and then tested afterwards,
-    // which is obviously not ideal. At the same time, there was a bizarre crash when sending arpeggiator MIDI to
-    // Fraser's Gakken NSX-39. Making this change fixed that crash, but I am unsure if this has actually addressed the
-    // cause of the crash, because making almost any other change to this function or even just adding one instruction
-    // to the end, like switching an LED on or off, also made the crash vanish.
-    // So, watch out for future peculiarities.
-    // Another note - it doesn't seem to matter whether this clearing is done before or after calling timerGoneOff(),
-    // but in the event of future problems, it would be worth trying both.
+    // Up to and including V3.1.1-RC the dummy_read was done before calling midiAndGateTimerGoneOff() and then tested
+    // afterwards, which is obviously not ideal. At the same time, there was a bizarre crash when sending arpeggiator
+    // MIDI to Fraser's Gakken NSX-39. Making this change fixed that crash, but I am unsure if this has actually
+    // addressed the cause of the crash, because making almost any other change to this function or even just adding one
+    // instruction to the end, like switching an LED on or off, also made the crash vanish. So, watch out for future
+    // peculiarities. Another note - it doesn't seem to matter whether this clearing is done before or after calling
+    // midiAndGateTimerGoneOff(), but in the event of future problems, it would be worth trying both.
     while (true)
     {
         uint16_t dummy_read = *TSR[timerNo];
@@ -70,8 +69,8 @@ static inline void timerClearCompareMatchTGRA(int timerNo)
 static volatile uint8_t* const TCR[] = {&MTU2.TCR_0, &MTU2.TCR_1, &MTU2.TCR_2, &MTU2.TCR_3, &MTU2.TCR_4};
 
 /// The R7S100 has 5 timers. This sets a timer to either reset  (clearedByTGRA true means it is reset when the timer
-/// matches TGRA) and sets the prescaler value to divide P0 (33.33MHz) by. Valid values are 0, 4, 16 for all timers.
-/// Timer 1, 4, 5 support 256. Timer 2, 4, 5 support 1024. Ref -
+/// matches TGRA) and sets the prescaler value to divide P0 (33.33MHz) by. Valid values are 1, 4, 16, 64 for all timers
+/// 0-4. Timer 1, 3, 4 support 256. Timer 2, 3, 4 support 1024. Ref -
 /// https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491#G14.1027450
 static inline void timerControlSetup(int timerNo, int clearedByTGRA, int prescaler)
 {

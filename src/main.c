@@ -31,7 +31,8 @@ static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 	R_INTC_Disable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
 	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerGoneOff();
+	midiAndGateTimerGoneOff();
+	// re enabled at the end of the audio routine iff the gate needs to be triggered between renders
 }
 
 uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
@@ -62,6 +63,21 @@ static void triggerClockInput(uint32_t sense) {
 	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
 }
 
+/// sets up a timer with an interrupt and handler but does not enable the timer
+/// Valid scale values are 1, 4, 16, 64 for all timers 0-4. Timer 1, 3, 4 support 256. Timer 2, 3, 4 support 1024.
+/// resulting frequency is 33.33MHz/scale
+void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority) {
+	disableTimer(timerNo);
+	*TCNT[timerNo] = 0u;
+	timerClearCompareMatchTGRA(timerNo);
+	timerEnableInterruptsTGRA(timerNo);
+	timerControlSetup(timerNo, 1, scale);
+
+	/* The setup process the interrupt IntTgfa function.*/
+	R_INTC_RegistIntFunc(INTC_ID_TGIA[timerNo], handler);
+	R_INTC_SetPriority(INTC_ID_TGIA[timerNo], priority);
+}
+
 /******************************************************************************
  * Function Name: main
  * Description  : Displays the sample program information on the terminal
@@ -83,15 +99,11 @@ int main(void) {
 	mtuEnableAccess();
 
 	// Set up MIDI / gate output timer
-	disableTimer(TIMER_MIDI_GATE_OUTPUT);
-	*TCNT[TIMER_MIDI_GATE_OUTPUT] = 0u;
-	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerEnableInterruptsTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerControlSetup(TIMER_MIDI_GATE_OUTPUT, 1, 64);
+	// this timer is setup but not enabled, as generally this will be processed by the audio routine.
+	// Enabled in audio routine when the gate output will be during the next render window and the window cannot be
+	// shortened to accommodate it. It's probably a waste of a system timer and can likely be refactored out
+	setupTimerWithInterruptHandler(TIMER_MIDI_GATE_OUTPUT, 64, midiAndGateOutputTimerInterrupt, 5);
 
-	/* The setup process the interrupt IntTgfa function.*/
-	R_INTC_RegistIntFunc(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], &midiAndGateOutputTimerInterrupt);
-	R_INTC_SetPriority(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], 5);
 	// Original comment regarding above priority: "Must be greater than 9, so less prioritized than USB interrupt, so
 	// that can still happen while this happening. But must be lower number / more prioritized than MIDI UART TX DMA
 	// interrupt! Or else random crash occasionally." But, I've now undone the change in "USB sending as host now done
