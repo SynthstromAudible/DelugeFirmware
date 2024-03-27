@@ -93,12 +93,6 @@ void oledMainInit() {
 	bufferPICUart(251); // D/C high
 	uartFlushIfNotSending(UART_ITEM_PIC);
 #endif
-
-	/*
-	R_INTC_RegistIntFunc(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3, oledTransferComplete);
-	R_INTC_SetPriority(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3, 13); // Not very important
-	R_INTC_Enable(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3);
-*/
 }
 
 struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
