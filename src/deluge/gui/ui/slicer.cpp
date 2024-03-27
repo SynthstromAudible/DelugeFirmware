@@ -650,7 +650,7 @@ getOut:
 		uint32_t nextDrumStart = lengthInSamples / numClips;
 		firstRange->sampleHolder.endPos = nextDrumStart;
 
-		if (FlashStorage::defaultShortSliceMode == true) {
+		if (FlashStorage::defaultShortSliceMode) {
 			firstDrum->sources[0].repeatMode =
 			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 		}
