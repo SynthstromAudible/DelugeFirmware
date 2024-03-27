@@ -29,6 +29,12 @@ void clearIRQInterrupt(int irqNumber);
 /// sets up a timer with an interrupt and handler but does not enable the timer
 /// Valid scale values are 1, 4, 16, 64 for all timers 0-4. Timer 1, 3, 4 support 256. Timer 2, 3, 4 support 1024.
 /// resulting frequency is 33.33MHz/scale
+/// Current Timers:
+/// Timer 0 -> TIMER_SYSTEM_SUPERFAST (used by USB drivers)
+/// Timer 1 -> TIMER_SYSTEM_FAST (used by PIC and audio timing)
+/// Timer 2 -> TIMER_MIDI_GATE_OUTPUT (used to schedule gate and clock outputs betweem audio renders)
+/// Timer 3 -> unused
+/// Timer 4 -> TIMER_SYSTEM_SLOW (used by OLED and USB)
 void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority);
 void setupRunningClock(int timer, int preScale);
 void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority);

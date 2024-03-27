@@ -30,9 +30,7 @@ void clearIRQInterrupt(int irqNumber) {
 		INTC.IRQRR.WORD = flagRead & ~(1 << irqNumber);
 	}
 }
-/// sets up a timer with an interrupt and handler but does not enable the timer
-/// Valid scale values are 1, 4, 16, 64 for all timers 0-4. Timer 1, 3, 4 support 256. Timer 2, 3, 4 support 1024.
-/// resulting frequency is 33.33MHz/scale
+
 void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority) {
 	disableTimer(timerNo);
 	*TCNT[timerNo] = 0u;
