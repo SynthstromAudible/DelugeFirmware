@@ -62,6 +62,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -544,6 +545,24 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
+static void audioRenderInterrupt(uint32_t int_sense) {
+
+	/* Stop the count of channel 2 of MTU2. */
+	disableTimer(TIMER_AUDIO_RENDER);
+
+	/* Disable the MTU2 channel 2 interrupt */
+	R_INTC_Disable(INTC_ID_TGIA[TIMER_AUDIO_RENDER]);
+
+	timerClearCompareMatchTGRA(TIMER_AUDIO_RENDER);
+	AudioEngine::routine();
+	R_INTC_Enable(INTC_ID_TGIA[TIMER_AUDIO_RENDER]);
+
+	// Set delay time. This is 64 samples at the timer tick rate 515616 / kSampleRate.
+	*TGRA[TIMER_AUDIO_RENDER] = ((uint32_t)64 * 766245) >> 16;
+	enableTimer(TIMER_AUDIO_RENDER);
+	// re enabled at the end of the audio routine
+}
+
 extern "C" int32_t deluge_main(void) {
 	// Piggyback off of bootloader DMA setup.
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
@@ -827,6 +846,12 @@ extern "C" int32_t deluge_main(void) {
 	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
+	// this is used for a backup in audio rendering, to ensure that audio rendering is always called before we run out
+	// of samples to output. The priority is rather low since this can also get called from the SD and USB interrupts
+	// right now
+	// needs to be setup after the startup song has been loaded
+	setupTimerWithInterruptHandler(TIMER_AUDIO_RENDER, 64, audioRenderInterrupt, 11);
+	audioRenderInterrupt(0);
 	while (1) {
 
 		uiTimerManager.routine();
@@ -892,8 +917,8 @@ extern "C" void routineForSD(void) {
 
 	sdRoutineLock = true;
 
-	AudioEngine::logAction("from routineForSD()");
-	AudioEngine::routine();
+	// AudioEngine::logAction("from routineForSD()");
+	// AudioEngine::routine();
 
 	uiTimerManager.routine();
 

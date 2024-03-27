@@ -53,6 +53,34 @@ void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, ui
 	R_INTC_SetPriority(interruptID, priority);
 	R_INTC_Enable(interruptID);
 }
+
+#define DISABLE_INTERRUPTS_COUNT (sizeof(interruptsToDisable) / sizeof(uint32_t))
+uint32_t interruptsToDisable[] = {INTC_ID_SPRI0,
+                                  INTC_ID_DMAINT0 + PIC_TX_DMA_CHANNEL,
+                                  IRQ_INTERRUPT_0 + 6,
+                                  INTC_ID_USBI0,
+                                  INTC_ID_SDHI1_0,
+                                  INTC_ID_SDHI1_3,
+                                  INTC_ID_DMAINT0 + OLED_SPI_DMA_CHANNEL,
+                                  INTC_ID_DMAINT0 + MIDI_TX_DMA_CHANNEL,
+                                  INTC_ID_SDHI1_1};
+uint8_t enabledInterrupts[DISABLE_INTERRUPTS_COUNT] = {0};
+void disableInterrupts() {
+
+	for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+		enabledInterrupts[idx] = R_INTC_Enabled(interruptsToDisable[idx]);
+		if (enabledInterrupts[idx]) {
+			R_INTC_Disable(interruptsToDisable[idx]);
+		}
+	}
+}
+void reenableInterrupts() {
+	for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+		if (enabledInterrupts[idx] != 0) {
+			R_INTC_Enable(interruptsToDisable[idx]);
+		}
+	}
+}
 #ifdef __cplusplus
 }
 #endif

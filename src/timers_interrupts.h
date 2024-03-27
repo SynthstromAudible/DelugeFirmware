@@ -18,6 +18,8 @@
 #ifndef DELUGE_TIMERS_INTERRUPTS_H
 #define DELUGE_TIMERS_INTERRUPTS_H
 
+#include "RZA1/cpu_specific.h"
+#include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/system/r_typedefs.h"
 
 #ifdef __cplusplus
@@ -38,6 +40,8 @@ void clearIRQInterrupt(int irqNumber);
 void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint32_t intSense), uint8_t priority);
 void setupRunningClock(int timer, int preScale);
 void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority);
+void disableInterrupts();
+void reenableInterrupts();
 #ifdef __cplusplus
 }
 #endif

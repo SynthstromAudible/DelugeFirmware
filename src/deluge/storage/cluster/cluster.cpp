@@ -97,8 +97,8 @@ void Cluster::convertDataIfNecessary() {
 					break;
 				}
 
-				AudioEngine::logAction("from convert-data");
-				AudioEngine::routine(); // ----------------------------------------------------
+				// AudioEngine::logAction("from convert-data");
+				// AudioEngine::routine(); // ----------------------------------------------------
 			}
 		}
 
@@ -128,8 +128,8 @@ void Cluster::convertDataIfNecessary() {
 			for (; pos < endPos; pos++) {
 
 				if (!((uint32_t)pos & 0b1111111100)) {
-					AudioEngine::logAction("from convert-data");
-					AudioEngine::routine(); // ----------------------------------------------------
+					// AudioEngine::logAction("from convert-data");
+					// AudioEngine::routine(); // ----------------------------------------------------
 				}
 
 				sample->convertOneData(pos);
