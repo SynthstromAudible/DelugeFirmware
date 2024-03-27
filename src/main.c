@@ -78,6 +78,11 @@ void setupTimerWithInterruptHandler(int timerNo, int scale, void (*handler)(uint
 	R_INTC_SetPriority(INTC_ID_TGIA[timerNo], priority);
 }
 
+void setupRunningClock(int timer, int preScale) {
+	disableTimer(timer);
+	timerControlSetup(timer, 0, preScale);
+	enableTimer(timer);
+}
 /******************************************************************************
  * Function Name: main
  * Description  : Displays the sample program information on the terminal
@@ -112,19 +117,13 @@ int main(void) {
 	// thought was that USB "hardware bug", which I ended up resolving later anyway.
 
 	// Set up slow system timer - 33 ticks per millisecond (30.30303 microseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_SLOW);
-	timerControlSetup(TIMER_SYSTEM_SLOW, 0, 1024);
-	enableTimer(TIMER_SYSTEM_SLOW);
+	setupRunningClock(TIMER_SYSTEM_SLOW, 1024);
 
 	// Set up fast system timer - 528 ticks per millisecond (1.893939 microseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_FAST);
-	timerControlSetup(TIMER_SYSTEM_FAST, 0, 64);
-	enableTimer(TIMER_SYSTEM_FAST);
+	setupRunningClock(TIMER_SYSTEM_FAST, 64);
 
 	// Set up super-fast system timer - 33.792 ticks per microsecond (29.5928 nanoseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_SUPERFAST);
-	timerControlSetup(TIMER_SYSTEM_SUPERFAST, 0, 1);
-	enableTimer(TIMER_SYSTEM_SUPERFAST);
+	setupRunningClock(TIMER_SYSTEM_SUPERFAST, 1);
 
 	// Uart setup and pin mux ------------------------------------------------------------------------------------------
 
