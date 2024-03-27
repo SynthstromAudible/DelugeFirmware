@@ -47,7 +47,7 @@ static void clearIRQInterrupt(int irqNumber) {
 	}
 }
 
-static void triggerClockInput(uint32_t sense) {
+static void triggerClockInputHandler(uint32_t sense) {
 	uint16_t dummy_read;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
@@ -82,6 +82,12 @@ void setupRunningClock(int timer, int preScale) {
 	disableTimer(timer);
 	timerControlSetup(timer, 0, preScale);
 	enableTimer(timer);
+}
+void setupAndEnableInterrupt(void (*handler)(uint32_t), uint16_t interruptID, uint8_t priority) {
+	R_INTC_Disable(interruptID);
+	R_INTC_RegistIntFunc(interruptID, handler);
+	R_INTC_SetPriority(interruptID, priority);
+	R_INTC_Enable(interruptID);
 }
 /******************************************************************************
  * Function Name: main
@@ -154,11 +160,8 @@ int main(void) {
 	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on
 	 * the trigger clock rather than rising. */
 	INTC.ICR1 = 0b0101010101010101;
-
-	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
-	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6, &triggerClockInput);
-	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
-	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
+	// this is the same priority as the midi/gate interrupt despite the comment saying they need to be different
+	setupAndEnableInterrupt(triggerClockInputHandler, IRQ_INTERRUPT_0 + 6, 5);
 
 	deluge_main();
 
