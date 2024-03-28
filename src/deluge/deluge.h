@@ -25,9 +25,10 @@ extern "C" {
 extern int main(void);
 extern int32_t deluge_main(void);
 
-extern void timerGoneOff(void);
+extern void midiAndGateTimerGoneOff(void);
 
 extern void routineWithClusterLoading(void);
+
 extern void loadAnyEnqueuedClustersRoutine(void);
 
 extern void logAudioAction(char const* string);

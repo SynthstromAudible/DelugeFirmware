@@ -29,7 +29,7 @@
 #ifndef OSTM_IODEFINE_H
 #define OSTM_IODEFINE_H
 /* ->SEC M1.10.1 : Not magic number */
-
+///refer to https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491
 struct st_ostm
 {                                                          /* OSTM             */
     volatile uint32_t  OSTMnCMP;                               /*  OSTMnCMP        */

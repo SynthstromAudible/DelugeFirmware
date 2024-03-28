@@ -28,7 +28,9 @@
  ******************************************************************************/
 #ifndef DEVDRV_INTC_H
 #define DEVDRV_INTC_H
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
@@ -587,7 +589,9 @@ void Userdef_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense
 void Userdef_INTC_UndefId(uint16_t int_id);
 void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense);
 void Userdef_FIQ_HandlerExe(void);
-
+#ifdef __cplusplus
+}
+#endif
 #endif /* DEVDRV_INTC_H */
 
 /* End of File */

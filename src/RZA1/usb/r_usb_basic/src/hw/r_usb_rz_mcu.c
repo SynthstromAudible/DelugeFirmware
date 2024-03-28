@@ -43,6 +43,7 @@
 // Additions by Rohan
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
+#include "timers_interrupts.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"
@@ -183,9 +184,7 @@ void usb_cpu_usbint_init(uint8_t ip_type)
 {
     if (USB_IP0 == ip_type)
     {
-        R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_cpu_usb_int_hand);
-        R_INTC_SetPriority(INTC_ID_USBI0, 9);
-        R_INTC_Enable(INTC_ID_USBI0);
+        setupAndEnableInterrupt(usb_cpu_usb_int_hand, INTC_ID_USBI0, 9);
     }
 
 #if USB_NUM_USBIP == 2

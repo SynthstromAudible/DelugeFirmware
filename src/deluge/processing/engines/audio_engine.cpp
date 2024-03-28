@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "RZA1/intc/devdrv_intc.h"
 #include "definitions_cxx.hpp"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
@@ -51,6 +52,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <cstring>
@@ -69,17 +71,6 @@ extern "C" {
 #include "RZA1/intc/devdrv_intc.h"
 // void *__dso_handle = NULL; // This fixes an insane error.
 }
-
-#define DISABLE_INTERRUPTS_COUNT (sizeof(disableInterrupts) / sizeof(uint32_t))
-uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
-                                INTC_ID_DMAINT0 + PIC_TX_DMA_CHANNEL,
-                                IRQ_INTERRUPT_0 + 6,
-                                INTC_ID_USBI0,
-                                INTC_ID_SDHI1_0,
-                                INTC_ID_SDHI1_3,
-                                INTC_ID_DMAINT0 + OLED_SPI_DMA_CHANNEL,
-                                INTC_ID_DMAINT0 + MIDI_TX_DMA_CHANNEL,
-                                INTC_ID_SDHI1_1};
 
 using namespace deluge;
 
@@ -344,8 +335,8 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	routineBeenCalled = false;
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 	if (!routineBeenCalled) {
-		logAction("from routineWithClusterLoading()");
-		routine(); // -----------------------------------
+		// logAction("from routineWithClusterLoading()");
+		// routine(); // -----------------------------------
 	}
 }
 
@@ -373,7 +364,7 @@ uint8_t numRoutines = 0;
 // used for culling
 constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
 // used for decisions in rendering engine
-constexpr int32_t direnessThreshold = numSamplesLimit - 20;
+constexpr int32_t direnessThreshold = 64;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads earlier
 // for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close to the limit
@@ -398,7 +389,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = 0; i < numToCull; i++) {
 				// hard cull (no release)
-				cullVoice(false, false, true, numSamples);
+				cullVoice(false, true, true, numSamples);
 			}
 
 #if ALPHA_OR_BETA_VERSION
@@ -683,21 +674,9 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		uint8_t enabledInterrupts[DISABLE_INTERRUPTS_COUNT] = {0};
-		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
-			enabledInterrupts[idx] = R_INTC_Enabled(disableInterrupts[idx]);
-			if (enabledInterrupts[idx]) {
-				R_INTC_Disable(disableInterrupts[idx]);
-			}
-		}
-
+		disableInterrupts();
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
-
-		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
-			if (enabledInterrupts[idx] != 0) {
-				R_INTC_Enable(disableInterrupts[idx]);
-			}
-		}
+		reenableInterrupts();
 	}
 
 #ifdef REPORT_CPU_USAGE
@@ -1279,7 +1258,7 @@ Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
 	// if we're gonna hard cull, just do it now instead of allocating
-	if (cpuDireness > 13 && numToCull > 0) {
+	if (cpuDireness > 13 && numToCull > 1) {
 
 		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
 		                  // up to the ones being culled

@@ -35,6 +35,7 @@ extern void freezeWithError(char const* errmsg);
 
 /// Hardware timer index used for MIDI gate clock
 #define TIMER_MIDI_GATE_OUTPUT 2
+#define TIMER_AUDIO_RENDER 3
 /// Hardware timer index used for "fast" events.
 ///
 /// Runs at 528 ticks per millisecond (528 kHz).
