@@ -523,12 +523,16 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
 		int current;
 		int displayLevel;
 		int ledLevel;
 		const char* unit;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
+			if (display->haveOLED()) {
+				popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
+			}
 			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
@@ -542,6 +546,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
+				}
 				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
@@ -552,6 +559,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::ATTACK:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
+				}
 				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -562,6 +572,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::RELEASE:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
+				}
 				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -572,6 +585,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::SIDECHAIN:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
+				}
 				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -583,12 +599,16 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
-		char buffer[12];
-		intToString(displayLevel, buffer);
+
 		if (display->haveOLED()) {
-			strncat(buffer, unit, 4);
+			popupMsg.append(": ");
+			popupMsg.appendInt(displayLevel);
+			popupMsg.append(unit);
 		}
-		display->displayPopup(buffer);
+		else {
+			popupMsg.appendInt(displayLevel);
+		}
+		display->displayPopup(popupMsg.c_str());
 
 		return ActionResult::DEALT_WITH;
 	}
