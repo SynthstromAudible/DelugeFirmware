@@ -219,6 +219,12 @@ Here is a list of general improvements that have been made, ordered from newest 
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
+#### 3.20 - Short Slice Mode Toggle
+
+  - by default, a slice shorter then 2s is switched to playback mode "ONCE"
+  - Added a toggle that switches this behaviour off
+  - if it is `OFF` then the Samples Slice Default Mode will be used
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
