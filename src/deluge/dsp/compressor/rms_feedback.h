@@ -70,8 +70,8 @@ public:
 	constexpr int32_t getRatioForDisplay() { return ratio; }
 	constexpr int32_t setRatio(q31_t rat) {
 		ratioKnobPos = rat;
-		reduction = 0.5f + (float(ratioKnobPos) / ONE_Q31f) / 2;
-		ratio = 1 / (1 - reduction);
+		fraction = 0.5f + (float(ratioKnobPos) / ONE_Q31f) / 2;
+		ratio = 1 / (1 - fraction);
 		return ratio;
 	}
 	q31_t getSidechain() { return sideChainKnobPos; }
@@ -95,7 +95,7 @@ private:
 	// parameters in use
 	float a_ = (-1000.0f / kSampleRate);
 	float r_ = (-1000.0f / kSampleRate);
-	float reduction = 0.5;
+	float fraction = 0.5;
 	float er = 0;
 	float threshdb = 17;
 	float threshold = 1;
