@@ -112,6 +112,8 @@ public:
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
 
+	ParamManagerForTimeline* getCurrentParamManager();
+
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
 

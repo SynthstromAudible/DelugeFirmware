@@ -78,6 +78,7 @@ public:
 	  // for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
+	virtual ParamManagerForTimeline* getCurrentParamManager() { return nullptr; }
 
 	// You're likely to want to call pickAnActiveClipIfPossible() after this
 	virtual void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,

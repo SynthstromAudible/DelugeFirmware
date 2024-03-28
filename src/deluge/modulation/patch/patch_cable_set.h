@@ -113,8 +113,9 @@ public:
 
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return true; };
 
-private:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
+
+private:
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

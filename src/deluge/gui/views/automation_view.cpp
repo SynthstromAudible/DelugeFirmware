@@ -453,6 +453,27 @@ void AutomationView::focusRegained() {
 			view.setActiveModControllableTimelineCounter(clip);
 		}
 		else {
+			// check if patch cable previously selected is still valid
+			// if not we'll reset parameter selection and go back to overview
+			if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+				bool patchCableExists = false;
+				ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+				if (paramManager) {
+					PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+					// make sure it's not jiberish
+					if (set) {
+						PatchSource s;
+						ParamDescriptor destinationParamDescriptor;
+						set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
+						if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+							patchCableExists = true;
+						}
+					}
+				}
+				if (!patchCableExists) {
+					initParameterSelection();
+				}
+			}
 			instrumentClipView.auditioningSilently = false; // Necessary?
 			InstrumentClipMinder::focusRegained();
 			instrumentClipView.setLedStates();
@@ -1266,14 +1287,37 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			PatchSource source2 = PatchSource::NONE;
+			ParamDescriptor paramDescriptor;
+			paramDescriptor.data = lastSelectedParamID;
+			if (!paramDescriptor.hasJustOneSource()) {
+				source2 = paramDescriptor.getTopLevelSource();
+			}
+
 			DEF_STACK_STRING_BUF(paramDisplayName, 30);
-			paramDisplayName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
+			if (source2 == PatchSource::NONE) {
+				paramDisplayName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
+			}
+			else {
+				paramDisplayName.append(sourceToStringShort(lastSelectedPatchSource));
+			}
 			if (display->haveOLED()) {
 				paramDisplayName.append(" -> ");
 			}
 			else {
 				paramDisplayName.append(" - ");
 			}
+
+			if (source2 != PatchSource::NONE) {
+				paramDisplayName.append(sourceToStringShort(source2));
+				if (display->haveOLED()) {
+					paramDisplayName.append(" -> ");
+				}
+				else {
+					paramDisplayName.append(" - ");
+				}
+			}
+
 			paramDisplayName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
 			strncpy(parameterName, paramDisplayName.c_str(), 29);
 		}
@@ -3263,7 +3307,14 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		else if (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && ((Kit*)output)->selectedDrum)) {
 			selectNonGlobalParam(offset, clip);
 		}
-		getLastSelectedParamShortcut(clip);
+		// don't have patch cable blinking logic figured out yet
+		if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			clip->lastSelectedParamShortcutX = kNoSelection;
+			clip->lastSelectedParamShortcutY = kNoSelection;
+		}
+		else {
+			getLastSelectedParamShortcut(clip);
+		}
 	}
 	// if you're in a CV clip or function is called for some other reason, do nothing
 	else {
@@ -3295,7 +3346,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else {
 		displayAutomation(true, !display->have7SEG());
 	}
-	resetShortcutBlinking();
+	resetParameterShortcutBlinking();
 	view.setModLedStates();
 	uiNeedsRendering(this);
 }
@@ -3337,26 +3388,131 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
 void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
-	auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-	                                             kNumNonGlobalParamsForAutomation);
-	{
-		auto [kind, id] = nonGlobalParamsForAutomation[idx];
-		if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
-		    && (id == params::UNPATCHED_PORTAMENTO)) {
-			if (offset < 0) {
-				offset -= 1;
+	bool foundPatchCable = false;
+	// if we previously selected a patch cable, we'll see if there are any more to scroll through
+	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+		foundPatchCable = selectPatchCable(offset, clip);
+		// did we find another patch cable?
+		if (!foundPatchCable) {
+			// if we haven't found a patch cable, it means we reached beginning or end of patch cable list
+			// if we're scrolling right, we'll resume with selecting a regular param from beg of list
+			// if we're scrolling left, we'll resume with selecting a regular param from end of list
+			// to do so we re-set the last selected param array position
+
+			// scrolling right
+			if (offset > 0) {
+				clip->lastSelectedParamArrayPosition = kNumNonGlobalParamsForAutomation - 1;
 			}
-			else if (offset > 0) {
-				offset += 1;
+			// scrolling left
+			else if (offset < 0) {
+				clip->lastSelectedParamArrayPosition = 0;
 			}
-			idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-			                                        kNumNonGlobalParamsForAutomation);
 		}
 	}
-	auto [kind, id] = nonGlobalParamsForAutomation[idx];
-	clip->lastSelectedParamID = id;
-	clip->lastSelectedParamKind = kind;
-	clip->lastSelectedParamArrayPosition = idx;
+	// if we didn't find anymore patch cables, then we'll select a regular param from the list
+	if (!foundPatchCable) {
+		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+		                                             kNumNonGlobalParamsForAutomation);
+		{
+			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
+			    && (id == params::UNPATCHED_PORTAMENTO)) {
+				if (offset < 0) {
+					offset -= 1;
+				}
+				else if (offset > 0) {
+					offset += 1;
+				}
+				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+				                                        kNumNonGlobalParamsForAutomation);
+			}
+		}
+
+		// did we reach beginning or end of list?
+		// if yes, then let's scroll through patch cables
+		// but only if we haven't already scrolled through patch cables already above
+		if ((clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
+		    && (((offset > 0) && (idx < clip->lastSelectedParamArrayPosition))
+		        || ((offset < 0) && (idx > clip->lastSelectedParamArrayPosition)))) {
+			foundPatchCable = selectPatchCable(offset, clip);
+		}
+
+		// if we didn't find a patch cable, then we'll resume with scrolling the non-patch cable list
+		if (!foundPatchCable) {
+			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			clip->lastSelectedParamID = id;
+			clip->lastSelectedParamKind = kind;
+			clip->lastSelectedParamArrayPosition = idx;
+		}
+	}
+}
+
+// iterate through the patch cable list to select the previous or next patch cable
+bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
+	ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+	if (paramManager) {
+		PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+		// make sure it's not jiberish
+		if (set) {
+			// do we have any patch cables?
+			if (set->numPatchCables > 0) {
+				bool foundCurrentPatchCable = false;
+				// scrolling right
+				if (offset > 0) {
+					// loop from beginning to end of patch cable list
+					for (int i = 0; i < set->numPatchCables; i++) {
+						// loop through patch cables until we've found a new one
+						// adjacent to current found patch cable (if we previously selected one)
+						if (findPatchCable(clip, set, i, foundCurrentPatchCable)) {
+							return true;
+						}
+					}
+				}
+				// scrolling left
+				else if (offset < 0) {
+					// loop from end to beginning of patch cable list
+					for (int i = set->numPatchCables - 1; i >= 0; i--) {
+						// loop through patch cables until we've found a new one
+						// adjacent to current found patch cable (if we previously selected one)
+						if (findPatchCable(clip, set, i, foundCurrentPatchCable)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+// see if the patch cable selected is different from current one selected (or not selected)
+// if we havent already selected a patch cable, we'll select this one
+// if we selected one previously, we'll see if this one is adjacent to the previous one selected
+// if it's adjacent to the previous one selected, we'll select this one
+bool AutomationView::findPatchCable(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
+                                    bool& foundCurrentPatchCable) {
+	PatchCable* cable = &set->patchCables[patchCableIndex];
+	ParamDescriptor desc = cable->destinationParamDescriptor;
+	// need to add patch cable source to the descriptor so that we can get the paramId from it
+	desc.addSource(cable->from);
+
+	// if we've previously selected a patch cable, we want to start scrolling from
+	// that patch cable
+	if (desc.data == clip->lastSelectedParamID) {
+		foundCurrentPatchCable = true;
+	}
+	// if we found the patch cable we previously selected and we found another one
+	// or we hadn't selected a patch cable previously and found a patch cable
+	// select the one we found
+	else if ((foundCurrentPatchCable || (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE))
+	         && (desc.data != clip->lastSelectedParamID)) {
+		clip->lastSelectedPatchSource = cable->from;
+		clip->lastSelectedParamID = desc.data;
+		clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+		return true;
+	}
+	return false;
 }
 
 // used with SelectEncoderAction to get the next midi CC
@@ -3668,10 +3824,10 @@ int32_t AutomationView::getParameterKnobPos(ModelStackWithAutoParam* modelStack,
 	return knobPos;
 }
 
-// this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation status
-// of the left node or right node (depending on the reversed parameter which is used to indicate what node in what
-// direction we are looking for (e.g. we want status of left node, or right node, relative to the current pos we are
-// looking at
+// this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation
+// status of the left node or right node (depending on the reversed parameter which is used to indicate what node in
+// what direction we are looking for (e.g. we want status of left node, or right node, relative to the current pos
+// we are looking at
 bool AutomationView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed) {
 
 	if (!modelStack->autoParam->nodes.getNumElements()) {
@@ -3738,7 +3894,8 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 		                                                 kParamNodeWidth);
 	}
 
-	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't also change)
+	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't also
+	// change)
 	initInterpolation();
 
 	// called twice because there was a weird bug where for some reason the first call wasn't taking effect
@@ -4049,8 +4206,8 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		int32_t firstPadValue = 0;
 		int32_t secondPadValue = 0;
 
-		// if we're updating the long press values via mod encoder action, then get current values of pads pressed and
-		// re-interpolate
+		// if we're updating the long press values via mod encoder action, then get current values of pads pressed
+		// and re-interpolate
 		if (modEncoderAction) {
 			firstPadValue = getParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
@@ -4273,9 +4430,9 @@ void AutomationView::resetShortcutBlinking() {
 	resetInterpolationShortcutBlinking();
 }
 
-// created this function to undo any existing parameter shortcut blinking so that it doesn't get rendered in automation
-// view also created it so that you can reset blinking when a parameter is deselected or when you enter/exit automation
-// view
+// created this function to undo any existing parameter shortcut blinking so that it doesn't get rendered in
+// automation view also created it so that you can reset blinking when a parameter is deselected or when you
+// enter/exit automation view
 void AutomationView::resetParameterShortcutBlinking() {
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	parameterShortcutBlinking = false;
