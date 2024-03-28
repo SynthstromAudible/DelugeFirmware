@@ -66,9 +66,6 @@ public:
 	int8_t pressX;
 	int8_t pressY;
 
-	int32_t loopLength = 0;
-	bool loopLocked = false;
-
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
 

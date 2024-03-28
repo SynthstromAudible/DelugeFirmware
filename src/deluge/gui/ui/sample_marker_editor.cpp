@@ -143,22 +143,22 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	else if (markerTypeNow == MarkerType::LOOP_START) {
 		auto& multiSampleRange = getCurrentMultisampleRange();
 		auto& sampleHolder = multiSampleRange.sampleHolder;
-		if (loopLocked) {
-			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(loopLength);
+		if (sampleHolder.loopLocked) {
+			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
 			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
 				sampleHolder.loopStartPos = value;
 				sampleHolder.loopEndPos = intendedLoopEndPos;
 			}
 		}
 		else {
-			multiSampleRange.sampleHolder.loopStartPos = value;
+			sampleHolder.loopStartPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
 		auto& multiSampleRange = getCurrentMultisampleRange();
 		auto& sampleHolder = multiSampleRange.sampleHolder;
-		if (loopLocked) {
-			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
+		if (sampleHolder.loopLocked) {
+			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
 			if (intendedLoopStartPos >= 1 && static_cast<uint64_t>(intendedLoopStartPos) >= sampleHolder.startPos) {
 				sampleHolder.loopEndPos = value;
@@ -166,7 +166,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 			}
 		}
 		else {
-			multiSampleRange.sampleHolder.loopEndPos = value;
+			sampleHolder.loopEndPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::END) {
@@ -460,7 +460,7 @@ ensureNotPastSampleLength:
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
 						// Toggle loop lock
-						if (loopLocked) {
+						if (getCurrentMultisampleRange().sampleHolder.loopLocked) {
 							this->loopUnlock();
 						}
 						else {
@@ -671,14 +671,19 @@ void SampleMarkerEditor::exitUI() {
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
+	if (soundEditor.currentMultiRange != nullptr && getCurrentMultisampleRange().sampleHolder.loopLocked
+	    && Buttons::isShiftButtonPressed()) {
+		auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
 
-	if (loopLocked && Buttons::isShiftButtonPressed()) {
+		uint32_t proposedEnd = sampleHolder.loopEndPos;
+
 		if (offset > 0) { // turn clockwise
-			int end = getCurrentSampleHolder().endPos;
-			int loopEnd = getCurrentMultisampleRange().sampleHolder.loopEndPos;
+			uint32_t end = sampleHolder.endPos;
+			uint32_t loopEnd = sampleHolder.loopEndPos;
+			uint32_t loopLength = sampleHolder.loopLength();
+			proposedEnd = sampleHolder.loopStartPos + 2 * loopLength;
 
-			if (loopEnd + loopLength < end) {
-				loopLength = loopLength * 2;
+			if (proposedEnd <= end) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_DOUBLED));
 			}
 			else {
@@ -687,8 +692,10 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 		}
 		else { // turn anti-clockwise
+			uint32_t loopLength = sampleHolder.loopLength();
+
 			if (loopLength > 2) {
-				loopLength = loopLength / 2;
+				proposedEnd = sampleHolder.loopStartPos + loopLength / 2;
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_HALVED));
 			}
 			else {
@@ -697,9 +704,11 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 		}
 
-		int loopStart = getCurrentMultisampleRange().sampleHolder.loopStartPos;
-		int newLoopEnd = loopStart + loopLength;
-		writeValue(newLoopEnd, MarkerType::LOOP_END);
+		// temporarily unlock the loop so we can write the end without moving the start
+		sampleHolder.loopLocked = false;
+		writeValue(proposedEnd, MarkerType::LOOP_END);
+		sampleHolder.loopLocked = true;
+
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 		return ActionResult::DEALT_WITH;
@@ -1177,16 +1186,14 @@ printSeconds:
 }
 
 void SampleMarkerEditor::loopUnlock() {
-	loopLocked = false;
-	loopLength = 0;
+	auto& multiSampleRange = getCurrentMultisampleRange();
+	multiSampleRange.sampleHolder.loopLocked = false;
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
-	loopLocked = true;
-	auto loopStart = static_cast<int32_t>(getCurrentMultisampleRange().sampleHolder.loopStartPos);
-	auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange().sampleHolder.loopEndPos);
-	loopLength = loopEnd - loopStart;
+	auto& multiSampleRange = getCurrentMultisampleRange();
+	multiSampleRange.sampleHolder.loopLocked = true;
 	display->displayPopup("LOCK");
 }
 
