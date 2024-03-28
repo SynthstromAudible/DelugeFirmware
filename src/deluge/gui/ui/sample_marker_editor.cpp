@@ -54,9 +54,6 @@ const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 SampleMarkerEditor sampleMarkerEditor{};
 
-SampleMarkerEditor::SampleMarkerEditor() {
-}
-
 SampleHolder* getCurrentSampleHolder() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleHolder;
