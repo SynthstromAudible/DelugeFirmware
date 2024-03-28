@@ -70,6 +70,7 @@ public:
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
 
 private:
+	static constexpr int32_t kInvalidColumn = -2147483648;
 	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
 	void exitUI();
 
@@ -80,10 +81,17 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                            MarkerColumn* cols);
+	/// Render a single column of the sample markers.
+	///
+	/// @param xDisplay    the column to render in to
+	/// @param image       image buffer to render in to
+	/// @param cols        Marker column data
+	/// @param supressMask Mask of markers to supress rendering for
+	void renderColumn(int32_t xDisplay, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                  MarkerColumn cols[kNumMarkerTypes], int32_t supressMask);
+	/// Draw a single marker
+	void renderMarkerInCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                       MarkerType type, int32_t yStart, int32_t yEnd);
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;
