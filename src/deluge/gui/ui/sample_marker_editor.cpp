@@ -54,17 +54,17 @@ const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 SampleMarkerEditor sampleMarkerEditor{};
 
-SampleHolder* getCurrentSampleHolder() {
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return &getCurrentAudioClip()->sampleHolder;
-	}
-	else {
-		return &((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder;
-	}
+MultisampleRange& getCurrentMultisampleRange() {
+	return *static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
 }
 
-MultisampleRange* getCurrentMultisampleRange() {
-	return (MultisampleRange*)soundEditor.currentMultiRange;
+SampleHolder& getCurrentSampleHolder() {
+	AudioClip* current = getCurrentAudioClip();
+	if (current != nullptr) {
+		return current->sampleHolder;
+	}
+
+	return getCurrentMultisampleRange().sampleHolder;
 }
 
 SampleControls* getCurrentSampleControls() {
@@ -89,14 +89,14 @@ bool SampleMarkerEditor::opened() {
 
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
+	waveformBasicNavigator.sample = static_cast<Sample*>(getCurrentSampleHolder().audioFile);
 
 	if (!waveformBasicNavigator.sample) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 
-	waveformBasicNavigator.opened(getCurrentSampleHolder());
+	waveformBasicNavigator.opened(&getCurrentSampleHolder());
 
 	blinkInvisible = false;
 
@@ -116,8 +116,9 @@ bool SampleMarkerEditor::opened() {
 
 void SampleMarkerEditor::recordScrollAndZoom() {
 	if (markerType != MarkerType::NONE) {
-		getCurrentSampleHolder()->waveformViewScroll = waveformBasicNavigator.xScroll;
-		getCurrentSampleHolder()->waveformViewZoom = waveformBasicNavigator.xZoom;
+		auto& sampleHolder = getCurrentSampleHolder();
+		sampleHolder.waveformViewScroll = waveformBasicNavigator.xScroll;
+		sampleHolder.waveformViewZoom = waveformBasicNavigator.xZoom;
 	}
 }
 
@@ -137,40 +138,43 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 
 	if (markerTypeNow == MarkerType::START) {
-		getCurrentSampleHolder()->startPos = value;
+		getCurrentSampleHolder().startPos = value;
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
+		auto& multiSampleRange = getCurrentMultisampleRange();
+		auto& sampleHolder = multiSampleRange.sampleHolder;
 		if (loopLocked) {
 			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(loopLength);
-			if (uint64_t{intendedLoopEndPos} <= getCurrentSampleHolder()->endPos) {
-				getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
-				getCurrentMultisampleRange()->sampleHolder.loopEndPos = intendedLoopEndPos;
+			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
+				sampleHolder.loopStartPos = value;
+				sampleHolder.loopEndPos = intendedLoopEndPos;
 			}
 		}
 		else {
-			getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
+			multiSampleRange.sampleHolder.loopStartPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
+		auto& multiSampleRange = getCurrentMultisampleRange();
+		auto& sampleHolder = multiSampleRange.sampleHolder;
 		if (loopLocked) {
 			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intendedLoopStartPos >= 1
-			    && static_cast<uint64_t>(intendedLoopStartPos) >= getCurrentSampleHolder()->startPos) {
-				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
-				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;
+			if (intendedLoopStartPos >= 1 && static_cast<uint64_t>(intendedLoopStartPos) >= sampleHolder.startPos) {
+				sampleHolder.loopEndPos = value;
+				sampleHolder.loopStartPos = intendedLoopStartPos;
 			}
 		}
 		else {
-			getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
+			multiSampleRange.sampleHolder.loopEndPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::END) {
-		getCurrentSampleHolder()->endPos = value;
+		getCurrentSampleHolder().endPos = value;
 	}
 
-	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed,
-	                                              CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed,
+	                                             CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (clipType == ClipType::AUDIO) {
 		if (audioClipActive) {
@@ -206,18 +210,18 @@ int32_t SampleMarkerEditor::getEndPosFromCol(int32_t col) {
 }
 
 void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
-	cols[util::to_underlying(MarkerType::START)].pos = getCurrentSampleHolder()->startPos;
+	cols[util::to_underlying(MarkerType::START)].pos = getCurrentSampleHolder().startPos;
 	cols[util::to_underlying(MarkerType::START)].colOnScreen =
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
 	if (getCurrentClip()->type != ClipType::AUDIO) {
-		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange().sampleHolder.loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
 		        ? getStartColOnScreen(cols[util::to_underlying(MarkerType::LOOP_START)].pos)
 		        : -2147483648;
 
-		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange().sampleHolder.loopEndPos;
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_END)].pos
 		        ? getEndColOnScreen(cols[util::to_underlying(MarkerType::LOOP_END)].pos)
@@ -232,7 +236,7 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen = -2147483648;
 	}
 
-	cols[util::to_underlying(MarkerType::END)].pos = getCurrentSampleHolder()->endPos;
+	cols[util::to_underlying(MarkerType::END)].pos = getCurrentSampleHolder().endPos;
 	cols[util::to_underlying(MarkerType::END)].colOnScreen =
 	    getEndColOnScreen(cols[util::to_underlying(MarkerType::END)].pos);
 }
@@ -406,7 +410,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos
+						if (getCurrentMultisampleRange().sampleHolder.loopEndPos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
@@ -670,8 +674,8 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 	if (loopLocked && Buttons::isShiftButtonPressed()) {
 		if (offset > 0) { // turn clockwise
-			int end = getCurrentSampleHolder()->endPos;
-			int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+			int end = getCurrentSampleHolder().endPos;
+			int loopEnd = getCurrentMultisampleRange().sampleHolder.loopEndPos;
 
 			if (loopEnd + loopLength < end) {
 				loopLength = loopLength * 2;
@@ -693,7 +697,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 		}
 
-		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		int loopStart = getCurrentMultisampleRange().sampleHolder.loopStartPos;
 		int newLoopEnd = loopStart + loopLength;
 		writeValue(newLoopEnd, MarkerType::LOOP_END);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -1180,8 +1184,8 @@ void SampleMarkerEditor::loopUnlock() {
 
 void SampleMarkerEditor::loopLock() {
 	loopLocked = true;
-	auto loopStart = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopStartPos);
-	auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopEndPos);
+	auto loopStart = static_cast<int32_t>(getCurrentMultisampleRange().sampleHolder.loopStartPos);
+	auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange().sampleHolder.loopEndPos);
 	loopLength = loopEnd - loopStart;
 	display->displayPopup("LOCK");
 }
