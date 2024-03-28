@@ -76,6 +76,10 @@ SampleControls* getCurrentSampleControls() {
 	}
 }
 
+bool isLoopLocked() {
+	return getCurrentClip()->type != ClipType::AUDIO && getCurrentMultisampleRange().sampleHolder.loopLocked;
+}
+
 bool SampleMarkerEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b10;
 	return true;
@@ -671,8 +675,7 @@ void SampleMarkerEditor::exitUI() {
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
-	if (soundEditor.currentMultiRange != nullptr && getCurrentMultisampleRange().sampleHolder.loopLocked
-	    && Buttons::isShiftButtonPressed()) {
+	if (isLoopLocked() && Buttons::isShiftButtonPressed()) {
 		auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
 
 		uint32_t proposedEnd = sampleHolder.loopEndPos;
@@ -760,10 +763,35 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
+	bool anyMarkerVisible = false;
+
+	if ((markerType == MarkerType::LOOP_START || markerType == MarkerType::LOOP_END) && isLoopLocked()) {
+		// blink both columns when the loop is locked
+		MarkerType otherMarker = (markerType == MarkerType::LOOP_START) ? MarkerType::LOOP_END : MarkerType::LOOP_START;
+
+		int32_t x = cols[util::to_underlying(otherMarker)].colOnScreen;
+		if (0 <= x && x < kDisplayWidth) {
+			anyMarkerVisible = true;
+
+			// Clear col
+			for (auto& y : PadLEDs::image) {
+				y[x] = colours::black;
+			}
+
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+			renderMarkerInCol(x, PadLEDs::image, otherMarker, (!blinkInvisible) ? 1 : kDisplayHeight);
+			PadLEDs::sortLedsForCol(x);
+		}
+	}
+
 	int32_t x = cols[util::to_underlying(markerType)].colOnScreen;
-	if (x < 0 || x >= kDisplayWidth) {
-		return ActionResult::DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's
-		                                 // offscreen
+	if (0 <= x && x < kDisplayWidth) {
+		anyMarkerVisible = true;
+	}
+
+	if (!anyMarkerVisible) {
+		return ActionResult::DEALT_WITH;
 	}
 
 	blinkInvisible = !blinkInvisible;
@@ -773,7 +801,8 @@ ActionResult SampleMarkerEditor::timerCallback() {
 		y[x] = colours::black;
 	}
 
-	renderForOneCol(x, PadLEDs::image, cols);
+	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image, &waveformBasicNavigator.renderData);
+	renderMarkerInCol(x, PadLEDs::image, markerType, blinkInvisible ? 2 : kDisplayHeight);
 
 	PadLEDs::sortLedsForCol(x);
 	PIC::flush();
@@ -981,76 +1010,45 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-                                         MarkerColumn* cols) {
+void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
+                                           RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+                                           MarkerType type, int32_t blinkHeight) {
+	bool reversed = getCurrentSampleControls()->reversed;
 
-	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
-	                              &waveformBasicNavigator.renderData);
+	MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
+	MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
+	MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
+	MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
 
-	renderMarkersForOneCol(xDisplay, thisImage, cols);
-}
+	for (int32_t y = 0; y < blinkHeight; ++y) {
+		int32_t existingColourAmount = thisImage[y][xDisplay][0];
 
-void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
-                                                RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-                                                MarkerColumn* cols) {
-
-	if (markerType != MarkerType::NONE) {
-
-		bool reversed = getCurrentSampleControls()->reversed;
-
-		MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
-		MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
-		MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
-		MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
-
-		uint32_t markersActiveHere = 0;
-		for (int32_t m = 0; m < kNumMarkerTypes; m++) {
-			markersActiveHere |=
-			    (xDisplay == cols[m].colOnScreen && (!blinkInvisible || markerType != static_cast<MarkerType>(m))) << m;
+		// Green
+		if (type == greenMarker) {
+			thisImage[y][xDisplay][0] >>= 2;
+			thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
+			thisImage[y][xDisplay][2] >>= 2;
 		}
 
-		if (markersActiveHere) {
-			auto currentMarkerType = MarkerType{0};
+		// Cyan
+		else if (type == cyanMarker) {
+			thisImage[y][xDisplay][0] >>= 1;
+			thisImage[y][xDisplay][1] = 140 - existingColourAmount;
+			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+		}
 
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				while (!(markersActiveHere & (1 << util::to_underlying(currentMarkerType)))) {
-					currentMarkerType =
-					    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
-				}
+		// Purple
+		else if (type == purpleMarker) {
+			thisImage[y][xDisplay][0] = 140 - existingColourAmount;
+			thisImage[y][xDisplay][1] >>= 1;
+			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+		}
 
-				int32_t existingColourAmount = thisImage[y][xDisplay][0];
-
-				// Green
-				if (currentMarkerType == greenMarker) {
-					thisImage[y][xDisplay][0] >>= 2;
-					thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
-					thisImage[y][xDisplay][2] >>= 2;
-				}
-
-				// Cyan
-				else if (currentMarkerType == cyanMarker) {
-					thisImage[y][xDisplay][0] >>= 1;
-					thisImage[y][xDisplay][1] = 140 - existingColourAmount;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-				}
-
-				// Purple
-				else if (currentMarkerType == purpleMarker) {
-					thisImage[y][xDisplay][0] = 140 - existingColourAmount;
-					thisImage[y][xDisplay][1] >>= 1;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-				}
-
-				// Red
-				else if (currentMarkerType == redMarker) {
-					thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
-					thisImage[y][xDisplay][1] >>= 2;
-					thisImage[y][xDisplay][2] >>= 2;
-				}
-
-				currentMarkerType =
-				    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
-			}
+		// Red
+		else if (type == redMarker) {
+			thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
+			thisImage[y][xDisplay][1] >>= 2;
+			thisImage[y][xDisplay][2] >>= 2;
 		}
 	}
 }
@@ -1237,8 +1235,13 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		MarkerColumn cols[kNumMarkerTypes];
 		getColsOnScreen(cols);
 
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			renderMarkersForOneCol(xDisplay, image, cols);
+		for (int32_t markerTypeIdx = 0; markerTypeIdx < kNumMarkerTypes; ++markerTypeIdx) {
+			auto& col = cols[markerTypeIdx];
+			auto type = static_cast<MarkerType>(markerTypeIdx);
+			if (0 <= col.colOnScreen && col.colOnScreen < kDisplayWidth) {
+				int32_t blinkHeight = (type == markerType && blinkInvisible) ? 2 : kDisplayHeight;
+				renderMarkerInCol(col.colOnScreen, image, type, blinkHeight);
+			}
 		}
 
 		if (cols[util::to_underlying(markerType)].colOnScreen >= 0

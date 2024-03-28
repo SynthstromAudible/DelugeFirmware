@@ -80,10 +80,8 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                            MarkerColumn* cols);
+	void renderMarkerInCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                       MarkerType type, int32_t blinkHeight);
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;
