@@ -54,20 +54,17 @@ const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 SampleMarkerEditor sampleMarkerEditor{};
 
-SampleMarkerEditor::SampleMarkerEditor() {
+MultisampleRange& getCurrentMultisampleRange() {
+	return *static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
 }
 
-SampleHolder* getCurrentSampleHolder() {
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return &getCurrentAudioClip()->sampleHolder;
+SampleHolder& getCurrentSampleHolder() {
+	AudioClip* current = getCurrentAudioClip();
+	if (current != nullptr) {
+		return current->sampleHolder;
 	}
-	else {
-		return &((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder;
-	}
-}
 
-MultisampleRange* getCurrentMultisampleRange() {
-	return (MultisampleRange*)soundEditor.currentMultiRange;
+	return getCurrentMultisampleRange().sampleHolder;
 }
 
 SampleControls* getCurrentSampleControls() {
@@ -77,6 +74,10 @@ SampleControls* getCurrentSampleControls() {
 	else {
 		return &soundEditor.currentSource->sampleControls;
 	}
+}
+
+bool isLoopLocked() {
+	return getCurrentClip()->type != ClipType::AUDIO && getCurrentMultisampleRange().sampleHolder.loopLocked;
 }
 
 bool SampleMarkerEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -92,14 +93,14 @@ bool SampleMarkerEditor::opened() {
 
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
-	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
+	waveformBasicNavigator.sample = static_cast<Sample*>(getCurrentSampleHolder().audioFile);
 
 	if (!waveformBasicNavigator.sample) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 
-	waveformBasicNavigator.opened(getCurrentSampleHolder());
+	waveformBasicNavigator.opened(&getCurrentSampleHolder());
 
 	blinkInvisible = false;
 
@@ -119,8 +120,9 @@ bool SampleMarkerEditor::opened() {
 
 void SampleMarkerEditor::recordScrollAndZoom() {
 	if (markerType != MarkerType::NONE) {
-		getCurrentSampleHolder()->waveformViewScroll = waveformBasicNavigator.xScroll;
-		getCurrentSampleHolder()->waveformViewZoom = waveformBasicNavigator.xZoom;
+		auto& sampleHolder = getCurrentSampleHolder();
+		sampleHolder.waveformViewScroll = waveformBasicNavigator.xScroll;
+		sampleHolder.waveformViewZoom = waveformBasicNavigator.xZoom;
 	}
 }
 
@@ -140,40 +142,43 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 
 	if (markerTypeNow == MarkerType::START) {
-		getCurrentSampleHolder()->startPos = value;
+		getCurrentSampleHolder().startPos = value;
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
-		if (loopLocked) {
-			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(loopLength);
-			if (uint64_t{intendedLoopEndPos} <= getCurrentSampleHolder()->endPos) {
-				getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
-				getCurrentMultisampleRange()->sampleHolder.loopEndPos = intendedLoopEndPos;
+		auto& multiSampleRange = getCurrentMultisampleRange();
+		auto& sampleHolder = multiSampleRange.sampleHolder;
+		if (sampleHolder.loopLocked) {
+			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
+			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
+				sampleHolder.loopStartPos = value;
+				sampleHolder.loopEndPos = intendedLoopEndPos;
 			}
 		}
 		else {
-			getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
+			sampleHolder.loopStartPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
-		if (loopLocked) {
-			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
+		auto& multiSampleRange = getCurrentMultisampleRange();
+		auto& sampleHolder = multiSampleRange.sampleHolder;
+		if (sampleHolder.loopLocked) {
+			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
-			if (intendedLoopStartPos >= 1
-			    && static_cast<uint64_t>(intendedLoopStartPos) >= getCurrentSampleHolder()->startPos) {
-				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
-				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;
+			if (intendedLoopStartPos >= 1 && static_cast<uint64_t>(intendedLoopStartPos) >= sampleHolder.startPos) {
+				sampleHolder.loopEndPos = value;
+				sampleHolder.loopStartPos = intendedLoopStartPos;
 			}
 		}
 		else {
-			getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
+			sampleHolder.loopEndPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::END) {
-		getCurrentSampleHolder()->endPos = value;
+		getCurrentSampleHolder().endPos = value;
 	}
 
-	getCurrentSampleHolder()->claimClusterReasons(getCurrentSampleControls()->reversed,
-	                                              CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed,
+	                                             CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
 	if (clipType == ClipType::AUDIO) {
 		if (audioClipActive) {
@@ -209,18 +214,18 @@ int32_t SampleMarkerEditor::getEndPosFromCol(int32_t col) {
 }
 
 void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
-	cols[util::to_underlying(MarkerType::START)].pos = getCurrentSampleHolder()->startPos;
+	cols[util::to_underlying(MarkerType::START)].pos = getCurrentSampleHolder().startPos;
 	cols[util::to_underlying(MarkerType::START)].colOnScreen =
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
 	if (getCurrentClip()->type != ClipType::AUDIO) {
-		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange().sampleHolder.loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
 		        ? getStartColOnScreen(cols[util::to_underlying(MarkerType::LOOP_START)].pos)
 		        : -2147483648;
 
-		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange().sampleHolder.loopEndPos;
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_END)].pos
 		        ? getEndColOnScreen(cols[util::to_underlying(MarkerType::LOOP_END)].pos)
@@ -235,7 +240,7 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen = -2147483648;
 	}
 
-	cols[util::to_underlying(MarkerType::END)].pos = getCurrentSampleHolder()->endPos;
+	cols[util::to_underlying(MarkerType::END)].pos = getCurrentSampleHolder().endPos;
 	cols[util::to_underlying(MarkerType::END)].colOnScreen =
 	    getEndColOnScreen(cols[util::to_underlying(MarkerType::END)].pos);
 }
@@ -409,7 +414,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (getCurrentMultisampleRange()->sampleHolder.loopEndPos
+						if (getCurrentMultisampleRange().sampleHolder.loopEndPos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
@@ -459,7 +464,7 @@ ensureNotPastSampleLength:
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
 						// Toggle loop lock
-						if (loopLocked) {
+						if (getCurrentMultisampleRange().sampleHolder.loopLocked) {
 							this->loopUnlock();
 						}
 						else {
@@ -670,14 +675,18 @@ void SampleMarkerEditor::exitUI() {
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
+	if (isLoopLocked() && Buttons::isShiftButtonPressed()) {
+		auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
 
-	if (loopLocked && Buttons::isShiftButtonPressed()) {
+		uint32_t proposedEnd = sampleHolder.loopEndPos;
+
 		if (offset > 0) { // turn clockwise
-			int end = getCurrentSampleHolder()->endPos;
-			int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+			uint32_t end = sampleHolder.endPos;
+			uint32_t loopEnd = sampleHolder.loopEndPos;
+			uint32_t loopLength = sampleHolder.loopLength();
+			proposedEnd = sampleHolder.loopStartPos + 2 * loopLength;
 
-			if (loopEnd + loopLength < end) {
-				loopLength = loopLength * 2;
+			if (proposedEnd <= end) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_DOUBLED));
 			}
 			else {
@@ -686,8 +695,10 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 		}
 		else { // turn anti-clockwise
+			uint32_t loopLength = sampleHolder.loopLength();
+
 			if (loopLength > 2) {
-				loopLength = loopLength / 2;
+				proposedEnd = sampleHolder.loopStartPos + loopLength / 2;
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_HALVED));
 			}
 			else {
@@ -696,9 +707,11 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 		}
 
-		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
-		int newLoopEnd = loopStart + loopLength;
-		writeValue(newLoopEnd, MarkerType::LOOP_END);
+		// temporarily unlock the loop so we can write the end without moving the start
+		sampleHolder.loopLocked = false;
+		writeValue(proposedEnd, MarkerType::LOOP_END);
+		sampleHolder.loopLocked = true;
+
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
 		return ActionResult::DEALT_WITH;
@@ -750,10 +763,35 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
+	bool anyMarkerVisible = false;
+
+	if ((markerType == MarkerType::LOOP_START || markerType == MarkerType::LOOP_END) && isLoopLocked()) {
+		// blink both columns when the loop is locked
+		MarkerType otherMarker = (markerType == MarkerType::LOOP_START) ? MarkerType::LOOP_END : MarkerType::LOOP_START;
+
+		int32_t x = cols[util::to_underlying(otherMarker)].colOnScreen;
+		if (0 <= x && x < kDisplayWidth) {
+			anyMarkerVisible = true;
+
+			// Clear col
+			for (auto& y : PadLEDs::image) {
+				y[x] = colours::black;
+			}
+
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+			renderMarkerInCol(x, PadLEDs::image, otherMarker, (!blinkInvisible) ? 1 : kDisplayHeight);
+			PadLEDs::sortLedsForCol(x);
+		}
+	}
+
 	int32_t x = cols[util::to_underlying(markerType)].colOnScreen;
-	if (x < 0 || x >= kDisplayWidth) {
-		return ActionResult::DEALT_WITH; // Shouldn't happen, but let's be safe - and not set the timer again if it's
-		                                 // offscreen
+	if (0 <= x && x < kDisplayWidth) {
+		anyMarkerVisible = true;
+	}
+
+	if (!anyMarkerVisible) {
+		return ActionResult::DEALT_WITH;
 	}
 
 	blinkInvisible = !blinkInvisible;
@@ -763,7 +801,8 @@ ActionResult SampleMarkerEditor::timerCallback() {
 		y[x] = colours::black;
 	}
 
-	renderForOneCol(x, PadLEDs::image, cols);
+	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image, &waveformBasicNavigator.renderData);
+	renderMarkerInCol(x, PadLEDs::image, markerType, blinkInvisible ? 2 : kDisplayHeight);
 
 	PadLEDs::sortLedsForCol(x);
 	PIC::flush();
@@ -971,76 +1010,45 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 	}
 }
 
-void SampleMarkerEditor::renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-                                         MarkerColumn* cols) {
+void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
+                                           RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+                                           MarkerType type, int32_t blinkHeight) {
+	bool reversed = getCurrentSampleControls()->reversed;
 
-	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
-	                              &waveformBasicNavigator.renderData);
+	MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
+	MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
+	MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
+	MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
 
-	renderMarkersForOneCol(xDisplay, thisImage, cols);
-}
+	for (int32_t y = 0; y < blinkHeight; ++y) {
+		int32_t existingColourAmount = thisImage[y][xDisplay][0];
 
-void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
-                                                RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-                                                MarkerColumn* cols) {
-
-	if (markerType != MarkerType::NONE) {
-
-		bool reversed = getCurrentSampleControls()->reversed;
-
-		MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
-		MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
-		MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
-		MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
-
-		uint32_t markersActiveHere = 0;
-		for (int32_t m = 0; m < kNumMarkerTypes; m++) {
-			markersActiveHere |=
-			    (xDisplay == cols[m].colOnScreen && (!blinkInvisible || markerType != static_cast<MarkerType>(m))) << m;
+		// Green
+		if (type == greenMarker) {
+			thisImage[y][xDisplay][0] >>= 2;
+			thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
+			thisImage[y][xDisplay][2] >>= 2;
 		}
 
-		if (markersActiveHere) {
-			auto currentMarkerType = MarkerType{0};
+		// Cyan
+		else if (type == cyanMarker) {
+			thisImage[y][xDisplay][0] >>= 1;
+			thisImage[y][xDisplay][1] = 140 - existingColourAmount;
+			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+		}
 
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				while (!(markersActiveHere & (1 << util::to_underlying(currentMarkerType)))) {
-					currentMarkerType =
-					    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
-				}
+		// Purple
+		else if (type == purpleMarker) {
+			thisImage[y][xDisplay][0] = 140 - existingColourAmount;
+			thisImage[y][xDisplay][1] >>= 1;
+			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+		}
 
-				int32_t existingColourAmount = thisImage[y][xDisplay][0];
-
-				// Green
-				if (currentMarkerType == greenMarker) {
-					thisImage[y][xDisplay][0] >>= 2;
-					thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
-					thisImage[y][xDisplay][2] >>= 2;
-				}
-
-				// Cyan
-				else if (currentMarkerType == cyanMarker) {
-					thisImage[y][xDisplay][0] >>= 1;
-					thisImage[y][xDisplay][1] = 140 - existingColourAmount;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-				}
-
-				// Purple
-				else if (currentMarkerType == purpleMarker) {
-					thisImage[y][xDisplay][0] = 140 - existingColourAmount;
-					thisImage[y][xDisplay][1] >>= 1;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-				}
-
-				// Red
-				else if (currentMarkerType == redMarker) {
-					thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
-					thisImage[y][xDisplay][1] >>= 2;
-					thisImage[y][xDisplay][2] >>= 2;
-				}
-
-				currentMarkerType =
-				    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
-			}
+		// Red
+		else if (type == redMarker) {
+			thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
+			thisImage[y][xDisplay][1] >>= 2;
+			thisImage[y][xDisplay][2] >>= 2;
 		}
 	}
 }
@@ -1176,16 +1184,14 @@ printSeconds:
 }
 
 void SampleMarkerEditor::loopUnlock() {
-	loopLocked = false;
-	loopLength = 0;
+	auto& multiSampleRange = getCurrentMultisampleRange();
+	multiSampleRange.sampleHolder.loopLocked = false;
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
-	loopLocked = true;
-	auto loopStart = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopStartPos);
-	auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopEndPos);
-	loopLength = loopEnd - loopStart;
+	auto& multiSampleRange = getCurrentMultisampleRange();
+	multiSampleRange.sampleHolder.loopLocked = true;
 	display->displayPopup("LOCK");
 }
 
@@ -1229,8 +1235,13 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		MarkerColumn cols[kNumMarkerTypes];
 		getColsOnScreen(cols);
 
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			renderMarkersForOneCol(xDisplay, image, cols);
+		for (int32_t markerTypeIdx = 0; markerTypeIdx < kNumMarkerTypes; ++markerTypeIdx) {
+			auto& col = cols[markerTypeIdx];
+			auto type = static_cast<MarkerType>(markerTypeIdx);
+			if (0 <= col.colOnScreen && col.colOnScreen < kDisplayWidth) {
+				int32_t blinkHeight = (type == markerType && blinkInvisible) ? 2 : kDisplayHeight;
+				renderMarkerInCol(col.colOnScreen, image, type, blinkHeight);
+			}
 		}
 
 		if (cols[util::to_underlying(markerType)].colOnScreen >= 0

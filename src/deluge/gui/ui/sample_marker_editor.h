@@ -31,24 +31,25 @@ struct MarkerColumn;
 
 class SampleMarkerEditor final : public UI {
 public:
-	SampleMarkerEditor();
+	SampleMarkerEditor() = default;
 
-	bool opened();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-	void selectEncoderAction(int8_t offset);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	void graphicsRoutine();
-	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL);
+	bool opened() override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+	void selectEncoderAction(int8_t offset) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	void graphicsRoutine() override;
+	ActionResult timerCallback() override;
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    bool drawUndefinedArea = true) override;
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override;
 
 	// OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 
 	// 7SEG
 	void displayText();
@@ -65,11 +66,8 @@ public:
 	int8_t pressX;
 	int8_t pressY;
 
-	int32_t loopLength = 0;
-	bool loopLocked = false;
-
 	// ui
-	UIType getUIType() { return UIType::SAMPLE_MARKER_EDITOR; }
+	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
 
 private:
 	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
@@ -82,10 +80,8 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                            MarkerColumn* cols);
+	void renderMarkerInCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                       MarkerType type, int32_t blinkHeight);
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;
