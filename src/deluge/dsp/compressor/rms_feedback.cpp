@@ -60,7 +60,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * fraction;
 
 	// this is the most gain available without overflow
-	float dbGain = 3.f + er + reduction;
+	float dbGain = .85f + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
