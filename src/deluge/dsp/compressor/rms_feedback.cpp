@@ -36,7 +36,7 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
 	// reduce clicking
 	float lastER = er;
-	er = std::max<float>((songVolumedB - threshdb - 1) * reduction, 0);
+	er = std::max<float>((songVolumedB - threshdb - 1) * fraction, 0);
 	// using the envelope is convenient since it means makeup gain and compression amount change at the same rate
 	er = runEnvelope(lastER, er, numSamples);
 }
@@ -57,7 +57,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 
 	state = runEnvelope(state, over, numSamples);
 
-	float reduction = -state * reduction;
+	float reduction = -state * fraction;
 
 	// this is the most gain available without overflow
 	float dbGain = 3.f + er + reduction;
@@ -85,7 +85,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	} while (++thisSample != bufferEnd);
 	// for LEDs
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
 	rms = calcRMS(buffer, numSamples);
 }
