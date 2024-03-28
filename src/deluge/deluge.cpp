@@ -95,7 +95,7 @@ bool sdRoutineLock = true;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
-extern "C" void timerGoneOff(void) {
+extern "C" void midiAndGateTimerGoneOff(void) {
 	cvEngine.updateGateOutputs();
 	midiEngine.flushMIDI();
 }
