@@ -29,6 +29,8 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	transpose = 0;
 	cents = 0;
 
+	loopLocked = false;
+
 	// For backwards compatibility
 	startMSec = 0;
 	endMSec = 0;
