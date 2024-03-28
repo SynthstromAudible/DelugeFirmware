@@ -55,6 +55,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
+	DisplaySnakeLayout,
 	ShiftIsSticky,
 	LightShiftLed,
 	EnableGrainFX,
