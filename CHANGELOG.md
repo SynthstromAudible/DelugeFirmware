@@ -84,6 +84,8 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
+- Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
+- Modified waveform marker rendering to improve clarity.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
