@@ -88,6 +88,16 @@ const uint8_t OLED::rightArrowIcon[] = {
     0b00000100,
 };
 
+const uint8_t OLED::lockIcon[] = {
+    0b01111100, //<
+    0b11101110, //<
+    0b11101101, //<
+    0b10101101, //<
+    0b11101101, //<
+    0b11101110, //<
+    0b01111100, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif

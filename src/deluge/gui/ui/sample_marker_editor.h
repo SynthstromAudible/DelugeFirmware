@@ -91,7 +91,7 @@ private:
 	                  MarkerColumn cols[kNumMarkerTypes], int32_t supressMask);
 	/// Draw a single marker
 	void renderMarkerInCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-	                       MarkerType type, int32_t yStart, int32_t yEnd);
+	                       MarkerType type, int32_t yStart, int32_t yEnd, bool dimmly);
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;

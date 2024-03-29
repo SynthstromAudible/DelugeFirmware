@@ -466,14 +466,11 @@ ensureNotPastSampleLength:
 						// Toggle loop lock
 						if (getCurrentMultisampleRange().sampleHolder.loopLocked) {
 							this->loopUnlock();
-							// Need to re-render, in case the loop lock flash was off, so we don't end up with the other
-							// marker stuck off.
-							uiNeedsRendering(this, 0xFFFFFFFF, 0x0);
 						}
 						else {
 							this->loopLock();
 						}
-						return ActionResult::DEALT_WITH;
+						goto doRender;
 					}
 
 					// Or if a loop point and they pressed the end marker, remove the loop point
@@ -834,7 +831,12 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 	PIC::flush();
 
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
+	if (blinkInvisible) {
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
+	}
+	else {
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime * 2);
+	}
 
 	return ActionResult::DEALT_WITH;
 }
@@ -1039,7 +1041,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 
 void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
                                            RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
-                                           MarkerType type, int32_t yStart, int32_t yEnd) {
+                                           MarkerType type, int32_t yStart, int32_t yEnd, bool dimmly) {
 	bool reversed = getCurrentSampleControls()->reversed;
 
 	MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
@@ -1077,10 +1079,16 @@ void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
 			thisImage[y][xDisplay][1] >>= 2;
 			thisImage[y][xDisplay][2] >>= 2;
 		}
+
+		if (dimmly) {
+			thisImage[y][xDisplay] = thisImage[y][xDisplay].dim(3);
+		}
 	}
 }
 
 void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	using deluge::hid::display::OLED;
+
 	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
 
@@ -1108,7 +1116,12 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		__builtin_unreachable();
 	}
 
-	deluge::hid::display::OLED::drawScreenTitle(markerTypeText);
+	OLED::drawScreenTitle(markerTypeText);
+
+	if (isLoopLocked()) {
+		OLED::drawGraphicMultiLine(OLED::lockIcon, OLED_MAIN_WIDTH_PIXELS - 10, OLED_MAIN_TOPMOST_PIXEL + 2, 7,
+		                           OLED::oledMainImage[0]);
+	}
 
 	int32_t smallTextSpacingX = kTextSpacingX;
 	int32_t smallTextSizeY = kTextSpacingY;
@@ -1130,23 +1143,22 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 			char buffer[12];
 			intToString(hours, buffer);
-			deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       smallTextSpacingX, smallTextSizeY);
+			OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+			                 smallTextSizeY);
 			xPixel += strlen(buffer) * smallTextSpacingX;
 
-			deluge::hid::display::OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-			                                     smallTextSpacingX, smallTextSizeY);
+			OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+			               smallTextSizeY);
 			xPixel += smallTextSpacingX * 2;
 		}
 
 		char buffer[12];
 		intToString(minutes, buffer);
-		deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-		                                       smallTextSpacingX, smallTextSizeY);
+		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		xPixel += strlen(buffer) * smallTextSpacingX;
 
-		deluge::hid::display::OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-		                                     smallTextSpacingX, smallTextSizeY);
+		OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+		               smallTextSizeY);
 		xPixel += smallTextSpacingX * 2;
 	}
 	else {
@@ -1174,19 +1186,17 @@ printSeconds:
 		memmove(&buffer[length - numDecimalPlaces + 1], &buffer[length - numDecimalPlaces], numDecimalPlaces + 1);
 		buffer[length - numDecimalPlaces] = '.';
 
-		deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-		                                       smallTextSpacingX, smallTextSizeY);
+		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		xPixel += (length + 1) * smallTextSpacingX;
 
 		if (hours || minutes) {
-			deluge::hid::display::OLED::drawChar('s', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-			                                     smallTextSpacingX, smallTextSizeY);
+			OLED::drawChar('s', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 		}
 		else {
 			xPixel += smallTextSpacingX;
 			char const* secString = (numDecimalPlaces == 2) ? "msec" : "sec";
-			deluge::hid::display::OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       smallTextSpacingX, smallTextSizeY);
+			OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+			                 smallTextSizeY);
 		}
 	}
 
@@ -1195,8 +1205,7 @@ printSeconds:
 	// Sample count
 	xPixel = 1;
 
-	deluge::hid::display::OLED::drawChar('(', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-	                                     smallTextSizeY);
+	OLED::drawChar('(', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
 	xPixel += smallTextSpacingX;
 
 	char buffer[12];
@@ -1213,12 +1222,18 @@ printSeconds:
 void SampleMarkerEditor::loopUnlock() {
 	auto& multiSampleRange = getCurrentMultisampleRange();
 	multiSampleRange.sampleHolder.loopLocked = false;
+	if (display->have7SEG()) {
+		this->displayText();
+	}
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
 	auto& multiSampleRange = getCurrentMultisampleRange();
 	multiSampleRange.sampleHolder.loopLocked = true;
+	if (display->have7SEG()) {
+		this->displayText();
+	}
 	display->displayPopup("LOCK");
 }
 
@@ -1239,7 +1254,14 @@ void SampleMarkerEditor::displayText() {
 
 	int32_t drawDot = 3 - numDecimals;
 	if (drawDot >= kNumericDisplayLength) {
-		drawDot = 255;
+		drawDot = 0x80u;
+	}
+	else {
+		drawDot = (0x80u) | (1 << (kNumericDisplayLength - drawDot - 1));
+	}
+
+	if (isLoopLocked()) {
+		drawDot |= 0x01u;
 	}
 
 	char buffer[5];
@@ -1274,8 +1296,26 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 	}
 
 	uint32_t selectedMarkerMask = 1 << util::to_underlying(markerType);
-	int32_t prevYEnd = 0;
+	int32_t prevYEnd = kDisplayHeight;
 	int32_t seenMarkers = 0;
+
+	bool isSelectedColumn = (selectedMarkerMask & activeMarkers) != 0;
+
+	if (isSelectedColumn) {
+		// For the selected column, if we're not supressing the selection color, just flash the whole column
+		if ((selectedMarkerMask & supressMask) != 0) {
+			renderMarkerInCol(col, image, markerType, 0, kDisplayHeight, false);
+			return;
+		}
+	}
+
+	int32_t increment = 0;
+	if (numMarkers <= 2) {
+		increment = 2;
+	}
+	else {
+		increment = 1;
+	}
 
 	while (markerMask != (1 << kNumMarkerTypes)) {
 		// skip inactive markers
@@ -1287,34 +1327,26 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 
 		seenMarkers++;
 
-		int32_t yStart = prevYEnd;
-		int32_t yEnd = yStart;
+		int32_t yEnd = prevYEnd;
+		int32_t yStart = 0;
 
-		if (seenMarkers == numMarkers) {
-			yEnd = kDisplayHeight;
+		if ((seenMarkers == numMarkers)) {
+			// This is the last marker we need to render in this column, fill the rest of the column
+			yStart = kDisplayHeight / 2;
 		}
 		else {
-			if ((markerMask & selectedMarkerMask) == 0) {
-				yEnd = yStart + 1;
-			}
-			else {
-				yEnd = yStart + 2;
-			}
+			// otherwise, render just 1 pad for this marker
+			yStart = yEnd - increment;
 		}
 
-		// render if not supressed
-		if ((markerMask & supressMask) == 0) {
-			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), yStart, yEnd);
-		}
-		else {
-			// even supressed columns should render the first 2 pads if they're selected and the only marker to render
-			// in the column
-			if ((markerMask & selectedMarkerMask) != 0 && numMarkers == 1) {
-				renderMarkerInCol(col, image, static_cast<MarkerType>(marker), yStart, yStart + 2);
-			}
+		bool supressed = (markerMask & supressMask) != 0u;
+		if (!supressed) {
+			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), yStart, yEnd, true);
+			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), kDisplayHeight - yEnd,
+			                  kDisplayHeight - yStart, true);
 		}
 
-		prevYEnd = yEnd;
+		prevYEnd = yStart;
 		markerMask <<= 1;
 		++marker;
 	}
