@@ -103,7 +103,7 @@ bool SampleMarkerEditor::opened() {
 
 	waveformBasicNavigator.opened(&getCurrentSampleHolder());
 
-	blinkInvisible = false;
+	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
@@ -311,7 +311,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	blinkInvisible = false;
+	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	if (display->haveOLED()) {
@@ -486,7 +486,7 @@ ensureNotPastSampleLength:
 
 exitAfterRemovingLoopMarker:
 							currentUIMode = UI_MODE_NONE;
-							blinkInvisible = true;
+							blinkPhase = 1;
 							goto doRender;
 						}
 						else {
@@ -509,7 +509,7 @@ exitAfterRemovingLoopMarker:
 					}
 
 					currentUIMode = UI_MODE_NONE;
-					blinkInvisible = false;
+					blinkPhase = 0;
 					goto doWriteValue;
 				}
 			}
@@ -519,7 +519,7 @@ exitAfterRemovingLoopMarker:
 
 				// If we tapped a marker...
 				if (markerPressed >= MarkerType::START) {
-					blinkInvisible = (markerType != markerPressed);
+					blinkPhase = (markerType == markerPressed) ? 0 : 1;
 					markerType = markerPressed;
 					currentUIMode = UI_MODE_HOLDING_SAMPLE_MARKER;
 					pressX = x;
@@ -605,7 +605,7 @@ exitAfterRemovingLoopMarker:
 						}
 					}
 
-					blinkInvisible = false;
+					blinkPhase = 0;
 
 doWriteValue:
 					writeValue(value);
@@ -753,7 +753,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 	if (success) {
 		recordScrollAndZoom();
-		blinkInvisible = false;
+		blinkPhase = 0;
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -790,54 +790,71 @@ ActionResult SampleMarkerEditor::timerCallback() {
 		return ActionResult::DEALT_WITH;
 	}
 
-	blinkInvisible = !blinkInvisible;
+	blinkPhase = static_cast<int8_t>((blinkPhase + 1) % 4);
 
 	int32_t supressMask = 0;
-	if (blinkInvisible) {
+
+	switch (blinkPhase) {
+		// Flash a full column of color for the primary selection
+	case 1:
+		for (auto& col : PadLEDs::image) {
+			col[x] = colours::black;
+		}
+
+		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+		                              &waveformBasicNavigator.renderData);
+		renderMarkerInCol(x, PadLEDs::image, markerType, 0, kDisplayHeight, false);
+		PadLEDs::sortLedsForCol(x);
+		break;
+	case 3:
+		// 3 case: supress the primary and locked markers
 		supressMask |= 1 << (util::to_underlying(markerType));
 		supressMask |= 1 << (util::to_underlying(otherMarker));
-	}
+		[[fallthrough]];
+	case 0:
+		// 0 or 2: render normally
+		[[fallthrough]];
+	case 2:
+		if (otherMarker != MarkerType::NONE && otherMarkerX != x) {
+			// Need to clear both columns
+			for (auto& col : PadLEDs::image) {
+				col[x] = colours::black;
+				col[otherMarkerX] = colours::black;
+			}
 
-	if (otherMarker != MarkerType::NONE && otherMarkerX != x) {
-		// Need to clear both columns
-		for (auto& col : PadLEDs::image) {
-			col[x] = colours::black;
-			col[otherMarkerX] = colours::black;
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, otherMarkerX, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+
+			renderColumn(x, PadLEDs::image, cols, supressMask);
+			renderColumn(otherMarkerX, PadLEDs::image, cols, supressMask);
+
+			PadLEDs::sortLedsForCol(x);
+			PadLEDs::sortLedsForCol(otherMarkerX);
+		}
+		else {
+			// Only 1 marker to render or both markers are on the same column, only clear and re-render once
+			for (auto& col : PadLEDs::image) {
+				col[x] = colours::black;
+			}
+
+			waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
+			                              &waveformBasicNavigator.renderData);
+
+			// render the selected marker solid, and flash the rest of the column with the color for the other marker
+			renderColumn(x, PadLEDs::image, cols, supressMask);
+			PadLEDs::sortLedsForCol(x);
 		}
 
-		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-		                              &waveformBasicNavigator.renderData);
-		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, otherMarkerX, PadLEDs::image,
-		                              &waveformBasicNavigator.renderData);
-
-		renderColumn(x, PadLEDs::image, cols, supressMask);
-		renderColumn(otherMarkerX, PadLEDs::image, cols, supressMask);
-
-		PadLEDs::sortLedsForCol(x);
-		PadLEDs::sortLedsForCol(otherMarkerX);
-	}
-	else {
-		// Only 1 marker to render or both markers are on the same column, only clear and re-render once
-		for (auto& col : PadLEDs::image) {
-			col[x] = colours::black;
-		}
-
-		waveformRenderer.renderOneCol(waveformBasicNavigator.sample, x, PadLEDs::image,
-		                              &waveformBasicNavigator.renderData);
-
-		// render the selected marker solid, and flash the rest of the column with the color for the other marker
-		renderColumn(x, PadLEDs::image, cols, supressMask);
-		PadLEDs::sortLedsForCol(x);
+		break;
+	default:
+		__builtin_unreachable();
 	}
 
 	PIC::flush();
 
-	if (blinkInvisible) {
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
-	}
-	else {
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime * 2);
-	}
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 
 	return ActionResult::DEALT_WITH;
 }
@@ -1302,20 +1319,24 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 
 	bool isSelectedColumn = (selectedMarkerMask & activeMarkers) != 0;
 
-	if (isSelectedColumn) {
-		// For the selected column, if we're not supressing the selection color, just flash the whole column
-		if ((selectedMarkerMask & supressMask) != 0) {
-			renderMarkerInCol(col, image, markerType, 0, kDisplayHeight, false);
-			return;
-		}
-	}
-
-	int32_t increment = 0;
-	if (numMarkers <= 2) {
-		increment = 2;
-	}
-	else {
-		increment = 1;
+	int32_t baseIncrement = 0;
+	int32_t selectedIncrement;
+	switch (numMarkers) {
+	case 1:
+		baseIncrement = selectedIncrement = kDisplayHeight / 2;
+		break;
+	case 2:
+		baseIncrement = selectedIncrement = 2;
+		break;
+	case 3:
+		baseIncrement = 1;
+		selectedIncrement = 2;
+		break;
+	case 4:
+		baseIncrement = selectedIncrement = 1;
+		break;
+	default:
+		__builtin_unreachable();
 	}
 
 	while (markerMask != (1 << kNumMarkerTypes)) {
@@ -1326,25 +1347,33 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 			continue;
 		}
 
+		bool isSelected = (markerMask & selectedMarkerMask) != 0;
+
 		seenMarkers++;
 
 		int32_t yEnd = prevYEnd;
 		int32_t yStart = 0;
 
-		if ((seenMarkers == numMarkers)) {
+		if (seenMarkers == numMarkers) {
 			// This is the last marker we need to render in this column, fill the rest of the column
 			yStart = kDisplayHeight / 2;
 		}
 		else {
 			// otherwise, render just 1 pad for this marker
-			yStart = yEnd - increment;
+			if (isSelected) {
+				yStart = yEnd - selectedIncrement;
+			}
+			else {
+				yStart = yEnd - baseIncrement;
+			}
 		}
 
-		bool supressed = (markerMask & supressMask) != 0u;
-		if (!supressed) {
-			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), yStart, yEnd, true);
+		bool allowed = (markerMask & supressMask) == 0u;
+		if (allowed) {
+			bool dim = !isSelected;
+			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), yStart, yEnd, dim);
 			renderMarkerInCol(col, image, static_cast<MarkerType>(marker), kDisplayHeight - yEnd,
-			                  kDisplayHeight - yStart, true);
+			                  kDisplayHeight - yStart, dim);
 		}
 
 		prevYEnd = yStart;
@@ -1370,7 +1399,7 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[kDisplayHe
 		getColsOnScreen(cols);
 
 		int32_t supressMask = 0;
-		if (blinkInvisible) {
+		if (blinkPhase >= 1) {
 			supressMask |= 1 << (util::to_underlying(markerType));
 			if (isLoopLocked()) {
 				if (markerType == MarkerType::LOOP_START) {

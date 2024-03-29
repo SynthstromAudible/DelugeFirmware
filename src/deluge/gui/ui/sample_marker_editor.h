@@ -61,7 +61,7 @@ public:
 
 	MarkerType markerType;
 
-	bool blinkInvisible;
+	int8_t blinkPhase;
 
 	int8_t pressX;
 	int8_t pressY;
