@@ -47,6 +47,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/cfunctions.h"
 #include "util/misc.h"
+#include <algorithm>
 
 using namespace deluge::gui;
 
@@ -1352,7 +1353,7 @@ void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDi
 	}
 }
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 	if (!image) {
@@ -1382,6 +1383,26 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		}
 
 		for (int32_t col = 0; col < kDisplayWidth; ++col) {
+			if (col < cols[util::to_underlying(MarkerType::START)].colOnScreen
+			    || col > cols[util::to_underlying(MarkerType::END)].colOnScreen) {
+				for (int32_t rowIdx = 0; rowIdx < kDisplayHeight; ++rowIdx) {
+					auto& row = image[rowIdx];
+					uint32_t val = row[col][0];
+					val *= 2;
+					val += 16;
+					val = std::clamp(val, 0_u32, 255_u32);
+					row[col] = RGB(val, val, val);
+				}
+			}
+			else if (cols[util::to_underlying(MarkerType::LOOP_START)].pos != 0
+			         && cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen <= col
+			         && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen >= col) {
+				for (int32_t rowIdx = 0; rowIdx < kDisplayHeight; ++rowIdx) {
+					auto& row = image[rowIdx];
+					uint32_t val = row[col][0];
+					row[col][1] /= 8;
+				}
+			}
 			renderColumn(col, image, cols, supressMask);
 		}
 
