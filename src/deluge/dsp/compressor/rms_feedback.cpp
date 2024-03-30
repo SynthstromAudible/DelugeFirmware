@@ -90,7 +90,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	rms = calcRMS(buffer, numSamples);
 }
 
-float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) {
+float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) const {
 	float s{0};
 	if (desired > current) {
 		s = desired + std::exp(a_ * numSamples) * (current - desired);
@@ -110,8 +110,8 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 	q31_t offset = 0; // to remove dc offset
 	float lastMean = mean;
 	do {
-		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, a);
-		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, a);
+		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, hpfMovability_);
+		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, hpfMovability_);
 		q31_t s = std::max(std::abs(l), std::abs(r));
 		sum += multiply_32x32_rshift32(s, s) << 1;
 
