@@ -42,13 +42,15 @@ public:
 		mean = 0;
 	}
 
-	/// Render the compressor.
+	/// Render the compressor in-place using the provided buffer.
+	///
+	/// Assumes the input is 24-bit peak-to-peak (-2^23 to 2^23), and keeps the output in that range.
 	///
 	/// @param buffer Input and output buffer.
 	/// @param numSamples Length of the buffer.
-	/// @param volAdjustL Linear gain to apply to the left channel, in addition to the compressor gain.
-	/// @param volAdjustL Linear gain to apply to the right channel, in addition to the compressor gain.
-	/// @param finalVolume Linear volume defining 0db.
+	/// @param volAdjustL Linear gain to apply to the left channel as a 4.27 signed fixed point number.
+	/// @param volAdjustL Linear gain to apply to the right channel as a 4.27 signed fixed point number.
+	/// @param finalVolume Linear peak-to-peak volume scale, as a 3.29 fixed-point integer.
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR, q31_t finalVolume);
 
 	/// Render the compressor with neutral left/right gain and with the finalVolume tweaked so the compressor applies
@@ -120,7 +122,7 @@ public:
 
 	/// Set the ratio based on a full-scale (0 to 2^31) number.
 	///
-	/// A inverse (1/x) mapping is used, where 0 corresponds to a ratio of 2, 2^31 corresponds to a ratio of infinity.
+	/// A inverse (1/x) mapping is used, where 0 corresponds to a ratio of 2:1, 2^31 corresponds to a ratio of 256:1.
 	constexpr int32_t setRatio(q31_t rat) {
 		ratioKnobPos = rat;
 		fraction = 0.5f + (float(ratioKnobPos) / ONE_Q31f) / 2;
@@ -144,7 +146,7 @@ public:
 		fc_hz = (std::exp(1.5 * float(f) / ONE_Q31f) - 1) * 30;
 		float fc = fc_hz / float(kSampleRate);
 		float wc = fc / (1 + fc);
-		hpfMovability_ = wc * ONE_Q31;
+		hpfA_ = wc * ONE_Q31;
 		return fc_hz;
 	}
 
@@ -163,21 +165,27 @@ private:
 	/// Release time constant, in inverse samples
 	float r_ = (-1000.0f / kSampleRate);
 	/// 1 - (1 / ratio), describes the actual factor by which volume changes should increase or decrease.
+	///
+	/// The UI currently limits this to 0.5 (a ratio of 2) to 1.5 (a ratio of 256)
 	float fraction = 0.5;
-	/// Internal envelope state
+	/// Internal (smoothed) version of the requested final volume
 	float er = 0;
 	/// Threshold, in decibels
 	float threshdb = 17;
 	/// The raw threshold value
 	float threshold = 1;
-	/// Moveability parameter for the internal HPF
-	q31_t hpfMovability_ = ONE_Q15;
+	/// A parameter for the internal HPF
+	q31_t hpfA_ = ONE_Q15;
 
-	// state
+	/// State for the internal envelope follower
 	float state = 0;
+	/// Current left channel volume as a 5.26 signed fixed-point number
 	q31_t currentVolumeL = 0;
+	/// Current right channel volume as a 5.26 signed fixed-point number
 	q31_t currentVolumeR = 0;
+	/// Log-RMS value of the last render.
 	float rms = 0;
+	/// Mean value of the last render.
 	float mean = 0;
 
 	// sidechain filter
