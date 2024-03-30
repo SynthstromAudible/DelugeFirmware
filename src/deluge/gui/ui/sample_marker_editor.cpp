@@ -1251,18 +1251,12 @@ printSeconds:
 void SampleMarkerEditor::loopUnlock() {
 	auto& multiSampleRange = getCurrentMultisampleRange();
 	multiSampleRange.sampleHolder.loopLocked = false;
-	if (display->have7SEG()) {
-		this->displayText();
-	}
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
 	auto& multiSampleRange = getCurrentMultisampleRange();
 	multiSampleRange.sampleHolder.loopLocked = true;
-	if (display->have7SEG()) {
-		this->displayText();
-	}
 	display->displayPopup("LOCK");
 }
 
