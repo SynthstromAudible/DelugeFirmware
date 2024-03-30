@@ -771,12 +771,22 @@ The Sound menu contains the following menu hierarchy:
 	- File Browser (FILE) - if Wavetable or Sample type is selected
 	- Record Audio (RECO)
 	- Reverse (REVE) - if Sample type is selected
+		- Disabled (OFF)
+		- Enabled (ON)
 	- Repeat Mode (MODE)
+		- Cut
+		- Once
+		- Loop
+		- Stretch
 	- Start-Point (STAR) - if Sample type is selected
 	- End-Point (END-) - if Sample type is selected
 	- Transpose (TRAN)
 	- Pitch/Speed (PISP)
+		- Linked
+		- Independent
 	- Interpolation (INTE) - if Input type is selected
+		- Linear
+		- Sync
 	- Speed (SPEE) - if Sample type selected
 	- Pulse Width (PULS) - if any type except Sample or Input is selected
 	- Retrigger Phase (RETR) - if any type except Sample is selected
@@ -799,12 +809,22 @@ The Sound menu contains the following menu hierarchy:
 	- File Browser (FILE) - if Wavetable or Sample type is selected
 	- Record Audio (RECO)
 	- Reverse (REVE) - if Sample type is selected
+		- Disabled (OFF)
+		- Enabled (ON)
 	- Repeat Mode (MODE)
+		- Cut
+		- Once
+		- Loop
+		- Stretch
 	- Start-Point (STAR) - if Sample type is selected
 	- End-Point (END-) - if Sample type is selected
 	- Transpose (TRAN)
 	- Pitch/Speed (PISP)
+		- Linked
+		- Independent
 	- Interpolation (INTE) - if Input type is selected
+		- Linear
+		- Sync
 	- Speed (SPEE) - if Sample type selected
 	- Pulse Width (PULS) - if any type except Sample or Input is selected
 	- Oscillator Sync (SYNC)
@@ -1087,7 +1107,82 @@ The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELEC
 
 The CV Instrument menu is accessible from CV clips by pressing on the `SELECT ENCODER`
 
-** Menu hierarchy to be added **
+The CV menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Arpeggiator (ARPE)</summary>
+
+	- Mode
+		- OFF
+		- Arpeggiator (ARP)
+	- Sync
+	NOTE: These options can change depending on how your default resolution is set
+
+			- Off
+			- 2-Bar
+			- 1-Bar
+			- 2nd-Notes
+			- 4th-Notes
+			- 8th-Notes
+			- 16th-Notes
+			- 32nd-Notes
+			- 64th-Notes
+			- 128th-Notes
+			- 2-Bar-TPLTS
+			- 1-Bar-TPLTS
+			- 2nd-TPLTS
+			- 4th-TPLTS
+			- 8th-TPLTS
+			- 16th-TPLTS
+			- 32nd-TPLTS
+			- 64th-TPLTS
+			- 128th-TPLTS
+			- 2-Bar-DTTED
+			- 1-Bar-DTTED
+			- 2nd-DTTED
+			- 4th-DTTED
+			- 8th-DTTED
+			- 16th-DTTED
+			- 32nd-DTTED
+			- 64th-DTTED
+			- 128th-DTTED	
+	- Rate
+	- Gate
+	- Octaves (OCTA)
+	- Octave Mode (OMOD)
+		- Up
+		- Down
+		- Up & Down (UPDN)
+		- Alternate (ALT)
+		- Random (RAND)
+	- Note Mode (NMOD)
+		- Up
+		- Down
+		- Up & Down (UPDN)
+		- As Played (PLAY)
+		- Random (RAND)
+	- Rhythm (RHYT)
+	- Sequence Length (LENG)
+	- Ratchet Amount (RATC)
+	- Ratchet Probability (RPRO)
+	- MPE
+		- Velocity (VELO)
+			- Disabled (OFF)
+			- Aftertouch
+			- MPE Y (Y)
+</details>
+<details><summary>Bend Range (BEND) </summary>
+
+	- Normal
+	- Poly / Finger / MPE
+</details>
+<details><summary>Play Direction (DIRE) </summary>
+
+	- Forward
+	- Reversed
+	- Ping-Pong
+</details>
+
 </details>
 
 <details>
@@ -1095,5 +1190,193 @@ The CV Instrument menu is accessible from CV clips by pressing on the `SELECT EN
 
 The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT ENCODER`
 
-** Menu hierarchy to be added **
+The Audio Clip menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Audio Source (AUDI)</summary>
+
+	- Disabled (DISA)
+	- Left Input (LEFT)
+	- Left Input (Monitoring) (LEFT)
+	- Right Input (RIGH)
+	- Right Input (Monitoring) (RIGH)
+	- Stereo Input (STER)
+	- Stereo Input (Monitoring) (STER)
+	- Bal. Input (BAL)
+	- Bal. Input (Monitoring) (BAL)
+	- Deluge Mix (Pre FX) (DELU)
+	- Deluge Output (Post FX) (DELU)
+</details>
+<details><summary>Master (MASTR)</summary>
+
+	- Volume (VOLU)
+	- Transpose (TRAN)
+	- Pan
+</details>
+<details><summary>Compressor (COMP)</summary>
+
+	- Threshold (THRE)
+	- Ratio (RATI)
+	- Attack (ATTA)
+	- Release (RELE)
+	- HPF
+</details>
+<details><summary>Filters (FLTR)</summary>
+
+	- LPF
+		- Frequency (FREQ)
+		- Resonance (RESO)
+		- Morph (MORP)
+		- Mode (MODE)
+			- 12DB Ladder (LA12)
+			- 24DB Ladder (LA24)
+			- Drive (DRIV)
+			- SVF Bandpass (SV_B)
+			- SVF Notch (SV_N)
+	- HPF
+		- Frequency (FREQ)
+		- Resonance (RESO)
+		- Morph (MORP)
+		- Mode (MODE)
+			- SVF Bandpass (SV_B)
+			- SVF Notch (SV_N)
+			- HP Ladder (HP_L)
+	- Filter Route (ROUT)
+		- HPF2LPF (HPF2)
+		- LPF2HPF (LPF2)
+		- PARALLEL (PARA)
+</details>
+<details><summary>FX</summary>
+
+	- EQ
+		- Bass
+		- Treble (TREB)
+		- Bass Frequency (BAFR)
+		- Treble Frequency (TRFR)
+	- Delay (DELA)
+		- Amount (AMOU)
+		- Rate
+		- Pingpong (PING)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Type
+			- Digital (DIGI)
+			- Analog (ANA)
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+				
+			- Off
+			- 2-Bar
+			- 1-Bar
+			- 2nd-Notes
+			- 4th-Notes
+			- 8th-Notes
+			- 16th-Notes
+			- 32nd-Notes
+			- 64th-Notes
+			- 128th-Notes
+			- 2-Bar-TPLTS
+			- 1-Bar-TPLTS
+			- 2nd-TPLTS
+			- 4th-TPLTS
+			- 8th-TPLTS
+			- 16th-TPLTS
+			- 32nd-TPLTS
+			- 64th-TPLTS
+			- 128th-TPLTS
+			- 2-Bar-DTTED
+			- 1-Bar-DTTED
+			- 2nd-DTTED
+			- 4th-DTTED
+			- 8th-DTTED
+			- 16th-DTTED
+			- 32nd-DTTED
+			- 64th-DTTED
+			- 128th-DTTED
+	- Reverb (REVE)
+		- Amount (AMOU)
+  			- Freeverb (FVRB)
+     			- Mutable (MTBL)
+		- Model (MODE)
+		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+		- Damping (DAMP)
+		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+		- Pan
+		- Reverb Sidechain (SIDE)
+			- Volume Ducking (VOLU)
+	
+	- Mod-FX (MODU)
+		- Type
+			- Disabled (OFF)
+			- Flanger (FLAN)
+			- Chorus (CHOR)
+			- Phaser (PHAS)
+			- Stereo Chorus (S.CHO)
+			- Grain (GRAI) (if enabled in Community Features menu)
+		- Rate
+		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
+		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
+		- Offset (OFFS) (if Chorus or Grain is selected)
+	- Distortion (DIST)
+		- Saturation (SATU)
+		- Decimation (DECI)
+		- Bitcrush (CRUS)
+</details>
+<details><summary>Sidechain (SIDE) </summary>
+
+	- Volume Ducking (VOLU)
+	- Sync
+	NOTE: These options can change depending on how your default resolution is set
+				
+		- Off
+		- 2-Bar
+		- 1-Bar
+		- 2nd-Notes
+		- 4th-Notes
+		- 8th-Notes
+		- 16th-Notes
+		- 32nd-Notes
+		- 64th-Notes
+		- 128th-Notes
+		- 2-Bar-TPLTS
+		- 1-Bar-TPLTS
+		- 2nd-TPLTS
+		- 4th-TPLTS
+		- 8th-TPLTS
+		- 16th-TPLTS
+		- 32nd-TPLTS
+		- 64th-TPLTS
+		- 128th-TPLTS
+		- 2-Bar-DTTED
+		- 1-Bar-DTTED
+		- 2nd-DTTED
+		- 4th-DTTED
+		- 8th-DTTED
+		- 16th-DTTED
+		- 32nd-DTTED
+		- 64th-DTTED
+		- 128th-DTTED		
+	- Attack (ATTA)
+	- Release (RELE)
+	- Shape (TYPE)
+</details>	
+<details><summary>Sample (SAMP) </summary>
+
+	- File Browser (FILE)
+	- Reverse (REVE)
+		- Disabled (OFF)
+		- Enabled (ON)
+	- Pitch/Speed (PISP)
+		- Linked
+		- Independent
+	- Waveform (WAVE)
+</details>
+<details><summary>Attack (ATTA) </summary></details>
+<details><summary>Priority (PRIO) </summary>
+
+	- Low
+	- Medium
+	- High
+</details>
+
 </details>
