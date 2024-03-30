@@ -1124,7 +1124,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	uint32_t markerPosSamples = cols[util::to_underlying(markerType)].pos;
 
 	char const* markerTypeText;
-	switch (markerType) {
+	switch (reverseRemap(markerType)) {
 	case MarkerType::START:
 		markerTypeText = "Start point";
 		break;
