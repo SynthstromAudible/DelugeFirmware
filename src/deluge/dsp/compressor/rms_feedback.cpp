@@ -45,7 +45,7 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
 	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
 	// I couldn't extract correct volume levels from it.
-	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
+	render(buffer, numSamples, ONE_Q31 / 16, ONE_Q31 / 16, finalVolume >> 3);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
@@ -79,8 +79,8 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 		// Apply post-fx and post-reverb-send volume
-		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 2;
-		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 2;
+		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
+		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs
@@ -113,11 +113,11 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, hpfMovability_);
 		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, hpfMovability_);
 		q31_t s = std::max(std::abs(l), std::abs(r));
-		sum += multiply_32x32_rshift32(s, s) << 1;
+		sum += multiply_32x32_rshift32(s, s);
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples);
+	float ns = float(numSamples) / 0.5;
 	mean = (float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
