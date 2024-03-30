@@ -92,6 +92,9 @@ private:
 	/// Draw a single marker
 	void renderMarkerInCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                       MarkerType type, int32_t yStart, int32_t yEnd, bool dimmly);
+
+	/// Swap a marker to its inverse, if the sample is currently reversed.
+	[[nodiscard]] MarkerType reverseRemap(MarkerType type) const;
 };
 
 extern SampleMarkerEditor sampleMarkerEditor;

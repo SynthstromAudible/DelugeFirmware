@@ -80,6 +80,29 @@ bool isLoopLocked() {
 	return getCurrentClip()->type != ClipType::AUDIO && getCurrentMultisampleRange().sampleHolder.loopLocked;
 }
 
+MarkerType SampleMarkerEditor::reverseRemap(MarkerType type) const {
+	bool reversed = getCurrentSampleControls()->reversed;
+
+	if (reversed) {
+		switch (type) {
+		case MarkerType::NOT_AVAILABLE:
+			[[fallthrough]];
+		case MarkerType::NONE:
+			return type;
+		case MarkerType::START:
+			return MarkerType::END;
+		case MarkerType::LOOP_START:
+			return MarkerType::LOOP_END;
+		case MarkerType::LOOP_END:
+			return MarkerType::LOOP_START;
+		case MarkerType::END:
+			return MarkerType::START;
+		}
+	}
+
+	return type;
+}
+
 bool SampleMarkerEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b10;
 	return true;
@@ -1059,47 +1082,36 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
                                            RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                            MarkerType type, int32_t yStart, int32_t yEnd, bool dimmly) {
-	bool reversed = getCurrentSampleControls()->reversed;
+	type = reverseRemap(type);
 
-	MarkerType greenMarker = reversed ? MarkerType::END : MarkerType::START;
-	MarkerType cyanMarker = reversed ? MarkerType::LOOP_END : MarkerType::LOOP_START;
-	MarkerType purpleMarker = reversed ? MarkerType::LOOP_START : MarkerType::LOOP_END;
-	MarkerType redMarker = reversed ? MarkerType::START : MarkerType::END;
+	RGB markerColour{};
+
+	switch (type) {
+	case MarkerType::NOT_AVAILABLE:
+		[[fallthrough]];
+	case MarkerType::NONE:
+		markerColour = colours::yellow;
+		break;
+	case MarkerType::START:
+		markerColour = colours::green;
+		break;
+	case MarkerType::LOOP_START:
+		markerColour = colours::cyan;
+		break;
+	case MarkerType::LOOP_END:
+		markerColour = colours::magenta;
+		break;
+	case MarkerType::END:
+		markerColour = colours::red;
+		break;
+	}
+
+	if (dimmly) {
+		markerColour = markerColour.dim(3);
+	}
 
 	for (int32_t y = yStart; y < yEnd; ++y) {
-		int32_t existingColourAmount = thisImage[y][xDisplay][0];
-
-		// Green
-		if (type == greenMarker) {
-			thisImage[y][xDisplay][0] >>= 2;
-			thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
-			thisImage[y][xDisplay][2] >>= 2;
-		}
-
-		// Cyan
-		else if (type == cyanMarker) {
-			thisImage[y][xDisplay][0] >>= 1;
-			thisImage[y][xDisplay][1] = 140 - existingColourAmount;
-			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-		}
-
-		// Purple
-		else if (type == purpleMarker) {
-			thisImage[y][xDisplay][0] = 140 - existingColourAmount;
-			thisImage[y][xDisplay][1] >>= 1;
-			thisImage[y][xDisplay][2] = 140 - existingColourAmount;
-		}
-
-		// Red
-		else if (type == redMarker) {
-			thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
-			thisImage[y][xDisplay][1] >>= 2;
-			thisImage[y][xDisplay][2] >>= 2;
-		}
-
-		if (dimmly) {
-			thisImage[y][xDisplay] = thisImage[y][xDisplay].dim(3);
-		}
+		thisImage[y][xDisplay] = RGB::average(markerColour, thisImage[y][xDisplay]);
 	}
 }
 
