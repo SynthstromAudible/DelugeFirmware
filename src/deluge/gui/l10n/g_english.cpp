@@ -15,7 +15,7 @@ using enum String;
 PLACE_SDRAM_DATA Language english{
     "English",
     {
-        {EMPTY_STRING, "ohoho"},
+        {EMPTY_STRING, ""},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "Insufficient RAM"},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE, "Too many files in folder"},
         {STRING_FOR_ERROR_SD_CARD, "SD card error"},
