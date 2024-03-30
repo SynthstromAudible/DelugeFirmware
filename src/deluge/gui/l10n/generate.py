@@ -17,8 +17,9 @@ def process(input, output):
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
+// clang-format off
 namespace deluge::l10n::built_in {
-using enum String;"""
+using enum String;\n"""
     )
 
     type_name = input["type_name"]
@@ -37,7 +38,8 @@ using enum String;"""
         output.write(f"    &built_in::{fallback},\n")
     output.write(
         """};
-} // namespace deluge::l10n::built_in"""
+} // namespace deluge::l10n::built_in
+// clang-format on\n"""
     )
 
 

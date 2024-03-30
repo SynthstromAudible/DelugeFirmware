@@ -9,8 +9,10 @@
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
+// clang-format off
 namespace deluge::l10n::built_in {
-using enum String;PLACE_SDRAM_DATA Language seven_segment{
+using enum String;
+PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "RAM"},
@@ -399,3 +401,4 @@ using enum String;PLACE_SDRAM_DATA Language seven_segment{
     &built_in::english,
 };
 } // namespace deluge::l10n::built_in
+// clang-format on

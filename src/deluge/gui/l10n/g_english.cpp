@@ -9,8 +9,10 @@
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
+// clang-format off
 namespace deluge::l10n::built_in {
-using enum String;PLACE_SDRAM_DATA Language english{
+using enum String;
+PLACE_SDRAM_DATA Language english{
     "English",
     {
         {EMPTY_STRING, ""},
@@ -735,3 +737,4 @@ using enum String;PLACE_SDRAM_DATA Language english{
     },
 };
 } // namespace deluge::l10n::built_in
+// clang-format on
