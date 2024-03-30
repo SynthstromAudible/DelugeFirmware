@@ -49,7 +49,7 @@ jobs:
 
       - name: Genfile check
         run: |
-          git diff-files
+          git diff-files --patch --exit-code
 
       - name: Publish built firmware (debug-bin)
         uses: actions/upload-artifact@v4
