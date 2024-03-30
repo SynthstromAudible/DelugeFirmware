@@ -19,7 +19,6 @@ message(INFO dsr: ${deluge_strings_SOURCES})
 
 target_sources(deluge PUBLIC
   ${deluge_SOURCES}
-  ${deluge_strings_SOURCES}
 )
 
 target_include_directories(deluge PUBLIC
