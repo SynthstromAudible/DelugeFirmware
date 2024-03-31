@@ -89,7 +89,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	} while (++thisSample != bufferEnd);
 	// for LEDs
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
 	rms = calcRMS(buffer, numSamples);
 }
@@ -121,8 +121,8 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples * 2);
-	mean = (float(sum) / ONE_Q31f) / ns;
+	float ns = float(numSamples);
+	mean = (2 * float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
