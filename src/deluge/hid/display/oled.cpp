@@ -88,14 +88,16 @@ const uint8_t OLED::rightArrowIcon[] = {
     0b00000100,
 };
 
+// This icon is missing the bottom row because it's 9 pixels tall and bytes only have 8 bits. Remember to draw a
+// rectangle under it so it looks correct
 const uint8_t OLED::lockIcon[] = {
-    0b01111100, //<
-    0b11101110, //<
-    0b11101101, //<
-    0b10101101, //<
-    0b11101101, //<
-    0b11101110, //<
-    0b01111100, //<
+    0b11111000, //<
+    0b11111110, //<
+    0b00001001, //<
+    0b01111001, //<
+    0b01111001, //<
+    0b11111110, //<
+    0b11111000, //<
 };
 
 #if ENABLE_TEXT_OUTPUT
