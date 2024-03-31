@@ -12,4 +12,17 @@ submenu::Filter lpfMenu{
         &lpfMorphMenu,
     },
 };
+filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
+patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
+filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
+filter::FilterMorph hpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_HPF_MORPH, true};
+submenu::Filter hpfMenu{
+    STRING_FOR_HPF,
+    {
+        &hpfFreqMenu,
+        &hpfResMenu,
+        &hpfModeMenu,
+        &hpfMorphMenu,
+    },
+};
 // clang-format on

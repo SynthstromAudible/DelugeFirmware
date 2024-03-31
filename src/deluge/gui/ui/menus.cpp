@@ -174,23 +174,6 @@ namespace params = deluge::modulation::params;
 
 #include "gui/menu_item/generate/g_menus.inc"
 
-// HPF menu ----------------------------------------------------------------------------------------------------
-
-filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
-patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
-filter::FilterMorph hpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_HPF_MORPH, true};
-filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
-
-submenu::Filter hpfMenu{
-    STRING_FOR_HPF,
-    {
-        &hpfFreqMenu,
-        &hpfResMenu,
-        &hpfModeMenu,
-        &hpfMorphMenu,
-    },
-};
-
 // Filter Route Menu ----------------------------------------------------------------------------------------------
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 
