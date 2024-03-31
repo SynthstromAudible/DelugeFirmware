@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from .. import dsl
 
+
 class Visitor(ABC):
     @abstractmethod
     def visit_menu(self, menu: dsl.Menu):

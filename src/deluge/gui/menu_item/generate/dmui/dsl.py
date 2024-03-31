@@ -40,24 +40,23 @@ class Menu:
         description,
         name=None,
         available_when=None,
-    ):
+        ):
         """
         A basic menu.
 
         Parameters:
-        clazz: str
+            clazz: str
             The C++ class to use for this menu item.
         cpp_name: str
             The variable name to use when emitting C++ code.
-        arg_template: str
-            A Python format-string which will be used to generate the C++
-            initializer arguments.
+        arg_template: list(str)
+            A list of Python format strings which will be used to generate the
+            C++ initializer arguments.
         title: str
             The key in the language map for the header of this menu item when
             it's opened.
         description: str
-            A human-readable description of this menu item, for use in
-            generated documentation.
+            Path to the description of this menu, relative to docs/menu
         name: str
             The key in the langauge map for the string to be rendered when this
             menu item is presented for selection in a submenu. A value of None
@@ -76,8 +75,11 @@ class Menu:
         else:
             self.name = name
         self.arg_template = arg_template
-        self.description = trim(description)
-        self.available_when = available_when
+        self.description = description
+        if available_when is None:
+            self.available_when = None
+        else:
+            self.available_when = trim(available_when)
 
     def template_args(self):
         return {"name": self.name, "title": self.title}
@@ -106,15 +108,14 @@ class Submenu(Menu):
             The C++ class to use for this menu item.
         cpp_name: str
             The variable name to use when emitting C++ code.
-        arg_template: str
-            A Python format-string which will be used to generate the C++
-            initializer arguments.
+        arg_template: list(str)
+            A list of Python format strings which will be used to generate the
+            C++ initializer arguments.
         title: str
             The key in the language map for the header of this menu item when
             it's opened.
         description: str
-            A human-readable description of this menu item, for use in
-            generated documentation.
+            Path to the description of this mode, relative to docs/menu
         children: list(Menu)
             The menus this submenu selects from.
         name: str
@@ -162,9 +163,9 @@ class MultiModeMenu(Menu):
             The C++ class to use for this menu item.
         cpp_name: str
             The variable name to use when emitting C++ code.
-        arg_template: str
-            A Python format-string which will be used to generate the C++
-            initializer arguments.
+        arg_template: list(str)
+            A list of Python format strings which will be used to generate the
+            C++ initializer arguments.
         title: str
             The key in the language map for the header of this menu item when
             it's opened.
@@ -200,7 +201,7 @@ class MultiModeMenu(Menu):
 
 class MultiModeMenuMode:
     def __init__(self, title, available_when, description, name=None):
-        """ A mode for a multimode menu item, containing information about when
+        """A mode for a multimode menu item, containing information about when
         the mode is active and what the parameter means when it is active.
 
         title: str
@@ -209,7 +210,7 @@ class MultiModeMenuMode:
         available_when: str
             Markdown fragment describing when this menu item is available.
         description: str
-            Markdown fragment describing what the menu item means when in this mode.
+            Path to the description of this mode, relative to docs/menu
         name: str
             The key in the language map used to describe this menu item when
             presenting a submenu. A value of None (the default) causes this to
@@ -217,7 +218,7 @@ class MultiModeMenuMode:
         """
         self.title = title
         self.available_when = trim(available_when)
-        self.description = trim(description)
+        self.description = description
         if name is None:
             self.name = title
         else:
