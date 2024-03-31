@@ -28,9 +28,12 @@
 #define SQUARE_NOTE_TAIL_UNMODIFIED 3
 #define SQUARE_NOTE_TAIL_MODIFIED 4
 #define SQUARE_BLURRED 5
+#define SQUARE_NO_NOTE 6
+#define SQUARE_NOTE_TAIL 7
 
 #define CORRESPONDING_NOTES_ADJUST_VELOCITY 0
 #define CORRESPONDING_NOTES_SET_PROBABILITY 1
+#define CORRESPONDING_NOTES_SET_VELOCITY 2
 
 class InstrumentClip;
 class Song;
@@ -48,6 +51,15 @@ class TimelineView;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
+
+struct SquareInfo {
+	int32_t squareStartPos;
+	int32_t squareEndPos;
+	int32_t numNotes;
+	uint8_t squareType;
+	int32_t averageProbability;
+	int32_t averageVelocity;
+};
 
 struct PendingNoteOn {
 	NoteRow* noteRow;
@@ -151,6 +163,12 @@ public:
 	                            bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
+	void initRowSquareInfo(SquareInfo rowSquareInfo[kDisplayWidth], bool anyNotes);
+	void initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x);
+	void getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo[kDisplayWidth]);
+	void getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squareInfo);
+	void addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note);
+	void calculateSquareAverages(SquareInfo& squareInfo);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);

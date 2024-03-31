@@ -432,6 +432,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 				automationView.resetInterpolationShortcutBlinking();
 				automationView.resetPadSelectionShortcutBlinking();
+				automationView.resetSelectedNoteRowBlinking();
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
