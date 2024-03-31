@@ -110,7 +110,8 @@ class Submenu(Menu):
             The variable name to use when emitting C++ code.
         arg_template: list(str)
             A list of Python format strings which will be used to generate the
-            C++ initializer arguments.
+            C++ initializer arguments. At least one of the argumnents must be
+            '%%CHILDREN%%' which will be replaced by references to the children.
         title: str
             The key in the language map for the header of this menu item when
             it's opened.
@@ -138,6 +139,10 @@ class Submenu(Menu):
             available_when=available_when,
             name=name,
         )
+
+        if "%%CHILDREN%%" not in arg_template:
+            raise ValueError('Argument template does not include "%%CHILDREN%%')
+
         self.children = children
 
     def visit(self, visitor):

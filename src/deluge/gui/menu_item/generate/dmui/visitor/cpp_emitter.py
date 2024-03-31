@@ -93,6 +93,8 @@ class CppEmitter(Visitor):
         self.outf.write(menu.cpp_name)
         self.outf.write("{")
 
+        # TODO: test if generating an explicit array has smaller code size than
+        # the initializer list.
         self.emit_args(menu.arg_template, menu.template_args(), children=children)
 
         self.outf.write("};\n")
