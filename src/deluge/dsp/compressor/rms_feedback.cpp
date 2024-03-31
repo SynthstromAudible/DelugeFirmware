@@ -28,9 +28,9 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
-
-	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolumedB = logf(finalVolume);
+	// 33551360
+	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
