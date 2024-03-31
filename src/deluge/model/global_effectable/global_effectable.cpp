@@ -72,7 +72,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(889516852); // 3/4 of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
@@ -925,14 +925,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "volume")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
-		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
-		// reduces the saved song volume by approximately 21% (889516852 / 4294967295)
-		if (storageManager.firmware_version >= FirmwareVersion::official({4, 1, 4, "alpha"})
-		    && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
-			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
-		}
-		storageManager.exitTag("volume");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		bdsm.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
