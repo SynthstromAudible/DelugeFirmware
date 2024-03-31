@@ -49,6 +49,7 @@ jobs:
 
       - name: Genfile check
         run: |
+          find -name 'g_*' | git update-index --verbose --stdin
           git diff-files --patch --exit-code
 
       - name: Publish built firmware (debug-bin)
