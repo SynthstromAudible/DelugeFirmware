@@ -89,7 +89,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	} while (++thisSample != bufferEnd);
 	// for LEDs
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
 	rms = calcRMS(buffer, numSamples);
 }
