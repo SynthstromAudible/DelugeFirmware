@@ -4,10 +4,6 @@
 >
 here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
-## c1.2.0 Unnamed
-
-- Insert changes for next release here
-
 ## c1.1.0 Beethoven
 
 ### Sound Engine
@@ -78,6 +74,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
+- Added a new default setting that controls which playback mode new slices of a kit will get. 
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
