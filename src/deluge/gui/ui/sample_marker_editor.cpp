@@ -1154,7 +1154,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	if (isLoopLocked()) {
 		OLED::drawGraphicMultiLine(OLED::lockIcon, OLED_MAIN_WIDTH_PIXELS - 10, OLED_MAIN_TOPMOST_PIXEL + 1, 7,
 		                           OLED::oledMainImage[0]);
-		OLED::invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, OLED_MAIN_TOPMOST_PIXEL + 9, OLED_MAIN_TOPMOST_PIXEL + 10,
+		OLED::invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, OLED_MAIN_TOPMOST_PIXEL + 9, OLED_MAIN_TOPMOST_PIXEL + 9,
 		                 &OLED::oledMainImage[0]);
 	}
 
