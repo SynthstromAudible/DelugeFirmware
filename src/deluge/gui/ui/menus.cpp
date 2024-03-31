@@ -174,18 +174,6 @@ namespace params = deluge::modulation::params;
 
 #include "gui/menu_item/generate/g_menus.inc"
 
-// Filter Route Menu ----------------------------------------------------------------------------------------------
-FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
-
-submenu::Filter soundFiltersMenu{
-    STRING_FOR_FILTERS,
-    {
-        &lpfMenu,
-        &hpfMenu,
-        &filterRoutingMenu,
-    },
-};
-
 // Compressor Menu
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD,
                                       params::UNPATCHED_COMPRESSOR_THRESHOLD};

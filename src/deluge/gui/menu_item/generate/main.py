@@ -5,10 +5,7 @@ import argparse
 import json
 import sys
 
-top_level_menus = [
-    dmenus.filter.lpf.menu,
-    dmenus.filter.hpf.menu,
-]
+top_level_menus = [dmenus.filter.sound_filters]
 
 
 def parse_args():

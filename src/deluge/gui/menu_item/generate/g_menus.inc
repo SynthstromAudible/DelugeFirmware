@@ -25,4 +25,13 @@ submenu::Filter hpfMenu{
         &hpfMorphMenu,
     },
 };
+FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
+submenu::Filter soundFiltersMenu{
+    STRING_FOR_FILTERS,
+    {
+        &lpfMenu,
+        &hpfMenu,
+        &filterRoutingMenu,
+    },
+};
 // clang-format on
