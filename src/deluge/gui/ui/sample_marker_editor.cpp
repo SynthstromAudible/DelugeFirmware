@@ -1405,8 +1405,6 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 
 	if (markerType != MarkerType::NONE) {
 		MarkerColumn cols[kNumMarkerTypes];
-		int32_t markerStarts[kNumMarkerTypes];
-		int32_t markerEnds[kNumMarkerTypes];
 		getColsOnScreen(cols);
 
 		int32_t supressMask = 0;
@@ -1422,8 +1420,15 @@ bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 			}
 		}
 
+		int32_t selectedMarkerCol = cols[util::to_underlying(markerType)].colOnScreen;
 		for (int32_t col = 0; col < kDisplayWidth; ++col) {
-			renderColumn(col, image, cols, supressMask);
+			if (col == selectedMarkerCol && blinkPhase == 1) {
+				renderMarkerInCol(col, image, markerType, 0, kDisplayHeight, false);
+			}
+			else {
+
+				renderColumn(col, image, cols, supressMask);
+			}
 		}
 
 		if (cols[util::to_underlying(markerType)].colOnScreen >= 0
