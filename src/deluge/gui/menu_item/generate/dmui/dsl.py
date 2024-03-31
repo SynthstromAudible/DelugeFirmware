@@ -140,6 +140,9 @@ class Submenu(Menu):
             name=name,
         )
 
+        if type(children) != list:
+            raise ValueError('Children must be a list')
+
         if "%%CHILDREN%%" not in arg_template:
             raise ValueError('Argument template does not include "%%CHILDREN%%')
 

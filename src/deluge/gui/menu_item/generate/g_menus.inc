@@ -49,4 +49,28 @@ Submenu audioCompMenu{
         &compHPF,
     },
 };
+envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
+envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
+envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
+envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
+submenu::Envelope env0Menu{
+    STRING_FOR_ENVELOPE_1,
+    {
+        &envAttackMenu,
+        &envDecayMenu,
+        &envSustainMenu,
+        &envReleaseMenu,
+    },
+    0,
+};
+submenu::Envelope env1Menu{
+    STRING_FOR_ENVELOPE_2,
+    {
+        &envAttackMenu,
+        &envDecayMenu,
+        &envSustainMenu,
+        &envReleaseMenu,
+    },
+    1,
+};
 // clang-format on

@@ -8,7 +8,7 @@ import sys
 top_level_menus = [
     dmenus.filter.sound_filters,
     dmenus.compressor.menu,
-]
+] + dmenus.envelopes.menus
 
 
 def parse_args():

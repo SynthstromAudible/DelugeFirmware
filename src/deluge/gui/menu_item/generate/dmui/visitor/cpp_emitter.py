@@ -74,6 +74,10 @@ class CppEmitter(Visitor):
     # Visitor methods
     #
     def visit_menu(self, menu: dsl.Menu):
+        if hasattr(menu, '_cpp_emitted'):
+            return menu
+        menu._cpp_emitted = True
+
         self.emit_indent()
         self.outf.write(menu.clazz)
         self.outf.write(" ")
@@ -87,6 +91,10 @@ class CppEmitter(Visitor):
         return menu
 
     def visit_submenu(self, menu: dsl.Submenu, children):
+        if hasattr(menu, '_cpp_emitted'):
+            return menu
+        menu._cpp_emitted = True
+
         self.emit_indent()
         self.outf.write(menu.clazz)
         self.outf.write(" ")
