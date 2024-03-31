@@ -42,7 +42,6 @@
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
-#include "gui/menu_item/dev_var/dev_var.h"
 #include "gui/menu_item/drum_name.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
@@ -171,15 +170,6 @@ using namespace deluge;
 using namespace gui::menu_item;
 using namespace gui;
 namespace params = deluge::modulation::params;
-
-// Dev vars
-dev_var::AMenu devVarAMenu{STRING_FOR_DEV_MENU_A};
-dev_var::BMenu devVarBMenu{STRING_FOR_DEV_MENU_B};
-dev_var::CMenu devVarCMenu{STRING_FOR_DEV_MENU_C};
-dev_var::DMenu devVarDMenu{STRING_FOR_DEV_MENU_D};
-dev_var::EMenu devVarEMenu{STRING_FOR_DEV_MENU_E};
-dev_var::FMenu devVarFMenu{STRING_FOR_DEV_MENU_F};
-dev_var::GMenu devVarGMenu{STRING_FOR_DEV_MENU_G};
 
 // LPF menu ----------------------------------------------------------------------------------------------------
 
