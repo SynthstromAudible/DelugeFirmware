@@ -19,7 +19,7 @@ class CppEmitter(Visitor):
     def emit_indent(self):
         """Emit whitespace to the current indent level"""
         for _ in range(self.indent):
-            self.outf.write("\t")
+            self.outf.write("    ")
 
     @contextmanager
     def emit_block(self):
@@ -38,7 +38,17 @@ class CppEmitter(Visitor):
         multiline = children is not None
         if multiline:
             self.indent += 1
+        first = True
+
         for arg in args:
+            if first:
+                first = False
+            else:
+                if multiline:
+                    self.outf.write(',')
+                else:
+                    self.outf.write(', ')
+
             if multiline:
                 self.outf.write('\n')
                 self.emit_indent()
@@ -53,12 +63,8 @@ class CppEmitter(Visitor):
             else:
                 self.outf.write(arg.format(**template_args))
 
-            if multiline:
-                self.outf.write(',')
-            else:
-                self.outf.write(', ')
         if multiline:
-            self.outf.write('\n')
+            self.outf.write(',\n')
             self.indent -= 1
 
     def finalize(self):

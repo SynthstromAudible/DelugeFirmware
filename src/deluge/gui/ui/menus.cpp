@@ -172,22 +172,7 @@ using namespace gui::menu_item;
 using namespace gui;
 namespace params = deluge::modulation::params;
 
-// LPF menu ----------------------------------------------------------------------------------------------------
-
-filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ};
-patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
-filter::FilterMorph lpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_LPF_MORPH, false};
-filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
-
-submenu::Filter lpfMenu{
-    STRING_FOR_LPF,
-    {
-        &lpfFreqMenu,
-        &lpfResMenu,
-        &lpfModeMenu,
-        &lpfMorphMenu,
-    },
-};
+#include "gui/menu_item/generate/g_menus.inc"
 
 // HPF menu ----------------------------------------------------------------------------------------------------
 
