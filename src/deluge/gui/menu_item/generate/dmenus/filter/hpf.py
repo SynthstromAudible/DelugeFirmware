@@ -34,7 +34,7 @@ morph = MultiModeMenu(
     "STRING_FOR_MORPH",
     [
         MultiModeMenuMode(
-            "STRING_FOR_DRIVE", "HPF is in a ladder mode", "filter/hpf/drive.md"
+            "STRING_FOR_FM", "HPF is in a ladder mode", "filter/hpf/fm.md"
         ),
         MultiModeMenuMode(
             "STRING_FOR_MORPH", "HPF is in an SVF mode", "filter/hpf/morph.md"
