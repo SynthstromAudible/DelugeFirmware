@@ -175,7 +175,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
     
-- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+- It is setup to send and receive on Channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
 
 <img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
 
@@ -187,5 +187,19 @@ For users of Touch OSC, you will find a MIDI Follow template in this folder: [MI
 
 <img width="560" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png">
 
+## Appendix D - Electra One Template for Deluge MIDI Follow Mode
+
+For users of the Electra One, you will find a MIDI Follow template in the Electra One's preset library on their website: [MIDI Follow Mode Electra One Preset]
+
+- It is setup to send and receive on Channel 15 (MIDI Port 1).
+
+<img width="536" alt="Screenshot 2024-03-28 at 7 36 38 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/970fa714-3683-445e-9457-4ec07f780997">
+
+<img width="536" alt="Screenshot 2024-03-28 at 7 35 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e">
+
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
+[MIDI Follow Mode Electra One Preset]:
+https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
+
+
