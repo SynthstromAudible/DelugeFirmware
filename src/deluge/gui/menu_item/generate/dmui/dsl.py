@@ -40,7 +40,7 @@ class Menu:
         description,
         name=None,
         available_when=None,
-        ):
+    ):
         """
         A basic menu.
 

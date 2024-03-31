@@ -11,7 +11,7 @@ class CppEmitter(Visitor):
         self.outf = outf
         self.indent = 0
 
-        self.outf.write('// clang-format off\n')
+        self.outf.write("// clang-format off\n")
 
     #
     # Internal methods for writting out code
@@ -23,8 +23,8 @@ class CppEmitter(Visitor):
 
     @contextmanager
     def emit_block(self):
-        """ Context manager for emitting a block"""
-        self.outf.write('{\n')
+        """Context manager for emitting a block"""
+        self.outf.write("{\n")
         self.indent += 1
 
         try:
@@ -32,7 +32,7 @@ class CppEmitter(Visitor):
         finally:
             self.indent -= 1
             self.emit_indent()
-            self.outf.write('}')
+            self.outf.write("}")
 
     def emit_args(self, args, template_args, children=None):
         multiline = children is not None
@@ -45,30 +45,30 @@ class CppEmitter(Visitor):
                 first = False
             else:
                 if multiline:
-                    self.outf.write(',')
+                    self.outf.write(",")
                 else:
-                    self.outf.write(', ')
+                    self.outf.write(", ")
 
             if multiline:
-                self.outf.write('\n')
+                self.outf.write("\n")
                 self.emit_indent()
 
-            if arg == '%%CHILDREN%%':
+            if arg == "%%CHILDREN%%":
                 with self.emit_block():
                     for child in children:
                         self.emit_indent(),
-                        self.outf.write('&')
+                        self.outf.write("&")
                         self.outf.write(child.cpp_name)
-                        self.outf.write(',\n')
+                        self.outf.write(",\n")
             else:
                 self.outf.write(arg.format(**template_args))
 
         if multiline:
-            self.outf.write(',\n')
+            self.outf.write(",\n")
             self.indent -= 1
 
     def finalize(self):
-        self.outf.write('// clang-format on\n')
+        self.outf.write("// clang-format on\n")
 
     #
     # Visitor methods
