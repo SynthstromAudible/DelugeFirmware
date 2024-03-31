@@ -1111,7 +1111,11 @@ void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
 	}
 
 	for (int32_t y = yStart; y < yEnd; ++y) {
-		thisImage[y][xDisplay] = RGB::average(markerColour, thisImage[y][xDisplay]);
+		uint8_t value = thisImage[y][xDisplay][0];
+		value /= 4;
+
+		thisImage[y][xDisplay] =
+		    markerColour.transform([value](uint8_t a) { return value + static_cast<uint8_t>((uint32_t{a} * 3) / 4); });
 	}
 }
 
