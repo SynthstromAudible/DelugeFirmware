@@ -121,7 +121,7 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples) / 0.5;
+	float ns = float(numSamples * 2);
 	mean = (float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
