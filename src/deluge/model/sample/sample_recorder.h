@@ -101,9 +101,9 @@ public:
 	uint8_t recordingNumChannels;
 	bool hadCardError = false;
 	bool reachedMaxFileSize = false;
-	bool recordingExtraMargins;
-	bool pointerHeldElsewhere;
-	bool capturedTooMuch;
+	bool recordingExtraMargins = false;
+	bool pointerHeldElsewhere = false;
+	bool capturedTooMuch = false;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;
