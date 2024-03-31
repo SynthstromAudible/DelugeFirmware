@@ -925,8 +925,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	}
 
 	else if (!strcmp(tagName, "volume")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("volume");
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		storageManager.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
