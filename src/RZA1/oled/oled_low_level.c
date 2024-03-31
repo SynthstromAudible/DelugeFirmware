@@ -26,16 +26,13 @@
 #include "deluge/drivers/dmac/dmac.h"
 #include "deluge/drivers/rspi/rspi.h"
 #include "deluge/util/cfunctions.h"
+#include "timers_interrupts.h"
 
 #define OLED_CODE_FOR_CV 1
 
 void setupSPIInterrupts()
 {
-
-    R_INTC_Disable(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3);
-    R_INTC_RegistIntFunc(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, &cvSPITransferComplete);
-    R_INTC_SetPriority(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
-    R_INTC_Enable(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3);
+    setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
 void enqueueCVMessage(int channel, uint32_t message)

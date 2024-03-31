@@ -184,7 +184,8 @@ static void MIDI_TX_INT_TrnEnd(uint32_t int_sense)
     tx_interrupt(UART_ITEM_MIDI);
 }
 
-void (*const txInterruptFunctions[])(uint32_t) = {PIC_TX_INT_TrnEnd, MIDI_TX_INT_TrnEnd};
+// these were const before 03/2024 but the interrupt registration functions don't take const func pointers
+void (*txInterruptFunctions[])(uint32_t) = {PIC_TX_INT_TrnEnd, MIDI_TX_INT_TrnEnd};
 
 const uint8_t txInterruptPriorities[] = {
     5,
