@@ -166,7 +166,7 @@ private:
 	float r_ = (-1000.0f / kSampleRate);
 	/// 1 - (1 / ratio), describes the actual factor by which volume changes should increase or decrease.
 	///
-	/// The UI currently limits this to 0.5 (a ratio of 2) to 1.5 (a ratio of 256)
+	/// The UI currently limits this to 0.5 (a ratio of 2) to 1.0 (a ratio of 256)
 	float fraction = 0.5;
 	/// Internal (smoothed) version of the requested final volume
 	float er = 0;
