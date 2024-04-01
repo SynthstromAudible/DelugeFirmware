@@ -3856,6 +3856,29 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 	}
 }
 
+ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
+	ParamManagerForTimeline* currentParamManager = nullptr;
+
+	if (output->type == OutputType::KIT && !affectEntire) {
+		Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+
+		// If a SoundDrum is selected...
+		if (selectedDrum) {
+			if (selectedDrum->type == DrumType::SOUND) {
+				NoteRow* noteRow = getNoteRowForDrum(selectedDrum);
+				if (noteRow != nullptr) {
+					currentParamManager = &noteRow->paramManager;
+				}
+			}
+		}
+	}
+	else {
+		currentParamManager = &paramManager;
+	}
+
+	return currentParamManager;
+}
+
 Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	if (!output) { // Would only have an output already if file from before V2.0.0 I think? So, this block normally does
