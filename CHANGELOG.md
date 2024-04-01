@@ -4,7 +4,7 @@
 >
 here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
-## c1.2.0 Unnamed
+## c1.2.0 Chopin
 
 ### User Interface
 
