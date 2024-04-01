@@ -29,6 +29,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
@@ -966,6 +967,11 @@ void routine() {
 
 	numRoutines = 0;
 	while (doSomeOutputting() && numRoutines < 2) {
+		// todo - replace this with a scheduler and remove all the random calls to routine encoders but whatever
+		if (numRoutines > 0) {
+			deluge::hid::encoders::readEncoders();
+			deluge::hid::encoders::interpretEncoders(true);
+		}
 		numRoutines += 1;
 		routine_();
 		routineBeenCalled = true;
