@@ -760,25 +760,19 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT && data[2] == 0x7f) {
 		// Identity request
 		if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
-			const uint8_t reply_hdr[] = {
-			    SysEx::SYSEX_START,
-			    SysEx::SYSEX_UNIVERSAL_NONRT,
-			    0x7f,
-			    SysEx::SYSEX_UNIVERSAL_IDENTITY,
-			    0x02,
-			    SysEx::DELUGE_SYSEX_ID_BYTE0,
-			    SysEx::DELUGE_SYSEX_ID_BYTE1,
-			    SysEx::DELUGE_SYSEX_ID_BYTE2,
-			    SysEx::DELUGE_SYSEX_ID_BYTE3,
-			};
-			uint8_t* reply = midiEngine.sysex_fmt_buffer;
-			memcpy(reply, reply_hdr, sizeof(reply_hdr));
-			size_t verlen = strlen(kFirmwareVersionString);
-			// Assuming version is pure ASCII and sane length
-			memcpy(reply + sizeof(reply_hdr), kFirmwareVersionString, verlen);
-			size_t rlen = sizeof(reply_hdr) + verlen;
-			reply[rlen] = SysEx::SYSEX_END;
-			device->sendSysex(reply, rlen + 1);
+			const uint8_t reply[] = {
+			    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
+			    0x7f, // Device channel, we don't have one yet
+			    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
+			    // Manufacturer ID
+			    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
+			    // 14bit device family LSB, MSB
+			    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
+			    // 14bit device family member LSB, MSB
+			    0, 0,
+			    // Four byte firmware version in human readable order
+			    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
+			device->sendSysex(reply, sizeof(reply));
 		}
 		return;
 	}
