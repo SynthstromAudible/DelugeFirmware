@@ -1312,3 +1312,7 @@ uint64_t AudioClip::getCullImmunity() {
 	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
 	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
 }
+
+ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
+	return &paramManager;
+}
