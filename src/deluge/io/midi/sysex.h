@@ -41,6 +41,10 @@ const uint8_t DELUGE_SYSEX_ID_BYTE1 = 0x21;
 const uint8_t DELUGE_SYSEX_ID_BYTE2 = 0x7B;
 const uint8_t DELUGE_SYSEX_ID_BYTE3 = 0x01;
 
+const uint8_t SYSEX_UNIVERSAL_NONRT = 0x7E;
+const uint8_t SYSEX_UNIVERSAL_RT = 0x7F;
+const uint8_t SYSEX_UNIVERSAL_IDENTITY = 0x06;
+
 const uint8_t SYSEX_END = 0xF7;
 
 enum SysexCommands : uint8_t {
