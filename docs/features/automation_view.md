@@ -10,7 +10,7 @@ It allows you to edit automatable parameters on a per step basis at any zoom lev
 
 Automatable Parameters are broken down into four categories for Automation View purposes:
 
-1. Automatable Clip View Parameters for Synths, Kits with affect entire DISABLED
+1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
 >The 61 parameters that can be edited are:
 >
@@ -36,6 +36,8 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Portamento**
 > - **Stutter** Rate
 > - **Compressor** Threshold
+
+>You can also edit any patch cables that are created
 
 2. Automatable Clip View Parameters for Kits with affect entire ENABLED, and Audio Clips
 

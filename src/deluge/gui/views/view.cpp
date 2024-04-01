@@ -1254,17 +1254,17 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 	else {
+		if (modelStackWithParam->paramId == 255) {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
 		// is it not just a param? then its a patch cable
-		if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
 			// default value for patch cable
 			// (equals 0 (midpoint) in -128 to +128 range)
 			knobPos = 64;
 			isBipolar = true;
-		}
-		else {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
-			                                                                              modelStackWithParam);
-			knobPos += kKnobPosOffset;
 		}
 	}
 

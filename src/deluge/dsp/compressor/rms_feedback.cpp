@@ -28,9 +28,10 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
-
-	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolumedB = logf(finalVolume);
+	// 33551360
+	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
+	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
@@ -45,7 +46,7 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 	// this is a bit gross - the compressor can inherently apply volume changes, but in the case of the per clip
 	// compressor that's already been handled by the reverb send, and the logic there is tightly coupled such that
 	// I couldn't extract correct volume levels from it.
-	render(buffer, numSamples, 2 << 26, 2 << 26, finalVolume >> 3);
+	render(buffer, numSamples, 1 << 27, 1 << 27, finalVolume >> 3);
 }
 
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
@@ -65,9 +66,12 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
 
+	// Compute linear volume adjustments as 13.18 signed fixed-point numbers (though stored as floats due to their
+	// use as an intermediate value prior to the increment computation below)
 	float finalVolumeL = gain * float(volAdjustL >> 9);
 	float finalVolumeR = gain * float(volAdjustR >> 9);
 
+	// The amount we need to step the current volume so that by the end of the rendering window
 	q31_t amplitudeIncrementL = ((int32_t)((finalVolumeL - (currentVolumeL >> 8)) / float(numSamples))) << 8;
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(numSamples))) << 8;
 
@@ -75,12 +79,13 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	do {
-
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 		// Apply post-fx and post-reverb-send volume
-		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 2;
-		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 2;
+		//
+		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
+		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
+		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs
@@ -90,7 +95,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	rms = calcRMS(buffer, numSamples);
 }
 
-float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) {
+float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) const {
 	float s{0};
 	if (desired > current) {
 		s = desired + std::exp(a_ * numSamples) * (current - desired);
@@ -110,15 +115,15 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 	q31_t offset = 0; // to remove dc offset
 	float lastMean = mean;
 	do {
-		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, a);
-		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, a);
+		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, hpfA_);
+		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, hpfA_);
 		q31_t s = std::max(std::abs(l), std::abs(r));
-		sum += multiply_32x32_rshift32(s, s) << 1;
+		sum += multiply_32x32_rshift32(s, s);
 
 	} while (++thisSample != bufferEnd);
 
 	float ns = float(numSamples);
-	mean = (float(sum) / ONE_Q31f) / ns;
+	mean = (2 * float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
