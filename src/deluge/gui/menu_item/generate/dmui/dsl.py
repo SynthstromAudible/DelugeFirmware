@@ -1,6 +1,18 @@
 import sys
+from pathlib import Path
 
 __all__ = ["Menu", "Submenu", "MultiModeMenu", "MultiModeMenuMode"]
+
+
+DOC_PATH = Path(__file__).parent.joinpath(*([".."] * 6 + ["docs", "menus"])).resolve()
+
+
+def ensure_doc_path_exists(path):
+    doc_path = DOC_PATH.joinpath(*path.split("/"))
+    if not doc_path.exists():
+        raise ValueError(f'Doc file "{doc_path}" missing')
+    if not doc_path.is_file():
+        raise ValueError(f'Doc file "{doc_path}" is not a file')
 
 
 def trim(docstring):
@@ -56,7 +68,9 @@ class Menu:
             The key in the language map for the header of this menu item when
             it's opened.
         description: str
-            Path to the description of this menu, relative to docs/menu
+            Path to the description of this menu, relative to docs/menu. Can be
+            None, for menus which expect their children to be rendered as
+            siblings of themselves rather than rendering themselves.
         name: str
             The key in the langauge map for the string to be rendered when this
             menu item is presented for selection in a submenu. A value of None
@@ -67,6 +81,10 @@ class Menu:
             a particular state. A value of None (the default) indicates this
             menu item is always available.
         """
+
+        if description is not None:
+            ensure_doc_path_exists(description)
+
         self.cpp_name = cpp_name
         self.clazz = clazz
         self.title = title
@@ -195,7 +213,7 @@ class MultiModeMenu(Menu):
             cpp_name,
             arg_template,
             title,
-            "",
+            None,
             available_when=available_when,
             name=name,
         )

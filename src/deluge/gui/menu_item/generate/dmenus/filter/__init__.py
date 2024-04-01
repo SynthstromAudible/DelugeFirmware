@@ -7,7 +7,7 @@ routing = Menu(
     "filterRoutingMenu",
     ["{title}"],
     "STRING_FOR_FILTER_ROUTE",
-    "menus/filter/sound_filters.md",
+    "filter/routing.md",
 )
 
 sound_filters = Submenu(
