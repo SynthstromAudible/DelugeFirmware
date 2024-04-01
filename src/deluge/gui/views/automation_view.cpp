@@ -3499,8 +3499,11 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
 	desc.addSource(cable->from);
 
-	// if we've previously selected a patch cable, we want to start scrolling from
-	// that patch cable
+	// if we've previously selected a patch cable, we want to start scrolling from that patch cable
+	// note: the reason why we can't save the patchCableIndex to make finding the previous patch
+	// cable selected easier is because the patch cable array gets re-indexed as patch cables get
+	// added or removed or values change. Thus you need to search for the previous patch cable to get
+	// the updated index and then you can find the adjacent patch cable in the list.
 	if (desc.data == clip->lastSelectedParamID) {
 		foundCurrentPatchCable = true;
 	}
