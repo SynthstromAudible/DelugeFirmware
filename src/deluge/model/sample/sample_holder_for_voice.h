@@ -43,6 +43,8 @@ public:
 
 	int16_t transpose;
 	int8_t cents;
+	/// Whether the loop length should be kept constant when updating the start/end position.
+	bool loopLocked;
 	PhaseIncrementFineTuner fineTuner;
 
 	Cluster* clustersForLoopStart[kNumClustersLoadedAhead];
@@ -50,6 +52,8 @@ public:
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;
 	uint32_t endMSec;
+
+	[[nodiscard]] uint32_t loopLength() const { return loopEndPos - loopStartPos; }
 
 protected:
 	void sampleBeenSet(bool reversed, bool manuallySelected);

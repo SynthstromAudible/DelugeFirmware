@@ -104,6 +104,7 @@ public:
 	static const uint8_t kitIcon[];
 	static const uint8_t downArrowIcon[];
 	static const uint8_t rightArrowIcon[];
+	static const uint8_t lockIcon[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
