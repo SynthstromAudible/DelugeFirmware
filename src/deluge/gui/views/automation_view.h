@@ -221,7 +221,7 @@ private:
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
 	bool selectPatchCable(int32_t offset, Clip* clip);
-	bool findPatchCable(Clip* clip, PatchCableSet* set, int32_t patchCableIndex, bool& foundCurrentPatchCable);
+	bool selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex, bool& foundCurrentPatchCable);
 	void selectMIDICC(int32_t offset, Clip* clip);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
 	                                          int32_t numParams);

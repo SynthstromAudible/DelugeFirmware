@@ -3448,6 +3448,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 }
 
 // iterate through the patch cable list to select the previous or next patch cable
+// actual selecting of the patch cable is done in the selectPatchCableAtIndex function
 bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 	ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
 	if (paramManager) {
@@ -3461,9 +3462,9 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 				if (offset > 0) {
 					// loop from beginning to end of patch cable list
 					for (int i = 0; i < set->numPatchCables; i++) {
-						// loop through patch cables until we've found a new one
+						// loop through patch cables until we've found a new one and select it
 						// adjacent to current found patch cable (if we previously selected one)
-						if (findPatchCable(clip, set, i, foundCurrentPatchCable)) {
+						if (selectPatchCableAtIndex(clip, set, i, foundCurrentPatchCable)) {
 							return true;
 						}
 					}
@@ -3472,9 +3473,9 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 				else if (offset < 0) {
 					// loop from end to beginning of patch cable list
 					for (int i = set->numPatchCables - 1; i >= 0; i--) {
-						// loop through patch cables until we've found a new one
+						// loop through patch cables until we've found a new one and select it
 						// adjacent to current found patch cable (if we previously selected one)
-						if (findPatchCable(clip, set, i, foundCurrentPatchCable)) {
+						if (selectPatchCableAtIndex(clip, set, i, foundCurrentPatchCable)) {
 							return true;
 						}
 					}
@@ -3486,12 +3487,13 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 	return false;
 }
 
+// this function does the actual selecting of a patch cable
 // see if the patch cable selected is different from current one selected (or not selected)
 // if we havent already selected a patch cable, we'll select this one
 // if we selected one previously, we'll see if this one is adjacent to the previous one selected
 // if it's adjacent to the previous one selected, we'll select this one
-bool AutomationView::findPatchCable(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
-                                    bool& foundCurrentPatchCable) {
+bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
+                                             bool& foundCurrentPatchCable) {
 	PatchCable* cable = &set->patchCables[patchCableIndex];
 	ParamDescriptor desc = cable->destinationParamDescriptor;
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
