@@ -8,7 +8,6 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 
 ### User Interface
 
-- Added a new default setting that controls which playback mode new slices of a kit will get. 
 - Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
 - Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
@@ -87,6 +86,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
+- Added a new default setting that controls which playback mode new slices of a kit will get. 
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
