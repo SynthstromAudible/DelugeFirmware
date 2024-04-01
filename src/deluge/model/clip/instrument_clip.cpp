@@ -2339,26 +2339,24 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 
 	if (output->type != OutputType::KIT) {
-		if (arpSettings.mode != ArpMode::OFF) {
-			storageManager.writeOpeningTagBeginning("arpeggiator");
-			storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
-			storageManager.writeAttribute("syncType", arpSettings.syncType);
+		storageManager.writeOpeningTagBeginning("arpeggiator");
+		storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
+		storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
+		storageManager.writeAttribute("syncType", arpSettings.syncType);
 
-			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-				storageManager.writeAttribute("gate", arpeggiatorGate);
-				storageManager.writeAttribute("rate", arpeggiatorRate);
-				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-				storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-				storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
-			}
-			storageManager.closeTag();
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			storageManager.writeAttribute("gate", arpeggiatorGate);
+			storageManager.writeAttribute("rate", arpeggiatorRate);
+			storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+		storageManager.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
