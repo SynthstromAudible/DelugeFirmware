@@ -28,9 +28,10 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
-
-	// int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
-	float songVolumedB = logf(finalVolume);
+	// 33551360
+	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
+	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
 	// this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to
@@ -121,8 +122,8 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples * 2);
-	mean = (float(sum) / ONE_Q31f) / ns;
+	float ns = float(numSamples);
+	mean = (2 * float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
