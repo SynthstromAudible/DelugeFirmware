@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Optional
 
 __all__ = ["Menu", "Submenu", "MultiModeMenu", "MultiModeMenuMode"]
 
@@ -8,6 +9,7 @@ DOC_PATH = Path(__file__).parent.joinpath(*([".."] * 6 + ["docs", "menus"])).res
 
 
 def ensure_doc_path_exists(path):
+    """Checks that a documentation path exists"""
     doc_path = DOC_PATH.joinpath(*path.split("/"))
     if not doc_path.exists():
         raise ValueError(f'Doc file "{doc_path}" missing')
@@ -43,45 +45,45 @@ def trim(docstring):
 
 
 class Menu:
+    """Base class for all menus descriptors.
+
+    You probably want a subclass of this class if the Menu on the C++ side has
+    any special behavior:
+
+    * If the menu contains others (it's a ``Submenu`` subclass in C++) then you
+      probably want a :py:class:`Submenu` instead.
+    * If the menu appears only in a single submenu but can change its name and
+      behavior depending on other system state, you want a
+      :py:class:`MultiModeMenu`
+
+    :param clazz: The C++ class to use for this menu item.
+    :param cpp_name: The variable name to use when emitting C++ code.
+    :param arg_template: A list of Python format strings which will be used to
+        generate the C++ initializer arguments.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened.
+    :param description: Path to the description of this menu, relative to
+        ``docs/menu``. Can be None, for menus which expect their children to be
+        rendered as siblings of themselves rather than rendering themselves.
+    :param name: The key in the langauge map for the string to be rendered when
+        this menu item is presented for selection in a submenu. A value of None
+        (the default) causes this to default to the same value as ``title``.
+    :param available_when: A human-readable description of when this menu item
+        is available, if it's only available in certain contexts or when the
+        system is in a particular state. A value of None (the default)
+        indicates this menu item is always available.
+    """
+
     def __init__(
         self,
-        clazz,
-        cpp_name,
-        arg_template,
-        title,
-        description,
-        name=None,
-        available_when=None,
+        clazz: str,
+        cpp_name: str,
+        arg_template: list[str],
+        title: str,
+        description: str,
+        name: Optional[str] = None,
+        available_when: Optional[str] = None,
     ):
-        """
-        A basic menu.
-
-        Parameters:
-            clazz: str
-            The C++ class to use for this menu item.
-        cpp_name: str
-            The variable name to use when emitting C++ code.
-        arg_template: list(str)
-            A list of Python format strings which will be used to generate the
-            C++ initializer arguments.
-        title: str
-            The key in the language map for the header of this menu item when
-            it's opened.
-        description: str
-            Path to the description of this menu, relative to docs/menu. Can be
-            None, for menus which expect their children to be rendered as
-            siblings of themselves rather than rendering themselves.
-        name: str
-            The key in the langauge map for the string to be rendered when this
-            menu item is presented for selection in a submenu. A value of None
-            (the default) causes this to default to the same value as `title`.
-        available_when: str
-            A human-readable description of when this menu item is available,
-            if it's only available in certain contexts or when the system is in
-            a particular state. A value of None (the default) indicates this
-            menu item is always available.
-        """
-
         if description is not None:
             ensure_doc_path_exists(description)
 
@@ -107,46 +109,40 @@ class Menu:
 
 
 class Submenu(Menu):
+    """
+    A menu capable of containing others.
+
+    :param clazz: The C++ class to use for this menu item.
+    :param cpp_name: The variable name to use when emitting C++ code.
+    :param arg_template: A list of Python format strings which will be used to
+        generate the C++ initializer arguments. At least one of the argumnents
+        must be ``%%CHILDREN%%`` which will be replaced by references to the
+        children.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened.
+    :param description: Path to the description of this mode, relative to
+        ``docs/menu``
+    :param children: The menus this submenu selects from.
+    :param name: The key in the langauge map for the string to be rendered when
+        this menu item is presented for selection in a submenu. A value of None
+        (the default) causes this to default to the same value as `title`.
+    :param available_when: A human-readable description of when this menu item
+        is available, if it's only available in certain contexts or when the
+        system is in a particular state. A value of None (the default)
+        indicates this menu item is always available.
+    """
+
     def __init__(
         self,
-        clazz,
-        cpp_name,
-        arg_template,
-        title,
-        description,
-        children,
-        name=None,
-        available_when=None,
+        clazz: str,
+        cpp_name: str,
+        arg_template: list[str],
+        title: str,
+        description: str,
+        children: list[Menu],
+        name: Optional[str] = None,
+        available_when: Optional[str] = None,
     ):
-        """
-        A menu capable of containing others.
-
-        Parameters:
-        clazz: str
-            The C++ class to use for this menu item.
-        cpp_name: str
-            The variable name to use when emitting C++ code.
-        arg_template: list(str)
-            A list of Python format strings which will be used to generate the
-            C++ initializer arguments. At least one of the argumnents must be
-            '%%CHILDREN%%' which will be replaced by references to the children.
-        title: str
-            The key in the language map for the header of this menu item when
-            it's opened.
-        description: str
-            Path to the description of this mode, relative to docs/menu
-        children: list(Menu)
-            The menus this submenu selects from.
-        name: str
-            The key in the langauge map for the string to be rendered when this
-            menu item is presented for selection in a submenu. A value of None
-            (the default) causes this to default to the same value as `title`.
-        available_when: str
-            A human-readable description of when this menu item is available,
-            if it's only available in certain contexts or when the system is in
-            a particular state. A value of None (the default) indicates this
-            menu item is always available.
-        """
         Menu.__init__(
             self,
             clazz,
@@ -171,77 +167,28 @@ class Submenu(Menu):
         return visitor.visit_submenu(self, children)
 
 
-class MultiModeMenu(Menu):
+class MultiModeMenuMode:
+    """A mode for a multimode menu item, containing information about when
+    the mode is active and what the parameter means when it is active.
+
+    :param title: The key in the language map for the title used by the
+        MultiModeMenu when in this mode.
+    :param available_when: Markdown fragment describing when this menu item is
+        available.
+    :param description: Path to the description of this mode, relative to
+        ``docs/menu``
+    :param name: The key in the language map used to describe this menu item
+        when presenting a submenu. A value of None (the default) causes this to
+        default to the same value as ``title``
+    """
+
     def __init__(
         self,
-        clazz,
-        cpp_name,
-        arg_template,
-        title,
-        modes,
-        name=None,
-        available_when=None,
+        title: str,
+        available_when: str,
+        description: str,
+        name: Optional[str] = None,
     ):
-        """A menu that changes its title and operation depending on context.
-
-        Parameters:
-        clazz: str
-            The C++ class to use for this menu item.
-        cpp_name: str
-            The variable name to use when emitting C++ code.
-        arg_template: list(str)
-            A list of Python format strings which will be used to generate the
-            C++ initializer arguments.
-        title: str
-            The key in the language map for the header of this menu item when
-            it's opened.
-        modes: list(MultiModeMenuItem)
-            The menus this submenu selects from.
-        name: str
-            The key in the langauge map for the string to be rendered when this
-            menu item is presented for selection in a submenu. A value of None
-            (the default) causes this to default to the same value as `title`.
-        available_when: str
-            A human-readable description of when this menu item is available,
-            if it's only available in certain contexts or when the system is in
-            a particular state. A value of None (the default) indicates this
-            menu item is always available.
-        """
-        Menu.__init__(
-            self,
-            clazz,
-            cpp_name,
-            arg_template,
-            title,
-            None,
-            available_when=available_when,
-            name=name,
-        )
-
-        self.modes = modes
-
-    def visit(self, visitor):
-        modes = [m.visit(visitor) for m in self.modes]
-        return visitor.visit_multimode(self, modes)
-
-
-class MultiModeMenuMode:
-    def __init__(self, title, available_when, description, name=None):
-        """A mode for a multimode menu item, containing information about when
-        the mode is active and what the parameter means when it is active.
-
-        title: str
-            The key in the language map for the title used by the MultiModeMenu
-            when in this mode.
-        available_when: str
-            Markdown fragment describing when this menu item is available.
-        description: str
-            Path to the description of this mode, relative to docs/menu
-        name: str
-            The key in the language map used to describe this menu item when
-            presenting a submenu. A value of None (the default) causes this to
-            default to the same value as `title`
-        """
         self.title = title
         self.available_when = trim(available_when)
         self.description = description
@@ -252,3 +199,44 @@ class MultiModeMenuMode:
 
     def visit(self, visitor):
         return visitor.visit_multimode_mode(self)
+
+
+class MultiModeMenu(Menu):
+    """A menu that changes its title and operation depending on context.
+
+    :param clazz: The C++ class to use for this menu item.
+    :param cpp_name: The variable name to use when emitting C++ code.
+    :param arg_template: A list of Python format strings which will be used to
+        generate the C++ initializer arguments.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened.
+    :param modes:  The menus this submenu selects from.
+    :param name: The key in the langauge map for the string to be rendered when
+        this menu item is presented for selection in a submenu. A value of None
+        (the default) causes this to default to the same value as ``title``.
+    """
+
+    def __init__(
+        self,
+        clazz: str,
+        cpp_name: str,
+        arg_template: list[str],
+        title: str,
+        modes: list[MultiModeMenuMode],
+        name: Optional[str] = None,
+    ):
+        Menu.__init__(
+            self,
+            clazz,
+            cpp_name,
+            arg_template,
+            title,
+            None,
+            name=name,
+        )
+
+        self.modes = modes
+
+    def visit(self, visitor):
+        modes = [m.visit(visitor) for m in self.modes]
+        return visitor.visit_multimode(self, modes)
