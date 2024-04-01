@@ -27,7 +27,7 @@ def main():
         with open(args.doc_output, "w") as outf:
             emitter = DocEmitter()
             result = [menu.visit(emitter) for menu in top_level_menus]
-            print(json.dumps(result))
+            outf.write(json.dumps(result))
 
     if args.cpp_output is not None:
         with open(args.cpp_output, "w") as outf:
