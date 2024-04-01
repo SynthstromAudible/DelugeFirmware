@@ -30,6 +30,7 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// 33551360
 	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
 	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
