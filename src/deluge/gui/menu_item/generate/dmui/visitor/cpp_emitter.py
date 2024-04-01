@@ -10,6 +10,7 @@ class CppEmitter(Visitor):
         """Initialize the emitter"""
         self.outf = outf
         self.indent = 0
+        self.child_lists = {}
 
         self.outf.write("// clang-format off\n")
 
@@ -34,38 +35,46 @@ class CppEmitter(Visitor):
             self.emit_indent()
             self.outf.write("}")
 
-    def emit_args(self, args, template_args, children=None):
-        multiline = children is not None
-        if multiline:
-            self.indent += 1
+    def emit_child_array(self, children):
+        """Write out an array initialized with the addresses of the given children"""
+        child_key = "".join([c.cpp_name for c in children])
+        if child_key in self.child_lists:
+            return self.child_lists[child_key]
+
+        child_list_name = f"child{len(self.child_lists)}"
+
+        self.emit_indent()
+        self.outf.write("std::array<MenuItem*, ")
+        self.outf.write(str(len(children)))
+        self.outf.write("> ")
+        self.outf.write(child_list_name)
+        self.outf.write(" = ")
+
+        with self.emit_block():
+            for child in children:
+                self.emit_indent()
+                self.outf.write("&")
+                self.outf.write(child.cpp_name)
+                self.outf.write(",\n")
+
+        self.outf.write(";\n")
+
+        self.child_lists[child_key] = child_list_name
+        return child_list_name
+
+    def emit_args(self, args, template_args, child_key=None):
         first = True
 
         for arg in args:
             if first:
                 first = False
             else:
-                if multiline:
-                    self.outf.write(",")
-                else:
-                    self.outf.write(", ")
-
-            if multiline:
-                self.outf.write("\n")
-                self.emit_indent()
+                self.outf.write(", ")
 
             if arg == "%%CHILDREN%%":
-                with self.emit_block():
-                    for child in children:
-                        self.emit_indent(),
-                        self.outf.write("&")
-                        self.outf.write(child.cpp_name)
-                        self.outf.write(",\n")
+                self.outf.write(child_key)
             else:
                 self.outf.write(arg.format(**template_args))
-
-        if multiline:
-            self.outf.write(",\n")
-            self.indent -= 1
 
     def finalize(self):
         self.outf.write("// clang-format on\n")
@@ -74,7 +83,7 @@ class CppEmitter(Visitor):
     # Visitor methods
     #
     def visit_menu(self, menu: dsl.Menu):
-        if hasattr(menu, '_cpp_emitted'):
+        if hasattr(menu, "_cpp_emitted"):
             return menu
         menu._cpp_emitted = True
 
@@ -91,9 +100,11 @@ class CppEmitter(Visitor):
         return menu
 
     def visit_submenu(self, menu: dsl.Submenu, children):
-        if hasattr(menu, '_cpp_emitted'):
+        if hasattr(menu, "_cpp_emitted"):
             return menu
         menu._cpp_emitted = True
+
+        child_key = self.emit_child_array(children)
 
         self.emit_indent()
         self.outf.write(menu.clazz)
@@ -103,7 +114,7 @@ class CppEmitter(Visitor):
 
         # TODO: test if generating an explicit array has smaller code size than
         # the initializer list.
-        self.emit_args(menu.arg_template, menu.template_args(), children=children)
+        self.emit_args(menu.arg_template, menu.template_args(), child_key=child_key)
 
         self.outf.write("};\n")
 

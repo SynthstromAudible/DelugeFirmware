@@ -3,74 +3,54 @@ filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, para
 patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
 filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
 filter::FilterMorph lpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_LPF_MORPH, false};
-submenu::Filter lpfMenu{
-    STRING_FOR_LPF,
-    {
-        &lpfFreqMenu,
-        &lpfResMenu,
-        &lpfModeMenu,
-        &lpfMorphMenu,
-    },
+std::array<MenuItem*, 4> child0 = {
+    &lpfFreqMenu,
+    &lpfResMenu,
+    &lpfModeMenu,
+    &lpfMorphMenu,
 };
+submenu::Filter lpfMenu{STRING_FOR_LPF, child0};
 filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
 filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
 filter::FilterMorph hpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_HPF_MORPH, true};
-submenu::Filter hpfMenu{
-    STRING_FOR_HPF,
-    {
-        &hpfFreqMenu,
-        &hpfResMenu,
-        &hpfModeMenu,
-        &hpfMorphMenu,
-    },
+std::array<MenuItem*, 4> child1 = {
+    &hpfFreqMenu,
+    &hpfResMenu,
+    &hpfModeMenu,
+    &hpfMorphMenu,
 };
+submenu::Filter hpfMenu{STRING_FOR_HPF, child1};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
-submenu::Filter soundFiltersMenu{
-    STRING_FOR_FILTERS,
-    {
-        &lpfMenu,
-        &hpfMenu,
-        &filterRoutingMenu,
-    },
+std::array<MenuItem*, 3> child2 = {
+    &lpfMenu,
+    &hpfMenu,
+    &filterRoutingMenu,
 };
+submenu::Filter soundFiltersMenu{STRING_FOR_FILTERS, child2};
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD, params::UNPATCHED_COMPRESSOR_THRESHOLD};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
 audio_compressor::Release compRelease{STRING_FOR_RELEASE, STRING_FOR_RELEASE};
 audio_compressor::SideHPF compHPF{STRING_FOR_HPF, STRING_FOR_HPF};
-Submenu audioCompMenu{
-    STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR,
-    {
-        &threshold,
-        &compRatio,
-        &compAttack,
-        &compRelease,
-        &compHPF,
-    },
+std::array<MenuItem*, 5> child3 = {
+    &threshold,
+    &compRatio,
+    &compAttack,
+    &compRelease,
+    &compHPF,
 };
+Submenu audioCompMenu{STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, child3};
 envelope::Segment envAttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK};
 envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY};
 envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN};
 envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, params::LOCAL_ENV_0_RELEASE};
-submenu::Envelope env0Menu{
-    STRING_FOR_ENVELOPE_1,
-    {
-        &envAttackMenu,
-        &envDecayMenu,
-        &envSustainMenu,
-        &envReleaseMenu,
-    },
-    0,
+std::array<MenuItem*, 4> child4 = {
+    &envAttackMenu,
+    &envDecayMenu,
+    &envSustainMenu,
+    &envReleaseMenu,
 };
-submenu::Envelope env1Menu{
-    STRING_FOR_ENVELOPE_2,
-    {
-        &envAttackMenu,
-        &envDecayMenu,
-        &envSustainMenu,
-        &envReleaseMenu,
-    },
-    1,
-};
+submenu::Envelope env0Menu{STRING_FOR_ENVELOPE_1, child4, 0};
+submenu::Envelope env1Menu{STRING_FOR_ENVELOPE_2, child4, 1};
 // clang-format on
