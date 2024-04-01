@@ -1,5 +1,4 @@
 // clang-format off
-FileSelector deluge::gui::menu_item::fileSelectorMenu{STRING_FOR_FILE_BROWSER};
 filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ};
 patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
 filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
@@ -54,4 +53,42 @@ std::array<MenuItem*, 4> child4 = {
 };
 submenu::Envelope env0Menu{STRING_FOR_ENVELOPE_1, child4, 0};
 submenu::Envelope env1Menu{STRING_FOR_ENVELOPE_2, child4, 1};
+osc::Type oscTypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE};
+osc::source::Volume sourceVolumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_OSC_LEVEL_MENU_TITLE, params::LOCAL_OSC_A_VOLUME};
+osc::source::WaveIndex sourceWaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX};
+osc::source::Feedback sourceFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_CARRIER_FEED_MENU_TITLE, params::LOCAL_CARRIER_0_FEEDBACK};
+FileSelector deluge::gui::menu_item::fileSelectorMenu{STRING_FOR_FILE_BROWSER};
+osc::AudioRecorder audioRecorderMenu{STRING_FOR_RECORD_AUDIO};
+sample::Reverse sampleReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE};
+sample::Repeat sampleRepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE};
+sample::Start sampleStartMenu{STRING_FOR_START_POINT};
+sample::End sampleEndMenu{STRING_FOR_END_POINT};
+sample::Transpose sourceTransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST};
+sample::PitchSpeed samplePitchSpeedMenu{STRING_FOR_PITCH_SPEED};
+sample::TimeStretch timeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE};
+sample::Interpolation interpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE};
+osc::PulseWidth pulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH};
+osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
+osc::RetriggerPhase oscPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, false};
+std::array<MenuItem*, 17> child5 = {
+    &oscTypeMenu,
+    &sourceVolumeMenu,
+    &sourceWaveIndexMenu,
+    &sourceFeedbackMenu,
+    &deluge::gui::menu_item::fileSelectorMenu,
+    &audioRecorderMenu,
+    &sampleReverseMenu,
+    &sampleRepeatMenu,
+    &sampleStartMenu,
+    &sampleEndMenu,
+    &sourceTransposeMenu,
+    &samplePitchSpeedMenu,
+    &timeStretchMenu,
+    &interpolationMenu,
+    &pulseWidthMenu,
+    &oscSyncMenu,
+    &oscPhaseMenu,
+};
+submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child5, 0};
+submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child5, 1};
 // clang-format on

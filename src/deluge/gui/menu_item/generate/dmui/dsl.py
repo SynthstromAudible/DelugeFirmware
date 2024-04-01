@@ -66,6 +66,14 @@ class Menu:
       use :py:meth:`MultiContextMenu.with_context` to instantiate it when it's
       used.
 
+    TODO - Additional support is needed for capturing the following pieces of
+    documentaiton-relavant information:
+      - Whether a given menu item supports MIDI mapping (this should also be
+        integrated into codegen).
+      - Whether a given menu item supports the kit "holding affect all"
+        behavior (this would be nice to integrate into codegen but is harder).
+      - Maybe some sort of stable identifier for linking purposes?
+
     :param clazz: The C++ class to use for this menu item.
     :param cpp_name: The variable name to use when emitting C++ code.
     :param arg_template: A list of Python format strings which will be used to
