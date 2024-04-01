@@ -2339,26 +2339,24 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 
 	if (output->type != OutputType::KIT) {
-		if (arpSettings.mode != ArpMode::OFF) {
-			storageManager.writeOpeningTagBeginning("arpeggiator");
-			storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-			storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
-			storageManager.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
+		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
 
-			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-				storageManager.writeAttribute("gate", arpeggiatorGate);
-				storageManager.writeAttribute("rate", arpeggiatorRate);
-				storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-				storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-				storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-				storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
-			}
-			storageManager.closeTag();
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			bdsm.writeAttribute("gate", arpeggiatorGate);
+			bdsm.writeAttribute("rate", arpeggiatorRate);
+			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+		bdsm.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
