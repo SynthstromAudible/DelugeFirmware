@@ -2,7 +2,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-__all__ = ["Menu", "Submenu", "MultiModeMenu", "MultiModeMenuMode"]
+__all__ = [
+    "Menu",
+    "MultiContextMenu",
+    "MultiModeMenu",
+    "MultiModeMenuMode",
+    "Submenu",
+]
 
 
 DOC_PATH = Path(__file__).parent.joinpath(*([".."] * 6 + ["docs", "menus"])).resolve()
@@ -55,6 +61,10 @@ class Menu:
     * If the menu appears only in a single submenu but can change its name and
       behavior depending on other system state, you want a
       :py:class:`MultiModeMenu`
+    * If the menu appears in multiple submenus but has a different meaning in
+      each, you want to define a :py:class:`MultiContextMenu` somewhere and
+      use :py:meth:`MultiContextMenu.with_context` to instantiate it when it's
+      used.
 
     :param clazz: The C++ class to use for this menu item.
     :param cpp_name: The variable name to use when emitting C++ code.
@@ -80,7 +90,7 @@ class Menu:
         cpp_name: str,
         arg_template: list[str],
         title: str,
-        description: str,
+        description: Optional[str],
         name: Optional[str] = None,
         available_when: Optional[str] = None,
     ):
@@ -106,6 +116,68 @@ class Menu:
 
     def visit(self, visitor):
         return visitor.visit_menu(self)
+
+
+class MultiContextMenu(Menu):
+    ...
+
+
+class MultiContextMenuInstance(Menu):
+    """Instance of a :py:class`MultiContextMenu`. Has seperate documentation,
+    but otherwise inherits all properties from its parent.
+
+    :param parent:
+    :param doc: Path to the documentation for this instance
+    """
+
+    def __init__(self, parent: MultiContextMenu, doc: str):
+        Menu.__init__(
+            self, parent.clazz, parent.cpp_name, parent.arg_template, parent.title, doc
+        )
+        self.parent = parent
+
+    def visit(self, visitor):
+        return visitor.visit_multicontext_instance(self)
+
+
+class MultiContextMenu(Menu):
+    """A menu that changes its description based on the context it is
+    instantiated in.
+
+    Using this as a direct child of a Submenu is an error, you should instead
+    use a :py:class:`MultiContextMenuInstance`.
+
+    :param clazz: The C++ class to use for this menu item.
+    :param cpp_name: The variable name to use when emitting C++ code.
+    :param arg_template: A list of python format strings which will be used to
+        generate the C++ initializer arguments.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened.
+    :param name: The key in the langauge map for the string to be rendered when
+        this menu item is presented for selection in a submenu. A value of None
+        (the default) causes this to default to the same value as ``title``.
+    """
+
+    def __init__(
+        self,
+        clazz: str,
+        cpp_name: str,
+        arg_template: list[str],
+        title: str,
+        name: Optional[str] = None,
+    ):
+        Menu.__init__(self, clazz, cpp_name, arg_template, title, None, name=name)
+
+    def with_context(self, docs: str):
+        """Instantiate this menu into a specific context.
+
+        :param docs: Path to the docs describing what this menu means in this
+            context.
+        """
+        return MultiContextMenuInstance(self, docs)
+
+    def visit(self, visitor):
+        return visitor.visit_multicontext(self)
 
 
 class Submenu(Menu):
@@ -225,15 +297,7 @@ class MultiModeMenu(Menu):
         modes: list[MultiModeMenuMode],
         name: Optional[str] = None,
     ):
-        Menu.__init__(
-            self,
-            clazz,
-            cpp_name,
-            arg_template,
-            title,
-            None,
-            name=name,
-        )
+        Menu.__init__(self, clazz, cpp_name, arg_template, title, None, name=name)
 
         self.modes = modes
 

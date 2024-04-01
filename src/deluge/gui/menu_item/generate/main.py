@@ -6,6 +6,7 @@ import json
 import sys
 
 top_level_menus = [
+    dmenus.common.file_selector,
     dmenus.filter.sound_filters,
     dmenus.compressor.menu,
 ] + dmenus.envelopes.menus

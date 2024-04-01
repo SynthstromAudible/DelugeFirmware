@@ -29,8 +29,6 @@
 
 namespace deluge::gui::menu_item {
 
-FileSelector fileSelectorMenu{l10n::String::STRING_FOR_FILE_BROWSER};
-
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {

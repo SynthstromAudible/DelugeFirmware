@@ -52,3 +52,17 @@ class DocEmitter(Visitor):
             "description": mode.description,
         }
         return tr
+
+    def visit_multicontext(self, menu: dsl.MultiContextMenu):
+        raise ValueError(
+            "Doc emitter can only consume MultiContextMenuInstances, not the"
+            "underlying MultiContextMenu. Did you forget a .with_context()?"
+        )
+
+    def visit_multicontext_instance(self, instance: dsl.MultiContextMenuInstance):
+        return {
+            "type": "multicontext",
+            "title": instance.parent.title,
+            "name": instance.parent.name,
+            "description": instance.description,
+        }

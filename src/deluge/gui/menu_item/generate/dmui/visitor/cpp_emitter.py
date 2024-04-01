@@ -127,3 +127,14 @@ class CppEmitter(Visitor):
 
     def visit_multimode_mode(self, mode: dsl.MultiModeMenuMode):
         pass
+
+    def visit_multicontext(self, menu: dsl.MultiContextMenu):
+        self.visit_menu(menu)
+
+        return menu
+
+    def visit_multicontext_instance(self, instance: dsl.MultiContextMenuInstance):
+        # make sure the menu is already emitted but otherwise do nothing special
+        self.visit_menu(instance.parent)
+
+        return instance

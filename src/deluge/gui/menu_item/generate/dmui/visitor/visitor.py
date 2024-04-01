@@ -18,3 +18,11 @@ class Visitor(ABC):
     @abstractmethod
     def visit_multimode_mode(self, mode: dsl.MultiModeMenuMode):
         pass
+
+    @abstractmethod
+    def visit_multicontext(self, menu: dsl.MultiContextMenu):
+        pass
+
+    @abstractmethod
+    def visit_multicontext_instance(self, instance: dsl.MultiContextMenuInstance):
+        pass
