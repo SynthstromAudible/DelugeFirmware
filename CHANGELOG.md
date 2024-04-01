@@ -14,6 +14,9 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 
+### MIDI
+- Added Universal SysEx Identity response, including firmware version.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine

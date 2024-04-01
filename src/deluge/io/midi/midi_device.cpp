@@ -404,7 +404,7 @@ int32_t MIDIDeviceUSB::sendBufferSpace() {
 
 extern bool developerSysexCodeReceived;
 
-void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
+void MIDIDeviceUSB::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
@@ -563,7 +563,7 @@ int32_t MIDIDeviceDINPorts::sendBufferSpace() {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
-void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
+void MIDIDeviceDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
@@ -593,5 +593,5 @@ int32_t MIDIDeviceLoopback::sendBufferSpace() {
 	return 0;
 }
 
-void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {
+void MIDIDeviceLoopback::sendSysex(const uint8_t* data, int32_t len) {
 }

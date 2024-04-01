@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "version.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -755,6 +756,33 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		return;
 	}
 	unsigned payloadOffset = 2;
+	// Non-real time universal SysEx broadcast
+	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT && data[2] == 0x7f) {
+		// Identity request
+		if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
+			const uint8_t reply_hdr[] = {
+			    SysEx::SYSEX_START,
+			    SysEx::SYSEX_UNIVERSAL_NONRT,
+			    0x7f,
+			    SysEx::SYSEX_UNIVERSAL_IDENTITY,
+			    0x02,
+			    SysEx::DELUGE_SYSEX_ID_BYTE0,
+			    SysEx::DELUGE_SYSEX_ID_BYTE1,
+			    SysEx::DELUGE_SYSEX_ID_BYTE2,
+			    SysEx::DELUGE_SYSEX_ID_BYTE3,
+			};
+			uint8_t* reply = midiEngine.sysex_fmt_buffer;
+			memcpy(reply, reply_hdr, sizeof(reply_hdr));
+			size_t verlen = strlen(kFirmwareVersionString);
+			// Assuming version is pure ASCII and sane length
+			memcpy(reply + sizeof(reply_hdr), kFirmwareVersionString, verlen);
+			size_t rlen = sizeof(reply_hdr) + verlen;
+			reply[rlen] = SysEx::SYSEX_END;
+			device->sendSysex(reply, rlen + 1);
+		}
+		return;
+	}
+
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1
 	    && data[3] == SysEx::DELUGE_SYSEX_ID_BYTE2 && data[4] == SysEx::DELUGE_SYSEX_ID_BYTE3) {
 		payloadOffset = 5;
