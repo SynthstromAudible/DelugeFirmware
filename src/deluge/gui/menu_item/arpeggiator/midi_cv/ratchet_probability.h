@@ -24,14 +24,9 @@ namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class RatchetProbability final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorRatchetProbability;
-		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
-	}
-	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetProbability = (uint32_t)this->getValue() * 85899345;
-	}
+	void readCurrentValue() override { this->setValue(getCurrentInstrumentClip()->arpeggiatorRatchetProbability); }
+	void writeCurrentValue() override { getCurrentInstrumentClip()->arpeggiatorRatchetProbability = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip();

@@ -762,10 +762,10 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
                                    uint32_t ratchProb) {
 	// Update live Sequence Length value with the most up to date value from automation
-	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
+	maxSequenceLength = sequenceLength; // in the range 0-50
 
 	// Update live Sequence Length value with the most up to date value from automation
-	rhythm = (((int64_t)rhythmValue) * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32; // in the range 0-50
+	rhythm = rhythmValue; // in the range 0-50
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
@@ -773,13 +773,13 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
 	uint16_t amount = ratchAmount >> 16;
-	if (amount > 45874) { // > 35 -> 50
+	if (amount >= 45875) { // > 35 -> 50
 		ratchetAmount = 3;
 	}
-	else if (amount > 26214) { // > 20 -> 34
+	else if (amount >= 26214) { // > 20 -> 34
 		ratchetAmount = 2;
 	}
-	else if (amount > 6553) { // > 5 -> 19
+	else if (amount >= 6553) { // > 5 -> 19
 		ratchetAmount = 1;
 	}
 	else { // > 0 -> 4

@@ -28,14 +28,9 @@ namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorRhythm;
-		this->setValue((value * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32);
-	}
-	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRhythm = (uint32_t)this->getValue() * 85899345;
-	}
+	void readCurrentValue() override { this->setValue(getCurrentInstrumentClip()->arpeggiatorRhythm); }
+	void writeCurrentValue() override { getCurrentInstrumentClip()->arpeggiatorRhythm = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_PRESET_ARP_RHYTHMS - 1; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingCVOrMIDIClip();
