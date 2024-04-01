@@ -55,7 +55,8 @@ class DocEmitter(Visitor):
 
     def visit_multicontext(self, menu: dsl.MultiContextMenu):
         raise ValueError(
-            "Doc emitter can only consume MultiContextMenuInstances, not the"
+            f"Failed to process menu {menu.cpp_name}: "
+            "Doc emitter can only consume MultiContextMenuInstances, not the "
             "underlying MultiContextMenu. Did you forget a .with_context()?"
         )
 
