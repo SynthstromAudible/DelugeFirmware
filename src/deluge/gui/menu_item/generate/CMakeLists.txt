@@ -15,6 +15,7 @@ add_custom_command(
   ARGS
     ${CMAKE_CURRENT_LIST_DIR}/main.py
     -c ${deluge_menus_inc}
+    -d ${CMAKE_CURRENT_BINARY_DIR}/g_menus.json
   DEPENDS ${deluge_menu_gen_SOURCES}
   VERBATIM
 )
