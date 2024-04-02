@@ -92,10 +92,10 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 		//
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
-		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], 5);
+		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], 4);
 
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
-		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], 5);
+		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], 4);
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs
