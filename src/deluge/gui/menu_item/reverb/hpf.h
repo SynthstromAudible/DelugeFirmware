@@ -36,7 +36,7 @@ public:
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return (AudioEngine::reverb.getModel() == dsp::Reverb::Model::MUTABLE);
 	}
 };

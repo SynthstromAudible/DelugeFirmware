@@ -129,17 +129,30 @@ public:
 
 	void setDamping(float value) override {
 		lp_val_ = value;
-		lp_ = (value == 0.f) ? 1.f : 1.f - std::clamp((dsp::log2fast(((1.f - lp_val_) * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
+		lp_ = (value == 0.f) ? 1.f : 1.f - std::clamp((std::log2(((1.f - lp_val_) * 50.f) + 1.f) / 5.7f), 0.f, 1.f);
 	}
 	[[nodiscard]] float getDamping() const override { return lp_val_; }
 
 	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
 	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
-	void setHPF(float value) {
-		hp_cutoff_val_ = value;
-		hp_cutoff_ =
-		    value == 0.f ? 0.f : std::clamp(0.35f - dsp::log2fast(((1.f - value) * 50.f) + 1.f) / 16, 0.f, 1.f);
+	//	void setHPF(float value) {
+	//		hp_cutoff_val_ = value;
+	//		hp_cutoff_ = value == 0.f ? 0.f : std::clamp(0.35f - std::log2(((1.f - value) * 50.f) + 1.f) / 16,
+	// 0.f, 1.f);
+	//	}
+	void setHPF(float f) {
+		hp_cutoff_val_ = f;
+		hp_cutoff_ = calcFilterCutoff(f);
+	}
+	static constexpr float calcFilterCutoff(float f) {
+		// this exp will be between 1 and 5ish, half the knob range is about 2
+		// the result will then be from 0 to 100hz with half the knob range at 60hz
+		// then shift to 20-120Hz as there is a low end buildup in the reverb that should always be filtered out
+		float fc_hz = 20 + (std::exp(1.5f * f) - 1) * 30;
+		float fc = fc_hz / float(kSampleRate);
+		float wc = fc / (1 + fc);
+		return wc;
 	}
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 
@@ -167,7 +180,8 @@ private:
 
 	// High-pass
 	float hp_cutoff_val_{0.f};
-	float hp_cutoff_{0.f};
+	// corresponds to 20Hz
+	float hp_cutoff_{calcFilterCutoff(0)};
 	float hp_l_{0.0}; // HP state variable
 	float hp_r_{0.0}; // HP state variable
 };
