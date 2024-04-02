@@ -190,6 +190,8 @@ private:
 	float rms = 0;
 	/// Mean value of the last render.
 	float mean = 0;
+	/// tanh working values for output saturation
+	uint32_t lastSaturationTanHWorkingValue[2] = {0};
 
 	// sidechain filter
 	deluge::dsp::filter::BasicFilterComponent hpfL;

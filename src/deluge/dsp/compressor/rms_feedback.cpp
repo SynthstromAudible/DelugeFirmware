@@ -28,6 +28,7 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
+
 	// 33551360
 	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
@@ -91,12 +92,15 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 		//
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
+		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], 5);
+
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
+		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], 5);
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs
 	// 4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
 	rms = calcRMS(buffer, numSamples);
 }
@@ -128,8 +132,8 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples);
-	mean = (2 * float(sum) / ONE_Q31f) / ns;
+	float ns = float(numSamples * 2);
+	mean = (float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
