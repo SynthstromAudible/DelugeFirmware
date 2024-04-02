@@ -1,8 +1,6 @@
 # Deluge Community Firmware Change Log
 
-> To find a detailed list of how to use each feature, check
->
-here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
 ## c1.2.0 Chopin
 
@@ -90,6 +88,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added a new default setting that controls which playback mode new slices of a kit will get. 
 - Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
 - Modified waveform marker rendering to improve clarity.
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
