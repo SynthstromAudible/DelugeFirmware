@@ -51,9 +51,17 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 	// I couldn't extract correct volume levels from it.
 	render(buffer, numSamples, 1 << 27, 1 << 27, finalVolume >> 3);
 }
-
+constexpr uint8_t saturationAmount = 4;
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
+	if (!onLastTime) {
+		// sets the "working level" for interpolation and anti aliasing
+		lastSaturationTanHWorkingValue[0] =
+		    (uint32_t)lshiftAndSaturateUnknown(buffer->l, saturationAmount) + 2147483648u;
+		lastSaturationTanHWorkingValue[1] =
+		    (uint32_t)lshiftAndSaturateUnknown(buffer->r, saturationAmount) + 2147483648u;
+		onLastTime = true;
+	}
 	// we update this every time since we won't know if the song volume changed
 	updateER(numSamples, finalVolume);
 
@@ -92,10 +100,10 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 		//
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
-		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], 4);
+		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], saturationAmount);
 
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
-		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], 4);
+		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], saturationAmount);
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs

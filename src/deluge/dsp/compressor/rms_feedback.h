@@ -36,10 +36,11 @@ public:
 	}
 
 	/// Reset the state of the compressor so no gain reduction is applied at the start of the next render window.
-	void reset() {
+	void reset(StereoSample last = {0, 0}) {
 		state = 0;
 		er = 0;
 		mean = 0;
+		onLastTime = false;
 	}
 
 	/// Render the compressor in-place using the provided buffer.
@@ -192,6 +193,7 @@ private:
 	float mean = 0;
 	/// tanh working values for output saturation
 	uint32_t lastSaturationTanHWorkingValue[2] = {0};
+	bool onLastTime = false;
 
 	// sidechain filter
 	deluge::dsp::filter::BasicFilterComponent hpfL;
