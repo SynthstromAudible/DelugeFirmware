@@ -116,8 +116,8 @@ public:
 
 	static constexpr float kReverbTimeMin = 0.01f;
 	static constexpr float kReverbTimeMax = 0.98f;
-	static constexpr float kWidthMin = 0.01f;
-	static constexpr float kWidthMax = 0.98f;
+	static constexpr float kWidthMin = 0.1f;
+	static constexpr float kWidthMax = 0.9f;
 
 	// Reverb Base Overrides
 	void setRoomSize(float value) override {
