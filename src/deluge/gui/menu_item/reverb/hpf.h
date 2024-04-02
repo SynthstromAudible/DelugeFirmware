@@ -27,12 +27,8 @@ namespace deluge::gui::menu_item::reverb {
 class HPF final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override {
-		this->setValue(AudioEngine::reverb.reverb_as<dsp::reverb::Mutable>().getHPF() * kMaxMenuValue);
-	}
-	void writeCurrentValue() override {
-		AudioEngine::reverb.reverb_as<dsp::reverb::Mutable>().setHPF((float)this->getValue() / kMaxMenuValue);
-	}
+	void readCurrentValue() override { this->setValue(AudioEngine::reverb.getHPF() * kMaxMenuValue); }
+	void writeCurrentValue() override { AudioEngine::reverb.setHPF((float)this->getValue() / kMaxMenuValue); }
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 
