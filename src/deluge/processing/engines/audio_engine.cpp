@@ -561,7 +561,10 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 
 	// when playback is enabled, blink play button to indicate high cpu usage
 	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
-		indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
+		// check if indicator isn't already active
+		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
+			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
+		}
 	}
 
 	// Double the number of samples we're going to do - within some constraints
