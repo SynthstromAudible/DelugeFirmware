@@ -72,8 +72,8 @@ public:
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	ParamManagerForTimeline* getParamManager();
 
-	void writePatchCablesToFile(bool writeAutomation);
-	void readPatchCablesFromFile(int32_t readAutomationUpToPos);
+	void writePatchCablesToFile(StorageManager& bdsm, bool writeAutomation);
+	void readPatchCablesFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos);
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) override;
@@ -111,8 +111,11 @@ public:
 
 	Destination* destinations[2];
 
-private:
+	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return true; };
+
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
+
+private:
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

@@ -17,10 +17,13 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 
@@ -35,10 +38,7 @@ void UnpatchedParam::readCurrentValue() {
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	int32_t p = getP();
-	return modelStack->addParam(summary->paramCollection, summary, p,
-	                            &((ParamSet*)summary->paramCollection)->params[p]);
+	return modelStack->getUnpatchedAutoParamFromId(getP());
 }
 
 void UnpatchedParam::writeCurrentValue() {
@@ -50,6 +50,12 @@ void UnpatchedParam::writeCurrentValue() {
 	// send midi follow feedback
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	view.sendMidiFollowFeedback(modelStackWithParam, knobPos);
+
+	if (getRootUI() == &automationView) {
+		int32_t p = modelStackWithParam->paramId;
+		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+	}
 }
 
 int32_t UnpatchedParam::getFinalValue() {
@@ -72,6 +78,15 @@ ParamDescriptor UnpatchedParam::getLearningThing() {
 
 ParamSet* UnpatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getUnpatchedParamSet();
+}
+
+deluge::modulation::params::Kind UnpatchedParam::getParamKind() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	return getModelStack(modelStackMemory)->paramCollection->getParamKind();
+}
+
+uint32_t UnpatchedParam::getParamIndex() {
+	return this->getP();
 }
 
 // ---------------------------------------

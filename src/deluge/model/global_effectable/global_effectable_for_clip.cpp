@@ -47,11 +47,12 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
-void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-                                           StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
-                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           bool shouldLimitDelayFeedback, bool isClipActive, OutputType outputType,
-                                           int32_t analogDelaySaturationAmount) {
+[[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
+                                                        ParamManager* paramManagerForClip, StereoSample* outputBuffer,
+                                                        int32_t numSamples, int32_t* reverbBuffer,
+                                                        int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+                                                        bool shouldLimitDelayFeedback, bool isClipActive,
+                                                        OutputType outputType) {
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -75,10 +76,13 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
-	    getFinalParameterValueExp(16777216, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-	DelayWorkingState delayWorkingState;
-	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	Delay::State delayWorkingState =
+	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	if (outputType == OutputType::AUDIO) {
+		delayWorkingState.analog_saturation = 5;
+	}
 
 	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
@@ -174,12 +178,14 @@ doNormal:
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
+		                             delayWorkingState, renderedLastTime);
 		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 		                           reverbSendAmount, pan, true);
-		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+		if (compThreshold > 0) {
+			compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+		}
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 
@@ -227,38 +233,12 @@ void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, P
 	return GlobalEffectable::modButtonAction(whichModButton, on, paramManager);
 }
 
-void GlobalEffectableForClip::displaySidechainAndReverbSettings(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 100);
-			popupMsg.append("Sidechain: ");
-			popupMsg.append(getSidechainDisplayName());
-			popupMsg.append("\n");
-
-			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
-	}
-	else {
-		if (on) {
-			display->displayPopup(getSidechainDisplayName());
-		}
-		else {
-			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-		}
-	}
-}
-
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                                      ModelStackWithThreeMainThings* modelStack) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
-		if (*getModKnobMode() == 4) {
+		int32_t modKnobMode = *getModKnobMode();
+		if (modKnobMode == 4) {
 			if (whichModEncoder == 1) { // Sidechain
 				int32_t insideWorldTickMagnitude;
 				if (currentSong) { // Bit of a hack just referring to currentSong in here...
@@ -270,11 +250,31 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 				}
 				if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 					sidechain.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST));
 				}
 				else {
 					sidechain.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-					display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW));
+				}
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displaySidechainAndReverbSettings(on);
+				}
+				else {
+					display->displayPopup(getSidechainDisplayName());
+				}
+				return true;
+			}
+			else if (whichModEncoder == 0) { // reverb
+				view.cycleThroughReverbPresets();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displaySidechainAndReverbSettings(on);
+				}
+				else {
+					display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 				}
 				return true;
 			}

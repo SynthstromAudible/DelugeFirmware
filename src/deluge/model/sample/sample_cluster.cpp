@@ -16,20 +16,13 @@
  */
 
 #include "model/sample/sample_cluster.h"
+#include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-
-SampleCluster::SampleCluster() {
-	cluster = NULL;
-
-	investigatedWholeLength = false;
-	minValue = 127;
-	maxValue = -128;
-	sdAddress = 0; // 0 means invalid, and we check for this as a last resort before writing
-}
+#include <cstddef>
 
 SampleCluster::~SampleCluster() {
 	if (cluster) {
@@ -71,10 +64,10 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 // Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
 Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction,
-                                   uint32_t priorityRating, uint8_t* error) {
+                                   uint32_t priorityRating, Error* error) {
 
-	if (error) {
-		*error = NO_ERROR;
+	if (error != nullptr) {
+		*error = Error::NONE;
 	}
 
 	// If the Cluster hasn't been created yet
@@ -83,10 +76,10 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
 			D_PRINTLN("unloadable");
-			if (error) {
-				*error = ERROR_FILE_NOT_FOUND;
+			if (error != nullptr) {
+				*error = Error::FILE_NOT_FOUND;
 			}
-			return NULL;
+			return nullptr;
 		}
 
 		// D_PRINTLN("loading");
@@ -94,10 +87,10 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 
 		if (!cluster) {
 			D_PRINTLN("couldn't allocate");
-			if (error) {
-				*error = ERROR_INSUFFICIENT_RAM;
+			if (error != nullptr) {
+				*error = Error::INSUFFICIENT_RAM;
 			}
-			return NULL;
+			return nullptr;
 		}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
@@ -159,12 +152,12 @@ justEnqueue:
 				// still exist but never get enqueued for loading
 				audioFileManager.deallocateCluster(cluster); // This removes the 1 reason that it'd still have
 
-				if (error) {
-					*error =
-					    ERROR_UNSPECIFIED; // TODO: get actual error. Although sometimes it'd just be a "can't do it now
-					                       // cos card's being accessed, and that's fine, thanks for checking."
+				if (error != nullptr) {
+					// TODO: get actual error. Although sometimes it'd just be a "can't do it now
+					// cos card's being accessed, and that's fine, thanks for checking."
+					*error = Error::UNSPECIFIED;
 				}
-				cluster = NULL;
+				cluster = nullptr;
 			}
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
 			if (cluster && cluster->numReasonsToBeLoaded <= 0) {
@@ -191,10 +184,10 @@ justEnqueue:
 			// If it's still not loaded and it was a must-load-now...
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
 				D_PRINTLN("hurrying loading along failed for index:  %d", clusterIndex);
-				if (error) {
-					*error = ERROR_UNSPECIFIED; // TODO: get actual error
+				if (error != nullptr) {
+					*error = Error::UNSPECIFIED; // TODO: get actual error
 				}
-				return NULL;
+				return nullptr;
 			}
 		}
 

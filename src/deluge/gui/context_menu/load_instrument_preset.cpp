@@ -16,6 +16,7 @@
  */
 
 #include "gui/context_menu/load_instrument_preset.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "hid/display/display.h"
@@ -35,7 +36,7 @@ Sized<char const**> LoadInstrumentPreset::getOptions() {
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
-	int32_t error;
+	Error error;
 
 	switch (currentOption) {
 	/*
@@ -43,8 +44,8 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(true);
-		if (error) {
+		error = loadInstrumentPresetUI.performLoad(storageManager, true);
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return true;
 		}

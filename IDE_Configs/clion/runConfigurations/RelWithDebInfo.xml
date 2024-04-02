@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RelWithDebInfo" type="com.jetbrains.cidr.embedded.customgdbserver.type" factoryName="com.jetbrains.cidr.embedded.customgdbserver.factory" PROGRAM_PARAMS="-device R7S721020 -speed 50000 -endian little -if swd -port 3333 -nogui -nohalt" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="Deluge" TARGET_NAME="RelWithDebInfo" CONFIG_NAME="RelWithDebInfo" version="1" RUN_PATH="$PROJECT_DIR$/build/RelWithDebInfo/deluge.elf">
+    <custom-gdb-server version="1" gdb-connect="localhost:3333" executable="JLinkGDBServer" warmup-ms="0" download-type="ALWAYS" reset-cmd="monitor reset" reset-type="BEFORE_DOWNLOAD">
+      <debugger kind="GDB" isBundled="true" />
+    </custom-gdb-server>
+    <method v="2">
+      <option name="CLION.COMPOUND.BUILD" enabled="true" />
+    </method>
+  </configuration>
+</component>

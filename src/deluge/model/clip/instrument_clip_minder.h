@@ -34,19 +34,20 @@ public:
 	InstrumentClipMinder();
 	static void redrawNumericDisplay();
 	void displayOrLanguageChanged();
-	void createNewInstrument(OutputType newOutputType);
+	bool createNewInstrument(OutputType newOutputType);
 	void setLedStates();
 	void focusRegained();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
+	bool setScale(int32_t newScale);
 	void displayScaleName(int32_t scale);
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	void changeOutputType(OutputType newOutputType);
+	bool changeOutputType(OutputType newOutputType);
 	void opened();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);

@@ -39,6 +39,7 @@ class ModelStackWithAutoParam;
 class MIDIDevice;
 class LearnedMIDI;
 class ParamManager;
+class StorageManager;
 
 class Output {
 public:
@@ -88,11 +89,14 @@ public:
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
+	bool isEmpty();
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}
 	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                                    GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                                    int32_t* highestReverbAmountFound) {}
+
+	/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 	virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
 	                                                   uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
 		return false;
@@ -104,25 +108,25 @@ public:
 	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
 
-	virtual int32_t readFromFile(
-	    Song* song, Clip* clip,
-	    int32_t readAutomationUpToPos); // I think that supplying clip here is only a hangover from old pre-2.0 files...
-	virtual bool readTagFromFile(char const* tagName);
-	void writeToFile(Clip* clipForSavingOutputOnly, Song* song);
-	virtual bool writeDataToFile(Clip* clipForSavingOutputOnly,
+	// FIXME:I think that supplying clip here is only a hangover from old pre-2.0 files...
+	virtual Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos);
+
+	virtual bool readTagFromFile(StorageManager& bdsm, char const* tagName);
+	void writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	virtual bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
-	virtual int32_t loadAllAudioFiles(bool mayActuallyReadFiles) { return NO_ERROR; }
+	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles) { return Error::NONE; }
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
-	virtual void
-	resyncLFOs(){}; // No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
+	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
+	virtual void resyncLFOs(){};
+
 	virtual void sendMIDIPGM(){};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 
 	virtual char const* getXMLTag() = 0;
-
 	virtual ParamManager* getParamManager(Song* song);
 
 	virtual char const* getNameXMLTag() { return "name"; }
@@ -144,13 +148,14 @@ public:
 	                                  int32_t whichBendRange, int32_t bendSemitones) {}
 
 	// Arrangement stuff
-	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);
+	Error possiblyBeginArrangementRecording(Song* song, int32_t newPos);
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                        int32_t paramID,
 	                                                        deluge::modulation::params::Kind paramKind) = 0;
+	virtual bool needsEarlyPlayback() const { return false; }
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

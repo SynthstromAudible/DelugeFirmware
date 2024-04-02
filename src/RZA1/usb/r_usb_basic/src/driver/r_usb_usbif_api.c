@@ -36,6 +36,7 @@
 
 // Added by Rohan
 #include "RZA1/intc/devdrv_intc.h"
+#include "timers_interrupts.h"
 
 #if defined(USB_CFG_HCDC_USE)
 #include "r_usb_hcdc_if.h"
@@ -245,9 +246,7 @@ usb_err_t R_USB_Open(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
 
             /* Setting MCU(USB interrupt init) register */
             // usb_cpu_usbint_init((uint8_t)utr.ip);
-            R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_hstd_usb_handler);
-            R_INTC_SetPriority(INTC_ID_USBI0, 9);
-            R_INTC_Enable(INTC_ID_USBI0);
+            setupAndEnableInterrupt(usb_hstd_usb_handler, INTC_ID_USBI0, 9);
 
             /* Setting USB relation register  */
             hw_usb_hmodule_init(ctrl); /* MCU */
@@ -283,9 +282,8 @@ usb_err_t R_USB_Open(usb_ctrl_t* ctrl, usb_cfg_t* cfg)
 
             /* Setting MCU(USB interrupt init) register */
             // usb_cpu_usbint_init(ctrl->module);
-            R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_pstd_usb_handler);
-            R_INTC_SetPriority(INTC_ID_USBI0, 9);
-            R_INTC_Enable(INTC_ID_USBI0);
+
+            setupAndEnableInterrupt(usb_pstd_usb_handler, INTC_ID_USBI0, 9);
 
             /* Setting USB relation register  */
             hw_usb_pmodule_init();

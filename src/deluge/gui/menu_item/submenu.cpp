@@ -15,12 +15,16 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
+	auto start = current_item_;
+	bool wrapped = false;
 	// loop through non-null items until we find a relevant one
 	while ((*current_item_ != nullptr)
-	       && !(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)
+	       && !(wrapped && current_item_ == start)) {
 		current_item_++;
 		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
 			current_item_ = items.begin();
+			wrapped = true;
 		}
 	}
 	if (display->have7SEG()) {
@@ -44,7 +48,7 @@ void Submenu::drawPixelsForOled() {
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
 	int32_t idx = selectedRow;
 	for (auto it = current_item_; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
-		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
 			nextItemNames.push_back((*it)->getName());
 			idx++;
 		}
@@ -53,7 +57,7 @@ void Submenu::drawPixelsForOled() {
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
 	idx = selectedRow - 1;
 	for (auto it = current_item_ - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
-		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
+		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
 			prevItemNames.push_back((*it)->getName());
 			idx--;
 		}
@@ -99,7 +103,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 					thisSubmenuItem--;
 				}
 			}
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
+		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex));
 
 		current_item_ = thisSubmenuItem;
 

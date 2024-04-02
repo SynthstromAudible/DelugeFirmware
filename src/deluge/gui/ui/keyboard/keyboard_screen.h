@@ -25,6 +25,7 @@
 #include "model/clip/instrument_clip_minder.h"
 
 class ModelStack;
+class Instrument;
 
 namespace deluge::gui::ui::keyboard {
 
@@ -50,6 +51,7 @@ public:
 	void exitAuditionMode();
 
 	uint8_t highlightedNotes[kHighestKeyboardNote] = {0};
+	uint8_t nornsNotes[kHighestKeyboardNote] = {0};
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
@@ -63,6 +65,8 @@ private:
 
 	void evaluateActiveNotes();
 	void updateActiveNotes();
+
+	void noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument, int32_t note);
 
 	ClipMinder* toClipMinder() { return this; }
 	void setLedStates();

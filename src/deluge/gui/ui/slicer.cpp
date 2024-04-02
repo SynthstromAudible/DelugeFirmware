@@ -43,6 +43,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
 #include <string.h>
@@ -593,8 +594,8 @@ void Slicer::doSlice() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	int32_t error = sampleBrowser.claimAudioFileForInstrument();
-	if (error) {
+	Error error = sampleBrowser.claimAudioFileForInstrument();
+	if (error != Error::NONE) {
 getOut:
 		display->displayError(error);
 		return;
@@ -649,7 +650,8 @@ getOut:
 		uint32_t nextDrumStart = lengthInSamples / numClips;
 		firstRange->sampleHolder.endPos = nextDrumStart;
 
-		firstDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+		firstDrum->sources[0].repeatMode =
+		    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
 		firstDrum->sources[0].sampleControls.reversed = false;
 
@@ -676,14 +678,14 @@ getOut:
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupWithPatching();
-			if (error) {
+			if (error != Error::NONE) {
 				goto getOut;
 			}
 
 			void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 			if (!drumMemory) {
 ramError:
-				error = ERROR_INSUFFICIENT_RAM;
+				error = Error::INSUFFICIENT_RAM;
 				goto getOut;
 			}
 
@@ -700,7 +702,7 @@ ramError2:
 			char newName[5];
 			intToString(i + 1, newName);
 			error = newDrum->name.set(newName);
-			if (error) {
+			if (error != Error::NONE) {
 				goto ramError2;
 			}
 
@@ -713,7 +715,8 @@ ramError2:
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / numClips;
 			range->sampleHolder.endPos = nextDrumStart;
 
-			newDrum->sources[0].repeatMode = (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+			newDrum->sources[0].repeatMode =
+			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
 			range->sampleHolder.filePath.set(&sample->filePath);
 			range->sampleHolder.loadFile(false, false, true);

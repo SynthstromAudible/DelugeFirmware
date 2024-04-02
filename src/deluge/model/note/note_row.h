@@ -92,8 +92,8 @@ public:
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
-	void writeToFile(int32_t drumIndex, InstrumentClip* clip);
-	int32_t readFromFile(int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
+	void writeToFile(StorageManager& bdsm, int32_t drumIndex, InstrumentClip* clip);
+	Error readFromFile(StorageManager& bdsm, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
@@ -141,15 +141,15 @@ public:
 	                       ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
-	int32_t addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
-	                              bool allowNoteTails, Action* action);
+	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
+	                            bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);
-	int32_t clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
-	                  uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
+	Error clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
+	                uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
 	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
@@ -164,31 +164,31 @@ public:
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
-	int32_t appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                      int32_t whichRepeatThisIs, int32_t otherClipLength);
-	int32_t beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	Error appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
+	                    int32_t whichRepeatThisIs, int32_t otherClipLength);
+	Error beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
 	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
-	int32_t changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-	                                    int32_t changeType, int32_t changeValue);
+	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+	                                  int32_t changeType, int32_t changeValue);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
-	int32_t nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-	                                   uint32_t wrapEditLevel, int32_t nudgeOffset);
+	Error nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+	                                 uint32_t wrapEditLevel, int32_t nudgeOffset);
 	/// Quantize the notes in this NoteRow so their positions are within `(kQuantizationPrecision - amount) *
 	/// increment/kQuantizationPrecision` of the grid defined by `n * increment`. If `amount` is negative, the row is
 	/// instead "humanized" by jittering the note positions to `±amount * increment / kQuantizationPrecision` sequencer
 	/// ticks of the `n * increment` grid.
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
-	int32_t quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount);
-	int32_t editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-	                                       Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
+	Error quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount);
+	Error editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
+	                                     Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
 	void setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
 	               bool hadIndependentPlayPosBefore);
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);

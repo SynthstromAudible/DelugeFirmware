@@ -30,13 +30,13 @@ ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip)
 	endPosToRevertTo = newClip->sampleHolder.endPos;
 }
 
-int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
 
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);
 	uint64_t endPosBeforeRevert = clip->sampleHolder.endPos;
-
-	clip->unassignVoiceSample();
+	// don't keep cached since we undid the set
+	clip->unassignVoiceSample(true);
 
 	clip->sampleHolder.filePath.set(&filePathToRevertTo);
 	clip->sampleHolder.endPos = endPosToRevertTo;
@@ -51,8 +51,8 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 		}
 	}
 	else {
-		int32_t error = clip->sampleHolder.loadFile(false, false, true);
-		if (error) {
+		Error error = clip->sampleHolder.loadFile(false, false, true);
+		if (error != Error::NONE) {
 			display->displayError(error); // Rare, shouldn't cause later problems.
 		}
 
@@ -68,5 +68,5 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 	filePathToRevertTo.set(&filePathBeforeRevert);
 	endPosToRevertTo = endPosBeforeRevert;
 
-	return NO_ERROR;
+	return Error::NONE;
 }

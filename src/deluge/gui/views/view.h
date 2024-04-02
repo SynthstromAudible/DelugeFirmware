@@ -63,7 +63,7 @@ public:
 	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
 	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
-	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
+	void instrumentMidiLearnPadPressed(bool on, Instrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void midiLearnFlash();
 	void setModLedStates();
@@ -72,6 +72,7 @@ public:
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
+	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
@@ -89,7 +90,7 @@ public:
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads = false,
+	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads = false,
 	                                          bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
@@ -105,8 +106,10 @@ public:
 	int8_t lowestMIDIChannelSeenWhileLearning;
 
 	LearnedMIDI* learnedThing;
-	MelodicInstrument* melodicInstrumentPressedForMIDILearn;
+	Instrument* instrumentPressedForMIDILearn;
 	Drum* drumPressedForMIDILearn;
+
+	// deceivingly this is used only while learning drums
 	Kit* kitPressedForMIDILearn;
 
 	ModelStackWithThreeMainThings activeModControllableModelStack;
@@ -127,14 +130,28 @@ public:
 	uint32_t modLength;
 
 	int32_t calculateKnobPosForDisplay(deluge::modulation::params::Kind kind, int32_t paramID, int32_t knobPos);
-	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos);
+	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
+	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE);
+	void potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
+	                                       int32_t newKnobPos);
 	void sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam = nullptr, int32_t knobPos = kNoSelection,
 	                            bool isAutomation = false);
+
+	// vu meter rendering
+	bool displayVUMeter;
+	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
 
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
+
+	// vu meter rendering
+	int32_t getMaxYDisplayForVUMeter(float level);
+	int32_t cachedMaxYDisplayForVUMeterL;
+	int32_t cachedMaxYDisplayForVUMeterR;
+	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
+	bool renderedVUMeter;
 };
 
 extern View view;

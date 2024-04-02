@@ -1,4 +1,5 @@
 .DS_Store
+.vscode
 /Release*/*
 /HardwareDebug*/*
 /.settings/*
@@ -21,5 +22,15 @@ __pycache__
 /tests/Makefile
 /tests/RunAllTests
 /tests/_deps/*
+/tests/build
 *.a
 *.jdebug.user
+.idea
+# vim
+.*.swp
+.*.swo
+.session.vim
+
+.idea
+*.srctrl*
+

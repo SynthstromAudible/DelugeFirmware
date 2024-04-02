@@ -3,6 +3,10 @@
 #include <array>
 #include <string_view>
 
+extern "C" {
+#include "util/cfunctions.h"
+}
+
 class NumericLayer;
 class NumericLayerScrollingText;
 
@@ -29,8 +33,22 @@ public:
 	                     uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
 
-	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t = 255,
-	                          int32_t = 1, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
+	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
+	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
+	                          DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
+
+	virtual void displayPopup(uint8_t val, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
+	                          int32_t blinkSpeed = 1, DisplayPopupType type = DisplayPopupType::GENERAL) {
+		char valStr[4] = {0};
+		intToString(val, valStr, 1);
+		displayPopup(valStr, numFlashes, alignRight, drawDot, blinkSpeed, type);
+	}
+
+	virtual void displayPopup(char const* shortLong[2], int8_t numFlashes = 3, bool alignRight = false,
+	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
+	                          DisplayPopupType type = DisplayPopupType::GENERAL) {
+		displayPopup(have7SEG() ? shortLong[0] : shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
+	}
 
 	virtual void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
 	virtual void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
@@ -40,7 +58,7 @@ public:
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
 	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
-	virtual void displayError(int32_t error) = 0;
+	virtual void displayError(Error error) = 0;
 
 	virtual void removeWorkingAnimation() = 0;
 

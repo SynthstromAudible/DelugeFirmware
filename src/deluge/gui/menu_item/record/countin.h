@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,15 +14,16 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#pragma once
+#include "gui/menu_item/integer.h"
+#include "playback/playback_handler.h"
 
-#include "dsp/convolution/impulse_response_processor.h"
-
-const int32_t ir[IR_SIZE] = {
-    -3203916,   8857848,   24813136,  41537808, 35217472,  15195632,  -27538592, -61984128, 1944654848,
-    1813580928, 438462784, 101125088, 6042048,  -22429488, -46218864, -56638560, -64785312, -52108528,
-    -37256992,  -11863856, 1390352,   14663296, 12784464,  14254800,  5690912,   4490736,
+namespace deluge::gui::menu_item::record {
+class CountIn final : public IntegerWithOff {
+public:
+	using IntegerWithOff::IntegerWithOff;
+	void readCurrentValue() override { this->setValue(playbackHandler.countInBars); }
+	void writeCurrentValue() override { playbackHandler.countInBars = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 4; }
 };
-
-ImpulseResponseProcessor::ImpulseResponseProcessor() {
-	memset(buffer, 0, sizeof(buffer));
-}
+} // namespace deluge::gui::menu_item::record

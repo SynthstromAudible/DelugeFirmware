@@ -51,13 +51,14 @@ public:
 	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
 	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
 
-	bool readTagFromFile(char const* tagName);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	ModControllable* toModControllable() { return this; }
 
 	int32_t channel = 0;
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2];
+	bool needsEarlyPlayback() const override;
 
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,

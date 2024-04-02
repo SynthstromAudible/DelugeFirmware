@@ -55,7 +55,7 @@ public:
 	bool opened();
 	void focusRegained();
 	void displayOrLanguageChanged() final;
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
 	int8_t currentSourceIndex;
@@ -74,7 +74,9 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset);
+	void scrollFinished();
 	bool editingKit();
 
 	ActionResult timerCallback() override;
@@ -147,6 +149,10 @@ private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);
 	uint8_t getActualParamFromScreen(uint8_t screen);
 	void setLedStates();
+	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);
+	bool isEditingAutomationViewParam();
+	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
+	                                    MenuItem* currentItem);
 };
 
 extern SoundEditor soundEditor;

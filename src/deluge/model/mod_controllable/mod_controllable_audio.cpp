@@ -18,6 +18,7 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
+#include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_session_view.h"
@@ -119,7 +120,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	filterRoute = other->filterRoute;
 	sidechain.cloneFrom(&other->sidechain);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
-	delay.cloneFrom(&other->delay);
+	delay = other->delay;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager) {
@@ -171,8 +172,8 @@ void ModControllableAudio::setWrapsToShutdown() {
 }
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
-                                     int32_t modFXDepth, DelayWorkingState* delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, int32_t analogDelaySaturationAmount) {
+                                     int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
+                                     ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -535,364 +536,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	}
 
 	// Delay ----------------------------------------------------------------------------------
-	DelayBufferSetup delayPrimarySetup;
-	DelayBufferSetup delaySecondarySetup;
-
-	if (delayWorkingState->doDelay) {
-
-		if (delayWorkingState->userDelayRate != delay.userRateLastTime) {
-			delay.userRateLastTime = delayWorkingState->userDelayRate;
-			delay.countCyclesWithoutChange = 0;
-		}
-		else {
-			delay.countCyclesWithoutChange += numSamples;
-		}
-
-		// If just a single buffer is being used for reading and writing, we can consider making a 2nd buffer
-		if (!delay.secondaryBuffer.isActive()) {
-
-			// If resampling previously recorded as happening, or just about to be recorded as happening
-			if (delay.primaryBuffer.isResampling
-			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
-
-				// If delay speed has settled for a split second...
-				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
-					// D_PRINTLN("settling");
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
-				}
-
-				// If spinning at double native rate, there's no real need to be using such a big buffer, so make a new
-				// (smaller) buffer at our new rate
-				else if (delayWorkingState->userDelayRate >= (delay.primaryBuffer.nativeRate << 1)) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, false);
-				}
-
-				// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
-				// rate is half our current rate (double the quality)
-				else if (delayWorkingState->userDelayRate < delay.primaryBuffer.nativeRate) {
-					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate >> 1, false);
-				}
-			}
-		}
-
-		// Figure some stuff out for the primary buffer
-		delay.primaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delayPrimarySetup);
-
-		// Figure some stuff out for the secondary buffer - only if it's active
-		if (delay.secondaryBuffer.isActive()) {
-			delay.secondaryBuffer.setupForRender(delayWorkingState->userDelayRate, &delaySecondarySetup);
-		}
-
-		bool wrapped = false;
-
-		int32_t* delayWorkingBuffer = spareRenderingBuffer[0];
-
-		GeneralMemoryAllocator::get().checkStack("delay");
-
-		int32_t* workingBufferEnd = delayWorkingBuffer + numSamples * 2;
-
-		StereoSample* primaryBufferOldPos;
-		uint32_t primaryBufferOldLongPos;
-		uint8_t primaryBufferOldLastShortPos;
-
-		// If nothing to read yet, easy
-		if (!delay.primaryBuffer.isActive()) {
-			memset(delayWorkingBuffer, 0, numSamples * 2 * sizeof(int32_t));
-		}
-
-		// Or...
-		else {
-
-			primaryBufferOldPos = delay.primaryBuffer.bufferCurrentPos;
-			primaryBufferOldLongPos = delay.primaryBuffer.longPos;
-			primaryBufferOldLastShortPos = delay.primaryBuffer.lastShortPos;
-
-			// Native read
-			if (!delay.primaryBuffer.isResampling) {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					wrapped = delay.primaryBuffer.clearAndMoveOn() || wrapped;
-					workingBufferPos[0] = delay.primaryBuffer.bufferCurrentPos->l;
-					workingBufferPos[1] = delay.primaryBuffer.bufferCurrentPos->r;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Or, resampling read
-			else {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
-					delay.primaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						wrapped = delay.primaryBuffer.clearAndMoveOn() || wrapped;
-						shortPosDiff--;
-					}
-
-					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
-					int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-					StereoSample* nextPos = delay.primaryBuffer.bufferCurrentPos + 1;
-					if (nextPos == delay.primaryBuffer.bufferEnd) {
-						nextPos = delay.primaryBuffer.bufferStart;
-					}
-					int32_t fromDelay1L = delay.primaryBuffer.bufferCurrentPos->l;
-					int32_t fromDelay1R = delay.primaryBuffer.bufferCurrentPos->r;
-					int32_t fromDelay2L = nextPos->l;
-					int32_t fromDelay2R = nextPos->r;
-
-					workingBufferPos[0] = (multiply_32x32_rshift32(fromDelay1L, primaryStrength1 << 14)
-					                       + multiply_32x32_rshift32(fromDelay2L, primaryStrength2 << 14))
-					                      << 2;
-					workingBufferPos[1] = (multiply_32x32_rshift32(fromDelay1R, primaryStrength1 << 14)
-					                       + multiply_32x32_rshift32(fromDelay2R, primaryStrength2 << 14))
-					                      << 2;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		if (delay.analog) {
-
-			{
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					delay.impulseResponseProcessor.process(workingBufferPos[0], workingBufferPos[1],
-					                                       &workingBufferPos[0], &workingBufferPos[1]);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			{
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					int32_t fromDelayL = workingBufferPos[0];
-					int32_t fromDelayR = workingBufferPos[1];
-
-					// delay.impulseResponseProcessor.process(fromDelayL, fromDelayR, &fromDelayL, &fromDelayR);
-
-					// Reduce headroom, since this sounds ok with analog sim
-					workingBufferPos[0] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount),
-					                   analogDelaySaturationAmount)
-					    << 2;
-					workingBufferPos[1] =
-					    getTanHUnknown(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
-					                   analogDelaySaturationAmount)
-					    << 2;
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		else {
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			do {
-				// Leave more headroom, because making it clip sounds bad with pure digital
-				workingBufferPos[0] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[0], delayWorkingState->delayFeedbackAmount))
-				                      << 2;
-				workingBufferPos[1] = signed_saturate<32 - 3>(multiply_32x32_rshift32(
-				                          workingBufferPos[1], delayWorkingState->delayFeedbackAmount))
-				                      << 2;
-
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-		// repetitions
-		{
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			do {
-				int32_t distanceToGoL = workingBufferPos[0] - delay.postLPFL;
-				delay.postLPFL += distanceToGoL >> 11;
-				workingBufferPos[0] -= delay.postLPFL;
-
-				int32_t distanceToGoR = workingBufferPos[1] - delay.postLPFR;
-				delay.postLPFR += distanceToGoR >> 11;
-				workingBufferPos[1] -= delay.postLPFR;
-
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		{
-			StereoSample* currentSample = buffer;
-			int32_t* workingBufferPos = delayWorkingBuffer;
-			// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
-			// into the delay
-			do {
-
-				int32_t fromDelayL = workingBufferPos[0];
-				int32_t fromDelayR = workingBufferPos[1];
-
-				/*
-				if (delay.analog) {
-				    // Reduce headroom, since this sounds ok with analog sim
-				    fromDelayL = getTanH(multiply_32x32_rshift32(fromDelayL, delayWorkingState->delayFeedbackAmount), 8)
-				<< 2; fromDelayR = getTanH(multiply_32x32_rshift32(fromDelayR, delayWorkingState->delayFeedbackAmount),
-				8) << 2;
-				}
-
-				else {
-				    fromDelayL =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayL), 32 - 3) <<
-				2; fromDelayR =
-				signed_saturate<delayWorkingState->delayFeedbackAmount>(multiply_32x32_rshift32(fromDelayR), 32 - 3) <<
-				2;
-				}
-				*/
-
-				/*
-				// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-				repetitions int32_t distanceToGoL = fromDelayL - delay.postLPFL; delay.postLPFL += distanceToGoL >> 11;
-				fromDelayL -= delay.postLPFL;
-
-				int32_t distanceToGoR = fromDelayR - delay.postLPFR;
-				delay.postLPFR += distanceToGoR >> 11;
-				fromDelayR -= delay.postLPFR;
-				*/
-
-				// Feedback calculation, and combination with input
-				if (delay.pingPong && AudioEngine::renderInStereo) {
-					workingBufferPos[0] = fromDelayR;
-					workingBufferPos[1] = ((currentSample->l + currentSample->r) >> 1) + fromDelayL;
-				}
-				else {
-					workingBufferPos[0] = currentSample->l + fromDelayL;
-					workingBufferPos[1] = currentSample->r + fromDelayR;
-				}
-
-				// Output
-				currentSample->l += fromDelayL;
-				currentSample->r += fromDelayR;
-
-				currentSample++;
-				workingBufferPos += 2;
-			} while (workingBufferPos != workingBufferEnd);
-		}
-
-		// And actually feedback being applied back into the actual delay primary buffer...
-		if (delay.primaryBuffer.isActive()) {
-
-			// Native
-			if (!delay.primaryBuffer.isResampling) {
-				int32_t* workingBufferPos = delayWorkingBuffer;
-
-				StereoSample* writePos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
-				if (writePos < delay.primaryBuffer.bufferStart) {
-					writePos += delay.primaryBuffer.sizeIncludingExtra;
-				}
-
-				do {
-					delay.primaryBuffer.writeNativeAndMoveOn(workingBufferPos[0], workingBufferPos[1], &writePos);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Resampling
-			else {
-				delay.primaryBuffer.bufferCurrentPos = primaryBufferOldPos;
-				delay.primaryBuffer.longPos = primaryBufferOldLongPos;
-				delay.primaryBuffer.lastShortPos = primaryBufferOldLastShortPos;
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-
-				do {
-
-					// Move forward, and clear buffer as we go
-					delay.primaryBuffer.longPos += delayPrimarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.primaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.primaryBuffer.lastShortPos;
-					delay.primaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						delay.primaryBuffer.moveOn();
-						shortPosDiff--;
-					}
-
-					int32_t primaryStrength2 = (delay.primaryBuffer.longPos >> 8) & 65535;
-					int32_t primaryStrength1 = 65536 - primaryStrength2;
-
-					delay.primaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], primaryStrength1,
-					                                   primaryStrength2, &delayPrimarySetup);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-		}
-
-		// And secondary buffer
-		// If secondary buffer active, we need to tick it along and write to it too
-		if (delay.secondaryBuffer.isActive()) {
-
-			wrapped =
-			    false; // We want to disregard whatever the primary buffer told us, and just use the secondary one now
-
-			// Native
-			if (!delay.secondaryBuffer.isResampling) {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					wrapped = delay.secondaryBuffer.clearAndMoveOn() || wrapped;
-					delay.sizeLeftUntilBufferSwap--;
-
-					// Write to secondary buffer
-					delay.secondaryBuffer.writeNative(workingBufferPos[0], workingBufferPos[1]);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			// Resampled
-			else {
-
-				int32_t* workingBufferPos = delayWorkingBuffer;
-				do {
-					// Move forward, and clear buffer as we go
-					delay.secondaryBuffer.longPos += delaySecondarySetup.actualSpinRate;
-					uint8_t newShortPos = delay.secondaryBuffer.longPos >> 24;
-					uint8_t shortPosDiff = newShortPos - delay.secondaryBuffer.lastShortPos;
-					delay.secondaryBuffer.lastShortPos = newShortPos;
-
-					while (shortPosDiff > 0) {
-						wrapped = delay.secondaryBuffer.clearAndMoveOn() || wrapped;
-						delay.sizeLeftUntilBufferSwap--;
-						shortPosDiff--;
-					}
-
-					int32_t secondaryStrength2 = (delay.secondaryBuffer.longPos >> 8) & 65535;
-					int32_t secondaryStrength1 = 65536 - secondaryStrength2;
-
-					// Write to secondary buffer
-					delay.secondaryBuffer.writeResampled(workingBufferPos[0], workingBufferPos[1], secondaryStrength1,
-					                                     secondaryStrength2, &delaySecondarySetup);
-
-					workingBufferPos += 2;
-				} while (workingBufferPos != workingBufferEnd);
-			}
-
-			if (delay.sizeLeftUntilBufferSwap < 0) {
-				delay.copySecondaryToPrimary();
-			}
-		}
-
-		if (wrapped) {
-			delay.hasWrapped();
-		}
-	}
+	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
@@ -1077,11 +721,9 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 	StereoSample* thisSample = buffer;
 
-	DelayBufferSetup delayBufferSetup;
-
 	int32_t rate = getStutterRate(paramManager);
 
-	stutterer.buffer.setupForRender(rate, &delayBufferSetup);
+	stutterer.buffer.setupForRender(rate);
 
 	if (stutterer.status == STUTTERER_STATUS_RECORDING) {
 
@@ -1093,7 +735,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			// First, tick it along, as if we were reading from it
 
 			// Non-resampling tick-along
-			if (!stutterer.buffer.isResampling) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.clearAndMoveOn();
 				stutterer.sizeLeftUntilRecordFinished--;
 
@@ -1102,27 +744,18 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 			// Or, resampling tick-along
 			else {
-
 				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
-				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
-				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
-				stutterer.buffer.lastShortPos = newShortPos;
-
-				while (shortPosDiff > 0) {
-					stutterer.buffer.clearAndMoveOn();
+				strength2 = stutterer.buffer.advance([&] {
+					stutterer.buffer.clearAndMoveOn(); //<
 					stutterer.sizeLeftUntilRecordFinished--;
-					shortPosDiff--;
-				}
-
-				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
+				});
 				strength1 = 65536 - strength2;
 
 				// stutterer.buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2,
 				// &delayBufferSetup);
 			}
 
-			stutterer.buffer.write(thisSample->l, thisSample->r, strength1, strength2, &delayBufferSetup);
+			stutterer.buffer.write(*thisSample, strength1, strength2);
 
 		} while (++thisSample != bufferEnd);
 
@@ -1139,43 +772,32 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 			int32_t strength2;
 
 			// Non-resampling read
-			if (!stutterer.buffer.isResampling) {
+			if (stutterer.buffer.isNative()) {
 				stutterer.buffer.moveOn();
-				thisSample->l = stutterer.buffer.bufferCurrentPos->l;
-				thisSample->r = stutterer.buffer.bufferCurrentPos->r;
+				thisSample->l = stutterer.buffer.current().l;
+				thisSample->r = stutterer.buffer.current().r;
 			}
 
 			// Or, resampling read
 			else {
-
-				// Move forward, and clear buffer as we go
-				stutterer.buffer.longPos += delayBufferSetup.actualSpinRate;
-				uint8_t newShortPos = stutterer.buffer.longPos >> 24;
-				uint8_t shortPosDiff = newShortPos - stutterer.buffer.lastShortPos;
-				stutterer.buffer.lastShortPos = newShortPos;
-
-				while (shortPosDiff > 0) {
-					stutterer.buffer.moveOn();
-					shortPosDiff--;
-				}
-
-				strength2 = (stutterer.buffer.longPos >> 8) & 65535;
+				// Move forward
+				strength2 = stutterer.buffer.advance([&] {
+					stutterer.buffer.moveOn(); //<
+				});
 				strength1 = 65536 - strength2;
 
-				StereoSample* nextPos = stutterer.buffer.bufferCurrentPos + 1;
-				if (nextPos == stutterer.buffer.bufferEnd) {
-					nextPos = stutterer.buffer.bufferStart;
+				StereoSample* nextPos = &stutterer.buffer.current() + 1;
+				if (nextPos == stutterer.buffer.end()) {
+					nextPos = stutterer.buffer.begin();
 				}
-				int32_t fromDelay1L = stutterer.buffer.bufferCurrentPos->l;
-				int32_t fromDelay1R = stutterer.buffer.bufferCurrentPos->r;
-				int32_t fromDelay2L = nextPos->l;
-				int32_t fromDelay2R = nextPos->r;
+				StereoSample& fromDelay1 = stutterer.buffer.current();
+				StereoSample& fromDelay2 = *nextPos;
 
-				thisSample->l = (multiply_32x32_rshift32(fromDelay1L, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2L, strength2 << 14))
+				thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
 				                << 2;
-				thisSample->r = (multiply_32x32_rshift32(fromDelay1R, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2R, strength2 << 14))
+				thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+				                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 				                << 2;
 			}
 		} while (++thisSample != bufferEnd);
@@ -1212,26 +834,6 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	return rate;
 }
 
-void ModControllableAudio::initializeSecondaryDelayBuffer(int32_t newNativeRate,
-                                                          bool makeNativeRatePreciseRelativeToOtherBuffer) {
-	uint8_t result = delay.secondaryBuffer.init(newNativeRate, delay.primaryBuffer.size);
-	if (result == NO_ERROR) {
-		D_PRINTLN("new buffer, size:  %d", delay.secondaryBuffer.size);
-
-		// 2 different options here for different scenarios. I can't very clearly remember how to describe the
-		// difference
-		if (makeNativeRatePreciseRelativeToOtherBuffer) {
-			// D_PRINTLN("making precise");
-			delay.primaryBuffer.makeNativeRatePreciseRelativeToOtherBuffer(&delay.secondaryBuffer);
-		}
-		else {
-			delay.primaryBuffer.makeNativeRatePrecise();
-			delay.secondaryBuffer.makeNativeRatePrecise();
-		}
-		delay.sizeLeftUntilBufferSwap = delay.secondaryBuffer.size + 5;
-	}
-}
-
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
                                        int32_t trebleAmount) {
 	int32_t trebleOnlyL;
@@ -1265,169 +867,173 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 	}
 }
 
-void ModControllableAudio::writeAttributesToFile() {
-	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
-	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
-	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
+void ModControllableAudio::writeAttributesToFile(StorageManager& bdsm) {
+	bdsm.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	bdsm.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
+	bdsm.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	bdsm.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
-		storageManager.writeAttribute("clippingAmount", clippingAmount);
+		bdsm.writeAttribute("clippingAmount", clippingAmount);
 	}
 }
 
-void ModControllableAudio::writeTagsToFile() {
+void ModControllableAudio::writeTagsToFile(StorageManager& bdsm) {
 	// Delay
-	storageManager.writeOpeningTagBeginning("delay");
-	storageManager.writeAttribute("pingPong", delay.pingPong);
-	storageManager.writeAttribute("analog", delay.analog);
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("delay");
+	bdsm.writeAttribute("pingPong", delay.pingPong);
+	bdsm.writeAttribute("analog", delay.analog);
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
+	bdsm.closeTag();
 
 	// Sidechain
-	storageManager.writeOpeningTagBeginning("sidechain");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	storageManager.writeAttribute("attack", sidechain.attack);
-	storageManager.writeAttribute("release", sidechain.release);
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("sidechain");
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	bdsm.writeAttribute("attack", sidechain.attack);
+	bdsm.writeAttribute("release", sidechain.release);
+	bdsm.closeTag();
 
 	// Audio compressor
-	storageManager.writeOpeningTagBeginning("audioCompressor");
-	storageManager.writeAttribute("attack", compressor.getAttack());
-	storageManager.writeAttribute("release", compressor.getRelease());
-	storageManager.writeAttribute("thresh", compressor.getThreshold());
-	storageManager.writeAttribute("ratio", compressor.getRatio());
-	storageManager.writeAttribute("compHPF", compressor.getSidechain());
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("audioCompressor");
+	bdsm.writeAttribute("attack", compressor.getAttack());
+	bdsm.writeAttribute("release", compressor.getRelease());
+	bdsm.writeAttribute("thresh", compressor.getThreshold());
+	bdsm.writeAttribute("ratio", compressor.getRatio());
+	bdsm.writeAttribute("compHPF", compressor.getSidechain());
+	bdsm.closeTag();
 
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
-		storageManager.writeOpeningTag("midiKnobs");
+		bdsm.writeOpeningTag("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
-			storageManager.writeOpeningTagBeginning("midiKnob");
+			bdsm.writeOpeningTagBeginning("midiKnob");
 			knob->midiInput.writeAttributesToFile(
+			    bdsm,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
-			storageManager.writeAttribute("relative", knob->relative);
-			storageManager.writeAttribute(
-			    "controlsParam",
-			    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
+			bdsm.writeAttribute("relative", knob->relative);
+			bdsm.writeAttribute("controlsParam",
+			                    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
-				storageManager.writeAttribute("patchAmountFromSource",
-				                              sourceToString(knob->paramDescriptor.getTopLevelSource()));
+				bdsm.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
 				if (knob->paramDescriptor.hasSecondSource()) {
-					storageManager.writeAttribute("patchAmountFromSecondSource",
-					                              sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+					bdsm.writeAttribute("patchAmountFromSecondSource",
+					                    sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
 
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
 			if (knob->midiInput.device) {
-				storageManager.writeOpeningTagEnd();
-				knob->midiInput.device->writeReferenceToFile();
-				storageManager.writeClosingTag("midiKnob");
+				bdsm.writeOpeningTagEnd();
+				knob->midiInput.device->writeReferenceToFile(bdsm);
+				bdsm.writeClosingTag("midiKnob");
 			}
 			else {
-				storageManager.closeTag();
+				bdsm.closeTag();
 			}
 		}
-		storageManager.writeClosingTag("midiKnobs");
+		bdsm.writeClosingTag("midiKnobs");
 	}
 }
 
-void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
-                                                      int32_t* valuesForOverride) {
+void ModControllableAudio::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
+                                                      bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
+	unpatchedParams->writeParamAsAttribute(bdsm, "sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 	                                       writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
+	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }
 
-void ModControllableAudio::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+void ModControllableAudio::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
                                                 int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	storageManager.writeOpeningTagBeginning("equalizer");
-	unpatchedParams->writeParamAsAttribute("bass", params::UNPATCHED_BASS, writeAutomation, false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("treble", params::UNPATCHED_TREBLE, writeAutomation, false,
+	bdsm.writeOpeningTagBeginning("equalizer");
+	unpatchedParams->writeParamAsAttribute(bdsm, "bass", params::UNPATCHED_BASS, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "treble", params::UNPATCHED_TREBLE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "bassFrequency", params::UNPATCHED_BASS_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	storageManager.closeTag();
+	unpatchedParams->writeParamAsAttribute(bdsm, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
+	                                       false, valuesForOverride);
+	bdsm.closeTag();
 }
 
-bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                                int32_t readAutomationUpToPos) {
+bool ModControllableAudio::readParamTagFromFile(StorageManager& bdsm, char const* tagName,
+                                                ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "equalizer")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
-				storageManager.exitTag("bass");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
+				bdsm.exitTag("bass");
 			}
 			else if (!strcmp(tagName, "treble")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE, readAutomationUpToPos);
-				storageManager.exitTag("treble");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("treble");
 			}
 			else if (!strcmp(tagName, "bassFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ, readAutomationUpToPos);
-				storageManager.exitTag("bassFrequency");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BASS_FREQ,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("bassFrequency");
 			}
 			else if (!strcmp(tagName, "trebleFrequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_TREBLE_FREQ,
 				                           readAutomationUpToPos);
-				storageManager.exitTag("trebleFrequency");
+				bdsm.exitTag("trebleFrequency");
 			}
 		}
-		storageManager.exitTag("equalizer");
+		bdsm.exitTag("equalizer");
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
-		storageManager.exitTag("stutterRate");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
+		bdsm.exitTag("stutterRate");
 	}
 
 	else if (!strcmp(tagName, "sampleRateReduction")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 		                           readAutomationUpToPos);
-		storageManager.exitTag("sampleRateReduction");
+		bdsm.exitTag("sampleRateReduction");
 	}
 
 	else if (!strcmp(tagName, "bitCrush")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
-		storageManager.exitTag("bitCrush");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
+		bdsm.exitTag("bitCrush");
 	}
 
 	else if (!strcmp(tagName, "modFXOffset")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET, readAutomationUpToPos);
-		storageManager.exitTag("modFXOffset");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_OFFSET,
+		                           readAutomationUpToPos);
+		bdsm.exitTag("modFXOffset");
 	}
 
 	else if (!strcmp(tagName, "modFXFeedback")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK, readAutomationUpToPos);
-		storageManager.exitTag("modFXFeedback");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_FEEDBACK,
+		                           readAutomationUpToPos);
+		bdsm.exitTag("modFXFeedback");
 	}
 	else if (!strcmp(tagName, "compressorThreshold")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_COMPRESSOR_THRESHOLD,
 		                           readAutomationUpToPos);
-		storageManager.exitTag("compressorThreshold");
+		bdsm.exitTag("compressorThreshold");
 	}
 
 	else {
@@ -1438,27 +1044,28 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 }
 
 // paramManager is optional
-int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                              int32_t readAutomationUpToPos, Song* song) {
+Error ModControllableAudio::readTagFromFile(StorageManager& bdsm, char const* tagName,
+                                            ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+                                            Song* song) {
 
 	int32_t p;
 
 	if (!strcmp(tagName, "lpfMode")) {
-		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("lpfMode");
+		lpfMode = stringToLPFType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("lpfMode");
 	}
 	else if (!strcmp(tagName, "hpfMode")) {
-		hpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("hpfMode");
+		hpfMode = stringToLPFType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("hpfMode");
 	}
 	else if (!strcmp(tagName, "filterRoute")) {
-		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("filterRoute");
+		filterRoute = stringToFilterRoute(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("filterRoute");
 	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
-		clippingAmount = storageManager.readTagOrAttributeValueInt();
-		storageManager.exitTag("clippingAmount");
+		clippingAmount = bdsm.readTagOrAttributeValueInt();
+		bdsm.exitTag("clippingAmount");
 	}
 
 	else if (!strcmp(tagName, "delay")) {
@@ -1466,7 +1073,7 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 		delay.syncType = SYNC_TYPE_EVEN;
 		delay.syncLevel = SYNC_LEVEL_NONE;
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
 			if (!strcmp(tagName, "feedback")) {
@@ -1474,17 +1081,17 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
-						int32_t error = Sound::createParamManagerForLoading(paramManager);
-						if (error) {
+						Error error = Sound::createParamManagerForLoading(paramManager);
+						if (error != Error::NONE) {
 							return error;
 						}
 					}
 					ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
 					PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-					patchedParams->readParam(patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
+					patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK,
 					                         readAutomationUpToPos);
 				}
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 			else if (!strcmp(tagName, "rate")) {
 				p = params::GLOBAL_DELAY_RATE;
@@ -1492,62 +1099,62 @@ doReadPatchedParam:
 			}
 
 			else if (!strcmp(tagName, "pingPong")) {
-				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.pingPong = std::max((int32_t)0, std::min((int32_t)1, contents));
-				storageManager.exitTag("pingPong");
+				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				delay.pingPong = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				bdsm.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
-				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.analog = std::max((int32_t)0, std::min((int32_t)1, contents));
-				storageManager.exitTag("analog");
+				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				delay.analog = static_cast<bool>(std::clamp(contents, 0_i32, 1_i32));
+				bdsm.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				delay.syncType = storageManager.readSyncTypeFromFile(song);
-				storageManager.exitTag("syncType");
+				delay.syncType = bdsm.readSyncTypeFromFile(song);
+				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
-				storageManager.exitTag("syncLevel");
+				delay.syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
+				bdsm.exitTag("syncLevel");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("delay");
+		bdsm.exitTag("delay");
 	}
 
 	else if (!strcmp(tagName, "audioCompressor")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				q31_t masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorAttack = bdsm.readTagOrAttributeValueInt();
 				compressor.setAttack(masterCompressorAttack);
-				storageManager.exitTag("attack");
+				bdsm.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				q31_t masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRelease = bdsm.readTagOrAttributeValueInt();
 				compressor.setRelease(masterCompressorRelease);
-				storageManager.exitTag("release");
+				bdsm.exitTag("release");
 			}
 			else if (!strcmp(tagName, "thresh")) {
-				q31_t masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorThresh = bdsm.readTagOrAttributeValueInt();
 				compressor.setThreshold(masterCompressorThresh);
-				storageManager.exitTag("thresh");
+				bdsm.exitTag("thresh");
 			}
 			else if (!strcmp(tagName, "ratio")) {
-				q31_t masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorRatio = bdsm.readTagOrAttributeValueInt();
 				compressor.setRatio(masterCompressorRatio);
-				storageManager.exitTag("ratio");
+				bdsm.exitTag("ratio");
 			}
 			else if (!strcmp(tagName, "compHPF")) {
-				q31_t masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+				q31_t masterCompressorSidechain = bdsm.readTagOrAttributeValueInt();
 				compressor.setSidechain(masterCompressorSidechain);
-				storageManager.exitTag("compHPF");
+				bdsm.exitTag("compHPF");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag("AudioCompressor");
+		bdsm.exitTag("AudioCompressor");
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
@@ -1556,33 +1163,33 @@ doReadPatchedParam:
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				sidechain.attack = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("attack");
+				sidechain.attack = bdsm.readTagOrAttributeValueInt();
+				bdsm.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "release")) {
-				sidechain.release = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("release");
+				sidechain.release = bdsm.readTagOrAttributeValueInt();
+				bdsm.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				sidechain.syncType = storageManager.readSyncTypeFromFile(song);
-				storageManager.exitTag("syncType");
+				sidechain.syncType = bdsm.readSyncTypeFromFile(song);
+				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				sidechain.syncLevel = storageManager.readAbsoluteSyncLevelFromFile(song);
-				storageManager.exitTag("syncLevel");
+				sidechain.syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
+				bdsm.exitTag("syncLevel");
 			}
 			else {
-				storageManager.exitTag(tagName);
+				bdsm.exitTag(tagName);
 			}
 		}
-		storageManager.exitTag(name);
+		bdsm.exitTag(name);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
 
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "midiKnob")) {
 
 				MIDIDevice* device = nullptr;
@@ -1593,29 +1200,29 @@ doReadPatchedParam:
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
-				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+				while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
-						device = MIDIDeviceManager::readDeviceReferenceFromFile();
+						device = MIDIDeviceManager::readDeviceReferenceFromFile(bdsm);
 					}
 					else if (!strcmp(tagName, "channel")) {
-						channel = storageManager.readTagOrAttributeValueInt();
+						channel = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = storageManager.readTagOrAttributeValueInt();
+						ccNumber = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "relative")) {
-						relative = storageManager.readTagOrAttributeValueInt();
+						relative = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, bdsm.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(storageManager.readTagOrAttributeValue());
+						s = stringToSource(bdsm.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(storageManager.readTagOrAttributeValue());
+						s2 = stringToSource(bdsm.readTagOrAttributeValue());
 					}
-					storageManager.exitTag();
+					bdsm.exitTag();
 				}
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
@@ -1638,16 +1245,16 @@ doReadPatchedParam:
 					}
 				}
 			}
-			storageManager.exitTag();
+			bdsm.exitTag();
 		}
-		storageManager.exitTag("midiKnobs");
+		bdsm.exitTag("midiKnobs");
 	}
 
 	else {
-		return RESULT_TAG_UNUSED;
+		return Error::RESULT_TAG_UNUSED;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* knob,
@@ -1799,7 +1406,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						// for the same clip active in automation view
 						int32_t id = modelStackWithParam->paramId;
 						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						possiblyRefreshAutomationEditorGrid(clip, kind, id);
+						automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
 				// placeholder: if support is added for midi learning to song params, then you will need
@@ -1893,7 +1500,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 										// pass the current clip because you want to check that you're editing the param
 										// for the same clip active in automation view
 										editingParamInAutomationOrPerformanceView =
-										    possiblyRefreshAutomationEditorGrid(clip, kind, id);
+										    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
 									}
 									else {
 										editingParamInAutomationOrPerformanceView =
@@ -1983,17 +1590,20 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t 
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
-	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)];
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		LearnedMIDI& midiInput =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)];
 
-	if (midiInput.isForMPEZone()) {
-		channel = midiInput.getMasterChannel();
+		if (midiInput.isForMPEZone()) {
+			channel = midiInput.getMasterChannel();
+		}
+
+		int32_t midiOutputFilter = midiInput.channelOrZone;
+
+		midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+
+		midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 	}
-
-	int32_t midiOutputFilter = midiInput.channelOrZone;
-
-	midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
-
-	midiFollow.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
 
 /// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
@@ -2158,27 +1768,6 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 	return newKnobPos;
 }
 
-// if you're in automation view and editing the same parameter that was just updated
-// by a learned midi knob, then re-render the pads on the automation editor grid
-bool ModControllableAudio::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind kind, int32_t id) {
-	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
-		if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
-			doRefreshGrid = true;
-		}
-	}
-	else if (automationView.onArrangerView) {
-		if ((currentSong->lastSelectedParamID == id) && (currentSong->lastSelectedParamKind == kind)) {
-			doRefreshGrid = true;
-		}
-	}
-	if (doRefreshGrid) {
-		uiNeedsRendering(&automationView);
-		return true;
-	}
-	return false;
-}
-
 // if you had selected a parameter in performance view and the parameter name
 // and current value is displayed on the screen, don't show pop-up as the display already shows it
 // this checks that the param displayed on the screen in performance view
@@ -2297,10 +1886,10 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
 	// sound as good if not better (in terms of ticking / crackling)...
-	bool error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
-	if (error == NO_ERROR) {
+	Error error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
+	if (error == Error::NONE) {
 		stutterer.status = STUTTERER_STATUS_RECORDING;
-		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size;
+		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size();
 		enterUIMode(UI_MODE_STUTTERING);
 	}
 }
@@ -2338,23 +1927,10 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 
 void ModControllableAudio::switchDelayPingPong() {
 	delay.pingPong = !delay.pingPong;
-
-	char const* displayText;
-	switch (delay.pingPong) {
-	case 0:
-		displayText = "Normal delay";
-		break;
-
-	default:
-		displayText = "Ping-pong delay";
-		break;
-	}
-	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
 	delay.analog = !delay.analog;
-	display->displayPopup(getDelayTypeDisplayName());
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
@@ -2380,7 +1956,6 @@ void ModControllableAudio::switchDelaySyncType() {
 		delay.syncType = SYNC_TYPE_TRIPLET;
 		break;
 	}
-	display->displayPopup(getDelaySyncTypeDisplayName());
 }
 
 char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
@@ -2397,9 +1972,6 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
-	char displayName[30];
-	getDelaySyncLevelDisplayName(displayName);
-	display->displayPopup(displayName);
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
@@ -2410,13 +1982,52 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	strncpy(displayName, buffer.data(), 29);
 }
 
+char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
+	using enum deluge::l10n::String;
+	switch (currentFilterType) {
+	case FilterType::LPF:
+		return l10n::get(STRING_FOR_LPF);
+	case FilterType::HPF:
+		return l10n::get(STRING_FOR_HPF);
+	case FilterType::EQ:
+		return l10n::get(STRING_FOR_EQ);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
 void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	display->displayPopup(getLPFModeDisplayName());
+}
+
+// for future use with FM
+void ModControllableAudio::switchLPFModeWithOff() {
+	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	switch (lpfMode) {
+	case FilterMode::OFF:
+		lpfMode = FilterMode::TRANSISTOR_12DB;
+		break;
+	case lastLpfMode:
+		lpfMode = FilterMode::OFF;
+		break;
+	default:
+		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+	}
+}
+
+char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
+	switch (currentFilterType) {
+	case FilterType::LPF:
+		return getLPFModeDisplayName();
+	case FilterType::HPF:
+		return getHPFModeDisplayName();
+	default:
+		return l10n::get(deluge::l10n::String::STRING_FOR_NONE);
+	}
 }
 
 char const* ModControllableAudio::getLPFModeDisplayName() {
-	lpfMode = static_cast<FilterMode>(util::to_underlying(lpfMode) % kNumLPFModes);
+
 	using enum deluge::l10n::String;
 	switch (lpfMode) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -2437,11 +2048,20 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	display->displayPopup(getHPFModeDisplayName());
+}
+
+// for future use with FM
+void ModControllableAudio::switchHPFModeWithOff() {
+	switch (hpfMode) {
+	case FilterMode::OFF:
+		hpfMode = firstHPFMode;
+		break;
+	default:
+		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
+	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
-	hpfMode = static_cast<FilterMode>(util::to_underlying(hpfMode) % kNumHPFModes + kFirstHPFMode);
 	using enum deluge::l10n::String;
 	switch (hpfMode) {
 	case FilterMode::HPLADDER:
@@ -2571,31 +2191,15 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 	return anythingFound;
 }
 
-char const* ModControllableAudio::getSidechainDisplayName() {
-	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude =
-		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-	}
-	else {
-		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	}
-	using enum deluge::l10n::String;
-	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-		return l10n::get(STRING_FOR_SLOW);
-	}
-	else {
-		return l10n::get(STRING_FOR_FAST);
-	}
-}
-
-void ModControllableAudio::displayLPFMode(bool on) {
+void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
 	if (display->haveOLED()) {
 		if (on) {
 			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("LPF: ");
-			popupMsg.append(getLPFModeDisplayName());
-
+			popupMsg.append(getFilterTypeDisplayName(currentFilterType));
+			if (currentFilterType != FilterType::EQ) {
+				popupMsg.append("\n");
+				popupMsg.append(getFilterModeDisplayName(currentFilterType));
+			}
 			display->popupText(popupMsg.c_str());
 		}
 		else {
@@ -2604,33 +2208,10 @@ void ModControllableAudio::displayLPFMode(bool on) {
 	}
 	else {
 		if (on) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LPF));
+			display->displayPopup(getFilterTypeDisplayName(currentFilterType));
 		}
 		else {
-			display->displayPopup(getLPFModeDisplayName());
-		}
-	}
-}
-
-void ModControllableAudio::displayHPFMode(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
-			popupMsg.append("HPF: ");
-			popupMsg.append(getHPFModeDisplayName());
-
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
-	}
-	else {
-		if (on) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
-		}
-		else {
-			display->displayPopup(getHPFModeDisplayName());
+			display->displayPopup(getFilterModeDisplayName(currentFilterType));
 		}
 	}
 }
@@ -2650,10 +2231,10 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				popupMsg.append(displayName);
 			}
 			else {
-				popupMsg.append(getDelayTypeDisplayName());
-
-				popupMsg.append("\nPing pong: ");
+				popupMsg.append("Ping pong: ");
 				popupMsg.append(getDelayPingPongStatusDisplayName());
+				popupMsg.append("\n");
+				popupMsg.append(getDelayTypeDisplayName());
 			}
 
 			display->popupText(popupMsg.c_str());
@@ -2676,21 +2257,69 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		}
 		else {
 			if (on) {
-				display->displayPopup(getDelayTypeDisplayName());
+				display->displayPopup(getDelayPingPongStatusDisplayName());
 			}
 			else {
-				display->displayPopup(getDelayPingPongStatusDisplayName());
+				display->displayPopup(getDelayTypeDisplayName());
 			}
 		}
 	}
 }
 
 char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
+	using enum deluge::l10n::String;
 	switch (delay.pingPong) {
-		using enum deluge::l10n::String;
 	case 0:
 		return l10n::get(STRING_FOR_DISABLED);
 	default:
 		return l10n::get(STRING_FOR_ENABLED);
+	}
+}
+
+void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
+	// Sidechain
+	if (display->haveOLED()) {
+		if (on) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			// Sidechain
+			popupMsg.append("Sidechain: ");
+			popupMsg.append(getSidechainDisplayName());
+
+			popupMsg.append("\n");
+
+			// Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		if (on) {
+			display->displayPopup(getSidechainDisplayName());
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
+char const* ModControllableAudio::getSidechainDisplayName() {
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+	using enum deluge::l10n::String;
+	if (sidechain.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST);
 	}
 }

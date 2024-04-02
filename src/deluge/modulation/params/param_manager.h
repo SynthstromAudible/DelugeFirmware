@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
@@ -51,14 +52,14 @@ public:
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
-	int32_t setupWithPatching();
-	int32_t setupUnpatched();
-	int32_t setupMIDI();
+	Error setupWithPatching();
+	Error setupUnpatched();
+	Error setupMIDI();
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
-	int32_t cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
-	                                  int32_t reverseDirectionWithLength = 0);
-	int32_t beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	Error cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
+	                                int32_t reverseDirectionWithLength = 0);
+	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	bool ensureExpressionParamSetExists(bool forDrum = false);

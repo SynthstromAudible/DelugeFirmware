@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,14 +17,11 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinIsomorphicRowInterval = 1;
-constexpr int32_t kMaxIsomorphicRowInterval = 16;
-
-class KeyboardLayoutIsomorphic : public KeyboardLayout {
+class KeyboardLayoutIsomorphic : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutIsomorphic() {}
 	~KeyboardLayoutIsomorphic() override {}
@@ -41,6 +38,7 @@ public:
 	bool supportsKit() override { return false; }
 
 private:
+	void offsetPads(int32_t offset, bool shiftEnabled);
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
 		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}

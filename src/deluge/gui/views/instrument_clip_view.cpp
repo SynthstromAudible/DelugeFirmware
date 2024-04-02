@@ -29,6 +29,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -45,6 +46,7 @@
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -60,6 +62,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
@@ -379,7 +382,7 @@ doOther:
 			int32_t noteRowIndex;
 			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
-				display->displayError(ERROR_INSUFFICIENT_RAM);
+				display->displayError(Error::INSUFFICIENT_RAM);
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -470,7 +473,8 @@ doOther:
 		}
 	}
 
-	else if (b == MIDI) {
+	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
+	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -478,6 +482,16 @@ doOther:
 
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::MIDI_OUT);
+
+				// Drop out of scale mode if the clip is now routed to MIDI transpose,
+				// and the transposer is set to chromatic.
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				if (clip->output->type == OutputType::MIDI_OUT
+				    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+				    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+					exitScaleMode();
+					clip->inScaleMode = false;
+				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 				createDrumForAuditionedNoteRow(DrumType::MIDI);
@@ -499,7 +513,16 @@ doOther:
 			}
 		}
 	}
-
+	else if (b == SAVE && currentUIMode == UI_MODE_AUDITIONING) {
+		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, nullptr);
+		if (noteRow->drum->type == DrumType::SOUND) {
+			saveKitRowUI.setup((SoundDrum*)noteRow->drum, &noteRow->paramManager);
+			AudioEngine::stopAnyPreviewing();
+			cancelAllAuditioning();
+			display->cancelPopup();
+			openUI(&saveKitRowUI);
+		}
+	}
 	// Save / delete button if NoteRow held down
 	else if (b == SAVE && currentUIMode == UI_MODE_NOTES_PRESSED) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
@@ -774,7 +797,7 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		return;
 	}
 
-	int32_t error;
+	Error error;
 	NoteRow* noteRow;
 	int32_t noteRowIndex;
 
@@ -790,9 +813,9 @@ void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
 		noteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 		if (!noteRow) {
 ramError:
-			error = ERROR_INSUFFICIENT_RAM;
+			error = Error::INSUFFICIENT_RAM;
 someError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -819,20 +842,16 @@ someError:
 	Kit* kit = getCurrentKit();
 	if (drumType == DrumType::SOUND) {
 		Browser::outputTypeToLoad = OutputType::SYNTH;
-		loadInstrumentPresetUI.loadingSynthToKitRow = true;
-		loadInstrumentPresetUI.instrumentToReplace = nullptr;
 
-		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
-		if (noteRow->drum->type == drumType) {
-			loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)noteRow->drum;
+		SoundDrum* drum;
+		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+			drum = (SoundDrum*)noteRow->drum;
 		}
 		else {
-			loadInstrumentPresetUI.soundDrumToReplace = nullptr;
+			drum = nullptr;
 		}
 
-		loadInstrumentPresetUI.kitToLoadFor = kit;
-		loadInstrumentPresetUI.noteRow = noteRow;
-		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
+		loadInstrumentPresetUI.setupLoadSynthToKit(kit, getCurrentInstrumentClip(), drum, noteRow, noteRowIndex);
 		openUI(&loadInstrumentPresetUI);
 	}
 
@@ -978,7 +997,7 @@ void InstrumentClipView::copyNotes() {
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1090,7 +1109,7 @@ void InstrumentClipView::pasteNotes(bool overwriteExisting = true) {
 
 	if (false) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1220,20 +1239,20 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 void InstrumentClipView::createNewInstrument(OutputType newOutputType) {
 
-	InstrumentClipMinder::createNewInstrument(newOutputType);
+	if (InstrumentClipMinder::createNewInstrument(newOutputType)) {
+		recalculateColours();
+		uiNeedsRendering(this);
 
-	recalculateColours();
-	uiNeedsRendering(this);
+		if (newOutputType == OutputType::KIT) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	if (newOutputType == OutputType::KIT) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
 
-		NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
-
-		enterDrumCreator(modelStackWithNoteRow);
+			enterDrumCreator(modelStackWithNoteRow);
+		}
 	}
 }
 
@@ -1243,10 +1262,10 @@ void InstrumentClipView::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
-	InstrumentClipMinder::changeOutputType(newOutputType);
-
-	recalculateColours();
-	uiNeedsRendering(this);
+	if (InstrumentClipMinder::changeOutputType(newOutputType)) {
+		recalculateColours();
+		uiNeedsRendering(this);
+	}
 }
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
@@ -1284,6 +1303,14 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	// Or, normal option - trying to change Instrument presets
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
+
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip->output->type == OutputType::MIDI_OUT
+		    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+		    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			exitScaleMode();
+			clip->inScaleMode = false;
+		}
 	}
 }
 
@@ -1368,7 +1395,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				*slashAddress = '/';
 				if (result != FR_OK) {
 
-					display->displayError(ERROR_SD_CARD);
+					display->displayError(Error::SD_CARD);
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -1520,7 +1547,7 @@ possiblyAuditionPad:
 						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
 					}
 					else {
-						view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
+						view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
 					}
 				}
 			}
@@ -1821,7 +1848,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				// If error (no ram left), get out
 				if (!squareType) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1870,12 +1897,12 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 						// If we're cross-screen-editing, create other corresponding notes too
 						if (clip->wrapEditing) {
-							int32_t error = noteRow->addCorrespondingNotes(
+							Error error = noteRow->addCorrespondingNotes(
 							    squareStart, desiredNoteLength, editPadPresses[i].intendedVelocity,
 							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
 
-							if (error) {
-								display->displayError(ERROR_INSUFFICIENT_RAM);
+							if (error != Error::NONE) {
+								display->displayError(Error::INSUFFICIENT_RAM);
 							}
 						}
 					}
@@ -2470,7 +2497,7 @@ ModelStackWithNoteRow* InstrumentClipView::createNoteRowForYDisplay(ModelStackWi
 
 		if (!noteRow) { // If memory full
 doDisplayError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 		else {
 			noteRowId = noteRow->y;
@@ -2779,7 +2806,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, editPadPresses[i].yDisplay);
 
 					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-						display->displayError(ERROR_INSUFFICIENT_RAM);
+						display->displayError(Error::INSUFFICIENT_RAM);
 cancelPress:
 						endEditPadPress(i);
 						continue;
@@ -3326,6 +3353,11 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 						renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 					}
 				}
+				else {
+					// Some other top-level view currently, don't overwrite the active ModControllable but do request
+					// rendering
+					renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
+				}
 			}
 		}
 	}
@@ -3635,8 +3667,8 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// safe since we can't get here without being in a kit
 	Kit* kit = getCurrentKit();
 
-	int32_t error = kit->makeDrumNameUnique(&soundName, 1);
-	if (error) {
+	Error error = kit->makeDrumNameUnique(&soundName, 1);
+	if (error != Error::NONE) {
 doDisplayError:
 		display->displayError(error);
 		return;
@@ -3644,13 +3676,13 @@ doDisplayError:
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 	if (!memory) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto doDisplayError;
 	}
 
 	ParamManagerForTimeline paramManager;
 	error = paramManager.setupWithPatching();
-	if (error) {
+	if (error != Error::NONE) {
 		delugeDealloc(memory);
 		goto doDisplayError;
 	}
@@ -3871,7 +3903,7 @@ basicDisplay:
 int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32_t yDisplay) {
 	// Having got to this function, we have recently calculated the default root note
 
-	uiTimerManager.unsetTimer(TIMER_DEFAULT_ROOT_NOTE);
+	uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
 	int32_t scrollAdjust = 0;
 	uint8_t pinAnimationToYDisplay;
 	uint8_t pinAnimationToYNote;
@@ -3923,6 +3955,13 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	if (clip->output->type == OutputType::MIDI_OUT
+	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+		return;
+	}
 
 	int32_t newRootNote;
 	if (yDisplay == 255) {
@@ -4185,7 +4224,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		// Or if not assigned but we're holding it down...
 		else {
 			bool holdingDown = false;
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 				holdingDown = true;
 			}
 			else if (view.thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
@@ -4213,6 +4252,16 @@ drawNormally:
 
 		// Kit - draw "selected Drum"
 		if (getCurrentOutputType() == OutputType::KIT) {
+			// only turn selected drum off if we're not currently in that UI and affect entire is on
+			// we turn it off when affect entire is on because the selected drum is not relevant in that context
+			// e.g. if you're in the affect entire menu, you're not editing params for the selected drum
+			UI* currentUI = getCurrentUI();
+			bool isInstrumentClipView = ((currentUI == &instrumentClipView) || (currentUI == &automationView));
+			if (!isInstrumentClipView && instrumentClipView.getAffectEntire()) {
+				thisColour = colours::black;
+				return;
+			}
+
 			NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 			if (noteRow != NULL && noteRow->drum != NULL && noteRow->drum == getCurrentKit()->selectedDrum) {
 
@@ -4935,10 +4984,10 @@ doCompareNote:
 					int32_t distanceTilNext =
 					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
 
-					int32_t error =
+					Error error =
 					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
 					                                        action, currentClip->getWrapEditLevel(), offset);
-					if (error) {
+					if (error != Error::NONE) {
 						display->displayError(error);
 						return;
 					}
@@ -5197,7 +5246,7 @@ uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLen
 void InstrumentClipView::flashDefaultRootNote() {
 	flashDefaultRootNoteOn = !flashDefaultRootNoteOn;
 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TIMER_DEFAULT_ROOT_NOTE, kFlashTime);
+	uiTimerManager.setTimer(TimerName::DEFAULT_ROOT_NOTE, kFlashTime);
 }
 
 void InstrumentClipView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
@@ -5327,11 +5376,10 @@ void InstrumentClipView::playbackEnded() {
 
 void InstrumentClipView::scrollFinished() {
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		uiNeedsRendering(this, 0xFFFFFFFF,
-		                 0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to
-		                     // properly render again afterwards
+		// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
+		// properly render again afterwards
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
-
 	else {
 		ClipView::scrollFinished();
 	}
@@ -5459,8 +5507,8 @@ justDisplayOldNumNotes:
 					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
 					NoteVector newNotes;
 					if (newNumNotes) {
-						int32_t error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
-						if (error) {
+						Error error = newNotes.insertAtIndex(0, newNumNotes); // Pre-allocate, so no errors later
+						if (error != Error::NONE) {
 							display->displayError(error);
 							return;
 						}
@@ -5710,7 +5758,7 @@ editLengthWithNewAction:
 		Action* action = actionLogger.getNewAction(ActionType::NOTEROW_LENGTH_EDIT, ActionAddition::NOT_ALLOWED);
 		if (!action) {
 ramError:
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			if (didSecretUndo) {
 				// Need to do the resumePlayback that we blocked happening during the revert()
 				if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

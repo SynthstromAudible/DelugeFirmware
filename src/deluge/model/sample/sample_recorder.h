@@ -30,13 +30,16 @@ enum class MonitoringAction {
 	SUBTRACT_RIGHT_CHANNEL = 2,
 };
 
-#define RECORDER_STATUS_CAPTURING_DATA 0
-#define RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP 1
-#define RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING 2
-#define RECORDER_STATUS_COMPLETE 3
-#define RECORDER_STATUS_ABORTED                                                                                        \
-	4 // Means RAM error only. SD errors are noted separately and won't affect operation, as long as RAM lasts
-#define RECORDER_STATUS_AWAITING_DELETION 5
+enum class RecorderStatus {
+	CAPTURING_DATA = 0,
+	CAPTURING_DATA_WAITING_TO_STOP = 1,
+	FINISHED_CAPTURING_BUT_STILL_WRITING = 2,
+	COMPLETE = 3,
+
+	// Means RAM error only. SD errors are noted separately and won't affect operation, as long as RAM lasts
+	ABORTED = 4,
+	AWAITING_DELETION = 5,
+};
 
 class Sample;
 class Cluster;
@@ -44,12 +47,12 @@ class AudioClip;
 
 class SampleRecorder {
 public:
-	SampleRecorder();
+	SampleRecorder() = default;
 	~SampleRecorder();
-	int32_t setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-	              bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
+	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
-	int32_t cardRoutine();
+	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
@@ -65,12 +68,14 @@ public:
 
 	uint32_t numSamplesExtraToCaptureAtEndSyncingWise;
 
-	int32_t firstUnwrittenClusterIndex;
-	int32_t currentRecordClusterIndex;
+	int32_t firstUnwrittenClusterIndex = 0;
+
+	// Put things in valid state so if we get destructed before any recording, it's all ok
+	int32_t currentRecordClusterIndex = -1;
 
 	// Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos
 	// some error or max file size reached)
-	Cluster* currentRecordCluster;
+	Cluster* currentRecordCluster = nullptr;
 
 	uint32_t audioFileNumber;
 	AudioRecordingFolder folderID;
@@ -83,22 +88,22 @@ public:
 	// This will be the temp file path if there is one.
 	String filePathCreated;
 
-	uint8_t status;
+	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.
-	bool haveAddedSampleToArray;
+	bool haveAddedSampleToArray = false;
 
-	bool allowFileAlterationAfter;
-	bool autoDeleteWhenDone;
+	bool allowFileAlterationAfter = false;
+	bool autoDeleteWhenDone = false;
 	bool keepingReasonsForFirstClusters;
 	uint8_t recordingNumChannels;
-	bool hadCardError;
-	bool reachedMaxFileSize;
-	bool recordingExtraMargins;
-	bool pointerHeldElsewhere;
-	bool capturedTooMuch;
+	bool hadCardError = false;
+	bool reachedMaxFileSize = false;
+	bool recordingExtraMargins = false;
+	bool pointerHeldElsewhere = false;
+	bool capturedTooMuch = false;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;
@@ -122,17 +127,17 @@ public:
 
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
-	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
-	int32_t alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+	Error writeCluster(int32_t clusterIndex, int32_t numBytes);
+	Error alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
 
-	                  uint64_t dataLengthAfterAction);
-	int32_t finalizeRecordedFile();
-	int32_t createNextCluster();
-	int32_t writeAnyCompletedClusters();
+	                uint64_t dataLengthAfterAction);
+	Error finalizeRecordedFile();
+	Error createNextCluster();
+	Error writeAnyCompletedClusters();
 	void finishCapturing();
 	void updateDataLengthInFirstCluster(Cluster* cluster);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
-	int32_t truncateFileDownToSize(uint32_t newFileSize);
-	int32_t writeOneCompletedCluster();
+	Error truncateFileDownToSize(uint32_t newFileSize);
+	Error writeOneCompletedCluster();
 };

@@ -2302,52 +2302,67 @@ void Session::doTickForward(int32_t posIncrement) {
 
 	// Tell all the Clips that it's tick time. Including arrangement-only Clips, which might still be left playing after
 	// switching from arrangement to session For each Clip in session and arranger
-	ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* clip = clipArray->getClipAtIndex(c);
+	ClipArray* clipArray;
 
-		if (clip->fillEventAtTickCount > 0) {
-			int32_t ticksTilNextFillEvent = clip->fillEventAtTickCount - playbackHandler.lastSwungTickActioned;
-			playbackHandler.swungTicksTilNextEvent =
-			    std::min(ticksTilNextFillEvent, playbackHandler.swungTicksTilNextEvent);
+	for (uint8_t iPass = 0; iPass < 4; iPass++) {
+
+		if (iPass % 2 == 0) {
+			clipArray = &currentSong->sessionClips;
+		}
+		else {
+			clipArray = &currentSong->arrangementOnlyClips;
 		}
 
-		if (!currentSong->isClipActive(clip)) {
-			continue;
-		}
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* clip = clipArray->getClipAtIndex(c);
+			if (!(clip->output)) {
+				// possible while swapping songs and render is called between deallocating the output and its clips
+				continue;
+			}
+			if (clip->output->needsEarlyPlayback() == (iPass > 1)) {
+				continue; // 1st/2nd time through, skip anything but priority clips, which must take effect first
+				          // 3rd/4th time through, skip the priority clips already actioned.
+			}
 
-		if (clip->output->activeClip && clip->output->activeClip->beingRecordedFromClip == clip) {
-			clip = clip->output->activeClip;
-		}
+			if (clip->fillEventAtTickCount > 0) {
+				int32_t ticksTilNextFillEvent = clip->fillEventAtTickCount - playbackHandler.lastSwungTickActioned;
+				playbackHandler.swungTicksTilNextEvent =
+				    std::min(ticksTilNextFillEvent, playbackHandler.swungTicksTilNextEvent);
+			}
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+			if (!currentSong->isClipActive(clip)) {
+				continue;
+			}
 
-		// No need to do the actual incrementing - that's been done for all Clips (except ones which have only just
-		// launched), up in considerLaunchEvent()
+			if (clip->output->activeClip && clip->output->activeClip->beingRecordedFromClip == clip) {
+				clip = clip->output->activeClip;
+			}
 
-		clip->processCurrentPos(modelStackWithTimelineCounter,
-		                        posIncrement); // May create new Clip and put it in the ModelStack - we'll check below.
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-		// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
-		// which were only just launched in there, well the won't have been incremented, so it would be more correct if
-		// posIncrement were 0 here. But, I don't believe there's any ill-effect from having a posIncrement too big in
-		// this case. It's just not super elegant.
+			// No need to do the actual incrementing - that's been done for all Clips (except ones which have only just
+			// launched), up in considerLaunchEvent()
 
-		// New Clip may have been returned for AudioClips being recorded from session to arranger
-		if (modelStackWithTimelineCounter->getTimelineCounter() != clip) {
-			Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
-			newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
+			clip->processCurrentPos(
+			    modelStackWithTimelineCounter,
+			    posIncrement); // May create new Clip and put it in the ModelStack - we'll check below.
 
-			if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-				view.activeModControllableModelStack.setTimelineCounter(newClip);
-				view.activeModControllableModelStack.paramManager = &newClip->paramManager;
+			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
+			// which were only just launched in there, well the won't have been incremented, so it would be more correct
+			// if posIncrement were 0 here. But, I don't believe there's any ill-effect from having a posIncrement too
+			// big in this case. It's just not super elegant.
+
+			// New Clip may have been returned for AudioClips being recorded from session to arranger
+			if (modelStackWithTimelineCounter->getTimelineCounter() != clip) {
+				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
+				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
+
+				if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+					view.activeModControllableModelStack.setTimelineCounter(newClip);
+					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
+				}
 			}
 		}
-	}
-	if (clipArray != &currentSong->arrangementOnlyClips) {
-		clipArray = &currentSong->arrangementOnlyClips;
-		goto traverseClips;
 	}
 
 	// Do arps too (hmmm, could we want to do this in considerLaunchEvent() instead, just like the incrementing?)

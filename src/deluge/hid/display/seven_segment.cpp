@@ -27,6 +27,7 @@
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
+#include "io/midi/sysex.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/cfunctions.h"
@@ -110,7 +111,7 @@ void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 	topLayer = newTopLayer;
 
 	if (!popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 		render();
 	}
@@ -137,7 +138,7 @@ void SevenSegment::removeTopLayer() {
 	delugeDealloc(toDelete);
 
 	if (!popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 		render();
 	}
@@ -230,7 +231,7 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	delugeDealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		topLayer->isNowOnTop();
 	}
 
@@ -546,7 +547,7 @@ void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool ali
 
 void SevenSegment::cancelPopup() {
 	if (popupActive) {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		popupActive = false;
 		topLayer->isNowOnTop();
 		render();
@@ -644,13 +645,13 @@ bool SevenSegment::isLayerCurrentlyOnTop(NumericLayer* layer) {
 	return (!popupActive && layer == topLayer);
 }
 
-extern std::string_view getErrorMessage(int32_t error);
+extern std::string_view getErrorMessage(Error error);
 
-void SevenSegment::displayError(int32_t error) {
+void SevenSegment::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
-	case NO_ERROR:
-	case ERROR_ABORTED_BY_USER:
+	case Error::NONE:
+	case Error::ABORTED_BY_USER:
 		return;
 	default:
 		message = getErrorMessage(error).data();

@@ -35,8 +35,8 @@ SaveUI::SaveUI() {
 }
 
 bool SaveUI::opened() {
-	int32_t error = beginSlotSession(true, true);
-	if (error) {
+	Error error = beginSlotSession(true, true);
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}
@@ -73,9 +73,9 @@ void SaveUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int32_t error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.get());
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -86,7 +86,7 @@ void SaveUI::enterKeyPress() {
 
 	else {
 		SlotBrowser::enterKeyPress();
-		bool dealtWith = performSave(false);
+		bool dealtWith = performSave(storageManager, false);
 
 		if (display->have7SEG()) {
 			if (!dealtWith) {
@@ -106,10 +106,7 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return mainButtonAction(on);
 	}
 
-	// Select encoder button - we want to override default behaviour here and potentially do nothing, so user doesn't
-	// save over something by accident.
-	else if (b == SELECT_ENC && currentFileItem && !currentFileItem->isFolder) {}
-
+	// Pressing on select encoder button will go through here
 	else {
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);
 	}

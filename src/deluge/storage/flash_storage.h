@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include <cstdint>
+#include <span>
 
 #define PREVIEW_OFF 0
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1
@@ -40,6 +41,9 @@ extern uint8_t defaultBendRange[2];
 extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
+extern bool keyboardFunctionsVelocityGlide;
+extern bool keyboardFunctionsModwheelGlide;
+
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
@@ -53,12 +57,14 @@ extern bool automationShift;
 extern bool automationNudgeNote;
 extern bool automationDisableAuditionPadShortcuts;
 
+extern StartupSongMode defaultStartupSongMode;
+extern uint8_t defaultPadBrightness;
+extern SampleRepeatMode defaultSliceMode;
+
 void readSettings();
 void writeSettings();
 void resetSettings();
 void resetMidiFollowSettings();
 void resetAutomationSettings();
-bool areMidiFollowSettingsValid(uint8_t* buffer);
-bool areAutomationSettingsValid(uint8_t* buffer);
 
 } // namespace FlashStorage

@@ -111,8 +111,8 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	int32_t error = storageManager.initSD();
-	if (error) {
+	Error error = storageManager.initSD();
+	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);
 		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
@@ -157,7 +157,7 @@ sdError:
 dissectionDone:
 
 	error = arrivedInNewFolder(1, searchFilename, "SAMPLES");
-	if (error) {
+	if (error != Error::NONE) {
 		goto sdError;
 	}
 
@@ -230,7 +230,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
 		qwertyVisible = false;
 
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth, true);
@@ -326,11 +326,11 @@ void SampleBrowser::enterKeyPress() {
 
 	if (!currentFileItem) {
 		if (display->haveOLED()) {
-			display->displayError(ERROR_FILE_NOT_FOUND);
+			display->displayError(Error::FILE_NOT_FOUND);
 		}
 		else {
 			// Make it say "NONE" on numeric Deluge, for consistency with old times.
-			display->displayError(ERROR_NO_FURTHER_FILES_THIS_DIRECTION);
+			display->displayError(Error::NO_FURTHER_FILES_THIS_DIRECTION);
 		}
 		return;
 	}
@@ -351,9 +351,9 @@ void SampleBrowser::enterKeyPress() {
 		// it returns an empty string (&nothing). Surely this is a compiler error??
 		char const* filenameChars = currentFileItem->filename.get();
 
-		int32_t error = goIntoFolder(filenameChars);
+		Error error = goIntoFolder(filenameChars);
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -411,8 +411,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 					// Ensure sample isn't used in current song
 					String filePath;
-					int32_t error = getCurrentFilePath(&filePath);
-					if (error) {
+					Error error = getCurrentFilePath(&filePath);
+					if (error != Error::NONE) {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
@@ -478,14 +478,14 @@ bool SampleBrowser::canImportWholeKit() {
 	        && (!getCurrentKit()->firstDrum->next));
 }
 
-int32_t SampleBrowser::getCurrentFilePath(String* path) {
-	int32_t error;
+Error SampleBrowser::getCurrentFilePath(String* path) {
+	Error error;
 
 	path->set(&currentDir);
 	int32_t oldLength = path->getLength();
 	if (oldLength) {
 		error = path->concatenateAtPos("/", oldLength);
-		if (error) {
+		if (error != Error::NONE) {
 gotError:
 			path->clear();
 			return error;
@@ -495,14 +495,14 @@ gotError:
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	error = path->concatenate(&currentFileItem->filename);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 
 	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
 		*cols = 0b10;
@@ -531,8 +531,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (currentFileItem && !currentFileItem->isFolder) {
 
 		String filePath;
-		int32_t error = getCurrentFilePath(&filePath);
-		if (error) {
+		Error error = getCurrentFilePath(&filePath);
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
@@ -571,7 +571,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			                        ->sampleHolder.audioFile;
 
 			if (sample) {
-				uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
 				currentlyShowingSamplePreview = true;
 				PadLEDs::reassessGreyout(true);
@@ -678,7 +678,7 @@ possiblyExit:
 
 				qwertyVisible = true;
 
-				uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
 
 				drawKeys();
@@ -701,13 +701,13 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
+Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int32_t error = getCurrentFilePath(&holder->filePath);
-	if (error) {
+	Error error = getCurrentFilePath(&holder->filePath);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -715,13 +715,13 @@ int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCo
 	                        makeWaveTableWorkAtAllCosts);
 }
 
-int32_t SampleBrowser::claimAudioFileForAudioClip() {
+Error SampleBrowser::claimAudioFileForAudioClip() {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int32_t error = getCurrentFilePath(&holder->filePath);
-	if (error) {
+	Error error = getCurrentFilePath(&holder->filePath);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -729,7 +729,7 @@ int32_t SampleBrowser::claimAudioFileForAudioClip() {
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
-	if (!error && ((SampleHolder*)holder)->startPos) {
+	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
 		getCurrentAudioClip()->attack = kAudioClipDefaultAttackIfPreMargin;
 	}
 
@@ -749,13 +749,13 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 
 	display->displayLoadingAnimationText("Working");
 
-	int32_t error;
+	Error error;
 
 	// If for AudioClip...
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 
 		error = claimAudioFileForAudioClip();
-		if (error) {
+		if (error != Error::NONE) {
 removeLoadingAnimationAndGetOut:
 			display->removeLoadingAnimation();
 			display->displayError(error);
@@ -763,23 +763,7 @@ removeLoadingAnimationAndGetOut:
 		}
 
 		AudioClip* clip = getCurrentAudioClip();
-
-		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
-		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
-		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->timePerTimerTickBig;
-
-		int32_t newLength = 3;
-		while (newLength * 1.41 < sampleLengthInTicks) {
-			newLength <<= 1;
-		}
-
-		int32_t oldLength = clip->loopLength;
-
-		clip->loopLength = newLength;
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		clip->lengthChanged(modelStack, oldLength);
+		audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
 
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;
@@ -815,10 +799,10 @@ doLoadAsWaveTable:
 			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
 			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
-			if (error) {
+			if (error != Error::NONE) {
 				// If word has come back that this file isn't wanting to load as a WaveTable...
-				if (error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE
-				    || error == ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
+				if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
+				    || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
 
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to
 					// tell them no.
@@ -879,7 +863,7 @@ doLoadAsSample:
 			soundEditor.currentSource->setOscType(OscType::SAMPLE);
 
 			error = claimAudioFileForInstrument();
-			if (error) {
+			if (error != Error::NONE) {
 				goto removeLoadingAnimationAndGetOut;
 			}
 
@@ -958,7 +942,7 @@ doLoadAsSample:
 				}
 				else {
 					error = newName.set(&enteredText.get()[numCharsInPrefix]);
-					if (error) {
+					if (error != Error::NONE) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 				}
@@ -969,7 +953,7 @@ doLoadAsSample:
 				if (kit->getDrumFromName(newName.get())) {
 
 					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error) {
+					if (error != Error::NONE) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 				}
@@ -1145,7 +1129,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
                                            bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
 
 	String dirToLoad;
-	uint8_t error;
+	Error error;
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -1153,7 +1137,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 
 	if (currentFileItem->isFolder) {
 		error = getCurrentFilePath(&dirToLoad);
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
@@ -1165,7 +1149,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 
 	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
 	if (result != FR_OK) {
-		display->displayError(ERROR_SD_CARD);
+		display->displayError(Error::SD_CARD);
 		return false;
 	}
 
@@ -1252,7 +1236,7 @@ removeReasonsFromSamplesAndGetOut:
 		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(
 		    &filePath, true, &error, &thisFilePointer,
 		    AudioFileType::SAMPLE); // We really want to be able to pass a file pointer in here
-		if (error || !newSample) {
+		if (error != Error::NONE || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;
 		}
@@ -1294,7 +1278,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
 	}
 
@@ -1622,7 +1606,7 @@ doReturnFalse:
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			goto doReturnFalse;
 		}
 	}
@@ -1852,7 +1836,7 @@ doReturnFalse:
 				if (!range) {
 getOut:
 					f_closedir(&staticDIR);
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
 
@@ -1886,8 +1870,8 @@ getOut:
 				// Make the Drum and its ParamManager
 
 				ParamManagerForTimeline paramManager;
-				int32_t error = paramManager.setupWithPatching();
-				if (error) {
+				Error error = paramManager.setupWithPatching();
+				if (error != Error::NONE) {
 					goto getOut;
 				}
 
@@ -1922,8 +1906,8 @@ getOut:
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
-			int32_t error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
-			if (!error) {
+			Error error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			if (error == Error::NONE) {
 
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
@@ -1934,7 +1918,7 @@ getOut:
 
 				if (kit->getDrumFromName(newName.get())) {
 					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error) {
+					if (error != Error::NONE) {
 						goto skipNameStuff;
 					}
 				}
@@ -2006,7 +1990,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	else {
 		qwertyVisible = true;
 
-		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
 
 		drawKeys();

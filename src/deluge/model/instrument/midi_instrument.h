@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
 #include <array>
 
@@ -41,14 +42,18 @@ public:
 	void allNotesOff();
 
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(char const* tagName);
-	int32_t readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
+	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
+	Error readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+	                                     ParamManagerForTimeline* paramManager = nullptr);
 	void sendMIDIPGM();
+
+	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
+
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
-	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
+	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
 	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
@@ -68,7 +73,10 @@ public:
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
 	int32_t getOutputMasterChannel();
 
-	inline bool sendsToMPE() { return (channel >= 16); }
+	inline bool sendsToMPE() {
+		return (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE);
+	}
+	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
 
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
@@ -86,8 +94,8 @@ public:
 	int32_t lastCombinedPolyExpression[3]{0};
 	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
 	int16_t lastOutputMonoExpression[3]{0};
-	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
-	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : "channel"; }
+	char const* getXMLTag() { return "midi"; }
+	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "midiChannel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

@@ -18,13 +18,33 @@
 #pragma once
 
 #include "hid/encoder.h"
+#include "util/misc.h"
+#include <array>
 
-namespace Encoders {
+namespace deluge::hid::encoders {
 
-extern Encoder encoders[];
+/// Index of the encoder.
+enum class EncoderName {
+	SCROLL_Y,
+	SCROLL_X,
+	TEMPO,
+	SELECT,
+	/// End of function (black, detented) encoders,
+	MAX_FUNCTION_ENCODERS,
+	/// The upper gold encoder
+	MOD_1 = MAX_FUNCTION_ENCODERS,
+	/// The lower gold encoder
+	MOD_0,
+	/// Total number of encoders
+	MAX_ENCODER,
+};
+
+/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
 extern uint32_t timeModEncoderLastTurned[];
 
 void init();
 void readEncoders();
 bool interpretEncoders(bool inCardRoutine = false);
-} // namespace Encoders
+
+Encoder& getEncoder(EncoderName which);
+} // namespace deluge::hid::encoders

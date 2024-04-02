@@ -23,9 +23,17 @@
 
 namespace deluge::modulation::params {
 
+bool isParamBipolar(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+}
+
 bool isParamPan(params::Kind kind, int32_t paramID) {
 	return (kind == params::Kind::PATCHED && paramID == LOCAL_PAN)
 	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+}
+
+bool isParamArpRhythm(params::Kind kind, int32_t paramID) {
+	return (kind == params::Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
 }
 
 bool isParamPitch(params::Kind kind, int32_t paramID) {
@@ -95,7 +103,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_ENV_0_RELEASE]            = "Env1 rel",
 	    [LOCAL_ENV_1_RELEASE]            = "Env2 rel",
 	    [GLOBAL_VOLUME_POST_FX]          = "POSTFXLVL",
-	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "POSTRVLVL",
+	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "Side level",
 	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
 	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
 	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
@@ -203,6 +211,10 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		using enum UnpatchedSound;
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
 		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
+		    [UNPATCHED_ARP_RATCHET_PROBABILITY - unc] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
+		    [UNPATCHED_ARP_RATCHET_AMOUNT - unc] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
+		    [UNPATCHED_ARP_SEQUENCE_LENGTH - unc] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
+		    [UNPATCHED_ARP_RHYTHM - unc] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
 		return l10n::get(NAMES[p - unc]);
@@ -219,8 +231,10 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_PAN - unc] = STRING_FOR_PAN,
 		    [UNPATCHED_LPF_FREQ - unc] = STRING_FOR_LPF_FREQUENCY,
 		    [UNPATCHED_LPF_RES - unc] = STRING_FOR_LPF_RESONANCE,
+		    [UNPATCHED_LPF_MORPH - unc] = STRING_FOR_LPF_MORPH,
 		    [UNPATCHED_HPF_FREQ - unc] = STRING_FOR_HPF_FREQUENCY,
 		    [UNPATCHED_HPF_RES - unc] = STRING_FOR_HPF_RESONANCE,
+		    [UNPATCHED_HPF_MORPH - unc] = STRING_FOR_HPF_MORPH,
 		    [UNPATCHED_REVERB_SEND_AMOUNT - unc] = STRING_FOR_REVERB_AMOUNT,
 		    [UNPATCHED_VOLUME - unc] = STRING_FOR_MASTER_LEVEL,
 		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
@@ -274,6 +288,18 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 		case UNPATCHED_ARP_GATE:
 			return "arpGate";
 
+		case UNPATCHED_ARP_RATCHET_PROBABILITY:
+			return "ratchetProbability";
+
+		case UNPATCHED_ARP_RATCHET_AMOUNT:
+			return "ratchetAmount";
+
+		case UNPATCHED_ARP_SEQUENCE_LENGTH:
+			return "sequenceLength";
+
+		case UNPATCHED_ARP_RHYTHM:
+			return "rhythm";
+
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";
 
@@ -302,13 +328,15 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 
 		case UNPATCHED_LPF_FREQ:
 			return "lpfFrequency";
-
 		case UNPATCHED_LPF_RES:
 			return "lpfResonance";
+		case UNPATCHED_LPF_MORPH:
+			return "lpfMorph";
 
 		case UNPATCHED_HPF_FREQ:
 			return "hpfFrequency";
-
+		case UNPATCHED_HPF_MORPH:
+			return "hpfMorph";
 		case UNPATCHED_HPF_RES:
 			return "hpfResonance";
 

@@ -88,7 +88,7 @@ SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		switch (currentSong->sessionLayout) {
 		case SessionLayoutType::SessionLayoutTypeRows: {
@@ -216,10 +216,10 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					int32_t error =
+					Error error =
 					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
-					if (error) {
+					if (error != Error::NONE) {
 						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
@@ -287,8 +287,8 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				int32_t error = output->clipInstances.insertAtIndex(i);
-				if (error) {
+				Error error = output->clipInstances.insertAtIndex(i);
+				if (error != Error::NONE) {
 					display->displayError(error);
 					return ActionResult::DEALT_WITH;
 				}
@@ -353,7 +353,7 @@ moveAfterClipInstance:
 	else if (b == RECORD) {
 		if (on) {
 			if (isNoUIModeActive()) {
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
 			else {
@@ -437,8 +437,6 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
-				// Clip* clip = getClipOnScreen(selectedClipYDisplay);
-				// contextMenuLaunchStyle.clip = clip;
 				context_menu::launchStyle.setupAndCheckAvailability();
 				openUI(&context_menu::launchStyle);
 			}
@@ -449,9 +447,16 @@ moveAfterClipInstance:
 				Clip* clip = getClipForLayout();
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+					if (gridModeActive == SessionGridModeConfig) {
+						context_menu::launchStyle.clip = clip;
+						context_menu::launchStyle.setupAndCheckAvailability();
+						openUI(&context_menu::launchStyle);
+					}
+					else if (clip != nullptr) {
+						replaceInstrumentClipWithAudioClip(clip);
+					}
 				}
-
-				if (clip != nullptr) {
+				else if (clip != nullptr) {
 					replaceInstrumentClipWithAudioClip(clip);
 				}
 			}
@@ -499,17 +504,21 @@ changeOutputType:
 			Clip* clip = getClipForLayout();
 
 			if (clip != nullptr) {
-				// If AudioClip, we have to convert back to an InstrumentClip
+				// Don't allow converting audio clip to instrument clip
 				if (clip->type == ClipType::AUDIO) {
-					actionLogger.deleteAllLogs();
-					replaceAudioClipWithInstrumentClip(clip, newOutputType);
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
 				}
-
-				// Or if already an InstrumentClip, changing Instrument type is easier
 				else {
 
 					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 					Instrument* instrument = (Instrument*)instrumentClip->output;
+
+					// don't allow clip type change if clip is not empty
+					// only impose this restriction if switching to/from kit clip
+					if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
+					    && !instrumentClip->isEmpty()) {
+						return ActionResult::DEALT_WITH;
+					}
 
 					// If load button held, go into LoadInstrumentPresetUI
 					if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
@@ -524,20 +533,7 @@ changeOutputType:
 						currentUIMode = UI_MODE_NONE;
 						selectedClipYDisplay = 255;
 
-						Browser::outputTypeToLoad = newOutputType;
-						loadInstrumentPresetUI.instrumentToReplace = instrument;
-						switch (currentSong->sessionLayout) {
-						case SessionLayoutType::SessionLayoutTypeRows: {
-							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
-							break;
-						}
-						case SessionLayoutType::SessionLayoutTypeGrid: {
-							// Not supplying an instrument will make it replace the output for all clips
-							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-							break;
-						}
-						}
-						loadInstrumentPresetUI.loadingSynthToKitRow = false;
+						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
 					}
 
@@ -616,10 +612,15 @@ void SessionView::goToArrangementEditor() {
 void SessionView::beginEditingSectionRepeatsNum() {
 	performActionOnSectionPadRelease = false;
 	drawSectionRepeatNumber();
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	// don't interact with sidebar if VU Meter is displayed
+	if (xDisplay >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
@@ -694,7 +695,7 @@ holdingRecord:
 
 							// Since that was all effective, let's exit out of UI_MODE_VIEWING_RECORD_ARMING too
 							if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-								uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+								uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 								currentUIMode = UI_MODE_NONE;
 								PadLEDs::reassessGreyout(false);
 								requestRendering(this, 0, 0xFFFFFFFF);
@@ -824,14 +825,11 @@ startHoldingDown:
 					// InstrumentClip
 					else {
 midiLearnMelodicInstrumentAction:
-						if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-						    || clip->output->type == OutputType::CV) {
 
-							if (sdRoutineLock) {
-								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-							}
-							view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
+						if (sdRoutineLock) {
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
+						view.instrumentMidiLearnPadPressed(on, (Instrument*)clip->output);
 					}
 				}
 			}
@@ -1068,7 +1066,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				performActionOnSectionPadRelease = true;
 				sectionPressed = clip->section;
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 300);
 			}
 		}
 	}
@@ -1087,7 +1085,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			else {
 				redrawNumericDisplay();
 			}
-			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		}
 
 		else if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
@@ -1119,7 +1117,7 @@ ActionResult SessionView::timerCallback() {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
 		requestRendering(this, 0, 0xFFFFFFFF);
 		view.blinkOn = !view.blinkOn;
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -1387,6 +1385,10 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridRenderSidebar(whichRows, image, occupancyMask);
 	}
@@ -1442,17 +1444,17 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 }
 
 // Will now look in subfolders too if need be.
-int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                     bool copyDrumsFromClip = true) {
+Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
+                                   bool copyDrumsFromClip = true) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(outputType));
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType,
 	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
@@ -1470,7 +1472,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 
 	Browser::emptyFileItems();
 
-	if (result.error) {
+	if (result.error != Error::NONE) {
 		return result.error;
 	}
 
@@ -1491,7 +1493,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 
 	if (copyDrumsFromClip) {
 		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
-		if (result.error) {
+		if (result.error != Error::NONE) {
 			// TODO: needs more thought - we'd want to deallocate the Instrument...
 			return result.error;
 		}
@@ -1510,8 +1512,8 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
-		if (error != NO_ERROR) {
+		Error error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		if (error != Error::NONE) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
 
@@ -1520,7 +1522,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 constexpr float colourStep = 22.5882352941;
@@ -1531,7 +1533,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (memory == nullptr) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -1556,11 +1558,11 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	OutputType outputType = OutputType::SYNTH;
 doGetInstrument:
-	int32_t error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-	if (error) {
+	Error error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
+	if (error != Error::NONE) {
 
 		// If that was for a synth and there were none, try a kit
-		if (error == ERROR_NO_FURTHER_PRESETS && outputType == OutputType::SYNTH) {
+		if (error == Error::NO_FURTHER_PRESETS && outputType == OutputType::SYNTH) {
 			outputType = OutputType::KIT;
 			goto doGetInstrument;
 		}
@@ -1604,98 +1606,6 @@ doGetInstrument:
 	return newClip;
 }
 
-void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType) {
-	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
-
-	if (!clip || clip->type != ClipType::AUDIO) {
-		return;
-	}
-
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
-	    && currentSong->getClipWithOutput(clip->output, false, clip)) {
-		display->displayPopup(deluge::l10n::get(
-		    deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
-		return;
-	}
-
-	AudioClip* audioClip = (AudioClip*)clip;
-	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
-		return;
-	}
-
-	// Allocate memory for InstrumentClip
-	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
-	if (!clipMemory) {
-ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
-		return;
-	}
-
-	// Create the audio clip and ParamManager
-	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
-
-	// Give the new clip its stuff
-	newClip->cloneFrom(clip);
-	newClip->colourOffset = random(72);
-
-	bool instrumentAlreadyInSong;
-	int32_t error;
-
-	if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-
-		error = setPresetOrNextUnlaunchedOne(newClip, outputType, &instrumentAlreadyInSong);
-		if (error) {
-gotError:
-			display->displayError(error);
-gotErrorDontDisplay:
-			newClip->~InstrumentClip();
-			delugeDealloc(clipMemory);
-			return;
-		}
-	}
-
-	else {
-		Instrument* newInstrument = currentSong->getNonAudioInstrumentToSwitchTo(
-		    outputType, Availability::INSTRUMENT_UNUSED, 0, -1, &instrumentAlreadyInSong);
-		if (!newInstrument) {
-			goto gotErrorDontDisplay;
-		}
-
-		error = newClip->setNonAudioInstrument(newInstrument, currentSong);
-		if (error) {
-			// TODO: we'd really want to deallocate the Instrument
-			goto gotError;
-		}
-	}
-
-	if (!instrumentAlreadyInSong) {
-		currentSong->addOutput(newClip->output);
-	}
-
-	// Possibly want to set this as the active Clip...
-	if (!newClip->output->activeClip) {
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
-
-		newClip->output->setActiveClip(modelStackWithTimelineCounter);
-	}
-
-	newClip->output->colour = clip->output->colour;
-
-	currentSong->swapClips(newClip, clip, clipIndex);
-
-	view.setActiveModControllableTimelineCounter(newClip);
-	view.displayOutputName(newClip->output, true, newClip);
-
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
-}
-
 void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
@@ -1710,16 +1620,16 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 		return;
 	}
 
+	// don't allow clip type change if clip is not empty
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(clip)) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+	if (!instrumentClip->isEmpty()) {
 		return;
 	}
 
 	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
 
 	if (!newClip) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1838,12 +1748,6 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
-		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
-	}
-
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
 	}
@@ -1973,7 +1877,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 	bool enoughSpace = currentSong->sessionClips.ensureEnoughSpaceAllocated(1);
 	if (!enoughSpace) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return;
 	}
 
@@ -1981,8 +1885,8 @@ ramError:
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
-	int32_t error = clipToClone->clone(modelStack);
-	if (error) {
+	Error error = clipToClone->clone(modelStack);
+	if (error != Error::NONE) {
 		goto ramError;
 	}
 
@@ -2029,6 +1933,11 @@ void SessionView::graphicsRoutine() {
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}
 		}
+	}
+
+	// if we're not currently selecting a clip
+	if (!getClipForLayout() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
@@ -2388,16 +2297,12 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 // Returns false if can't because in card routine
 bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	if (clip) {
 
 		// If user assigning MIDI controls and this Clip has a command assigned, flash pink
-		if (view.midiLearnFlashOn
-		    && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-		        || clip->output->type == OutputType::CV)
-		    && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
+		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
@@ -2427,10 +2332,10 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 				                                  drawUndefinedArea);
 			}
 
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 			    && view.midiLearnFlashOn
-			    // Should be fine even if output isn't a MelodicInstrument
-			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
+			    // fine even if output isn't an Instrument - will just compare as false
+			    && view.learnedThing == &((Instrument*)clip->output)->midiInput) {
 
 				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 					thisImage[xDisplay] = thisImage[xDisplay].dim();
@@ -2747,11 +2652,10 @@ void SessionView::midiLearnFlash() {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
-			if (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::MIDI_OUT
-			    || clip->output->type == OutputType::CV) {
+			if (clip->output->type != OutputType::AUDIO && clip->output->type != OutputType::NONE) {
 
-				if (((MelodicInstrument*)clip->output)->midiInput.containsSomething()
-				    || (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+				if (((Instrument*)clip->output)->midiInput.containsSomething()
+				    || (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 				        && view.learnedThing
 				               == &((MelodicInstrument*)clip->output)
 				                       ->midiInput)) { // Should be fine even if output isn't a MelodicInstrument
@@ -2873,6 +2777,11 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		modeColour = colours::blue; // Blue
 		break;
 	}
+	case GridMode::YELLOW: {
+		modeActive = (gridModeActive == SessionGridModeConfig);
+		modeColour = colours::yellow; // Yellow
+		break;
+	}
 	case GridMode::PINK: {
 		modeActive = performanceSessionView.gridModeActive;
 		modeColour = colours::magenta; // Pink
@@ -2961,13 +2870,13 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		else if (gridModeActive == SessionGridModeEdit) {
 			// Instrument learned
 			OutputType type = clip->output->type;
-			bool canLearn = (type == OutputType::SYNTH || type == OutputType::MIDI_OUT || type == OutputType::CV);
+			bool canLearn = (type != OutputType::AUDIO && type != OutputType::NONE);
 			if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
 				return colours::midi_command;
 			}
 
 			// Selected but unlearned
-			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
 				return colours::black; // Flash black
 			}
@@ -2985,7 +2894,13 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		clip->output->colour = lastColour;
 	}
 
-	RGB resultColour = RGB::fromHue(clip->output->colour);
+	RGB resultColour;
+	if (gridModeActive == SessionGridModeConfig) {
+		resultColour = view.getClipMuteSquareColour(clip, resultColour, true, false);
+	}
+	else {
+		resultColour = RGB::fromHue(clip->output->colour);
+	}
 
 	// If we are not in record arming mode make this clip full color for being soloed
 	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
@@ -3009,9 +2924,9 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
-	int32_t error = sourceClip->clone(modelStack, false);
-	if (error) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+	Error error = sourceClip->clone(modelStack, false);
+	if (error != Error::NONE) {
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3062,9 +2977,9 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
-		if (error || instrumentAlreadyInSong) {
-			if (error) {
+		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		if (error != Error::NONE || instrumentAlreadyInSong) {
+			if (error != Error::NONE) {
 				display->displayError(error);
 			}
 			return false;
@@ -3078,7 +2993,7 @@ bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* cli
 		}
 
 		auto error = clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong);
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
@@ -3107,7 +3022,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(OutputType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!memory) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3180,10 +3095,10 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
 
-	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
+	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != Error::NONE) {
 		newClip->~Clip();
 		delugeDealloc(newClip);
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3206,9 +3121,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-				                                                    InstrumentRemoval::NONE);
-				if (error != NO_ERROR) {
+				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                                  InstrumentRemoval::NONE);
+				if (error != Error::NONE) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}
 
@@ -3325,6 +3240,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
+			case GridMode::YELLOW: {
+				gridModeActive = SessionGridModeConfig;
+				break;
+			}
 			case GridMode::PINK: {
 				performanceSessionView.gridModeActive = true;
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
@@ -3359,6 +3278,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
+			break;
+		}
+		case SessionGridModeConfig: {
+			modeHandleResult = gridHandlePadsConfig(x, y, on, clip);
 			break;
 		}
 		}
@@ -3412,10 +3335,8 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip->type != ClipType::AUDIO) {
 				// Learn + Holding pad = Learn MIDI channel
 				Output* output = gridTrackFromX(x, gridTrackCount());
-				if (output
-				    && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-				        || output->type == OutputType::CV)) {
-					view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+				if (output && (output->type != OutputType::AUDIO && output->type != OutputType::NONE)) {
+					view.instrumentMidiLearnPadPressed(on, (Instrument*)output);
 				}
 			}
 			else {
@@ -3466,6 +3387,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
+				// removes potential stuck pop-up if you're previewing / entering a clip
+				// while holding section pad and repeats popup is displayed
+				deluge::hid::display::OLED::removePopup();
 			}
 		}
 		// Remember the second press down if empty
@@ -3599,7 +3523,6 @@ ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, in
 	}
 
 	gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
-
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
@@ -3673,6 +3596,32 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 			gridToggleClipPlay(clip, false);
 		}
 	}
+}
+
+ActionResult SessionView::gridHandlePadsConfig(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (x < kDisplayWidth) {
+		if (on) {
+			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
+				gridFirstPressedX = x;
+				gridFirstPressedY = y;
+			}
+
+			if (clip != nullptr) {
+				currentSong->setCurrentClip(clip);
+				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+				view.displayOutputName(clip->output, true, clip);
+				if (display->haveOLED()) {
+					deluge::hid::display::OLED::sendMainImage();
+				}
+			}
+		}
+		else {
+			if (gridFirstPressedX == x && gridFirstPressedY == y) {
+				clipPressEnded();
+			}
+		}
+	}
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
@@ -3757,7 +3706,7 @@ void SessionView::gridTransitionToSessionView() {
 	}
 
 	PadLEDs::explodeAnimationTargetUI = this;
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);

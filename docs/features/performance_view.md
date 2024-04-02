@@ -77,17 +77,20 @@ Param Editing Mode:
 
 ## Default FX and Colour Assignments
 * The default Param and Colour Assignments for each FX column in Performance View are as follows
-* Note: if you re-arrange the parameters to different FX columns, they will bring the colours noted below with them.
+* Note: if you re-arrange the parameters to different FX columns (e.g. using Param Editing Mode), they will bring the colours noted below with them.
+* Params marked "Unassigned" below are available to be assigned to a Performance View column with Param Editing Mode.
 
 Columns:
 
 Red:
 1 = LPF Cutoff
 2 = LPF Resonance
+Unassigned = LPF Morph
 
 Orange:
 3 = HPF Cutoff
 4 = HPF Resonance
+Unassigned = HPF Morph
 
 Yellow:
 5 = Bass EQ

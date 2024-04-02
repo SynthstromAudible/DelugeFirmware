@@ -17,7 +17,6 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
@@ -30,6 +29,8 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/encoders.h"
+#include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -40,7 +41,6 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_vector.h"
-#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
@@ -124,7 +124,7 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-float rmsLevel{0};
+StereoFloatSample approxRMSLevel{0};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
@@ -140,8 +140,7 @@ SampleRecorder* firstRecorder = NULL;
 int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;
 uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
-int32_t numSamplesLastTime;
-int32_t smoothedSamples;
+int32_t numSamplesLastTime = 0;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
@@ -156,8 +155,6 @@ bool lineInPluggedIn;
 InputMonitoringMode inputMonitoringMode = InputMonitoringMode::SMART;
 bool routineBeenCalled;
 uint8_t numHopsEndedThisRoutineCall;
-
-int32_t reverbSendPostLPF = 0;
 
 VoiceVector activeVoices{};
 
@@ -246,9 +243,8 @@ void unassignAllVoices(bool deletingSong) {
 }
 
 void songSwapAboutToHappen() {
-
-	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access Clips
-	                                                    // that we may have deleted below
+	// Otherwise, a timer might get called and try to access Clips that we may have deleted below
+	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 	logAction("a1");
 	currentSong->deleteSoundsWhichWontSound();
 	logAction("a2");
@@ -257,8 +253,11 @@ void songSwapAboutToHappen() {
 
 // To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
 // or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
-
+Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, size_t numSamples) {
+	// Only include audio if doing a hard cull and not saving the voice
+	bool includeAudio = !saveVoice && !justDoFastRelease && definitelyCull;
+	// Skip releasing voices if doing a soft cull and definitely culling
+	bool skipReleasing = justDoFastRelease && definitelyCull;
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -267,8 +266,11 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
 
 		if (ratingThisVoice > bestRating) {
+			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
+			// if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
 			bestRating = ratingThisVoice;
 			bestVoice = thisVoice;
+			//}
 		}
 	}
 
@@ -279,7 +281,8 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
 		if (justDoFastRelease) {
-			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
+			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE
+			    || bestVoice->envelopes[0].fastReleaseIncrement < 65536) {
 				bool stillGoing = bestVoice->doFastRelease(65536);
 
 				if (!stillGoing) {
@@ -287,22 +290,41 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d", smoothedSamples);
-				D_PRINTLN(". voices left: %d ", getNumVoices());
+				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+				          getNumVoices(), getNumAudio());
 #endif
 			}
-			// Otherwise, it's already fast-releasing, so just leave it
+
+			else if (definitelyCull) {
+				bool stillGoing = bestVoice->doImmediateRelease();
+
+				if (!stillGoing) {
+					unassignVoice(bestVoice, bestVoice->assignedToSound);
+				}
+#if ALPHA_OR_BETA_VERSION
+				D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+				          getNumVoices(), getNumAudio());
+#endif
+			}
+
+			else {
+				// Otherwise, it's already fast-releasing, so just leave it
+				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d", numSamples,
+				          getNumVoices());
+			}
 
 			bestVoice = NULL; // We don't want to return it
 		}
 
 		else {
 			unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
+			D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+			          getNumVoices(), getNumAudio());
 		}
 	}
 
-	// Or if no Voices to cull, try culling an AudioClip...
-	else {
+	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
+	else if (includeAudio) {
 		if (currentSong && !justDoFastRelease) {
 			currentSong->cullAudioClipVoice();
 		}
@@ -310,7 +332,9 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 
 	return bestVoice;
 }
-
+int32_t getNumAudio() {
+	return currentSong ? currentSong->countAudioClips() : 0;
+}
 int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
@@ -326,11 +350,11 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
 #define AUDIO_LOG_SIZE 64
-
-#if DO_AUDIO_LOG
 bool definitelyLog = false;
+#if DO_AUDIO_LOG
+
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
@@ -347,27 +371,125 @@ Debug::AverageDT rvb("reverb", Debug::uS);
 #endif
 
 uint8_t numRoutines = 0;
-void routine() {
+// used for culling
+constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
+// used for decisions in rendering engine
+constexpr int32_t direnessThreshold = numSamplesLimit - 20;
+
+// 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads earlier
+// for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close to the limit
+constexpr int MIN_VOICES = 7;
+
+// global (to this file) because it's used for determining whether to solicit voices via culling as well
+int32_t numToCull = 0;
+
+// not in header (private to audio engine)
+/// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
+inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+	if (numAudio + numVoice > MIN_VOICES) {
+
+		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		// If it's real dire, do a proper immediate cull
+		if (numSamplesOverLimit >= 10) {
+
+			numToCull = (numSamplesOverLimit >> 3);
+
+			// leave at least 7 - below this point culling won't save us
+			// if they can't load their sample in time they'll stop the same way anyway
+			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
+			for (int32_t i = 0; i < numToCull; i++) {
+				// hard cull (no release)
+				cullVoice(false, false, true, numSamples);
+			}
+
+#if ALPHA_OR_BETA_VERSION
+
+			definitelyLog = true;
+			logAction("hard cull");
+
+#endif
+		}
+		if (numSamplesOverLimit >= 5) {
+
+			// definitely do a soft cull (won't include audio clips)
+			cullVoice(false, true, true, numSamples);
+			logAction("forced cull");
+		}
+		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
+		// is increasing
+		else if (numSamplesOverLimit >= -5) {
+
+			// If not in first routine call this is inaccurate, so just release another voice since things are
+			// probably bad
+			cullVoice(false, true, numRoutines > 0, numSamples);
+			logAction("soft cull");
+		}
+	}
+	else {
+		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+		// If it's real dire, do a proper immediate cull
+		if (numSamplesOverLimit >= 10) {
+			D_PRINTLN("under min voices but culling anyway");
+			cullVoice(false, false, true, numSamples);
+		}
+	}
+}
+
+// not in header (private to audio engine)
+/// set the direness level and cull any voices
+inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+	numToCull = 0;
+
+	// don't smooth this - used for other decisions as well
+	if (numSamples >= direnessThreshold) { // 23
+
+		int32_t newDireness = numSamples - (direnessThreshold - 1);
+		if (newDireness > 14) {
+			newDireness = 14;
+		}
+
+		if (newDireness >= cpuDireness) {
+			cpuDireness = newDireness;
+			timeDirenessChanged = audioSampleTimer;
+		}
+		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
+		auto numVoice = getNumVoices();
+		if (!bypassCulling) {
+			cullVoices(numSamples, numAudio, numVoice);
+		}
+		else {
+
+			size_t numSamplesOverLimit = numSamples - numSamplesLimit;
+			if (numSamplesOverLimit >= 0) {
+#if DO_AUDIO_LOG
+				definitelyLog = true;
+#endif
+				D_PRINTLN("numSamples %d, numVoice %d, numAudio %d", numSamples, numVoice, numAudio);
+				logAction("skipped cull");
+			}
+		}
+	}
+
+	else if (numSamples < direnessThreshold - 10) {
+
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
+			timeDirenessChanged = audioSampleTimer;
+			cpuDireness--;
+			if (cpuDireness < 0) {
+				cpuDireness = 0;
+			}
+			else {
+				D_PRINTLN("direness:  %d", cpuDireness);
+			}
+		}
+	}
+}
+
+/// inner loop of audio rendering, deliberately not in header
+[[gnu::hot]] void routine_() {
 #if JFTRACE
 	aeCtr.note();
 #endif
-	logAction("AudioDriver::routine");
-	if (audioRoutineLocked) {
-		logAction("AudioDriver::routine locked");
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called
-		        // from within this!
-	}
-
-	// See if some more outputting is left over from last time to do
-	bool finishedOutputting = doSomeOutputting();
-	if (!finishedOutputting) {
-		logAction("AudioDriver::still outputting");
-		// D_PRINTLN("still waiting");
-		return;
-	}
-
-	audioRoutineLocked = true;
-	routineBeenCalled = true;
 
 	playbackHandler.routine();
 
@@ -379,24 +501,24 @@ void routine() {
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
-	if (!numSamples) {
-		audioRoutineLocked = false;
+
+	if (numSamples <= (10 * numRoutines)) {
 		return;
 	}
-
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
 
-	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered output
-	// and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and also want
-	// to give them a head-start being sent and out of the way so the clock messages can be sent on-time
+	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered
+	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
+	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
 	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
 	bool anythingInGateOutputBufferNow =
 	    cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
 	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
 
-		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger it)
+		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
+		// it)
 		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
 		// problems?
 		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
@@ -412,16 +534,13 @@ void routine() {
 #ifdef REPORT_CPU_USAGE
 #define MINSAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
 	if (numSamples < (MINSAMPLES)) {
-		audioRoutineLocked = false;
 		return;
 	}
 
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
-#define MINSAMPLES 16
 
-	smoothedSamples = numSamples;
 	// this is sometimes good for debugging but super spammy
 	// audiolog doesn't work because the render that notices the failure
 	// is one after the render with the problem
@@ -431,86 +550,26 @@ void routine() {
 	//  	D_PRINTLN(" samples but output ");
 	//  	D_PRINTLN(numSamples);
 	//  }
+	size_t smoothedSamples;
+	if (numSamples > numSamplesLastTime) {
+		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
+	}
+	else {
+		smoothedSamples = numSamples;
+	}
+	setDireness(smoothedSamples);
 
-	// Consider direness and culling - before increasing the number of samples
-	int32_t numSamplesLimit = 40; // storageManager.devVarC;
-	int32_t direnessThreshold = numSamplesLimit - 17;
-
-	if (smoothedSamples >= direnessThreshold) { // 20
-
-		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
-		if (newDireness > 14) {
-			newDireness = 14;
-		}
-
-		if (newDireness >= cpuDireness) {
-			cpuDireness = newDireness;
-			timeDirenessChanged = audioSampleTimer;
-		}
-
-		if (!bypassCulling) {
-			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
-
-			// If it's real dire, do a proper immediate cull
-			if (numSamplesOverLimit >= 10) {
-
-				int32_t numToCull = (numSamplesOverLimit >> 3) + 1;
-
-				for (int32_t i = 0; i < numToCull; i++) {
-					cullVoice();
-				}
-
-#if ALPHA_OR_BETA_VERSION
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				D_PRINTLN("culled  %d  voices. numSamples:  %d", numToCull, numSamples);
-
-				D_PRINTLN(". voices left:  %d", getNumVoices());
-				logAction("hard cull");
-#endif
-			}
-
-			// Or if it's just a little bit dire, do a soft cull with fade-out
-			else if (numSamplesOverLimit >= -6) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				cullVoice(false, true);
-				logAction("soft cull");
-			}
-		}
-		else {
-
-			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
-			if (numSamplesOverLimit >= 0) {
-#if DO_AUDIO_LOG
-				definitelyLog = true;
-#endif
-				D_PRINTLN("numSamples %d", numSamples);
-				logAction("skipped cull");
-			}
+	// when playback is enabled, blink play button to indicate high cpu usage
+	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
+		// check if indicator isn't already active
+		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
+			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
 	}
 
-	else if (smoothedSamples < direnessThreshold - 10) {
-
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
-			timeDirenessChanged = audioSampleTimer;
-			cpuDireness--;
-			if (cpuDireness < 0) {
-				cpuDireness = 0;
-			}
-			else {
-				D_PRINTLN("direness:  %d", cpuDireness);
-			}
-		}
-	}
-
-	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	constexpr size_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
+	constexpr size_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES;
 
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 
@@ -568,8 +627,8 @@ startAgain:
 
 			// Those could have outputted clock or other MIDI / gate
 			if (midiEngine.anythingInOutputBuffer() || cvEngine.clockOutputPending
-			    || cvEngine.gateOutputPending) { // Not asapGateOutputPending. That probably actually couldn't have been
-				                                 // generated by a actionSwungTick() anyway I think?
+			    || cvEngine.gateOutputPending) { // Not asapGateOutputPending. That probably actually couldn't have
+				                                 // been generated by a actionSwungTick() anyway I think?
 				timeWithinWindowAtWhichMIDIOrGateOccurs = 0;
 			}
 
@@ -579,11 +638,10 @@ startAgain:
 		// If the tick is during this window, shorten the window so we stop right at the tick
 		if (timeTilNextTick < numSamples) {
 			numSamples = timeTilNextTick;
-			shortenedWindow = true;
 		}
 
-		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or MIDI
-		// clock out ticks during it
+		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
+		// MIDI clock out ticks during it
 
 		if (playbackHandler.triggerClockOutTickScheduled) {
 			int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
@@ -610,16 +668,6 @@ startAgain:
 		}
 	}
 
-	// //this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
-	// //output when cutting rendering short for clock at critical times
-	// //the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
-	// //this works out to a 1% error in the absolute worse case of alternating
-	// //no extension and max extension, approximately 10x better than average usb midi accuracy.
-	// int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	// if (currentSong) {
-	// 	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
-	// }
-	// numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
@@ -704,7 +752,7 @@ startAgain:
 	// Stop reverb after 12 seconds of inactivity
 	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
 	// around the mutable noise floor, ~70dB from peak
-	reverbOn |= (rmsLevel > 9);
+	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -725,15 +773,6 @@ startAgain:
 
 		auto reverb_buffer_slice = std::span{reverbBuffer.data(), numSamples};
 		auto render_buffer_slice = std::span{renderingBuffer.data(), numSamples};
-
-		// HPF on reverb send, cos if it has DC offset, the reverb magnifies that, and the sound farts out
-		{
-			for (auto& reverb_sample : reverb_buffer_slice) {
-				int32_t distance_to_go_l = reverb_sample - reverbSendPostLPF;
-				reverbSendPostLPF += distance_to_go_l >> 11;
-				reverb_sample -= reverbSendPostLPF;
-			}
-		}
 
 		// Mix reverb into main render
 		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
@@ -767,7 +806,8 @@ startAgain:
 
 		currentSong->globalEffectable.processStutter(renderingBuffer.data(), numSamples, &currentSong->paramManager);
 
-		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below anyway
+		// And we do panning for song here too - must be post reverb, and we had to do a volume adjustment below
+		// anyway
 		int32_t pan = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_PAN) >> 1;
 
 		if (pan != 0) {
@@ -800,7 +840,7 @@ startAgain:
 
 	metronome.render(renderingBuffer.data(), numSamples);
 
-	rmsLevel = envelopeFollower.calcRMS(renderingBuffer.data(), numSamples);
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
 
 	// Monitoring setup
 	doMonitoring = false;
@@ -839,14 +879,6 @@ startAgain:
 	renderingBufferOutputPos = renderingBuffer.begin();
 	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
 
-	doSomeOutputting();
-
-	/*
-	if (!getRandom255()) {
-	    D_PRINTLN("samples:  %d . voices:  %d", numSamples, getNumVoices());
-	}
-*/
-
 	bool anyGateOutputPending =
 	    cvEngine.gateOutputPending || cvEngine.clockOutputPending || cvEngine.asapGateOutputPending;
 
@@ -873,9 +905,9 @@ startAgain:
 		// samplesTilMIDI += 10; This gets the start of stuff perfectly lined up. About 10 for MIDI, 12 for gate
 
 		if (anyGateOutputPending) {
-			// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already been
-			// sent, but we need to make sure that the note-on now doesn't happen until a set amount of time after the
-			// note-off.
+			// If a gate note-on was processed at the same time as a gate note-off, the note-off will have already
+			// been sent, but we need to make sure that the note-on now doesn't happen until a set amount of time
+			// after the note-off.
 			int32_t gateMinDelayInSamples =
 			    ((uint32_t)cvEngine.minGateOffTime * 289014) >> 16; // That's *4.41 (derived from 44100)
 			int32_t samplesTilAllowedToSend =
@@ -908,12 +940,10 @@ startAgain:
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINT(timePassedUS);
-			D_PRINTLN(":  %d", audioLogStrings[i]);
+			D_PRINTLN("%d:  %s", timePassedUS, audioLogStrings[i]);
 		}
 
-		D_PRINT(timePassedUSA);
-		D_PRINTLN(": end");
+		D_PRINTLN("%d: end", timePassedUSA);
 	}
 	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
@@ -922,20 +952,33 @@ startAgain:
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
-	// If we shorten the window we need to render again immediately - otherwise
-	// we'll get a click at high CPU loads, and hard cull when we could soft cull
-	// this is basically so that we don't click at normal tempos and still
-	// let Ron go to 10 000 BPM and then play wildly with the tempo knob for
-	// whatever reason
-	if (shortenedWindow) {
-		if (numRoutines < 5) {
-			numRoutines += 1;
-			// this seems to get tail call optimized
-			routine();
-		}
-	}
-	numRoutines = 0;
+
 	bypassCulling = false;
+}
+
+void routine() {
+
+	logAction("AudioDriver::routine");
+
+	if (audioRoutineLocked) {
+		logAction("AudioDriver::routine locked");
+		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		        // called from within this!
+	}
+
+	audioRoutineLocked = true;
+
+	numRoutines = 0;
+	while (doSomeOutputting() && numRoutines < 2) {
+		// todo - replace this with a scheduler and remove all the random calls to routine encoders but whatever
+		if (numRoutines > 0) {
+			deluge::hid::encoders::readEncoders();
+			deluge::hid::encoders::interpretEncoders(true);
+		}
+		numRoutines += 1;
+		routine_();
+		routineBeenCalled = true;
+	}
 	audioRoutineLocked = false;
 }
 
@@ -971,8 +1014,8 @@ bool doSomeOutputting() {
 		}
 
 		// Here we're going to do something equivalent to a multiply_32x32_rshift32(), but add dithering.
-		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for too
-		// long.
+		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for
+		// too long.
 		int64_t lAdjustedBig =
 		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)getNoise();
 		int64_t rAdjustedBig =
@@ -1062,7 +1105,7 @@ bool doSomeOutputting() {
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
 
-			if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
 			}
 
@@ -1074,9 +1117,9 @@ bool doSomeOutputting() {
 			// Recording from an input source
 			else if (recorder->mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 
-				// We'll feed a bunch of samples to the SampleRecorder - normally all of what we just advanced, but if
-				// the buffer wrapped around, we'll just go to the end of the buffer, and not worry about the extra bit
-				// at the start - that'll get done next time.
+				// We'll feed a bunch of samples to the SampleRecorder - normally all of what we just advanced, but
+				// if the buffer wrapped around, we'll just go to the end of the buffer, and not worry about the
+				// extra bit at the start - that'll get done next time.
 				uint32_t stopPos =
 				    (i2sRXBufferPos < (uint32_t)recorder->sourcePos) ? (uint32_t)getRxBufferEnd() : i2sRXBufferPos;
 
@@ -1084,8 +1127,8 @@ bool doSomeOutputting() {
 				int32_t numSamplesFeedingNow =
 				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
-				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get done
-				// next time.
+				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get
+				// done next time.
 				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256_i32);
 
 				if (recorder->mode == AudioInputChannel::RIGHT) {
@@ -1137,8 +1180,8 @@ void updateReverbParams() {
 		ParamManager* paramManagerWithMostReverb = NULL;
 		GlobalEffectableForClip* globalEffectableWithMostReverb = NULL;
 
-		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain. If
-		// nothing found with more reverb, then we don't want the reverb affected by sidechain
+		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain.
+		// If nothing found with more reverb, then we don't want the reverb affected by sidechain
 		int32_t highestReverbAmountFound =
 		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 
@@ -1205,9 +1248,9 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
-	if (error) {
+	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
 	}
 
@@ -1216,8 +1259,8 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
-		bypassCulling = true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we may
-		                      // have gone a while without an audio routine call.
+		bypassCulling = true; // Needed - Dec 2021. I think it's during SampleBrowser::selectEncoderAction() that we
+		                      // may have gone a while without an audio routine call.
 	}
 }
 
@@ -1244,11 +1287,11 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
+	// if we're gonna hard cull, just do it now instead of allocating
+	if (cpuDireness > 13 && numToCull > 0) {
 
-	if (numSamplesLastTime >= 100 && activeVoices.getNumElements()) {
-
-		numSamplesLastTime -= 10; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
-		                          // up to the ones being culled
+		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
+		                  // up to the ones being culled
 		D_PRINTLN("soliciting via culling");
 doCull:
 		newVoice = cullVoice(true);
@@ -1282,8 +1325,8 @@ doCull:
 
 	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to not
-		// continue.
+		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
+		// not continue.
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
@@ -1408,19 +1451,19 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		int32_t error = recorder->cardRoutine();
-		if (error) {
+		Error error = recorder->cardRoutine();
+		if (error != Error::NONE) {
 			display->displayError(error);
 		}
 
-		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will be
-		// out of wack, so let's just get out and come back later
+		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
+		// be out of wack, so let's just get out and come back later
 		if (createdNewRecorder) {
 			break;
 		}
 
 		// If complete, discard it
-		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
+		if (recorder->status == RecorderStatus::AWAITING_DELETION) {
 			D_PRINTLN("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
@@ -1441,9 +1484,10 @@ void doRecorderCardRoutines() {
 void slowRoutine() {
 
 	// The RX buffer is much bigger than the TX, and we get our timing from the TX buffer's sending.
-	// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle of
-	// the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and correct it.
-	// The correct latency for the RX buffer is between (SSI_TX_BUFFER_NUM_SAMPLES) and (2 * SSI_TX_BUFFER_NUM_SAMPLES).
+	// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle
+	// of the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and
+	// correct it. The correct latency for the RX buffer is between (SSI_TX_BUFFER_NUM_SAMPLES) and (2 *
+	// SSI_TX_BUFFER_NUM_SAMPLES).
 
 	uint32_t rxBufferWriteAddr = (uint32_t)getRxBufferCurrentPlace();
 	uint32_t latencyWithinAppropriateWindow =
@@ -1481,7 +1525,7 @@ void slowRoutine() {
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
-	int32_t error;
+	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
@@ -1491,7 +1535,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
-	if (error) {
+	if (error != Error::NONE) {
 		newRecorder->~SampleRecorder();
 		delugeDealloc(recorderMemory);
 		return NULL;
@@ -1503,8 +1547,8 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	createdNewRecorder = true;
 
 	if (mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
-		renderInStereo =
-		    true; // Quickly set it to true. It'll keep getting reset to true now every time inputRoutine() is called
+		renderInStereo = true; // Quickly set it to true. It'll keep getting reset to true now every time
+		                       // inputRoutine() is called
 	}
 
 	return newRecorder;

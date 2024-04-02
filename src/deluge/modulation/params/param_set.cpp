@@ -165,24 +165,25 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 	ParamCollection::setPlayPos(pos, modelStack, reversed);
 }
 
-void ParamSet::writeParamAsAttribute(char const* name, int32_t p, bool writeAutomation, bool onlyIfContainsSomething,
-                                     int32_t* valuesForOverride) {
+void ParamSet::writeParamAsAttribute(StorageManager& bdsm, char const* name, int32_t p, bool writeAutomation,
+                                     bool onlyIfContainsSomething, int32_t* valuesForOverride) {
 	if (onlyIfContainsSomething && !params[p].containsSomething()) {
 		return;
 	}
 
 	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : NULL;
 
-	storageManager.write("\n");
-	storageManager.printIndents();
-	storageManager.write(name);
-	storageManager.write("=\"");
-	params[p].writeToFile(writeAutomation, valueForOverride);
-	storageManager.write("\"");
+	bdsm.write("\n");
+	bdsm.printIndents();
+	bdsm.write(name);
+	bdsm.write("=\"");
+	params[p].writeToFile(bdsm, writeAutomation, valueForOverride);
+	bdsm.write("\"");
 }
 
-void ParamSet::readParam(ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos) {
-	params[p].readFromFile(readAutomationUpToPos);
+void ParamSet::readParam(StorageManager& bdsm, ParamCollectionSummary* summary, int32_t p,
+                         int32_t readAutomationUpToPos) {
+	params[p].readFromFile(bdsm, readAutomationUpToPos);
 	if (params[p].isAutomated()) {
 		paramHasAutomationNow(summary, p);
 	}
@@ -377,6 +378,7 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
+	// Shared
 	switch (modelStack->paramId) {
 	case params::UNPATCHED_STUTTER_RATE:
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
@@ -384,14 +386,19 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:
-	case params::UNPATCHED_DELAY_RATE:
-	case params::UNPATCHED_DELAY_AMOUNT:
-	case params::UNPATCHED_PAN:
-	case params::UNPATCHED_PITCH_ADJUST:
 		return true;
-	default:
-		return false;
 	}
+	// Global
+	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+		switch (modelStack->paramId) {
+		case params::UNPATCHED_DELAY_RATE:
+		case params::UNPATCHED_DELAY_AMOUNT:
+		case params::UNPATCHED_PAN:
+		case params::UNPATCHED_PITCH_ADJUST:
+			return true;
+		}
+	}
+	return false;
 }
 int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
@@ -602,7 +609,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
-bool ExpressionParamSet::writeToFile(bool mustWriteOpeningTagEndFirst) {
+bool ExpressionParamSet::writeToFile(StorageManager& bdsm, bool mustWriteOpeningTagEndFirst) {
 
 	bool writtenAnyYet = false;
 
@@ -611,33 +618,34 @@ bool ExpressionParamSet::writeToFile(bool mustWriteOpeningTagEndFirst) {
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
 				if (mustWriteOpeningTagEndFirst) {
-					storageManager.writeOpeningTagEnd();
+					bdsm.writeOpeningTagEnd();
 				}
 
-				storageManager.writeOpeningTagBeginning("expressionData");
+				bdsm.writeOpeningTagBeginning("expressionData");
 			}
 
-			writeParamAsAttribute(expressionParamNames[p], p, true);
+			writeParamAsAttribute(bdsm, expressionParamNames[p], p, true);
 		}
 	}
 
 	if (writtenAnyYet) {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 
 	return writtenAnyYet;
 }
 
-void ExpressionParamSet::readFromFile(ParamCollectionSummary* summary, int32_t readAutomationUpToPos) {
+void ExpressionParamSet::readFromFile(StorageManager& bdsm, ParamCollectionSummary* summary,
+                                      int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		int32_t p;
 		for (p = 0; p < kNumExpressionDimensions; p++) {
 			if (!strcmp(tagName, expressionParamNames[p])) {
 doReadParam:
-				readParam(summary, p, readAutomationUpToPos);
+				readParam(bdsm, summary, p, readAutomationUpToPos);
 				goto finishedTag;
 			}
 		}
@@ -650,7 +658,7 @@ doReadParam:
 		}
 
 finishedTag:
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 }
 

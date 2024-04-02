@@ -17,12 +17,13 @@
 
 #pragma once
 #include "decimal.h"
+#include "gui/menu_item/automation/automation.h"
 #include "menu_item_with_cc_learning.h"
 class MultiRange;
 
 namespace deluge::gui::menu_item {
 
-class PatchCableStrength : public Decimal, public MenuItemWithCCLearning {
+class PatchCableStrength : public Decimal, public MenuItemWithCCLearning, public Automation {
 public:
 	using Decimal::Decimal;
 	void beginSession(MenuItem* navigatedBackwardFrom) final;
@@ -32,11 +33,18 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxMenuPatchCableValue; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 	virtual int32_t getDefaultEditPos() { return 2; }
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	void horizontalEncoderAction(int32_t offset);
+
+	deluge::modulation::params::Kind getParamKind();
+	uint32_t getParamIndex();
+	virtual PatchSource getPatchSource();
 
 	// OLED Only
 	void renderOLED();
@@ -46,6 +54,8 @@ public:
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
+
+	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
 
 protected:
 	bool preferBarDrawing = false;

@@ -30,7 +30,7 @@ public:
 	bool anyNoteIsOn() final;
 	bool hasAnyVoices() final;
 	void unassignAllVoices();
-	bool readDrumTagFromFile(char const* tagName);
+	bool readDrumTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	virtual int32_t getNumChannels() = 0;
 

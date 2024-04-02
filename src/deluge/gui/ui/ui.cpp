@@ -61,13 +61,13 @@ UI* lastUIBeforeNullifying = nullptr;
  *
  * @return std::pair<uint32_t, uint32_t> a pair with [rows, columns]
  */
-std::pair<uint32_t, uint32_t> getUIGreyoutRowsAndCols() {
+std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 	uint32_t cols = 0;
 	uint32_t rows = 0;
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutRowsAndCols(&cols, &rows);
+		bool useThis = uiNavigationHierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
 		if (useThis) {
-			return std::make_pair(rows, cols);
+			return std::make_pair(cols, rows);
 		}
 	}
 	return std::make_pair(0, 0);
@@ -80,7 +80,7 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	uiNavigationHierarchy[level] = newUI;
 	numUIsOpen = level + 1;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
@@ -100,7 +100,7 @@ void changeRootUI(UI* newUI) {
 	numUIsOpen = 1;
 
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	}
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
@@ -146,6 +146,11 @@ bool rootUIIsTimelineView() {
 	return (rootUI && rootUI->isTimelineView());
 }
 
+bool currentUIIsClipMinderScreen() {
+	UI* currentUI = getCurrentUI();
+	return (currentUI && currentUI->toClipMinder());
+}
+
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
 	return (rootUI && rootUI->toClipMinder());
@@ -185,7 +190,7 @@ void closeUI(UI* uiToClose) {
 	UI* newUI = uiNavigationHierarchy[u - 1];
 	numUIsOpen = u;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
 	if (display->haveOLED()) {
@@ -222,7 +227,7 @@ bool openUI(UI* newUI) {
 	uiNavigationHierarchy[numUIsOpen] = newUI;
 	numUIsOpen++;
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	bool success = newUI->opened();
 
@@ -333,7 +338,7 @@ void doAnyPendingUIRendering() {
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
 
 	// Clear the overall instructions - so it may now be written to again during this function call
-	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
+	clearPendingUIRendering();
 
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
 

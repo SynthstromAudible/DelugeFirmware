@@ -16,8 +16,8 @@
  */
 
 #include "io/debug/print.h"
-#include "io/debug/sysex.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/sysex.h"
 
 extern "C" {
 #include "deluge/drivers/uart/uart.h"
@@ -25,7 +25,7 @@ extern "C" {
 
 namespace Debug {
 
-constexpr uint32_t kNumSamplesBetweenReports = 44100;
+constexpr uint32_t kNumSamplesBetweenReports = kSampleRate;
 bool initFlag = false;
 bool prependDeltaT = true;
 bool lastWasNewline = false;
@@ -110,7 +110,7 @@ void prependTimeStamp(bool isNewLine) {
 		lutHexString(Debug::readCycleCounter(), buffer);
 		buffer[8] = ' ';
 		buffer[9] = 0;
-		if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
+		if (midiDebugDevice) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
@@ -124,7 +124,7 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, output, true);
 	}
 	else {
@@ -144,7 +144,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, output, false);
 	}
 	else {
@@ -208,7 +208,7 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -233,7 +233,7 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
+	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {

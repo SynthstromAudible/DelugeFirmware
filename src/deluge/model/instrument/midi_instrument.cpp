@@ -22,6 +22,7 @@
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -278,75 +279,85 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
-bool MIDIInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
-	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
-	// call
-	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
+bool MIDIInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+	// NonAudioInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+	// below call
+	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
 
-	if (editedByUser) { // Otherwise, there'll be nothing in here
-		storageManager.writeOpeningTagEnd();
-		storageManager.writeOpeningTag("modKnobs");
+	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
+		bdsm.writeOpeningTagEnd();
+		bdsm.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
 
 			int32_t cc = modKnobCCAssignments[m];
 
-			storageManager.writeOpeningTagBeginning("modKnob");
+			bdsm.writeOpeningTagBeginning("modKnob");
 			if (cc == CC_NUMBER_NONE) {
-				storageManager.writeAttribute("cc", "none");
+				bdsm.writeAttribute("cc", "none");
 			}
 			else if (cc == CC_NUMBER_PITCH_BEND) {
-				storageManager.writeAttribute("cc", "bend");
+				bdsm.writeAttribute("cc", "bend");
 			}
 			else if (cc == CC_NUMBER_AFTERTOUCH) {
-				storageManager.writeAttribute("cc", "aftertouch");
+				bdsm.writeAttribute("cc", "aftertouch");
 			}
 			else {
-				storageManager.writeAttribute("cc", cc);
+				bdsm.writeAttribute("cc", cc);
 			}
-			storageManager.closeTag();
+			bdsm.closeTag();
 		}
-		storageManager.writeClosingTag("modKnobs");
+		bdsm.writeClosingTag("modKnobs");
 
-		storageManager.writeOpeningTagBeginning("polyToMonoConversion");
-		storageManager.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
-		storageManager.writeAttribute("mpe", (int32_t)collapseMPE);
-		storageManager.closeTag();
+		bdsm.writeOpeningTagBeginning("polyToMonoConversion");
+		bdsm.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
+		bdsm.writeAttribute("mpe", (int32_t)collapseMPE);
+		bdsm.closeTag();
 	}
 	else {
-		if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
-			return false; // If we don't need to write a "device" tag, opt not to end the opening tag
+		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
+			// since then it's the whole tag
+			return false;
 		}
 
-		storageManager.writeOpeningTagEnd();
+		bdsm.writeOpeningTagEnd();
 	}
 
-	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);
+	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
 	return true;
 }
 
-bool MIDIInstrument::readTagFromFile(char const* tagName) {
+bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I think it'd
-		                         // only be relevant for pre-V2.0 song file... maybe?
+		    bdsm, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I
+		                               // think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "aftertouch")) {
-				collapseAftertouch = (bool)storageManager.readTagOrAttributeValueInt();
+				collapseAftertouch = (bool)bdsm.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else if (!strcmp(tagName, "mpe")) {
-				collapseMPE = (bool)storageManager.readTagOrAttributeValueInt();
+				collapseMPE = (bool)bdsm.readTagOrAttributeValueInt();
+				editedByUser = true;
 			}
 			else
 				break;
 		}
 	}
+	else if (!strcmp(tagName, "internalDest")) {
+		char const* text = bdsm.readTagOrAttributeValue();
+		if (!strcmp(text, "transpose")) {
+			channel = MIDI_CHANNEL_TRANSPOSE;
+		}
+	}
 	else if (!strcmp(tagName, "zone")) {
-		char const* text = storageManager.readTagOrAttributeValue();
+		char const* text = bdsm.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {
 			channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
 		}
@@ -355,48 +366,48 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 		}
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
-		channelSuffix = storageManager.readTagOrAttributeValueInt();
+		channelSuffix = bdsm.readTagOrAttributeValueInt();
 	}
-	else if (NonAudioInstrument::readTagFromFile(tagName)) {
+	else if (NonAudioInstrument::readTagFromFile(bdsm, tagName)) {
 		return true;
 	}
 	else {
 		return false;
 	}
 
-	storageManager.exitTag();
+	bdsm.exitTag();
 	return true;
 }
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-int32_t MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
-                                                       ParamManagerForTimeline* paramManager) {
+Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+                                                     ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
-			int32_t error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                                     &modKnobCCAssignments[m]);
-			if (error) {
+			Error error =
+			    bdsm.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
+			if (error != Error::NONE) {
 				return error;
 			}
 			m++;
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 		if (m >= kNumModButtons * kNumPhysicalModKnobs) {
 			break;
 		}
 	}
 
 	editedByUser = true;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
@@ -451,15 +462,14 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 	// It does always return something, above
 }
 
-// Returns error code
-int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
-                                                    ModelStackWithThreeMainThings* modelStack) {
+Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
+                                                  ModelStackWithThreeMainThings* modelStack) {
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(oldCC, modelStack);
 
 	AutoParam* oldParam = modelStackWithAutoParam->autoParam;
 	if (!oldParam) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	AutoParamState state;
@@ -491,12 +501,12 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);
 	AutoParam* newParam = modelStackWithAutoParam->autoParam;
 	if (!newParam) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	newParam->swapState(&state, modelStackWithAutoParam);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
@@ -733,7 +743,12 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		outputAllMPEValuesOnMemberChannel(mpeValuesToUse, outputMemberChannel);
 	}
 
-	midiEngine.sendNote(true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+	if (sendsToInternal()) {
+		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
+	}
+	else {
+		midiEngine.sendNote(true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+	}
 }
 
 // Will store them too. Only for when we definitely want to send all three.
@@ -761,14 +776,15 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
 
+	if (sendsToInternal()) {
+		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
+	}
 	// If no MPE, nice and simple
-	if (!sendsToMPE()) {
+	else if (!sendsToMPE()) {
 		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
-		if (!collapseAftertouch) {
-			midiEngine.sendPolyphonicAftertouch(channel, 0, noteCodePostArp, kMIDIOutputFilterNoMPE);
-		}
-		else {
+		if (collapseAftertouch) {
+
 			combineMPEtoMono(0, Z_PRESSURE);
 		}
 		// this immediately sets pitch bend and modwheel back to 0, which is not the normal MPE behaviour but
@@ -850,8 +866,11 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
                                                               int32_t whichExpressionDimension, ArpNote* arpNote) {
 
+	if (sendsToInternal()) {
+		// Do nothing
+	}
 	// If we don't have MPE output...
-	if (!sendsToMPE()) {
+	else if (!sendsToMPE()) {
 		if (whichExpressionDimension == 2) {
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
@@ -982,8 +1001,11 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 			// casting down will truncate
 			value32 = (int32_t)fbend;
 		}
-		lastCombinedPolyExpression[whichExpressionDimension] = value32;
-		sendMonophonicExpressionEvent(whichExpressionDimension);
+		// if it's changed, we need to update the outputs
+		if (value32 != lastCombinedPolyExpression[whichExpressionDimension]) {
+			lastCombinedPolyExpression[whichExpressionDimension] = value32;
+			sendMonophonicExpressionEvent(whichExpressionDimension);
+		}
 	}
 }
 
@@ -1005,4 +1027,12 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 	}
 
 	return modelStackWithParam;
+}
+
+void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel) {
+
+	switch (channel) {
+	case MIDI_CHANNEL_TRANSPOSE:
+		MIDITranspose::doTranspose(on, note);
+	}
 }

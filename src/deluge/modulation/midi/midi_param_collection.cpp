@@ -201,21 +201,21 @@ void MIDIParamCollection::sendMIDI(int32_t masterChannel, int32_t cc, int32_t ne
 
 // For MIDI CCs, which prior to V2.0 did interpolation
 // Returns error code
-int32_t MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
+Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
 
 		if (midiParam->cc >= 120) {
-			return NO_ERROR;
+			return Error::NONE;
 		}
-		int32_t error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
-		if (error) {
+		Error error = midiParam->param.makeInterpolationGoodAgain(clipLength, 25);
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
@@ -286,31 +286,31 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 	}
 }
 
-void MIDIParamCollection::writeToFile() {
+void MIDIParamCollection::writeToFile(StorageManager& bdsm) {
 	if (params.getNumElements()) {
 
-		storageManager.writeOpeningTag("midiParams");
+		bdsm.writeOpeningTag("midiParams");
 
 		for (int32_t i = 0; i < params.getNumElements(); i++) {
 			MIDIParam* midiParam = params.getElement(i);
 			int32_t cc = midiParam->cc;
 
-			storageManager.writeOpeningTag("param");
+			bdsm.writeOpeningTag("param");
 			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
-				storageManager.writeTag("cc", "none");
+				bdsm.writeTag("cc", "none");
 			}
 			else {
-				storageManager.writeTag("cc", cc);
+				bdsm.writeTag("cc", cc);
 			}
 
-			storageManager.writeOpeningTag("value", false);
-			midiParam->param.writeToFile(true);
-			storageManager.writeClosingTag("value", false);
+			bdsm.writeOpeningTag("value", false);
+			midiParam->param.writeToFile(bdsm, true);
+			bdsm.writeClosingTag("value", false);
 
-			storageManager.writeClosingTag("param");
+			bdsm.writeClosingTag("param");
 		}
 
-		storageManager.writeClosingTag("midiParams");
+		bdsm.writeClosingTag("midiParams");
 	}
 }
 

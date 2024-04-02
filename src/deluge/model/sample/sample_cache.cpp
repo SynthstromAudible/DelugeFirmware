@@ -21,6 +21,7 @@
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
+#include "util/misc.h"
 
 SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
                          int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart) {
@@ -181,7 +182,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 #endif
 	// First Cluster
 	if (clusterIndex == 0) {
-		const auto q = STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
+		const auto q = StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
 		CacheManager& cache_manager = GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager();
 		Cluster* cluster = clusters[clusterIndex];
 		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
@@ -204,7 +205,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 		// being what puts Clusters in their queue in the first place.
 		if (clusters[clusterIndex]->list
 		        != &GeneralMemoryAllocator::get().regions[MEMORY_REGION_STEALABLE].cache_manager().queue(
-		            STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
+		            StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
 		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 
 			clusters[clusterIndex]->remove(); // Remove from old list, if it was already in one (might not have been).

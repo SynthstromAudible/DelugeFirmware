@@ -26,7 +26,7 @@ ConsequenceTempoChange::ConsequenceTempoChange(uint64_t newTimePerBigBefore, uin
 	timePerBig[AFTER] = newTimePerBigAfter;
 }
 
-int32_t ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
 	float oldBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 
 	modelStack->song->setTimePerTimerTick(timePerBig[time], false);
@@ -36,5 +36,5 @@ int32_t ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
 	if (oldBPM >= 1000 && newBPM < 1000 && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 		playbackHandler.forceResetPlayPos(modelStack->song);
 	}
-	return NO_ERROR;
+	return Error::NONE;
 }

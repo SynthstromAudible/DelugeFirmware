@@ -31,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -39,6 +40,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -64,13 +66,13 @@ bool LoadSongUI::opened() {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
-	int32_t error = beginSlotSession(false, true);
-	if (error) {
+	Error error = beginSlotSession(false, true);
+	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		renderingNeededRegardlessOfUI(); // Otherwise we may have left the scrolling-in animation partially done
 		return false;                    // Exit UI instantly
 	}
@@ -86,15 +88,15 @@ gotError:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 
-	if (!searchFilename.isEmpty()) {
+	if (!searchFilename.isEmpty() && !searchFilename.contains(".XML")) {
 		error = searchFilename.concatenate(".XML");
-		if (error) {
+		if (error != Error::NONE) {
 			goto gotError;
 		}
 	}
 
 	error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
@@ -132,7 +134,7 @@ gotError:
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
+	drawSongPreview(storageManager, currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
 	PadLEDs::sendOutSidebarColours();
@@ -145,9 +147,9 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int32_t error = goIntoFolder(currentFileItem->filename.get());
+		Error error = goIntoFolder(currentFileItem->filename.get());
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
@@ -155,8 +157,11 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
-		performLoad();           // May fail
+		LoadUI::enterKeyPress();     // Converts name to numeric-only if it was typed as text
+		performLoad(storageManager); // May fail
+		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+			runtimeFeatureSettings.writeSettingsToFile(storageManager);
+		}
 	}
 }
 
@@ -222,15 +227,15 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad() {
+void LoadSongUI::performLoad(StorageManager& bdsm) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
 		display->displayError(display->haveOLED()
-		                          ? ERROR_FILE_NOT_FOUND
-		                          : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for
-		                                                                    // consistency with old times.
+		                          ? Error::FILE_NOT_FOUND
+		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
+		                                                                     // for consistency with old times.
 		return;
 	}
 
@@ -240,8 +245,8 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 
-	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
-	if (error) {
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song");
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
 	}
@@ -257,8 +262,9 @@ void LoadSongUI::performLoad() {
 
 	// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
 	if (!playbackHandler.isEitherClockActive()) {
-		uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH); // Otherwise, a timer might get called and try to access
-		                                                    // Clips that we may have deleted below (really?)
+		// Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
+		uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
@@ -273,11 +279,11 @@ void LoadSongUI::performLoad() {
 	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (!songMemory) {
 ramError:
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
 		display->displayError(error);
-		storageManager.closeFile();
+		bdsm.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -297,7 +303,7 @@ fail:
 
 	preLoadedSong = new (songMemory) Song();
 	error = preLoadedSong->paramManager.setupUnpatched();
-	if (error) {
+	if (error != Error::NONE) {
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
@@ -312,13 +318,13 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile();
-	if (error) {
+	error = preLoadedSong->readFromFile(bdsm);
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("d");
 
-	bool success = storageManager.closeFile();
+	bool success = bdsm.closeFile();
 
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
@@ -329,13 +335,13 @@ gotErrorAfterCreatingSong:
 
 	String currentFilenameWithoutExtension;
 	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 
 	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
 	                                                    &currentFilenameWithoutExtension);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	audioFileManager.thingBeginningLoading(ThingType::SONG);
@@ -477,8 +483,8 @@ ActionResult LoadSongUI::timerCallback() {
 			}
 		}
 		else {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC,
-			                        UI_MS_PER_REFRESH_SCROLLING * 4); // *2 caused glitches occasionally
+			// *2 caused glitches occasionally
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
 getOut: {}
 		return ActionResult::DEALT_WITH;
@@ -531,7 +537,7 @@ doSearch:
             "SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
 
 
-    if (result == ERROR_NO_FURTHER_FILES_THIS_DIRECTION) {
+    if (result == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
 
         if (doingSecondTry) {
             // Error - no files at all!
@@ -540,7 +546,7 @@ doSearch:
             enteredText.clear();
             enteredTextEditPos = 0;
             //currentFileExists = false;
-            return NO_ERROR;
+            return Error::NONE;
         }
 
         doingSecondTry = true;
@@ -567,7 +573,7 @@ doSearch:
     currentFilename.set(&newName); // This will only get used in the case of a folder, so it's ok(ish) that we're
 ignoring the file extension.
 
-    return NO_ERROR;
+    return Error::NONE;
 }
 */
 
@@ -586,7 +592,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		scrollingIntoSlot = false;
 		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and loaded
 
-		drawSongPreview(); // Scrolling continues as the file is read by this function
+		drawSongPreview(storageManager); // Scrolling continues as the file is read by this function
 
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = true;
@@ -692,7 +698,7 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::drawSongPreview(bool toStore) {
+void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
@@ -710,9 +716,9 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
-	if (error) {
-		if (error) {
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	if (error != Error::NONE) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
@@ -720,11 +726,11 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 
 	char const* tagName;
 	int32_t previewNumPads = 40;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag("previewNumPads");
+			previewNumPads = bdsm.readTagOrAttributeValueInt();
+			bdsm.exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
 			int32_t skipNumCharsAfterRow = 0;
@@ -737,12 +743,12 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
 
-			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
 			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(numCharsToRead);
+				char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
@@ -758,11 +764,11 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			goto stopLoadingPreview;
 		}
 		else {
-			storageManager.exitTag(tagName);
+			bdsm.exitTag(tagName);
 		}
 	}
 stopLoadingPreview:
-	storageManager.closeFile();
+	bdsm.closeFile();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

@@ -89,7 +89,7 @@ Sample::Sample()
 #endif
 }
 
-int32_t Sample::initialize(int32_t newNumClusters) {
+Error Sample::initialize(int32_t newNumClusters) {
 	unloadable = false;
 	unplayable = false;
 	waveTableCycleSize = 2048; // Default
@@ -204,10 +204,10 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	                                 + 1; // Not 100% sure on the +1, but better safe than sorry
 
 	// Make it a bit longer, to capture the ring-out of the interpolation / time-stretching
-	if (phaseIncrement != 16777216) {
+	if (phaseIncrement != kMaxSampleValue) {
 		lengthInSamplesCached += (kInterpolationMaxNumSamples >> 1);
 	}
-	if (timeStretchRatio != 16777216) {
+	if (timeStretchRatio != kMaxSampleValue) {
 		lengthInSamplesCached += 16384; // This one is quite an inexact science
 	}
 
@@ -266,8 +266,8 @@ void Sample::deleteCache(SampleCache* cache) {
 #define MEASURE_PERC_CACHE_PERFORMANCE 0
 
 // Returns error
-int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                              int32_t playDirection, int32_t maxNumSamplesToProcess) {
+Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
+                            int32_t playDirection, int32_t maxNumSamplesToProcess) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -278,12 +278,12 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
 		if (startPosSamples >= lengthInSamples) {
-			return NO_ERROR;
+			return Error::NONE;
 		}
 	}
 	else {
 		if (startPosSamples < 0) {
-			return NO_ERROR;
+			return Error::NONE;
 		}
 	}
 
@@ -306,7 +306,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			memset(percCacheClusters[reversed], 0, memorySize);
@@ -321,7 +321,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
-				return ERROR_INSUFFICIENT_RAM;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			// D_PRINTLN("allocated percCacheMemory");
@@ -339,7 +339,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 		i = percCacheZones[reversed].search(startPosSamples, GREATER_OR_EQUAL);
 	}
 
-	int32_t error = NO_ERROR;
+	Error error = Error::NONE;
 	SamplePercCacheZone* percCacheZone;
 	if (i >= 0 && i < percCacheZones[reversed].getNumElements()) {
 		percCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
@@ -368,7 +368,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 				if (startPosSamples >= lengthInSamples) {
 doReturnNoError:
 					LOCK_EXIT
-					return NO_ERROR;
+					return Error::NONE;
 				}
 			}
 			else {
@@ -460,7 +460,7 @@ doReturnNoError:
 	    this); // Tell it not to steal other perc cache zones from this Sample, which would result in modification of
 	           // the same array during operation.
 	// Fortunately it also has a lock to alert if that actually somehow happened, too.
-	if (error) {
+	if (error != Error::NONE) {
 		LOCK_EXIT
 		return error;
 	}
@@ -548,7 +548,7 @@ doLoading:
 				    reversed ? ClusterType::PERC_CACHE_REVERSED : ClusterType::PERC_CACHE_FORWARDS, false,
 				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
 				if (!percCacheClusters[reversed][percClusterIndex]) {
-					error = ERROR_INSUFFICIENT_RAM;
+					error = Error::INSUFFICIENT_RAM;
 					goto getOut;
 				}
 
@@ -725,7 +725,7 @@ getOut:
 	timeStretcher->updateClustersForPercLookahead(this, sourceBytePos, playDirection);
 
 	AudioEngine::logAction("/fillPercCache");
-	return error; // Usually it'll be NO_ERROR.
+	return error; // Usually it'll be Error::NONE.
 }
 
 bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
@@ -953,11 +953,11 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 				// This is reasonably likely to fail, cos it might want to allocate new memory, but that's not allowed
 				// if it's currently allocating a Cluster, which it will be if this Cluster got stolen, which is why
 				// we're here. Oh well
-				int32_t error = percCacheZones[reversed].insertAtIndex(
+				Error error = percCacheZones[reversed].insertAtIndex(
 				    iNew, 1,
 				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even
 				           // happen given the above comment? Not sure.
-				if (error) {
+				if (error != Error::NONE) {
 					D_PRINTLN("insert fail");
 					LOCK_EXIT
 					return;

@@ -18,6 +18,7 @@
 #include "runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
+#include "model/song/song.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstring>
@@ -40,8 +41,8 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, std::string_view displayName, std::string_view xmlName,
-                              RuntimeFeatureStateToggle def) {
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                              std::string_view xmlName, RuntimeFeatureStateToggle def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
@@ -58,7 +59,7 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, std::string_view d
 	};
 }
 
-static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
                                           std::string_view xmlName, RuntimeFeatureStateSyncScalingAction def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
@@ -76,7 +77,7 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::s
 	};
 }
 
-static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
                                         std::string_view xmlName, RuntimeFeatureStateEmulatedDisplay def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
@@ -103,106 +104,106 @@ static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, std::str
 void RuntimeFeatureSettings::init() {
 	using enum deluge::l10n::String;
 	// Drum randomizer
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), "drumRandomizer",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER,
+	                  "drumRandomizer", RuntimeFeatureStateToggle::On);
 	// Quantize
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "quantize",
 	                  RuntimeFeatureStateToggle::On);
 	// FineTempoKnob
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB), "fineTempoKnob",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
+	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS), "modDepthDecimals",
+	                  STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "modDepthDecimals",
 	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES), "catchNotes",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
+	                  "catchNotes", RuntimeFeatureStateToggle::On);
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS), "deleteUnusedKitRows",
+	                  STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "deleteUnusedKitRows",
 	                  RuntimeFeatureStateToggle::On);
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS), "altGoldenKnobDelayParams",
+	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
 	// QuantizedStutterRate
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER), "quantizedStutterRate",
+	                  STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
+	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
 	// SyncScalingAction
 	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction],
-	                              deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION),
-	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
+	                              STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "syncScalingAction",
+	                              RuntimeFeatureStateSyncScalingAction::SyncScaling);
 	// HighlightIncomingNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES),
-	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::On);
+	                  STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "highlightIncomingNotes",
+	                  RuntimeFeatureStateToggle::On);
 	// DisplayNornsLayout
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT), "displayNornsLayout",
-	                  RuntimeFeatureStateToggle::Off);
+	                  STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 
 	// ShiftIsSticky
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], "Sticky Shift", "stickyShift",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT,
+	                  "stickyShift", RuntimeFeatureStateToggle::Off);
 
 	// LightShiftLed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
+	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
 	// EnableGrainFX
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX), "enableGrainFX",
-	                  RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX], STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX,
+	                  "enableGrainFX", RuntimeFeatureStateToggle::Off);
 
 	// EmulatedDisplay
-	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay], "Emulated Display",
-	                            "emulatedDisplay", RuntimeFeatureStateEmulatedDisplay::Hardware);
+	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay],
+	                            STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY, "emulatedDisplay",
+	                            RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile() {
+void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	FilePointer fp;
-	bool success = storageManager.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
-	if (error) {
+	Error error = bdsm.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	if (error != Error::NONE) {
 		return;
 	}
 
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
-	while (*(currentTag = storageManager.readNextTagOrAttributeName())) {
+
+	while (*(currentTag = bdsm.readNextTagOrAttributeName())) {
+
+		if (strcmp(currentTag, "startupSong") == 0) {
+			bdsm.readTagOrAttributeValueString(&startupSong);
+		}
 		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
 			// Read name
-			currentTag = storageManager.readNextTagOrAttributeName();
+			currentTag = bdsm.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
 				display->displayPopup("Community file err");
 				break;
 			}
-			storageManager.readTagOrAttributeValueString(&currentName);
-			storageManager.exitTag();
+			bdsm.readTagOrAttributeValueString(&currentName);
+			bdsm.exitTag();
 
 			// Read value
-			currentTag = storageManager.readNextTagOrAttributeName();
+			currentTag = bdsm.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
 				display->displayPopup("Community file err");
 				break;
 			}
-			currentValue = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag();
+
+			currentValue = bdsm.readTagOrAttributeValueInt();
+			bdsm.exitTag();
 
 			bool found = false;
 			for (auto& setting : settings) {
@@ -216,7 +217,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			if (!found) {
 				// unknownSettings.insertSetting(&currentName, currentValue);
 				int32_t idx = unknownSettings.getNumElements();
-				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
+				if (unknownSettings.insertAtIndex(idx) != Error::NONE) {
 					return;
 				}
 				void* address = unknownSettings.getElementAddress(idx);
@@ -225,44 +226,43 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				unknownSetting->value = currentValue;
 			}
 		}
-
-		storageManager.exitTag();
+		bdsm.exitTag(currentTag);
 	}
-
-	storageManager.closeFile();
+	bdsm.closeFile();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile() {
+void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	int32_t error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
-	if (error) {
+	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	if (error != Error::NONE) {
 		return;
 	}
 
-	storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
-	storageManager.writeFirmwareVersion();
-	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.3");
+	bdsm.writeAttribute("startupSong", currentSong->getSongFullPath().get());
+	bdsm.writeOpeningTagEnd();
 
 	for (auto& setting : settings) {
-		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
-		storageManager.writeOpeningTagEnd(false);
-		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
+		bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
+		bdsm.writeOpeningTagEnd(false);
+		bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}
 
 	// Write unknown elements
 	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
 		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
-		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
-		storageManager.writeOpeningTagEnd(false);
-		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
+		bdsm.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
+		bdsm.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
+		bdsm.writeOpeningTagEnd(false);
+		bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}
 
-	storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	storageManager.closeFileAfterWriting();
+	bdsm.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
+	bdsm.closeFileAfterWriting();
 }

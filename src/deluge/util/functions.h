@@ -125,6 +125,8 @@ template <uint8_t lshift>
 	}
 }
 
+char* replace_char(const char* str, char find, char replace);
+
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);
@@ -151,14 +153,24 @@ ModFXParam stringToModFXParam(char const* string);
 char const* filterTypeToString(FilterType fxType);
 FilterType stringToFilterType(char const* string);
 
-FilterRoute stringToFilterRoute(char const* string);
-char const* filterRouteToString(FilterRoute route);
+ArpMode oldModeToArpMode(OldArpMode oldMode);
+ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode);
+ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode);
+
+char const* oldArpModeToString(OldArpMode mode);
+OldArpMode stringToOldArpMode(char const* string);
 
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
 
-char const* lpfTypeToString(FilterMode lpfType);
-FilterMode stringToLPFType(char const* string);
+char const* arpNoteModeToString(ArpNoteMode mode);
+ArpNoteMode stringToArpNoteMode(char const* string);
+
+char const* arpOctaveModeToString(ArpOctaveMode mode);
+ArpOctaveMode stringToArpOctaveMode(char const* string);
+
+char const* arpMpeModSourceToString(ArpMpeModSource modSource);
+ArpMpeModSource stringToArpMpeModSource(char const* string);
 
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
@@ -393,7 +405,6 @@ int32_t fastPythag(int32_t x, int32_t y);
 int32_t strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
@@ -479,7 +490,7 @@ bool shouldAbortLoading();
 void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
                                     bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
-int32_t fresultToDelugeErrorCode(FRESULT result);
+Error fresultToDelugeErrorCode(FRESULT result);
 
 [[gnu::always_inline]] inline void writeInt16(char** address, uint16_t number) {
 	*(uint16_t*)*address = number;
@@ -495,3 +506,8 @@ extern char miscStringBuffer[];
 
 constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
+
+struct StereoFloatSample {
+	float l;
+	float r;
+};

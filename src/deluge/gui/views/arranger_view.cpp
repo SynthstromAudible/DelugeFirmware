@@ -134,8 +134,8 @@ void ArrangerView::moveClipToSession() {
 			}
 
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
-			int32_t error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
-			if (error) {
+			Error error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
+			if (error != Error::NONE) {
 				display->displayError(error);
 				return;
 			}
@@ -220,7 +220,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
 		if (on) {
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 			blinkOn = true;
 		}
 		else {
@@ -274,13 +274,19 @@ doChangeOutputType:
 
 			Output* output = outputsOnScreen[yPressedEffective];
 
-			// AudioOutputs - need to replace with Instrument
+			// Don't allow converting audio output to instrument
 			if (output->type == OutputType::AUDIO) {
-				changeOutputToInstrument(newOutputType);
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
 			}
 
 			// Instruments - just change type
 			else {
+				// don't allow clip type change if any clip instances belong to this
+				// output are not empty
+				// only impose this restriction if switching to/from kit clip
+				if (((output->type == OutputType::KIT) || (newOutputType == OutputType::KIT)) && !output->isEmpty()) {
+					return ActionResult::DEALT_WITH;
+				}
 
 				// If load button held, go into LoadInstrumentPresetUI
 				if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
@@ -299,10 +305,7 @@ doChangeOutputType:
 					currentUIMode = UI_MODE_NONE;
 					endAudition(output);
 
-					Browser::outputTypeToLoad = newOutputType;
-					loadInstrumentPresetUI.instrumentToReplace = (Instrument*)output;
-					loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
-					loadInstrumentPresetUI.loadingSynthToKitRow = false;
+					loadInstrumentPresetUI.setupLoadInstrument(newOutputType, (Instrument*)output, nullptr);
 					openUI(&loadInstrumentPresetUI);
 				}
 
@@ -514,6 +517,10 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
+	if (view.potentiallyRenderVUMeter(image)) {
+		return true;
+	}
+
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			drawMuteSquare(i, image[i]);
@@ -575,11 +582,11 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 	if (view.midiLearnFlashOn) {
 		Output* output = outputsOnScreen[yDisplay];
 
-		if (!output || output->type == OutputType::AUDIO || output->type == OutputType::KIT) {
+		if (!output || output->type == OutputType::AUDIO) {
 			goto drawNormally;
 		}
 
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
+		Instrument* melodicInstrument = (Instrument*)output;
 
 		// If MIDI command already assigned...
 		if (melodicInstrument->midiInput.containsSomething()) {
@@ -587,7 +594,7 @@ void ArrangerView::drawAuditionSquare(int32_t yDisplay, RGB thisImage[]) {
 		}
 
 		// Or if not assigned but we're holding it down...
-		else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+		else if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
 		         && view.learnedThing == &melodicInstrument->midiInput) {
 			thisColour = colours::red.dim();
 		}
@@ -731,57 +738,21 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 	}
 }
 
-void ArrangerView::changeOutputToInstrument(OutputType newOutputType) {
-
-	Output* oldOutput = outputsOnScreen[yPressedEffective];
-	if (oldOutput->type != OutputType::AUDIO) {
-		return;
-	}
-
-	if (currentSong->getClipWithOutput(oldOutput)) {
-		display->displayPopup(deluge::l10n::get(
-		    deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
-		return;
-	}
-
-	actionLogger.deleteAllLogs(); // Can't undo past this!
-
-	bool instrumentAlreadyInSong; // Will always end up false
-
-	Instrument* newInstrument = createNewInstrument(newOutputType, &instrumentAlreadyInSong);
-	if (!newInstrument) {
-		return;
-	}
-
-	currentSong->replaceOutputLowLevel(newInstrument, oldOutput);
-
-	outputsOnScreen[yPressedEffective] = newInstrument;
-
-	view.displayOutputName(newInstrument);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
-
-	view.setActiveModControllableTimelineCounter(NULL);
-
-	beginAudition(newInstrument);
-}
-
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (result.error) {
-displayError:
+	if (result.error != Error::NONE) {
 		display->displayError(result.error);
-		return NULL;
+		return nullptr;
 	}
 
 	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newOutputType,
 	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error) {
-		goto displayError;
+	if (result.error != Error::NONE) {
+		display->displayError(result.error);
+		return nullptr;
 	}
 
 	Instrument* newInstrument = result.fileItem->instrument;
@@ -798,8 +769,9 @@ displayError:
 
 	Browser::emptyFileItems();
 
-	if (result.error) {
-		goto displayError;
+	if (result.error != Error::NONE) {
+		display->displayError(result.error);
+		return nullptr;
 	}
 
 	if (isHibernating) {
@@ -926,6 +898,11 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	// don't interact with sidebar if VU Meter is displayed
+	if (x >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Audition pad
@@ -1114,14 +1091,8 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 					openUI(&context_menu::audioInputSelector);
 				}
 			}
-			else if (output->type == OutputType::KIT) {
-				if (velocity) {
-					display->displayPopup(deluge::l10n::get(
-					    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
-				}
-			}
 			else {
-				view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+				view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 			}
 		}
 		break;
@@ -1207,8 +1178,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				if (oldClip && !oldClip->isArrangementOnlyClip() && !oldClip->getCurrentlyRecordingLinearly()) {
 					actionLogger.deleteAllLogs();
 
-					int32_t error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
-					if (error) {
+					Error error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
+					if (error != Error::NONE) {
 						display->displayError(error);
 					}
 					else {
@@ -1357,7 +1328,7 @@ getItFromSection:
 
 					clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					if (!clipInstance) {
-						display->displayError(ERROR_INSUFFICIENT_RAM);
+						display->displayError(Error::INSUFFICIENT_RAM);
 						return;
 					}
 
@@ -1572,7 +1543,7 @@ justGetOut:
 
 								void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 								if (!memory) {
-									display->displayError(ERROR_INSUFFICIENT_RAM);
+									display->displayError(Error::INSUFFICIENT_RAM);
 									goto justGetOut;
 								}
 
@@ -1592,7 +1563,7 @@ justGetOut:
 								ModelStackWithTimelineCounter* modelStack =
 								    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 
-								int32_t error;
+								Error error;
 
 								if (output->type == OutputType::AUDIO) {
 									error = ((AudioClip*)newClip)->setOutput(modelStack, output);
@@ -1602,7 +1573,7 @@ justGetOut:
 									            ->setInstrument((Instrument*)output, currentSong, NULL);
 								}
 
-								if (error) {
+								if (error != Error::NONE) {
 									display->displayError(error);
 									newClip->~Clip();
 									delugeDealloc(memory);
@@ -1684,7 +1655,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 			whichRowsNeedReRendering = 0xFFFFFFFF;
 		}
 		uiNeedsRendering(ui, whichRowsNeedReRendering, 0);
-		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		actionLogger.closeAction(ActionType::CLIP_INSTANCE_EDIT);
 	}
 
@@ -1910,7 +1881,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	PadLEDs::explodeAnimationTargetUI = this;
-	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 35);
 
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
 
@@ -1948,7 +1919,7 @@ bool ArrangerView::putDraggedClipInstanceInNewPosition(Output* newOutputToDragIn
 itsInvalid:
 				pressedClipInstanceIsInValidPosition = false;
 				blinkOn = false;
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 				return false;
 			}
 
@@ -2052,7 +2023,7 @@ itsInvalid:
 	pressedClipInstanceXScrollWhenLastInValidPosition = xScroll;
 	rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	return true;
 }
 
@@ -2322,7 +2293,7 @@ ActionResult ArrangerView::timerCallback() {
 			// use root UI in case this is called from performance view
 			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
 
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
 		break;
 
@@ -2334,7 +2305,7 @@ ActionResult ArrangerView::timerCallback() {
 			// use root UI in case this is called from performance view
 			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
 		break;
 	}
@@ -2463,7 +2434,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {
 
-	Instrument* oldInstrument = (Instrument*)outputsOnScreen[yPressedEffective];
+	Output* output = outputsOnScreen[yPressedEffective];
+	Instrument* oldInstrument = (Instrument*)output;
 	OutputType oldOutputType = oldInstrument->type;
 
 	if (oldOutputType == newOutputType) {
@@ -2538,7 +2510,7 @@ cant:
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
 		if (!newClip) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2552,7 +2524,7 @@ cant:
 		// Suss output
 		newOutput = currentSong->createNewAudioOutput(oldOutput);
 		if (!newOutput) {
-			display->displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(Error::INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2985,6 +2957,11 @@ void ArrangerView::graphicsRoutine() {
 		}
 	}
 
+	// if we're not currently selecting a clip
+	if (!getClipForSelection() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+		PadLEDs::sendOutSidebarColours();
+	}
+
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 
 		int32_t newTickSquare;
@@ -3077,7 +3054,7 @@ static const uint32_t autoScrollPlaybackEndUIModes[] = {UI_MODE_HOLDING_ARRANGEM
 void ArrangerView::autoScrollOnPlaybackEnd() {
 
 	if (doingAutoScrollNow && isUIModeWithinRange(autoScrollPlaybackEndUIModes)
-	    && !Buttons::isButtonPressed(ENCODER_SCROLL_X)) {
+	    && !Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		// Don't do it if they're instantly restarting playback again
 
 		uint32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
@@ -3199,7 +3176,7 @@ void ArrangerView::notifyPlaybackBegun() {
 	}
 }
 
-bool ArrangerView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
+bool ArrangerView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		*cols = 0xFFFFFFFD;
 		*rows = 0;
@@ -3251,4 +3228,17 @@ void ArrangerView::clipNeedsReRendering(Clip* clip) {
 			break;
 		}
 	}
+}
+
+Clip* ArrangerView::getClipForSelection() {
+	Clip* clip = nullptr;
+	// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
+	if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && lastInteractedClipInstance) {
+		clip = lastInteractedClipInstance->clip;
+	}
+	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		Output* output = outputsOnScreen[yPressedEffective];
+		clip = currentSong->getClipWithOutput(output);
+	}
+	return clip;
 }

@@ -38,6 +38,13 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return Param::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }
+	// this button action function definition should not be required as it should be inherited
+	// from the param class, however it does not work if the definition is removed, so there
+	// is likely a multi-inheritance issue that needs to be resolved
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final {
+		return Param::buttonAction(b, on, inCardRoutine);
+	}
+	void horizontalEncoderAction(int32_t offset) final { return Param::horizontalEncoderAction(offset); }
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
@@ -45,6 +52,8 @@ public:
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
+	deluge::modulation::params::Kind getParamKind();
+	uint32_t getParamIndex();
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 

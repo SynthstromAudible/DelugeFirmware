@@ -20,9 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -79,6 +82,8 @@ extern "C" {
 #include "RZA1/spibsc/spibsc_Deluge_setup.h"
 }
 
+namespace encoders = deluge::hid::encoders;
+
 extern uint8_t currentlyAccessingCard;
 
 extern "C" void disk_timerproc(UINT msPassed);
@@ -90,7 +95,7 @@ bool sdRoutineLock = true;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
-extern "C" void timerGoneOff(void) {
+extern "C" void midiAndGateTimerGoneOff(void) {
 	cvEngine.updateGateOutputs();
 	midiEngine.flushMIDI();
 }
@@ -107,7 +112,7 @@ void batteryLEDBlink() {
 	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
 	blinkPeriod = std::min(blinkPeriod, 500_i32);
 	blinkPeriod = std::max(blinkPeriod, 60_i32);
-	uiTimerManager.setTimer(TIMER_BATT_LED_BLINK, blinkPeriod);
+	uiTimerManager.setTimer(TimerName::BATT_LED_BLINK, blinkPeriod);
 	batteryLEDState = !batteryLEDState;
 }
 
@@ -140,7 +145,7 @@ void inputRoutine() {
 
 	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
-		D_PRINT("line in %d", lineInNow);
+		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
 	}
 
@@ -167,7 +172,7 @@ void inputRoutine() {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
-				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
+				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
 		else if (batteryCurrentRegion == 1) {
@@ -179,7 +184,7 @@ makeBattLEDSolid:
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
 				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
-				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
+				uiTimerManager.unsetTimer(TimerName::BATT_LED_BLINK);
 			}
 		}
 		else {
@@ -194,7 +199,7 @@ makeBattLEDSolid:
 
 	MIDIDeviceManager::slowRoutine();
 
-	uiTimerManager.setTimer(TIMER_READ_INPUTS, 100);
+	uiTimerManager.setTimer(TimerName::READ_INPUTS, 100);
 }
 
 int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
@@ -252,7 +257,7 @@ bool readButtonsAndPads() {
 
 		QwertyUI::enteredText.set("T001");
 
-		saveSongUI.performSave(true);
+		saveSongUI.performSave(storageManager, true);
 	}
 #endif
 
@@ -318,7 +323,7 @@ bool readButtonsAndPads() {
 			}
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
-			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
+			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 		}
 	}
 
@@ -444,6 +449,71 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+/// Can only happen after settings, which includes default settings, have been read
+void setupStartupSong() {
+	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
+	auto filename =
+	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+	String failSafePath;
+	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
+	failSafePath.concatenate(replace_char(filename, '/', '_'));
+	if (storageManager.fileExists(failSafePath.get())) {
+		setupBlankSong();
+		String msgReason;
+		msgReason.concatenate("STARTUP OFF, reason: ");
+		msgReason.concatenate(filename);
+		display->displayPopup(msgReason.get());
+		return;
+	}
+	switch (startupSongMode) {
+	case StartupSongMode::TEMPLATE: {
+		if (!storageManager.fileExists(defaultSongFullPath)) {
+			setupBlankSong();
+			currentSong->writeTemplateSong(defaultSongFullPath);
+		}
+	}
+		[[fallthrough]];
+	case StartupSongMode::LASTOPENED:
+		[[fallthrough]];
+	case StartupSongMode::LASTSAVED: {
+		FIL f;
+		if (f_open(&f, failSafePath.get(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
+			f_close(&f);
+		}
+		else {
+			setupBlankSong(); // something wrong creating canary file, failsafe.
+			return;
+		}
+		if (!storageManager.fileExists(filename)) {
+			filename = defaultSongFullPath;
+			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
+				setupBlankSong();
+				return;
+			}
+		}
+		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+		currentSong = new (songMemory) Song();
+		currentSong->setSongFullPath(filename);
+		if (openUI(&loadSongUI)) {
+			loadSongUI.performLoad(storageManager);
+			if (startupSongMode == StartupSongMode::TEMPLATE) {
+				// Wipe the name so the Save action asks you for a new song
+				currentSong->name.clear();
+			}
+		}
+		else {
+			setupBlankSong();
+		}
+		f_unlink(failSafePath.get());
+	} break;
+	case StartupSongMode::BLANK:
+		[[fallthrough]];
+	default:
+		setupBlankSong();
+	}
+}
+
 void setupOLED() {
 	// delayMS(10);
 
@@ -487,7 +557,6 @@ extern "C" int32_t deluge_main(void) {
 	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
-
 	PIC::setMinInterruptInterval(8);
 	PIC::setFlashLength(6);
 
@@ -563,7 +632,7 @@ extern "C" int32_t deluge_main(void) {
 	makeTestRecording();
 #endif
 
-	Encoders::init();
+	encoders::init();
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -673,11 +742,11 @@ extern "C" int32_t deluge_main(void) {
 	usbLock = 0;
 
 	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
-
-	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
+	runtimeFeatureSettings.readSettingsFromFile(storageManager);
+	MIDIDeviceManager::readDevicesFromFile(storageManager);
+	midiFollow.readDefaultsFromFile(storageManager);
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+	setupStartupSong();
 
 #ifdef TEST_BST
 	BST bst;
@@ -753,7 +822,7 @@ extern "C" int32_t deluge_main(void) {
 
 	inputRoutine();
 
-	uiTimerManager.setTimer(TIMER_GRAPHICS_ROUTINE, 50);
+	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
@@ -778,8 +847,8 @@ extern "C" int32_t deluge_main(void) {
 			count++;
 		}
 
-		Encoders::readEncoders();
-		bool anything = Encoders::interpretEncoders();
+		encoders::readEncoders();
+		bool anything = encoders::interpretEncoders();
 		if (anything) {
 			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 		}
@@ -833,8 +902,8 @@ extern "C" void routineForSD(void) {
 	}
 	PIC::flush();
 
-	Encoders::readEncoders();
-	Encoders::interpretEncoders(true);
+	encoders::readEncoders();
+	encoders::interpretEncoders(true);
 	readButtonsAndPads();
 	doAnyPendingUIRendering();
 

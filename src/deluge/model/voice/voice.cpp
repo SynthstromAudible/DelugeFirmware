@@ -93,17 +93,17 @@ Voice::Voice() : patcher(&patchableInfoForVoice) {
 // it. You'll normally want to call audioDriver.voiceUnassigned() after this.
 void Voice::setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong) {
 
-	unassignStuff();
+	unassignStuff(deletingSong);
 
 	if (!deletingSong) {
 		assignedToSound->voiceUnassigned(modelStack);
 	}
 }
 
-void Voice::unassignStuff() {
+void Voice::unassignStuff(bool deletingSong) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		for (int32_t u = 0; u < assignedToSound->numUnison; u++) {
-			unisonParts[u].sources[s].unassign();
+			unisonParts[u].sources[s].unassign(deletingSong);
 		}
 	}
 }
@@ -394,7 +394,7 @@ void Voice::setupPorta(Sound* sound) {
 		phaseIncrement = 2147483647;
 	}
 
-	portaEnvelopeMaxAmplitude = phaseIncrement - 16777216;
+	portaEnvelopeMaxAmplitude = phaseIncrement - kMaxSampleValue;
 }
 
 void Voice::randomizeOscPhases(Sound* sound) {
@@ -454,7 +454,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 				pitchAdjustNeutralValue = ((SampleHolder*)guides[s].audioFileHolder)->neutralPhaseIncrement;
 			}
 			else {
-				pitchAdjustNeutralValue = 16777216;
+				pitchAdjustNeutralValue = kMaxSampleValue;
 			}
 
 			int32_t noteWithinOctave = (uint16_t)(transposedNoteCode + 240) % 12;
@@ -610,7 +610,7 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 						    unisonParts[u].sources[s].voiceSample->noteOffWhenLoopEndPointExists(this, &guides[s]);
 
 						if (!success) {
-							unisonParts[u].sources[s].unassign();
+							unisonParts[u].sources[s].unassign(false);
 						}
 					}
 				}
@@ -652,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 			                                                                         loopingType, getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
-				voiceUnisonPartSource->unassign();
+				voiceUnisonPartSource->unassign(false);
 			}
 			else {
 				anyStillActive = true;
@@ -685,9 +685,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
-                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
-                   bool doHPF, int32_t externalPitchAdjust) {
+[[gnu::hot]] bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
+                                bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
+                                bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
@@ -776,7 +776,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	int32_t overallPitchAdjust = paramFinalValues[params::LOCAL_PITCH_ADJUST];
 
 	// Pitch adjust from "external" - e.g. the Kit
-	if (externalPitchAdjust != 16777216) {
+	if (externalPitchAdjust != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(overallPitchAdjust, externalPitchAdjust);
 		if (output > 8388607) {
 			output = 8388607; // Limit it a bit. Not really quite sure if necessary?
@@ -801,7 +801,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 	if (portaEnvelopePos < 8388608) {
 		int32_t envValue = getDecay4(portaEnvelopePos, 23);
 		int32_t pitchAdjustmentHere =
-		    16777216 + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
+		    kMaxSampleValue + (multiply_32x32_rshift32_rounded(envValue, portaEnvelopeMaxAmplitude) << 1);
 
 		int32_t a = multiply_32x32_rshift32_rounded(overallPitchAdjust, pitchAdjustmentHere);
 		if (a > 8388607) {
@@ -897,7 +897,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					// up some existing users' songs - e.g. Michael B's one I tried during V3.0 beta phase, July 2019
 
 					// Scale that according to our resampling rate
-					if (actualSampleReadRate != 16777216) {
+					if (actualSampleReadRate != kMaxSampleValue) {
 						releaseStageLengthBytes = ((int64_t)releaseStageLengthBytes * actualSampleReadRate) >> 24;
 					}
 
@@ -912,7 +912,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 					int32_t samplesLeft = bytesLeft / (bytesPerSample);
 
 					// Scale that according to our resampling rate
-					if (actualSampleReadRate != 16777216) {
+					if (actualSampleReadRate != kMaxSampleValue) {
 						samplesLeft = (((int64_t)samplesLeft << 24) / actualSampleReadRate);
 					}
 
@@ -949,12 +949,14 @@ skipAutoRelease: {}
 
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
+	FilterMode lpfMode = doLPF ? sound->lpfMode : FilterMode::OFF;
+	FilterMode hpfMode = doHPF ? sound->hpfMode : FilterMode::OFF;
 	filterGain = filterSet.setConfig(
-	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], doLPF, sound->lpfMode,
+	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
 	    paramFinalValues[params::LOCAL_LPF_MORPH], paramFinalValues[params::LOCAL_HPF_FREQ],
 	    (paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-	    doHPF, sound->hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
-	    sound->filterRoute); // Level adjustment for unison now happens *before* the filter!
+	    hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1, sound->filterRoute,
+	    false, nullptr); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1312,7 +1314,7 @@ decidedWhichBufferRenderingInto:
 			}
 
 			// If overall pitch adjusted...
-			if (overallPitchAdjust != 16777216) {
+			if (overallPitchAdjust != kMaxSampleValue) {
 				for (int32_t s = 0; s < kNumSources; s++) {
 					if (!adjustPitch(&phaseIncrements[s], overallPitchAdjust)) {
 						if (synthMode == SynthMode::RINGMOD) {
@@ -1414,7 +1416,7 @@ cantBeDoingOscSyncForFirstOsc:
 					}
 				}
 
-				if (overallPitchAdjust != 16777216) {
+				if (overallPitchAdjust != kMaxSampleValue) {
 					for (int32_t m = 0; m < kNumModulators; m++) {
 						if (modulatorsActive[m]) {
 							if (!adjustPitch(&phaseIncrementModulator[m], overallPitchAdjust)) {
@@ -1720,7 +1722,7 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
 
 // Returns false if it takes us above 22.05kHz, in which case it doesn't return a valid value
 bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
-	if (adjustment != 16777216) {
+	if (adjustment != kMaxSampleValue) {
 		int32_t output = multiply_32x32_rshift32_rounded(*phaseIncrement, adjustment);
 		if (output >= 8388608) {
 			return false;
@@ -2056,7 +2058,7 @@ instantUnassign:
 #endif
 
 			*unisonPartBecameInactive = true;
-			voiceUnisonPartSource->unassign();
+			voiceUnisonPartSource->unassign(false);
 			continue;
 		}
 
@@ -2174,12 +2176,13 @@ pitchTooHigh:
 					    >> 24;
 				}
 
-				int32_t result = voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
+				LateStartAttemptStatus result =
+				    voiceSample->attemptLateSampleStart(&guides[s], sample, rawSamplesLate, numSamples);
 
-				if (result == LATE_START_ATTEMPT_FAILURE) {
+				if (result == LateStartAttemptStatus::FAILURE) {
 					goto instantUnassign;
 				}
-				else if (result == LATE_START_ATTEMPT_WAIT) {
+				else if (result == LateStartAttemptStatus::WAIT) {
 					continue;
 				}
 				// Otherwise, it started fine!
@@ -2190,7 +2193,7 @@ pitchTooHigh:
 			int32_t interpolationBufferSize;
 
 			// If pitch adjustment...
-			if (phaseIncrement != 16777216) {
+			if (phaseIncrement != kMaxSampleValue) {
 
 				// Work out what quality we're going to do that at
 				interpolationBufferSize = sound->sources[s].sampleControls.getInterpolationBufferSize(phaseIncrement);
@@ -2322,7 +2325,7 @@ dontUseCache: {}
 			VoiceUnisonPartSource* source = &unisonParts[u].sources[s];
 
 			// If pitch shifting and we weren't previously...
-			if (phaseIncrement != 16777216) {
+			if (phaseIncrement != kMaxSampleValue) {
 
 				if (!source->livePitchShifter) {
 
@@ -3245,10 +3248,21 @@ storePhase:
 	}
 }
 
-// Returns whether voice should still be left active
 bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
+		return true;
+	}
+
+	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
+	else {
+		return false;
+	}
+}
+
+bool Voice::doImmediateRelease() {
+	if (doneFirstRender) {
+		envelopes[0].unconditionalOff();
 		return true;
 	}
 
@@ -3262,6 +3276,7 @@ bool Voice::hasReleaseStage() {
 	return (paramFinalValues[params::LOCAL_ENV_0_RELEASE] <= 18359);
 }
 
+// if more added, need to change the shifts around
 static_assert(kNumEnvelopeStages < 8, "Too many envelope stages");
 static_assert(kNumVoicePriorities < 4, "Too many priority options");
 

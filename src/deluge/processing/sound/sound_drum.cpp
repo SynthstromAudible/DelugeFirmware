@@ -16,6 +16,7 @@
  */
 
 #include "processing/sound/sound_drum.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -48,13 +49,17 @@ Drum* SoundDrum::clone() {
 }
 */
 
-bool SoundDrum::readTagFromFile(char const* tagName) {
+bool SoundDrum::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
-		storageManager.readTagOrAttributeValueString(&name);
-		storageManager.exitTag("name");
+		bdsm.readTagOrAttributeValueString(&name);
+		bdsm.exitTag("name");
+	}
+	else if (!strcmp(tagName, "path")) {
+		bdsm.readTagOrAttributeValueString(&path);
+		bdsm.exitTag("path");
 	}
 
-	else if (readDrumTagFromFile(tagName)) {}
+	else if (readDrumTagFromFile(bdsm, tagName)) {}
 	else {
 		return false;
 	}
@@ -71,7 +76,18 @@ bool SoundDrum::anyNoteIsOn() {
 }
 
 bool SoundDrum::hasAnyVoices() {
-	return Sound::hasAnyVoices();
+	return Sound::hasAnyVoices(false);
+}
+
+void SoundDrum::resetTimeEnteredState() {
+
+	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
+	int32_t ends[2];
+	AudioEngine::activeVoices.getRangeForSound(this, ends);
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
+		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
+		thisVoice->envelopes[0].resetTimeEntered();
+	}
 }
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
@@ -131,36 +147,48 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-int32_t SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
+Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
 }
 
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-
-void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
-	storageManager.writeOpeningTagBeginning("sound");
-	storageManager.writeAttribute("name", name.get());
-
-	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	bdsm.writeOpeningTagBeginning("sound");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile();
+		Drum::writeMIDICommandsToFile(bdsm);
 	}
 
-	storageManager.writeClosingTag("sound");
+	bdsm.writeClosingTag("sound");
+}
+
+void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	bdsm.writeOpeningTagBeginning("sound");
+	bdsm.writeAttribute("name", name.get());
+	bdsm.writeAttribute("path", path.get());
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings);
+
+	if (savingSong) {
+		Drum::writeMIDICommandsToFile(bdsm);
+	}
+
+	bdsm.writeClosingTag("sound");
 }
 
 void SoundDrum::getName(char* buffer) {
 }
 
-int32_t SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
-	return Sound::readFromFile(modelStack, readAutomationUpToPos, &arpSettings);
+	return Sound::readFromFile(bdsm, modelStack, readAutomationUpToPos, &arpSettings);
 }
 
 // modelStack may be NULL

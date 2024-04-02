@@ -25,6 +25,7 @@
 #include "hid/display/oled.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
+#include "io/midi/sysex.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
@@ -85,6 +86,18 @@ const uint8_t OLED::rightArrowIcon[] = {
     0b00010101,
     0b00001110,
     0b00000100,
+};
+
+// This icon is missing the bottom row because it's 9 pixels tall and bytes only have 8 bits. Remember to draw a
+// rectangle under it so it looks correct
+const uint8_t OLED::lockIcon[] = {
+    0b11111000, //<
+    0b11111110, //<
+    0b00001001, //<
+    0b01111001, //<
+    0b01111001, //<
+    0b11111110, //<
+    0b11111000, //<
 };
 
 #if ENABLE_TEXT_OUTPUT
@@ -636,7 +649,7 @@ void OLED::removePopup() {
 	oledPopupWidth = 0;
 	popupType = DisplayPopupType::NONE;
 	workingAnimationText = NULL;
-	uiTimerManager.unsetTimer(TIMER_DISPLAY);
+	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	sendMainImage();
 }
 
@@ -862,19 +875,19 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 	sendMainImage();
 	if (!persistent) {
-		uiTimerManager.setTimer(TIMER_DISPLAY, 800);
+		uiTimerManager.setTimer(TimerName::DISPLAY, 800);
 	}
 
 	// Or if persistent, make sure no previously set-up timeout occurs.
 	else {
-		uiTimerManager.unsetTimer(TIMER_DISPLAY);
+		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	}
 }
 
 void updateWorkingAnimation() {
 	String textNow;
-	int32_t error = textNow.set(workingAnimationText);
-	if (error) {
+	Error error = textNow.set(workingAnimationText);
+	if (error != Error::NONE) {
 		return;
 	}
 
@@ -901,31 +914,40 @@ void OLED::removeWorkingAnimation() {
 	}
 }
 
-static void drawSegment(int32_t xMin, int32_t width, int32_t startY, int32_t height, bool fill) {
-	if (fill) {
-		OLED::invertArea(xMin, width, startY, startY + height - 1, OLED::oledMainImage);
-	}
-}
-
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
 	clearMainImage();
 	for (int i = 0; i < 4; i++) {
-		int ix = 30 * i + 8;
-		const int dy = 13;
+		int ix = 33 * i + 1;
+		const int dy = 17;
 
 		const int horz[] = {6, 0, 3};
 		for (int y = 0; y < 3; y++) {
-			drawSegment(ix + 4, 10, 9 + dy * y, 3, display[i] & (1 << horz[y]));
+			if (display[i] & (1 << horz[y])) {
+				int ybase = 7 + dy * y;
+				OLED::invertArea(ix + 3, 15, ybase + 0, ybase + 0, OLED::oledMainImage);
+				OLED::invertArea(ix + 2, 17, ybase + 1, ybase + 1, OLED::oledMainImage);
+				OLED::invertArea(ix + 3, 15, ybase + 2, ybase + 2, OLED::oledMainImage);
+			}
 		}
 
 		const int vert[] = {1, 2, 5, 4};
 		for (int x = 0; x < 2; x++) {
+			int xside = x * 2 - 1;
 			for (int y = 0; y < 2; y++) {
-				drawSegment(ix + 15 * x, 3, 13 + dy * y, 8, display[i] & (1 << vert[2 * x + y]));
+				if (display[i] & (1 << vert[2 * x + y])) {
+					int xbase = ix + 18 * x + 1;
+					int ybase = 10 + dy * y;
+					int yside = y * -2 + 1;
+					OLED::invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside, OLED::oledMainImage);
+					OLED::invertArea(xbase, 1, ybase + 0, ybase + 13, OLED::oledMainImage);
+					OLED::invertArea(xbase - xside, 1, ybase + 1, ybase + 12, OLED::oledMainImage);
+				}
 			}
 		}
 
-		drawSegment(ix + 21, 3, 40, 3, display[i] & (1 << 7));
+		if (display[i] & (1 << 7)) {
+			OLED::invertArea(ix + 22, 2, 42, 43, OLED::oledMainImage);
+		}
 	}
 	sendMainImage();
 }
@@ -954,7 +976,7 @@ void OLED::consoleText(char const* text) {
 
 	sendMainImage();
 
-	uiTimerManager.setTimerSamples(TIMER_OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
+	uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
 }
 
 union {
@@ -970,7 +992,7 @@ union {
 void performBlink() {
 	OLED::invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, OLED::oledMainImage);
 	OLED::sendMainImage();
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
 void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
@@ -981,14 +1003,14 @@ void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, b
 	if (shouldBlinkImmediately) {
 		invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
 	}
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 	// Caller must do a sendMainImage() at some point after calling this.
 }
 
 void OLED::stopBlink() {
 	if (blinkArea.u32) {
 		blinkArea.u32 = 0;
-		uiTimerManager.unsetTimer(TIMER_OLED_SCROLLING_AND_BLINKING);
+		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
 }
 
@@ -1005,7 +1027,7 @@ struct SideScroller {
 	int32_t stringLengthPixels;
 	int32_t boxLengthPixels;
 	bool finished;
-	bool doHilight;
+	bool doHighlight;
 };
 
 #define NUM_SIDE_SCROLLERS 2
@@ -1013,7 +1035,7 @@ struct SideScroller {
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
+                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
@@ -1032,10 +1054,10 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->textSpacingX = textSpacingX;
 	scroller->textSizeY = textSizeY;
 	scroller->finished = false;
-	scroller->doHilight = doHilight;
+	scroller->doHighlight = doHighlight;
 
 	sideScrollerDirection = 1;
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, 400);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, 400);
 }
 
 void OLED::stopScrollingAnimation() {
@@ -1045,7 +1067,7 @@ void OLED::stopScrollingAnimation() {
 			SideScroller* scroller = &sideScrollers[s];
 			scroller->text = NULL;
 		}
-		uiTimerManager.unsetTimer(TIMER_OLED_SCROLLING_AND_BLINKING);
+		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
 }
 
@@ -1097,7 +1119,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			clearAreaExact(scroller->startX, scroller->startY, scroller->endX - 1, scroller->endY, oledMainImage);
 			drawString(scroller->text, scroller->startX, scroller->startY, oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 			           scroller->textSpacingX, scroller->textSizeY, scroller->pos, scroller->endX);
-			if (scroller->doHilight) {
+			if (scroller->doHighlight) {
 				invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY, scroller->endY,
 				           &OLED::oledMainImage[0]);
 			}
@@ -1117,7 +1139,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			sideScrollers[s].finished = false;
 		}
 	}
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, timeInterval);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, timeInterval);
 }
 
 void OLED::consoleTimerEvent() {
@@ -1233,7 +1255,7 @@ checkTimeTilTimeout:
 	}
 
 	if (timeTilNext) {
-		uiTimerManager.setTimerSamples(TIMER_OLED_CONSOLE, timeTilNext);
+		uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, timeTilNext);
 	}
 
 	sendMainImage();
@@ -1329,13 +1351,13 @@ void OLED::freezeWithError(char const* text) {
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, DisplayPopupType::GENERAL);
 }
 
-extern std::string_view getErrorMessage(int32_t);
+extern std::string_view getErrorMessage(Error);
 
-void OLED::displayError(int32_t error) {
+void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
-	case NO_ERROR:
-	case ERROR_ABORTED_BY_USER:
+	case Error::NONE:
+	case Error::ABORTED_BY_USER:
 		return;
 	default:
 		message = getErrorMessage(error).data();

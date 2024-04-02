@@ -80,7 +80,7 @@ public:
 	void clipNeedsReRendering(Clip* clip) override;
 	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	void setLedStates();
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
@@ -121,6 +121,8 @@ public:
 	// ui
 	UIType getUIType() { return UIType::ARRANGER_VIEW; }
 
+	Clip* getClipForSelection();
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
@@ -145,7 +147,6 @@ private:
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
 	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(OutputType newOutputType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);

@@ -28,6 +28,7 @@
 #include "source_selection.h"
 
 namespace deluge::gui::menu_item {
+
 MenuItem* PatchedParam::selectButtonPress() {
 
 	// If shift held down, user wants to delete automation
@@ -57,7 +58,11 @@ ParamSet* PatchedParam::getParamSet() {
 	return soundEditor.currentParamManager->getPatchedParamSet();
 }
 
-uint8_t PatchedParam::getPatchedParamIndex() {
+deluge::modulation::params::Kind PatchedParam::getParamKind() {
+	return deluge::modulation::params::Kind::PATCHED;
+}
+
+uint32_t PatchedParam::getParamIndex() {
 	return this->getP();
 }
 
@@ -78,10 +83,7 @@ MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previous
 
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
-	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-	int32_t p = this->getP();
-	return modelStack->addParam(summary->paramCollection, summary, p,
-	                            &(static_cast<ParamSet*>(summary->paramCollection))->params[p]);
+	return modelStack->getPatchedAutoParamFromId(getP());
 }
 
 } // namespace deluge::gui::menu_item

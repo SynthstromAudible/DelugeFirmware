@@ -15,19 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/menu_item/patched_param/integer.h"
-#include "processing/sound/sound.h"
-#include "util/comparison.h"
+#include "gui/context_menu/audio_input_selector.h"
+#include "gui/menu_item/menu_item.h"
+#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::mod_fx {
-class Depth final : public patched_param::Integer {
+namespace deluge::gui::menu_item::audio_clip {
+class AudioSourceSelector final : public MenuItem {
 public:
-	using patched_param::Integer::Integer;
+	using MenuItem::MenuItem;
 
-	bool isRelevant(Sound* sound, int32_t whichThing) {
-		return util::one_of(sound->modFXType,
-		                    {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::PHASER});
+	MenuItem* selectButtonPress() override {
+		gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)getCurrentOutput();
+		gui::context_menu::audioInputSelector.setupAndCheckAvailability();
+		openUI(&gui::context_menu::audioInputSelector);
+		return (MenuItem*)0xFFFFFFFF; // no navigation
 	}
 };
-} // namespace deluge::gui::menu_item::mod_fx
+} // namespace deluge::gui::menu_item::audio_clip

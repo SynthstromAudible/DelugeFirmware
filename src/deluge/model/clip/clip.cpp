@@ -65,6 +65,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
 	lastSelectedOutputType = OutputType::NONE;
+	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
 #if HAVE_SEQUENCE_STEP_CONTROL
@@ -320,8 +321,7 @@ playingForwardNow:
 	}
 }
 
-int32_t Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                         ModelStackWithTimelineCounter* otherModelStack) {
+Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
@@ -342,7 +342,7 @@ int32_t Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	}
 	loopLength += otherClip->loopLength;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Accepts any pos >= -length.
@@ -428,8 +428,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		originalLength = loopLength;
 		isPendingOverdub = false;
 
-		int32_t error = beginLinearRecording(modelStack, buttonPressLatency);
-		if (error != 0) {
+		Error error = beginLinearRecording(modelStack, buttonPressLatency);
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}
@@ -480,8 +480,8 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 }
 
 // This gets called on the "unique" copy of the original Clip
-int32_t Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-                                              ModelStackWithTimelineCounter* modelStackClone) {
+Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+                                            ModelStackWithTimelineCounter* modelStackClone) {
 
 	// Take back control!
 	activeIfNoSolo = false;
@@ -503,7 +503,7 @@ int32_t Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* mod
 
 	output->setActiveClip(modelStackOriginal, PgmChangeSend::NEVER);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
@@ -535,7 +535,7 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		}
 	}
 
-	if (!output->clipInstances.insertAtIndex(clipInstanceI)) {
+	if (output->clipInstances.insertAtIndex(clipInstanceI) == Error::NONE) {
 		clipInstance = output->clipInstances.getElement(clipInstanceI);
 setupClipInstance:
 		clipInstance->clip = this;
@@ -563,7 +563,7 @@ void Clip::endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip) {
 // Returns error code
 // This whole function is virtual and overridden in (and sometimes called from) InstrumentClip, so don't worry about
 // MIDI / CV cases - they're dealt with there
-int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
+Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	ModControllable* modControllable = output->toModControllable();
 
@@ -574,7 +574,7 @@ int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack
 		if (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E245");
 		}
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -582,7 +582,7 @@ int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack
 
 	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL, false);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // ----- TimelineCounter implementation -------
@@ -643,103 +643,103 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
 	return true;
 }
 
-void Clip::writeToFile(Song* song) {
+void Clip::writeToFile(StorageManager& bdsm, Song* song) {
 
 	char const* xmlTag = getXMLTag();
 
-	storageManager.writeOpeningTagBeginning(xmlTag);
+	bdsm.writeOpeningTagBeginning(xmlTag);
 
-	writeDataToFile(song);
+	writeDataToFile(bdsm, song);
 
-	storageManager.writeClosingTag(xmlTag);
+	bdsm.writeClosingTag(xmlTag);
 }
 
-void Clip::writeDataToFile(Song* song) {
+void Clip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
-	storageManager.writeAttribute("isPlaying", activeIfNoSolo);
-	storageManager.writeAttribute("isSoloing", soloingInSessionMode);
-	storageManager.writeAttribute("isArmedForRecording", armedForRecording);
-	storageManager.writeAttribute("length", loopLength);
+	bdsm.writeAttribute("isPlaying", activeIfNoSolo);
+	bdsm.writeAttribute("isSoloing", soloingInSessionMode);
+	bdsm.writeAttribute("isArmedForRecording", armedForRecording);
+	bdsm.writeAttribute("length", loopLength);
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
-		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+		bdsm.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
-	storageManager.writeAttribute("colourOffset", colourOffset);
+	bdsm.writeAttribute("colourOffset", colourOffset);
 	if (section != 255) {
-		storageManager.writeAttribute("section", section);
+		bdsm.writeAttribute("section", section);
 	}
 
-	// storageManager.writeTag("activeModFunction", modKnobMode);
+	// bdsm.writeTag("activeModFunction", modKnobMode);
 
 	if (getCurrentClip() == this) {
 		if (getRootUI()->toClipMinder()) {
-			storageManager.writeAttribute("beingEdited", "1");
+			bdsm.writeAttribute("beingEdited", "1");
 		}
 		else {
-			storageManager.writeAttribute("selected", "1");
+			bdsm.writeAttribute("selected", "1");
 		}
 	}
 	if (song->getSyncScalingClip() == this) {
-		storageManager.writeAttribute("isSyncScaleClip", "1");
+		bdsm.writeAttribute("isSyncScaleClip", "1");
 	}
 	if (launchStyle != LaunchStyle::DEFAULT) {
-		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+		bdsm.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagEnd();
 
-	muteMIDICommand.writeNoteToFile("muteMidiCommand");
+	muteMIDICommand.writeNoteToFile(bdsm, "muteMidiCommand");
 }
 
-void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
+void Clip::readTagFromFile(StorageManager& bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
 
 	if (!strcmp(tagName, "isPlaying")) {
-		activeIfNoSolo = storageManager.readTagOrAttributeValueInt();
+		activeIfNoSolo = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isSoloing")) {
-		soloingInSessionMode = storageManager.readTagOrAttributeValueInt();
+		soloingInSessionMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isArmedForRecording")) {
-		armedForRecording = storageManager.readTagOrAttributeValueInt();
+		armedForRecording = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "status")) { // For backwards compatibility
 		soloingInSessionMode = false;
-		int32_t newStatus = storageManager.readTagOrAttributeValueInt();
+		int32_t newStatus = bdsm.readTagOrAttributeValueInt();
 		activeIfNoSolo = (newStatus == 2);
 	}
 
 	else if (!strcmp(tagName, "section")) {
-		section = storageManager.readTagOrAttributeValueInt();
+		section = bdsm.readTagOrAttributeValueInt();
 		section = std::min(section, (uint8_t)(kMaxNumSections - 1));
 	}
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
-		loopLength = storageManager.readTagOrAttributeValueInt();
+		loopLength = bdsm.readTagOrAttributeValueInt();
 		loopLength = std::max((int32_t)1, loopLength);
 		*readAutomationUpToPos = loopLength;
 	}
 
 	else if (!strcmp(tagName, "colourOffset")) {
-		colourOffset = storageManager.readTagOrAttributeValueInt();
+		colourOffset = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "beingEdited")) {
-		if (storageManager.readTagOrAttributeValueInt()) {
+		if (bdsm.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = true;
 		}
 	}
 
 	else if (!strcmp(tagName, "selected")) {
-		if (storageManager.readTagOrAttributeValueInt()) {
+		if (bdsm.readTagOrAttributeValueInt()) {
 			song->setCurrentClip(this);
 			song->inClipMinderViewOnLoad = false;
 		}
 	}
 
 	else if (!strcmp(tagName, "isSyncScaleTrack") || !strcmp(tagName, "isSyncScaleClip")) {
-		bool is = storageManager.readTagOrAttributeValueInt();
+		bool is = bdsm.readTagOrAttributeValueInt();
 
 		// This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold
 		// this Clip for now, and then in song.cpp this gets made right in a moment...
@@ -749,20 +749,20 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 	}
 
 	else if (!strcmp(tagName, "muteMidiCommand")) {
-		muteMIDICommand.readNoteFromFile();
+		muteMIDICommand.readNoteFromFile(bdsm);
 	}
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
-		sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+		sequenceDirectionMode = stringToSequenceDirectionMode(bdsm.readTagOrAttributeValue());
 	}
 
 	else if (!strcmp(tagName, "launchStyle")) {
-		launchStyle = stringToLaunchStyle(storageManager.readTagOrAttributeValue());
+		launchStyle = stringToLaunchStyle(bdsm.readTagOrAttributeValue());
 	}
 
 	/*
 	else if (!strcmp(tagName, "activeModFunction")) {
-	    //modKnobMode = stringToInt(storageManager.readTagContents());
+	    //modKnobMode = stringToInt(bdsm.readTagContents());
 	    //modKnobMode = std::min(modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
 	}
 	*/
@@ -904,12 +904,12 @@ yesMakeItActive:
 }
 
 // Obviously don't call this for MIDI clips!
-int32_t Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
+Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
 	if (paramManager.containsAnyMainParamCollections()) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	if (newParamManager) {
@@ -934,7 +934,7 @@ trimFoundParamManager:
 				                                                   &paramManager);
 				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, NULL,
 				                          false); // oldLength actually has no consequence anyway
-				return NO_ERROR;
+				return Error::NONE;
 			}
 
 			// Ok, still here, let's do that cloning
@@ -957,9 +957,9 @@ trimFoundParamManager:
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
 			if (otherClip) {
 
-				int32_t error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
+				Error error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
-				if (error) {
+				if (error != Error::NONE) {
 					FREEZE_WITH_ERROR("E050");
 					return error;
 				}
@@ -968,12 +968,12 @@ trimFoundParamManager:
 			// ParamManager. But, just in case
 			else {
 				FREEZE_WITH_ERROR("E051");
-				return ERROR_UNSPECIFIED;
+				return Error::UNSPECIFIED;
 			}
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
@@ -1017,14 +1017,14 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	}
 }
 
-int32_t Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+Error Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	// if we're not in a clip level view, set to the clip that's starting linear recording
 	// todo: this should probably only happen if a single clip is recording linearly, but that's not tracked
 	if (!getRootUI() || !getRootUI()->toClipMinder()) {
 		modelStack->song->setCurrentClip(this);
 	}
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool Clip::wantsToBeginLinearRecording(Song* song) {
@@ -1093,8 +1093,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					// automation on
 					clipInstanceI++;
 
-					int32_t error = output->clipInstances.insertAtIndex(clipInstanceI);
-					if (error) {
+					Error error = output->clipInstances.insertAtIndex(clipInstanceI);
+					if (error != Error::NONE) {
 						return false;
 					}
 
@@ -1104,8 +1104,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 				}
 			}
 
-			int32_t error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
-			if (error) {
+			Error error = clone(modelStack, true); // Puts the cloned Clip into the modelStack. Flattens reversing.
+			if (error != Error::NONE) {
 				return false;
 			}
 

@@ -21,6 +21,8 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -28,6 +30,7 @@
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -156,6 +159,10 @@ void PatchCableStrength::readCurrentValue() {
 	}
 }
 
+ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
+	return getModelStack(memory);
+}
+
 // Might return a ModelStack with NULL autoParam - check for that!
 ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool allowCreation) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
@@ -179,10 +186,16 @@ void PatchCableStrength::writeCurrentValue() {
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+
+	if (getRootUI() == &automationView) {
+		int32_t p = modelStackWithParam->paramId;
+		modulation::params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, p);
+	}
 }
 
-MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
-                                                                 MultiRange** currentRange) {
+MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
+                                                                 int32_t whichThing, MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();
@@ -202,6 +215,8 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
+	Sound* sound = static_cast<Sound*>(modControllable);
+
 	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
 	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))
 	    == PatchCableAcceptance::DISALLOWED) {
@@ -219,21 +234,39 @@ uint8_t PatchCableStrength::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-MenuItem* PatchCableStrength::selectButtonPress() {
-
-	// If shift held down, delete automation
-	if (Buttons::isShiftButtonPressed()) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
-		if (modelStack->autoParam) {
-			modelStack->autoParam->deleteAutomation(action, modelStack);
-		}
-
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-		return (MenuItem*)0xFFFFFFFF; // No navigation
-	}
-	return nullptr; // Navigate back
+deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
+	return deluge::modulation::params::Kind::PATCH_CABLE;
 }
+
+uint32_t PatchCableStrength::getParamIndex() {
+	return getLearningThing().data;
+}
+
+PatchSource PatchCableStrength::getPatchSource() {
+	return getS();
+}
+
+MenuItem* PatchCableStrength::selectButtonPress() {
+	return Automation::selectButtonPress();
+}
+
+ActionResult PatchCableStrength::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	return Automation::buttonAction(b, on, inCardRoutine);
+}
+
+void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
+	int8_t currentEditPos = soundEditor.numberEditPos;
+	// don't adjust patch cable decimal edit pos if you're holding down the horizontal encoder
+	// reserve holding down horizontal encoder for zooming in automation view
+	if (!Buttons::isButtonPressed(hid::button::X_ENC)) {
+		Decimal::horizontalEncoderAction(offset);
+	}
+	// if editPos hasn't changed, then you reached start (far left) or end (far right) of the decimal number
+	// or you're holding down the horizontal encoder because you want to zoom in/out
+	// if this is the case, then you can potentially engage scrolling/zooming of the underlying automation view
+	if (currentEditPos == soundEditor.numberEditPos) {
+		Automation::horizontalEncoderAction(offset);
+	}
+}
+
 } // namespace deluge::gui::menu_item

@@ -52,7 +52,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			// otherwise we'll increase now but only reduce by one at note off
 			// not quite thread safe - if the sample is shorter than 64k
 			// an allocation before setupClustersForInitialPlay could steal it
-			voiceSample->beenUnassigned();
+			voiceSample->beenUnassigned(false);
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
 		if (samplesLate) {
@@ -79,10 +79,10 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	return true;
 }
 
-void VoiceUnisonPartSource::unassign() {
+void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
 	if (voiceSample) {
-		voiceSample->beenUnassigned();
+		voiceSample->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
 		voiceSample = NULL;
 	}
@@ -102,7 +102,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 	// If syncing...
 	if (guide->sequenceSyncLengthTicks) {
 
-		*timeStretchRatio = 16777216;
+		*timeStretchRatio = kMaxSampleValue;
 
 		uint32_t sampleLengthInSamples =
 		    ((SampleHolder*)guide->audioFileHolder)
@@ -117,7 +117,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 
 		// If time stretch, achieve syncing that way
 		if (source->sampleControls.pitchAndSpeedAreIndependent) {
-			*timeStretchRatio = (uint64_t)16777216 * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
+			*timeStretchRatio = (uint64_t)kMaxSampleValue * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
 
 			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch
 			// amount more
@@ -138,7 +138,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 					if (numSamplesDrift < (((Sample*)guide->audioFileHolder->audioFile)->sampleRate >> 7)) {
 
 						// We can just not time-stretch... for now
-						*timeStretchRatio = 16777216;
+						*timeStretchRatio = kMaxSampleValue;
 					}
 				}
 			}
@@ -177,7 +177,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement,
                                                           int32_t pitchAdjustNeutralValue) {
 
-	uint32_t timeStretchRatio = 16777216;
+	uint32_t timeStretchRatio = kMaxSampleValue;
 
 	// If pitch and time being treated independently, then achieve this by adjusting stretch to counteract pitch
 	if (source->sampleControls.pitchAndSpeedAreIndependent) {

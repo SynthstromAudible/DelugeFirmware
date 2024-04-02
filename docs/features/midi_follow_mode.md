@@ -36,8 +36,7 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the MIDI-Follow > Kit Root Note submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the MIDI-Follow > Display Param submenu, enable or disable param pop-ups
 - In the MIDI-Follow > Feedback > Channel submenu, Enable or Disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
-  - You can quickly learn a Channel (and Device) by pressing LEARN and sending a CC/Note while in the Channel submenu
-  - You can quickly unlearn a Channel by pressing SHIFT + LEARN while in the Channel submenu
+  - You can choose MIDI Follow Channel A/B/C or NONE. Thus, when you update MIDI Follow Channel A/B/C it will automatically update the channel used for MIDI Feedback.
       - Note: if no Channel has been set, MIDI Feedback will be Disabled
 - In the MIDI-Follow > Feedback > Automation Feedback submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
 - In the MIDI-Follow > Feedback > Filter Responses submenu, Enable or Disable filtering of responses received within 1 second of sending a MIDI feedback value update.
@@ -59,8 +58,8 @@ You can also use this method for updating the Kit Root Note. In the Kit Root Not
 
 You can unlearn a channel and device by pressing Shift + Learn while in the channel submenu's.
 
-If you unlearn all MIDI Follow channels, MIDI Follow Mode will be disabled.
-If you unlearn the MIDI Feedback channel, MIDI Feedback will be disabled.
+If you unlearn all MIDI Follow channels, MIDI Follow Mode will be disabled (including MIDI Feedback).
+If set the MIDI Feedback channel to NONE, MIDI Feedback will be disabled.
 
 You can also unlearn a channel using the Select encoder by scrolling between MPE Upper Zone and Channel 1.
 
@@ -135,7 +134,7 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) or the Parameters of the Active View (e.g. Song View, Arranger View, Audio Clip View, Instrument Clip View).
 3. By default, the root note for kit's is C1 for the bottom kit row but this can be configured in the MIDI Follow menu.
 4. Pop-up's are shown on the display for mapped MIDI CC's to show the name of the parameter being controlled and value being set for the parameter. This can be disabled in the menu.
-5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by unlearning the MIDI feedback channel.
+5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by setting the MIDI feedback channel to NONE.
 6. MIDI feedback for automated parameters can also be sent and can be enabled or disabled in the MIDI feedback sub menu. When enabled, you choose between 3 speeds at which to send feedback for automated parameters: Low (500 ms), Medium (150 ms), High (40 ms). Sending automated parameter feedback can be taxing on the deluge MIDI output system, so depending on the amount of automation you do, you may want to adjust the speed (e.g. slow it down) to not affect the performance of the Deluge.
 7. MIDI feedback can cause an undesirable result with certain applications when the application responds back to the Deluge after the Deluge has sent it an updated value (Loopy Pro and Drambo on iPad are known to do this). This can cause lag in the deluge and potential feedback loops. To handle this, a toggable filter was added which ignores messages received for the same ccNumber within 1 second of sending a MIDI feedback update. If the application receiving the MIDI feedback update does not send responses back to the Deluge, then this setting should be set to Disabled in the MIDI Feedback Filter Responses sub menu.
     - Note: To control the deluge with midi follow while receiving midi automation feedback, MIDI Feedback Filter Responses needs to be disabled. If your device requires filter responses to be enabled to avoid a feedback loop, you cannot use that same device to control the deluge while automation feedback is being received - you will only be able to display the automation on your device.
@@ -148,7 +147,7 @@ If you experience MIDI stutter / lag while using MIDI follow mode, you may need 
 
 Things you can try:
 
-1) Disable MIDI Feedback altogether by unlearning the MIDI Feedback Channel. Press SHIFT + LEARN in the following sub-menu to disable MIDI Feedback: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL 
+1) Disable MIDI Feedback altogether by setting the MIDI Feedback Channel to NONE in the following sub-menu: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL 
 
 2) Disable MIDI Automation Feedback. Set the following menu to Disabled: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
 
@@ -176,7 +175,7 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
     
-- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+- It is setup to send and receive on Channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
 
 <img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
 
@@ -188,5 +187,19 @@ For users of Touch OSC, you will find a MIDI Follow template in this folder: [MI
 
 <img width="560" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png">
 
+## Appendix D - Electra One Template for Deluge MIDI Follow Mode
+
+For users of the Electra One, you will find a MIDI Follow template in the Electra One's preset library on their website: [MIDI Follow Mode Electra One Preset]
+
+- It is setup to send and receive on Channel 15 (MIDI Port 1).
+
+<img width="536" alt="Screenshot 2024-03-28 at 7 36 38 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/970fa714-3683-445e-9457-4ec07f780997">
+
+<img width="536" alt="Screenshot 2024-03-28 at 7 35 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/039e52fb-a1f0-4bb0-8590-a025d734d40e">
+
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
+[MIDI Follow Mode Electra One Preset]:
+https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
+
+

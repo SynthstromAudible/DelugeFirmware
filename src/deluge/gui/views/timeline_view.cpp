@@ -28,9 +28,9 @@
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
-	uiNeedsRendering(this, 0xFFFFFFFF,
-	                 0); // Needed because sometimes we initiate a scroll before reverting an Action, so we need to
-	                     // properly render again afterwards
+	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
+	// properly render again afterwards
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 }
 
 // Virtual function

@@ -45,7 +45,7 @@ public:
 	int8_t numChannels;
 	OscType inputType;
 
-	uint32_t crossfadeProgress; // Out of 16777216
+	uint32_t crossfadeProgress; // Out of kMaxSampleValue
 	uint32_t crossfadeIncrement;
 	int32_t nextCrossfadeLength;
 	int32_t samplesTilHopEnd;

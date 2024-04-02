@@ -16,12 +16,9 @@
  */
 
 #include "model/clip/clip_array.h"
+#include "definitions_cxx.hpp"
 
-ClipArray::ClipArray() {
-	// TODO Auto-generated constructor stub
-}
-
-int32_t ClipArray::insertClipAtIndex(Clip* clip, int32_t index) {
+Error ClipArray::insertClipAtIndex(Clip* clip, int32_t index) {
 	return insertPointerAtIndex(clip, index);
 }
 

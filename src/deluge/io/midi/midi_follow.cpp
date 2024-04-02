@@ -32,6 +32,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "processing/engines/audio_engine.h"
@@ -127,17 +128,13 @@ Clip* getSelectedClip(bool useActiveClip) {
 		clip = sessionView.getClipForLayout();
 		break;
 	case UIType::ARRANGER_VIEW:
-		// if you're in arranger view, check if you're pressing a clip or holding audition pad to control that clip
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
-			clip = arrangerView.lastInteractedClipInstance->clip;
-		}
-		else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
-			clip = currentSong->getClipWithOutput(output);
-		}
+		clip = arrangerView.getClipForSelection();
 		break;
 	case UIType::PERFORMANCE_SESSION_VIEW:
-		// if you're in performance view, no clip will be selected for param control
+		// if you're in the arranger performance view, check if you're holding audition pad
+		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+			clip = arrangerView.getClipForSelection();
+		}
 		break;
 	case UIType::AUTOMATION_VIEW:
 		if (automationView.getAutomationSubType() == AutomationSubType::ARRANGER) {
@@ -400,8 +397,10 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
 			if (clip->output->type == OutputType::KIT) {
-				offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-				                       shouldRecordNotes, doingMidiThru, clip);
+				auto kit = (Kit*)clip->output;
+				kit->receivedNoteForKit(modelStackWithTimelineCounter, fromDevice, on, channel,
+				                        note - midiEngine.midiFollowKitRootNote, velocity, shouldRecordNotes,
+				                        doingMidiThru, (InstrumentClip*)clip);
 			}
 			else {
 				MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -418,16 +417,6 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 			}
 		}
 	}
-}
-
-void MidiFollow::offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                                        int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                                        bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* thisDrum = getDrumFromNoteCode(kit, note);
-
-	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-	                         thisDrum);
 }
 
 /// called from playback handler
@@ -478,8 +467,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
-					                     doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
+					                      doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -488,27 +478,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
-	}
-}
-// todo: should be a kit function
-void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
-                                      uint8_t value, bool* doingMidiThru, Clip* clip) {
-	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
-		return;
-	}
-	if (ccNumber != 74) {
-		return;
-	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-		return;
-	}
-
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 	}
 }
 
@@ -526,8 +495,9 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
-					                            doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1,
+					                             data2, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -536,19 +506,6 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 				}
 			}
 		}
-	}
-}
-
-// todo: this should be a kit function to avoid accessing kit internals directly
-void MidiFollow::offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
-                                             uint8_t data1, uint8_t data2, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	Drum* firstDrum = kit->getDrumFromIndex(0);
-
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		kit->receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel,
-		                              doingMidiThru);
 	}
 }
 
@@ -566,8 +523,9 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
-					offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
-					                             noteCode, doingMidiThru, clip);
+					Kit* kit = (Kit*)clip->output;
+					kit->receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value,
+					                              noteCode, doingMidiThru);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
@@ -579,34 +537,11 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	}
 }
 
-void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                              MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
-                                              int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
-	Kit* kit = (Kit*)clip->output;
-	// Channel pressure message...
-	if (noteCode == -1) {
-		Drum* firstDrum = kit->getDrumFromIndex(0);
-		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			int32_t level = BEND_RANGE_FINGER_LEVEL;
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
-		}
-	}
-	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
-	else {
-		Drum* thisDrum = getDrumFromNoteCode(kit, noteCode);
-		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
-			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
-			                               value);
-		}
-	}
-}
-
 /// obtain match to check if device is compatible with the midi follow channel
 /// a valid match is passed through to the instruments for further evaluation
-/// don't check for match to the midi feedback channel type
 MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel) {
 	MIDIMatchType m = MIDIMatchType::NO_MATCH;
-	for (auto i = 0; i < (kNumMIDIFollowChannelTypes - 1); i++) {
+	for (auto i = 0; i < kNumMIDIFollowChannelTypes; i++) {
 		m = midiEngine.midiFollowChannelType[i].checkMatch(fromDevice, channel);
 		if (m != MIDIMatchType::NO_MATCH) {
 			return m;
@@ -616,55 +551,41 @@ MIDIMatchType MidiFollow::checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t c
 }
 
 bool MidiFollow::isFeedbackEnabled() {
-	uint8_t channel =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
-	if (channel != MIDI_CHANNEL_NONE) {
-		return true;
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		uint8_t channel =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
+		        .channelOrZone;
+		if (channel != MIDI_CHANNEL_NONE) {
+			return true;
+		}
 	}
 	return false;
 }
 
-/// based on the midi follow root kit note and note received
-/// it calculates what the drum note row index should be
-/// and then attempts to get a valid drum from the index
-/// nullptr is returned if no drum is found
-Drum* MidiFollow::getDrumFromNoteCode(Kit* kit, int32_t noteCode) {
-	Drum* thisDrum = nullptr;
-	// bottom kit noteRowId = 0
-	// default middle C1 note number = 36
-	// noteRowId + 36 = C1 up for kit sounds
-	// this is configurable through the default menu
-	if (noteCode >= midiEngine.midiFollowKitRootNote) {
-		int32_t index = noteCode - midiEngine.midiFollowKitRootNote;
-		thisDrum = kit->getDrumFromIndexAllowNull(index);
-	}
-	return thisDrum;
-}
-
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile() {
+void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	// MidiFollow.xml
-	int32_t error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
-	if (error) {
+	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
+	if (error != Error::NONE) {
 		return;
 	}
 
 	//<defaults>
-	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
+	bdsm.writeOpeningTagEnd();
 
 	//<defaultCCMappings>
-	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
+	bdsm.writeOpeningTagEnd();
 
 	writeDefaultMappingsToFile();
 
-	storageManager.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+	bdsm.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
 
-	storageManager.writeClosingTag(MIDI_DEFAULTS_TAG);
+	bdsm.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	storageManager.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML
@@ -701,7 +622,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile() {
+void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -712,41 +633,41 @@ void MidiFollow::readDefaultsFromFile() {
 
 	FilePointer fp;
 	// MIDIFollow.XML
-	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
+	bool success = bdsm.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
-		writeDefaultsToFile();
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	//<defaults>
-	int32_t error = storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
-	if (error) {
-		writeDefaultsToFile();
+	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	if (error != Error::NONE) {
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
-			readDefaultMappingsFromFile();
+			readDefaultMappingsFromFile(bdsm);
 		}
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
-	storageManager.closeFile();
+	bdsm.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
 }
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiFollow::readDefaultMappingsFromFile() {
+void MidiFollow::readDefaultMappingsFromFile(StorageManager& bdsm) {
 	char const* tagName;
 	bool foundParam;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		foundParam = false;
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -767,7 +688,7 @@ void MidiFollow::readDefaultMappingsFromFile() {
 				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
 					// tag name matches the param shortcut, so we can load the cc mapping for that param
 					// into the paramToCC grid shortcut array which holds the cc value for each param
-					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+					paramToCC[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt();
 					// now that we've handled this tag, we need to break out of these for loops
 					// as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
 					foundParam = true;
@@ -780,6 +701,6 @@ void MidiFollow::readDefaultMappingsFromFile() {
 			}
 		}
 		// exit out of this tag so you can check the next tag
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 }

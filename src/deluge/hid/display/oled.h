@@ -82,7 +82,7 @@ public:
 
 	static void stopScrollingAnimation();
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight);
+	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
 	static void drawPermanentPopupLookingText(char const* text);
 
 	void consoleTimerEvent();
@@ -104,6 +104,7 @@ public:
 	static const uint8_t kitIcon[];
 	static const uint8_t downArrowIcon[];
 	static const uint8_t rightArrowIcon[];
+	static const uint8_t lockIcon[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -128,7 +129,7 @@ public:
 
 	void cancelPopup() override { removePopup(); }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override { return (!this->hasPopup()); }
-	void displayError(int32_t error) override;
+	void displayError(Error error) override;
 
 	// Loading animations
 	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {

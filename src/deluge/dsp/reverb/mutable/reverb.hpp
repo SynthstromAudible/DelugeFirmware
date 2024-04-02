@@ -3,6 +3,7 @@
 // Reverb.
 
 #pragma once
+#include "definitions_cxx.hpp"
 #include "dsp/reverb/base.hpp"
 #include "dsp/util.hpp"
 #include "fx_engine.hpp"
@@ -143,18 +144,18 @@ public:
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 
 private:
-	static constexpr float sample_rate = 44100.f;
+	static constexpr float sample_rate = kSampleRate;
 
 	std::array<float, kBufferSize> buffer_{};
 	FxEngine engine_{buffer_, {0.5f / sample_rate, 0.3f / sample_rate}};
 
-	float input_gain_{0.2};
+	float input_gain_ = 0.2;
 
 	// size
-	float reverb_time_{0.665f};
+	float reverb_time_ = 0.665f;
 
 	// width
-	float diffusion_{0.625f};
+	float diffusion_ = 0.625f;
 
 	// damping
 	float lp_{0.7f};

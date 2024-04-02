@@ -36,6 +36,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "util/firmware_version.h"
+#include "version.h"
 #include <string.h>
 
 extern "C" {
@@ -479,19 +481,17 @@ int32_t StorageManager::readAttributeValueInt() {
 }
 
 // Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
-int32_t StorageManager::readAttributeValueString(String* string) {
+Error StorageManager::readAttributeValueString(String* string) {
 
 	if (!getIntoAttributeValue()) {
 		string->clear();
-		return NO_ERROR;
+		return Error::NONE;
 	}
-	else {
-		int32_t error = readStringUntilChar(string, charAtEndOfValue);
-		if (!error) {
-			xmlArea = IN_TAG_PAST_NAME;
-		}
-		return error;
+	Error error = readStringUntilChar(string, charAtEndOfValue);
+	if (error == Error::NONE) {
+		xmlArea = IN_TAG_PAST_NAME;
 	}
+	return error;
 }
 
 void StorageManager::xmlReadDone() {
@@ -525,7 +525,7 @@ void StorageManager::skipUntilChar(char endChar) {
 }
 
 // Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached
-int32_t StorageManager::readStringUntilChar(String* string, char endChar) {
+Error StorageManager::readStringUntilChar(String* string, char endChar) {
 
 	int32_t newStringPos = 0;
 
@@ -538,12 +538,12 @@ int32_t StorageManager::readStringUntilChar(String* string, char endChar) {
 		int32_t numCharsHere = bufferPosNow - fileBufferCurrentPos;
 
 		if (numCharsHere) {
-			int32_t error =
+			Error error =
 			    string->concatenateAtPos(&fileClusterBuffer[fileBufferCurrentPos], newStringPos, numCharsHere);
 
 			fileBufferCurrentPos = bufferPosNow;
 
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 
@@ -555,7 +555,7 @@ int32_t StorageManager::readStringUntilChar(String* string, char endChar) {
 	fileBufferCurrentPos++; // Gets us past the endChar
 
 	xmlReadDone();
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 char const* StorageManager::readUntilChar(char endChar) {
@@ -769,14 +769,14 @@ int32_t StorageManager::readTagOrAttributeValueHex(int32_t errorValue) {
 }
 
 // Returns memory error
-int32_t StorageManager::readTagOrAttributeValueString(String* string) {
+Error StorageManager::readTagOrAttributeValueString(String* string) {
 
-	int32_t error;
+	Error error;
 
 	switch (xmlArea) {
 	case BETWEEN_TAGS:
 		error = readStringUntilChar(string, '<');
-		if (!error) {
+		if (error == Error::NONE) {
 			xmlArea = IN_TAG_NAME;
 		}
 		return error;
@@ -787,7 +787,7 @@ int32_t StorageManager::readTagOrAttributeValueString(String* string) {
 
 	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
 	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
@@ -911,40 +911,23 @@ void StorageManager::exitTag(char const* exitTagName) {
 	tagDepthCaller = tagDepthFile;
 }
 
-void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
-	char const* tagName;
-	while (*(tagName = readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "channel")) {
-			*channel = readTagOrAttributeValueInt();
-			*channel = std::min(*channel, (uint8_t)15);
-			exitTag("channel");
-		}
-		else if (!strcmp(tagName, "note")) {
-			if (note != NULL) {
-				*note = readTagOrAttributeValueInt();
-				*note = std::min(*note, (uint8_t)127);
-			}
-			exitTag("note");
-		}
-	}
-}
-
-int32_t StorageManager::checkSpaceOnCard() {
+Error StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
-	return fileSystemStuff.fileSystem.free_clst ? NO_ERROR
-	                                            : ERROR_SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
+	return fileSystemStuff.fileSystem.free_clst
+	           ? Error::NONE
+	           : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
 
 // Creates folders and subfolders as needed!
-int32_t StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
+Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
 
-	int32_t error = initSD();
-	if (error) {
+	Error error = initSD();
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	error = checkSpaceOnCard();
-	if (error) {
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -967,13 +950,13 @@ processError:
 		// If folder doesn't exist, try creating it - once only
 		if (result == FR_NO_PATH) {
 			if (triedCreatingFolder) {
-				return ERROR_FOLDER_DOESNT_EXIST;
+				return Error::FOLDER_DOESNT_EXIST;
 			}
 			triedCreatingFolder = true;
 
 			String folderPath;
 			error = folderPath.set(filePath);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 
@@ -982,12 +965,12 @@ cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
 			if (!slashAddr) {
-				return ERROR_UNSPECIFIED; // Shouldn't happen
+				return Error::UNSPECIFIED; // Shouldn't happen
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
 			error = folderPath.shorten(slashPos);
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 
@@ -1009,20 +992,20 @@ cutFolderPathAndTryCreating:
 		// Otherwise, just return the appropriate error.
 		else {
 			error = fresultToDelugeErrorCode(result);
-			if (error == ERROR_SD_CARD) {
-				error = ERROR_WRITE_FAIL; // Get a bit more specific if we only got the most general error.
+			if (error == Error::SD_CARD) {
+				error = Error::WRITE_FAIL; // Get a bit more specific if we only got the most general error.
 			}
 			return error;
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
+Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
-	int32_t error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
-	if (error) {
+	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
+	if (error != Error::NONE) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
 			display->displayError(error);
@@ -1038,12 +1021,12 @@ int32_t StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, b
 
 	indentAmount = 0;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool StorageManager::fileExists(char const* pathName) {
-	int32_t error = initSD();
-	if (error) {
+	Error error = initSD();
+	if (error != Error::NONE) {
 		return false;
 	}
 
@@ -1053,8 +1036,8 @@ bool StorageManager::fileExists(char const* pathName) {
 
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
-	int32_t error = initSD();
-	if (error) {
+	Error error = initSD();
+	if (error != Error::NONE) {
 		return false;
 	}
 
@@ -1078,8 +1061,8 @@ void StorageManager::write(char const* output) {
 		if (fileBufferCurrentPos == audioFileManager.clusterSize) {
 
 			if (!fileAccessFailedDuring) {
-				int32_t error = writeBufferToFile();
-				if (error) {
+				Error error = writeBufferToFile();
+				if (error != Error::NONE) {
 					fileAccessFailedDuring = true;
 					return;
 				}
@@ -1109,45 +1092,45 @@ void StorageManager::write(char const* output) {
 	}
 }
 
-int32_t StorageManager::writeBufferToFile() {
+Error StorageManager::writeBufferToFile() {
 	UINT bytesWritten;
 	FRESULT result = f_write(&fileSystemStuff.currentFile, fileClusterBuffer, fileBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != fileBufferCurrentPos) {
-		return ERROR_SD_CARD;
+		return Error::SD_CARD;
 	}
 
 	fileTotalBytesWritten += fileBufferCurrentPos;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Returns false if some error, including error while writing
-int32_t StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
+Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	if (fileAccessFailedDuring) {
-		return ERROR_WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we don't
-		                         // want it to flush any data to the card or anything
+		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
+		                          // don't want it to flush any data to the card or anything
 	}
-	int32_t error = writeBufferToFile();
-	if (error) {
-		return ERROR_WRITE_FAIL;
+	Error error = writeBufferToFile();
+	if (error != Error::NONE) {
+		return Error::WRITE_FAIL;
 	}
 
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	if (result) {
-		return ERROR_WRITE_FAIL;
+		return Error::WRITE_FAIL;
 	}
 
 	if (path) {
 		// Check file exists
 		result = f_open(&fileSystemStuff.currentFile, path, FA_READ);
 		if (result) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 	}
 
 	// Check size
 	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) {
-		return ERROR_WRITE_FAIL;
+		return Error::WRITE_FAIL;
 	}
 
 	// Check beginning
@@ -1156,10 +1139,10 @@ int32_t StorageManager::closeFileAfterWriting(char const* path, char const* begi
 		int32_t length = strlen(beginningString);
 		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
 		if (result) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, beginningString, length)) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 	}
 
@@ -1170,37 +1153,28 @@ int32_t StorageManager::closeFileAfterWriting(char const* path, char const* begi
 
 		result = f_lseek(&fileSystemStuff.currentFile, fileTotalBytesWritten - length);
 		if (result) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 
 		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
 		if (result) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
-			return ERROR_WRITE_FAIL;
+			return Error::WRITE_FAIL;
 		}
 	}
 
 	result = f_close(&fileSystemStuff.currentFile);
 	if (result) {
-		return ERROR_WRITE_FAIL;
+		return Error::WRITE_FAIL;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-bool StorageManager::lseek(uint32_t pos) {
-	FRESULT result = f_lseek(&fileSystemStuff.currentFile, pos);
-	if (result != FR_OK) {
-		fileAccessFailedDuring = true;
-	}
-
-	return (result == FR_OK);
-}
-
-int32_t StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                    bool ignoreIncorrectFirmware) {
+Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+                                  bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
 
@@ -1210,7 +1184,7 @@ int32_t StorageManager::openXMLFile(FilePointer* filePointer, char const* firstT
 	fileBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	firmwareVersionOfFileBeingRead = FIRMWARE_OLD;
+	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
@@ -1222,42 +1196,42 @@ int32_t StorageManager::openXMLFile(FilePointer* filePointer, char const* firstT
 	while (*(tagName = readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
-			return NO_ERROR;
+			return Error::NONE;
 		}
 
-		int32_t result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
-		if (result && result != RESULT_TAG_UNUSED) {
+		Error result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
 		exitTag(tagName);
 	}
 
 	f_close(&fileSystemStuff.currentFile);
-	return ERROR_FILE_CORRUPTED;
+	return Error::FILE_CORRUPTED;
 }
 
-int32_t StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
+Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 
 	if (!strcmp(tagName, "firmwareVersion")) {
-		char const* firmwareVersionString = readTagOrAttributeValue();
-		firmwareVersionOfFileBeingRead = stringToFirmwareVersion(firmwareVersionString);
+		char const* firmware_version_string = readTagOrAttributeValue();
+		firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
-	else if (!strcmp(tagName,
-	                 "earliestCompatibleFirmware")) { // If this tag doesn't exist, it's from old firmware so is ok
-		char const* firmwareVersionString = readTagOrAttributeValue();
-		int32_t earliestFirmware = stringToFirmwareVersion(firmwareVersionString);
-		if (earliestFirmware > kCurrentFirmwareVersion && !ignoreIncorrectFirmware) {
+	// If this tag doesn't exist, it's from old firmware so is ok
+	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+		char const* firmware_version_string = readTagOrAttributeValue();
+		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
+		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
 			f_close(&fileSystemStuff.currentFile);
-			return ERROR_FILE_FIRMWARE_VERSION_TOO_NEW;
+			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}
 
 	else {
-		return RESULT_TAG_UNUSED;
+		return Error::RESULT_TAG_UNUSED;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 bool StorageManager::readXMLFileCluster() {
@@ -1292,7 +1266,7 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", "c1.1.0");
+	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -1302,19 +1276,19 @@ void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionS
 // Gets ready to access SD card.
 // You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
 // just no card inserted.
-int32_t StorageManager::initSD() {
+Error StorageManager::initSD() {
 
 	FRESULT result;
 
 	// If we know the SD card is still initialised, no need to actually initialise
 	DSTATUS status = disk_status(SD_PORT);
 	if ((status & STA_NOINIT) == 0) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// But if there's no card present, we're in trouble
 	if (status & STA_NODISK) {
-		return ERROR_SD_CARD_NOT_PRESENT;
+		return Error::SD_CARD_NOT_PRESENT;
 	}
 
 	// Otherwise, we can mount the filesystem...
@@ -1354,11 +1328,11 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileAccessFailedDuring = false;
 }
 
-int32_t StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
+Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
 	if (!filePointer->sclust) {
-		return ERROR_FILE_NOT_FOUND;
+		return Error::FILE_NOT_FOUND;
 	}
 	char const* firstTagName;
 	char const* altTagName = "";
@@ -1367,26 +1341,29 @@ int32_t StorageManager::openInstrumentFile(OutputType outputType, FilePointer* f
 		firstTagName = "sound";
 		altTagName = "synth"; // Compatibility with old xml files
 	}
+	else if (outputType == OutputType::MIDI_OUT) {
+		firstTagName = "midi";
+	}
 	else {
 		firstTagName = "kit";
 	}
 
-	int32_t error = openXMLFile(filePointer, firstTagName, altTagName);
+	Error error = openXMLFile(filePointer, firstTagName, altTagName);
 	return error;
 }
 
 // Returns error status
 // clip may be NULL
-int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
-                                               bool mayReadSamplesFromFiles, Instrument** getInstrument,
-                                               FilePointer* filePointer, String* name, String* dirPath) {
+Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
+                                             bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                                             FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 	D_PRINTLN("opening instrument file -  %s %s  from FP  %lu", dirPath->get(), name->get(),
 	          (int32_t)filePointer->sclust);
 
-	int32_t error = openInstrumentFile(outputType, filePointer);
-	if (error) {
+	Error error = openInstrumentFile(outputType, filePointer);
+	if (error != Error::NONE) {
 		D_PRINTLN("opening instrument file failed -  %s", name->get());
 		return error;
 	}
@@ -1397,18 +1374,18 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 	if (!newInstrument) {
 		closeFile();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(song, clip, 0);
+	error = newInstrument->readFromFile(*this, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
 	// If that somehow didn't work...
-	if (error || !fileSuccess) {
+	if (error != Error::NONE || !fileSuccess) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
 		if (!fileSuccess) {
-			error = ERROR_SD_CARD;
+			error = Error::SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
@@ -1427,10 +1404,10 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA && outputType == OutputType::KIT) {
+		if (firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
-			if (error) {
+			if (error != Error::NONE) {
 				goto deleteInstrumentAndGetOut;
 			}
 
@@ -1438,10 +1415,13 @@ deleteInstrumentAndGetOut:
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
 			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
 		}
+		else if (outputType == OutputType::MIDI_OUT) {
+			// midi instruments make the param manager later
+		}
 		else {
 paramManagersMissing:
 			D_PRINTLN("creating param manager failed -  %s", name->get());
-			error = ERROR_FILE_CORRUPTED;
+			error = Error::FILE_CORRUPTED;
 			goto deleteInstrumentAndGetOut;
 		}
 	}
@@ -1452,8 +1432,9 @@ paramManagersMissing:
 		for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (thisDrum->type == DrumType::SOUND) {
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum,
-				                                                            NULL)) { // If no backedUpParamManager...
+
+				// If no backedUpParamManager...
+				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) {
 					goto paramManagersMissing;
 				}
 			}
@@ -1466,36 +1447,36 @@ paramManagersMissing:
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
 	*getInstrument = newInstrument;
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 /**
  * Special function to read a synth preset into a sound drum
  */
-int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
-                                        SoundDrum** getInstrument, FilePointer* filePointer, String* name,
-                                        String* dirPath) {
+Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
+                                      SoundDrum** getInstrument, FilePointer* filePointer, String* name,
+                                      String* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
-	int32_t error = openInstrumentFile(outputType, filePointer);
-	if (error) {
+	Error error = openInstrumentFile(outputType, filePointer);
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(song, clip, 0);
+	error = newDrum->readFromFile(*this, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
 	// If that somehow didn't work...
-	if (error || !fileSuccess) {
+	if (error != Error::NONE || !fileSuccess) {
 
 		void* toDealloc = static_cast<void*>(newDrum);
 		newDrum->~SoundDrum();
@@ -1503,7 +1484,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 		return error;
 
 		if (!fileSuccess) {
-			error = ERROR_SD_CARD;
+			error = Error::SD_CARD;
 			return error;
 		}
 	}
@@ -1529,6 +1510,10 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 		instrumentSize = sizeof(SoundInstrument);
 	}
 
+	else if (newOutputType == OutputType::MIDI_OUT) {
+		instrumentSize = sizeof(MIDIInstrument);
+	}
+
 	// Kit
 	else {
 		instrumentSize = sizeof(Kit);
@@ -1541,13 +1526,13 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 
 	Instrument* newInstrument;
 
-	int32_t error;
+	Error error;
 
 	// Synth
 	if (newOutputType == OutputType::SYNTH) {
 		if (paramManager) {
 			error = paramManager->setupWithPatching();
-			if (error) {
+			if (error != Error::NONE) {
 paramManagerSetupError:
 				delugeDealloc(instrumentMemory);
 				return NULL;
@@ -1557,11 +1542,15 @@ paramManagerSetupError:
 		newInstrument = new (instrumentMemory) SoundInstrument();
 	}
 
+	else if (newOutputType == OutputType::MIDI_OUT) {
+		newInstrument = new (instrumentMemory) MIDIInstrument();
+	}
+
 	// Kit
 	else {
 		if (paramManager) {
 			error = paramManager->setupUnpatched();
-			if (error) {
+			if (error != Error::NONE) {
 				goto paramManagerSetupError;
 			}
 
@@ -1628,8 +1617,8 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 // -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
 // -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
 // param.
-int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-                                              int8_t* getCC) {
+Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
+                                            int8_t* getCC) {
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
@@ -1661,11 +1650,11 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 
 				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
 				if (!midiParam) {
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 
-				int32_t error = midiParam->param.readFromFile(readAutomationUpToPos);
-				if (error) {
+				Error error = midiParam->param.readFromFile(*this, readAutomationUpToPos);
+				if (error != Error::NONE) {
 					return error;
 				}
 			}
@@ -1680,7 +1669,7 @@ int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MID
 		*getCC = cc;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // For a bunch of params like this, e.g. for syncing delay, LFOs, arps, the value stored in the file is relative to the

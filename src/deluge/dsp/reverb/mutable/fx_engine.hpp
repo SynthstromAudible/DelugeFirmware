@@ -108,8 +108,8 @@ public: /******************** INNER CLASSES ****************/
 
 		//[gnu::always_inline]
 		float& at(int32_t index) {
-			if (index < 0) {
-				index = length - index;
+			if (index == TAIL) {
+				index = length - 1;
 			}
 			return engine_->at(this->base + index);
 		}

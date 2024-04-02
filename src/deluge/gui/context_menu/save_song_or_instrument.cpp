@@ -45,13 +45,13 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
-		return saveSongUI.performSave();
+		return saveSongUI.performSave(storageManager);
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
-		int32_t error = browser->createFolder();
+		Error error = browser->createFolder();
 
-		if (error) {
+		if (error != Error::NONE) {
 			display->displayError(error);
 			return false;
 		}

@@ -140,13 +140,14 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
+	ModFXType getModFXType();
 	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
 	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
-	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = 16777216);
+	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue);
 	void unassignAllVoices();
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
@@ -175,9 +176,10 @@ public:
 	void setUnisonStereoSpread(int32_t newAmount);
 	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	int32_t readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-	                     ArpeggiatorSettings* arpSettings);
-	void writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings);
+	Error readFromFile(StorageManager& bdsm, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
+	                   ArpeggiatorSettings* arpSettings);
+	void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
+	                 ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
 	void voiceUnassigned(ModelStackWithVoice* modelStack);
@@ -204,22 +206,23 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
-	bool hasAnyVoices();
+	bool hasAnyVoices(bool resetTimeEntered);
 	void setupAsBlankSynth(ParamManager* paramManager);
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
-	static void writeParamsToFile(ParamManager* paramManager, bool writeAutomation);
-	static void readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+	static void writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation);
+	static void readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+	                               int32_t readAutomationUpToPos);
+	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
-	static int32_t createParamManagerForLoading(ParamManagerForTimeline* paramManager);
+	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
 	                                 int32_t note = 0);
 	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
@@ -237,7 +240,7 @@ public:
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
-	virtual bool readTagFromFile(char const* tagName) = 0;
+	virtual bool readTagFromFile(StorageManager& bdsm, char const* tagName) = 0;
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
@@ -278,11 +281,12 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                        ArpeggiatorSettings* arpSettings, Song* song);
+	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(int32_t s, char const* tagName);
-	int32_t readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
+	void writeSourceToFile(StorageManager& bdsm, int32_t s, char const* tagName);
+	Error readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerForTimeline* paramManager,
+	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
@@ -294,6 +298,4 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
-
-	void displaySidechainAndReverbSettings(bool on);
 };

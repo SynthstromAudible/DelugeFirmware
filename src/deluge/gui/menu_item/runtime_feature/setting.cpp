@@ -50,11 +50,11 @@ deluge::vector<std::string_view> Setting::getOptions() {
 }
 
 std::string_view Setting::getName() const {
-	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
+	return deluge::l10n::getView(runtimeFeatureSettings.settings[currentSettingIndex].displayName);
 }
 
 std::string_view Setting::getTitle() const {
-	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
+	return deluge::l10n::getView(runtimeFeatureSettings.settings[currentSettingIndex].displayName);
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature

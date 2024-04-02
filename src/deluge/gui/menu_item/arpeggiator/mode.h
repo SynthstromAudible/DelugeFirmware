@@ -52,22 +52,14 @@ public:
 			}
 		}
 		soundEditor.currentArpSettings->mode = current_value;
-
-		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's
-		// clear that switching the arp on or off was their main intention)
-		if (!soundEditor.editingKit()) {
-			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
-		}
+		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 	}
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_DISABLED), //<
-		    l10n::getView(STRING_FOR_UP),       //<
-		    l10n::getView(STRING_FOR_DOWN),     //<
-		    l10n::getView(STRING_FOR_BOTH),     //<
-		    l10n::getView(STRING_FOR_RANDOM),   //<
+		    l10n::getView(STRING_FOR_OFF), //<
+		    l10n::getView(STRING_FOR_ARP), //<
 		};
 	}
 };

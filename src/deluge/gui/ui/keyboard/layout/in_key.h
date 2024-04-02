@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinInKeyRowInterval = 1;
 constexpr int32_t kMaxInKeyRowInterval = 16;
 
-class KeyboardLayoutInKey : public KeyboardLayout {
+class KeyboardLayoutInKey : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutInKey() {}
 	~KeyboardLayoutInKey() override {}
@@ -42,6 +42,7 @@ public:
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
 private:
+	void offsetPads(int32_t offset, bool shiftEnabled);
 	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
 
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {

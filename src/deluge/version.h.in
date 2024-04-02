@@ -1,32 +1,15 @@
 #pragma once
 
-#ifdef __cplusplus
-#include <compare> // IWYU pragma: keep -used for operator <=>, false positive
-#include <cstdint>
-
-struct SemVer {
-	uint8_t major;
-	uint8_t minor;
-	uint8_t patch;
-
-	auto operator<=>(const SemVer&) const = default;
-};
-
-// clang-format off
-constexpr SemVer kCommunityFirmwareVersion {
-	@PROJECT_VERSION_MAJOR@, 
-	@PROJECT_VERSION_MINOR@, 
-	@PROJECT_VERSION_PATCH@,
-};
-//clang-format on
-
-constexpr char const* kFirmwareVersionString = "@BUILD_VERSION_STRING@";
-
-#else
-
 #define FIRMWARE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
 #define FIRMWARE_VERSION_MINOR @PROJECT_VERSION_MINOR@
 #define FIRMWARE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+#ifdef __cplusplus
+
+constexpr char const* kFirmwareVersionString = "@BUILD_VERSION_STRING@";
+constexpr char const* kFirmwareVersionStringShort = "@BUILD_VERSION_STRING_SHORT@";
+
+#else
 
 #define FIRMWARE_VERSION_STRING "@BUILD_VERSION_STRING@"
 #define FIRMWARE_COMMIT_SHORT "@BUILD_COMMIT_SHORT@"

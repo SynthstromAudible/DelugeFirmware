@@ -46,6 +46,7 @@
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -70,6 +71,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -118,92 +120,133 @@ const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIO
 
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_FX}, // Master Volume, Pitch, Pan
+    // Master Volume, Pitch, Pan
+    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_FX},
     {params::Kind::PATCHED, params::LOCAL_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_PAN},
-    {params::Kind::PATCHED, params::LOCAL_LPF_FREQ}, // LPF Cutoff, Resonance, Morph
+    // LPF Cutoff, Resonance, Morph
+    {params::Kind::PATCHED, params::LOCAL_LPF_FREQ},
     {params::Kind::PATCHED, params::LOCAL_LPF_RESONANCE},
     {params::Kind::PATCHED, params::LOCAL_LPF_MORPH},
-    {params::Kind::PATCHED, params::LOCAL_HPF_FREQ}, // HPF Cutoff, Resonance, Morph
+    // HPF Cutoff, Resonance, Morph
+    {params::Kind::PATCHED, params::LOCAL_HPF_FREQ},
     {params::Kind::PATCHED, params::LOCAL_HPF_RESONANCE},
     {params::Kind::PATCHED, params::LOCAL_HPF_MORPH},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS}, // Bass, Bass Freq
+    // Bass, Bass Freq
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS_FREQ},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE}, // Treble, Treble Freq
+    // Treble, Treble Freq
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE_FREQ},
-    {params::Kind::PATCHED, params::GLOBAL_REVERB_AMOUNT}, // Reverb Amount
-    {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},    // Delay Rate, Amount
+    // Reverb Amount
+    {params::Kind::PATCHED, params::GLOBAL_REVERB_AMOUNT},
+    // Delay Rate, Amount
+    {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND}, // Sidechain Send, Shape
+    // Sidechain Send, Shape
+    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush, Wavefolder
+    // Decimation, Bitcrush, Wavefolder
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
     {params::Kind::PATCHED, params::LOCAL_FOLD},
-    {params::Kind::PATCHED,
-     params::LOCAL_OSC_A_VOLUME}, // OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
+    // OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
+    {params::Kind::PATCHED, params::LOCAL_OSC_A_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
     {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    {params::Kind::PATCHED,
-     params::LOCAL_OSC_A_WAVE_INDEX}, // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
+    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
+    {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
     {params::Kind::PATCHED, params::LOCAL_CARRIER_1_FEEDBACK},
     {params::Kind::PATCHED, params::LOCAL_OSC_B_WAVE_INDEX},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_VOLUME}, // FM Mod 1 Volume, Pitch, Feedback
+    // FM Mod 1 Volume, Pitch, Feedback
+    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_FEEDBACK},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_VOLUME}, // FM Mod 2 Volume, Pitch, Feedback
+    // FM Mod 2 Volume, Pitch, Feedback
+    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_VOLUME},
     {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_PITCH_ADJUST},
     {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_FEEDBACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_ATTACK}, // Env 1 ADSR
+    // Env 1 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_0_ATTACK},
     {params::Kind::PATCHED, params::LOCAL_ENV_0_DECAY},
     {params::Kind::PATCHED, params::LOCAL_ENV_0_SUSTAIN},
     {params::Kind::PATCHED, params::LOCAL_ENV_0_RELEASE},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_ATTACK}, // Env 2 ADSR
+    // Env 2 ADSR
+    {params::Kind::PATCHED, params::LOCAL_ENV_1_ATTACK},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
     {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
-    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ},                 // LFO 1 Freq
-    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ},            // LFO 2 Freq
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_OFFSET}, // Mod FX Offset, Feedback, Depth, Rate
+    // LFO 1 Freq
+    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ},
+    // LFO 2 Freq
+    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ},
+    // Mod FX Offset, Feedback, Depth, Rate
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_OFFSET},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    {params::Kind::PATCHED, params::GLOBAL_ARP_RATE}, // Arp Rate, Gate
+    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm
+    {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},             // Noise
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},   // Portamento
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
+    // Noise
+    {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
+    // Portamento
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
+    // Stutter Rate
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
+    // Compressor Threshold
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
 // global FX - sorted in the order that Parameters are scrolled through on the display
 // used with kit affect entire, audio clips, and arranger
 const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME}, // Master Volume, Pitch, Pan
+    // Master Volume, Pitch, Pan
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PITCH_ADJUST},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PAN},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ}, // LPF Cutoff, Resonance
+    // LPF Cutoff, Resonance
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_FREQ}, // HPF Cutoff, Resonance
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_MORPH},
+    // HPF Cutoff, Resonance
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_FREQ},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS}, // Bass, Bass Freq
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH},
+    // Bass, Bass Freq
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE}, // Treble, Treble Freq
+    // Treble, Treble Freq
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERB_SEND_AMOUNT}, // Reverb Amount
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},         // Delay Rate, Amount
+    // Reverb Amount
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERB_SEND_AMOUNT},
+    // Delay Rate, Amount
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME}, // Sidechain Send, Shape
+    // Sidechain Send, Shape
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION}, // Decimation, Bitcrush
+    // Decimation, Bitcrush
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET}, // Mod FX Offset, Feedback, Depth, Rate
+    // Mod FX Offset, Feedback, Depth, Rate
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_DEPTH},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_RATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE}, // Stutter Rate
+    // Stutter Rate
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE},
+    // Compressor Threshold
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
 }};
 
 // let's render some love <3
@@ -228,17 +271,53 @@ const uint32_t love[kDisplayWidth][kDisplayHeight] = {
 
 // VU meter style colours for the automation editor
 
-const RGB rowColour[kDisplayHeight] = {
-    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0},
-};
+const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
+                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
 
-const RGB rowTailColour[kDisplayHeight] = {
-    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2},
-};
+const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
+                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
 
-const RGB rowBlurColour[kDisplayHeight] = {
-    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39},
-};
+const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
+                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
+
+const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
+
+const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
+
+const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
+
+// lookup tables for the values that are set when you press the pads in each row of the grid
+const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
+
+// lookup tables for the min value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
+const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
+
+// lookup tables for the max value of each pad's value range used to display automation on each row of the grid
+const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
+const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
+
+// summary of pad ranges and press values (format: MIN < PRESS < MAX)
+// patch cable:
+// y = 7 ::   97 <  128 < 128
+// y = 6 ::   65 <   90 <  96
+// y = 5 ::   33 <   60 <  64
+// y = 4 ::    1 <   30 <  32
+// y = 3 ::  -32 <  -30 <  -1
+// y = 2 ::  -64 <  -60 < -33
+// y = 1 ::  -96 <  -90 < -65
+// y = 0 :: -128 < -128 < -97
+
+// non-patch cable:
+// y = 7 :: 113 < 128 < 128
+// y = 6 ::  97 < 110 < 112
+// y = 5 ::  81 <  91 <  96
+// y = 4 ::  65 <  73 <  80
+// y = 3 ::  49 <  55 <  64
+// y = 2 ::  33 <  37 <  48
+// y = 1 ::  17 <  18 <  32
+// y = 0 ::  0  <   0 <  16
 
 AutomationView automationView{};
 
@@ -265,8 +344,12 @@ AutomationView::AutomationView() {
 	interpolationAfter = false;
 	// used to prevent excessive blinking when you're scrolling with horizontal / vertical / mod encoders
 	encoderAction = false;
-	// used to reset shortcut blinking
-	shortcutBlinking = false;
+	// used to set parameter shortcut blinking
+	parameterShortcutBlinking = false;
+	// used to set interpolation shortcut blinking
+	interpolationShortcutBlinking = false;
+	interpolationShortcutX = 0;
+	interpolationShortcutY = 6;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -278,6 +361,7 @@ AutomationView::AutomationView() {
 	lastPadSelectedKnobPos = kNoSelection;
 	playbackStopped = false;
 	onArrangerView = false;
+	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
 
 	initMIDICCShortcutsForAutomation();
@@ -304,6 +388,16 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 
 // called everytime you open up the automation view
 bool AutomationView::opened() {
+	initializeView();
+
+	openedInBackground();
+
+	focusRegained();
+
+	return true;
+}
+
+void AutomationView::initializeView() {
 	navSysId = getNavSysId();
 
 	if (!midiCCShortcutsLoaded) {
@@ -337,27 +431,13 @@ bool AutomationView::opened() {
 			}
 		}
 	}
-
-	resetShortcutBlinking();
-
-	openedInBackground();
-
-	if (!onArrangerView) {
-		// only applies to instrument clips (not audio)
-		if (clip) {
-			InstrumentClipMinder::opened();
-		}
-	}
-
-	focusRegained();
-
-	return true;
 }
 
 // Initializes some stuff to begin a new editing session
 void AutomationView::focusRegained() {
 	if (onArrangerView) {
 		indicator_leds::setLedState(IndicatorLED::BACK, false);
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 		currentSong->affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
@@ -373,10 +453,41 @@ void AutomationView::focusRegained() {
 			view.setActiveModControllableTimelineCounter(clip);
 		}
 		else {
+			// check if patch cable previously selected is still valid
+			// if not we'll reset parameter selection and go back to overview
+			if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+				bool patchCableExists = false;
+				ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+				if (paramManager) {
+					PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+					// make sure it's not jiberish
+					if (set) {
+						PatchSource s;
+						ParamDescriptor destinationParamDescriptor;
+						set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
+						if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+							patchCableExists = true;
+						}
+					}
+				}
+				if (!patchCableExists) {
+					initParameterSelection();
+				}
+			}
 			instrumentClipView.auditioningSilently = false; // Necessary?
 			InstrumentClipMinder::focusRegained();
 			instrumentClipView.setLedStates();
 		}
+	}
+
+	// don't reset shortcut blinking if were still in the menu
+	if (getCurrentUI() == this) {
+		// blink timer got reset by view.focusRegained() above
+		parameterShortcutBlinking = false;
+		// remove patch cable blink frequencies
+		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
+		// possibly restablish parameter shortcut blinking (if parameter is selected)
+		blinkShortcuts();
 	}
 }
 
@@ -484,41 +595,54 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	performActualRender(whichRows, &image[0][0], occupancyMask, currentSong->xScroll[navSysId],
 	                    currentSong->xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
 
-	if (encoderAction == false) {
-		int32_t lastSelectedParamShortcutX = kNoSelection;
-		int32_t lastSelectedParamShortcutY = kNoSelection;
-		if (onArrangerView) {
-			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
-			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
-		}
-		else {
-			lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
-			lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
-		}
-		// if a Param has been selected for editing, blink its shortcut pad
-		if (lastSelectedParamShortcutX != kNoSelection) {
-			if (shortcutBlinking == false) {
-				memset(soundEditor.sourceShortcutBlinkFrequencies, 255,
-				       sizeof(soundEditor.sourceShortcutBlinkFrequencies));
-				soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
-				soundEditor.blinkShortcut();
+	blinkShortcuts();
 
-				shortcutBlinking = true;
+	PadLEDs::renderingLock = false;
+
+	return true;
+}
+
+void AutomationView::blinkShortcuts() {
+	if (!encoderAction) {
+		if (getCurrentUI() == this) {
+			int32_t lastSelectedParamShortcutX = kNoSelection;
+			int32_t lastSelectedParamShortcutY = kNoSelection;
+			if (onArrangerView) {
+				lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
+				lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
+			}
+			else {
+				Clip* clip = getCurrentClip();
+				lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
+				lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
+			}
+			// if a Param has been selected for editing, blink its shortcut pad
+			if (lastSelectedParamShortcutX != kNoSelection) {
+				if (!parameterShortcutBlinking) {
+					soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
+					soundEditor.blinkShortcut();
+
+					parameterShortcutBlinking = true;
+				}
+			}
+			// unset previously set blink timers if not editing a parameter
+			else {
+				resetParameterShortcutBlinking();
 			}
 		}
-		// unset previously set blink timers if not editing a parameter
+		if (interpolation) {
+			if (!interpolationShortcutBlinking) {
+				blinkInterpolationShortcut();
+			}
+		}
 		else {
-			resetShortcutBlinking();
+			resetInterpolationShortcutBlinking();
 		}
 	}
 	else {
 		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
 		encoderAction = false;
 	}
-
-	PadLEDs::renderingLock = false;
-
-	return true;
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
@@ -547,6 +671,18 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
 
+	params::Kind kind = params::Kind::NONE;
+	bool isBipolar = false;
+
+	// if we have a valid model stack with param
+	// get the param Kind and param bipolar status
+	// so that it can be passed through the automation editor rendering
+	// calls below
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		kind = modelStackWithParam->paramCollection->getParamKind();
+		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+	}
+
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
@@ -561,7 +697,7 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 				if (!isOnAutomationOverview()) {
 					renderAutomationEditor(modelStackWithParam, clip, image + (yDisplay * imageWidth),
 					                       occupancyMaskOfRow, renderWidth, xScroll, xZoom, effectiveLength, yDisplay,
-					                       drawUndefinedArea);
+					                       drawUndefinedArea, kind, isBipolar);
 				}
 
 				// if not editing a parameter, show Automation Overview
@@ -663,11 +799,11 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
                                             uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
                                             uint32_t xZoom, int32_t effectiveLength, int32_t yDisplay,
-                                            bool drawUndefinedArea) {
+                                            bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 		renderRow(modelStackWithParam, image, occupancyMask, effectiveLength, yDisplay,
-		          modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom);
+		          modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
 
 		if (drawUndefinedArea) {
 			renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
@@ -676,47 +812,160 @@ void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackW
 	}
 }
 
-// this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with
-// "nodes" it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative
-// rendering method which always works. hoping to bring back the other code once I've worked out the bugs.
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                         int32_t paramID) {
+	bool doRefreshGrid = false;
+	if (clip && !automationView.onArrangerView) {
+		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	else if (automationView.onArrangerView) {
+		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	if (doRefreshGrid) {
+		uiNeedsRendering(this);
+		return true;
+	}
+	return false;
+}
+
+/// render each square in each row of the automation editor grid
 void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
                                int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
-                               int32_t xZoom) {
+                               int32_t xZoom, params::Kind kind, bool isBipolar) {
 
+	// iterate through each square
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
+		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
-		int32_t knobPos = 0;
-
-		if (isAutomated) {
-			knobPos = getAverageSquareKnobPosition(modelStackWithParam, xDisplay, lengthToDisplay, xScroll, xZoom);
+		if (isBipolar) {
+			renderBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
 		}
 		else {
-			uint32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
-			knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+			renderUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
 		}
+	}
+}
 
-		RGB& pixel = image[xDisplay];
+/// render column for bipolar params - e.g. pan, pitch, patch cable
+void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                         bool isAutomated, params::Kind kind, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
 
-		if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
-			if (isAutomated) { // automated, render bright colour
-				pixel = rowColour[yDisplay];
-			}
-			else { // not automated, render less bright tail colour
-				pixel = rowTailColour[yDisplay];
-			}
-			occupancyMask[xDisplay] = 64;
-		}
+	int32_t middleKnobPos;
 
-		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+	// for patch cable that has a range of -128 to + 128, the middle point is 0
+	if (kind == params::Kind::PATCH_CABLE) {
+		middleKnobPos = 0;
+	}
+	// for non-patch cable that has a range of 0 to 128, the middle point is 64
+	else {
+		middleKnobPos = 64;
+	}
 
-			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
-				pixel = rowBlurColour[yDisplay];
+	// if it's bipolar, only render grid rows above or below middle value
+	if ((knobPos > middleKnobPos) && (yDisplay < 4)) {
+		return;
+	}
+	else if ((knobPos < middleKnobPos) && (yDisplay > 3)) {
+		return;
+	}
+
+	bool doRender = false;
+
+	// determine whether or not you should render a row based on current value
+	if (knobPos != middleKnobPos) {
+		if (kind == params::Kind::PATCH_CABLE) {
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= patchCableMinPadDisplayValues[yDisplay]);
 			}
 			else {
-				pixel = colours::grey;
+				doRender = (knobPos <= patchCableMaxPadDisplayValues[yDisplay]);
 			}
-			occupancyMask[xDisplay] = 64;
 		}
+		else {
+			if (knobPos > middleKnobPos) {
+				doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+			}
+			else {
+				doRender = (knobPos <= nonPatchCableMaxPadDisplayValues[yDisplay]);
+			}
+		}
+	}
+
+	// render automation lane
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownColour[yDisplay];
+			}
+		}
+		else { // not automated, render less bright tail colour
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownTailColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownTailColour[yDisplay];
+			}
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			if (knobPos > middleKnobPos) {
+				pixel = rowBipolarDownBlurColour[-yDisplay + 7];
+			}
+			else {
+				pixel = rowBipolarDownBlurColour[yDisplay];
+			}
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+}
+
+/// render column for unipolar params (e.g. not pan, pitch, or patch cables)
+void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
+                                          bool isAutomated, int32_t knobPos) {
+	RGB& pixel = image[xDisplay];
+
+	// determine whether or not you should render a row based on current value
+	bool doRender = false;
+	if (knobPos != 0) {
+		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
+	}
+
+	// render square
+	if (doRender) {
+		if (isAutomated) { // automated, render bright colour
+			pixel = rowColour[yDisplay];
+		}
+		else { // not automated, render less bright tail colour
+			pixel = rowTailColour[yDisplay];
+		}
+		occupancyMask[xDisplay] = 64;
+	}
+
+	// pad selection mode, render cursor
+	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+		if (doRender) {
+			pixel = rowBlurColour[yDisplay];
+		}
+		else {
+			pixel = colours::grey;
+		}
+		occupancyMask[xDisplay] = 64;
 	}
 }
 
@@ -767,7 +1016,7 @@ void AutomationView::renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDi
 	}
 }
 
-// defers to audio clip or instrument clip sidebar render functions
+// defers to arranger, audio clip or instrument clip sidebar render functions
 // depending on the active clip
 bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
@@ -800,6 +1049,12 @@ DisplayParameterValue
 DisplayParameterName */
 
 void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
+	// don't refresh display if we're not current in the automation view UI
+	// (e.g. if you're editing automation while in the menu)
+	if (getCurrentUI() != this) {
+		return;
+	}
+
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 
@@ -876,8 +1131,9 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentredShrinkIfNecessary(
+		    parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		    kTextSpacingY);
 
 		// display automation status
 		yPos = yPos + 12;
@@ -952,7 +1208,6 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 	if (isOnAutomationOverview() || (outputType == OutputType::CV)) {
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
-			char const* overviewText;
 			if (!onArrangerView
 			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
 			        && !((Kit*)clip->output)->selectedDrum)) {
@@ -1021,6 +1276,7 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 	    || outputType == OutputType::AUDIO) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
+		PatchSource lastSelectedPatchSource = PatchSource::NONE;
 		if (onArrangerView) {
 			lastSelectedParamKind = currentSong->lastSelectedParamKind;
 			lastSelectedParamID = currentSong->lastSelectedParamID;
@@ -1028,8 +1284,46 @@ void AutomationView::getParameterName(Clip* clip, OutputType outputType, char* p
 		else {
 			lastSelectedParamKind = clip->lastSelectedParamKind;
 			lastSelectedParamID = clip->lastSelectedParamID;
+			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
-		strncpy(parameterName, getParamDisplayName(lastSelectedParamKind, lastSelectedParamID), 29);
+		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			PatchSource source2 = PatchSource::NONE;
+			ParamDescriptor paramDescriptor;
+			paramDescriptor.data = lastSelectedParamID;
+			if (!paramDescriptor.hasJustOneSource()) {
+				source2 = paramDescriptor.getTopLevelSource();
+			}
+
+			DEF_STACK_STRING_BUF(paramDisplayName, 30);
+			if (source2 == PatchSource::NONE) {
+				paramDisplayName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
+			}
+			else {
+				paramDisplayName.append(sourceToStringShort(lastSelectedPatchSource));
+			}
+			if (display->haveOLED()) {
+				paramDisplayName.append(" -> ");
+			}
+			else {
+				paramDisplayName.append(" - ");
+			}
+
+			if (source2 != PatchSource::NONE) {
+				paramDisplayName.append(sourceToStringShort(source2));
+				if (display->haveOLED()) {
+					paramDisplayName.append(" -> ");
+				}
+				else {
+					paramDisplayName.append(" - ");
+				}
+			}
+
+			paramDisplayName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
+			strncpy(parameterName, paramDisplayName.c_str(), 29);
+		}
+		else {
+			strncpy(parameterName, getParamDisplayName(lastSelectedParamKind, lastSelectedParamID), 29);
+		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
@@ -1097,11 +1391,11 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			if (modelStackWithParam->getTimelineCounter()
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-				int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
+				int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
 
 				// update value on the screen when playing back automation
 				if (updateDisplay && !playbackStopped) {
-					renderDisplay(knobPos + kKnobPosOffset);
+					renderDisplay(knobPos);
 				}
 				// on 7SEG re-render parameter name under certain circumstances
 				// e.g. when entering pad selection mode, when stopping playback
@@ -1110,7 +1404,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 					playbackStopped = false;
 				}
 
-				setKnobIndicatorLevels(knobPos + kKnobPosOffset);
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
 		}
 	}
@@ -1223,7 +1517,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Select encoder
 	// if you're not pressing shift and press down on the select encoder, toggle interpolation on/off
-	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC) {
+	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC && currentUIMode == UI_MODE_NONE) {
 		handleSelectEncoderButtonAction(on);
 	}
 
@@ -1359,7 +1653,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	}
 	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
 		initParameterSelection();
-		resetShortcutBlinking();
+		resetParameterShortcutBlinking();
 		uiNeedsRendering(this);
 	}
 }
@@ -1385,7 +1679,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 		// don't reset anything if you're already in a KIT clip
 		if (outputType != OutputType::KIT) {
 			initParameterSelection();
-			resetShortcutBlinking();
+			resetParameterShortcutBlinking();
 		}
 		if (Buttons::isNewOrShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::KIT);
@@ -1402,7 +1696,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 		// don't reset anything if you're already in a SYNTH clip
 		if (outputType != OutputType::SYNTH) {
 			initParameterSelection();
-			resetShortcutBlinking();
+			resetParameterShortcutBlinking();
 		}
 		// this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
 		if (Buttons::isNewOrShiftButtonPressed()) {
@@ -1421,7 +1715,7 @@ void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
 		// don't reset anything if you're already in a MIDI clip
 		if (outputType != OutputType::MIDI_OUT) {
 			initParameterSelection();
-			resetShortcutBlinking();
+			resetParameterShortcutBlinking();
 		}
 		instrumentClipView.changeOutputType(OutputType::MIDI_OUT);
 	}
@@ -1433,7 +1727,7 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 		// don't reset anything if you're already in a CV clip
 		if (outputType != OutputType::CV) {
 			initParameterSelection();
-			resetShortcutBlinking();
+			resetParameterShortcutBlinking();
 			displayCVErrorMessage();
 		}
 		instrumentClipView.changeOutputType(OutputType::CV);
@@ -1547,17 +1841,22 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 // called by button action if b == SELECT_ENC and shift button is not pressed
 void AutomationView::handleSelectEncoderButtonAction(bool on) {
 	if (on) {
-		if (interpolation == RuntimeFeatureStateToggle::Off) {
+		initParameterSelection();
+		uiNeedsRendering(this);
 
-			interpolation = RuntimeFeatureStateToggle::On;
-
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+			return;
 		}
-		else {
-			interpolation = RuntimeFeatureStateToggle::Off;
-			initInterpolation();
 
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+		if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+			soundEditor.setupKitGlobalFXMenu = true;
+		}
+
+		display->setNextTransitionDirection(1);
+		Clip* clip = onArrangerView ? nullptr : getCurrentClip();
+		if (soundEditor.setup(clip)) {
+			openUI(&soundEditor);
 		}
 	}
 }
@@ -1569,6 +1868,13 @@ void AutomationView::enterScaleMode(uint8_t yDisplay) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	if (clip->output->type == OutputType::MIDI_OUT
+	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
+	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
+		return;
+	}
 
 	int32_t newRootNote;
 	if (yDisplay == 255) {
@@ -1617,6 +1923,11 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		if (x >= kDisplayWidth) {
 			return ActionResult::DEALT_WITH;
 		}
+	}
+
+	// don't interact with sidebar if VU Meter is displayed
+	if (onArrangerView && x >= kDisplayWidth && view.displayVUMeter) {
+		return ActionResult::DEALT_WITH;
 	}
 
 	Output* output = clip->output;
@@ -1721,8 +2032,27 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	if (velocity) {
 		if (Buttons::isShiftButtonPressed()
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
-			initPadSelection();
-			handleSinglePadPress(modelStackWithParam, clip, x, y, effectiveLength, xScroll, xZoom, true);
+			if (x == interpolationShortcutX && y == interpolationShortcutY) {
+				if (!interpolation) {
+
+					interpolation = true;
+					blinkInterpolationShortcut();
+
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+				}
+				else {
+					interpolation = false;
+					initInterpolation();
+					resetInterpolationShortcutBlinking();
+
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+				}
+			}
+			// don't change parameters this way if we're in the menu
+			else if (getCurrentUI() == &automationView) {
+				initPadSelection();
+				handleSinglePadPress(modelStackWithParam, clip, x, y, effectiveLength, xScroll, xZoom, true);
+			}
 
 			return ActionResult::DEALT_WITH;
 		}
@@ -1913,7 +2243,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 					view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
 				}
 				else {
-					view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
+					view.instrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)output);
 				}
 			}
 		}
@@ -1967,7 +2297,6 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 
 		// If NoteRow doesn't exist here, we'll see about creating one
 		else {
-
 			// But not if we're actually not on this screen
 			if (getCurrentUI() != this) {
 				return;
@@ -2169,6 +2498,7 @@ getOut:
 
 // horizontal encoder action
 // using this to shift automations left / right
+// using this to zoom in / out
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
@@ -2649,7 +2979,7 @@ bool AutomationView::modEncoderActionForSelectedPad(ModelStackWithAutoParam* mod
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
 
-			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
 			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
@@ -2664,6 +2994,8 @@ bool AutomationView::modEncoderActionForSelectedPad(ModelStackWithAutoParam* mod
 
 			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom, true);
+
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on
 			// revised start/ending values
@@ -2695,7 +3027,7 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
-			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
 
 			// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets
@@ -2719,9 +3051,12 @@ void AutomationView::modEncoderActionForUnselectedPad(ModelStackWithAutoParam* m
 			}
 
 			if (!playbackHandler.isEitherClockActive()) {
-				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
-				setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
+				int32_t knobPos = newKnobPos + kKnobPosOffset;
+				renderDisplay(knobPos, kNoSelection, true);
+				setKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
 			}
+
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
 			// midi follow and midi feedback enabled
 			// re-send midi cc because learned parameter value has changed
@@ -2933,7 +3268,13 @@ void AutomationView::pasteAutomation(ModelStackWithAutoParam* modelStackWithPara
 
 // used to change the parameter selection and reset shortcut pad settings so that new pad can be blinked
 // once parameter is selected
+// used to fine tune the values of non-midi parameters
 void AutomationView::selectEncoderAction(int8_t offset) {
+	// 5x acceleration of select encoder when holding the shift button
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+		offset = offset * 5;
+	}
+
 	// change midi CC or param ID
 	Clip* clip = getCurrentClip();
 	Output* output = clip->output;
@@ -2950,9 +3291,13 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return;
 	}
-	// if you're in a synth, kit, or audio clip
-	else if (onArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
-	         || outputType == OutputType::AUDIO) {
+	// if you're in a midi clip
+	else if (outputType == OutputType::MIDI_OUT) {
+		selectMIDICC(offset, clip);
+		getLastSelectedParamShortcut(clip);
+	}
+	// if you're in arranger view or in a non-midi, non-cv clip (e.g. audio, synth, kit)
+	else if (onArrangerView || outputType != OutputType::CV) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
 		if (onArrangerView || (outputType == OutputType::AUDIO)
 		    || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire())) {
@@ -2962,12 +3307,14 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		else if (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && ((Kit*)output)->selectedDrum)) {
 			selectNonGlobalParam(offset, clip);
 		}
-		getLastSelectedParamShortcut(clip, outputType);
-	}
-	// if you're in a midi clip
-	else if (outputType == OutputType::MIDI_OUT) {
-		selectMIDICC(offset, clip);
-		getLastSelectedParamShortcut(clip, outputType);
+		// don't have patch cable blinking logic figured out yet
+		if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			clip->lastSelectedParamShortcutX = kNoSelection;
+			clip->lastSelectedParamShortcutY = kNoSelection;
+		}
+		else {
+			getLastSelectedParamShortcut(clip);
+		}
 	}
 	// if you're in a CV clip or function is called for some other reason, do nothing
 	else {
@@ -2999,7 +3346,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else {
 		displayAutomation(true, !display->have7SEG());
 	}
-	resetShortcutBlinking();
+	resetParameterShortcutBlinking();
 	view.setModLedStates();
 	uiNeedsRendering(this);
 }
@@ -3012,7 +3359,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
-			        || id == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3041,26 +3388,136 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
 void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
-	auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-	                                             kNumNonGlobalParamsForAutomation);
-	{
-		auto [kind, id] = nonGlobalParamsForAutomation[idx];
-		if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
-		    && (id == params::UNPATCHED_PORTAMENTO)) {
-			if (offset < 0) {
-				offset -= 1;
+	bool foundPatchCable = false;
+	// if we previously selected a patch cable, we'll see if there are any more to scroll through
+	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+		foundPatchCable = selectPatchCable(offset, clip);
+		// did we find another patch cable?
+		if (!foundPatchCable) {
+			// if we haven't found a patch cable, it means we reached beginning or end of patch cable list
+			// if we're scrolling right, we'll resume with selecting a regular param from beg of list
+			// if we're scrolling left, we'll resume with selecting a regular param from end of list
+			// to do so we re-set the last selected param array position
+
+			// scrolling right
+			if (offset > 0) {
+				clip->lastSelectedParamArrayPosition = kNumNonGlobalParamsForAutomation - 1;
 			}
-			else if (offset > 0) {
-				offset += 1;
+			// scrolling left
+			else if (offset < 0) {
+				clip->lastSelectedParamArrayPosition = 0;
 			}
-			idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-			                                        kNumNonGlobalParamsForAutomation);
 		}
 	}
-	auto [kind, id] = nonGlobalParamsForAutomation[idx];
-	clip->lastSelectedParamID = id;
-	clip->lastSelectedParamKind = kind;
-	clip->lastSelectedParamArrayPosition = idx;
+	// if we didn't find anymore patch cables, then we'll select a regular param from the list
+	if (!foundPatchCable) {
+		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+		                                             kNumNonGlobalParamsForAutomation);
+		{
+			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
+			    && (id == params::UNPATCHED_PORTAMENTO)) {
+				if (offset < 0) {
+					offset -= 1;
+				}
+				else if (offset > 0) {
+					offset += 1;
+				}
+				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+				                                        kNumNonGlobalParamsForAutomation);
+			}
+		}
+
+		// did we reach beginning or end of list?
+		// if yes, then let's scroll through patch cables
+		// but only if we haven't already scrolled through patch cables already above
+		if ((clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
+		    && (((offset > 0) && (idx < clip->lastSelectedParamArrayPosition))
+		        || ((offset < 0) && (idx > clip->lastSelectedParamArrayPosition)))) {
+			foundPatchCable = selectPatchCable(offset, clip);
+		}
+
+		// if we didn't find a patch cable, then we'll resume with scrolling the non-patch cable list
+		if (!foundPatchCable) {
+			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			clip->lastSelectedParamID = id;
+			clip->lastSelectedParamKind = kind;
+			clip->lastSelectedParamArrayPosition = idx;
+		}
+	}
+}
+
+// iterate through the patch cable list to select the previous or next patch cable
+// actual selecting of the patch cable is done in the selectPatchCableAtIndex function
+bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
+	ParamManagerForTimeline* paramManager = clip->getCurrentParamManager();
+	if (paramManager) {
+		PatchCableSet* set = paramManager->getPatchCableSetAllowJibberish();
+		// make sure it's not jiberish
+		if (set) {
+			// do we have any patch cables?
+			if (set->numPatchCables > 0) {
+				bool foundCurrentPatchCable = false;
+				// scrolling right
+				if (offset > 0) {
+					// loop from beginning to end of patch cable list
+					for (int i = 0; i < set->numPatchCables; i++) {
+						// loop through patch cables until we've found a new one and select it
+						// adjacent to current found patch cable (if we previously selected one)
+						if (selectPatchCableAtIndex(clip, set, i, foundCurrentPatchCable)) {
+							return true;
+						}
+					}
+				}
+				// scrolling left
+				else if (offset < 0) {
+					// loop from end to beginning of patch cable list
+					for (int i = set->numPatchCables - 1; i >= 0; i--) {
+						// loop through patch cables until we've found a new one and select it
+						// adjacent to current found patch cable (if we previously selected one)
+						if (selectPatchCableAtIndex(clip, set, i, foundCurrentPatchCable)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+// this function does the actual selecting of a patch cable
+// see if the patch cable selected is different from current one selected (or not selected)
+// if we havent already selected a patch cable, we'll select this one
+// if we selected one previously, we'll see if this one is adjacent to the previous one selected
+// if it's adjacent to the previous one selected, we'll select this one
+bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
+                                             bool& foundCurrentPatchCable) {
+	PatchCable* cable = &set->patchCables[patchCableIndex];
+	ParamDescriptor desc = cable->destinationParamDescriptor;
+	// need to add patch cable source to the descriptor so that we can get the paramId from it
+	desc.addSource(cable->from);
+
+	// if we've previously selected a patch cable, we want to start scrolling from that patch cable
+	// note: the reason why we can't save the patchCableIndex to make finding the previous patch
+	// cable selected easier is because the patch cable array gets re-indexed as patch cables get
+	// added or removed or values change. Thus you need to search for the previous patch cable to get
+	// the updated index and then you can find the adjacent patch cable in the list.
+	if (desc.data == clip->lastSelectedParamID) {
+		foundCurrentPatchCable = true;
+	}
+	// if we found the patch cable we previously selected and we found another one
+	// or we hadn't selected a patch cable previously and found a patch cable
+	// select the one we found
+	else if ((foundCurrentPatchCable || (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE))
+	         && (desc.data != clip->lastSelectedParamID)) {
+		clip->lastSelectedPatchSource = cable->from;
+		clip->lastSelectedParamID = desc.data;
+		clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+		return true;
+	}
+	return false;
 }
 
 // used with SelectEncoderAction to get the next midi CC
@@ -3093,7 +3550,7 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 	}
 	// if you are scrolling left and are at the beginning of the list, go to the end of the list
 	else if ((lastSelectedParamArrayPosition + offset) < 0) {
-		idx = numParams - 1;
+		idx = numParams + offset;
 	}
 	// if you are scrolling right and are at the end of the list, go to the beginning of the list
 	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
@@ -3107,7 +3564,7 @@ int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_
 }
 
 // used with Select Encoder action to get the X, Y grid shortcut coordinates of the parameter selected
-void AutomationView::getLastSelectedParamShortcut(Clip* clip, OutputType outputType) {
+void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	bool paramShortcutFound = false;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -3115,9 +3572,11 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip, OutputType outputT
 				if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
 					currentSong->lastSelectedParamShortcutX = x;
 					currentSong->lastSelectedParamShortcutY = y;
+					paramShortcutFound = true;
+					break;
 				}
 			}
-			else if (outputType == OutputType::MIDI_OUT) {
+			else if (clip->output->type == OutputType::MIDI_OUT) {
 				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
@@ -3144,8 +3603,64 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip, OutputType outputT
 		}
 	}
 	if (!paramShortcutFound) {
-		clip->lastSelectedParamShortcutX = kNoSelection;
-		clip->lastSelectedParamShortcutY = kNoSelection;
+		if (onArrangerView) {
+			currentSong->lastSelectedParamShortcutX = kNoSelection;
+			currentSong->lastSelectedParamShortcutY = kNoSelection;
+		}
+		else {
+			clip->lastSelectedParamShortcutX = kNoSelection;
+			clip->lastSelectedParamShortcutY = kNoSelection;
+		}
+	}
+}
+
+void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
+	Output* output = clip->output;
+	OutputType outputType = output->type;
+
+	// if you're in arranger view or in a non-midi, non-cv clip (e.g. audio, synth, kit)
+	if (onArrangerView || outputType != OutputType::CV) {
+		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
+		if (onArrangerView || (outputType == OutputType::AUDIO)
+		    || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire())) {
+			getLastSelectedGlobalParamArrayPosition(clip);
+		}
+		// if you're a synth or a kit (with affect entire off and a drum selected)
+		else if (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && ((Kit*)output)->selectedDrum)) {
+			getLastSelectedNonGlobalParamArrayPosition(clip);
+		}
+	}
+}
+
+void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
+	for (auto idx = 0; idx < kNumNonGlobalParamsForAutomation; idx++) {
+
+		auto [kind, id] = nonGlobalParamsForAutomation[idx];
+
+		if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
+			clip->lastSelectedParamArrayPosition = idx;
+			break;
+		}
+	}
+}
+
+void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
+	for (auto idx = 0; idx < kNumGlobalParamsForAutomation; idx++) {
+
+		auto [kind, id] = globalParamsForAutomation[idx];
+
+		if (onArrangerView) {
+			if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
+				currentSong->lastSelectedParamArrayPosition = idx;
+				break;
+			}
+		}
+		else {
+			if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
+				clip->lastSelectedParamArrayPosition = idx;
+				break;
+			}
+		}
 	}
 }
 
@@ -3184,6 +3699,7 @@ void AutomationView::initParameterSelection() {
 		clip->lastSelectedParamKind = params::Kind::NONE;
 		clip->lastSelectedParamShortcutX = kNoSelection;
 		clip->lastSelectedParamShortcutY = kNoSelection;
+		clip->lastSelectedPatchSource = PatchSource::NONE;
 		clip->lastSelectedParamArrayPosition = 0;
 	}
 
@@ -3300,25 +3816,6 @@ uint32_t AutomationView::getMiddlePosFromSquare(int32_t xDisplay, int32_t effect
 	return squareStart;
 }
 
-// calculates value of all nodes within a square for automation editor rendering
-int32_t AutomationView::getAverageSquareKnobPosition(ModelStackWithAutoParam* modelStack, int32_t xDisplay,
-                                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
-	int32_t squareStart = getPosFromSquare(xDisplay, xScroll, xZoom);
-	int32_t squareWidth = getSquareWidth(xDisplay, effectiveLength, xScroll, xZoom);
-	int32_t numNodesWithinSquare = squareWidth / kParamNodeWidth;
-
-	int32_t totalKnobPos = 0;
-
-	for (int32_t i = 0; i < numNodesWithinSquare; i++) {
-		int32_t value = modelStack->autoParam->getValuePossiblyAtPos(squareStart + (i * kParamNodeWidth), modelStack);
-		totalKnobPos = totalKnobPos + modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
-	}
-
-	int32_t averageKnobPos = (totalKnobPos / numNodesWithinSquare) + kKnobPosOffset;
-
-	return averageKnobPos;
-}
-
 // this function obtains a parameters value and converts it to a knobPos
 // the knobPos is used for rendering the current parameter values in the automation editor
 // it's also used for obtaining the start and end position values for a multi pad press
@@ -3332,10 +3829,10 @@ int32_t AutomationView::getParameterKnobPos(ModelStackWithAutoParam* modelStack,
 	return knobPos;
 }
 
-// this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation status
-// of the left node or right node (depending on the reversed parameter which is used to indicate what node in what
-// direction we are looking for (e.g. we want status of left node, or right node, relative to the current pos we are
-// looking at
+// this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation
+// status of the left node or right node (depending on the reversed parameter which is used to indicate what node in
+// what direction we are looking for (e.g. we want status of left node, or right node, relative to the current pos
+// we are looking at
 bool AutomationView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed) {
 
 	if (!modelStack->autoParam->nodes.getNumElements()) {
@@ -3402,7 +3899,8 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 		                                                 kParamNodeWidth);
 	}
 
-	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't also change)
+	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't also
+	// change)
 	initInterpolation();
 
 	// called twice because there was a weird bug where for some reason the first call wasn't taking effect
@@ -3416,8 +3914,9 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 
 	// in a multi pad press, no need to display all the values calculated
 	if (!multiPadPressSelected) {
-		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
-		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
+		int32_t newKnobPos = knobPos + kKnobPosOffset;
+		renderDisplay(newKnobPos, kNoSelection, modEncoderAction);
+		setKnobIndicatorLevels(modelStack, newKnobPos, newKnobPos);
 	}
 
 	// midi follow and midi feedback enabled
@@ -3428,10 +3927,24 @@ void AutomationView::setParameterAutomationValue(ModelStackWithAutoParam* modelS
 // sets both knob indicators to the same value when pressing single pad,
 // deleting automation, or displaying current parameter value
 // multi pad presses don't use this function
-void AutomationView::setKnobIndicatorLevels(int32_t knobPos) {
+void AutomationView::setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft,
+                                            int32_t knobPosRight) {
+	params::Kind kind = modelStack->paramCollection->getParamKind();
+	bool isBipolar = isParamBipolar(kind, modelStack->paramId);
 
-	indicator_leds::setKnobIndicatorLevel(0, knobPos);
-	indicator_leds::setKnobIndicatorLevel(1, knobPos);
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (kind == params::Kind::PATCH_CABLE) {
+		knobPosLeft = view.convertPatchCableKnobPosToIndicatorLevel(knobPosLeft);
+		knobPosRight = view.convertPatchCableKnobPosToIndicatorLevel(knobPosRight);
+	}
+
+	bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
+
+	if (!isBlinking) {
+		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft, isBipolar);
+		indicator_leds::setKnobIndicatorLevel(1, knobPosRight, isBipolar);
+	}
 }
 
 // updates the position that the active mod controllable stack is pointing to
@@ -3454,7 +3967,7 @@ void AutomationView::updateModPosition(ModelStackWithAutoParam* modelStack, uint
 				}
 
 				if (updateIndicatorLevels) {
-					setKnobIndicatorLevels(knobPos);
+					setKnobIndicatorLevels(modelStack, knobPos, knobPos);
 				}
 			}
 		}
@@ -3513,15 +4026,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 		}
 
-		for (auto idx = 0; idx < kNumNonGlobalParamsForAutomation; idx++) {
-
-			auto [kind, id] = nonGlobalParamsForAutomation[idx];
-
-			if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
-				clip->lastSelectedParamArrayPosition = idx;
-				break;
-			}
-		}
+		getLastSelectedNonGlobalParamArrayPosition(clip);
 	}
 
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
@@ -3547,23 +4052,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 			clip->lastSelectedParamID = paramID;
 		}
 
-		for (auto idx = 0; idx < kNumGlobalParamsForAutomation; idx++) {
-
-			auto [kind, id] = globalParamsForAutomation[idx];
-
-			if (onArrangerView) {
-				if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
-					currentSong->lastSelectedParamArrayPosition = idx;
-					break;
-				}
-			}
-			else {
-				if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
-					clip->lastSelectedParamArrayPosition = idx;
-					break;
-				}
-			}
-		}
+		getLastSelectedGlobalParamArrayPosition(clip);
 	}
 
 	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
@@ -3587,7 +4076,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	}
 
 	displayAutomation(true);
-	resetShortcutBlinking();
+	resetParameterShortcutBlinking();
 	view.setModLedStates();
 
 	return false;
@@ -3632,48 +4121,73 @@ void AutomationView::handleParameterAutomationChange(ModelStackWithAutoParam* mo
 			// use default interpolation settings
 			initInterpolation();
 
-			int32_t newKnobPos = calculateKnobPosForSinglePadPress(outputType, yDisplay);
+			int32_t newKnobPos = calculateKnobPosForPadPress(modelStackWithParam, outputType, yDisplay);
 			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
 			                            xScroll, xZoom);
 		}
 	}
 }
 
-// calculates what the new parameter value is when you press a single pad
-int32_t AutomationView::calculateKnobPosForSinglePadPress(OutputType outputType, int32_t yDisplay) {
+int32_t AutomationView::calculateKnobPosForPadPress(ModelStackWithAutoParam* modelStackWithParam, OutputType outputType,
+                                                    int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
-	// if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
-	if (yDisplay < 7) {
-		if (middlePadPressSelected) {
-			newKnobPos = ((yDisplay + 1) * kParamValueIncrementForAutomationDisplay);
-		}
-		else {
-			newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
-		}
-	}
-	// if you are pressing the top pad, set the value to max (128)
-	else {
-		// for Midi Clips, maxKnobPos = 127
-		if (outputType == OutputType::MIDI_OUT) {
-			newKnobPos = kMaxKnobPos - 1; // 128 - 1 = 127
-		}
-		else {
-			newKnobPos = kMaxKnobPos;
-		}
-	}
 	if (middlePadPressSelected) {
-		if (leftPadSelectedY == 0) {
-			newKnobPos = newKnobPos / 2;
-		}
-		else {
-			newKnobPos = (newKnobPos + ((leftPadSelectedY * kParamValueIncrementForAutomationDisplay) + 1)) / 2;
-		}
+		newKnobPos = calculateKnobPosForMiddlePadPress(kind, yDisplay);
+	}
+	else {
+		newKnobPos = calculateKnobPosForSinglePadPress(kind, yDisplay);
+	}
+
+	// for Midi Clips, maxKnobPos = 127
+	if (outputType == OutputType::MIDI_OUT && newKnobPos == kMaxKnobPos) {
+		newKnobPos -= 1; // 128 - 1 = 127
 	}
 
 	// in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
 	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a second pad in the same column
+// middle value is calculated by taking average of min and max value of the range for the two pad presses
+int32_t AutomationView::calculateKnobPosForMiddlePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	int32_t yMin = yDisplay < leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t yMax = yDisplay > leftPadSelectedY ? yDisplay : leftPadSelectedY;
+	int32_t minKnobPos = 0;
+	int32_t maxKnobPos = 0;
+
+	if (kind == params::Kind::PATCH_CABLE) {
+		minKnobPos = patchCableMinPadDisplayValues[yMin];
+		maxKnobPos = patchCableMaxPadDisplayValues[yMax];
+	}
+	else {
+		minKnobPos = nonPatchCableMinPadDisplayValues[yMin];
+		maxKnobPos = nonPatchCableMaxPadDisplayValues[yMax];
+	}
+
+	newKnobPos = (minKnobPos + maxKnobPos) >> 1;
+
+	return newKnobPos;
+}
+
+// calculates what the new parameter value is when you press a single pad
+int32_t AutomationView::calculateKnobPosForSinglePadPress(params::Kind kind, int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	// patch cable
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = patchCablePadPressValues[yDisplay];
+	}
+	// non patch cable
+	else {
+		newKnobPos = nonPatchCablePadPressValues[yDisplay];
+	}
 
 	return newKnobPos;
 }
@@ -3684,19 +4198,21 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
                                          int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
                                          bool modEncoderAction) {
 
-	int32_t firstPadLeftEdge = getPosFromSquare(firstPadX, xScroll, xZoom);
-	int32_t secondPadRightEdge = getPosFromSquare(secondPadX + 1, xScroll, xZoom);
+	int32_t secondPadLeftEdge = getPosFromSquare(secondPadX, xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadRightEdge > effectiveLength) {
+	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		int32_t firstPadLeftEdge = getPosFromSquare(firstPadX, xScroll, xZoom);
+		int32_t secondPadRightEdge = getPosFromSquare(secondPadX + 1, xScroll, xZoom);
+
 		int32_t firstPadValue = 0;
 		int32_t secondPadValue = 0;
 
-		// if we're updating the long press values via mod encoder action, then get current values of pads pressed and
-		// re-interpolate
+		// if we're updating the long press values via mod encoder action, then get current values of pads pressed
+		// and re-interpolate
 		if (modEncoderAction) {
 			firstPadValue = getParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
@@ -3708,15 +4224,9 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		// otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 		else {
 			OutputType outputType = clip->output->type;
-			firstPadValue = calculateKnobPosForSinglePadPress(outputType, firstPadY) + kKnobPosOffset;
-			secondPadValue = calculateKnobPosForSinglePadPress(outputType, secondPadY) + kKnobPosOffset;
+			firstPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, firstPadY) + kKnobPosOffset;
+			secondPadValue = calculateKnobPosForPadPress(modelStackWithParam, outputType, secondPadY) + kKnobPosOffset;
 		}
-
-		// converting variables to float for more accurate interpolation calculation
-		float firstPadValueFloat = static_cast<float>(firstPadValue);
-		float firstPadXFloat = static_cast<float>(firstPadLeftEdge);
-		float secondPadValueFloat = static_cast<float>(secondPadValue);
-		float secondPadXFloat = static_cast<float>(secondPadRightEdge - kParamNodeWidth);
 
 		// clear existing nodes from long press range
 
@@ -3731,6 +4241,12 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 		int32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
 		setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
 		                            effectiveLength, xScroll, xZoom);
+
+		// converting variables to float for more accurate interpolation calculation
+		float firstPadValueFloat = static_cast<float>(firstPadValue);
+		float firstPadXFloat = static_cast<float>(firstPadLeftEdge);
+		float secondPadValueFloat = static_cast<float>(secondPadValue);
+		float secondPadXFloat = static_cast<float>(squareStart);
 
 		// loop from first pad to last pad, setting values for nodes in between
 		// these values will serve as "key frames" for the interpolation to flow through
@@ -3804,14 +4320,17 @@ void AutomationView::handleMultiPadPress(ModelStackWithAutoParam* modelStackWith
 void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
                                                    int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
                                                    int32_t xDisplay, bool modEncoderAction) {
-	int32_t firstPadLeftEdge = getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
-	int32_t secondPadRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
 
-	if (effectiveLength <= 0 || secondPadRightEdge > effectiveLength) {
+	int32_t secondPadLeftEdge = getPosFromSquare(rightPadSelectedX, xScroll, xZoom);
+
+	if (effectiveLength <= 0 || secondPadLeftEdge > effectiveLength) {
 		return;
 	}
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		int32_t firstPadLeftEdge = getPosFromSquare(leftPadSelectedX, xScroll, xZoom);
+		int32_t secondPadRightEdge = getPosFromSquare(rightPadSelectedX + 1, xScroll, xZoom);
+
 		int32_t knobPosLeft = getParameterKnobPos(modelStackWithParam, firstPadLeftEdge) + kKnobPosOffset;
 
 		uint32_t squareStart = std::min(effectiveLength, secondPadRightEdge) - kParamNodeWidth;
@@ -3840,9 +4359,7 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 			}
 		}
 
-		// update LED indicators
-		indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
-		indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+		setKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 
 		// update position of mod controllable stack
 		updateModPosition(modelStackWithParam, squareStart, false, false);
@@ -3850,7 +4367,8 @@ void AutomationView::renderDisplayForMultiPadPress(ModelStackWithAutoParam* mode
 }
 
 // used to calculate new knobPos when you turn the mod encoders (gold knobs)
-int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset) {
+int32_t AutomationView::calculateKnobPosForModEncoderTurn(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
+                                                          int32_t offset) {
 
 	// adjust the current knob so that it is within the range of 0-128 for calculation purposes
 	knobPos = knobPos + kKnobPosOffset;
@@ -3858,7 +4376,21 @@ int32_t AutomationView::calculateKnobPosForModEncoderTurn(int32_t knobPos, int32
 	int32_t newKnobPos = 0;
 
 	if ((knobPos + offset) < 0) {
-		newKnobPos = knobPos;
+		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+		if (kind == params::Kind::PATCH_CABLE) {
+			if ((knobPos + offset) >= -kMaxKnobPos) {
+				newKnobPos = knobPos + offset;
+			}
+			else if ((knobPos + offset) < -kMaxKnobPos) {
+				newKnobPos = -kMaxKnobPos;
+			}
+			else {
+				newKnobPos = knobPos;
+			}
+		}
+		else {
+			newKnobPos = knobPos;
+		}
 	}
 	else if ((knobPos + offset) <= kMaxKnobPos) {
 		newKnobPos = knobPos + offset;
@@ -3897,10 +4429,30 @@ void AutomationView::displayCVErrorMessage() {
 	}
 }
 
-// created this function to undo any existing blinking so that it doesn't get rendered in my view
-// also created it so that i can reset blinking when a parameter is deselected or when you enter/exit automation view
 void AutomationView::resetShortcutBlinking() {
 	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
-	shortcutBlinking = false;
+	resetParameterShortcutBlinking();
+	resetInterpolationShortcutBlinking();
+}
+
+// created this function to undo any existing parameter shortcut blinking so that it doesn't get rendered in
+// automation view also created it so that you can reset blinking when a parameter is deselected or when you
+// enter/exit automation view
+void AutomationView::resetParameterShortcutBlinking() {
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
+	parameterShortcutBlinking = false;
+}
+
+// created this function to undo any existing interpolation shortcut blinking so that it doesn't get rendered in
+// automation view also created it so that you can reset blinking when interpolation is turned off or when you
+// enter/exit automation view
+void AutomationView::resetInterpolationShortcutBlinking() {
+	uiTimerManager.unsetTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK);
+	interpolationShortcutBlinking = false;
+}
+
+void AutomationView::blinkInterpolationShortcut() {
+	PadLEDs::flashMainPad(interpolationShortcutX, interpolationShortcutY);
+	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
+	interpolationShortcutBlinking = true;
 }

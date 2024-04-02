@@ -142,17 +142,36 @@ bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
-bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	if (getRootUI() == &keyboardScreen) {
-		return false;
+bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	bool doGreyout = true;
+
+	RootUI* rootUI = getRootUI();
+	UIType uiType = UIType::NONE;
+	if (rootUI) {
+		uiType = rootUI->getUIType();
 	}
-	else if (getRootUI() == &automationView || getRootUI() == &instrumentClipView) {
+
+	switch (uiType) {
+	case UIType::KEYBOARD_SCREEN:
+		// don't greyout keyboard screen
+		doGreyout = false;
+		break;
+	case UIType::AUTOMATION_VIEW:
+		// only greyout if you're on automation overview
+		doGreyout = automationView.isOnAutomationOverview();
+		if (doGreyout) {
+			*cols = 0xFFFFFFFC; // don't greyout sidebar
+		}
+		break;
+	case UIType::INSTRUMENT_CLIP_VIEW:
 		*cols = 0xFFFFFFFE;
-	}
-	else {
+		break;
+	default:
 		*cols = 0xFFFFFFFF;
+		break;
 	}
-	return true;
+
+	return doGreyout;
 }
 
 bool SoundEditor::opened() {
@@ -218,6 +237,11 @@ void SoundEditor::setLedStates() {
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	playbackHandler.setLedStates();
+
+	if (!inSettingsMenu()) {
+		view.setKnobIndicatorLevels();
+		view.setModLedStates();
+	}
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -231,31 +255,39 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
-				MenuItem* newItem = getCurrentMenuItem()->selectButtonPress();
+
+				MenuItem* currentMenuItem = getCurrentMenuItem();
+				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
+						if (newItem == &audioSourceSelectorMenu) {
+							newItem->selectButtonPress();
+							return ActionResult::DEALT_WITH;
+						}
+						else {
+							MenuPermission result = newItem->checkPermissionToBeginSession(
+							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
-						MenuPermission result = newItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
-						                                                               &currentMultiRange);
+							if (result != MenuPermission::NO) {
+								if (result == MenuPermission::MUST_SELECT_RANGE) {
+									currentMultiRange = nullptr;
+									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
+									newItem = &menu_item::multiRangeMenu;
+								}
 
-						if (result != MenuPermission::NO) {
-
-							if (result == MenuPermission::MUST_SELECT_RANGE) {
-								currentMultiRange = nullptr;
-								menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
-								newItem = &menu_item::multiRangeMenu;
+								navigationDepth++;
+								menuItemNavigationRecord[navigationDepth] = newItem;
+								display->setNextTransitionDirection(1);
+								beginScreen();
 							}
-
-							navigationDepth++;
-							menuItemNavigationRecord[navigationDepth] = newItem;
-							display->setNextTransitionDirection(1);
-							beginScreen();
 						}
 					}
 				}
 				else {
 					goUpOneLevel();
 				}
+
+				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
 			}
 		}
 	}
@@ -269,19 +301,23 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
+				MenuItem* currentMenuItem = getCurrentMenuItem();
+
 				// Special case if we're editing a range
-				if (getCurrentMenuItem() == &menu_item::multiRangeMenu
-				    && menu_item::multiRangeMenu.cancelEditingIfItsOn()) {}
+				if (currentMenuItem == &menu_item::multiRangeMenu && menu_item::multiRangeMenu.cancelEditingIfItsOn()) {
+				}
 				else {
 					goUpOneLevel();
 				}
+
+				handlePotentialParamMenuChange(b, on, inCardRoutine, currentMenuItem, getCurrentMenuItem());
 			}
 		}
 	}
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu() && !editingCVOrMIDIClip()
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu()
 		    && getCurrentClip()->type != ClipType::AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -333,7 +369,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationView)) {
+	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -378,15 +414,21 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-			else if (getRootUI() == &automationView) {
+			else if (getRootUI() == &automationView && !automationView.onArrangerView) {
 				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+					if (automationView.onMenuView) {
+						getCurrentClip()->onAutomationClipView = false;
+						automationView.onMenuView = false;
+						indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+					}
+					automationView.resetInterpolationShortcutBlinking();
 					swapOutRootUILowLevel(&keyboardScreen);
 					keyboardScreen.openedInBackground();
 				}
 			}
 
 			if (getRootUI() != &performanceSessionView) {
-				PadLEDs::reassessGreyout(true);
+				PadLEDs::reassessGreyout();
 
 				indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 			}
@@ -394,10 +436,46 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else {
-		return ActionResult::NOT_DEALT_WITH;
+		// potentially swap root UI to automation view / previous UI
+		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+/// check if menu we're in has changed
+/// (may not have changed if we were holding shift to delete automation)
+/// potentially enter and refresh automation view if entering a new param menu
+/// potentially exit automation view / switch to automation overview if exiting param menu
+void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine,
+                                                 MenuItem* previousItem, MenuItem* currentItem) {
+	using namespace deluge::hid::button;
+	if (previousItem != currentItem) {
+		// if we're entering a non-param menu from a param menu
+		// potentially swap out automation view as background root UI
+		// or go back to automation overview in background root UI
+		if ((previousItem->getParamKind() != deluge::modulation::params::Kind::NONE)
+		    && (currentItem->getParamKind() == deluge::modulation::params::Kind::NONE)) {
+			if (getRootUI() == &automationView) {
+				// if on menu view, swap out root UI to previous UI
+				if (automationView.onMenuView) {
+					previousItem->buttonAction(b, on, inCardRoutine);
+				}
+				// if not on menu view, go back to overview
+				else {
+					automationView.initParameterSelection();
+					uiNeedsRendering(&automationView);
+					PadLEDs::reassessGreyout();
+				}
+			}
+		}
+		// if we're entering a param menu from a non-param menu
+		else if ((previousItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+		         && (currentItem->getParamKind() != deluge::modulation::params::Kind::NONE)) {
+			// enter automation view and update parameter selection
+			currentItem->buttonAction(b, on, inCardRoutine);
+		}
+	}
 }
 
 void SoundEditor::goUpOneLevel() {
@@ -407,7 +485,8 @@ void SoundEditor::goUpOneLevel() {
 			return;
 		}
 		navigationDepth--;
-	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange)
+	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
+	                                                             &currentMultiRange)
 	         == MenuPermission::NO);
 	display->setNextTransitionDirection(-1);
 
@@ -426,8 +505,8 @@ void SoundEditor::exitCompletely() {
 		display->displayLoadingAnimationText("Saving settings");
 
 		FlashStorage::writeSettings();
-		MIDIDeviceManager::writeDevicesToFile();
-		runtimeFeatureSettings.writeSettingsToFile();
+		MIDIDeviceManager::writeDevicesToFile(storageManager);
+		runtimeFeatureSettings.writeSettingsToFile(storageManager);
 		display->removeWorkingAnimation();
 	}
 	display->setNextTransitionDirection(-1);
@@ -451,16 +530,12 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 	bool found = false;
 	for (int32_t x = 0; x < 15; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
-			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex() == paramLookingFor) {
+			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
 
 				*xout = x;
 				*yout = y;
 
-				if ((x & 1) == currentSourceIndex) {
-					// check we're on the corretc index
-					return true;
-				}
+				return true;
 			}
 		}
 	}
@@ -505,10 +580,8 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 		// Find param shortcut
 		currentParamShorcutX = 255;
-		bool isUISessionView =
-		    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
-		if (isUISessionView) {
+		if (!rootUIIsClipMinderScreen()) {
 			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
@@ -623,7 +696,7 @@ stopThat: {}
 
 		// If we found nothing...
 		if (currentParamShorcutX == 255) {
-			uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
 
 		// Or if we found something...
@@ -677,7 +750,7 @@ void SoundEditor::blinkShortcut() {
 		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
 			PadLEDs::flashMainPad(currentParamShorcutX, currentParamShorcutY);
 		}
-		uiTimerManager.setTimer(TIMER_SHORTCUT_BLINK, 180);
+		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
 	}
 
 	else {
@@ -690,7 +763,7 @@ void SoundEditor::blinkShortcut() {
 				}
 			}
 		}
-		uiTimerManager.setTimer(TIMER_SHORTCUT_BLINK, 20);
+		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 20);
 	}
 
 	shortcutBlinkCounter++;
@@ -710,6 +783,13 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
+void SoundEditor::scrollFinished() {
+	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
+	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
+	// properly render again afterwards
+	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
+}
+
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	// 5x acceleration of select encoder when holding the shift button
@@ -717,9 +797,16 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		offset = offset * 5;
 	}
 
+	RootUI* rootUI = getRootUI();
+
 	// if you're in the performance view, let it handle the select encoder action
-	if (getRootUI() == &performanceSessionView) {
+	if (rootUI == &performanceSessionView) {
 		performanceSessionView.selectEncoderAction(offset);
+	}
+	// if you're not on the automation overview and you haven't selected a multi pad press
+	// (multi pad press values are only editable with mod encoders to edit left and right position)
+	else if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
+		automationView.modEncoderAction(0, offset);
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
@@ -746,19 +833,17 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 				markInstrumentAsEdited(); // TODO: make reverb and reverb-sidechain stuff exempt from this
 			}
 
-			// If envelope param preset values were changed, there's a chance that there could have been a change to
-			// whether notes have tails
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+			if (rootUI != &automationView) {
+				// If envelope param preset values were changed, there's a chance that there could have been a
+				// change to whether notes have tails
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-			if (hadNoteTails != hasNoteTailsNow) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+				if (hadNoteTails != hasNoteTailsNow) {
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
-		}
-
-		if (currentModControllable) {
-			view.setKnobIndicatorLevels(); // Is this really necessary every time?
 		}
 	}
 }
@@ -781,27 +866,37 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
+	bool isUIPerformanceSessionView =
+	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+
 	bool ignoreAction = false;
-	// if in Performance Session View
-	if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
-		// ignore if you're not in editing mode or if you're in editing mode but editing a param
-		ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
+	if (!Buttons::isShiftButtonPressed()) {
+		// if in Performance Session View
+		if (isUIPerformanceSessionView) {
+			// ignore if you're not in editing mode or if you're in editing mode but editing a param
+			ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
+		}
+		else {
+			// ignore if you're not auditioning and in instrument clip view
+			ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
+		}
 	}
 	else {
-		// ignore if you're not auditioning and in instrument clip view
-		ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
+		// allow automation view to handle interpolation shortcut
+		if ((getRootUI() == &automationView) && (x == 0 && y == 6)) {
+			ignoreAction = true;
+		}
 	}
 
 	// ignore if:
 	// A) velocity is off (you let go of pad)
 	// B) you're pressing a pad in sidebar (not a shortcut)
-	// C) or you're not holding shift and ignore criteria above are met
-	if (!on || x >= kDisplayWidth || (!Buttons::isShiftButtonPressed() && ignoreAction)) {
+	// C) ignore criteria above are met
+	if (!on || x >= kDisplayWidth || ignoreAction) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	bool isUISessionView = isUIPerformanceSessionView || !rootUIIsClipMinderScreen();
 
 	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceSessionView)) {
 
@@ -811,8 +906,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		const MenuItem* item = nullptr;
 
-		// performance session view
-		if (isUIPerformanceSessionView) {
+		// session views (arranger, song, performance)
+		if (isUISessionView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
@@ -879,6 +974,21 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
+					// if we're in the menu and automation view is the root (background) UI
+					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
+					MenuItem* newItem;
+					newItem = (MenuItem*)item;
+					// need to make sure we're already in the menu
+					// because at this point menu may not have been setup yet
+					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
+					if (getCurrentUI() == &soundEditor) {
+						deluge::modulation::params::Kind kind = newItem->getParamKind();
+						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+						    && getRootUI() == &automationView) {
+							return ActionResult::DEALT_WITH;
+						}
+					}
+
 					if (display->haveOLED()) {
 						switch (x) {
 						case 0 ... 3:
@@ -918,6 +1028,12 @@ doSetup:
 					else {
 						display->setNextTransitionDirection(0);
 						beginScreen();
+
+						if (getRootUI() == &automationView) {
+							// if automation view is open in the background
+							// potentially refresh grid if opening a new parameter menu
+							getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+						}
 					}
 				}
 			}
@@ -974,7 +1090,7 @@ getOut:
 
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
-						    && newMenuItem->checkPermissionToBeginSession(currentSound, currentSourceIndex,
+						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 						                                                  &currentMultiRange)
 						           != MenuPermission::NO) {
 							navigationDepth = newNavigationDepth + 1;
@@ -983,6 +1099,12 @@ getOut:
 								display->setNextTransitionDirection(1);
 							}
 							beginScreen();
+
+							if (getRootUI() == &automationView) {
+								// if automation view is open in the background
+								// potentially refresh grid if opening a new patch cable menu
+								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+							}
 						}
 
 						// Otherwise, do nothing
@@ -1002,8 +1124,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	RootUI* rootUI = getRootUI();
+
 	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+	    (rootUI == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
 
 	// used to convert column press to a shortcut to change Perform FX menu displayed
 	if (isUIPerformanceSessionView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
@@ -1021,25 +1145,23 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	if (getRootUI() == &keyboardScreen) {
-		if (x < kDisplayWidth) {
-			keyboardScreen.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
-		}
+	if (rootUI == &keyboardScreen) {
+		keyboardScreen.padAction(x, y, on);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Audition pads
-	else if (getRootUI() == &instrumentClipView) {
+	else if (rootUI == &instrumentClipView) {
 		if (x == kDisplayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
 	}
 
-	else if (getRootUI() == &automationView) {
-		if (x == kDisplayWidth + 1) {
-			automationView.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
+	else if (rootUI == &automationView) {
+		ActionResult result = handleAutomationViewPadAction(x, y, on);
+		if (result == ActionResult::DEALT_WITH) {
+			return result;
 		}
 	}
 
@@ -1072,7 +1194,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 		// used in performanceSessionView to ignore pad presses when you just exited soundEditor
 		// with a padAction
-		if (getRootUI() == &performanceSessionView) {
+		if (rootUI == &performanceSessionView) {
 			performanceSessionView.justExitedSoundEditor = true;
 		}
 
@@ -1080,6 +1202,47 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity) {
+	// interact with automation view grid from menu
+	bool editingParamInAutomationView = isEditingAutomationViewParam();
+
+	// if we're not interacting with the same parameter currently selected in the menu
+	// then only allow interacting with sidebar pads
+	if ((x >= kDisplayWidth) || editingParamInAutomationView) {
+		automationView.padAction(x, y, velocity);
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+
+bool SoundEditor::isEditingAutomationViewParam() {
+	// get the current menu item open
+	MenuItem* currentMenuItem = getCurrentMenuItem();
+
+	// get the param kind and index for that menu item (if there is one)
+	// returns Kind::NONE / paramID = kNoSelection if we're not in a param menu
+	deluge::modulation::params::Kind kind = currentMenuItem->getParamKind();
+	int32_t paramID = currentMenuItem->getParamIndex();
+
+	bool editingParamInAutomationArrangerView = false;
+	bool editingParamInAutomationClipView = false;
+
+	if (kind != deluge::modulation::params::Kind::NONE && paramID != kNoSelection) {
+		// are in automation arranger view and editing the same param open in the menu?
+		editingParamInAutomationArrangerView = automationView.onArrangerView
+		                                       && (kind == currentSong->lastSelectedParamKind)
+		                                       && (paramID == currentSong->lastSelectedParamID);
+
+		Clip* clip = getCurrentClip();
+
+		// are in automation clip view and editing the same param open in the menu?
+		editingParamInAutomationClipView = !automationView.onArrangerView && (kind == clip->lastSelectedParamKind)
+		                                   && (paramID == clip->lastSelectedParamID);
+	}
+
+	return (editingParamInAutomationArrangerView || editingParamInAutomationClipView);
 }
 
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
@@ -1123,23 +1286,37 @@ bool SoundEditor::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uin
 }
 
 void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	// If learn button is pressed, learn this knob for current param
-	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+	if (getRootUI() == &automationView) {
+		automationView.modEncoderAction(whichModEncoder, offset);
+	}
+	else {
+		// If learn button is pressed, learn this knob for current param
+		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 
-		// But, can't do it if it's a Kit and affect-entire is on!
-		if (editingKit() && getCurrentInstrumentClip()->affectEntire) {
-			// IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
+			// But, can't do it if it's a Kit and affect-entire is on!
+			if (editingKit() && getCurrentInstrumentClip()->affectEntire) {
+				// IndicatorLEDs::indicateErrorOnLed(affectEntireLedX, affectEntireLedY);
+			}
+
+			// Otherwise, everything's fine
+			else {
+				getCurrentMenuItem()->learnKnob(nullptr, whichModEncoder, getCurrentOutput()->modKnobMode, 255);
+			}
 		}
 
-		// Otherwise, everything's fine
+		// Otherwise, send the action to the Editor as usual
 		else {
-			getCurrentMenuItem()->learnKnob(nullptr, whichModEncoder, getCurrentOutput()->modKnobMode, 255);
+			UI::modEncoderAction(whichModEncoder, offset);
 		}
 	}
+}
 
-	// Otherwise, send the action to the Editor as usual
+void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	if (getRootUI() == &automationView) {
+		automationView.modEncoderButtonAction(whichModEncoder, on);
+	}
 	else {
-		UI::modEncoderAction(whichModEncoder, offset);
+		UI::modEncoderButtonAction(whichModEncoder, on);
 	}
 }
 
@@ -1150,8 +1327,11 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ArpeggiatorSettings* newArpSettings = nullptr;
 	ModControllableAudio* newModControllable = nullptr;
 
-	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	UI* currentUI = getCurrentUI();
+
+	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
+
+	bool isUISessionView = isUIPerformanceView || !rootUIIsClipMinderScreen();
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (isUISessionView) {
@@ -1269,13 +1449,10 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if (getCurrentUI() == &automationView) {
-				newItem = &defaultAutomationMenu;
-			}
-			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if (((getCurrentUI() == &sessionView) || (getCurrentUI() == &arrangerView))
+			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
@@ -1287,8 +1464,7 @@ doMIDIOrCV:
 
 	::MultiRange* newRange = currentMultiRange;
 
-	if ((getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor)
-	    || sourceIndex != currentSourceIndex) {
+	if ((currentUI != &soundEditor && currentUI != &sampleMarkerEditor) || sourceIndex != currentSourceIndex) {
 		newRange = nullptr;
 	}
 
@@ -1297,7 +1473,7 @@ doMIDIOrCV:
 	// depth", it needs this.
 	currentParamManager = newParamManager;
 
-	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
+	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
@@ -1360,8 +1536,7 @@ bool SoundEditor::inSettingsMenu() {
 }
 
 bool SoundEditor::inSongMenu() {
-	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView)
-	        || (menuItemNavigationRecord[0] == &soundEditorRootMenuPerformanceView));
+	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView) || (getRootUI() == &performanceSessionView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
@@ -1383,7 +1558,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
 
@@ -1401,7 +1576,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 
 void SoundEditor::cutSound() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
-		getCurrentAudioClip()->unassignVoiceSample();
+		getCurrentAudioClip()->unassignVoiceSample(false);
 	}
 	else {
 		soundEditor.currentSound->unassignAllVoices();
@@ -1420,13 +1595,10 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	bool isUISessionView =
-	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
-
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
-	if (isUISessionView) {
+	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else if (instrument->type == OutputType::KIT && clip->affectEntire) {

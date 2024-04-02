@@ -21,6 +21,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "hid/button.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
@@ -58,6 +59,7 @@ class MIDIDevice;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
+class StorageManager;
 
 class ModControllableAudio : public ModControllable {
 public:
@@ -69,22 +71,23 @@ public:
 	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
 	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
-	void writeAttributesToFile();
-	void writeTagsToFile();
-	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                        Song* song);
+	void writeAttributesToFile(StorageManager& bdsm);
+	void writeTagsToFile(StorageManager& bdsm);
+	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	                      int32_t readAutomationUpToPos, Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
-	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
+	static void writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
-	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
+	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
@@ -167,13 +170,11 @@ private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
 	                                        int32_t ccNumber = MIDI_CC_NONE);
-	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind kind, int32_t id);
 	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               int32_t analogDelaySaturationAmount);
+	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager);
 	int32_t getStutterRate(ParamManager* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
@@ -189,21 +190,25 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
+	char const* getFilterTypeDisplayName(FilterType currentFilterType);
+	char const* getFilterModeDisplayName(FilterType currentFilterType);
 	char const* getLPFModeDisplayName();
 	char const* getHPFModeDisplayName();
 	char const* getDelayTypeDisplayName();
 	char const* getDelayPingPongStatusDisplayName();
 	char const* getDelaySyncTypeDisplayName();
 	void getDelaySyncLevelDisplayName(char* displayName);
-
 	char const* getSidechainDisplayName();
-	void displayLPFMode(bool on);
-	void displayHPFMode(bool on);
+
+	void displayFilterSettings(bool on, FilterType currentFilterType);
 	void displayDelaySettings(bool on);
+	void displaySidechainAndReverbSettings(bool on);
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
+	void switchHPFModeWithOff();
+	void switchLPFModeWithOff();
 };

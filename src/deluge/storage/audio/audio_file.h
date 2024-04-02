@@ -28,7 +28,7 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	~AudioFile() override = default;
 
-	int32_t loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	Error loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
@@ -37,7 +37,7 @@ public:
 	// Stealable implementation
 	bool mayBeStolen(void* thingNotToStealFrom = NULL);
 	void steal(char const* errorCode);
-	int32_t getAppropriateQueue();
+	StealableQueue getAppropriateQueue();
 
 	String filePath;
 
@@ -52,3 +52,5 @@ protected:
 	virtual void numReasonsIncreasedFromZero() {}
 	virtual void numReasonsDecreasedToZero(char const* errorCode) {}
 };
+
+constexpr size_t afhs = sizeof(AudioFile);

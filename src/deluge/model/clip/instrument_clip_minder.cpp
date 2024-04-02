@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -29,6 +30,7 @@
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -42,6 +44,7 @@
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cstring>
 
 extern "C" {
@@ -149,42 +152,51 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	}
 }
 #pragma GCC pop
-void InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
-	int32_t error;
+bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType) {
+	Error error;
 
 	OutputType oldOutputType = getCurrentOutputType();
 
-	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(getCurrentInstrumentClip());
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if ((oldOutputType != newOutputType) && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+		return false;
+	}
+
+	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
 	String newName;
 	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
 	error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (error) {
+	if (error != Error::NONE) {
 gotError:
 		display->displayError(error);
-		return;
+		return false;
 	}
 
 	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
-	if (error) {
+	if (error != Error::NONE) {
 		goto gotError;
 	}
 
 	if (newName.isEmpty()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
-		return;
+		return false;
 	}
 
 	ParamManagerForTimeline newParamManager;
 	Instrument* newInstrument = storageManager.createNewInstrument(newOutputType, &newParamManager);
 	if (!newInstrument) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto gotError;
 	}
 
 	// Set dirPath.
 	error = newInstrument->dirPath.set(getInstrumentFolder(newOutputType));
-	if (error) {
+	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
@@ -195,7 +207,7 @@ gotError:
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E059", "H059");
 
-	getCurrentInstrumentClip()->backupPresetSlot();
+	clip->backupPresetSlot();
 
 	if (newOutputType == OutputType::KIT) {
 		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
@@ -224,8 +236,8 @@ gotError:
 	else {
 		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
-		int32_t error = getCurrentInstrumentClip()->changeInstrument(
-		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
+		Error error = clip->changeInstrument(modelStack, newInstrument, &newParamManager,
+		                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);
 	}
@@ -236,12 +248,12 @@ gotError:
 	if (newOutputType == OutputType::KIT) {
 		// If we weren't a Kit already...
 		if (oldOutputType != OutputType::KIT) {
-			getCurrentInstrumentClip()->yScroll = 0;
+			clip->yScroll = 0;
 		}
 
 		// Or if we were...
 		else {
-			getCurrentInstrumentClip()->ensureScrollWithinKitBounds();
+			clip->ensureScrollWithinKitBounds();
 		}
 	}
 
@@ -259,6 +271,8 @@ gotError:
 	else {
 		redrawNumericDisplay();
 	}
+
+	return true;
 }
 
 void InstrumentClipMinder::displayOrLanguageChanged() {
@@ -297,6 +311,7 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
+	MIDITranspose::exitScaleModeForMIDITransposeClips();
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
@@ -314,17 +329,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
-		if (b == SYNTH) {
-			if (getCurrentOutputType() == OutputType::SYNTH) {
-yesSaveInstrument:
-				openUI(&saveInstrumentPresetUI);
-			}
-		}
-
-		else if (b == KIT) {
-			if (getCurrentOutputType() == OutputType::KIT) {
-				goto yesSaveInstrument;
-			}
+		if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
+		    || b == KIT && getCurrentOutputType() == OutputType::KIT
+		    || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+			openUI(&saveInstrumentPresetUI);
 		}
 	}
 
@@ -332,20 +340,27 @@ yesSaveInstrument:
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-
+		OutputType newOutputType;
 		if (b == SYNTH) {
-			Browser::outputTypeToLoad = OutputType::SYNTH;
-
-yesLoadInstrument:
-			loadInstrumentPresetUI.instrumentToReplace = getCurrentInstrument();
-			loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentInstrumentClip();
-			loadInstrumentPresetUI.loadingSynthToKitRow = false;
-			openUI(&loadInstrumentPresetUI);
+			newOutputType = OutputType::SYNTH;
 		}
-
 		else if (b == KIT) {
-			Browser::outputTypeToLoad = OutputType::KIT;
-			goto yesLoadInstrument;
+			newOutputType = OutputType::KIT;
+		}
+		else if (b == MIDI) {
+			newOutputType = OutputType::MIDI_OUT;
+		}
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType oldOutputType = output->type;
+		Instrument* instrument = (Instrument*)output;
+		// don't allow clip type change if clip is not empty
+		// only impose this restriction if switching to/from kit clip
+		if (!((oldOutputType != newOutputType)
+		      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+		      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
+			loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
+			openUI(&loadInstrumentPresetUI);
 		}
 	}
 
@@ -386,7 +401,7 @@ yesLoadInstrument:
 
 			getCurrentInstrumentClip()->clear(action, modelStack);
 
-			// New community feature as part of Automation Clip View Implementation
+			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
 			// a clip will only clear the Notes (automations remain intact). If this is enabled, if you want to clear
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
@@ -446,8 +461,7 @@ yesLoadInstrument:
 	return ActionResult::DEALT_WITH;
 }
 
-void InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
-
+bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -456,6 +470,8 @@ void InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	if (success) {
 		setLedStates(); // Might need to change the scale LED's state
 	}
+
+	return success;
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
@@ -493,6 +509,28 @@ void InstrumentClipMinder::cycleThroughScales() {
 	else {
 		displayScaleName(newScale);
 	}
+}
+
+// Returns if the scale could be changed or not
+bool InstrumentClipMinder::setScale(int32_t newScale) {
+	int32_t calculatedScale = currentSong->setPresetScale(newScale);
+	if (calculatedScale >= NUM_PRESET_SCALES) {
+		if (display->haveOLED() && newScale < NUM_PRESET_SCALES) {
+			DEF_STACK_STRING_BUF(popupMsg, 100);
+			popupMsg.append(presetScaleNames[newScale]);
+			popupMsg.append(":\n");
+			popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+			display->displayPopup(popupMsg.c_str());
+		}
+		else {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+		}
+		return false;
+	}
+	else {
+		displayScaleName(newScale);
+	}
+	return true;
 }
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {

@@ -33,6 +33,8 @@ public:
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbSidechainVolume >= 0); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return (AudioEngine::reverbSidechainVolume >= 0);
+	}
 };
 } // namespace deluge::gui::menu_item::reverb::sidechain

@@ -82,7 +82,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 	}
 }
 
-int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
+Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing) {
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 
 	firstOldDrumName = NULL;
@@ -97,9 +97,9 @@ int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlatte
 
 	int32_t reverseWithLength = flatteningReversingNow ? effectiveLength : 0;
 
-	int32_t error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
+	Error error = paramManager.beenCloned(reverseWithLength); // TODO: flatten reversing here too
 
-	if (error) {
+	if (error != Error::NONE) {
 		notes.init(); // Abandon non-yet-cloned stuff
 		return error;
 	}
@@ -111,7 +111,7 @@ int32_t NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlatte
 		notes.init();
 
 		error = notes.insertAtIndex(0, numNotes);
-		if (!error) {
+		if (error == Error::NONE) {
 
 			InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -343,8 +343,8 @@ addNewNote:
 	}
 }
 
-int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, uint8_t velocity,
-                                       ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
+Error NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, uint8_t velocity,
+                                     ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
 	int32_t posWithinEachScreen = (uint32_t)targetPos % wrapEditLevel;
@@ -362,15 +362,15 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreensToAddNoteOn * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Make new NoteVector to copy into as we go through each screen - and pre-allocate the max amount of memory we
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -506,7 +506,7 @@ addNewNote:
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
 
@@ -568,8 +568,8 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		length = 1; // Special case where note added at the end of linear record must temporarily be allowed to eat into
 		            // note at position 0
 	}
-	int32_t error = notes.insertAtIndex(i);
-	if (error) {
+	Error error = notes.insertAtIndex(i);
+	if (error != Error::NONE) {
 		return 0;
 	}
 	Note* newNote = notes.getElement(i);
@@ -626,8 +626,8 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 		// Ok, there was no Note there, so let's make one
 	}
 
-	int32_t error = notes.insertAtIndex(i);
-	if (error) {
+	Error error = notes.insertAtIndex(i);
+	if (error != Error::NONE) {
 		return 0;
 	}
 	Note* newNote = notes.getElement(i);
@@ -642,12 +642,12 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	return distanceToNextNote;
 }
 
-int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
-                           uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
+Error NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
+                         uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 	// It'd also be tempting to just abort if there were no notes within the area-to-clear, but remember, we also might
 	// need to shorten note tails leading into that area
@@ -662,15 +662,15 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// Make new NoteVector to copy into as we go through each screen - and pre-allocate the max amount of memory we
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = notes.getNumElements();
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -816,7 +816,7 @@ thatsDone:
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity) {
@@ -938,14 +938,14 @@ void NoteRow::complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStac
 }
 
 // Caller must call expectEvent on Clip after this
-int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-                                                Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
+Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
+                                              Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
 	// If no Notes, nothing to do.
 	if (!numSourceNotes) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	editPos = (uint32_t)editPos % wrapEditLevel;
@@ -962,7 +962,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	bool wrappingLeft = false;
@@ -971,8 +971,8 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -1127,17 +1127,17 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	notes.testSequentiality("E328");
 #endif
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                            uint32_t wrapEditLevel, int32_t nudgeOffset) {
+Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+                                          uint32_t wrapEditLevel, int32_t nudgeOffset) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
 	// If no Notes, nothing to do.
 	if (!numSourceNotes) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	editPos = (uint32_t)editPos % wrapEditLevel;
@@ -1162,7 +1162,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * 2 * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	bool wrappingLeft = false;
@@ -1171,8 +1171,8 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	// might need
 	NoteVector newNotes;
 	int32_t newNotesInitialSize = numSourceNotes;
-	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
-	if (error) {
+	Error error = newNotes.insertAtIndex(0, newNotesInitialSize);
+	if (error != Error::NONE) {
 		delugeDealloc(searchTerms);
 		return error;
 	}
@@ -1426,13 +1426,13 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	notes.testSequentiality("E327");
 #endif
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount) {
+Error NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, int32_t amount) {
 	if (notes.getNumElements() == 0) {
 		// Nothing to do, and checking this now makes some later logic simpler
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	int32_t halfIncrement = increment / 2;
@@ -1547,15 +1547,15 @@ int32_t NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, 
 #if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E452");
 #endif
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                             int32_t changeType, int32_t changeValue) {
+Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+                                           int32_t changeType, int32_t changeValue) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
-		NO_ERROR;
+		Error::NONE;
 	}
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
@@ -1567,7 +1567,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	int32_t* __restrict__ searchTerms =
 	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(numScreens * sizeof(int32_t));
 	if (!searchTerms) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	if (action) {
@@ -1613,7 +1613,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	// Deallocate working memory - no longer needed
 	delugeDealloc(searchTerms);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void NoteRow::deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action) {
@@ -2285,7 +2285,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 
 				// Special case for Sounds
 				if (output->type == OutputType::SYNTH) {
-					if (((SoundInstrument*)output)->noteIsOn(getNoteCode())
+					if (((SoundInstrument*)output)->noteIsOn(getNoteCode(), true)
 					    && ((SoundInstrument*)output)
 					           ->allowNoteTails(
 					               modelStack
@@ -2320,7 +2320,8 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
 					pendingNoteOnList->count++;
 				}
-
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
+				// without culling
 				// Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
@@ -2358,6 +2359,9 @@ storePendingNoteOn:
 			if (noteMightBeConstant && drum->hasAnyVoices()
 			    && drum->allowNoteTails(modelStackWithThreeMainThings->addSoundFlags())) {
 				// Alright yup the note's still sounding from before - no need to do anything
+				if (drum->type == DrumType::SOUND) {
+					((SoundDrum*)drum)->resetTimeEnteredState();
+				}
 			}
 			else {
 
@@ -2365,6 +2369,8 @@ storePendingNoteOn:
 				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 					goto storePendingNoteOn;
 				}
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
+				// without culling
 				// Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
@@ -2492,8 +2498,8 @@ basicTrim:
 			else {
 
 				NoteVector newNotes;
-				int32_t error = newNotes.insertAtIndex(0, newNumNotes);
-				if (error) {
+				Error error = newNotes.insertAtIndex(0, newNumNotes);
+				if (error != Error::NONE) {
 					goto basicTrim;
 				}
 
@@ -2594,8 +2600,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete any
 		// extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
-		int32_t error = notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore);
-		if (error) {
+		Error error = notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore);
+		if (error != Error::NONE) {
 			return false;
 		}
 
@@ -2920,7 +2926,8 @@ uint32_t NoteRow::getNumNotes() {
 	return notes.getNumElements();
 }
 
-int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+Error NoteRow::readFromFile(StorageManager& bdsm, int32_t* minY, InstrumentClip* parentClip, Song* song,
+                            int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
@@ -2928,63 +2935,62 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams before we
 	                           // know what kind of Drum (if any) we have.
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
 
 		uint16_t noteHexLength;
 
 		if (!strcmp(tagName, "muted")) {
-			muted = storageManager.readTagOrAttributeValueInt();
+			muted = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "y")) {
-			y = storageManager.readTagOrAttributeValueInt();
+			y = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "colourOffset")) {
-			colourOffset = storageManager.readTagOrAttributeValueInt();
+			colourOffset = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumIndex")) {
-			drum = (Drum*)storageManager
-			           .readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer, then
-			                                          // swap it back to something meaningful later
+			drum = (Drum*)bdsm.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
+			                                                 // then swap it back to something meaningful later
 		}
 
 		else if (!strcmp(tagName, "gateOutput")) {
-			int32_t gateChannel = storageManager.readTagOrAttributeValueInt();
+			int32_t gateChannel = bdsm.readTagOrAttributeValueInt();
 			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS - 1);
 
 			drum = (Drum*)(0xFFFFFFFE - gateChannel);
 		}
 
 		else if (!strcmp(tagName, "muteMidiCommand")) {
-			muteMIDICommand.readNoteFromFile();
+			muteMIDICommand.readNoteFromFile(bdsm);
 		}
 
 		else if (!strcmp(tagName, "soundMidiCommand")) {
-			midiInput.readNoteFromFile();
+			midiInput.readNoteFromFile(bdsm);
 		}
 
 		else if (!strcmp(tagName, "length")) {
-			loopLengthIfIndependent = storageManager.readTagOrAttributeValueInt();
+			loopLengthIfIndependent = bdsm.readTagOrAttributeValueInt();
 			readAutomationUpToPos =
 			    loopLengthIfIndependent; // So we can read automation right up to the actual length of this NoteRow.
 		}
 
 		else if (!strcmp(tagName, "sequenceDirection")) {
-			sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+			sequenceDirectionMode = stringToSequenceDirectionMode(bdsm.readTagOrAttributeValue());
 		}
 
 		else if (!strcmp(tagName, "bendRange")) {
-			newBendRange = storageManager.readTagOrAttributeValueInt();
+			newBendRange = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "soundParams")) {
 
 			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that already had
 			// some loading done by the Drum
-			if (storageManager.firmwareVersionOfFileBeingRead == FIRMWARE_OLD && parentClip->output) {
+			if (bdsm.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
 				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
 
@@ -2992,8 +2998,8 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 					ParamManager* existingParamManager =
 					    song->getBackedUpParamManagerPreferablyWithClip(actualDrum, parentClip);
 					if (existingParamManager) {
-						int32_t error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-						if (error) {
+						Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
+						if (error != Error::NONE) {
 							return error;
 						}
 						goto finishedNormalStuff;
@@ -3005,14 +3011,14 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 			Sound::initParams(&paramManager);
 
 finishedNormalStuff:
-			Sound::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			Sound::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		// Notes stored as XML (before V1.4)
 		else if (!strcmp(tagName, "notes")) {
 			// Read each Note
 			uint32_t minPos = 0;
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "note")) {
 					// Set defaults for this Note
@@ -3021,27 +3027,27 @@ finishedNormalStuff:
 					uint32_t length = 1;
 
 					// Read in this note's data
-					while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+					while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 						if (!strcmp(tagName, "velocity")) {
-							velocity = storageManager.readTagOrAttributeValueInt();
+							velocity = bdsm.readTagOrAttributeValueInt();
 							velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
-							storageManager.exitTag("velocity");
+							bdsm.exitTag("velocity");
 						}
 
 						else if (!strcmp(tagName, "pos")) {
-							pos = storageManager.readTagOrAttributeValueInt();
+							pos = bdsm.readTagOrAttributeValueInt();
 							pos = std::max(minPos, pos);
-							storageManager.exitTag("pos");
+							bdsm.exitTag("pos");
 						}
 
 						else if (!strcmp(tagName, "length")) {
-							length = storageManager.readTagOrAttributeValueInt();
+							length = bdsm.readTagOrAttributeValueInt();
 							length = std::max((uint32_t)1, (uint32_t)length);
-							storageManager.exitTag("length");
+							bdsm.exitTag("length");
 						}
 
 						else {
-							storageManager.exitTag(tagName);
+							bdsm.exitTag(tagName);
 						}
 					}
 
@@ -3052,7 +3058,7 @@ finishedNormalStuff:
 						// Make this Note
 						int32_t i = notes.insertAtKey(pos, true);
 						if (i == -1) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						Note* newNote = notes.getElement(i);
 						newNote->setLength(length);
@@ -3061,10 +3067,10 @@ finishedNormalStuff:
 						newNote->setProbability(kNumProbabilityValues);
 					}
 
-					storageManager.exitTag("note");
+					bdsm.exitTag("note");
 				}
 				else {
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
 		}
@@ -3077,12 +3083,12 @@ doReadNoteData:
 
 			int32_t numElementsToAllocateFor = 0;
 
-			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto getOut;
 			}
 
 			{
-				char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
+				char const* firstChars = bdsm.readNextCharsOfTagOrAttributeValue(2);
 				if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
 					goto getOut;
 				}
@@ -3094,7 +3100,7 @@ doReadNoteData:
 				if (numElementsToAllocateFor <= 0) {
 
 					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
+					uint32_t charsRemaining = bdsm.getNumCharsRemainingInValue();
 					if (charsRemaining) {
 
 						// Allocate space for the right number of notes, and remember how long it'll be before we need
@@ -3105,7 +3111,7 @@ doReadNoteData:
 					}
 				}
 
-				char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(noteHexLength);
+				char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(noteHexLength);
 				if (!hexChars) {
 					goto getOut;
 				}
@@ -3148,7 +3154,7 @@ useDefaultLift:
 				// Ok, make the note
 				int32_t i = notes.insertAtKey(pos, true);
 				if (i == -1) {
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 				Note* newNote = notes.getElement(i);
 				newNote->setLength(length);
@@ -3172,11 +3178,11 @@ getOut: {}
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readFromFile(summary, readAutomationUpToPos);
+				expressionParams->readFromFile(bdsm, summary, readAutomationUpToPos);
 			}
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	y = std::max(y, (int16_t)*minY);
@@ -3189,36 +3195,36 @@ getOut: {}
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
-	storageManager.writeOpeningTagBeginning("noteRow");
+void NoteRow::writeToFile(StorageManager& bdsm, int32_t drumIndex, InstrumentClip* clip) {
+	bdsm.writeOpeningTagBeginning("noteRow");
 
 	bool forKit = (clip->output->type == OutputType::KIT);
 
 	if (!forKit) {
-		storageManager.writeAttribute("y", y);
+		bdsm.writeAttribute("y", y);
 	}
 	if (muted) {
-		storageManager.writeAttribute("muted", muted);
+		bdsm.writeAttribute("muted", muted);
 	}
 
 	if (forKit) {
-		storageManager.writeAttribute("colourOffset", getColourOffset(clip));
+		bdsm.writeAttribute("colourOffset", getColourOffset(clip));
 	}
 
 	if (loopLengthIfIndependent) {
-		storageManager.writeAttribute("length", loopLengthIfIndependent);
+		bdsm.writeAttribute("length", loopLengthIfIndependent);
 	}
 	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
-		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+		bdsm.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 
 	if (notes.getNumElements()) {
-		storageManager.write("\n");
-		storageManager.printIndents();
-		storageManager.write("noteDataWithLift=\"0x");
+		bdsm.write("\n");
+		bdsm.printIndents();
+		bdsm.write("noteDataWithLift=\"0x");
 
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
@@ -3226,54 +3232,54 @@ void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 			char buffer[9];
 
 			intToHex(thisNote->pos, buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getLength(), buffer);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getVelocity(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getLift(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 
 			intToHex(thisNote->getProbability(), buffer, 2);
-			storageManager.write(buffer);
+			bdsm.write(buffer);
 		}
-		storageManager.write("\"");
+		bdsm.write("\"");
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
 	if (expressionParams && forKit) {
-		storageManager.writeAttribute("bendRange", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+		bdsm.writeAttribute("bendRange", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 	}
 
 	bool closedOurTagYet = false;
 
 	if (drum) {
-		storageManager.writeAttribute("drumIndex", drumIndex);
+		bdsm.writeAttribute("drumIndex", drumIndex);
 
 		if (paramManager.containsAnyMainParamCollections()) {
-			storageManager.writeOpeningTagEnd();
+			bdsm.writeOpeningTagEnd();
 			closedOurTagYet = true;
 
-			storageManager.writeOpeningTagBeginning("soundParams");
-			Sound::writeParamsToFile(&paramManager, true);
-			storageManager.writeClosingTag("soundParams");
+			bdsm.writeOpeningTagBeginning("soundParams");
+			Sound::writeParamsToFile(bdsm, &paramManager, true);
+			bdsm.writeClosingTag("soundParams");
 		}
 	}
 
 	if (expressionParams) {
-		bool wroteAny = expressionParams->writeToFile(!closedOurTagYet);
+		bool wroteAny = expressionParams->writeToFile(bdsm, !closedOurTagYet);
 		closedOurTagYet = closedOurTagYet || wroteAny;
 	}
 
 	if (closedOurTagYet) {
-		storageManager.writeClosingTag("noteRow");
+		bdsm.writeClosingTag("noteRow");
 	}
 
 	else {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 }
 
@@ -3369,8 +3375,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 					// If there is no NoteRow for this Drum... Oh dear. Make a blank ParamManager and pray?
 					else {
-						int32_t error = paramManager.setupWithPatching();
-						if (error) {
+						Error error = paramManager.setupWithPatching();
+						if (error != Error::NONE) {
 							FREEZE_WITH_ERROR("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
@@ -3536,7 +3542,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
-	// New community feature as part of Automation Clip View Implementation
+	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
 	// will only shift the Notes and MPE data (NON MPE automations remain intact).
 
@@ -3586,7 +3592,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 }
 
 void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
-	// New community feature as part of Automation Clip View Implementation
+	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
 
@@ -3633,9 +3639,9 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 		stopCurrentlyPlayingNote(modelStack);
 
 		if (action) {
-			int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+			Error error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
-			if (error) {
+			if (error != Error::NONE) {
 				goto justEmpty;
 			}
 		}
@@ -3740,8 +3746,8 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
-int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
-                               int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
+Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
+                             int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();
@@ -3762,7 +3768,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 
 	int32_t numToInsert = otherNoteRow->notes.getNumElements();
 	if (!numToInsert) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	// Deal with single droning note case - but don't do this for samples in CUT or STRETCH mode
@@ -3790,7 +3796,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 				Note* existingNote = notes.getElement(numNotesHere - 1);
 				existingNote->length += otherNoteRowLength;
 			}
-			return NO_ERROR;
+			return Error::NONE;
 		}
 	}
 
@@ -3798,8 +3804,8 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 	int32_t insertIndex = notes.getNumElements();
 
 	// Pre-emptively insert space for all the notes.
-	int32_t error = notes.insertAtIndex(insertIndex, numToInsert);
-	if (error) {
+	Error error = notes.insertAtIndex(insertIndex, numToInsert);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -3953,7 +3959,7 @@ int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStack
 		notes.deleteAtIndex(insertIndex, numExtraToDelete);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // This gets called on the "unique" copy of the original NoteRow

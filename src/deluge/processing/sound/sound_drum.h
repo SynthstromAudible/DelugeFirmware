@@ -27,6 +27,7 @@ class ModelStackWithTimelineCounter;
 class SoundDrum final : public Sound, public Drum {
 public:
 	String name;
+	String path;
 	bool nameIsDiscardable;
 
 	ArpeggiatorForDrum arpeggiator;
@@ -43,12 +44,13 @@ public:
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
 	void unassignAllVoices();
 	void setupPatchingForAllParamManagers(Song* song);
-	bool readTagFromFile(char const* tagName);
-	int32_t loadAllSamples(bool mayActuallyReadFiles);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
+	Error loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
-	void writeToFile(bool savingSong, ParamManager* paramManager);
+	void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager);
+	void writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
-	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);
 	void setSkippingRendering(bool newSkipping);
 	uint8_t* getModKnobMode();
@@ -61,4 +63,5 @@ public:
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+	void resetTimeEnteredState();
 };

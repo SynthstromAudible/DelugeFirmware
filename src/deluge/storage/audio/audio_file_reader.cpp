@@ -16,6 +16,7 @@
  */
 
 #include "storage/audio/audio_file_reader.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 
 AudioFileReader::AudioFileReader() {
@@ -23,9 +24,9 @@ AudioFileReader::AudioFileReader() {
 }
 
 // One limitation of this function is that it can never read the final byte of the file. Not a problem for us
-int32_t AudioFileReader::readBytes(char* outputBuffer, int32_t num) {
+Error AudioFileReader::readBytes(char* outputBuffer, int32_t num) {
 	if ((uint32_t)(getBytePos() + num) > fileSize) {
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 	}
 
 	return readBytesPassedErrorChecking(outputBuffer, num);
@@ -43,12 +44,12 @@ uint32_t AudioFileReader::getBytePos() {
 	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
 }
 
-int32_t AudioFileReader::advanceClustersIfNecessary() {
+Error AudioFileReader::advanceClustersIfNecessary() {
 
 	int32_t numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
 
 	if (!numClustersToAdvance) {
-		return NO_ERROR;
+		return Error::NONE;
 	}
 
 	currentClusterIndex += numClustersToAdvance;

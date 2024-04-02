@@ -36,22 +36,23 @@ public:
 	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
-	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,
-	                                  int32_t analogDelaySaturationAmount, bool grainHadInput = true);
+	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
+	                                  bool grainHadInput = true);
 
-	void writeAttributesToFile(bool writeToFile);
-	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
-	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                        Song* song);
-	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
+	void writeAttributesToFile(StorageManager& bdsm, bool writeToFile);
+	void writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeToFile);
+	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	                      int32_t readAutomationUpToPos, Song* song);
+	static void writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
-	static void readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+	static void readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+	                               int32_t readAutomationUpToPos);
+	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-	                            bool shouldLimitDelayFeedback = false, bool soundComingIn = true);
+	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
+	                                     bool soundComingIn = true);
 	bool isEditingComp() override { return editingComp; }
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
@@ -61,6 +62,8 @@ public:
 	FilterType currentFilterType;
 	bool editingComp;
 	CompParam currentCompParam;
+
+	ModFXType getModFXType();
 
 protected:
 	int maxCompParam = 0;

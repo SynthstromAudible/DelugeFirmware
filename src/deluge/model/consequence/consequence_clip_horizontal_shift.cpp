@@ -24,7 +24,7 @@ ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount
 	amount = newAmount;
 }
 
-int32_t ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 
@@ -38,5 +38,5 @@ int32_t ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelS
 	((Clip*)modelStackWithTimelineCounter->getTimelineCounter())
 	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
 
-	return NO_ERROR;
+	return Error::NONE;
 }

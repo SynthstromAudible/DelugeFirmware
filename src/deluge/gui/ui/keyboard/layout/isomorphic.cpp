@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -22,28 +22,38 @@
 #include "hid/display/display.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
-#include <limits>
 
 namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
-	uint8_t noteIdx = 0;
-
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
-			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getDefaultVelocity());
+		auto pressed = presses[idxPress];
+		if (pressed.active && pressed.x < kDisplayWidth) {
+			enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 		}
 	}
+
+	// Should be called last so currentNotesState can be read
+	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
-	handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
+	if (verticalEncoderHandledByColumns(offset)) {
+		return;
+	}
+	offsetPads(offset * getState().isomorphic.rowInterval, false);
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
+	offsetPads(offset, shiftEnabled);
+}
+
+void KeyboardLayoutIsomorphic::offsetPads(int32_t offset, bool shiftEnabled) {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	if (shiftEnabled) {

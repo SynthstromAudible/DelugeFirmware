@@ -21,6 +21,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -139,6 +140,20 @@ bool Output::clipHasInstance(Clip* clip) {
 	return false;
 }
 
+// check all instrument clip instances belonging to an output to see if they have any notes
+// if so, then we need to check if there are other clip's assigned to that output which have notes
+// because we don't want to change the output type for all the clips assigned to that output if some have notes
+bool Output::isEmpty() {
+	// loop through the output selected to see if any of the clips are not empty
+	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
+		InstrumentClip* clip = (InstrumentClip*)clipInstances.getElement(i)->clip;
+		if (clip && !clip->isEmpty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
 	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 		ClipInstance* instance = clipInstances.getElement(i);
@@ -176,43 +191,43 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 }
 
-void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
+void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	char const* tagName = getXMLTag();
-	storageManager.writeOpeningTagBeginning(tagName);
+	bdsm.writeOpeningTagBeginning(tagName);
 
 	if (clipForSavingOutputOnly) {
-		storageManager.writeFirmwareVersion();
-		storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+		bdsm.writeFirmwareVersion();
+		bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
 
-	bool endedOpeningTag = writeDataToFile(clipForSavingOutputOnly, song);
+	bool endedOpeningTag = writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
 	if (endedOpeningTag) {
-		storageManager.writeClosingTag(tagName);
+		bdsm.writeClosingTag(tagName);
 	}
 	else {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 }
 
-bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool Output::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
 		if (mutedInArrangementMode) {
-			storageManager.writeAttribute("isMutedInArrangement", 1);
+			bdsm.writeAttribute("isMutedInArrangement", 1);
 		}
 		if (soloingInArrangementMode) {
-			storageManager.writeAttribute("isSoloingInArrangement", 1);
+			bdsm.writeAttribute("isSoloingInArrangement", 1);
 		}
-		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
-		storageManager.writeAttribute("activeModFunction", modKnobMode);
-		storageManager.writeAttribute("colour", colour);
+		bdsm.writeAttribute("isArmedForRecording", armedForRecording);
+		bdsm.writeAttribute("activeModFunction", modKnobMode);
+		bdsm.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
-			storageManager.write("\n");
-			storageManager.printIndents();
-			storageManager.write("clipInstances=\"0x");
+			bdsm.write("\n");
+			bdsm.printIndents();
+			bdsm.write("clipInstances=\"0x");
 
 			for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 				ClipInstance* thisInstance = clipInstances.getElement(i);
@@ -220,10 +235,10 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				char buffer[9];
 
 				intToHex(thisInstance->pos, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 
 				intToHex(thisInstance->length, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 
 				uint32_t clipCode;
 
@@ -238,9 +253,9 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				}
 
 				intToHex(clipCode, buffer);
-				storageManager.write(buffer);
+				bdsm.write(buffer);
 			}
-			storageManager.write("\"");
+			bdsm.write("\"");
 		}
 	}
 
@@ -248,41 +263,41 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-int32_t Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Output::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		bool readAndExited = readTagFromFile(tagName);
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		bool readAndExited = readTagFromFile(bdsm, tagName);
 
 		if (!readAndExited) {
-			storageManager.exitTag();
+			bdsm.exitTag();
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // If this returns false, the caller has to call storageManager.exitTag();
-bool Output::readTagFromFile(char const* tagName) {
+bool Output::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {
-		mutedInArrangementMode = storageManager.readTagOrAttributeValueInt();
+		mutedInArrangementMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isSoloingInArrangement")) {
-		soloingInArrangementMode = storageManager.readTagOrAttributeValueInt();
+		soloingInArrangementMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "isArmedForRecording")) {
-		armedForRecording = storageManager.readTagOrAttributeValueInt();
+		armedForRecording = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "activeModFunction")) {
-		modKnobMode = storageManager.readTagOrAttributeValueInt();
+		modKnobMode = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "colour")) {
-		colour = storageManager.readTagOrAttributeValueInt();
+		colour = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {
@@ -293,12 +308,12 @@ bool Output::readTagFromFile(char const* tagName) {
 
 		int32_t numElementsToAllocateFor = 0;
 
-		if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 			goto getOut;
 		}
 
 		{
-			char const* firstChars = storageManager.readNextCharsOfTagOrAttributeValue(2);
+			char const* firstChars = bdsm.readNextCharsOfTagOrAttributeValue(2);
 			if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
 				goto getOut;
 			}
@@ -310,7 +325,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			if (numElementsToAllocateFor <= 0) {
 
 				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = storageManager.getNumCharsRemainingInValue();
+				uint32_t charsRemaining = bdsm.getNumCharsRemainingInValue();
 				if (charsRemaining) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
@@ -321,7 +336,7 @@ bool Output::readTagFromFile(char const* tagName) {
 				}
 			}
 
-			char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(24);
+			char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(24);
 			if (!hexChars) {
 				goto getOut;
 			}
@@ -340,7 +355,7 @@ bool Output::readTagFromFile(char const* tagName) {
 			// Ok, make the clipInstance
 			int32_t i = clipInstances.insertAtKey(pos, true);
 			if (i == -1) {
-				return true; // ERROR_INSUFFICIENT_RAM;
+				return true; // Error::INSUFFICIENT_RAM;
 			}
 			ClipInstance* newInstance = clipInstances.getElement(i);
 			newInstance->length = length;
@@ -351,7 +366,7 @@ bool Output::readTagFromFile(char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, getNameXMLTag())) {
-		storageManager.readTagOrAttributeValueString(&name);
+		bdsm.readTagOrAttributeValueString(&name);
 	}
 
 	else {
@@ -359,18 +374,18 @@ bool Output::readTagFromFile(char const* tagName) {
 	}
 
 getOut:
-	storageManager.exitTag();
+	bdsm.exitTag();
 	return true;
 }
 
-int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
+Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	if (!clipInstances.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -378,14 +393,14 @@ int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	Clip* newClip = createNewClipForArrangementRecording(modelStack);
 	if (!newClip) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends
 	// up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
 	int32_t i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
 	if (i == -1) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	ClipInstance* clipInstance = clipInstances.getElement(i);
@@ -417,7 +432,7 @@ int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	recordingInArrangement = true;
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternalTicks, uint32_t timeRemainder) {

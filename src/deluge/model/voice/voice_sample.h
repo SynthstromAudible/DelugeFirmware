@@ -20,7 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_low_level_reader.h"
 
-enum { LATE_START_ATTEMPT_SUCCESS = 0, LATE_START_ATTEMPT_FAILURE = 1, LATE_START_ATTEMPT_WAIT = 2 };
+enum class LateStartAttemptStatus {
+	SUCCESS = 0,
+	FAILURE = 1,
+	WAIT = 2,
+};
 class TimeStretcher;
 class SampleCache;
 class Sample;
@@ -37,19 +41,19 @@ public:
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
 
 	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
-	int32_t attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesLate,
-	                               int32_t numSamples = 0);
+	LateStartAttemptStatus attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
+	                                              int64_t rawSamplesLate, int32_t numSamples = 0);
 	void endTimeStretching();
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,
 	            int32_t priorityRating);
-	void beenUnassigned();
-	bool shouldObeyMarkers() {
-		return (!cache && !timeStretcher && !forAudioClip);
-	} // AudioClips don't obey markers because they "fudge" instead.
-	  // Or if fudging can't happen cos no pre-margin, then
-	  // AudioClip::doTickForward() manually forces restart.
+	void beenUnassigned(bool wontBeUsedAgain);
+
+	// AudioClips don't obey markers because they "fudge" instead.
+	// Or if fudging can't happen cos no pre-margin, then
+	// AudioClip::doTickForward() manually forces restart.
+	bool shouldObeyMarkers() override { return (!cache && !timeStretcher && !forAudioClip); }
 
 	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
 	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,

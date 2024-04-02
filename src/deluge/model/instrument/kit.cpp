@@ -45,8 +45,8 @@
 namespace params = deluge::modulation::params;
 
 Kit::Kit() : Instrument(OutputType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
-	firstDrum = NULL;
-	selectedDrum = NULL;
+	firstDrum = nullptr;
+	selectedDrum = nullptr;
 }
 
 Kit::~Kit() {
@@ -85,14 +85,17 @@ Drum* Kit::getPrevDrum(Drum* fromDrum) {
 	return thisDrum;
 }
 
-bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	Instrument::writeDataToFile(clipForSavingOutputOnly, song);
+	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
+	// saving preset
 	if (clipForSavingOutputOnly) {
+
 		paramManager = &clipForSavingOutputOnly->paramManager;
 	}
+	// saving song
 	else {
 		paramManager = NULL;
 
@@ -103,14 +106,19 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 	}
 
-	GlobalEffectableForClip::writeAttributesToFile(clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(bdsm, clipForSavingOutputOnly == NULL);
 
-	storageManager.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                                     // Attributes end
+	bdsm.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
+	                           // Attributes end
+	// saving song
+	if (!clipForSavingOutputOnly) {
+		if (midiInput.containsSomething()) {
+			midiInput.writeNoteToFile(bdsm, "MIDIInput");
+		}
+	}
+	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, clipForSavingOutputOnly == NULL);
 
-	GlobalEffectableForClip::writeTagsToFile(paramManager, clipForSavingOutputOnly == NULL);
-
-	storageManager.writeOpeningTag("soundSources"); // TODO: change this?
+	bdsm.writeOpeningTag("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
 	int32_t drumIndex = 0;
 
@@ -139,7 +147,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 				}
 				// Or if saving Song, we know there's a NoteRow, so no need to save the ParamManager
 
-				writeDrumToFile(drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL), &selectedDrumIndex,
+				writeDrumToFile(bdsm, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL), &selectedDrumIndex,
 				                &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
@@ -212,56 +220,56 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			}
 		}
 
-		writeDrumToFile(thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex, &drumIndex,
-		                song);
+		writeDrumToFile(bdsm, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex,
+		                &drumIndex, song);
 
 moveOn:
 		prevPointer = &thisDrum->next;
 	}
 
-	storageManager.writeClosingTag("soundSources");
+	bdsm.writeClosingTag("soundSources");
 
 	*newLastDrum = firstDrum;
 	firstDrum = newFirstDrum;
 
 	if (selectedDrumIndex != -1) {
-		storageManager.writeTag((char*)"selectedDrumIndex", selectedDrumIndex);
+		bdsm.writeTag((char*)"selectedDrumIndex", selectedDrumIndex);
 	}
 
 	return true;
 }
 
-void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+void Kit::writeDrumToFile(StorageManager& bdsm, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
                           int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;
 	}
 
-	thisDrum->writeToFile(savingSong, paramManagerForDrum);
+	thisDrum->writeToFile(bdsm, savingSong, paramManagerForDrum);
 	(*drumIndex)++;
 }
 
-int32_t Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Kit::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	int32_t selectedDrumIndex = -1;
 
 	ParamManagerForTimeline paramManager;
 
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "soundSources")) {
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					int32_t error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
-					if (error) {
+					Error error = readDrumFromFile(bdsm, song, clip, drumType, readAutomationUpToPos);
+					if (error != Error::NONE) {
 						return error;
 					}
-					storageManager.exitTag();
+					bdsm.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
 					drumType = DrumType::MIDI;
@@ -272,30 +280,34 @@ doReadDrum:
 					goto doReadDrum;
 				}
 				else {
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
-			storageManager.exitTag("soundSources");
+			bdsm.exitTag("soundSources");
 		}
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
-			selectedDrumIndex = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag("selectedDrumIndex");
+			selectedDrumIndex = bdsm.readTagOrAttributeValueInt();
+			bdsm.exitTag("selectedDrumIndex");
+		}
+		else if (!strcmp(tagName, "MIDIInput")) {
+			midiInput.readNoteFromFile(bdsm);
+			storageManager.exitTag();
 		}
 		else {
-			int32_t result =
-			    GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
-			if (result == NO_ERROR) {}
-			else if (result != RESULT_TAG_UNUSED) {
+			Error result =
+			    GlobalEffectableForClip::readTagFromFile(bdsm, tagName, &paramManager, readAutomationUpToPos, song);
+			if (result == Error::NONE) {}
+			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
 			else {
-				if (Instrument::readTagFromFile(tagName)) {}
+				if (Instrument::readTagFromFile(bdsm, tagName)) {}
 				else {
-					int32_t result = storageManager.tryReadingFirmwareTagFromFile(tagName);
-					if (result && result != RESULT_TAG_UNUSED) {
+					Error result = bdsm.tryReadingFirmwareTagFromFile(tagName);
+					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
 		}
@@ -310,19 +322,21 @@ doReadDrum:
 		song->backUpParamManager(this, clip, &paramManager, true);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
+Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
+                            int32_t readAutomationUpToPos) {
 
-	Drum* newDrum = storageManager.createNewDrum(drumType);
+	Drum* newDrum = bdsm.createNewDrum(drumType);
 	if (!newDrum) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
-	int32_t error = newDrum->readFromFile(
-	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
-	if (error) {
+	Error error = newDrum->readFromFile(
+	    bdsm, song, clip,
+	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
+	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
 		delugeDealloc(toDealloc);
@@ -330,19 +344,19 @@ int32_t Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t
 	}
 	addDrum(newDrum);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Returns true if more loading needed later
-int32_t Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	int32_t error = NO_ERROR;
+	Error error = Error::NONE;
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
-		if (error) {
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
@@ -350,11 +364,11 @@ int32_t Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 	AudioEngine::logAction("Kit::loadAllSamples");
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			error = ERROR_ABORTED_BY_USER;
+			error = Error::ABORTED_BY_USER;
 			goto getOut;
 		}
 		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error) {
+		if (error != Error::NONE) {
 			goto getOut;
 		}
 	}
@@ -372,8 +386,8 @@ void Kit::loadCrucialAudioFilesOnly() {
 
 	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int32_t error = setupDefaultAudioFileDir();
-		if (error) {
+		Error error = setupDefaultAudioFileDir();
+		if (error != Error::NONE) {
 			return;
 		}
 	}
@@ -641,7 +655,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
@@ -674,7 +688,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 }
 
 // not updated for midi follow, this seems dumb and is just left for backwards compatibility
-// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
+/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
@@ -722,7 +736,7 @@ ModControllable* Kit::toModControllable() {
 }
 
 // newName must be allowed to be edited by this function
-int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
+Error Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
 	D_PRINTLN("making unique newName:");
 
@@ -731,14 +745,14 @@ int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		int32_t error = name->concatenateAtPos(numberString, originalLength);
-		if (error) {
+		Error error = name->concatenateAtPos(numberString, originalLength);
+		if (error != Error::NONE) {
 			return error;
 		}
 		startAtNumber++;
 	} while (getDrumFromName(name->get()));
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
@@ -892,7 +906,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0
+	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -1190,8 +1204,14 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
-
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		auto rootNote = midiInput.noteOrCC == 255 ? 0 : midiInput.noteOrCC;
+		receivedNoteForKit(modelStack, fromDevice, on, channel, note - rootNote, velocity, shouldRecordNotes,
+		                   doingMidiThru, instrumentClip);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
@@ -1251,6 +1271,13 @@ void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWith
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
@@ -1286,7 +1313,14 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 }
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
-
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru,
+		                 instrumentClip);
+		return;
+	}
 	if (ccNumber != 74) {
 		return;
 	}
@@ -1297,7 +1331,89 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
 		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
+			// this will make sure that the channel matches the drums last received one
 			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+	}
+}
+/// find the drum matching the noteCode, counting up from 0
+Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
+	Drum* thisDrum = nullptr;
+	// bottom kit noteRowId = 0
+	// default middle C1 note number = 36
+	// noteRowId + 36 = C1 up for kit sounds
+	// this is configurable through the default menu
+	if (noteCode >= 0) {
+		int32_t index = noteCode;
+		if (index < clip->noteRows.getNumElements()) {
+			NoteRow* noteRow = clip->noteRows.getElement(index);
+			if (noteRow) {
+				thisDrum = noteRow->drum;
+			}
+		}
+	}
+	return thisDrum;
+}
+
+/// for pitch bend received on a channel learnt to a whole clip
+void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                  MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
+                                  bool* doingMidiThru) {
+
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
+	}
+}
+
+/// maps a note received on kit input channel to a drum. Note is zero indexed to first drum
+void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                             int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+                             bool* doingMidiThru, InstrumentClip* clip) {
+	Kit* kit = (Kit*)clip->output;
+	Drum* thisDrum = getDrumFromNoteCode(clip, note);
+
+	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+	                         thisDrum);
+}
+
+/// for learning a whole kit to a single channel, offer cc to all drums
+void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                           MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+                           Clip* clip) {
+	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
+		return;
+	}
+	if (ccNumber != 74) {
+		return;
+	}
+	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+		return;
+	}
+
+	Kit* kit = (Kit*)clip->output;
+	Drum* firstDrum = kit->getDrumFromIndex(0);
+
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+	}
+}
+
+void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                   MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
+                                   bool* doingMidiThru) {
+	// Channel pressure message...
+	if (noteCode == -1) {
+		Drum* firstDrum = getDrumFromIndex(0);
+		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			int32_t level = BEND_RANGE_FINGER_LEVEL;
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
+		}
+	}
+	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
+	else {
+		Drum* thisDrum = getDrumFromNoteCode((InstrumentClip*)activeClip, noteCode);
+		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
+			receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel, value);
 		}
 	}
 }
@@ -1328,6 +1444,15 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 // note). This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
+
+	InstrumentClip* instrumentClip =
+	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode,
+		                         doingMidiThru);
+		return;
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_FINGER_LEVEL;
@@ -1412,7 +1537,9 @@ bool Kit::isAnyAuditioningHappening() {
 // activeClip. Drum must not be NULL - check first if not sure!
 void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
                                   int16_t const* mpeValues, int32_t fromMIDIChannel) {
-
+	if (!drum) {
+		return;
+	}
 	ParamManager* paramManagerForDrum = NULL;
 
 	if (modelStack->getNoteRowAllowNull()) {
@@ -1509,6 +1636,10 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 
 				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
 					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+				}
+
+				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
 				}
 			}
 		}

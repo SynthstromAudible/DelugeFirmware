@@ -73,18 +73,18 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
-int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
-	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
-	if (error) {
+	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
+	if (error != Error::NONE) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		return error;
@@ -103,7 +103,7 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.reversed);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioClip::copyBasicsFrom(Clip* otherClip) {
@@ -143,7 +143,7 @@ bool AudioClip::isAbandonedOverdub() {
 	return (isUnfinishedAutoOverdub && !sampleHolder.audioFile);
 }
 
-int32_t AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
 
@@ -157,7 +157,7 @@ int32_t AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStac
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
 	                                       shouldRecordMarginsNow, buttonPressLatency);
 	if (!recorder) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 	recorder->autoDeleteWhenDone = true;
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -170,7 +170,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
-	if (recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) {
+	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) {
 		abortRecording();
 		return;
 	}
@@ -220,7 +220,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -232,9 +232,9 @@ ramError:
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 
-	int32_t error = newClip->setOutput(modelStackNewClip, output, this);
+	Error error = newClip->setOutput(modelStackNewClip, output, this);
 
-	if (error) {
+	if (error != Error::NONE) {
 		newClip->~AudioClip();
 		delugeDealloc(clipMemory);
 		goto ramError;
@@ -277,7 +277,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that
 	// now. This isn't really the ideal place for this...
-	if (recorder && recorder->status == RECORDER_STATUS_ABORTED) {
+	if (recorder && recorder->status == RecorderStatus::ABORTED) {
 		abortRecording();
 	}
 
@@ -321,7 +321,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 					// Yup, do that unassignment
 doUnassignment:
-					voiceSample->beenUnassigned();
+					voiceSample->beenUnassigned(false);
 				}
 
 				// Or if none of those several conditions were met...
@@ -409,7 +409,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		bool success = voiceSample->stopUsingCache(&guide, ((Sample*)sampleHolder.audioFile), priorityRating,
 		                                           getLoopingType(modelStack) == LoopType::LOW_LEVEL);
 		if (!success) {
-			unassignVoiceSample();
+			unassignVoiceSample(false);
 		}
 	}
 
@@ -518,10 +518,10 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
-		int32_t result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
-		if (result) {
-			if (result == LATE_START_ATTEMPT_FAILURE) {
-				unassignVoiceSample();
+		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
+		if (result != LateStartAttemptStatus::SUCCESS) {
+			if (result == LateStartAttemptStatus::FAILURE) {
+				unassignVoiceSample(false);
 			}
 			return;
 		}
@@ -529,10 +529,10 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 		doingLateStart = false;
 	}
 
-	int32_t timeStretchRatio = 16777216;
+	int32_t timeStretchRatio = kMaxSampleValue;
 	int32_t phaseIncrement = sampleHolder.neutralPhaseIncrement;
 
-	if (pitchAdjust != 16777216) {
+	if (pitchAdjust != kMaxSampleValue) {
 		uint64_t newPhaseIncrement = ((uint64_t)phaseIncrement * (uint64_t)pitchAdjust) >> 24;
 		phaseIncrement = (newPhaseIncrement > 2147483647) ? 2147483647 : newPhaseIncrement;
 	}
@@ -553,7 +553,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 		// And if pitch was manually adjusted too (or file's sample rate wasn't 44100kHz, that's fine - counteract that
 		// by adjusting the time-stretch amount more
-		if (phaseIncrement != 16777216) {
+		if (phaseIncrement != kMaxSampleValue) {
 			timeStretchRatio = ((uint64_t)timeStretchRatio << 24) / (uint32_t)phaseIncrement;
 		}
 
@@ -568,7 +568,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 				if (!playbackHandler.isEitherClockActive() || doingLateStart) {
 justDontTimeStretch:
 					// We can just not time-stretch... for now, until we end up more out-of-sync later
-					timeStretchRatio = 16777216;
+					timeStretchRatio = kMaxSampleValue;
 				}
 
 				// Or...
@@ -625,7 +625,7 @@ justDontTimeStretch:
 
 		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop
 		// point (if it's gonna loop)
-		if (timeStretchRatio == 16777216 && !voiceSample->timeStretcher
+		if (timeStretchRatio == kMaxSampleValue && !voiceSample->timeStretcher
 		    && (!voiceSample->cache || voiceSample->writingToCache)) {
 
 			// First, see if there is actually any pre-margin at all for us to crossfade to
@@ -650,7 +650,7 @@ justDontTimeStretch:
 
 					int32_t numSamplesOfPreMarginAvailable =
 					    (uint32_t)numBytesOfPreMarginAvailable / (uint8_t)bytesPerSample;
-					if (phaseIncrement != 16777216) {
+					if (phaseIncrement != kMaxSampleValue) {
 						numSamplesOfPreMarginAvailable =
 						    ((uint64_t)numSamplesOfPreMarginAvailable << 24) / (uint32_t)phaseIncrement;
 					}
@@ -729,7 +729,7 @@ justDontTimeStretch:
 
 	if (!stillActive) {
 doUnassign:
-		unassignVoiceSample();
+		unassignVoiceSample(false);
 	}
 }
 
@@ -756,9 +756,9 @@ LoopType AudioClip::getLoopingType(ModelStackWithTimelineCounter const* modelSta
 	// But, looping may still happen as normally expected at the TimeStretcher level...
 }
 
-void AudioClip::unassignVoiceSample() {
+void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 	if (voiceSample) {
-		voiceSample->beenUnassigned();
+		voiceSample->beenUnassigned(wontBeUsedAgain);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
 		voiceSample = NULL;
 	}
@@ -780,7 +780,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
 				// sound right now, so just cut out.
 				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
-					unassignVoiceSample();
+					unassignVoiceSample(false);
 				}
 
 				// Or if we were planning to do a late start as soon as the current sound fades out, then just abandon
@@ -830,8 +830,8 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			clipInstance->length = arrangementRecordPos - clipInstance->pos;
 		}
 
-		int32_t error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
-		if (error) {
+		Error error = beingRecordedFromClip->clone(modelStack); // Puts the new Clip in the modelStack.
+		if (error != Error::NONE) {
 			return;
 		}
 
@@ -847,7 +847,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		clipInstanceI++;
 
 		error = output->clipInstances.insertAtIndex(clipInstanceI); // Shouldn't be able to fail...
-		if (error) {
+		if (error != Error::NONE) {
 			return;
 		}
 
@@ -875,7 +875,8 @@ void AudioClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool
 }
 
 void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith) {
-	unassignVoiceSample();
+	// detaching from output, so don't need it anymore
+	unassignVoiceSample(true);
 
 	if (isActiveOnOutput()) {
 		output->detachActiveClip(song);
@@ -895,8 +896,8 @@ doNormal:
 		    && !song->getClipWithOutput(output, false, this)) {
 
 			ParamManagerForTimeline newParamManager;
-			int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
-			if (error) {
+			Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, true);
+			if (error != Error::NONE) {
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
@@ -965,7 +966,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	Sample* sample;
 	if (recorder) {
 		sample =
-		    ((recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
+		    ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
 	}
 	else {
 		sample = ((Sample*)sampleHolder.audioFile);
@@ -1001,60 +1002,60 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(Song* song) {
+void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
-	storageManager.writeAttribute("trackName", output->name.get());
+	bdsm.writeAttribute("trackName", output->name.get());
 
-	storageManager.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
-	                                                                 : sampleHolder.filePath.get());
-	storageManager.writeAttribute("startSamplePos", sampleHolder.startPos);
-	storageManager.writeAttribute("endSamplePos", sampleHolder.endPos);
-	storageManager.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
+	bdsm.writeAttribute("filePath",
+	                    sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get() : sampleHolder.filePath.get());
+	bdsm.writeAttribute("startSamplePos", sampleHolder.startPos);
+	bdsm.writeAttribute("endSamplePos", sampleHolder.endPos);
+	bdsm.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
 	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
-		storageManager.writeAttribute("linearInterpolation", 1);
+		bdsm.writeAttribute("linearInterpolation", 1);
 	}
 	if (sampleControls.reversed) {
-		storageManager.writeAttribute("reversed", "1");
+		bdsm.writeAttribute("reversed", "1");
 	}
-	storageManager.writeAttribute("attack", attack);
-	storageManager.writeAttribute("priority", util::to_underlying(voicePriority));
+	bdsm.writeAttribute("attack", attack);
+	bdsm.writeAttribute("priority", util::to_underlying(voicePriority));
 
 	if (sampleHolder.transpose) {
-		storageManager.writeAttribute("transpose", sampleHolder.transpose);
+		bdsm.writeAttribute("transpose", sampleHolder.transpose);
 	}
 	if (sampleHolder.cents) {
-		storageManager.writeAttribute("cents", sampleHolder.cents);
+		bdsm.writeAttribute("cents", sampleHolder.cents);
 	}
 
-	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
+	bdsm.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
 	if (onAutomationClipView) {
-		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		bdsm.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != kNoSelection) {
-		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		bdsm.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	Clip::writeDataToFile(song);
+	Clip::writeDataToFile(bdsm, song);
 
-	storageManager.writeOpeningTagBeginning("params");
-	GlobalEffectableForClip::writeParamAttributesToFile(&paramManager, true);
-	storageManager.writeOpeningTagEnd();
-	GlobalEffectableForClip::writeParamTagsToFile(&paramManager, true);
-	storageManager.writeClosingTag("params");
+	bdsm.writeOpeningTagBeginning("params");
+	GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
+	bdsm.writeOpeningTagEnd();
+	GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
+	bdsm.writeClosingTag("params");
 }
 
-int32_t AudioClip::readFromFile(Song* song) {
+Error AudioClip::readFromFile(StorageManager& bdsm, Song* song) {
 
-	int32_t error;
+	Error error;
 
 	if (false) {
 ramError:
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
 		return error;
@@ -1064,83 +1065,83 @@ someError:
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
-			storageManager.readTagOrAttributeValueString(&outputNameWhileLoading);
+			bdsm.readTagOrAttributeValueString(&outputNameWhileLoading);
 		}
 
 		else if (!strcmp(tagName, "filePath")) {
-			storageManager.readTagOrAttributeValueString(&sampleHolder.filePath);
+			bdsm.readTagOrAttributeValueString(&sampleHolder.filePath);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {
-			overdubsShouldCloneOutput = storageManager.readTagOrAttributeValueInt();
+			overdubsShouldCloneOutput = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "startSamplePos")) {
-			sampleHolder.startPos = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.startPos = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "endSamplePos")) {
-			sampleHolder.endPos = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.endPos = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
-			sampleControls.pitchAndSpeedAreIndependent = storageManager.readTagOrAttributeValueInt();
+			sampleControls.pitchAndSpeedAreIndependent = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (storageManager.readTagOrAttributeValueInt()) {
+			if (bdsm.readTagOrAttributeValueInt()) {
 				sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
 		}
 
 		else if (!strcmp(tagName, "attack")) {
-			attack = storageManager.readTagOrAttributeValueInt();
+			attack = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			voicePriority = static_cast<VoicePriority>(storageManager.readTagOrAttributeValueInt());
+			voicePriority = static_cast<VoicePriority>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "reversed")) {
-			sampleControls.reversed = storageManager.readTagOrAttributeValueInt();
+			sampleControls.reversed = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "transpose")) {
-			sampleHolder.transpose = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.transpose = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cents")) {
-			sampleHolder.cents = storageManager.readTagOrAttributeValueInt();
+			sampleHolder.cents = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			GlobalEffectableForClip::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+			onAutomationClipView = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamID = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutX = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
@@ -1148,51 +1149,51 @@ someError:
 		}
 
 		else {
-			readTagFromFile(tagName, song, &readAutomationUpToPos);
+			readTagFromFile(bdsm, tagName, song, &readAutomationUpToPos);
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
+Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	output = modelStack->song->getAudioOutputFromName(&outputNameWhileLoading);
 
 	if (!output) {
-		return ERROR_FILE_CORRUPTED;
+		return Error::FILE_CORRUPTED;
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
-	int32_t error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
-	if (error) {
+	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	if (error != Error::NONE) {
 		display->displayError(error);
 	}
 }
 
 // Keeps same ParamManager
-int32_t AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
+Error AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput) {
 	detachAudioClipFromOutput(modelStack->song, false, true);
 
 	return setOutput(modelStack, newOutput);
 }
 
-int32_t AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-                             AudioClip* favourClipForCloningParamManager) {
+Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
+                           AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	int32_t error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
-	if (error) {
+	Error error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
+	if (error != Error::NONE) {
 		return error;
 	}
 
 	outputChanged(modelStack, newOutput);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 RGB AudioClip::getColour() {
@@ -1232,8 +1233,9 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack)
 	}
 
 	else if (sampleHolder.audioFile) {
-
-		unassignVoiceSample();
+		// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it back
+		// anyway
+		unassignVoiceSample(true);
 
 		if (action) {
 			// Must happen first
@@ -1287,7 +1289,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 
 	// Stop the clip if it is playing
 	bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
-	unassignVoiceSample();
+	unassignVoiceSample(false);
 
 	sampleHolder.startPos = newStartPos;
 	sampleHolder.endPos = newStartPos + length;
@@ -1309,4 +1311,8 @@ uint64_t AudioClip::getCullImmunity() {
 	// We're gonna cull time-stretching ones first
 	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
 	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
+}
+
+ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
+	return &paramManager;
 }

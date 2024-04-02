@@ -16,30 +16,37 @@
  */
 
 #include "param.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_set.h"
 
 namespace deluge::gui::menu_item {
 
 MenuItem* Param::selectButtonPress() {
-	if (!Buttons::isShiftButtonPressed()) { // Shift button not pressed,
-		return nullptr;                     // So navigate backwards
-	}
-
-	// If shift button pressed, delete automation
-	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
-
-	modelStack->autoParam->deleteAutomation(action, modelStack);
-
-	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-	return (MenuItem*)0xFFFFFFFF; // Don't navigate away
+	return Automation::selectButtonPress();
 }
+
+ActionResult Param::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	return Automation::buttonAction(b, on, inCardRoutine);
+}
+
+void Param::horizontalEncoderAction(int32_t offset) {
+	Automation::horizontalEncoderAction(offset);
+}
+
+ModelStackWithAutoParam* Param::getModelStackWithParam(void* memory) {
+	return getModelStack(memory);
+}
+
 } // namespace deluge::gui::menu_item

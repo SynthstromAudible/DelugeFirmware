@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/learned_midi.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/output.h"
 
@@ -60,11 +61,13 @@ public:
 
 	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
 	// subSlotName = "presetSubSlot");
-	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(char const* tagName);
+	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
+	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
+	                                              ModelStackWithTimelineCounter* modelStack) = 0;
 
 	char const* getNameXMLTag() { return "presetName"; }
 	virtual char const* getSlotXMLTag() { return "presetSlot"; }
@@ -73,8 +76,9 @@ public:
 	virtual bool isAnyAuditioningHappening() = 0;
 
 	uint8_t defaultVelocity;
+	LearnedMIDI midiInput;
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) final;
-	int32_t setupDefaultAudioFileDir();
+	Error setupDefaultAudioFileDir();
 };

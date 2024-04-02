@@ -51,6 +51,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_instance.h"
@@ -83,6 +84,7 @@
 #include "storage/storage_manager.h"
 
 namespace params = deluge::modulation::params;
+namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
@@ -102,16 +104,25 @@ View::View() {
 	modLength = 0;
 	modPos = 0xFFFFFFFF;
 	clipArmFlashOn = false;
+	displayVUMeter = false;
+	renderedVUMeter = false;
+	cachedMaxYDisplayForVUMeterL = 255;
+	cachedMaxYDisplayForVUMeterR = 255;
 }
 
 void View::focusRegained() {
-	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	setTripletsLedState();
 
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
+
+	// when switching between UI's we want to start with a fresh VU meter render
+	renderedVUMeter = false;
+	cachedMaxYDisplayForVUMeterL = 255;
+	cachedMaxYDisplayForVUMeterR = 255;
 }
 
 void View::setTripletsLedState() {
@@ -452,7 +463,7 @@ void View::endMIDILearn() {
 			FlashStorage::writeSettings(); // Rare case where we could have been called during audio routine
 		}
 	}
-	uiTimerManager.unsetTimer(TIMER_MIDI_LEARN_FLASH);
+	uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH);
 	midiLearnFlashOn = false;
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
@@ -543,17 +554,17 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	}
 }
 
-void View::melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument) {
+void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 	if (on) {
-		endMidiLearnPressSession(MidiLearn::MELODIC_INSTRUMENT_INPUT);
+		endMidiLearnPressSession(MidiLearn::INSTRUMENT_INPUT);
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
-		melodicInstrumentPressedForMIDILearn = instrument;
+		instrumentPressedForMIDILearn = instrument;
 		highestMIDIChannelSeenWhileLearning = -1;
 		lowestMIDIChannelSeenWhileLearning = 16;
 	}
 
-	else if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+	else if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			clearMelodicInstrumentMonoExpressionIfPossible(); // In case it gets "stuck".
 			learnedThing->clear();
@@ -636,11 +647,11 @@ recordDetailsOfLearnedThing:
 			learnedThing->noteOrCC = note;
 			break;
 
-		case MidiLearn::MELODIC_INSTRUMENT_INPUT:
+		case MidiLearn::INSTRUMENT_INPUT:
 
 			uint8_t newBendRanges[2];
 
-			ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+			ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 			    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 			// If we already know this incoming MIDI is on an MPE zone...
@@ -654,7 +665,7 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
-					InstrumentClip* clip = (InstrumentClip*)melodicInstrumentPressedForMIDILearn->activeClip;
+					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->activeClip;
 					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
 						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
@@ -679,6 +690,7 @@ isMPEZone:
 					}
 
 					// If multiple channels seen, that's a shortcut for setting up MPE zones for the device in question
+					// note - I think this leads to confusion more than any deliberate use
 					if (highestMIDIChannelSeenWhileLearning != lowestMIDIChannelSeenWhileLearning) {
 						if (lowestMIDIChannelSeenWhileLearning == 1) {
 							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel =
@@ -727,11 +739,12 @@ isMPEZone:
 
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->device = fromDevice;
-			melodicInstrumentPressedForMIDILearn->beenEdited(false); // Why again?
+			learnedThing->noteOrCC = note;                    // used for low note in kits
+			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
-			if (melodicInstrumentPressedForMIDILearn->type == OutputType::SYNTH) {
+			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
 				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-				    fromDevice, (SoundInstrument*)melodicInstrumentPressedForMIDILearn);
+				    fromDevice, (SoundInstrument*)instrumentPressedForMIDILearn);
 			}
 
 			break;
@@ -741,7 +754,7 @@ isMPEZone:
 
 void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 
-	ParamManager* paramManager = melodicInstrumentPressedForMIDILearn->getParamManager(
+	ParamManager* paramManager = instrumentPressedForMIDILearn->getParamManager(
 	    currentSong); // Could be NULL, e.g. for CVInstruments with no Clips
 
 	if (paramManager) {
@@ -752,9 +765,8 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
-			        ->addTimelineCounter(melodicInstrumentPressedForMIDILearn->activeClip) // Could be NULL
-			        ->addOtherTwoThingsButNoNoteRow(melodicInstrumentPressedForMIDILearn->toModControllable(),
-			                                        paramManager)
+			        ->addTimelineCounter(instrumentPressedForMIDILearn->activeClip) // Could be NULL
+			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
 			expressionParams->clearValues(modelStack);
@@ -767,9 +779,10 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		deleteMidiCommandOnRelease = false;
 
 		// For MelodicInstruments...
-		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
+		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
+			// note - I think this is probably the source of a lot of bugs around MPE
 			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
@@ -793,7 +806,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 void View::midiLearnFlash() {
 	midiLearnFlashOn = !midiLearnFlashOn;
-	uiTimerManager.setTimer(TIMER_MIDI_LEARN_FLASH, kFastFlashTime);
+	uiTimerManager.setTimer(TimerName::MIDI_LEARN_FLASH, kFastFlashTime);
 
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
@@ -874,13 +887,20 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
 
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-				int32_t lowerLimit = std::min(-64_i32, knobPos);
+				int32_t lowerLimit;
+
+				if (kind == params::Kind::PATCH_CABLE) {
+					lowerLimit = std::min(-192_i32, knobPos);
+				}
+				else {
+					lowerLimit = std::min(-64_i32, knobPos);
+				}
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
 				// ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				// if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change
@@ -905,8 +925,30 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				if (!editingParamInPerformanceView) {
-					displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				// let's see if we're editing the same param in the menu, if so, don't show pop-up
+				bool editingParamInMenu = false;
+				if (getCurrentUI() == &soundEditor) {
+					if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
+					    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
+						editingParamInMenu = true;
+					}
+				}
+
+				// let's see if we're browsing for a song
+				bool inSongBrowser = getCurrentUI() == &loadSongUI;
+
+				if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
+					PatchSource source1 = PatchSource::NONE;
+					PatchSource source2 = PatchSource::NONE;
+					if (kind == params::Kind::PATCH_CABLE) {
+						ParamDescriptor paramDescriptor;
+						paramDescriptor.data = modelStackWithParam->paramId;
+						source1 = paramDescriptor.getBottomLevelSource();
+						if (!paramDescriptor.hasJustOneSource()) {
+							source2 = paramDescriptor.getTopLevelSource();
+						}
+					}
+					displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
 				}
 
 				if (newKnobPos == knobPos) {
@@ -945,15 +987,17 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				if (newKnobPos == 0
-				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
-					indicator_leds::blinkKnobIndicator(whichModEncoder);
+				// if the newKnobPos == 0, and we're dealing with a param that param that should
+				// indicate (blink) middle value
+				// then blink that middle value and make it harder to turn the knob past middle
+				potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 
-					// Make it harder to turn that knob away from its centred position
-					Encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
-				}
-				else {
-					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
+				// if you're updating a param's value while in the sound editor menu
+				// and it's the same param displayed in the automation editor open underneath
+				// then refresh the automation editor grid
+				if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
+					automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind,
+					                                                   modelStackWithParam->paramId);
 				}
 			}
 		}
@@ -962,15 +1006,59 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos) {
+// for param's that are bipolar / should indicate middle value
+// this will blink the middle value when middle knob pos is reached
+// and make it harder to turn the knob past the middle value
+void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
+                                             int32_t newKnobPos) {
+	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+	// if you're dealing with a patch cable which has a -128 to +128 range
+	// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+	if (kind == params::Kind::PATCH_CABLE) {
+		newKnobPos = view.convertPatchCableKnobPosToIndicatorLevel(newKnobPos + kKnobPosOffset) - kKnobPosOffset;
+	}
+
+	bool shouldParamIndicateMiddleValue =
+	    modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam);
+
+	if (newKnobPos == 0 && shouldParamIndicateMiddleValue) {
+		bool isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
+
+		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
+
+		// Make it harder to turn that knob away from its centred position
+		deluge::hid::encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
+	}
+	else {
+		indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
+	}
+}
+
+void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
+                                       PatchSource source2) {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
-		const char* name = getParamDisplayName(kind, paramID);
-		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-			popupMsg.append(name);
+		if (kind == params::Kind::PATCH_CABLE) {
+			popupMsg.append(getSourceDisplayNameForOLED(source1));
+			popupMsg.append("\n");
+			popupMsg.append("-> ");
+			if (source2 != PatchSource::NONE && source2 != PatchSource::NOT_AVAILABLE) {
+				popupMsg.append(getSourceDisplayNameForOLED(source2));
+				popupMsg.append("\n");
+				popupMsg.append("-> ");
+			}
+			popupMsg.append(modulation::params::getPatchedParamShortName(paramID));
 			popupMsg.append(": ");
+		}
+		else {
+			const char* name = getParamDisplayName(kind, paramID);
+			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+				popupMsg.append(name);
+				popupMsg.append(": ");
+			}
 		}
 	}
 
@@ -991,6 +1079,21 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		else { // 64ths stutter: all 4 leds turned on
 			popupMsg.append("64ths");
+		}
+	}
+	// if turning arpeggiator rhythm mod encoder
+	else if (isParamArpRhythm(kind, paramID)) {
+		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+
+			char name[12];
+			// Index: Name
+			snprintf(name, sizeof(name), "%d: %s", valueForDisplay, arpRhythmPatternNames[valueForDisplay]);
+			popupMsg.append(name);
+		}
+		else {
+			popupMsg.append(arpRhythmPatternNames[valueForDisplay]);
 		}
 	}
 	else {
@@ -1083,7 +1186,8 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		automationView.displayAutomation();
 		return;
 	}
 
@@ -1101,7 +1205,6 @@ void View::setKnobIndicatorLevels() {
 }
 
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
-
 	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
 	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
 	ModelStackWithAutoParam* modelStackWithParam =
@@ -1109,20 +1212,25 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	        whichModEncoder, &activeModControllableModelStack, false);
 
 	int32_t knobPos;
+	bool isBipolar = false;
 
 	if (modelStackWithParam->autoParam) {
 		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
+		params::Kind kind = paramCollection->getParamKind();
+		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-		if (knobPos < -64) {
-			knobPos = -64;
-		}
-		else if (knobPos > 64) {
-			knobPos = 64;
-		}
+		int32_t lowerLimit;
 
-		if (isParamQuantizedStutter(paramCollection->getParamKind(), modelStackWithParam->paramId)
-		    && !isUIModeActive(UI_MODE_STUTTERING)) {
+		if (kind == params::Kind::PATCH_CABLE) {
+			lowerLimit = std::min(-192_i32, knobPos);
+		}
+		else {
+			lowerLimit = std::min(-64_i32, knobPos);
+		}
+		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
+
+		if (isParamQuantizedStutter(kind, modelStackWithParam->paramId) && !isUIModeActive(UI_MODE_STUTTERING)) {
 			if (knobPos < -39) { // 4ths stutter: no leds turned on
 				knobPos = -64;
 			}
@@ -1139,13 +1247,44 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 				knobPos = 64;
 			}
 		}
+		knobPos += kKnobPosOffset;
+
+		if (kind == params::Kind::PATCH_CABLE) {
+			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+		}
 	}
 	else {
-		knobPos =
-		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
+		if (modelStackWithParam->paramId == 255) {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
+		// is it not just a param? then its a patch cable
+		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+			// default value for patch cable
+			// (equals 0 (midpoint) in -128 to +128 range)
+			knobPos = 64;
+			isBipolar = true;
+		}
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
+}
+
+/// if you're dealing with a patch cable which has a -128 to +128 range
+/// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
+	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
+	// adjustment to make sure that when knobPos returned is 64, it's really 64
+	// the knob LED indicator is centred around 64
+	// so the knob pos returned from this function is used to blink the LED when it reaches 64
+	// so to make sure it doesn't blink twice (e.g. when the value is 64 and in between 64 and 65)
+	// we adjust it here so it only returns 64 once
+	if (newKnobPos == 64 && knobPos != 0) {
+		newKnobPos += knobPos;
+	}
+
+	return newKnobPos;
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
@@ -1159,9 +1298,11 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+	UI* currentUI = getCurrentUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if (((currentUI == &automationView) || (getRootUI() == &automationView))
+	    && !automationView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1169,8 +1310,23 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
+			if (isUIModeWithinRange(modButtonUIModes) || (currentUI == &performanceSessionView)) {
+				// only displaying VU meter in session view, arranger view and performance view at the moment
+				if (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView) {
+					// are we pressing the same button that is currently selected
+					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
+						// you just pressed the volume mod button and it was already selected previously
+						// toggle displaying VU Meter on / off
+						if (whichButton == 0) {
+							displayVUMeter = !displayVUMeter;
+						}
+					}
+					// refresh sidebar if VU meter previously rendered is still showing
+					if (renderedVUMeter) {
+						uiNeedsRendering(currentUI, 0); // only render sidebar
+					}
+				}
 
-			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
 				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
@@ -1361,10 +1517,16 @@ void View::setModLedStates() {
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
+		// if you're in a song view and volume mod button is selected and VU meter is enabled
+		// blink volume mod led
+		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+			indicator_leds::blinkLed(indicator_leds::modLed[i]);
+		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+		else if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
+		// otherwise update mod led's to reflect current mod led selection
 		else {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
@@ -1376,9 +1538,9 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 	    || (getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager)) {
 
 		// If timer wasn't set yet, set it now
-		if (!uiTimerManager.isTimerSet(TIMER_DISPLAY_AUTOMATION)) {
+		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
 			pendingParamAutomationUpdatesModLevels = updateModLevels;
-			uiTimerManager.setTimer(TIMER_DISPLAY_AUTOMATION, 25);
+			uiTimerManager.setTimer(TimerName::DISPLAY_AUTOMATION, 25);
 		}
 
 		else {
@@ -1387,27 +1549,30 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 			}
 		}
 
-		if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-			uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
+		if (!uiTimerManager.isTimerSet(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+			uiTimerManager.setTimer(TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
 		}
 	}
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	int32_t channel =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::FEEDBACK)].channelOrZone;
-	if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-			if (ccNumber != MIDI_CC_NONE) {
-				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		int32_t channel =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
+		        .channelOrZone;
+		if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+				if (ccNumber != MIDI_CC_NONE) {
+					((ModControllableAudio*)activeModControllableModelStack.modControllable)
+					    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+				}
 			}
-		}
-		else {
-			((ModControllableAudio*)activeModControllableModelStack.modControllable)
-			    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			else {
+				((ModControllableAudio*)activeModControllableModelStack.modControllable)
+				    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+			}
 		}
 	}
 }
@@ -1418,6 +1583,114 @@ void View::displayAutomation() {
 	}
 	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->readValueAgain();
+	}
+}
+
+/// if you've toggled showing the VU meter, and the mod encoders are controllable (e.g. affect entire on)
+/// and the current mod button selected is the volume/pan button
+/// render VU meter on the grid
+bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	if (displayVUMeter && view.activeModControllableModelStack.modControllable
+	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
+		PadLEDs::renderingLock = true;
+
+		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
+		int32_t maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
+		int32_t maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
+
+		// if we haven't yet rendered
+		// or previously rendered VU meter was rendered to a different maxYDisplay
+		// then we want to refresh the VU meter rendered in the sidebar
+		// if we've already rendered and maxYDisplay hasn't changed, no need to refresh sidebar image
+		if (!renderedVUMeter || (maxYDisplayForVUMeterL != cachedMaxYDisplayForVUMeterL)
+		    || (maxYDisplayForVUMeterR != cachedMaxYDisplayForVUMeterR)) {
+			// save maxYDisplay about to be rendered
+			cachedMaxYDisplayForVUMeterL = maxYDisplayForVUMeterL;
+			cachedMaxYDisplayForVUMeterR = maxYDisplayForVUMeterR;
+
+			// erase current image as it will be refreshed
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				RGB* const start = &image[y][kDisplayWidth];
+				std::fill(start, start + kSideBarWidth, colours::black);
+			}
+
+			// render left VU meter
+			if (maxYDisplayForVUMeterL != 255) {
+				renderVUMeter(maxYDisplayForVUMeterL, kDisplayWidth, image);
+			}
+
+			// render right VU meter
+			if (maxYDisplayForVUMeterR != 255) {
+				renderVUMeter(maxYDisplayForVUMeterR, kDisplayWidth + 1, image);
+			}
+			// save the VU meter rendering status so that grid can be refreshed later if required
+			// (e.g. if you switch mod buttons or turn off affect entire)
+			renderedVUMeter = true;
+		}
+
+		PadLEDs::renderingLock = false;
+
+		// return true so that you don't render the usual sidebar
+		return true;
+	}
+
+	// if we made it here then we haven't rendered a VU meter in the sidebar
+	renderedVUMeter = false;
+
+	// return false so that the usual sidebar rendering can be drawn
+	return false;
+}
+
+int32_t View::getMaxYDisplayForVUMeter(float level) {
+	// dBFS (dB below clipping) calculation
+	// 16.7 = log(2^24) which is the approxRMSLevel at which clipping begins
+	float dBFS = (level - 16.7) * 4;
+	int32_t maxYDisplay = 255;
+
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		// dBFSForYDisplay calculates the minimum value of the dBFS ranged displayed for a given grid row (Y)
+		// 9 is the approxRMSLevel at which the sound becomes inaudible
+		// so for grid rendering purposes, any approxRMSLevel value below 9 doesn't get rendered on grid
+		// -30.8 dBFS = (9 - 16.7) * 4
+		// 4.4 = 4.3 is dBFS range for a given row + 0.1
+		// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
+		/*
+		y7 = clipping (0 or higher)
+		y6 = -4.4 to -0.1
+		y5 = -8.8 to -4.5
+		y4 = -13.2 to -8.9
+		y3 = -17.6 to -13.3
+		y2 = -22.0 to -17.7
+		y1 = -26.4 to -22.1
+		y0 = -30.8 to -26.5
+		*/
+		float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
+		// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
+		if (dBFS >= dBFSForYDisplay) {
+			maxYDisplay = yDisplay;
+		}
+		else {
+			break;
+		}
+	}
+	return maxYDisplay;
+}
+
+/// render AudioEngine::approxRMSLevel as a VU meter on the grid
+void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]) {
+	for (int32_t yDisplay = 0; yDisplay < (maxYDisplay + 1); yDisplay++) {
+		// y0 - y4 = green
+		if (yDisplay < 5) {
+			thisImage[yDisplay][xDisplay] = colours::green;
+		}
+		// y5 - y6 = orange
+		else if (yDisplay < 7) {
+			thisImage[yDisplay][xDisplay] = colours::orange;
+		}
+		// y7 = red
+		else {
+			thisImage[yDisplay][xDisplay] = colours::red;
+		}
 	}
 }
 
@@ -1441,6 +1714,14 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	setModLedStates();
 	setKnobIndicatorLevels();
 
+	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
+	// view this could happen when you're turning affect entire off or selecting a clip
+	UI* currentUI = getCurrentUI();
+	if (renderedVUMeter
+	    && (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView)) {
+		uiNeedsRendering(currentUI, 0);
+	}
+
 	// midi follow and midi feedback enabled
 	// re-send midi cc's because learned parameter values may have changed
 	sendMidiFollowFeedback();
@@ -1457,6 +1738,13 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	// refresh sidebar if VU meter previously rendered is still showing and we're in arranger / arranger performance
+	// view this happens when selecting a clip that is not playing back (e.g. white clip with no notes)
+	UI* currentUI = getCurrentUI();
+	if (renderedVUMeter && (currentUI == &arrangerView || currentUI == &performanceSessionView)) {
+		uiNeedsRendering(currentUI, 0);
+	}
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
@@ -1481,7 +1769,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 }
 
 void View::pretendModKnobsUntouchedForAWhile() {
-	Encoders::timeModEncoderLastTurned[0] = Encoders::timeModEncoderLastTurned[1] =
+	encoders::timeModEncoderLastTurned[0] = encoders::timeModEncoderLastTurned[1] =
 	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
@@ -1496,8 +1784,6 @@ void View::cycleThroughReverbPresets() {
 
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setDamping((float)presetReverbDamping[newPreset] / 50);
-
-	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
@@ -1616,7 +1902,15 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			outputTypeText = "Kit";
 			break;
 		case OutputType::MIDI_OUT:
-			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
+			if (channel < 16) {
+				outputTypeText = "MIDI channel";
+			}
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				outputTypeText = "MPE zone";
+			}
+			else {
+				outputTypeText = "Internal";
+			}
 			break;
 		case OutputType::CV:
 			outputTypeText = "CV / gate channel";
@@ -1715,8 +2009,12 @@ yesAlignRight:
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				goto oledDrawString;
+			}
+			else {
+				nameToDraw = "Transpose";
 				goto oledDrawString;
 			}
 		}
@@ -1724,9 +2022,12 @@ yesAlignRight:
 			if (channel < 16) {
 				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
 			}
-			else {
+			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
 				display->setText(text, false, 255, doBlink);
+			}
+			else {
+				display->setText("Transpose", false, 255, doBlink);
 			}
 		}
 	}
@@ -1868,7 +2169,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix < -1) {
 						newChannel = (newChannel + offset);
 						if (newChannel < 0) {
-							newChannel = 17;
+							newChannel = IS_A_DEST + NUM_INTERNAL_DESTS;
+						}
+						else if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = MIDI_CHANNEL_MPE_UPPER_ZONE;
 						}
 						newChannelSuffix = modelStack->song->getMaxMIDIChannelSuffix(newChannel);
 					}
@@ -1880,7 +2184,10 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					if (newChannelSuffix >= 26
 					    || newChannelSuffix > modelStack->song->getMaxMIDIChannelSuffix(newChannel)) {
 						newChannel = (newChannel + offset);
-						if (newChannel >= 18) {
+						if (newChannel > MIDI_CHANNEL_MPE_UPPER_ZONE && newChannel <= IS_A_DEST) {
+							newChannel = IS_A_DEST + 1;
+						}
+						else if (newChannel > IS_A_DEST + NUM_INTERNAL_DESTS) {
 							newChannel = 0;
 						}
 						newChannelSuffix = -1;
@@ -1955,7 +2262,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 				newInstrument = storageManager.createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					display->displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(Error::INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1974,8 +2281,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 gotAnInstrument:
 
-			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -1987,6 +2294,22 @@ gotAnInstrument:
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::sendMainImage();
 		}
+
+		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
+		// the name will print over the midi channel and we can't see it while changing it
+		if (outputType == OutputType::MIDI_OUT && newInstrument->name.getLength() > 0) {
+			char buffer[12];
+			if (newChannel < 16) {
+				slotToString(newChannel + 1, newChannelSuffix, buffer, 1);
+			}
+			else if (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE || newChannel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+				strcpy(buffer, (newChannel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper");
+			}
+			else {
+				strcpy(buffer, "Transpose");
+			}
+			display->popupTextTemporary(buffer);
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
@@ -1994,12 +2317,12 @@ gotAnInstrument:
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
-		if (results.error == NO_ERROR_BUT_GET_OUT) {
+		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
-		else if (results.error) {
+		if (results.error != Error::NONE) {
 			display->displayError(results.error);
 			goto getOut;
 		}
@@ -2055,8 +2378,8 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in
 			// there)
 
-			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {
@@ -2104,6 +2427,13 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 		return false;
 	}
 
+	// don't allow clip type change if clip is not empty
+	// only impose this restriction if switching to/from kit clip
+	if (((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
+		return false;
+	}
+
 	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {
 		return false;
@@ -2126,7 +2456,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
-RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2164,37 +2494,31 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	// Or if not soloing...
 	else {
-		if (clip->launchStyle == LaunchStyle::DEFAULT) {
-			// If it's stopped, red.
-			if (!clip->activeIfNoSolo) {
-				if (dimInactivePads) {
-					thisColour = RGB::monochrome(20);
+		if (!clip->activeIfNoSolo) {
+			switch (clip->launchStyle) {
+			case LaunchStyle::FILL:
+				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
+				break;
+			case LaunchStyle::ONCE:
+				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
+				break;
+			default:
+
+				if (whiteInactivePads) {
+					// If grid view + config mode requests it,
+					// Use white to avoid a screen full of red pads
+					// Grid mode itself dims these colours to grey
+					thisColour = colours::white;
 				}
 				else {
+					// If it's stopped, red.
 					thisColour = menu_item::stoppedColourMenu.getRGB();
 				}
 			}
-
-			// Or, green.
-			else {
-				thisColour = menu_item::activeColourMenu.getRGB();
-			}
 		}
 		else {
-			// If it's stopped, orange.
-			if (!clip->activeIfNoSolo) {
-				if (dimInactivePads) {
-					thisColour = RGB(10, 7, 3); // dim red-orange
-				}
-				else {
-					thisColour = colours::red_orange;
-				}
-			}
-
-			// Or, cyan.
-			else {
-				thisColour = colours::cyan;
-			}
+			// Active pads of any type go green (or the active colour from the menu).
+			thisColour = menu_item::activeColourMenu.getRGB();
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
@@ -2260,6 +2584,14 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
 	case UI_MODE_STUTTERING:
+		// this code is needed to allow users to launch clips while stuttering
+		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
+		// this is because it gets stuck in the stuttering UI mode and can't get out
+		if (on) {
+			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
@@ -2288,12 +2620,12 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 }
 
 void View::flashPlayEnable() {
-	uiTimerManager.setTimer(TIMER_PLAY_ENABLE_FLASH, kFastFlashTime);
+	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
 }
 
 void View::flashPlayDisable() {
 	clipArmFlashOn = false;
-	uiTimerManager.unsetTimer(TIMER_PLAY_ENABLE_FLASH);
+	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
 	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {

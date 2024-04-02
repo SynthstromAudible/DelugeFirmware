@@ -28,7 +28,7 @@ ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t new
 	noteRowId = newNoteRowId;
 }
 
-int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+Error ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 
@@ -44,11 +44,11 @@ int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* mod
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E377");
 #endif
-		return ERROR_BUG;
+		return Error::BUG;
 	}
 
 	((InstrumentClip*)modelStackWithNoteRow->getTimelineCounter())
 	    ->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow);
 
-	return NO_ERROR;
+	return Error::NONE;
 }

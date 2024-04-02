@@ -56,86 +56,6 @@
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
 
-// FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0
-// release correspondingly, we should probably we storing the semver version in three bytes in the flash rather than
-// trying to compress it all to one (see above class)
-enum FirmwareVersion : uint8_t {
-	FIRMWARE_OLD = 0,
-	FIRMWARE_1P2P0 = 1,
-	FIRMWARE_1P3P0_PRETEST = 2,
-	FIRMWARE_1P3P0_BETA = 3,
-	FIRMWARE_1P3P0 = 4,
-	FIRMWARE_1P3P1 = 5,
-	FIRMWARE_1P3P2 = 6,
-	FIRMWARE_1P4P0_PRETEST = 7,
-	FIRMWARE_1P4P0_BETA = 8,
-	FIRMWARE_1P4P0 = 9,
-	FIRMWARE_1P5P0_PREBETA = 10,
-	FIRMWARE_2P0P0_BETA = 11,
-	FIRMWARE_2P0P0 = 12,
-	FIRMWARE_2P0P1_BETA = 13,
-	FIRMWARE_2P0P1 = 14,
-	FIRMWARE_2P0P2_BETA = 15,
-	FIRMWARE_2P0P2 = 16,
-	FIRMWARE_2P0P3 = 17,
-	FIRMWARE_2P1P0_BETA = 18,
-	FIRMWARE_2P1P0 = 19,
-	FIRMWARE_2P1P1_BETA = 20,
-	FIRMWARE_2P1P1 = 21,
-	FIRMWARE_2P1P2_BETA = 22,
-	FIRMWARE_2P1P2 = 23,
-	FIRMWARE_2P1P3_BETA = 24,
-	FIRMWARE_2P1P3 = 25,
-	FIRMWARE_2P1P4_BETA = 26,
-	FIRMWARE_2P1P4 = 27,
-	FIRMWARE_3P0P0_ALPHA = 28,
-	FIRMWARE_3P0P0_BETA = 29,
-	FIRMWARE_3P0P0 = 30,
-	FIRMWARE_3P0P1_BETA = 31,
-	FIRMWARE_3P0P1 = 32,
-	FIRMWARE_3P0P2 = 33,
-	FIRMWARE_3P0P3_ALPHA = 34,
-	FIRMWARE_3P0P3_BETA = 35,
-	FIRMWARE_3P0P3 = 36,
-	FIRMWARE_3P0P4 = 37,
-	FIRMWARE_3P0P5_BETA = 38,
-	FIRMWARE_3P0P5 = 39,
-	FIRMWARE_3P1P0_ALPHA = 40,
-	FIRMWARE_3P1P0_ALPHA2 = 41,
-	FIRMWARE_3P1P0_BETA = 42,
-	FIRMWARE_3P1P0 = 43,
-	FIRMWARE_3P1P1_BETA = 44,
-	FIRMWARE_3P1P1 = 45,
-	FIRMWARE_3P1P2_BETA = 46,
-	FIRMWARE_3P1P2 = 47,
-	FIRMWARE_3P1P3_BETA = 48,
-	FIRMWARE_3P1P3 = 49,
-	FIRMWARE_3P1P4_BETA = 50,
-	FIRMWARE_3P1P4 = 51,
-	FIRMWARE_3P1P5_BETA = 52,
-	FIRMWARE_3P1P5 = 53,
-	FIRMWARE_3P2P0_ALPHA = 54,
-	FIRMWARE_4P0P0_BETA = 55,
-	FIRMWARE_4P0P0 = 56,
-	FIRMWARE_4P0P1_BETA = 57,
-	FIRMWARE_4P0P1 = 58,
-	FIRMWARE_4P1P0_ALPHA = 59,
-	FIRMWARE_4P1P0_BETA = 60,
-	FIRMWARE_4P1P0 = 61,
-	FIRMWARE_4P1P1_ALPHA = 62,
-	FIRMWARE_4P1P1 = 63,
-	FIRMWARE_4P1P2 = 64,
-	FIRMWARE_4P1P3_ALPHA = 65,
-	FIRMWARE_4P1P3_BETA = 66,
-	FIRMWARE_4P1P3 = 67,
-	FIRMWARE_4P1P4_ALPHA = 68,
-	FIRMWARE_4P1P4_BETA = 69,
-	FIRMWARE_4P1P4 = 70,
-	COMMUNITY_1P1 = 71,
-	FIRMWARE_TOO_NEW = 255,
-};
-constexpr FirmwareVersion kCurrentFirmwareVersion = COMMUNITY_1P1;
-
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
@@ -194,6 +114,9 @@ constexpr int32_t kNumBytesInMainPadRedraw = (kNumBytesInColUpdateMessage * 8);
 constexpr int32_t kDefaultClipLength = 96; // You'll want to <<displayWidthMagnitude this each time used
 constexpr int32_t kDefaultArrangerZoom = (kDefaultClipLength >> 1);
 
+constexpr int32_t kMinLedBrightness = 1;
+constexpr int32_t kMaxLedBrightness = 25;
+
 struct Pin {
 	uint8_t port;
 	uint8_t pin;
@@ -228,7 +151,7 @@ enum class MidiLearn : uint8_t {
 	RECORD_BUTTON,
 	TAP_TEMPO_BUTTON,
 	SECTION,
-	MELODIC_INSTRUMENT_INPUT,
+	INSTRUMENT_INPUT,
 	DRUM_INPUT,
 };
 
@@ -342,11 +265,11 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 
 enum class EnvelopeStage : uint8_t {
 	ATTACK,
+	HOLD,
 	DECAY,
 	SUSTAIN,
 	RELEASE,
 	FAST_RELEASE,
-	HOLD,
 	OFF,
 };
 constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
@@ -404,18 +327,20 @@ constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 // Automation View constants
+constexpr int32_t kNumNonGlobalParamsForAutomation = 61;
+constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kNoSelection = 255;
-constexpr int32_t kNumNonGlobalParamsForAutomation = 56;
-constexpr int32_t kNumGlobalParamsForAutomation = 23;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
-constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr float kParamValueIncrementForAutomationSinglePadPress = 18.2857142857143; // 128 / 7
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableSinglePadPress = 30;
+constexpr int32_t kParamValueIncrementForAutomationPatchCableDisplay = 32;
 constexpr int32_t kParamNodeWidth = 3;
 //
 
 // Performance View constant
-constexpr int32_t kNumParamsForPerformance = 16;
+constexpr int32_t kNumParamsForPerformance = 18;
 constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
 constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
 constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
@@ -526,65 +451,44 @@ constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 
 
 constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
+constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
 constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
-enum class FilterMode {
-	TRANSISTOR_12DB,
-	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE, // filter logic relies on ladders being first and contiguous
-	SVF_BAND,              // first HPF mode
-	SVF_NOTCH,             // last LPF mode
-	HPLADDER,
-	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
-};
-constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-// Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
-constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
-enum class FilterRoute {
-	HIGH_TO_LOW,
-	LOW_TO_HIGH,
-	PARALLEL,
-};
-
-constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
-
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
-enum ErrorType {
-	NO_ERROR,
-	ERROR_INSUFFICIENT_RAM,
-	ERROR_UNSPECIFIED,
-	ERROR_SD_CARD,
-	ERROR_NO_FURTHER_PRESETS,
-	ERROR_FILE_CORRUPTED,
-	ERROR_FILE_UNREADABLE, // Or not found, I think?
-	ERROR_FILE_UNSUPPORTED,
-	ERROR_FILE_FIRMWARE_VERSION_TOO_NEW,
+enum class Error {
+	NONE,
+	INSUFFICIENT_RAM,
+	UNSPECIFIED,
+	SD_CARD,
+	NO_FURTHER_PRESETS,
+	FILE_CORRUPTED,
+	FILE_UNREADABLE, // Or not found, I think?
+	FILE_UNSUPPORTED,
+	FILE_FIRMWARE_VERSION_TOO_NEW,
 	RESULT_TAG_UNUSED,
-	ERROR_FOLDER_DOESNT_EXIST,
-	ERROR_WRITE_PROTECTED,
-	ERROR_BUG,
-	ERROR_WRITE_FAIL,
-	ERROR_FILE_TOO_BIG,
-	ERROR_PRESET_IN_USE,
-	ERROR_NO_FURTHER_FILES_THIS_DIRECTION,
-	ERROR_FILE_ALREADY_EXISTS,
-	ERROR_FILE_NOT_FOUND,
-	ERROR_ABORTED_BY_USER,
-	ERROR_MAX_FILE_SIZE_REACHED,
-	ERROR_SD_CARD_FULL,
-	ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE,
-	ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO,
-	ERROR_NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP,
+	FOLDER_DOESNT_EXIST,
+	WRITE_PROTECTED,
+	BUG,
+	WRITE_FAIL,
+	FILE_TOO_BIG,
+	PRESET_IN_USE,
+	NO_FURTHER_FILES_THIS_DIRECTION,
+	FILE_ALREADY_EXISTS,
+	FILE_NOT_FOUND,
+	ABORTED_BY_USER,
+	MAX_FILE_SIZE_REACHED,
+	SD_CARD_FULL,
+	FILE_NOT_LOADABLE_AS_WAVETABLE,
+	FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO,
+	NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP,
 	NO_ERROR_BUT_GET_OUT,
-	ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
-	ERROR_SD_CARD_NOT_PRESENT,
-	ERROR_SD_CARD_NO_FILESYSTEM,
+	INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
+	SD_CARD_NOT_PRESENT,
+	SD_CARD_NO_FILESYSTEM,
 };
 
 enum class SampleRepeatMode {
@@ -604,14 +508,49 @@ constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
 
 constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
 
-enum class ArpMode {
+enum class OldArpMode {
 	OFF,
 	UP,
 	DOWN,
 	BOTH,
 	RANDOM,
 };
-constexpr auto kNumArpModes = util::to_underlying(ArpMode::RANDOM) + 1;
+
+enum class ArpMode {
+	OFF,
+	ARP,
+};
+
+enum class ArpPreset {
+	OFF,
+	UP,
+	DOWN,
+	BOTH,
+	RANDOM,
+	CUSTOM,
+};
+
+enum class ArpNoteMode {
+	UP,
+	DOWN,
+	UP_DOWN,
+	AS_PLAYED,
+	RANDOM,
+};
+
+enum class ArpOctaveMode {
+	UP,
+	DOWN,
+	UP_DOWN,
+	ALTERNATE,
+	RANDOM,
+};
+
+enum class ArpMpeModSource {
+	OFF,
+	AFTERTOUCH,
+	MPE_Y,
+};
 
 enum class ModFXParam {
 	DEPTH,
@@ -648,6 +587,7 @@ enum class GlobalMIDICommand {
 	UNDO,
 	REDO,
 	FILL,
+	TRANSPOSE,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -664,9 +604,16 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
-	FEEDBACK,
+	NONE,
 };
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::FEEDBACK) + 1;
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::NONE);
+
+enum class MIDITransposeControlMethod : uint8_t {
+	INKEY,
+	CHROMATIC,
+	CHORD,
+};
+constexpr auto kNumMIDITransposeControlMethods = util::to_underlying(MIDITransposeControlMethod::CHORD) + 1;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
@@ -892,20 +839,21 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-enum StealableQueue {
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
-	STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_REPITCHED_CACHE,
-	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_PERC_CACHE,
-	STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_CONVERTED,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
-	STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work
-	                                                     // to load it all again
-	NUM_STEALABLE_QUEUES,
+enum class StealableQueue {
+	NO_SONG_SAMPLE_DATA,
+	NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
+	NO_SONG_WAVETABLE_BAND_DATA,
+	NO_SONG_SAMPLE_DATA_REPITCHED_CACHE,
+	NO_SONG_SAMPLE_DATA_PERC_CACHE,
+	NO_SONG_AUDIO_FILE_OBJECTS, // TODO:having these in the Stealable region is a bad idea in general
+	CURRENT_SONG_SAMPLE_DATA,
+	CURRENT_SONG_SAMPLE_DATA_CONVERTED,
+	CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE,
+	CURRENT_SONG_SAMPLE_DATA_PERC_CACHE, // This one is super valuable and compacted data - lots of work
+	                                     // to load it all again
 };
+
+constexpr int32_t kNumStealableQueue = 10;
 
 enum class SequenceDirection {
 	FORWARD,
@@ -941,9 +889,13 @@ constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
+constexpr int32_t NUM_INTERNAL_DESTS = 1;
+
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 constexpr int32_t IS_A_PC = IS_A_CC + NUM_CHANNELS; // CC128 is max.
-constexpr int32_t MIDI_TYPE_MAX = IS_A_PC + NUM_CHANNELS;
+constexpr int32_t IS_A_DEST = IS_A_PC + NUM_CHANNELS;
+constexpr int32_t MIDI_CHANNEL_TRANSPOSE = IS_A_DEST + 1;
+constexpr int32_t MIDI_TYPE_MAX = IS_A_DEST + NUM_INTERNAL_DESTS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 constexpr int32_t kMIDIOutputFilterNoMPE = 0;
@@ -996,7 +948,13 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// is generated by a crystal, and the RZ/A1L provides only a divider on this clock.
 /// See Figure 19.1 in the RZ/A1L TRM R01UH0437EJ0600 Rev.6.00 and the rest of section 19, Serial Sound Interface for
 /// more detail.
-constexpr uint32_t kSampleRate = 44100;
+constexpr int32_t kSampleRate = 44100;
+
+// The Deluge deals with 24-bit PCM audio
+constexpr int32_t kBitDepth = 24;
+
+// The maximum value a (24-bit) sample can hold
+constexpr int32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
 
 /// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
@@ -1039,7 +997,7 @@ enum GridMode : uint8_t {
 	Unassigned2,
 	Unassigned3,
 	Unassigned4,
-	Unassigned5,
+	YELLOW,
 	BLUE,
 	GREEN,
 };
@@ -1050,3 +1008,6 @@ enum class ClipType {
 };
 
 enum class LaunchStyle { DEFAULT, FILL, ONCE };
+
+enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
+constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;

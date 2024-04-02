@@ -17,6 +17,7 @@
 
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
@@ -42,6 +43,8 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 #include <cmath>
 #include <new>
 
@@ -50,6 +53,10 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	arpeggiatorRate = 0;
+	arpeggiatorRatchetProbability = 0;
+	arpeggiatorRatchetAmount = 0;
+	arpeggiatorSequenceLength = 0;
+	arpeggiatorRhythm = 0;
 	arpeggiatorGate = 0;
 
 	midiBank = 128; // Means none
@@ -137,15 +144,19 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
+	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
+	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
+	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
+	arpeggiatorRhythm = otherInstrumentClip->arpeggiatorRhythm;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 }
 
 // Will replace the Clip in the modelStack, if success.
-int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 
 	InstrumentClip* newClip =
@@ -158,8 +169,8 @@ int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool sh
 		reverseWithLength = loopLength;
 	}
 
-	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
-	if (error) {
+	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
+	if (error != Error::NONE) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
 		delugeDealloc(clipMemory);
@@ -171,7 +182,7 @@ deleteClipAndGetOut:
 	newClip->output = output;
 
 	if (!newClip->noteRows.cloneFrom(&noteRows)) {
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 		goto deleteClipAndGetOut;
 	}
 
@@ -181,7 +192,7 @@ deleteClipAndGetOut:
 		NoteRow* noteRow = newClip->noteRows.getElement(i);
 		int32_t noteRowId = newClip->getNoteRowId(noteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		int32_t error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
+		Error error = noteRow->beenCloned(modelStackWithNoteRow, shouldFlattenReversing);
 
 		// If that fails, we have to keep going, cos otherwise some NoteRows' NoteVector will be left pointing to stuff
 		// it shouldn't be
@@ -194,7 +205,7 @@ deleteClipAndGetOut:
 	// happened. And we may be about to flatten it with a increaseLengthWithRepeats(), so need to keep this designation
 	// for now.
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // newLength might not be any longer than we already were - but this function still gets called in case any shorter
@@ -425,7 +436,7 @@ void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t n
 	}
 }
 
-int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
+Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 	currentlyRecordingLinearly = true;
 
 	if (output->type == OutputType::KIT) {
@@ -534,13 +545,13 @@ void InstrumentClip::reGetParameterAutomation(ModelStackWithTimelineCounter* mod
 	}
 }
 
-int32_t InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-                                                                  ModelStackWithTimelineCounter* modelStackClone) {
+Error InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+                                                                ModelStackWithTimelineCounter* modelStackClone) {
 	InstrumentClip* originalClip = (InstrumentClip*)modelStackOriginal->getTimelineCounter();
 
 	if (output->type == OutputType::KIT) {
 		if (noteRows.getNumElements() != originalClip->noteRows.getNumElements()) {
-			return ERROR_UNSPECIFIED;
+			return Error::UNSPECIFIED;
 		}
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -571,12 +582,12 @@ int32_t InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWith
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Returns error
-int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                                   ModelStackWithTimelineCounter* otherModelStack) {
+Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
+                                 ModelStackWithTimelineCounter* otherModelStack) {
 
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 
@@ -584,7 +595,7 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 
 	if (output->type == OutputType::KIT) {
 		if (noteRows.getNumElements() != otherInstrumentClip->noteRows.getNumElements()) {
-			return ERROR_UNSPECIFIED;
+			return Error::UNSPECIFIED;
 		}
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -598,9 +609,9 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
 			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
 
-			int32_t error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow,
-			                                           loopLength, whichRepeatThisIs, otherInstrumentClip->loopLength);
-			if (error) {
+			Error error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
+			                                         whichRepeatThisIs, otherInstrumentClip->loopLength);
+			if (error != Error::NONE) {
 				return error;
 			}
 		}
@@ -621,10 +632,10 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
 
-				int32_t error =
+				Error error =
 				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
 				                               whichRepeatThisIs, otherInstrumentClip->loopLength);
-				if (error) {
+				if (error != Error::NONE) {
 					return error;
 				}
 			}
@@ -1225,7 +1236,7 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t change,
+void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12],
                                         ModelStackWithTimelineCounter* modelStack) {
 	if (!isScaleModeClip()) {
 		return;
@@ -1233,12 +1244,16 @@ void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t cha
 	// Find all NoteRows which belong to this yVisualWithinOctave, and change their note
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		for (int32_t yVisualWithinOctave = 0; yVisualWithinOctave < numModeNotes; yVisualWithinOctave++) {
+			if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
-			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-			thisNoteRow->y += change;
+				thisNoteRow->stopCurrentlyPlayingNote(
+				    modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+				thisNoteRow->y += changes[yVisualWithinOctave];
+				break;
+			}
 		}
 	}
 }
@@ -1280,16 +1295,24 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePr
 	}
 }
 
-void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* modelStack) {
+/* Chromatic tranpose of all notes by fixed semitone amount */
+void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter* modelStack) {
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
+	// Must also do auditioned notes, since transpose can now be sequenced and change
+	// noterows while we hold an audition pad.
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStackWithSong = setupModelStackWithSong(modelStackMemory, currentSong);
+	output->stopAnyAuditioning(modelStackWithSong);
+
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		thisNoteRow->y += change;
+		thisNoteRow->y += semitones;
 	}
-	yScroll += change;
-	colourOffset -= change;
+
+	yScroll += semitones;
+	colourOffset -= semitones;
 }
 
 void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
@@ -1530,7 +1553,7 @@ int32_t InstrumentClip::getNumNoteRows() {
 	return noteRows.getNumElements();
 }
 
-int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager) {
+Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager) {
 
 	// New addition - need expression params... hopefully fine?
 	// Maybe this function should have the ability to do something equivalent to solicitParamManager(), for the purpose
@@ -1546,8 +1569,8 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
 		if (!paramManager.containsAnyMainParamCollections()) {
-			int32_t error = paramManager.setupMIDI();
-			if (error) {
+			Error error = paramManager.setupMIDI();
+			if (error != Error::NONE) {
 				if (ALPHA_OR_BETA_VERSION) {
 					FREEZE_WITH_ERROR("E052");
 				}
@@ -1558,12 +1581,12 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 	output = newInstrument;
 	affectEntire = true; // Moved here from changeInstrument, March 2021
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Does not set up patching!
-int32_t InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
-                                      InstrumentClip* favourClipForCloningParamManager) {
+Error InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
+                                    InstrumentClip* favourClipForCloningParamManager) {
 
 	// If MIDI or CV...
 	if (newInstrument->type == OutputType::MIDI_OUT || newInstrument->type == OutputType::CV) {
@@ -1571,12 +1594,10 @@ int32_t InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, Par
 	}
 
 	// Or if Synth or Kit...
-	else {
-		return setAudioInstrument(
-		    newInstrument, song, false, newParamManager,
-		    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in
-		                                       // changeInstrumentPreset() after all Drums matched up
-	}
+	return setAudioInstrument(
+	    newInstrument, song, false, newParamManager,
+	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in
+	                                       // changeInstrumentPreset() after all Drums matched up
 }
 
 void InstrumentClip::prepareToEnterKitMode(Song* song) {
@@ -1616,11 +1637,11 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
-int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-                                         ParamManagerForTimeline* newParamManager,
-                                         InstrumentRemoval instrumentRemovalInstruction,
-                                         InstrumentClip* favourClipForCloningParamManager,
-                                         bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
+Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
+                                       ParamManagerForTimeline* newParamManager,
+                                       InstrumentRemoval instrumentRemovalInstruction,
+                                       InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
+                                       bool giveMidiAssignmentsToNewInstrument) {
 
 	bool shouldBackUpExpressionParamsToo = false;
 
@@ -1662,11 +1683,11 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	                 giveMidiAssignmentsToNewInstrument,
 	                 shouldBackUpExpressionParamsToo); // Will unassignAllNoteRowsFromDrums(), and remember Drum names
 
-	int32_t error =
+	Error error =
 	    setInstrument(newInstrument, modelStack->song, newParamManager,
 	                  favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here
 	                                                     // in changeInstrumentPreset() after all Drums matched up
-	if (error) {
+	if (error != Error::NONE) {
 		FREEZE_WITH_ERROR("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
@@ -1818,7 +1839,7 @@ probablyApplyBendRangeMain:
 		modelStack->song->deleteOutputThatIsInMainList(oldInstrument);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void InstrumentClip::deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStackWithTimelineCounter* modelStack,
@@ -2095,7 +2116,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 
 // Returns error code.
 // Should only call for Kit Clips.
-int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
+Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack) {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* noteRow = noteRows.getElement(i);
 		if (noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
@@ -2107,7 +2128,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 				if (ALPHA_OR_BETA_VERSION) {
 					FREEZE_WITH_ERROR("E229");
 				}
-				return ERROR_BUG;
+				return Error::BUG;
 			}
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(i, noteRow);
@@ -2115,7 +2136,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // Do *not* use this function to set it to NULL if you don't want to completely delete the old one
@@ -2187,7 +2208,7 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 }
 
 // Returns error code
-int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
+Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	// We really just need all our ParamManagers back
 
@@ -2201,14 +2222,14 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 			if (ALPHA_OR_BETA_VERSION) {
 				FREEZE_WITH_ERROR("E230");
 			}
-			return ERROR_BUG;
+			return Error::BUG;
 		}
 	}
 	else if (output->type != OutputType::CV) {
 
 		if (output->type == OutputType::KIT) {
-			int32_t error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
-			if (error) {
+			Error error = undoUnassignmentOfAllNoteRowsFromDrums(modelStack);
+			if (error != Error::NONE) {
 				return error;
 			}
 		}
@@ -2216,19 +2237,19 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 		return Clip::undoDetachmentFromOutput(modelStack);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // If newInstrument is a Kit, you must call assignDrumsToNoteRows() after this
-int32_t InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldSetupPatching,
-                                           ParamManager* newParamManager,
-                                           InstrumentClip* favourClipForCloningParamManager) {
+Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldSetupPatching,
+                                         ParamManager* newParamManager,
+                                         InstrumentClip* favourClipForCloningParamManager) {
 
 	output = newInstrument;
 	affectEntire = (newInstrument->type != OutputType::KIT); // Moved here from changeInstrument, March 2021
 
-	int32_t error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
-	if (error) {
+	Error error = solicitParamManager(song, newParamManager, favourClipForCloningParamManager);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -2243,121 +2264,127 @@ int32_t InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song
 		((Instrument*)output)->setupPatching(modelStack);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(Song* song) {
+void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
-	storageManager.writeAttribute("inKeyMode", inScaleMode);
-	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
-	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+	bdsm.writeAttribute("inKeyMode", inScaleMode);
+	bdsm.writeAttribute("yScroll", yScroll);
+	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	bdsm.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
+	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	bdsm.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
 	if (onKeyboardScreen) {
-		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
+		bdsm.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
 	if (onAutomationClipView) {
-		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		bdsm.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != kNoSelection) {
-		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
-		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
+		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		bdsm.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
+		bdsm.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
 	}
 	if (wrapEditing) {
-		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
+		bdsm.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
 	if (output->type == OutputType::KIT) {
-		storageManager.writeAttribute("affectEntire", affectEntire);
+		bdsm.writeAttribute("affectEntire", affectEntire);
 	}
 
 	Instrument* instrument = (Instrument*)output;
 
 	if (output->type == OutputType::MIDI_OUT) {
-		storageManager.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->channel);
+		bdsm.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->channel);
 
 		if (((MIDIInstrument*)instrument)->channelSuffix != -1) {
-			storageManager.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
+			bdsm.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
 		}
 
 		// MIDI PGM
 		if (midiBank != 128) {
-			storageManager.writeAttribute("midiBank", midiBank);
+			bdsm.writeAttribute("midiBank", midiBank);
 		}
 		if (midiSub != 128) {
-			storageManager.writeAttribute("midiSub", midiSub);
+			bdsm.writeAttribute("midiSub", midiSub);
 		}
 		if (midiPGM != 128) {
-			storageManager.writeAttribute("midiPGM", midiPGM);
+			bdsm.writeAttribute("midiPGM", midiPGM);
 		}
 	}
 	else if (output->type == OutputType::CV) {
-		storageManager.writeAttribute("cvChannel", ((CVInstrument*)instrument)->channel);
+		bdsm.writeAttribute("cvChannel", ((CVInstrument*)instrument)->channel);
 	}
 	else {
-		storageManager.writeAttribute("instrumentPresetName", output->name.get());
+		bdsm.writeAttribute("instrumentPresetName", output->name.get());
 
 		if (!instrument->dirPath.isEmpty()) {
-			storageManager.writeAttribute("instrumentPresetFolder", instrument->dirPath.get());
+			bdsm.writeAttribute("instrumentPresetFolder", instrument->dirPath.get());
 		}
 	}
 
-	Clip::writeDataToFile(song);
+	Clip::writeDataToFile(bdsm, song);
 
 	if (output->type == OutputType::MIDI_OUT) {
-		paramManager.getMIDIParamCollection()->writeToFile();
+		paramManager.getMIDIParamCollection()->writeToFile(bdsm);
 	}
 
 	if (output->type != OutputType::KIT) {
-		if (arpSettings.mode != ArpMode::OFF) {
-			storageManager.writeOpeningTagBeginning("arpeggiator");
-			storageManager.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
-			storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-			storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
+		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
 
-			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-				storageManager.writeAttribute("gate", arpeggiatorGate);
-				storageManager.writeAttribute("rate", arpeggiatorRate);
-			}
-			storageManager.closeTag();
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			bdsm.writeAttribute("gate", arpeggiatorGate);
+			bdsm.writeAttribute("rate", arpeggiatorRate);
+			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+		bdsm.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
-		storageManager.writeOpeningTagBeginning("kitParams");
-		GlobalEffectableForClip::writeParamAttributesToFile(&paramManager, true);
-		storageManager.writeOpeningTagEnd();
-		GlobalEffectableForClip::writeParamTagsToFile(&paramManager, true);
-		storageManager.writeClosingTag("kitParams");
+		bdsm.writeOpeningTagBeginning("kitParams");
+		GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
+		bdsm.writeOpeningTagEnd();
+		GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
+		bdsm.writeClosingTag("kitParams");
 	}
 	else if (output->type == OutputType::SYNTH) {
-		storageManager.writeOpeningTagBeginning("soundParams");
-		Sound::writeParamsToFile(&paramManager, true);
-		storageManager.writeClosingTag("soundParams");
+		bdsm.writeOpeningTagBeginning("soundParams");
+		Sound::writeParamsToFile(bdsm, &paramManager, true);
+		bdsm.writeClosingTag("soundParams");
 	}
 
 	if (output->type != OutputType::KIT) {
 		ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
 		if (expressionParams) {
-			expressionParams->writeToFile();
+			expressionParams->writeToFile(bdsm);
 
 			if (output->type != OutputType::MIDI_OUT) {
-				storageManager.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
-				storageManager.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+				bdsm.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
+				bdsm.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 			}
 		}
 	}
 
 	if (noteRows.getNumElements()) {
-		storageManager.writeOpeningTag("noteRows");
+		bdsm.writeOpeningTag("noteRows");
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -2369,22 +2396,22 @@ void InstrumentClip::writeDataToFile(Song* song) {
 			}
 			// no matching drum found
 			if (drumIndex != -1) {
-				thisNoteRow->writeToFile(drumIndex, this);
+				thisNoteRow->writeToFile(bdsm, drumIndex, this);
 			}
 		}
 
-		storageManager.writeClosingTag("noteRows");
+		bdsm.writeClosingTag("noteRows");
 	}
 }
 
-int32_t InstrumentClip::readFromFile(Song* song) {
+Error InstrumentClip::readFromFile(StorageManager& bdsm, Song* song) {
 
-	int32_t error;
+	Error error;
 
 	if (false) {
 ramError:
 
-		error = ERROR_INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
 		// Clear out all NoteRows of phony info stored where their drum pointer would normally go
@@ -2409,17 +2436,17 @@ someError:
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
 		int32_t temp;
 
 		if (!strcmp(tagName, "inKeyMode")) {
-			inScaleMode = storageManager.readTagOrAttributeValueInt();
+			inScaleMode = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetSlot")) {
-			int32_t slotHere = storageManager.readTagOrAttributeValueInt();
+			int32_t slotHere = bdsm.readTagOrAttributeValueInt();
 			String slotChars;
 			slotChars.setInt(slotHere, 3);
 			slotChars.concatenate(&instrumentPresetName);
@@ -2427,7 +2454,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetSubSlot")) {
-			int32_t subSlotHere = storageManager.readTagOrAttributeValueInt();
+			int32_t subSlotHere = bdsm.readTagOrAttributeValueInt();
 			if (subSlotHere >= 0 && subSlotHere < 26) {
 				char buffer[2];
 				buffer[0] = 'A' + subSlotHere;
@@ -2437,103 +2464,103 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetName")) {
-			storageManager.readTagOrAttributeValueString(&instrumentPresetName);
+			bdsm.readTagOrAttributeValueString(&instrumentPresetName);
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetFolder")) {
-			storageManager.readTagOrAttributeValueString(&instrumentPresetDirPath);
+			bdsm.readTagOrAttributeValueString(&instrumentPresetDirPath);
 			dirPathHasBeenSpecified = true;
 		}
 
 		else if (!strcmp(tagName, "midiChannel")) {
 			outputTypeWhileLoading = OutputType::MIDI_OUT;
 
-			// if (!instrument) instrument = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, 0, -1);
-			instrumentPresetSlot = storageManager.readTagOrAttributeValueInt();
+			// if (!instrument) instrument = bdsm.createNewNonAudioInstrument(OutputType::MIDI_OUT, 0, -1);
+			instrumentPresetSlot = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiChannelSuffix")) {
-			instrumentPresetSubSlot = storageManager.readTagOrAttributeValueInt();
+			instrumentPresetSubSlot = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cvChannel")) {
 			outputTypeWhileLoading = OutputType::CV;
 
-			// if (!instrument) instrument = storageManager.createNewNonAudioInstrument(OutputType::CV, 0, -1);
-			instrumentPresetSlot = storageManager.readTagOrAttributeValueInt();
+			// if (!instrument) instrument = bdsm.createNewNonAudioInstrument(OutputType::CV, 0, -1);
+			instrumentPresetSlot = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiBank")) {
-			midiBank = storageManager.readTagOrAttributeValueInt();
+			midiBank = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiSub")) {
-			midiSub = storageManager.readTagOrAttributeValueInt();
+			midiSub = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiPGM")) {
-			midiPGM = storageManager.readTagOrAttributeValueInt();
+			midiPGM = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
-			yScroll = storageManager.readTagOrAttributeValueInt();
+			yScroll = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			keyboardState.currentLayout = (KeyboardLayoutType)bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			keyboardState.isomorphic.scrollOffset = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.scrollOffset = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardState.isomorphic.rowInterval = storageManager.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.rowInterval = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scrollOffset = storageManager.readTagOrAttributeValueInt();
+			keyboardState.drums.scrollOffset = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsEdgeSize")) {
-			keyboardState.drums.edgeSize = storageManager.readTagOrAttributeValueInt();
+			keyboardState.drums.edgeSize = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {
-			keyboardState.inKey.scrollOffset = storageManager.readTagOrAttributeValueInt();
+			keyboardState.inKey.scrollOffset = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyRowInterval")) {
-			keyboardState.inKey.rowInterval = storageManager.readTagOrAttributeValueInt();
+			keyboardState.inKey.rowInterval = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {
-			wrapEditLevel = storageManager.readTagOrAttributeValueInt();
+			wrapEditLevel = bdsm.readTagOrAttributeValueInt();
 			wrapEditing = true;
 		}
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
-			onKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+			onKeyboardScreen = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+			onAutomationClipView = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamID = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutX = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
@@ -2541,15 +2568,19 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
-			lastSelectedOutputType = static_cast<OutputType>(storageManager.readTagOrAttributeValueInt());
+			lastSelectedOutputType = static_cast<OutputType>(bdsm.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
+			lastSelectedPatchSource = static_cast<PatchSource>(bdsm.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
-			affectEntire = storageManager.readTagOrAttributeValueInt();
+			affectEntire = bdsm.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
-			soundMidiCommand.readChannelFromFile();
+			soundMidiCommand.readChannelFromFile(bdsm);
 		}
 
 		else if (!strcmp(tagName, "modKnobs")) { // Pre V2.0 only - for compatibility
@@ -2559,8 +2590,8 @@ someError:
 			output = song->getInstrumentFromPresetSlot(OutputType::MIDI_OUT, instrumentPresetSlot,
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
 			if (!output) {
-				output = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
-				                                                    instrumentPresetSubSlot);
+				output = bdsm.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
+				                                          instrumentPresetSubSlot);
 
 				if (!output) {
 					goto ramError;
@@ -2568,13 +2599,14 @@ someError:
 				song->addOutput(output);
 			}
 
-			int32_t error = paramManager.setupMIDI();
-			if (error) {
+			Error error = paramManager.setupMIDI();
+			if (error != Error::NONE) {
 				return error;
 			}
 
-			error = ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager);
-			if (error) {
+			error =
+			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(bdsm, readAutomationUpToPos, &paramManager);
+			if (error != Error::NONE) {
 				return error;
 			}
 
@@ -2584,30 +2616,74 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "arpeggiator")) {
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "rate")) {
-					arpeggiatorRate = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("rate");
+					arpeggiatorRate = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("rate");
+				}
+				else if (!strcmp(tagName, "ratchetProbability")) {
+					arpeggiatorRatchetProbability = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("ratchetProbability");
+				}
+				else if (!strcmp(tagName, "ratchetAmount")) {
+					arpeggiatorRatchetAmount = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("ratchetAmount");
+				}
+				else if (!strcmp(tagName, "sequenceLength")) {
+					arpeggiatorSequenceLength = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("sequenceLength");
+				}
+				else if (!strcmp(tagName, "rhythm")) {
+					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
-					arpSettings.numOctaves = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("numOctaves");
+					arpSettings.numOctaves = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("numOctaves");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
-					arpSettings.syncLevel = (SyncLevel)storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("syncLevel");
+					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("syncLevel");
 				}
-				else if (!strcmp(tagName, "mode")) {
-					arpSettings.mode = stringToArpMode(storageManager.readTagOrAttributeValue());
-					storageManager.exitTag("mode");
+				else if (!strcmp(tagName, "syncType")) {
+					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("syncType");
+				}
+				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
+					arpSettings.mode = oldModeToArpMode(oldMode);
+					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+					arpSettings.updatePresetFromCurrentSettings();
+					bdsm.exitTag("mode");
+				}
+				else if (!strcmp(tagName, "arpMode")) {
+					arpSettings.mode = stringToArpMode(bdsm.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					bdsm.exitTag("arpMode");
+				}
+				else if (!strcmp(tagName, "octaveMode")) {
+					arpSettings.octaveMode = stringToArpOctaveMode(bdsm.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					bdsm.exitTag("octaveMode");
+				}
+				else if (!strcmp(tagName, "noteMode")) {
+					arpSettings.noteMode = stringToArpNoteMode(bdsm.readTagOrAttributeValue());
+					arpSettings.updatePresetFromCurrentSettings();
+					bdsm.exitTag("noteMode");
+				}
+				else if (!strcmp(tagName, "mpeVelocity")) {
+					arpSettings.mpeVelocity = stringToArpMpeModSource(bdsm.readTagOrAttributeValue());
+					bdsm.exitTag("mpeVelocity");
 				}
 				else if (!strcmp(tagName, "gate")) {
-					arpeggiatorGate = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("gate");
+					arpeggiatorGate = bdsm.readTagOrAttributeValueInt();
+					bdsm.exitTag("gate");
 				}
 				else {
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
 		}
@@ -2615,20 +2691,20 @@ someError:
 		// For song files from before V2.0, where Instruments were stored within the Clip.
 		// Loading Instrument from another Clip.
 		else if (!strcmp(tagName, "instrument")) {
-			if (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			if (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "referToTrackId")) {
 					if (!output) {
-						int32_t clipId = storageManager.readTagOrAttributeValueInt();
+						int32_t clipId = bdsm.readTagOrAttributeValueInt();
 						clipId = std::max((int32_t)0, clipId);
 						if (clipId >= song->sessionClips.getNumElements()) {
-							error = ERROR_FILE_CORRUPTED;
+							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
 						instrumentWasLoadedByReferenceFromClip =
 						    (InstrumentClip*)song->sessionClips.getClipAtIndex(clipId);
 						output = instrumentWasLoadedByReferenceFromClip->output;
 						if (!output) {
-							error = ERROR_FILE_CORRUPTED;
+							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
 						outputTypeWhileLoading = output->type;
@@ -2636,7 +2712,7 @@ someError:
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
 						}
 					}
-					storageManager.exitTag("referToTrackId");
+					bdsm.exitTag("referToTrackId");
 				}
 			}
 		}
@@ -2654,15 +2730,15 @@ someError:
 
 					SoundInstrument* soundInstrument = new (instrumentMemory) SoundInstrument();
 					error = soundInstrument->dirPath.set("SYNTHS");
-					if (error) {
+					if (error != Error::NONE) {
 						goto someError; // Default, in case not included in file.
 					}
 					output = soundInstrument;
 				}
 
 loadInstrument:
-				error = output->readFromFile(song, this, readAutomationUpToPos);
-				if (error) {
+				error = output->readFromFile(bdsm, song, this, readAutomationUpToPos);
+				if (error != Error::NONE) {
 					goto someError;
 				}
 
@@ -2686,7 +2762,7 @@ loadInstrument:
 				outputTypeWhileLoading = OutputType::KIT;
 				Kit* kit = new (instrumentMemory) Kit();
 				error = kit->dirPath.set("KITS");
-				if (error) {
+				if (error != Error::NONE) {
 					goto someError; // Default, in case not included in file.
 				}
 				output = kit;
@@ -2698,10 +2774,11 @@ loadInstrument:
 			outputTypeWhileLoading = OutputType::SYNTH;
 
 			// Normal case - load in brand new ParamManager
-			if (storageManager.firmwareVersionOfFileBeingRead >= FIRMWARE_1P2P0 || !output) {
+
+			if (bdsm.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
 createNewParamManager:
 				error = paramManager.setupWithPatching();
-				if (error) {
+				if (error != Error::NONE) {
 					goto someError;
 				}
 				Sound::initParams(&paramManager);
@@ -2716,51 +2793,51 @@ createNewParamManager:
 					goto createNewParamManager;
 				}
 				error = paramManager.cloneParamCollectionsFrom(otherParamManager, false);
-				if (error) {
+				if (error != Error::NONE) {
 					goto someError;
 				}
 			}
-			Sound::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			Sound::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "kitParams")) {
 			outputTypeWhileLoading = OutputType::KIT;
 			error = paramManager.setupUnpatched();
-			if (error) {
+			if (error != Error::NONE) {
 				goto someError;
 			}
 
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
+			GlobalEffectableForClip::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "midiParams")) {
 			outputTypeWhileLoading = OutputType::MIDI_OUT;
 			error = paramManager.setupMIDI();
-			if (error) {
+			if (error != Error::NONE) {
 				goto someError;
 			}
 
-			error = readMIDIParamsFromFile(readAutomationUpToPos);
-			if (error) {
+			error = readMIDIParamsFromFile(bdsm, readAutomationUpToPos);
+			if (error != Error::NONE) {
 				goto someError;
 			}
 		}
 
 		else if (!strcmp(tagName, "noteRows")) {
 			int32_t minY = -32768;
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "noteRow")) {
 					NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(noteRows.getNumElements());
 					if (!newNoteRow) {
 						goto ramError;
 					}
-					error = newNoteRow->readFromFile(&minY, this, song, readAutomationUpToPos);
-					if (error) {
+					error = newNoteRow->readFromFile(bdsm, &minY, this, song, readAutomationUpToPos);
+					if (error != Error::NONE) {
 						goto someError;
 					}
 				}
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 		}
 
@@ -2772,7 +2849,7 @@ doReadExpressionParam:
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readParam(summary, temp, readAutomationUpToPos);
+				expressionParams->readParam(bdsm, summary, temp, readAutomationUpToPos);
 			}
 		}
 
@@ -2791,7 +2868,7 @@ doReadExpressionParam:
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readFromFile(summary, readAutomationUpToPos);
+				expressionParams->readFromFile(bdsm, summary, readAutomationUpToPos);
 			}
 		}
 
@@ -2800,7 +2877,7 @@ doReadExpressionParam:
 doReadBendRange:
 			ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 			if (expressionParams) {
-				expressionParams->bendRanges[temp] = storageManager.readTagOrAttributeValueInt();
+				expressionParams->bendRanges[temp] = bdsm.readTagOrAttributeValueInt();
 			}
 		}
 
@@ -2810,10 +2887,10 @@ doReadBendRange:
 		}
 
 		else {
-			readTagFromFile(tagName, song, &readAutomationUpToPos);
+			readTagFromFile(bdsm, tagName, song, &readAutomationUpToPos);
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 
 	// Some stuff for song files before V2.0, where the Instrument would have been loaded at this point
@@ -2871,7 +2948,7 @@ doReadBendRange:
 					if (!instrumentWasLoadedByReferenceFromClip && output->type == OutputType::KIT) {
 
 						error = paramManager.setupUnpatched();
-						if (error) {
+						if (error != Error::NONE) {
 							goto someError;
 						}
 
@@ -2882,13 +2959,13 @@ doReadBendRange:
 						if (!instrumentWasLoadedByReferenceFromClip
 						    || !instrumentWasLoadedByReferenceFromClip->paramManager
 						            .containsAnyMainParamCollections()) {
-							error = ERROR_FILE_CORRUPTED;
+							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
 						error = paramManager.cloneParamCollectionsFrom(
 						    &instrumentWasLoadedByReferenceFromClip->paramManager,
 						    false); // No need to trim - param automation didn't exist back then
-						if (error) {
+						if (error != Error::NONE) {
 							goto someError;
 						}
 					}
@@ -2899,7 +2976,7 @@ doReadBendRange:
 
 	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
 	// and was always 12.
-	if (storageManager.firmwareVersionOfFileBeingRead <= FIRMWARE_3P2P0_ALPHA
+	if (bdsm.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
 	    && !paramManager.getExpressionParamSet()) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -2920,7 +2997,7 @@ doReadBendRange:
 			// to the Instruments which this Clip will get matched against.
 			error =
 			    backedUpInstrumentDirPath[outputTypeWhileLoadingAsIdx].set(getInstrumentFolder(outputTypeWhileLoading));
-			if (error) {
+			if (error != Error::NONE) {
 				return error;
 			}
 		}
@@ -2936,17 +3013,17 @@ doReadBendRange:
 		__builtin_unreachable();
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-int32_t InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
+Error InstrumentClip::readMIDIParamsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "param")) {
-			// int32_t error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, this);
-			// if (error) return error;
+			// Error error = bdsm.readMIDIParamFromFile(readAutomationUpToPos, this);
+			// if (error != Error::NONE) return error;
 
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
@@ -2954,16 +3031,16 @@ int32_t InstrumentClip::readMIDIParamsFromFile(int32_t readAutomationUpToPos) {
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = NULL;
 
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "cc")) {
-					char const* contents = storageManager.readTagOrAttributeValue();
+					char const* contents = bdsm.readTagOrAttributeValue();
 					if (!strcasecmp(contents, "bend")) {
 						paramId = X_PITCH_BEND;
 expressionParam:
 						// If we're here, we're reading a pre-V3.2 file, and need to read what we're now regarding as
 						// "expression".
 						if (!paramManager.ensureExpressionParamSetExists()) {
-							return ERROR_INSUFFICIENT_RAM;
+							return Error::INSUFFICIENT_RAM;
 						}
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
@@ -2983,7 +3060,7 @@ expressionParam:
 							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (storageManager.firmwareVersionOfFileBeingRead < FirmwareVersion::COMMUNITY_1P1) {
+								if (bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
@@ -2991,18 +3068,18 @@ expressionParam:
 							MIDIParam* midiParam =
 							    paramManager.getMIDIParamCollection()->params.getOrCreateParamFromCC(paramId, 0);
 							if (!midiParam) {
-								return ERROR_INSUFFICIENT_RAM;
+								return Error::INSUFFICIENT_RAM;
 							}
 							param = &midiParam->param;
 						}
 					}
-					storageManager.exitTag("cc");
+					bdsm.exitTag("cc");
 				}
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						int32_t error = param->readFromFile(readAutomationUpToPos);
-						if (error) {
+						Error error = param->readFromFile(bdsm, readAutomationUpToPos);
+						if (error != Error::NONE) {
 							return error;
 						}
 
@@ -3029,21 +3106,21 @@ expressionParam:
 							}
 						}
 					}
-					storageManager.exitTag("value");
+					bdsm.exitTag("value");
 				}
 				else {
-					storageManager.exitTag(tagName);
+					bdsm.exitTag(tagName);
 				}
 			}
 
-			storageManager.exitTag("param");
+			bdsm.exitTag("param");
 		}
 		else {
-			storageManager.exitTag(tagName);
+			bdsm.exitTag(tagName);
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 // This function also unassigns individual NoteRows from their "sound" MIDI commands
@@ -3616,6 +3693,15 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	return true;
 }
 
+bool InstrumentClip::isEmpty() {
+	// does this clip have notes?
+	if (containsAnyNotes()) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		return false;
+	}
+	return true;
+}
+
 bool InstrumentClip::containsAnyNotes() {
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -3678,17 +3764,17 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 
 		if (Browser::currentDir.isEmpty()) {
 			result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-			if (result.error) {
-displayError:
+			if (result.error != Error::NONE) {
 				display->displayError(result.error);
-				return NULL;
+				return nullptr;
 			}
 		}
 
 		result =
 		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement);
-		if (result.error) {
-			goto displayError;
+		if (result.error != Error::NONE) {
+			display->displayError(result.error);
+			return nullptr;
 		}
 
 		newInstrument = result.fileItem->instrument;
@@ -3705,8 +3791,9 @@ displayError:
 
 		Browser::emptyFileItems();
 
-		if (result.error) {
-			goto displayError;
+		if (result.error != Error::NONE) {
+			display->displayError(result.error);
+			return nullptr;
 		}
 
 		if (isHibernating) {
@@ -3725,8 +3812,8 @@ displayError:
 	}
 
 	else {
-		int32_t error = changeInstrument(modelStack, newInstrument, NULL,
-		                                 InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+		Error error = changeInstrument(modelStack, newInstrument, NULL,
+		                               InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors
 
 		if (!instrumentAlreadyInSong) {
@@ -3769,7 +3856,30 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 	}
 }
 
-int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
+ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
+	ParamManagerForTimeline* currentParamManager = nullptr;
+
+	if (output->type == OutputType::KIT && !affectEntire) {
+		Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+
+		// If a SoundDrum is selected...
+		if (selectedDrum) {
+			if (selectedDrum->type == DrumType::SOUND) {
+				NoteRow* noteRow = getNoteRowForDrum(selectedDrum);
+				if (noteRow != nullptr) {
+					currentParamManager = &noteRow->paramManager;
+				}
+			}
+		}
+	}
+	else {
+		currentParamManager = &paramManager;
+	}
+
+	return currentParamManager;
+}
+
+Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	if (!output) { // Would only have an output already if file from before V2.0.0 I think? So, this block normally does
 		           // apply.
@@ -3789,13 +3899,13 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				                                                    backedUpInstrumentSubSlot[outputTypeAsIdx]);
 
 				if (!output) {
-					return ERROR_INSUFFICIENT_RAM;
+					return Error::INSUFFICIENT_RAM;
 				}
 
 				modelStack->song->addOutput(output);
 			}
 			else {
-				return ERROR_FILE_CORRUPTED;
+				return Error::FILE_CORRUPTED;
 			}
 		}
 	}
@@ -3831,7 +3941,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				if (!thisNoteRow->drum) {
 					void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GateDrum));
 					if (!drumMemory) {
-						return ERROR_INSUFFICIENT_RAM;
+						return Error::INSUFFICIENT_RAM;
 					}
 					GateDrum* newDrum = new (drumMemory) GateDrum();
 					newDrum->channel = gateChannel;
@@ -3855,7 +3965,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				ModelStackWithNoteRow*
 				    modelStackWithNoteRow; // Defined up here so we can do the jump to haveNoDrum, below.
 
-				int32_t error; // These declared here, to allow gotos
+				Error error; // These declared here, to allow gotos
 				bool success;
 
 				// We need to see whether any other NoteRows *that we've assigned drums so far* had this same drum.
@@ -3895,13 +4005,13 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 						otherParamManager =
 						    modelStackWithNoteRow->song->findParamManagerForDrum(kit, thisNoteRow->drum, this);
 						if (!otherParamManager) {
-							return ERROR_UNSPECIFIED;
+							return Error::UNSPECIFIED;
 						}
 						error = thisNoteRow->paramManager.cloneParamCollectionsFrom(otherParamManager, false);
 						paramManagerCloned = true;
 
 						// If wasn't enough RAM, we're really in trouble
-						if (error) {
+						if (error != Error::NONE) {
 							FREEZE_WITH_ERROR("E011");
 haveNoDrum:
 							thisNoteRow->drum = NULL;
@@ -3913,7 +4023,7 @@ haveNoDrum:
 				if (thisNoteRow->drum) {
 
 					// If saved before V2.1, see if we need linear interpolation
-					if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+					if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 						if (thisNoteRow->drum->type == DrumType::SOUND) {
 							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
 
@@ -3970,8 +4080,8 @@ haveNoDrum:
 		// And...
 		if (output->type == OutputType::MIDI_OUT) {
 			if (!paramManager.containsAnyMainParamCollections()) {
-				int32_t error = paramManager.setupMIDI();
-				if (error) {
+				Error error = paramManager.setupMIDI();
+				if (error != Error::NONE) {
 					return error;
 				}
 			}
@@ -3991,7 +4101,7 @@ haveNoDrum:
 	compensateVolumeForResonance(modelStack);
 
 	// If saved before V2.1....
-	if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+	if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* sound = (SoundInstrument*)output;
@@ -4006,7 +4116,7 @@ haveNoDrum:
 
 		// For songs saved before V2.0, ensure that non-square oscillators have PW set to 0 (cos PW in this case didn't
 		// have an effect then but it will now)
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P0P0_BETA) {
+		if (storageManager.firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
 			if (output->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)output;
 
@@ -4035,7 +4145,7 @@ haveNoDrum:
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
@@ -4146,14 +4256,14 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return NULL;
 	}
 
 	ParamManagerForTimeline newParamManager;
 
-	int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
-	if (error) {
+	Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
+	if (error != Error::NONE) {
 		display->displayError(error);
 		return NULL;
 	}
@@ -4337,7 +4447,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 					// we'll put the Note.
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-						int32_t error;
+						Error error;
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
@@ -4345,7 +4455,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 							if (output->type == OutputType::KIT
 							    && noteRows.getNumElements()
 							           != ((InstrumentClip*)beingRecordedFromClip)->noteRows.getNumElements()) {
-								error = ERROR_UNSPECIFIED;
+								error = Error::UNSPECIFIED;
 							}
 
 							else {
@@ -4381,7 +4491,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 							error = appendClip(thisModelStack, otherModelStack);
 						}
 
-						if (error) {
+						if (error != Error::NONE) {
 							goto doNormal;
 						}
 					}
@@ -4484,8 +4594,8 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(NULL, modelStackWithAutoParam, false);
 
-			int32_t error = param->nodes.insertAtIndex(0);
-			if (!error) {
+			Error error = param->nodes.insertAtIndex(0);
+			if (error == Error::NONE) {
 				ParamNode* firstNode = param->nodes.getElement(0);
 				firstNode->pos = quantizedPos;
 				firstNode->value = value;

@@ -4,7 +4,7 @@ on:
   pull_request_target:
     branches:
       - community
-    types: ["closed"]
+    types: [ "closed" ]
 
 permissions:
   issues: read
@@ -13,20 +13,20 @@ permissions:
 
 
 jobs:
-  cherry_pick_release_v1_0:
+  cherry_pick_release:
     runs-on: ubuntu-latest
-    name: Cherry pick into release-v1.0
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'release-1.0') && github.event.pull_request.merged == true }}
+    name: Cherry pick into release branch
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'cherry-pick') && github.event.pull_request.merged == true }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Cherry pick into release/1.0
-        uses: carloscastrojumo/github-cherry-pick-action@v1.0.9
+      - name: Cherry pick into release/1.1
+        uses: carloscastrojumo/github-cherry-pick-action@v1.0.10
         with:
-          branch: release/1.0
+          branch: release/1.1
           labels: |
-            cherry-pick
+            cherry-picked
           reviewers: |
             m-m-adams

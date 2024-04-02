@@ -35,32 +35,32 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	state = false;
 }
 
-void GateDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
-	storageManager.writeOpeningTagBeginning("gateOutput");
+void GateDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	bdsm.writeOpeningTagBeginning("gateOutput");
 
-	storageManager.writeAttribute("channel", channel, false);
+	bdsm.writeAttribute("channel", channel, false);
 
 	if (savingSong) {
-		storageManager.writeOpeningTagEnd();
-		Drum::writeMIDICommandsToFile();
-		storageManager.writeClosingTag("gateOutput");
+		bdsm.writeOpeningTagEnd();
+		Drum::writeMIDICommandsToFile(bdsm);
+		bdsm.writeClosingTag("gateOutput");
 	}
 	else {
-		storageManager.closeTag();
+		bdsm.closeTag();
 	}
 }
 
-int32_t GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error GateDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (NonAudioDrum::readDrumTagFromFile(tagName)) {}
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		if (NonAudioDrum::readDrumTagFromFile(bdsm, tagName)) {}
 		else {
-			storageManager.exitTag(tagName);
+			bdsm.exitTag(tagName);
 		}
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 void GateDrum::getName(char* buffer) {

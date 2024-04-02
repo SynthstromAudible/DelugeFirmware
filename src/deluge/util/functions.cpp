@@ -24,6 +24,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
+#include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
 #include <cmath>
 #include <string.h>
@@ -34,6 +35,7 @@ extern "C" {
 }
 
 namespace params = deluge::modulation::params;
+namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using params::kNumParams;
 
@@ -140,8 +142,8 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_OSC_B_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it
-		                 // 16x smaller)
+		return kMaxSampleValue; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since
+		                        // made it 16x smaller)
 
 	case params::GLOBAL_MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
@@ -375,7 +377,7 @@ char const* sourceToStringShort(PatchSource source) {
 		return "note";
 
 	case PatchSource::SIDECHAIN:
-		return "comp";
+		return "side";
 
 	case PatchSource::RANDOM:
 		return "rand";
@@ -933,43 +935,51 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
-char const* filterRouteToString(FilterRoute route) {
-	switch (route) {
-	case FilterRoute::LOW_TO_HIGH:
-		return "L2H";
-
-	case FilterRoute::PARALLEL:
-		return "PARA";
-
-	default:
-		return "H2L";
-	}
-}
-
-FilterRoute stringToFilterRoute(char const* string) {
-	if (!strcmp(string, "L2H")) {
-		return FilterRoute::LOW_TO_HIGH;
-	}
-	else if (!strcmp(string, "PARA")) {
-		return FilterRoute::PARALLEL;
+ArpMode oldModeToArpMode(OldArpMode oldMode) {
+	if (oldMode != OldArpMode::OFF) {
+		return ArpMode::ARP;
 	}
 	else {
-		return FilterRoute::HIGH_TO_LOW;
+		return ArpMode::OFF;
 	}
 }
 
-char const* arpModeToString(ArpMode mode) {
+ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode) {
+	switch (oldMode) {
+	case OldArpMode::DOWN:
+		return ArpNoteMode::DOWN;
+	case OldArpMode::RANDOM:
+		return ArpNoteMode::RANDOM;
+	default:
+		return ArpNoteMode::UP;
+	}
+}
+
+ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode) {
+	switch (oldMode) {
+	case OldArpMode::DOWN:
+		return ArpOctaveMode::DOWN;
+	case OldArpMode::BOTH:
+		return ArpOctaveMode::ALTERNATE;
+	case OldArpMode::RANDOM:
+		return ArpOctaveMode::RANDOM;
+	default:
+		return ArpOctaveMode::UP;
+	}
+}
+
+char const* oldArpModeToString(OldArpMode mode) {
 	switch (mode) {
-	case ArpMode::UP:
+	case OldArpMode::UP:
 		return "up";
 
-	case ArpMode::DOWN:
+	case OldArpMode::DOWN:
 		return "down";
 
-	case ArpMode::BOTH:
+	case OldArpMode::BOTH:
 		return "both";
 
-	case ArpMode::RANDOM:
+	case OldArpMode::RANDOM:
 		return "random";
 
 	default:
@@ -977,64 +987,133 @@ char const* arpModeToString(ArpMode mode) {
 	}
 }
 
-ArpMode stringToArpMode(char const* string) {
+OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
-		return ArpMode::UP;
+		return OldArpMode::UP;
 	}
 	else if (!strcmp(string, "down")) {
-		return ArpMode::DOWN;
+		return OldArpMode::DOWN;
 	}
 	else if (!strcmp(string, "both")) {
-		return ArpMode::BOTH;
+		return OldArpMode::BOTH;
 	}
 	else if (!strcmp(string, "random")) {
-		return ArpMode::RANDOM;
+		return OldArpMode::RANDOM;
+	}
+	else {
+		return OldArpMode::OFF;
+	}
+}
+
+char const* arpModeToString(ArpMode mode) {
+	switch (mode) {
+	case ArpMode::ARP:
+		return "arp";
+
+	default:
+		return "off";
+	}
+}
+
+ArpMode stringToArpMode(char const* string) {
+	if (!strcmp(string, "arp")) {
+		return ArpMode::ARP;
 	}
 	else {
 		return ArpMode::OFF;
 	}
 }
-// converts lpf/hpf mode to string for saving
-char const* lpfTypeToString(FilterMode lpfType) {
-	switch (lpfType) {
-	case FilterMode::TRANSISTOR_12DB:
-		return "12dB";
 
-	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		return "24dBDrive";
-	case FilterMode::SVF_BAND:
-		return "SVF_Band";
-	case FilterMode::HPLADDER:
-		return "HPLadder";
-	case FilterMode::SVF_NOTCH:
-		return "SVF_Notch";
+char const* arpNoteModeToString(ArpNoteMode mode) {
+	switch (mode) {
+	case ArpNoteMode::DOWN:
+		return "down";
+
+	case ArpNoteMode::UP_DOWN:
+		return "upDown";
+
+	case ArpNoteMode::AS_PLAYED:
+		return "asPlayed";
+
+	case ArpNoteMode::RANDOM:
+		return "random";
+
 	default:
-		return "24dB";
+		return "up";
 	}
 }
 
-FilterMode stringToLPFType(char const* string) {
-	if (!strcmp(string, "24dB")) {
-		return FilterMode::TRANSISTOR_24DB;
+ArpNoteMode stringToArpNoteMode(char const* string) {
+	if (!strcmp(string, "down")) {
+		return ArpNoteMode::DOWN;
 	}
-	else if (!strcmp(string, "24dBDrive")) {
-		return FilterMode::TRANSISTOR_24DB_DRIVE;
+	else if (!strcmp(string, "upDown")) {
+		return ArpNoteMode::UP_DOWN;
 	}
-	else if (!strcmp(string, "SVF_Band")) {
-		return FilterMode::SVF_BAND;
+	else if (!strcmp(string, "asPlayed")) {
+		return ArpNoteMode::AS_PLAYED;
 	}
-	else if (!strcmp(string, "SVF")) {
-		// for compatibility with community pre release
-		return FilterMode::SVF_BAND;
-	}
-	else if (!strcmp(string, "HPLadder")) {
-		return FilterMode::HPLADDER;
-	}
-	else if (!strcmp(string, "SVF_Notch")) {
-		return FilterMode::SVF_NOTCH;
+	else if (!strcmp(string, "random")) {
+		return ArpNoteMode::RANDOM;
 	}
 	else {
-		return FilterMode::TRANSISTOR_12DB;
+		return ArpNoteMode::UP;
+	}
+}
+
+char const* arpOctaveModeToString(ArpOctaveMode mode) {
+	switch (mode) {
+	case ArpOctaveMode::DOWN:
+		return "down";
+
+	case ArpOctaveMode::RANDOM:
+		return "random";
+
+	default:
+		return "up";
+	}
+}
+
+ArpOctaveMode stringToArpOctaveMode(char const* string) {
+	if (!strcmp(string, "down")) {
+		return ArpOctaveMode::DOWN;
+	}
+	else if (!strcmp(string, "upDown")) {
+		return ArpOctaveMode::RANDOM;
+	}
+	else if (!strcmp(string, "alt")) {
+		return ArpOctaveMode::ALTERNATE;
+	}
+	else if (!strcmp(string, "random")) {
+		return ArpOctaveMode::RANDOM;
+	}
+	else {
+		return ArpOctaveMode::UP;
+	}
+}
+
+char const* arpMpeModSourceToString(ArpMpeModSource modSource) {
+	switch (modSource) {
+	case ArpMpeModSource::MPE_Y:
+		return "y";
+
+	case ArpMpeModSource::AFTERTOUCH:
+		return "z";
+
+	default:
+		return "off";
+	}
+}
+
+ArpMpeModSource stringToArpMpeModSource(char const* string) {
+	if (!strcmp(string, "y")) {
+		return ArpMpeModSource::MPE_Y;
+	}
+	else if (!strcmp(string, "z")) {
+		return ArpMpeModSource::AFTERTOUCH;
+	}
+	else {
+		return ArpMpeModSource::OFF;
 	}
 }
 
@@ -1157,6 +1236,9 @@ char const* getInstrumentFolder(OutputType outputType) {
 	}
 	else if (outputType == OutputType::KIT) {
 		return "KITS";
+	}
+	else if (outputType == OutputType::MIDI_OUT) {
+		return "MIDI";
 	}
 	else {
 		return "SONGS";
@@ -1412,8 +1494,8 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t mem
 	int32_t strengthR[LANCZOS_A];
 
 	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
+		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
+		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
 	int32_t howManyLeft = std::min((int32_t)LANCZOS_A, (int32_t)(pos + 1));
@@ -1439,8 +1521,8 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	int32_t strengthR[LANCZOS_A];
 
 	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
+		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
+		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
 	int32_t value = 0;
@@ -1680,6 +1762,18 @@ doNormal:
 	}
 }
 
+char* replace_char(const char* str, char find, char replace) {
+	char* copy = new char[sizeof(char) * strlen(str) + 1];
+
+	strcpy(copy, str);
+	char* current_pos = strchr(copy, find);
+	while (current_pos) {
+		*current_pos = replace;
+		current_pos = strchr(current_pos, find);
+	}
+	return copy;
+}
+
 bool charCaseEqual(char firstChar, char secondChar) {
 	// Make lowercase
 	if (firstChar >= 'A' && firstChar <= 'Z') {
@@ -1717,229 +1811,6 @@ int32_t memcasecmp(char const* first, char const* second, int32_t size) {
 		second++;
 	}
 	return 0;
-}
-
-int32_t stringToFirmwareVersion(char const* firmwareVersionString) {
-	if (!strcmp(firmwareVersionString, "1.2.0")) {
-		return FIRMWARE_1P2P0;
-	}
-	else if (!strcmp(firmwareVersionString, "1.3.0-pretest")) {
-		return FIRMWARE_1P3P0_PRETEST;
-	}
-	else if (!strcmp(firmwareVersionString, "1.3.0-beta")) {
-		return FIRMWARE_1P3P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "1.3.0")) {
-		return FIRMWARE_1P3P0;
-	}
-	else if (!strcmp(firmwareVersionString, "1.3.1")) {
-		return FIRMWARE_1P3P1;
-	}
-	else if (!strcmp(firmwareVersionString, "1.3.2")) {
-		return FIRMWARE_1P3P2;
-	}
-	else if (!strcmp(firmwareVersionString, "1.4.0-pretest")) {
-		return FIRMWARE_1P4P0_PRETEST;
-	}
-	else if (!strcmp(firmwareVersionString, "1.4.0-beta")) {
-		return FIRMWARE_1P4P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "1.4.0")) {
-		return FIRMWARE_1P4P0;
-	}
-	else if (!strcmp(firmwareVersionString, "1.5.0-pretest")) {
-		return FIRMWARE_1P5P0_PREBETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.0-beta")) {
-		return FIRMWARE_2P0P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.0")) {
-		return FIRMWARE_2P0P0;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.1-beta")) {
-		return FIRMWARE_2P0P1_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.1")) {
-		return FIRMWARE_2P0P1;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.2-beta")) {
-		return FIRMWARE_2P0P2_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.2")) {
-		return FIRMWARE_2P0P2;
-	}
-	else if (!strcmp(firmwareVersionString, "2.0.3")) {
-		return FIRMWARE_2P0P3;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.0-beta")) {
-		return FIRMWARE_2P1P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.0")) {
-		return FIRMWARE_2P1P0;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.1-beta")) {
-		return FIRMWARE_2P1P1_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.1")) {
-		return FIRMWARE_2P1P1;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.2-beta")) {
-		return FIRMWARE_2P1P2_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.2")) {
-		return FIRMWARE_2P1P2;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.3-beta")) {
-		return FIRMWARE_2P1P3_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.3")) {
-		return FIRMWARE_2P1P3;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.4-beta")) {
-		return FIRMWARE_2P1P4_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "2.1.4")) {
-		return FIRMWARE_2P1P4;
-	}
-	else if (!strcmp(firmwareVersionString, "2.2.0-alpha")) { // Same as next one
-		return FIRMWARE_3P0P0_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.0-alpha")) {
-		return FIRMWARE_3P0P0_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.0-beta")) {
-		return FIRMWARE_3P0P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.0")) {
-		return FIRMWARE_3P0P0;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.1-beta")) {
-		return FIRMWARE_3P0P1_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.1")) {
-		return FIRMWARE_3P0P1;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.2")) {
-		return FIRMWARE_3P0P2;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.3-alpha")) {
-		return FIRMWARE_3P0P3_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.3-beta")) {
-		return FIRMWARE_3P0P3_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.3")) {
-		return FIRMWARE_3P0P3;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.4")) {
-		return FIRMWARE_3P0P4;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.5-beta")) {
-		return FIRMWARE_3P0P5_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.0.5")) {
-		return FIRMWARE_3P0P5;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.0-alpha")) {
-		return FIRMWARE_3P1P0_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.0-alpha2")) {
-		return FIRMWARE_3P1P0_ALPHA2;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.0-beta")) {
-		return FIRMWARE_3P1P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.0")) {
-		return FIRMWARE_3P1P0;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.1-beta")) {
-		return FIRMWARE_3P1P1_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.1")) {
-		return FIRMWARE_3P1P1;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.2-beta")) {
-		return FIRMWARE_3P1P2_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.2")) {
-		return FIRMWARE_3P1P2;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.3-beta")) {
-		return FIRMWARE_3P1P3_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.3")) {
-		return FIRMWARE_3P1P3;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.4-beta")) {
-		return FIRMWARE_3P1P4_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.4")) {
-		return FIRMWARE_3P1P4;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.5-beta")) {
-		return FIRMWARE_3P1P5_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "3.1.5")) {
-		return FIRMWARE_3P1P5;
-	}
-	else if (!strcmp(firmwareVersionString, "3.2.0-alpha")) {
-		return FIRMWARE_3P2P0_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.0.0-beta")) {
-		return FIRMWARE_4P0P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.0.0")) {
-		return FIRMWARE_4P0P0;
-	}
-	else if (!strcmp(firmwareVersionString, "4.0.1-beta")) {
-		return FIRMWARE_4P0P1_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.0.1")) {
-		return FIRMWARE_4P0P1;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.0-alpha")) {
-		return FIRMWARE_4P1P0_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.0-beta")) {
-		return FIRMWARE_4P1P0_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.0")) {
-		return FIRMWARE_4P1P0;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.1-alpha")) {
-		return FIRMWARE_4P1P1_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.1")) {
-		return FIRMWARE_4P1P1;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.2")) {
-		return FIRMWARE_4P1P2;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.3-alpha")) {
-		return FIRMWARE_4P1P3_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.3-beta")) {
-		return FIRMWARE_4P1P3_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.3")) {
-		return FIRMWARE_4P1P3;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.4-alpha")) {
-		return FIRMWARE_4P1P4_ALPHA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.4-beta")) {
-		return FIRMWARE_4P1P4_BETA;
-	}
-	else if (!strcmp(firmwareVersionString, "4.1.4")) {
-		return FIRMWARE_4P1P4;
-	}
-	else if (!strcmp(firmwareVersionString, "c1.1.0")) {
-		return COMMUNITY_1P1;
-	}
-
-	else {
-		return FIRMWARE_TOO_NEW;
-	}
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
@@ -2117,7 +1988,7 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 
 bool shouldAbortLoading() {
 	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (Encoders::encoders[ENCODER_SELECT].detentPos || QwertyUI::predictionInterrupted));
+	        && (encoders::getEncoder(encoders::EncoderName::SELECT).detentPos || QwertyUI::predictionInterrupted));
 }
 
 void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
@@ -2214,31 +2085,31 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 	return true;
 }
 
-int32_t fresultToDelugeErrorCode(FRESULT result) {
+Error fresultToDelugeErrorCode(FRESULT result) {
 	switch (result) {
 	case FR_OK:
-		return NO_ERROR;
+		return Error::NONE;
 
 	case FR_NO_FILESYSTEM:
-		return ERROR_SD_CARD_NO_FILESYSTEM;
+		return Error::SD_CARD_NO_FILESYSTEM;
 
 	case FR_NO_FILE:
-		return ERROR_FILE_NOT_FOUND;
+		return Error::FILE_NOT_FOUND;
 
 	case FR_NO_PATH:
-		return ERROR_FOLDER_DOESNT_EXIST;
+		return Error::FOLDER_DOESNT_EXIST;
 
 	case FR_WRITE_PROTECTED:
-		return ERROR_WRITE_PROTECTED;
+		return Error::WRITE_PROTECTED;
 
 	case FR_NOT_ENOUGH_CORE:
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 
 	case FR_EXIST:
-		return ERROR_FILE_ALREADY_EXISTS;
+		return Error::FILE_ALREADY_EXISTS;
 
 	default:
-		return ERROR_SD_CARD;
+		return Error::SD_CARD;
 	}
 }
 

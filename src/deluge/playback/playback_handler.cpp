@@ -35,6 +35,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -99,7 +100,7 @@ PlaybackHandler::PlaybackHandler() {
 	posToNextContinuePlaybackFrom = 0;
 	stopOutputRecordingAtLoopEnd = false;
 	recording = RecordingMode::OFF;
-	countInEnabled = true;
+	countInBars = 1;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
 }
@@ -304,12 +305,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	}
 
 	// See if we want a count-in
-	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInEnabled
+	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInBars
 	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	    && getCurrentUI() == getRootUI()) {
 
-		ticksLeftInCountIn = currentSong->getBarLength();
-		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as a 4.
+		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
+		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
 		currentUIMode = UI_MODE_RECORD_COUNT_IN;
 	}
 	else {
@@ -2491,7 +2492,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 
 	indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
 
-	uiTimerManager.setTimer(TIMER_TAP_TEMPO_SWITCH_OFF, 1100);
+	uiTimerManager.setTimer(TimerName::TAP_TEMPO_SWITCH_OFF, 1100);
 }
 
 // Returns whether the message has been used up by a command
@@ -2500,7 +2501,14 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 	bool foundAnything = false;
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
-		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
+
+		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel)
+		    && static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
+			foundAnything = true;
+			MIDITranspose::doTranspose(true, note);
+		}
+
+		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RecordingMode::ARRANGEMENT) {
@@ -2566,11 +2574,18 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 
 	bool foundAnything = false;
 
-	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
-	                                                                                               note)) {
-		currentSong->changeFillMode(false);
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(device,
+	                                                                                                         channel)) {
 		foundAnything = true;
+		MIDITranspose::doTranspose(false, note);
+	}
+	else {
+		// Check for FILL command at index [8]
+		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+		                                                                                               note)) {
+			currentSong->changeFillMode(false);
+			foundAnything = true;
+		}
 	}
 
 	return foundAnything;

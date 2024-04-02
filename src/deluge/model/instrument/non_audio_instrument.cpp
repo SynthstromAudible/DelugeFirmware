@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -33,7 +35,11 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 		InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
-			uint32_t gateThreshold = activeInstrumentClip->arpeggiatorGate + 2147483648;
+			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpeggiatorGate + 2147483648;
+			uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
+			uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+			uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
+			uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
@@ -42,7 +48,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			ArpReturnInstruction instruction;
 
 			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
-			                   &instruction);
+			                   sequenceLength, rhythm, ratchetAmount, ratchetProbability, &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
@@ -127,8 +133,9 @@ lookAtArpNote:
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
-			// If there's actual arpeggiation happening right now...
-			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+			// If there's actual arpeggiation happening right now and noteMode is not AS_PLAYED...
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF
+			    && settings->noteMode != ArpNoteMode::AS_PLAYED) {
 				// If it's not this noteCode's turn, then do nothing with it
 				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
 					continue;
@@ -146,12 +153,52 @@ lookAtArpNote:
 			                                         arpNote);
 		}
 	}
+	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
+	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+
+			// Update the MPE value in the ArpNote. If arpeggiating, it'll get read from there the next time there's a
+			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
+			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
+			// work.
+			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+
+			int32_t noteCodeBeforeArpeggiation =
+			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
+
+			// If there's actual arpeggiation happening right now and noteMode is AS_PLAYED...
+			if ((settings != nullptr) && settings->mode != ArpMode::OFF
+			    && settings->noteMode == ArpNoteMode::AS_PLAYED) {
+				// If it's not this noteCode's turn, then do nothing with it
+				if (arpeggiator.whichNoteCurrentlyOnPostArp != n) {
+					continue;
+				}
+
+				// Otherwise, just take note of which octave is currently outputting
+				noteCodeAfterArpeggiation += arpeggiator.currentOctave;
+
+				// We'll send even if the gate isn't still active. Seems the most sensible. And the release might still
+				// be sounding on the connected synth, so this probably makes sense
+			}
+		}
+	}
 }
 
 // Returns num ticks til next arp event
 int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	if (!activeClip) {
 		return 2147483647;
+	}
+
+	InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
+	if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
+		uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
+		uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
+		uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+		uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
+		arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
 	}
 
 	ArpReturnInstruction instruction;
@@ -183,18 +230,22 @@ ParamManager* NonAudioInstrument::getParamManager(Song* song) {
 	}
 }
 
-bool NonAudioInstrument::readTagFromFile(char const* tagName) {
+bool NonAudioInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		channel = storageManager.readTagOrAttributeValueInt();
+		channel = bdsm.readTagOrAttributeValueInt();
 	}
 
 	else {
-		return MelodicInstrument::readTagFromFile(tagName);
+		return MelodicInstrument::readTagFromFile(bdsm, tagName);
 	}
 
-	storageManager.exitTag();
+	bdsm.exitTag();
 	return true;
+}
+
+bool NonAudioInstrument::needsEarlyPlayback() const {
+	return (type == OutputType::MIDI_OUT && channel == MIDI_CHANNEL_TRANSPOSE);
 }

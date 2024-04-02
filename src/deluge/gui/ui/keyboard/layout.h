@@ -115,8 +115,12 @@ protected:
 	}
 
 	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
+	inline NoteHighlightIntensity& getNornsNotes() { return keyboardScreen.nornsNotes; }
 
 	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
+
+public:
+	uint8_t velocity = 64;
 
 protected:
 	NotesState currentNotesState;

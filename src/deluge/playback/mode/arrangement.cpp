@@ -16,6 +16,7 @@
  */
 
 #include "playback/mode/arrangement.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -125,174 +126,182 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	int32_t nearestArpTickTime = 2147483647;
 
-	// Go through all Outputs
-	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+	for (uint8_t iPass = 0; iPass < 2; iPass++) {
+		// Go through all Outputs
+		for (Output* output = currentSong->firstOutput; output; output = output->next) {
 
-		// If recording, we only stop when we hit the next ClipInstance
-		if (output->recordingInArrangement) {
-			int32_t searchPos = lastProcessedPos;
-			if (!posIncrement) {
-				searchPos++; // If first, 0-length tick, don't look at the one that starts here.
-			}
-			int32_t nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
-
-			ClipInstance* nextClipInstance = output->clipInstances.getElement(nextI);
-			if (nextClipInstance) {
-				int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
-
-				// If it starts right now...
-				if (!ticksTilStart) {
-					output->endAnyArrangementRecording(currentSong, lastProcessedPos, 0);
-					goto notRecording;
-				}
-
-				// Or if it starts later...
-				else {
-					playbackHandler.swungTicksTilNextEvent =
-					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
-				}
+			if (output->needsEarlyPlayback() == (iPass == 1)) {
+				continue; // First time through, skip anything but priority clips, which must take effect first
+				          // 2nd time through, skip the priority clips already actioned.
 			}
 
-			// Tick forward the Clip being recorded to
-			output->activeClip->lastProcessedPos += posIncrement;
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(output->activeClip);
-			output->activeClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
-		}
+			// If recording, we only stop when we hit the next ClipInstance
+			if (output->recordingInArrangement) {
+				int32_t searchPos = lastProcessedPos;
+				if (!posIncrement) {
+					searchPos++; // If first, 0-length tick, don't look at the one that starts here.
+				}
+				int32_t nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
 
-		else {
-notRecording:
-			// Or if inactive (and not recording), just check when final ClipInstance ends
-			if (!currentSong->isOutputActiveInArrangement(output)) {
+				ClipInstance* nextClipInstance = output->clipInstances.getElement(nextI);
+				if (nextClipInstance) {
+					int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
 
-				ClipInstance* lastClipInstance =
-				    output->clipInstances.getElement(output->clipInstances.getNumElements() - 1);
-				if (lastClipInstance) {
-					int32_t endPos = lastClipInstance->pos + lastClipInstance->length;
+					// If it starts right now...
+					if (!ticksTilStart) {
+						output->endAnyArrangementRecording(currentSong, lastProcessedPos, 0);
+						goto notRecording;
+					}
 
-					if (lastProcessedPos < endPos) {
-						int32_t ticksTilEnd = endPos - lastProcessedPos;
-						if (ticksTilEnd > 0) {
-							playbackHandler.swungTicksTilNextEvent =
-							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
-						}
+					// Or if it starts later...
+					else {
+						playbackHandler.swungTicksTilNextEvent =
+						    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 					}
 				}
+
+				// Tick forward the Clip being recorded to
+				output->activeClip->lastProcessedPos += posIncrement;
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+				    modelStack->addTimelineCounter(output->activeClip);
+				output->activeClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
 			}
 
 			else {
-				// See if a ClipInstance was already playing
-				int32_t i = output->clipInstances.search(lastProcessedPos, LESS);
-				if (i >= 0 && i < output->clipInstances.getNumElements()) {
+notRecording:
+				// Or if inactive (and not recording), just check when final ClipInstance ends
+				if (!currentSong->isOutputActiveInArrangement(output)) {
 
-					ClipInstance* clipInstance = output->clipInstances.getElement(i);
-					Clip* thisClip = clipInstance->clip;
+					ClipInstance* lastClipInstance =
+					    output->clipInstances.getElement(output->clipInstances.getNumElements() - 1);
+					if (lastClipInstance) {
+						int32_t endPos = lastClipInstance->pos + lastClipInstance->length;
 
-					if (thisClip) {
-
-						int32_t endPos = clipInstance->pos + clipInstance->length;
-
-						// If it's ended right now...
-						if (endPos == lastProcessedPos) {
-
-							if (posIncrement) { // Don't deactivate any Clips on the first, 0-length tick, or else!
-								thisClip->expectNoFurtherTicks(currentSong);
-								thisClip->activeIfNoSolo = false;
-
-								if (!thisClip->isArrangementOnlyClip()) {
-									anyChangeToSessionClipsPlaying = true;
-								}
+						if (lastProcessedPos < endPos) {
+							int32_t ticksTilEnd = endPos - lastProcessedPos;
+							if (ticksTilEnd > 0) {
+								playbackHandler.swungTicksTilNextEvent =
+								    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 							}
 						}
+					}
+				}
 
-						// Or if it's still going...
-						else if (endPos > lastProcessedPos) {
+				else {
+					// See if a ClipInstance was already playing
+					int32_t i = output->clipInstances.search(lastProcessedPos, LESS);
+					if (i >= 0 && i < output->clipInstances.getNumElements()) {
 
-							ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-							    modelStack->addTimelineCounter(thisClip);
+						ClipInstance* clipInstance = output->clipInstances.getElement(i);
+						Clip* thisClip = clipInstance->clip;
 
-							// Tick it forward and process it
-							thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
-							thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+						if (thisClip) {
 
-							// Make sure we come back here when the clipInstance ends
-							int32_t ticksTilEnd = endPos - lastProcessedPos;
-							playbackHandler.swungTicksTilNextEvent =
-							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							int32_t endPos = clipInstance->pos + clipInstance->length;
 
-							goto justDoArp; // No need to think about the next ClipInstance yet
+							// If it's ended right now...
+							if (endPos == lastProcessedPos) {
+
+								if (posIncrement) { // Don't deactivate any Clips on the first, 0-length tick, or else!
+									thisClip->expectNoFurtherTicks(currentSong);
+									thisClip->activeIfNoSolo = false;
+
+									if (!thisClip->isArrangementOnlyClip()) {
+										anyChangeToSessionClipsPlaying = true;
+									}
+								}
+							}
+
+							// Or if it's still going...
+							else if (endPos > lastProcessedPos) {
+
+								ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+								    modelStack->addTimelineCounter(thisClip);
+
+								// Tick it forward and process it
+								thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
+								thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+
+								// Make sure we come back here when the clipInstance ends
+								int32_t ticksTilEnd = endPos - lastProcessedPos;
+								playbackHandler.swungTicksTilNextEvent =
+								    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+
+								goto justDoArp; // No need to think about the next ClipInstance yet
+							}
 						}
 					}
-				}
 
-				// Look to the next ClipInstance that has a Clip, if there is one...
-				ClipInstance* nextClipInstance;
-				Clip* thisClip;
+					// Look to the next ClipInstance that has a Clip, if there is one...
+					ClipInstance* nextClipInstance;
+					Clip* thisClip;
 
-				do {
-					i++;
-					if (i >= output->clipInstances.getNumElements()) {
-						goto justDoArp;
+					do {
+						i++;
+						if (i >= output->clipInstances.getNumElements()) {
+							goto justDoArp;
+						}
+						nextClipInstance = output->clipInstances.getElement(i);
+						thisClip = nextClipInstance->clip;
+					} while (!thisClip);
+
+					// And just see when it starts
+					int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
+
+					// Maybe it starts right now!
+					if (!ticksTilStart) {
+
+						AudioEngine::bypassCulling = true;
+
+						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+						    modelStack->addTimelineCounter(thisClip);
+
+						if (posIncrement) { // If posIncrement is 0, it means this is the very first tick of playback,
+							                // in which case this has just been set up already. But otherwise...
+							thisClip->activeIfNoSolo = true;
+							thisClip->setPos(modelStackWithTimelineCounter, 0);
+							output->setActiveClip(
+							    modelStackWithTimelineCounter); // Used to call assertActiveness(), but that's actually
+							                                    // unnecessary - be because we're playing in
+							                                    // arrangement, setActiveClip() is actually the only
+							                                    // relevant bit
+						}
+
+						thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
+
+						if (!thisClip->isArrangementOnlyClip()) {
+							anyChangeToSessionClipsPlaying = true;
+						}
+
+						if (getCurrentUI() == &arrangerView) {
+							arrangerView.notifyActiveClipChangedOnOutput(output);
+						}
+
+						// Make sure we come back here when the clipInstance ends
+						playbackHandler.swungTicksTilNextEvent =
+						    std::min(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
 					}
-					nextClipInstance = output->clipInstances.getElement(i);
-					thisClip = nextClipInstance->clip;
-				} while (!thisClip);
 
-				// And just see when it starts
-				int32_t ticksTilStart = nextClipInstance->pos - lastProcessedPos;
-
-				// Maybe it starts right now!
-				if (!ticksTilStart) {
-
-					AudioEngine::bypassCulling = true;
-
-					ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-					    modelStack->addTimelineCounter(thisClip);
-
-					if (posIncrement) { // If posIncrement is 0, it means this is the very first tick of playback, in
-						                // which case this has just been set up already. But otherwise...
-						thisClip->activeIfNoSolo = true;
-						thisClip->setPos(modelStackWithTimelineCounter, 0);
-						output->setActiveClip(
-						    modelStackWithTimelineCounter); // Used to call assertActiveness(), but that's actually
-						                                    // unnecessary - be because we're playing in arrangement,
-						                                    // setActiveClip() is actually the only relevant bit
+					// Or if it starts later...
+					else {
+						playbackHandler.swungTicksTilNextEvent =
+						    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 					}
-
-					thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
-
-					if (!thisClip->isArrangementOnlyClip()) {
-						anyChangeToSessionClipsPlaying = true;
-					}
-
-					if (getCurrentUI() == &arrangerView) {
-						arrangerView.notifyActiveClipChangedOnOutput(output);
-					}
-
-					// Make sure we come back here when the clipInstance ends
-					playbackHandler.swungTicksTilNextEvent =
-					    std::min(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
-				}
-
-				// Or if it starts later...
-				else {
-					playbackHandler.swungTicksTilNextEvent =
-					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
-		}
 
 justDoArp:
-		int32_t posForArp;
-		if (output->activeClip && output->activeClip->activeIfNoSolo) {
-			posForArp = output->activeClip->lastProcessedPos;
-		}
-		else {
-			posForArp = lastProcessedPos;
-		}
+			int32_t posForArp;
+			if (output->activeClip && output->activeClip->activeIfNoSolo) {
+				posForArp = output->activeClip->lastProcessedPos;
+			}
+			else {
+				posForArp = lastProcessedPos;
+			}
 
-		int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
-		nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
+			int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
+			nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
+		}
 	}
 
 	if (anyChangeToSessionClipsPlaying) {
@@ -359,8 +368,8 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 			if (doingComplete && playbackHandler.recording != RecordingMode::OFF
 			    && output->wantsToBeginArrangementRecording()) {
 
-				int32_t error = output->possiblyBeginArrangementRecording(currentSong, newPos);
-				if (error) {
+				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
+				if (error != Error::NONE) {
 					display->displayError(error);
 				}
 			}
@@ -485,10 +494,9 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 }
 
 // First, be sure the clipInstance has a Clip
-int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength,
-                                                 bool shouldCloneRepeats) {
+Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
-		return ERROR_INSUFFICIENT_RAM;
+		return Error::INSUFFICIENT_RAM;
 	}
 	Clip* oldClip = clipInstance->clip;
 
@@ -496,8 +504,8 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
-	int32_t error = oldClip->clone(modelStack, true);
-	if (error) {
+	Error error = oldClip->clone(modelStack, true);
+	if (error != Error::NONE) {
 		return error;
 	}
 
@@ -524,7 +532,7 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
 int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {

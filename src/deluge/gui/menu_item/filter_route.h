@@ -32,7 +32,8 @@ public:
 	deluge::vector<std::string_view> getOptions() override {
 		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };

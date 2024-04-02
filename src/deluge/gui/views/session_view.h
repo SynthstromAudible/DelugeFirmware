@@ -30,6 +30,7 @@ class ModelStack;
 enum SessionGridMode : uint8_t {
 	SessionGridModeEdit,
 	SessionGridModeLaunch,
+	SessionGridModeConfig,
 	SessionGridModeMaxElement // Keep as boundary
 };
 
@@ -44,7 +45,7 @@ extern const uint8_t defaultClipGroupColours[];
 class SessionView final : public ClipNavigationTimelineView {
 public:
 	SessionView();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
 
@@ -128,7 +129,6 @@ private:
 	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
-	void replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 
@@ -155,6 +155,7 @@ private:
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsConfig(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
@@ -29,10 +30,10 @@ class ModelStackWithThreeMainThings;
 class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
-	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	void cutAllSound();
-	bool noteIsOn(int32_t noteCode);
+	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
@@ -48,7 +49,7 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
 	}
 
-	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
@@ -65,7 +66,7 @@ public:
 	              uint32_t samplesLate);
 
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
-	bool readTagFromFile(char const* tagName);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	void prepareForHibernationOrDeletion();
 	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
@@ -80,6 +81,5 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	ArpeggiatorBase* getArp();
 	char const* getXMLTag() { return "sound"; }
-
 	ArpeggiatorSettings defaultArpSettings;
 };

@@ -138,7 +138,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
-	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
+	    && Buttons::isShiftButtonPressed()) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
@@ -159,56 +159,9 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		uint32_t newLength;
-
 		Action* action = NULL;
 
-		bool rightOnSquare;
-		int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
-
-		// Lengthening
-		if (offset == 1) {
-
-			newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
-
-			// If we're still within limits
-			if (newLength <= (uint32_t)kMaxSequenceLength) {
-
-				action = lengthenClip(newLength);
-
-				if (!scrollRightToEndOfLengthIfNecessary(newLength)) {
-doReRender:
-					uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				}
-			}
-		}
-
-		// Shortening
-		else {
-
-			if (!rightOnSquare) {
-				newLength = getPosFromSquare(endSquare);
-			}
-			else {
-				newLength = oldLength - getLengthChopAmount(endSquare);
-			}
-
-			if (newLength > 0) {
-
-				action = shortenClip(newLength);
-
-				// Scroll / zoom as needed
-				if (!scrollLeftIfTooFarRight(newLength)) {
-					// If this zoom level no longer valid...
-					if (zoomToMax(true)) {
-						// editor.displayZoomLevel(true);
-					}
-					else {
-						goto doReRender;
-					}
-				}
-			}
-		}
+		uint32_t newLength = changeClipLength(offset, oldLength, action);
 
 		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
 
@@ -222,8 +175,11 @@ doReRender:
 	else if ((isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::Y_ENC))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
-		if (sdRoutineLock)
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+		// Just be safe - maybe not necessary
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+
 		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int32_t shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
@@ -286,6 +242,56 @@ addConsequenceToAction:
 		// Otherwise, let parent do scrolling and zooming
 		return ClipNavigationTimelineView::horizontalEncoderAction(offset);
 	}
+}
+uint32_t ClipView::changeClipLength(int32_t offset, uint32_t oldLength, Action*& action) {
+	bool rightOnSquare;
+	uint32_t newLength;
+	int32_t endSquare = getSquareFromPos(oldLength, &rightOnSquare);
+
+	// Lengthening
+	if (offset == 1) {
+
+		newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
+
+		// If we're still within limits
+		if (newLength <= (uint32_t)kMaxSequenceLength) {
+
+			action = lengthenClip(newLength);
+
+			if (!scrollRightToEndOfLengthIfNecessary(newLength)) {
+doReRender:
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			}
+		}
+	}
+
+	// Shortening
+	else {
+
+		if (!rightOnSquare) {
+			newLength = getPosFromSquare(endSquare);
+		}
+		else {
+			newLength = oldLength - getLengthChopAmount(endSquare);
+		}
+
+		if (newLength > 0) {
+
+			action = shortenClip(newLength);
+
+			// Scroll / zoom as needed
+			if (!scrollLeftIfTooFarRight(newLength)) {
+				// If this zoom level no longer valid...
+				if (zoomToMax(true)) {
+					// editor.displayZoomLevel(true);
+				}
+				else {
+					goto doReRender;
+				}
+			}
+		}
+	}
+	return newLength;
 }
 
 int32_t ClipView::getLengthChopAmount(int32_t square) {

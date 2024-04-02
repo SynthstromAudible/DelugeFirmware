@@ -29,6 +29,8 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	transpose = 0;
 	cents = 0;
 
+	loopLocked = false;
+
 	// For backwards compatibility
 	startMSec = 0;
 	endMSec = 0;
@@ -89,6 +91,14 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
 		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
 		                             clusterLoadInstruction);
+	}
+
+	else if (((Sample*)audioFile)->clusters.getNumElements() <= 4) {
+		// claim the next few reasons for the sample instead since we can keep it all cached
+		int32_t nextClusterStartByte =
+		    ((Sample*)audioFile)->audioDataStartPosBytes + audioFileManager.clusterSizeMagnitude << 1;
+
+		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
@@ -199,7 +209,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 		// Prior to V2.1.x, sample markers were stored as milliseconds. Try loading those now. Note - V2.1.x did still
 		// write these values in addition to the new, sample-based ones, for backward compatibility. But we have to 100%
 		// ignore these, cos it seems they were sometimes written incorrectly!
-		if (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_2P1P0_BETA) {
+		if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 			bool convertedMSecValues = false;
 

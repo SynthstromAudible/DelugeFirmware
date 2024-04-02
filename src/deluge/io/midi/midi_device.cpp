@@ -43,10 +43,10 @@ MIDIDevice::MIDIDevice() {
 	mpeZoneBendRanges[MPE_ZONE_UPPER_NUMBERED_FROM_0][BEND_RANGE_FINGER_LEVEL] = 48;
 }
 
-void MIDIDevice::writeReferenceToFile(char const* tagName) {
-	storageManager.writeOpeningTagBeginning(tagName);
-	writeReferenceAttributesToFile();
-	storageManager.closeTag();
+void MIDIDevice::writeReferenceToFile(StorageManager& bdsm, char const* tagName) {
+	bdsm.writeOpeningTagBeginning(tagName);
+	writeReferenceAttributesToFile(bdsm);
+	bdsm.closeTag();
 }
 
 void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb) {
@@ -122,9 +122,8 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 			else if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel < 15 && channel == 15) {
 				zone = MPE_ZONE_UPPER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
-				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
-				    .moveLowerZoneOutOfWayOfUpperZone(); // Move other zone out of the way if necessary (MPE spec says
-				                                         // to do this).
+				// Move other zone out of the way if necessary (MPE spec says to do this).
+				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveLowerZoneOutOfWayOfUpperZone();
 
 				goto resetBendRanges;
 			}
@@ -181,48 +180,48 @@ bool MIDIDevice::worthWritingToFile() {
 	        || !sendClock);
 }
 
-void MIDIDevice::writePorts() {
-	ports[MIDI_DIRECTION_INPUT_TO_DELUGE].writeToFile("input");
-	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile("output");
+void MIDIDevice::writePorts(StorageManager& bdsm) {
+	ports[MIDI_DIRECTION_INPUT_TO_DELUGE].writeToFile(bdsm, "input");
+	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile(bdsm, "output");
 }
 
 // Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and
 // ids.
-void MIDIDevice::readFromFile() {
+void MIDIDevice::readFromFile(StorageManager& bdsm) {
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "input")) {
-			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(NULL);
+			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(bdsm, NULL);
 		}
 		else if (!strcmp(tagName, "output")) {
-			ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].readFromFile(this);
+			ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].readFromFile(bdsm, this);
 		}
 		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
-			defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
+			defaultVelocityToLevel = bdsm.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "sendClock")) {
-			sendClock = storageManager.readTagOrAttributeValueInt();
+			sendClock = bdsm.readTagOrAttributeValueInt();
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 }
 
-void MIDIDevice::writeDefinitionAttributesToFile() { // These only go into MIDIDEVICES.XML.
+void MIDIDevice::writeDefinitionAttributesToFile(StorageManager& bdsm) { // These only go into MIDIDEVICES.XML.
 	if (hasDefaultVelocityToLevelSet()) {
-		storageManager.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
+		bdsm.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
-	storageManager.writeAttribute("sendClock", sendClock);
+	bdsm.writeAttribute("sendClock", sendClock);
 }
 
-void MIDIDevice::writeToFile(char const* tagName) {
-	storageManager.writeOpeningTagBeginning(tagName);
-	writeReferenceAttributesToFile();
-	writeDefinitionAttributesToFile();
-	storageManager.writeOpeningTagEnd();
-	writePorts();
-	storageManager.writeClosingTag(tagName);
+void MIDIDevice::writeToFile(StorageManager& bdsm, char const* tagName) {
+	bdsm.writeOpeningTagBeginning(tagName);
+	writeReferenceAttributesToFile(bdsm);
+	writeDefinitionAttributesToFile(bdsm);
+	bdsm.writeOpeningTagEnd();
+	writePorts(bdsm);
+	bdsm.writeClosingTag(tagName);
 }
 
 int32_t MIDIPort::channelToZone(int32_t inputChannel) {
@@ -267,41 +266,41 @@ void MIDIPort::moveLowerZoneOutOfWayOfUpperZone() {
 	}
 }
 
-void MIDIPort::writeToFile(char const* tagName) {
+void MIDIPort::writeToFile(StorageManager& bdsm, char const* tagName) {
 
 	int32_t numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
 
 	if (numUpperMemberChannels || mpeLowerZoneLastMemberChannel) {
-		storageManager.writeOpeningTag(tagName);
+		bdsm.writeOpeningTag(tagName);
 
 		if (mpeLowerZoneLastMemberChannel) {
-			storageManager.writeOpeningTagBeginning("mpeLowerZone");
-			storageManager.writeAttribute("numMemberChannels", mpeLowerZoneLastMemberChannel);
-			storageManager.closeTag();
+			bdsm.writeOpeningTagBeginning("mpeLowerZone");
+			bdsm.writeAttribute("numMemberChannels", mpeLowerZoneLastMemberChannel);
+			bdsm.closeTag();
 		}
 		if (numUpperMemberChannels) {
-			storageManager.writeOpeningTagBeginning("mpeUpperZone");
-			storageManager.writeAttribute("numMemberChannels", numUpperMemberChannels);
-			storageManager.closeTag();
+			bdsm.writeOpeningTagBeginning("mpeUpperZone");
+			bdsm.writeAttribute("numMemberChannels", numUpperMemberChannels);
+			bdsm.closeTag();
 		}
 
-		storageManager.writeClosingTag(tagName);
+		bdsm.writeClosingTag(tagName);
 	}
 }
 
-void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
+void MIDIPort::readFromFile(StorageManager& bdsm, MIDIDevice* deviceToSendMCMsOn) {
 	char const* tagName;
 	bool sentMPEConfig = false;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "mpeLowerZone")) {
 
 			char const* tagName;
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "numMemberChannels")) {
 
 					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an
 						                                  // MCM might have changed it since the file was last read.
-						int32_t newMPELowerZoneLastMemberChannel = storageManager.readTagOrAttributeValueInt();
+						int32_t newMPELowerZoneLastMemberChannel = bdsm.readTagOrAttributeValueInt();
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
 							mpeLowerZoneLastMemberChannel = newMPELowerZoneLastMemberChannel;
 							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or
@@ -315,19 +314,18 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 					}
 				}
 
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 		}
 		else if (!strcmp(tagName, "mpeUpperZone")) {
 
 			char const* tagName;
-			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "numMemberChannels")) {
-
-					if (mpeUpperZoneLastMemberChannel
-					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it
-						         // since the file was last read.
-						int32_t numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
+					// If value was already set, then leave it - the user or an MCM might have changed it since the file
+					// was last read.
+					if (mpeUpperZoneLastMemberChannel == 15) {
+						int32_t numUpperMemberChannels = bdsm.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or
@@ -341,11 +339,11 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 					}
 				}
 
-				storageManager.exitTag();
+				bdsm.exitTag();
 			}
 		}
 
-		storageManager.exitTag();
+		bdsm.exitTag();
 	}
 }
 
@@ -404,8 +402,10 @@ int32_t MIDIDeviceUSB::sendBufferSpace() {
 	return connectedDevice->sendBufferSpace();
 }
 
-void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
-	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
+extern bool developerSysexCodeReceived;
+
+void MIDIDeviceUSB::sendSysex(const uint8_t* data, int32_t len) {
+	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
 
@@ -426,6 +426,19 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	}
 
 	int32_t pos = 0;
+
+	// While we are standardizing on using the 4 byte Synthstrom Deluge in our messages, it is possible that client
+	// programs have not been updated yet, so if we get a SysEx request with 0x7D as the ID, we respond in-kind. This
+	// involves skipping the the first 5 bytes and sending 0xF0, 0x7D instead. Since the USB driver batches things in 3
+	// byte groups, we must include the first byte after the address in that first group.
+	if (developerSysexCodeReceived && (data[1] != 0x7D)) {
+		// Since the message ends with 0xF7, we can assume that data[5] does exist.
+		// fake 0xF0, 0x7D, data[5] for first send
+		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
+		connectedDevice->bufferMessage(packed);
+		pos = 6;
+	}
+
 	while (pos < len) {
 		int32_t status, byte0 = 0, byte1 = 0, byte2 = 0;
 		byte0 = data[pos];
@@ -451,10 +464,10 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceUSBHosted::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("name", name.get());
-	storageManager.writeAttributeHex("vendorId", vendorId, 4);
-	storageManager.writeAttributeHex("productId", productId, 4);
+void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(StorageManager& bdsm) {
+	bdsm.writeAttribute("name", name.get());
+	bdsm.writeAttributeHex("vendorId", vendorId, 4);
+	bdsm.writeAttributeHex("productId", productId, 4);
 }
 
 void MIDIDeviceUSBHosted::writeToFlash(uint8_t* memory) {
@@ -506,10 +519,9 @@ void MIDIDeviceUSBHosted::callHook(Hook hook) {
 	}
 }
 
-void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute(
-	    "port", portNumber ? "upstreamUSB2" : "upstreamUSB",
-	    false); // Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
+void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(StorageManager& bdsm) {
+	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
+	bdsm.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false);
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
@@ -530,9 +542,9 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 	}
 }
 
-void MIDIDeviceDINPorts::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "din",
-	                              false); // Same line. Usually the user wouldn't have default velocity sensitivity set
+void MIDIDeviceDINPorts::writeReferenceAttributesToFile(StorageManager& bdsm) {
+	// Same line. Usually the user wouldn't have default velocity sensitivity set
+	bdsm.writeAttribute("port", "din", false);
 }
 
 void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {
@@ -551,7 +563,7 @@ int32_t MIDIDeviceDINPorts::sendBufferSpace() {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
-void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
+void MIDIDeviceDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
@@ -562,8 +574,8 @@ void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceLoopback::writeReferenceAttributesToFile() {
-	storageManager.writeAttribute("port", "loopbackMidi", false);
+void MIDIDeviceLoopback::writeReferenceAttributesToFile(StorageManager& bdsm) {
+	bdsm.writeAttribute("port", "loopbackMidi", false);
 }
 
 void MIDIDeviceLoopback::writeToFlash(uint8_t* memory) {
@@ -581,5 +593,5 @@ int32_t MIDIDeviceLoopback::sendBufferSpace() {
 	return 0;
 }
 
-void MIDIDeviceLoopback::sendSysex(uint8_t* data, int32_t len) {
+void MIDIDeviceLoopback::sendSysex(const uint8_t* data, int32_t len) {
 }

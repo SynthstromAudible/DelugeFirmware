@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.23)
+cmake_policy(SET CMP0135 NEW)
 
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainDeluge.cmake)
 
 project(Deluge
     LANGUAGES CXX C ASM
-    VERSION 1.1.0
+    VERSION 1.2.0
 )
-
+include(FetchContent)
 include(ProcessorCount)
 ProcessorCount(HOST_NUM_CORES)
 
@@ -46,6 +47,8 @@ execute_process(
 
 # Today's date
 string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
+
+set(BUILD_VERSION_STRING_SHORT "c${PROJECT_VERSION}") # Used in firmware
 
 # Build our version string
 if(RELEASE_TYPE STREQUAL "release")
@@ -94,6 +97,12 @@ find_package(Doxygen
 )
 
 if(DOXYGEN_FOUND)
+    FetchContent_Declare(doxygen-awesome-css
+        URL https://github.com/jothepro/doxygen-awesome-css/archive/refs/tags/v2.2.1.tar.gz
+        URL_HASH MD5=340d3a206794ac01a91791c2a513991f
+    )
+    FetchContent_MakeAvailable(doxygen-awesome-css)
+
     if(NOT ${DOXYGEN_HAVE_DOT})
         message(
             "Can't find GraphViz DOT tool for generating images."
@@ -113,6 +122,14 @@ if(DOXYGEN_FOUND)
     set(DOXYGEN_HTML_COLORSTYLE LIGHT)
     set(DOXYGEN_HTML_EXTRA_STYLESHEET "${doxygen-awesome-css_SOURCE_DIR}/doxygen-awesome.css")
 
+    set(DOXYGEN_CREATE_SUBDIRS YES)
+    set(DOXYGEN_EXTRACT_PRIVATE YES)
+    set(DOXYGEN_INTERNAL_DOCS YES)
+    set(DOXYGEN_SOURCE_BROWSER YES)
+
+    # set(DOXYGEN_CLANG_ASSISTED_PARSING YES)
+    # SET(DOXYGEN_CLANG_DATABASE_PATH build)
+
     set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
 
     file(GLOB markdown_SOURCES *.md)
@@ -120,7 +137,7 @@ if(DOXYGEN_FOUND)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
 
-    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge)
+    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge build/src/deluge)
 else(DOXYGEN_FOUND)
     message(WARNING
         "Doxygen needs to be installed to generate documentation."
@@ -129,10 +146,11 @@ endif(DOXYGEN_FOUND)
 
 # Global compilation options
 add_compile_options(
+
     # Feature flags
     -fdiagnostics-parseable-fixits
     -fsigned-char
-    -D_GNU_SOURCE #for strcasestr
+    -D_GNU_SOURCE # for strcasestr
 
     # Debug symbols, also for release so we get a full ELF
     $<$<CONFIG:DEBUG,RELEASE,RELWITHDEBINFO>:-ggdb3> # Include
@@ -141,7 +159,7 @@ add_compile_options(
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
 
-    #does not block inlining, just blocks considering all functions for inlining
+    # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
 
@@ -176,8 +194,8 @@ target_link_libraries(deluge PUBLIC
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
 # Project-only compile options (warnings, etc.)
-set(DELUGE_C_STANDARD 17)
-set(DELUGE_CXX_STANDARD 20)
+set(DELUGE_C_STANDARD 23)
+set(DELUGE_CXX_STANDARD 23)
 list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
@@ -192,7 +210,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
 
-    # Offsetof for non standard types is supported in GCC, 
+    # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 
     # Stack usage
@@ -217,6 +235,7 @@ set_target_properties(deluge
 set(BIN_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.bin)
 set(HEX_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.hex)
 set(MAP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.map)
+
 # set(OBJDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.objdump)
 set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 
@@ -224,9 +243,9 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 target_link_options(deluge PUBLIC
 
     # use newlib nano
-    --specs=nano.specs 
+    --specs=nano.specs
 
-    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
+    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
     LINKER:-Map=${MAP_FILE}
     LINKER:--cref
     LINKER:--gc-sections
@@ -234,13 +253,13 @@ target_link_options(deluge PUBLIC
 
     # Enabled to generate a full ELF, objcopy will do the stripping
     # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
-    
     -nostartfiles # Don't emit startfiles
 
     # Print details
     LINKER:--warn-common
     LINKER:--stats
-    #$<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
+
+    # $<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
 
     # Link-Time Optimization
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
@@ -270,29 +289,31 @@ add_custom_command(TARGET deluge
 
 # # generate .objdump file
 # add_custom_command(TARGET deluge
-#     POST_BUILD
-#         COMMAND ${CMAKE_OBJDUMP} -t $<TARGET_FILE:deluge> > ${OBJDUMP_FILE}
-#         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-#         COMMENT "Objdumping deluge firmware ${OBJDUMP_FILE}"
-#         DEPENDS deluge
-#         BYPRODUCTS ${OBJDUMP_FILE})
+# POST_BUILD
+# COMMAND ${CMAKE_OBJDUMP} -t $<TARGET_FILE:deluge> > ${OBJDUMP_FILE}
+# WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+# COMMENT "Objdumping deluge firmware ${OBJDUMP_FILE}"
+# DEPENDS deluge
+# BYPRODUCTS ${OBJDUMP_FILE})
 
 # generate .nmdump file
 add_custom_command(TARGET deluge
-POST_BUILD
-    COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
-    DEPENDS deluge
-    BYPRODUCTS ${NMDUMP_FILE})
+    POST_BUILD
+        COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
+        DEPENDS deluge
+        BYPRODUCTS ${NMDUMP_FILE}
+)
 
 # Print size
 add_custom_command(TARGET deluge
-POST_BUILD
-    COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS deluge)
-    
+    POST_BUILD
+        COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        DEPENDS deluge
+)
+
 # Clean up artefacts
 set_target_properties(deluge
     PROPERTIES

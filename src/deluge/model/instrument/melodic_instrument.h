@@ -40,9 +40,9 @@ public:
 
 	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {}
 
-	bool writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song);
-	void writeMelodicInstrumentTagsToFile(Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(char const* tagName);
+	bool writeMelodicInstrumentAttributesToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	void writeMelodicInstrumentTagsToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
 
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
@@ -89,8 +89,6 @@ public:
 
 	EarlyNoteArray earlyNotes;
 	EarlyNoteArray notesAuditioned;
-
-	LearnedMIDI midiInput;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);

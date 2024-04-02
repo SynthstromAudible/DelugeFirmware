@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/menu_item/automation/automation.h"
 #include "gui/menu_item/menu_item.h"
 #include <cstdint>
 class ParamSet;
@@ -25,16 +26,20 @@ class ModelStackWithAutoParam;
 namespace deluge::gui::menu_item {
 
 // Note that this does *not* inherit from MenuItem actually!
-class Param {
+class Param : public Automation {
 public:
 	Param(int32_t newP = 0) : p(newP) {}
 	[[nodiscard]] virtual int32_t getMaxValue() const { return kMaxMenuValue; }
 	[[nodiscard]] virtual int32_t getMinValue() const { return kMinMenuValue; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
+	void horizontalEncoderAction(int32_t offset);
 
 	uint8_t p;
+
+	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
 
 protected:
 	virtual ParamSet* getParamSet() = 0;

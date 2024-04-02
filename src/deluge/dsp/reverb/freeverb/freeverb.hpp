@@ -27,6 +27,7 @@
 #include "dsp/reverb/freeverb/allpass.hpp"
 #include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/tuning.h"
+#include <cstdint>
 #include <span>
 
 namespace deluge::dsp::reverb {
@@ -69,7 +70,7 @@ public:
 
 	[[nodiscard]] constexpr float getWidth() const override { return width; }
 
-	[[gnu::always_inline]] void ProcessOne(int32_t input, int32_t* outputL, int32_t* outputR) {
+	[[gnu::always_inline]] void ProcessOne(int32_t input, StereoSample& output_sample) {
 		int32_t out_l = 0;
 		int32_t out_r = 0;
 
@@ -86,21 +87,24 @@ public:
 		}
 
 		// Calculate output
-		*outputL = (out_l + multiply_32x32_rshift32_rounded(out_r, wet2)) << 1;
-		*outputR = (out_r + multiply_32x32_rshift32_rounded(out_l, wet2)) << 1;
+		out_l = (out_l + multiply_32x32_rshift32_rounded(out_r, wet2)) << 1;
+		out_r = (out_r + multiply_32x32_rshift32_rounded(out_l, wet2)) << 1;
+
+		// Mix output
+		output_sample.l += multiply_32x32_rshift32_rounded(out_l, this->getPanLeft());
+		output_sample.r += multiply_32x32_rshift32_rounded(out_r, this->getPanRight());
 	}
 
 	[[gnu::always_inline]] void process(std::span<int32_t> input, std::span<StereoSample> output) override {
-		int32_t output_left = 0;
-		int32_t output_right = 0;
+		// HPF on reverb input, cos if it has DC offset, the reverb magnifies that, and the sound farts out
+		for (int32_t& reverb_sample : input) {
+			int32_t distance_to_go_l = reverb_sample - reverb_send_post_lpf_;
+			reverb_send_post_lpf_ += distance_to_go_l >> 11;
+			reverb_sample -= reverb_send_post_lpf_;
+		}
 
 		for (size_t frame = 0; frame < input.size(); frame++) {
-			const int32_t input_sample = input[frame];
-			StereoSample& output_sample = output[frame];
-
-			ProcessOne(input_sample, &output_left, &output_right);
-			output_sample.l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());
-			output_sample.r += multiply_32x32_rshift32_rounded(output_right, getPanRight());
+			ProcessOne(input[frame], output[frame]);
 		}
 	}
 
@@ -155,5 +159,7 @@ private:
 	std::array<int32_t, allpasstuningR3> bufallpassR3;
 	std::array<int32_t, allpasstuningL4> bufallpassL4;
 	std::array<int32_t, allpasstuningR4> bufallpassR4;
+
+	int32_t reverb_send_post_lpf_ = 0;
 };
 } // namespace deluge::dsp::reverb

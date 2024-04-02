@@ -38,11 +38,11 @@ namespace params = deluge::modulation::params;
 SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
-bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
+bool SoundInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	// MelodicInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
-	// call
-	writeMelodicInstrumentAttributesToFile(clipForSavingOutputOnly, song);
+	// MelodicInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+	// below call
+	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
 
@@ -64,23 +64,23 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 		}
 	}
 
-	Sound::writeToFile(clipForSavingOutputOnly == NULL, paramManager,
+	Sound::writeToFile(bdsm, clipForSavingOutputOnly == NULL, paramManager,
 	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL);
 
-	MelodicInstrument::writeMelodicInstrumentTagsToFile(clipForSavingOutputOnly, song);
+	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
 
 	return true;
 }
 
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and
 // won't store any arp stuff
-int32_t SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundInstrument::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
-	return Sound::readFromFile(modelStack, readAutomationUpToPos, &defaultArpSettings);
+	return Sound::readFromFile(bdsm, modelStack, readAutomationUpToPos, &defaultArpSettings);
 }
 
 void SoundInstrument::cutAllSound() {
@@ -193,18 +193,18 @@ yesTickParamManagerForClip:
 	}
 }
 
-int32_t SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int32_t error = setupDefaultAudioFileDir();
-		if (error) {
+		Error error = setupDefaultAudioFileDir();
+		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	int32_t error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
+	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
 	if (doingAlternatePath) {
 		audioFileManager.thingFinishedLoading();
@@ -359,6 +359,13 @@ lookAtArpNote:
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 		}
 	}
+	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
+	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
+		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
+		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+		}
+	}
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
@@ -402,8 +409,8 @@ ArpeggiatorSettings* SoundInstrument::getArpSettings(InstrumentClip* clip) {
 	return MelodicInstrument::getArpSettings(clip);
 }
 
-bool SoundInstrument::readTagFromFile(char const* tagName) {
-	return MelodicInstrument::readTagFromFile(tagName);
+bool SoundInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
+	return MelodicInstrument::readTagFromFile(bdsm, tagName);
 }
 
 void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
@@ -431,6 +438,14 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
+
+	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
+	uint32_t sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+	uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+	uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
+	uint32_t ratchetProbability =
+	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
+	arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
 
 	ArpReturnInstruction instruction;
 
@@ -468,7 +483,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 	return &arpeggiator;
 }
 
-bool SoundInstrument::noteIsOn(int32_t noteCode) {
+bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -495,6 +510,9 @@ bool SoundInstrument::noteIsOn(int32_t noteCode) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?
+			if (resetTimeEntered) {
+				thisVoice->envelopes[0].resetTimeEntered();
+			}
 			return true;
 		}
 	}

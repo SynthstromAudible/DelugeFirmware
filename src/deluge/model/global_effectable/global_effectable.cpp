@@ -30,6 +30,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
+#include "util/firmware_version.h"
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -63,24 +64,26 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
-	    889516852); // 3 quarters of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(889516852); // 3/4 of the way up
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(2147483647);
+	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+
+	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -98,25 +101,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 
 	// LPF/HPF/EQ
 	if (whichModButton == 1) {
-		currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
-		switch (currentFilterType) {
-		case FilterType::LPF:
-			displayLPFMode(on);
-			break;
-
-		case FilterType::HPF:
-			displayHPFMode(on);
-			break;
-
-		case FilterType::EQ:
-			if (on) {
-				display->popupText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_EQ));
-			}
-			else {
-				display->cancelPopup();
-			}
-			break;
-		}
+		displayFilterSettings(on, currentFilterType);
 	}
 	// Delay
 	else if (whichModButton == 3) {
@@ -278,31 +263,16 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
-				std::string_view displayText;
-				switch (modFXType) {
-				case ModFXType::FLANGER:
-					displayText = l10n::getView(STRING_FOR_FLANGER);
-					break;
-
-				case ModFXType::PHASER:
-					displayText = l10n::getView(STRING_FOR_PHASER);
-					break;
-
-				case ModFXType::CHORUS:
-					displayText = l10n::getView(STRING_FOR_CHORUS);
-					break;
-
-				case ModFXType::CHORUS_STEREO:
-					displayText = l10n::getView(STRING_FOR_STEREO_CHORUS);
-					break;
-				case ModFXType::GRAIN:
-					displayText = l10n::getView(STRING_FOR_GRAIN);
-					break;
-				case ModFXType::NONE:
-					__builtin_unreachable();
-				}
-				display->displayPopup(displayText.data());
 				ensureModFXParamIsValid();
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayModFXSettings(on);
+				}
+				else {
+					display->displayPopup(getModFXTypeDisplayName());
+				}
 				return true;
 			}
 			else {
@@ -315,21 +285,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
 				ensureModFXParamIsValid();
 
-				std::string_view displayText;
-				switch (currentModFXParam) {
-				case ModFXParam::DEPTH:
-					displayText = l10n::getView(STRING_FOR_DEPTH);
-					break;
-
-				case ModFXParam::FEEDBACK:
-					displayText = l10n::getView(STRING_FOR_FEEDBACK);
-					break;
-
-				case ModFXParam::OFFSET:
-					displayText = l10n::getView(STRING_FOR_OFFSET);
-					break;
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayModFXSettings(on);
 				}
-				display->displayPopup(displayText.data());
+				else {
+					display->displayPopup(getModFXParamDisplayName());
+				}
+				return true;
 			}
 
 			return false;
@@ -343,21 +307,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				currentFilterType =
 				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % kNumFilterTypes);
 
-				std::string_view displayText;
-				switch (currentFilterType) {
-				case FilterType::LPF:
-					displayText = l10n::getView(STRING_FOR_LPF);
-					break;
-
-				case FilterType::HPF:
-					displayText = l10n::getView(STRING_FOR_HPF);
-					break;
-
-				case FilterType::EQ:
-					displayText = l10n::getView(STRING_FOR_EQ);
-					break;
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayFilterSettings(on, currentFilterType);
 				}
-				display->displayPopup(displayText.data());
+				else {
+					display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+				}
+				return true;
 			}
 
 			return false;
@@ -366,10 +324,28 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			if (on) {
 				if (currentFilterType == FilterType::LPF) {
 					switchLPFMode();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayFilterSettings(on, currentFilterType);
+					}
+					else {
+						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+					}
 					return true;
 				}
 				else if (currentFilterType == FilterType::HPF) {
 					switchHPFMode();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayFilterSettings(on, currentFilterType);
+					}
+					else {
+						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+					}
 					return true;
 				}
 				else {
@@ -390,9 +366,27 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 				    == RuntimeFeatureStateToggle::On) {
 					switchDelaySyncType();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelaySyncTypeDisplayName());
+					}
 				}
 				else {
 					switchDelayPingPong();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelayPingPongStatusDisplayName());
+					}
 				}
 				return true;
 			}
@@ -405,9 +399,29 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 				    == RuntimeFeatureStateToggle::On) {
 					switchDelaySyncLevel();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						char displayName[30];
+						getDelaySyncLevelDisplayName(displayName);
+						display->displayPopup(displayName);
+					}
 				}
 				else {
 					switchDelayAnalog();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayDelaySettings(on);
+					}
+					else {
+						display->displayPopup(getDelayTypeDisplayName());
+					}
 				}
 				return true;
 			}
@@ -417,26 +431,51 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 	}
 
-	// Reverb / sidechain section
+	// Reverb / compressor section
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				// if we're in full move/editingComp then we cycle through the comp params
+				// if we're in full mode/editingComp then we cycle through the comp params
 				// otherwise cycle reverb sizes
 				if (!editingComp) {
 					view.cycleThroughReverbPresets();
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayCompressorAndReverbSettings(on);
+					}
+					else {
+						display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+					}
 				}
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					display->displayPopup(getCompressorParamDisplayName());
+
+					// if mod button is pressed, update mod button pop up
+					if (Buttons::isButtonPressed(
+					        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+						displayCompressorAndReverbSettings(on);
+					}
+					else {
+						display->displayPopup(getCompressorParamDisplayName());
+					}
 				}
 			}
 		}
 		else {
 			if (on) {
 				editingComp = !editingComp;
-				display->displayPopup(getCompressorModeDisplayName());
+
+				// if mod button is pressed, update mod button pop up
+				if (Buttons::isButtonPressed(
+				        deluge::hid::button::fromXY(modButtonX[modKnobMode], modButtonY[modKnobMode]))) {
+					displayCompressorAndReverbSettings(on);
+				}
+				else {
+					display->displayPopup(getCompressorModeDisplayName());
+				}
 			}
 		}
 
@@ -484,11 +523,16 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
 		int current;
 		int displayLevel;
 		int ledLevel;
+		const char* unit;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
+			if (display->haveOLED()) {
+				popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
+			}
 			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
@@ -496,53 +540,75 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 			compressor.setThreshold(lshiftAndSaturate<24>(current + 64));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
+			unit = "";
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
+				}
 				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-
 				displayLevel = compressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				unit = " : 1";
 				break;
 
 			case CompParam::ATTACK:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
+				}
 				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setAttack(lshiftAndSaturate<24>(current + 64));
+				unit = " MS";
 				break;
 
 			case CompParam::RELEASE:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
+				}
 				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				unit = " MS";
 				break;
 
 			case CompParam::SIDECHAIN:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
+				}
 				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
 
 				displayLevel = compressor.setSidechain(lshiftAndSaturate<24>(current + 64));
+				unit = " HZ";
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
-		char buffer[5];
-		intToString(displayLevel, buffer);
-		display->displayPopup(buffer);
+
+		if (display->haveOLED()) {
+			popupMsg.append(": ");
+			popupMsg.appendInt(displayLevel);
+			popupMsg.append(unit);
+		}
+		else {
+			popupMsg.appendInt(displayLevel);
+		}
+		display->displayPopup(popupMsg.c_str());
 
 		return ActionResult::DEALT_WITH;
 	}
@@ -651,6 +717,10 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 	}
 }
 
+ModFXType GlobalEffectable::getModFXType() {
+	return modFXType;
+}
+
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {
@@ -686,210 +756,242 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	int32_t lpfResonance =
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
 	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES)));
-
+	int32_t lpfMorph =
+	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
+	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH)));
 	int32_t hpfFrequency =
 	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ)));
 	int32_t hpfResonance =
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
 	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES)));
+	int32_t hpfMorph =
+	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
+	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
 
 	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
-	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602);
-	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) != -2147483648;
-
-	// no morph for global effectable
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
-	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
+	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
+	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
+	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
+	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
+	FilterMode lpfModeForRender = doLPF ? lpfMode : FilterMode::OFF;
+	FilterMode hpfModeForRender = doHPF ? hpfMode : FilterMode::OFF;
+	*postFXVolume =
+	    filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency, hpfResonance,
+	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+[[gnu::hot]] void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
-void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
+void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
 
-	ModControllableAudio::writeAttributesToFile();
+	ModControllableAudio::writeAttributesToFile(bdsm);
 
-	storageManager.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
-	storageManager.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	bdsm.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
+	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 }
 
-void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
 
-	ModControllableAudio::writeTagsToFile();
+	ModControllableAudio::writeTagsToFile(bdsm);
 
 	if (paramManager) {
-		storageManager.writeOpeningTagBeginning("defaultParams");
-		GlobalEffectable::writeParamAttributesToFile(paramManager, writeAutomation);
-		storageManager.writeOpeningTagEnd();
-		GlobalEffectable::writeParamTagsToFile(paramManager, writeAutomation);
-		storageManager.writeClosingTag("defaultParams");
+		bdsm.writeOpeningTagBeginning("defaultParams");
+		GlobalEffectable::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
+		bdsm.writeOpeningTagEnd();
+		GlobalEffectable::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
+		bdsm.writeClosingTag("defaultParams");
 	}
 }
 
-void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
-                                                  int32_t* valuesForOverride) {
+void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
+                                                  bool writeAutomation, int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation,
+	                                       false, valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("volume", params::UNPATCHED_VOLUME, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("pan", params::UNPATCHED_PAN, writeAutomation, false, valuesForOverride);
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
-		unpatchedParams->writeParamAsAttribute("pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation, false,
-		                                       valuesForOverride);
+		unpatchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
+		                                       false, valuesForOverride);
 	}
 
 	if (unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
-		unpatchedParams->writeParamAsAttribute("sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
+		unpatchedParams->writeParamAsAttribute(bdsm, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
 		                                       writeAutomation, false, valuesForOverride);
 	}
 
-	unpatchedParams->writeParamAsAttribute("sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
+	unpatchedParams->writeParamAsAttribute(bdsm, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute("modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
 	                                       valuesForOverride);
 
-	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
+void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	storageManager.writeOpeningTagBeginning("delay");
-	unpatchedParams->writeParamAsAttribute("rate", params::UNPATCHED_DELAY_RATE, writeAutomation, false,
+	bdsm.writeOpeningTagBeginning("delay");
+	unpatchedParams->writeParamAsAttribute(bdsm, "rate", params::UNPATCHED_DELAY_RATE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("feedback", params::UNPATCHED_DELAY_AMOUNT, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "feedback", params::UNPATCHED_DELAY_AMOUNT, writeAutomation, false,
 	                                       valuesForOverride);
-	storageManager.closeTag();
+	bdsm.closeTag();
 
-	storageManager.writeOpeningTagBeginning("lpf");
-	unpatchedParams->writeParamAsAttribute("frequency", params::UNPATCHED_LPF_FREQ, writeAutomation, false,
+	bdsm.writeOpeningTagBeginning("lpf");
+	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_LPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	storageManager.closeTag();
+	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	bdsm.closeTag();
 
-	storageManager.writeOpeningTagBeginning("hpf");
-	unpatchedParams->writeParamAsAttribute("frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
+	bdsm.writeOpeningTagBeginning("hpf");
+	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	storageManager.closeTag();
+	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	bdsm.closeTag();
 
-	ModControllableAudio::writeParamTagsToFile(paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamTagsToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
+void GlobalEffectable::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+                                          int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
+	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		if (readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
-			storageManager.exitTag(tagName);
+			bdsm.exitTag(tagName);
 		}
 	}
 }
 
-bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                            int32_t readAutomationUpToPos) {
+bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* tagName,
+                                            ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "delay")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "rate")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE, readAutomationUpToPos);
-				storageManager.exitTag("rate");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_DELAY_AMOUNT,
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_AMOUNT,
 				                           readAutomationUpToPos);
-				storageManager.exitTag("feedback");
+				bdsm.exitTag("feedback");
 			}
 		}
-		storageManager.exitTag("delay");
+		bdsm.exitTag("delay");
 	}
 
 	else if (!strcmp(tagName, "lpf")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ, readAutomationUpToPos);
-				storageManager.exitTag("frequency");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_RES, readAutomationUpToPos);
-				storageManager.exitTag("resonance");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_RES,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("resonance");
+			}
+			else if (!strcmp(tagName, "morph")) {
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("morph");
 			}
 		}
-		storageManager.exitTag("lpf");
+		bdsm.exitTag("lpf");
 	}
 
 	else if (!strcmp(tagName, "hpf")) {
-		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ, readAutomationUpToPos);
-				storageManager.exitTag("frequency");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_RES, readAutomationUpToPos);
-				storageManager.exitTag("resonance");
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("resonance");
+			}
+			else if (!strcmp(tagName, "morph")) {
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("morph");
 			}
 		}
-		storageManager.exitTag("hpf");
+		bdsm.exitTag("hpf");
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT, readAutomationUpToPos);
-		storageManager.exitTag("reverbAmount");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
+		                           readAutomationUpToPos);
+		bdsm.exitTag("reverbAmount");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
-		storageManager.exitTag("volume");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		bdsm.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME, readAutomationUpToPos);
-		storageManager.exitTag("sidechainCompressorVolume");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME,
+		                           readAutomationUpToPos);
+		bdsm.exitTag("sidechainCompressorVolume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorShape")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE, readAutomationUpToPos);
-		storageManager.exitTag("sidechainCompressorShape");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
+		                           readAutomationUpToPos);
+		bdsm.exitTag("sidechainCompressorShape");
 	}
 
 	else if (!strcmp(tagName, "pan")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
-		storageManager.exitTag("pan");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
+		bdsm.exitTag("pan");
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_PITCH_ADJUST, readAutomationUpToPos);
-		storageManager.exitTag("pitchAdjust");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PITCH_ADJUST, readAutomationUpToPos);
+		bdsm.exitTag("pitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "modFXDepth")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_DEPTH, readAutomationUpToPos);
-		storageManager.exitTag("modFXDepth");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_DEPTH, readAutomationUpToPos);
+		bdsm.exitTag("modFXDepth");
 	}
 
 	else if (!strcmp(tagName, "modFXRate")) {
-		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_MOD_FX_RATE, readAutomationUpToPos);
-		storageManager.exitTag("modFXRate");
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_RATE, readAutomationUpToPos);
+		bdsm.exitTag("modFXRate");
 	}
 
-	else if (ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomationUpToPos)) {}
+	else if (ModControllableAudio::readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
 
 	else {
 		return false;
@@ -899,8 +1001,9 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 }
 
 // paramManager is optional
-int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                          int32_t readAutomationUpToPos, Song* song) {
+Error GlobalEffectable::readTagFromFile(StorageManager& bdsm, char const* tagName,
+                                        ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+                                        Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	// if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager,
@@ -910,40 +1013,40 @@ int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTi
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
-			int32_t error = paramManager->setupUnpatched();
-			if (error) {
+			Error error = paramManager->setupUnpatched();
+			if (error != Error::NONE) {
 				return error;
 			}
 			initParams(paramManager);
 		}
 
-		GlobalEffectable::readParamsFromFile(paramManager, readAutomationUpToPos);
-		storageManager.exitTag("defaultParams");
+		GlobalEffectable::readParamsFromFile(bdsm, paramManager, readAutomationUpToPos);
+		bdsm.exitTag("defaultParams");
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
-		modFXType = stringToFXType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("modFXType");
+		modFXType = stringToFXType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("modFXType");
 	}
 
 	else if (!strcmp(tagName, "modFXCurrentParam")) {
-		currentModFXParam = stringToModFXParam(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("modFXCurrentParam");
+		currentModFXParam = stringToModFXParam(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("modFXCurrentParam");
 	}
 
 	else if (!strcmp(tagName, "currentFilterType")) {
-		currentFilterType = stringToFilterType(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("currentFilterType");
+		currentFilterType = stringToFilterType(bdsm.readTagOrAttributeValue());
+		bdsm.exitTag("currentFilterType");
 	}
 
 	else {
-		return ModControllableAudio::readTagFromFile(tagName, NULL, readAutomationUpToPos, song);
+		return ModControllableAudio::readTagFromFile(bdsm, tagName, NULL, readAutomationUpToPos, song);
 	}
 
-	return NO_ERROR;
+	return Error::NONE;
 }
 
-// Before calling this, check that (storageManager.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
+// Before calling this, check that (bdsm.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
 // !paramManager->resonanceBackwardsCompatibilityProcessed)
 void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* paramManager) {
 
@@ -981,29 +1084,31 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 	return modFXTypeNow;
 }
 
-void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-                                              bool shouldLimitDelayFeedback, bool soundComingIn) {
+Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback,
+                                                       bool soundComingIn) {
 
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	Delay::State delayWorkingState;
+	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState->delayFeedbackAmount = getFinalParameterValueLinear(
+	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
 	    paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
 	if (shouldLimitDelayFeedback) {
-		delayWorkingState->delayFeedbackAmount =
-		    std::min(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+		delayWorkingState.delayFeedbackAmount =
+		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState->userDelayRate =
+	delayWorkingState.userDelayRate =
 	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
+
+	return delayWorkingState;
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
-                                                    DelayWorkingState* delayWorkingState,
-                                                    int32_t analogDelaySaturationAmount, bool grainHadInput) {
+                                                    const Delay::State& delayWorkingState, bool grainHadInput) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -1076,5 +1181,5 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager, analogDelaySaturationAmount);
+	          paramManager);
 }

@@ -30,7 +30,7 @@ public:
 	int32_t setAttack(q31_t attack) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
 		attackMS = 0.5 + (std::exp(2 * float(attack) / ONE_Q31f) - 1) * 10;
-		a_ = (-1000.0 / 44100) / attackMS;
+		a_ = (-1000.0 / kSampleRate) / attackMS;
 		attackKnobPos = attack;
 		return attackMS;
 	};
@@ -40,12 +40,12 @@ public:
 	int32_t setRelease(q31_t release) {
 		// this exp will be between 1 and 7ish, half the knob range is about 2.5
 		releaseMS = 50 + (std::exp(2 * float(release) / ONE_Q31f) - 1) * 50;
-		r_ = (-1000.0 / 44100) / releaseMS;
+		r_ = (-1000.0 / kSampleRate) / releaseMS;
 		releaseKnobPos = release;
 		return releaseMS;
 	};
 
-	float calcRMS(StereoSample* buffer, uint16_t numSamples);
+	StereoFloatSample calcApproxRMS(StereoSample* buffer, uint16_t numSamples);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
@@ -57,8 +57,10 @@ private:
 	// state
 	float state{0};
 	float rms{0};
-	float mean{0};
-	float lastMean{0};
+	float meanL{0};
+	float lastMeanL{0};
+	float meanR{0};
+	float lastMeanR{0};
 
 	// for display
 	float attackMS{1};
