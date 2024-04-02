@@ -17,9 +17,9 @@ struct Base {
 
 	static constexpr float calcFilterCutoff(float f) {
 		// this exp will be between 1 and 4.48, half the knob range is about 2
-		// the result will then be from 0 to 330Hz with half the knob range at 200hz
-		// then shift to 20-350Hz as there is a low end buildup in the reverb that should always be filtered out
-		float fc_hz = 20 + (std::exp(1.5f * f) - 1) * 100;
+		// the result will then be from 0 to 500Hz with half the knob range at 300hz
+		// then shift to 20-520Hz as there is a low end buildup in the reverb that should always be filtered out
+		float fc_hz = 20 + (std::exp(1.5f * f) - 1) * 150;
 		float fc = fc_hz / float(kSampleRate);
 		float wc = fc / (1 + fc);
 		return wc;
