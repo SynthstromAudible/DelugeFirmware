@@ -31,6 +31,8 @@ void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
 	// 33551360
 	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
+	//
+	// Maximum value: 2.08 neppers, since finalVolume is at most 0x7fffffff (representing ~8 in 3.29 signed fixed point)
 	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
@@ -61,7 +63,11 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * fraction;
 
 	// this is the most gain available without overflow
-	float dbGain = .85f + er + reduction;
+	// Amount of gain. Must not exceed 3.43 as that will result in a gain > 31
+	//
+	// Since reduction is always negative, we only need to worry about the case where reduction == 0 to determine the
+	// maximum headroom. er can not exceed 2.08, so we have 1.35 neppers of headroom.
+	float dbGain = 1.35f + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);

@@ -168,7 +168,10 @@ private:
 	///
 	/// The UI currently limits this to 0.5 (a ratio of 2) to 1.0 (a ratio of 256)
 	float fraction = 0.5;
-	/// Internal (smoothed) version of the requested final volume
+	/// Internal (smoothed) version of log of the requested volume.
+	///
+	/// Maximum value:   2.08 neppers when finalVolume is 0x7fffffff
+	/// Minimum value: -23.07 neppers when finalVolume is 0
 	float er = 0;
 	/// Threshold, in decibels
 	float threshdb = 17;
