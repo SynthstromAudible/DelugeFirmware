@@ -440,22 +440,11 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
 
 	UnpatchedParamSet* unpatchedParams = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSet();
-
-	// Rhythm param full uint32_t range
-	uint32_t rhythmParam = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
-	// Rhythm in range 0 to NUM_PRESET_ARP_RHYTHMS - 1
-	uint32_t rhythm = (((int64_t)rhythmParam) * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32;
-	// Sequence Length param full uint32_t range
-	uint32_t sequenceLengthParam =
-	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
-	// Sequence Length in range 0 to 50
-	uint32_t sequenceLength = (((int64_t)sequenceLengthParam) * kMaxMenuValue + 2147483648) >> 32;
-	// Ratchet Amount param full uint32_t range
+	uint32_t sequenceLength = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
+	uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
 	uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
-	// Ratchet Probability param full uint32_t range
 	uint32_t ratchetProbability =
 	    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
-
 	arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
 
 	ArpReturnInstruction instruction;

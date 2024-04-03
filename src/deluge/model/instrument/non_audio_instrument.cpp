@@ -36,16 +36,10 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpeggiatorGate + 2147483648;
-
-			// Change from 0-50 to full uint32_t range
-			uint32_t ratchetProbability = activeInstrumentClip->arpeggiatorRatchetProbability * 85899345;
-			// Change from 0-50 to full uint32_t range
-			uint32_t ratchetAmount = activeInstrumentClip->arpeggiatorRatchetAmount * 85899345;
-
-			// Use as is (0-50 range)
-			uint32_t sequenceLength = activeInstrumentClip->arpeggiatorSequenceLength;
-			// Use as is (0-50 range)
-			uint32_t rhythm = activeInstrumentClip->arpeggiatorRhythm;
+			uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
+			uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+			uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
+			uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
@@ -200,16 +194,10 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 
 	InstrumentClip* activeInstrumentClip = (InstrumentClip*)activeClip;
 	if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
-		// Change from 0-50 to full uint32_t range
-		uint32_t ratchetProbability = activeInstrumentClip->arpeggiatorRatchetProbability * 85899345;
-		// Change from 0-50 to full uint32_t range
-		uint32_t ratchetAmount = activeInstrumentClip->arpeggiatorRatchetAmount * 85899345;
-
-		// Use as is (0-50 range)
-		uint32_t sequenceLength = activeInstrumentClip->arpeggiatorSequenceLength;
-		// Use as is (0-50 range)
-		uint32_t rhythm = activeInstrumentClip->arpeggiatorRhythm;
-
+		uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
+		uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
+		uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
+		uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
 		arpeggiator.updateParams(sequenceLength, rhythm, ratchetAmount, ratchetProbability);
 	}
 
