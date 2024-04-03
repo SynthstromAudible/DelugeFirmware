@@ -108,12 +108,14 @@ public:
 	void copyBasicsFrom(Clip* otherClip);
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
+
 	int32_t arpeggiatorRate;
-	int32_t arpeggiatorRatchetProbability;
-	int32_t arpeggiatorRatchetAmount;
-	int32_t arpeggiatorSequenceLength;
-	int32_t arpeggiatorRhythm;
 	int32_t arpeggiatorGate;
+
+	uint32_t arpeggiatorRatchetProbability;
+	uint32_t arpeggiatorRatchetAmount;
+	uint32_t arpeggiatorSequenceLength;
+	uint32_t arpeggiatorRhythm;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
