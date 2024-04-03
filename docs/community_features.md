@@ -397,8 +397,8 @@ Here is a list of features that have been added to the firmware as a list, group
     - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red.
         - Red indicates clipping and is rendered on the top row of the grid.
         - Each row on the grid corresponds to the following decibels below clipping values:
-            - y7 = clipping (0 or higher)
-            - y6 = -4.4 to -0.1
+            - y7 = clipping (-0.2 or higher)
+            - y6 = -4.4 to -0.3
             - y5 = -8.8 to -4.5
             - y4 = -13.2 to -8.9
             - y3 = -17.6 to -13.3
