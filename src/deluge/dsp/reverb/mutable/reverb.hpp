@@ -136,11 +136,6 @@ public:
 	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
 	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
-	//	void setHPF(float value) {
-	//		hp_cutoff_val_ = value;
-	//		hp_cutoff_ = value == 0.f ? 0.f : std::clamp(0.35f - std::log2(((1.f - value) * 50.f) + 1.f) / 16,
-	// 0.f, 1.f);
-	//	}
 	void setHPF(float f) {
 		hp_cutoff_val_ = f;
 		hp_cutoff_ = calcFilterCutoff(f);
