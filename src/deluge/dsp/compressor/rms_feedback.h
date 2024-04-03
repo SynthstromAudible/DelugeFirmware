@@ -36,7 +36,7 @@ public:
 	}
 
 	/// Reset the state of the compressor so no gain reduction is applied at the start of the next render window.
-	void reset(StereoSample last = {0, 0}) {
+	void reset() {
 		state = 0;
 		er = 0;
 		mean = 0;
