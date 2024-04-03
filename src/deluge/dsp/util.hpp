@@ -16,6 +16,8 @@
  */
 #include "deluge/util/fixedpoint.h"
 #include "deluge/util/functions.h"
+#include <cmath>
+
 namespace deluge::dsp {
 /**
  * Fold reduces the input by the amount it's over the level
@@ -59,7 +61,7 @@ inline q31_t polynomialOscillatorApproximation(q31_t x) {
 	return out;
 }
 
-void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q31_t level) {
+inline void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q31_t level) {
 	q31_t* currentSample = startSample;
 	q31_t foldLevel = add_saturation(level, FOLD_MIN);
 
@@ -77,7 +79,7 @@ void foldBufferPolyApproximation(q31_t* startSample, q31_t* endSample, q31_t lev
 /**
  * foldBuffer folds a whole buffer. Works for stereo too
  */
-void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
+inline void foldBuffer(q31_t* startSample, q31_t* endSample, q31_t foldLevel) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = fold(*currentSample, foldLevel);

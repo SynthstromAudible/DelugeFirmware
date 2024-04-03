@@ -34,6 +34,7 @@ public:
 		base_->setRoomSize(room_size_);
 		base_->setDamping(damping_);
 		base_->setWidth(width_);
+		base_->setHPF(hpf_);
 		model_ = m;
 	}
 
@@ -76,6 +77,12 @@ public:
 
 	[[nodiscard]] float getWidth() const override { return base_->getWidth(); };
 
+	virtual void setHPF(float f) {
+		hpf_ = f;
+		base_->setHPF(f);
+	}
+	[[nodiscard]] virtual float getHPF() const { return base_->getHPF(); }
+
 	template <typename T>
 	constexpr T& reverb_as() {
 		return std::get<T>(reverb_);
@@ -95,5 +102,6 @@ private:
 	float room_size_;
 	float damping_;
 	float width_;
+	float hpf_;
 };
 } // namespace deluge::dsp
