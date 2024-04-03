@@ -2043,41 +2043,42 @@ loadOutput:
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	int32_t count = 0;
+
 	// Match all Clips up with their Output
 	// For each Clip in session and arranger
-	ClipArray* clipArray = &sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
+	std::array<ClipArray*, 2> const arrays{
+	    &sessionClips,
+	    &arrangementOnlyClips,
+	};
+	for (ClipArray* clipArray : arrays) {
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
 
-		if (!(count & 31)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
-			AudioEngine::logAction("aaa0");
-		}
-		count++;
+			if (!(count & 31)) {
+				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::logAction("aaa0");
+			}
+			count++;
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
-		if (error != Error::NONE) {
-			return error;
-		}
+			Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
+			if (error != Error::NONE) {
+				return error;
+			}
 
-		// Correct different non-synced rates of old song files
-		// In a perfect world, we'd do this for Kits, MIDI and CV too
-		if (bdsm.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
-		    && thisClip->output->type == OutputType::SYNTH) {
-			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
-			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
-				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-				thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
-				                                                                                    + (1 << 28));
+			// Correct different non-synced rates of old song files
+			// In a perfect world, we'd do this for Kits, MIDI and CV too
+			if (bdsm.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
+			    && thisClip->output->type == OutputType::SYNTH) {
+				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
+				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
+					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
+					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
+					                                                                                    + (1 << 28));
+				}
 			}
 		}
-	}
-	if (clipArray != &arrangementOnlyClips) {
-		clipArray = &arrangementOnlyClips;
-		goto traverseClips;
 	}
 
 	AudioEngine::logAction("matched up");
@@ -2093,6 +2094,18 @@ traverseClips:
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->soloingInArrangementMode) {
 			anyOutputsSoloingInArrangement = true;
+		}
+
+		if (thisOutput->clipInstances.getNumElements() == 0
+		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr) {
+			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+			// things will go wrong later.
+			ParamManagerForTimeline paramManager{};
+
+			paramManager.setupUnpatched();
+			GlobalEffectable::initParams(&paramManager);
+
+			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), NULL, &paramManager);
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
