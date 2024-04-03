@@ -397,8 +397,8 @@ Here is a list of features that have been added to the firmware as a list, group
     - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red.
         - Red indicates clipping and is rendered on the top row of the grid.
         - Each row on the grid corresponds to the following decibels below clipping values:
-            - y7 = clipping (0 or higher)
-            - y6 = -4.4 to -0.1
+            - y7 = clipping (-0.2 or higher)
+            - y6 = -4.4 to -0.3
             - y5 = -8.8 to -4.5
             - y4 = -13.2 to -8.9
             - y3 = -17.6 to -13.3
@@ -629,6 +629,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
           provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
           press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
     - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
+      - ([#1607]) You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
     - ([#1456]) Added an in-between-layer in the Deluge menu system to be able to access and interact with the `AUTOMATION VIEW EDITOR` while you are still in the menu from the regular `ARRANGER / CLIP VIEW`. When you exit the menu you will be returned to the View you were in prior to entering the menu. Press Clip (if you are in a clip) or Song (if you are in arranger) to temporarily open the `AUTOMATION VIEW EDITOR` while you are still in the menu.    
     - ([#1480]) As a follow-up to [#1374] which enabled enabled patch cables to be edited in Automation View, the Automation Editor has now been modified to display param values according to whether the Param is bipolar or not. If it's a bipolar param, the grid will light up as follows:
       - Middle value = no pads lit up
@@ -1234,6 +1235,8 @@ different firmware
 [#1542]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1542
 
 [#1589]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1589
+
+[#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

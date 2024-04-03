@@ -42,6 +42,7 @@ class NoteRow;
 class ParamCollection;
 class ParamManagerForTimeline;
 class ParamNode;
+class PatchCableSet;
 class Sound;
 class SoundDrum;
 
@@ -219,6 +220,8 @@ private:
 	// Select Encoder Action
 	void selectGlobalParam(int32_t offset, Clip* clip);
 	void selectNonGlobalParam(int32_t offset, Clip* clip);
+	bool selectPatchCable(int32_t offset, Clip* clip);
+	bool selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex, bool& foundCurrentPatchCable);
 	void selectMIDICC(int32_t offset, Clip* clip);
 	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
 	                                          int32_t numParams);
@@ -228,6 +231,7 @@ private:
 	// Automation Lanes Functions
 	void initPadSelection();
 	void initInterpolation();
+	ParamManagerForTimeline* getParamManagerForClip(Clip* clip);
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);

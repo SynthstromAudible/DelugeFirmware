@@ -1254,17 +1254,17 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 	else {
+		if (modelStackWithParam->paramId == 255) {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
 		// is it not just a param? then its a patch cable
-		if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
 			// default value for patch cable
 			// (equals 0 (midpoint) in -128 to +128 range)
 			knobPos = 64;
 			isBipolar = true;
-		}
-		else {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
-			                                                                              modelStackWithParam);
-			knobPos += kKnobPosOffset;
 		}
 	}
 
@@ -1641,6 +1641,9 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	return false;
 }
 
+// lookup table for the min value of each pad's value range used to display vu meter on the grid
+const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+
 int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
 	// 16.7 = log(2^24) which is the approxRMSLevel at which clipping begins
@@ -1655,8 +1658,8 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 		// 4.4 = 4.3 is dBFS range for a given row + 0.1
 		// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
 		/*
-		y7 = clipping (0 or higher)
-		y6 = -4.4 to -0.1
+		y7 = clipping (-0.2 or higher)
+		y6 = -4.4 to -0.3
 		y5 = -8.8 to -4.5
 		y4 = -13.2 to -8.9
 		y3 = -17.6 to -13.3
@@ -1664,9 +1667,8 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 		y1 = -26.4 to -22.1
 		y0 = -30.8 to -26.5
 		*/
-		float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
 		// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
-		if (dBFS >= dBFSForYDisplay) {
+		if (dBFS >= dBFSForYDisplay[yDisplay]) {
 			maxYDisplay = yDisplay;
 		}
 		else {

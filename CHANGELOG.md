@@ -1,18 +1,18 @@
 # Deluge Community Firmware Change Log
 
-> To find a detailed list of how to use each feature, check
->
-here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
-## c1.2.0 Unnamed
+## c1.2.0 Chopin
 
 ### User Interface
 
-- Added a new default setting that controls which playback mode new slices of a kit will get. 
 - Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
 - Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+
+### MIDI
+- Added Universal SysEx Identity response, including firmware version.
 
 ## c1.1.0 Beethoven
 
@@ -36,6 +36,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
   pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
+  - You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. Positive values are shown in the top four pads, Negative value in the bottom four pads, and the Middle value is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
@@ -84,6 +85,10 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
+- Added a new default setting that controls which playback mode new slices of a kit will get. 
+- Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
+- Modified waveform marker rendering to improve clarity.
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

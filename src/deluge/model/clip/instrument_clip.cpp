@@ -2338,26 +2338,24 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 	}
 
 	if (output->type != OutputType::KIT) {
-		if (arpSettings.mode != ArpMode::OFF) {
-			bdsm.writeOpeningTagBeginning("arpeggiator");
-			bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-			bdsm.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
+		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
 
-			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-				bdsm.writeAttribute("gate", arpeggiatorGate);
-				bdsm.writeAttribute("rate", arpeggiatorRate);
-				bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-				bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-				bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-				bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
-			}
-			bdsm.closeTag();
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			bdsm.writeAttribute("gate", arpeggiatorGate);
+			bdsm.writeAttribute("rate", arpeggiatorRate);
+			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+		bdsm.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
@@ -3856,6 +3854,29 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 			}
 		}
 	}
+}
+
+ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
+	ParamManagerForTimeline* currentParamManager = nullptr;
+
+	if (output->type == OutputType::KIT && !affectEntire) {
+		Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+
+		// If a SoundDrum is selected...
+		if (selectedDrum) {
+			if (selectedDrum->type == DrumType::SOUND) {
+				NoteRow* noteRow = getNoteRowForDrum(selectedDrum);
+				if (noteRow != nullptr) {
+					currentParamManager = &noteRow->paramManager;
+				}
+			}
+		}
+	}
+	else {
+		currentParamManager = &paramManager;
+	}
+
+	return currentParamManager;
 }
 
 Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {

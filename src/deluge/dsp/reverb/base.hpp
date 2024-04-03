@@ -1,6 +1,6 @@
 #pragma once
 #include "dsp/stereo_sample.h"
-#include <cstdint>
+#include <cmath>
 #include <span>
 
 namespace deluge::dsp::reverb {
@@ -15,9 +15,22 @@ struct Base {
 		amplitude_left_ = amplitude_left;
 	}
 
+	static constexpr float calcFilterCutoff(float f) {
+		// this exp will be between 1 and 4.48, half the knob range is about 2
+		// the result will then be from 0 to 500Hz with half the knob range at 300hz
+		// then shift to 20-520Hz as there is a low end buildup in the reverb that should always be filtered out
+		float fc_hz = 20 + (std::exp(1.5f * f) - 1) * 150;
+		float fc = fc_hz / float(kSampleRate);
+		float wc = fc / (1 + fc);
+		return wc;
+	}
+
 	// Dummy functions
 	virtual void setRoomSize(float value) {}
 	[[nodiscard]] virtual float getRoomSize() const { return 0; };
+
+	virtual void setHPF(float f) {}
+	[[nodiscard]] virtual float getHPF() const { return 0; }
 
 	virtual void setDamping(float value) {}
 	[[nodiscard]] virtual float getDamping() const { return 0; }

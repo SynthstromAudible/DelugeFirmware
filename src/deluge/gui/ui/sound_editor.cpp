@@ -89,11 +89,6 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
 
-#if ALPHA_OR_BETA_VERSION && IN_HARDWARE_DEBUG
-	paramShortcutsForSounds[5][7] = &devVarAMenu;
-	paramShortcutsForAudioClips[5][7] = &devVarAMenu;
-#endif
-
 	switch (newVersion) {
 
 	case SHORTCUTS_VERSION_1:
