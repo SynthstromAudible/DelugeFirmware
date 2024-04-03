@@ -28,9 +28,12 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
 void RMSFeedbackCompressor::updateER(float numSamples, q31_t finalVolume) {
+
 	// 33551360
 	//  int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	// We offset the final volume by a minuscule amount to avoid a finalVolume of zero resulting in NaNs propagating.
+	//
+	// Maximum value: 2.08 neppers, since finalVolume is at most 0x7fffffff (representing ~8 in 3.29 signed fixed point)
 	float songVolumedB = logf(finalVolume + 1e-10);
 
 	threshdb = songVolumedB * threshold;
@@ -48,9 +51,17 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 	// I couldn't extract correct volume levels from it.
 	render(buffer, numSamples, 1 << 27, 1 << 27, finalVolume >> 3);
 }
-
+constexpr uint8_t saturationAmount = 4;
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
+	if (!onLastTime) {
+		// sets the "working level" for interpolation and anti aliasing
+		lastSaturationTanHWorkingValue[0] =
+		    (uint32_t)lshiftAndSaturateUnknown(buffer->l, saturationAmount) + 2147483648u;
+		lastSaturationTanHWorkingValue[1] =
+		    (uint32_t)lshiftAndSaturateUnknown(buffer->r, saturationAmount) + 2147483648u;
+		onLastTime = true;
+	}
 	// we update this every time since we won't know if the song volume changed
 	updateER(numSamples, finalVolume);
 
@@ -61,7 +72,11 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	float reduction = -state * fraction;
 
 	// this is the most gain available without overflow
-	float dbGain = .85f + er + reduction;
+	// Amount of gain. Must not exceed 3.43 as that will result in a gain > 31
+	//
+	// Since reduction is always negative, we only need to worry about the case where reduction == 0 to determine the
+	// maximum headroom. er can not exceed 2.08, so we have 1.35 neppers of headroom.
+	float dbGain = 1.35f + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
@@ -85,7 +100,10 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 		//
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
+		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], saturationAmount);
+
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
+		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], saturationAmount);
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs
@@ -122,8 +140,8 @@ float RMSFeedbackCompressor::calcRMS(StereoSample* buffer, uint16_t numSamples) 
 
 	} while (++thisSample != bufferEnd);
 
-	float ns = float(numSamples);
-	mean = (2 * float(sum) / ONE_Q31f) / ns;
+	float ns = float(numSamples * 2);
+	mean = (float(sum) / ONE_Q31f) / ns;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
