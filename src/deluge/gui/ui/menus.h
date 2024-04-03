@@ -1,7 +1,6 @@
 #pragma once
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
-#include "gui/menu_item/dev_var/dev_var.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
@@ -11,8 +10,6 @@
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
 #include "gui/menu_item/submenu.h"
-
-extern deluge::gui::menu_item::dev_var::AMenu devVarAMenu;
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
 extern deluge::gui::menu_item::osc::Sync oscSyncMenu;
