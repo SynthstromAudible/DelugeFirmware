@@ -186,6 +186,9 @@ doNormal:
 		if (compThreshold > 0) {
 			compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
 		}
+		else {
+			compressor.reset();
+		}
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 
