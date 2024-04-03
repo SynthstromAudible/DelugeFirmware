@@ -40,6 +40,7 @@ public:
 		state = 0;
 		er = 0;
 		mean = 0;
+		onLastTime = false;
 	}
 
 	/// Render the compressor in-place using the provided buffer.
@@ -168,7 +169,10 @@ private:
 	///
 	/// The UI currently limits this to 0.5 (a ratio of 2) to 1.0 (a ratio of 256)
 	float fraction = 0.5;
-	/// Internal (smoothed) version of the requested final volume
+	/// Internal (smoothed) version of log of the requested volume.
+	///
+	/// Maximum value:   2.08 neppers when finalVolume is 0x7fffffff
+	/// Minimum value: -23.07 neppers when finalVolume is 0
 	float er = 0;
 	/// Threshold, in decibels
 	float threshdb = 17;
@@ -187,6 +191,9 @@ private:
 	float rms = 0;
 	/// Mean value of the last render.
 	float mean = 0;
+	/// tanh working values for output saturation
+	uint32_t lastSaturationTanHWorkingValue[2] = {0};
+	bool onLastTime = false;
 
 	// sidechain filter
 	deluge::dsp::filter::BasicFilterComponent hpfL;
