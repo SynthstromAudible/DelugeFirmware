@@ -18,7 +18,7 @@ jobs:
       - name: Download Build Artifact
       - uses: actions/download-artifact@v4
         with:
-          name: *.bin
+          name: release.bin
       - name: Create nightlies archive
         if: inputs.build-type == 'nightly'
         run: |
@@ -39,7 +39,7 @@ jobs:
       - name: Create release archive
         if: inputs.release-type == 'beta'
         run: |
-          zip -j ./beta.zip build/Release/deluge*.bin
+          zip -j ./beta.zip release.bin
       - name: Update Beta Release
         if: inputs.release-type == 'beta'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
