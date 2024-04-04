@@ -10,7 +10,7 @@ on:
         default: "release"
         type: string
       build-tag:
-        default: "Dev"
+        default: "dev"
         type: string
       branch:
         required: false

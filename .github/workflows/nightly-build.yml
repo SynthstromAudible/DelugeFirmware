@@ -35,3 +35,33 @@ jobs:
     needs: nightly-build
     with:
       tag: 'nightly'
+      
+  beta-detect:
+    runs-on: ubuntu-latest
+    outputs:
+      new-commits: ${{ steps.count-commits.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'release/1.1'
+          fetch-depth: 0 # Required to count the commits
+      - name: Get new commits
+        id: count-commits
+        run: |
+          count=$(git log --oneline --since '24 hours ago' | wc -l)
+          echo "Saw $count commits"
+          echo "count=$count" >> $GITHUB_OUTPUT
+  beta-build:
+    uses: ./.github/workflows/build.yml
+    needs: beta-detect
+    if: needs.beta-detect.outputs.new-commits > 0
+    with:
+      firmware-retention-days: 30
+      build-type: 'Release'
+      build-tag: 'beta'
+      branch: 'release/1.1'
+  beta-publish:
+    uses: ./.github/workflows/publish.yml
+    needs: beta-build
+    with:
+      tag: 'beta'
