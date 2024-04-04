@@ -20,9 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Build Artifact
+        if: inputs.run-id == null
         uses: actions/download-artifact@v4
         with:
           name: Release_build_bundle
+      - name: Download Build Artifact
+        if: inputs.run-id != null
+        uses: actions/download-artifact@v4
+        with:
+          name: Release_build_bundle
+          run-id: ${{inputs.run-id}}
       - name: Create nightlies archive
         run: |
           zip -j ./${{ inputs.tag }}.zip *.bin
