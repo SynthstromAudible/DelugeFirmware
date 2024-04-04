@@ -18,11 +18,11 @@ jobs:
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
-          name: release.bin
+          name: Release_build_bundle
       - name: Create nightlies archive
         if: inputs.build-type == 'nightly'
         run: |
-          zip -j ./nightly.zip release.bin
+          zip -j ./nightly.zip *.bin
       - name: Update Nightly Release
         if: inputs.release-type == 'nightly'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
@@ -39,7 +39,7 @@ jobs:
       - name: Create release archive
         if: inputs.release-type == 'beta'
         run: |
-          zip -j ./beta.zip release.bin
+          zip -j ./beta.zip *.bin
       - name: Update Beta Release
         if: inputs.release-type == 'beta'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
