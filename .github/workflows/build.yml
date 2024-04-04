@@ -27,9 +27,9 @@ on:
         type: choice
         description: Build type
         options:
-        - debug
-        - release
-        - relwithdebinfo
+        - Debug
+        - Release
+        - Relwithdebinfo
       build-tag:
         type: choice
         description: Tag for firmware version
@@ -75,15 +75,8 @@ jobs:
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.build-type }}.bin
-          path: build/*/deluge*.bin
+          name: ${{ inputs.build-type }}_build_bundle
+          path: build/${{ inputs.build-type }}/*
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
 
-      - name: Publish built firmware (elf)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.build-type }}.elf
-          path: build/*/deluge*.elf
-          if-no-files-found: error
-          retention-days: ${{ inputs.firmware-retention-days }}

@@ -12,9 +12,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  pr-build:
+  release-build:
     name: Build Check
     uses: ./.github/workflows/build.yml
     with:
       firmware-retention-days: 5
-      build-type: 'dev'
+      build-type: 'Release'
+  debug-build:
+    name: Build Check
+    uses: ./.github/workflows/build.yml
+    with:
+      firmware-retention-days: 5
+      build-type: 'Debug'
