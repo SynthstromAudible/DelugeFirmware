@@ -1,0 +1,55 @@
+name: Publish Pre Release
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        required: true
+        type: string
+
+permissions:
+  contents: write #required to update release tags
+
+jobs:
+  publish:
+    name: PublishRelease
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact
+      - uses: actions/download-artifact@v4
+  with:
+    name: my-artifact
+      - name: Create nightlies archive
+        if: inputs.build-type == 'nightly'
+        run: |
+          zip -j ./nightly.zip build/Release/deluge*.bin
+      - name: Update Nightly Release
+        if: inputs.build-type == 'nightly'
+        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: nightly #will update tag to point at current head
+          name: 'Deluge Nightly Release $$' #will fill in with date
+          prerelease: true
+          body: 'This is a nightly release and may have bugs - please report them!
+          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
+          files: |
+            ./nightly.zip
+      - name: Create release archive
+        if: inputs.build-type == 'release'
+        run: |
+          zip -j ./beta.zip build/Release/deluge*.bin
+      - name: Update Beta Release
+        if: inputs.build-type == 'release'
+        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: beta #will update tag to point at current head
+          name: 'Deluge Beta Release $$' #will fill in with date
+          prerelease: true
+          body: 'This is a beta release and may have bugs - please report them!
+          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
+          files: |
+            ./beta.zip
