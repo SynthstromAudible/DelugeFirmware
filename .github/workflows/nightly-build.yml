@@ -32,5 +32,6 @@ jobs:
       branch: 'community'
   publish-nightly:
     uses: ./.github/workflows/publish.yml
+    needs: nightly-build
     with:
       release-type: 'beta'
