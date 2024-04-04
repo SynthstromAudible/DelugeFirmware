@@ -192,7 +192,7 @@ void resetprg(void) {
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
 
 	__libc_init_array();
-
+	// located in OSLikeStuff/main.c
 	main();
 
 	/* Stops program from running off */
