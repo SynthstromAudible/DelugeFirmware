@@ -30,8 +30,8 @@ jobs:
       build-type: 'Release'
       build-tag: 'nightly'
       branch: 'community'
-  publish-nightly:
+  nightly-publish:
     uses: ./.github/workflows/publish.yml
     needs: nightly-build
     with:
-      release-type: 'nightly'
+      tag: 'nightly'

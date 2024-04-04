@@ -3,9 +3,13 @@ name: Publish Pre Release
 on:
   workflow_call:
     inputs:
-      release-type:
+      tag:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      run-id:
+        required: true
 
 permissions:
   contents: write #required to update release tags
@@ -20,36 +24,19 @@ jobs:
         with:
           name: Release_build_bundle
       - name: Create nightlies archive
-        if: inputs.build-type == 'nightly'
         run: |
-          zip -j ./nightly.zip *.bin
+          zip -j ./${{ inputs.tag }}.zip *.bin
       - name: Update Nightly Release
         if: inputs.release-type == 'nightly'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: nightly #will update tag to point at current head
+          tag_name: ${{ inputs.tag }} #will update tag to point at current head
           name: 'Deluge Nightly Release $$' #will fill in with date
           prerelease: true
           body: 'This is a nightly release and may have bugs - please report them!
           https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
           files: |
-            ./nightly.zip
-      - name: Create release archive
-        if: inputs.release-type == 'beta'
-        run: |
-          zip -j ./beta.zip *.bin
-      - name: Update Beta Release
-        if: inputs.release-type == 'beta'
-        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: beta #will update tag to point at current head
-          name: 'Deluge Beta Release $$' #will fill in with date
-          prerelease: true
-          body: 'This is a beta release and may have bugs - please report them!
-          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
-          files: |
-            ./beta.zip
+            ./${{ inputs.tag }}.zip
+    
