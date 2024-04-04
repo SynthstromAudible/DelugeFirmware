@@ -3,7 +3,7 @@ name: Publish Pre Release
 on:
   workflow_call:
     inputs:
-      build-type:
+      release-type:
         required: true
         type: string
 
@@ -17,14 +17,14 @@ jobs:
     steps:
       - name: Download Build Artifact
       - uses: actions/download-artifact@v4
-  with:
-    name: my-artifact
+        with:
+          name: *.bin
       - name: Create nightlies archive
         if: inputs.build-type == 'nightly'
         run: |
-          zip -j ./nightly.zip build/Release/deluge*.bin
+          zip -j ./nightly.zip release.bin
       - name: Update Nightly Release
-        if: inputs.build-type == 'nightly'
+        if: inputs.release-type == 'nightly'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -37,11 +37,11 @@ jobs:
           files: |
             ./nightly.zip
       - name: Create release archive
-        if: inputs.build-type == 'release'
+        if: inputs.release-type == 'beta'
         run: |
           zip -j ./beta.zip build/Release/deluge*.bin
       - name: Update Beta Release
-        if: inputs.build-type == 'release'
+        if: inputs.release-type == 'beta'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
