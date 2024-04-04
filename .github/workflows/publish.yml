@@ -10,7 +10,6 @@ on:
     inputs:
       run-id:
         required: true
-    inputs:
       tag:
         type: choice
         options:
