@@ -27,11 +27,11 @@ jobs:
     if: needs.nightly-detect.outputs.new-commits > 0
     with:
       firmware-retention-days: 30
-      build-type: 'release'
+      build-type: 'Release'
       build-tag: 'nightly'
       branch: 'community'
-  publish-nightly:
+  nightly-publish:
     uses: ./.github/workflows/publish.yml
     needs: nightly-build
     with:
-      release-type: 'beta'
+      tag: 'nightly'
