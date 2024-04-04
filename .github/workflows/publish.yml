@@ -10,6 +10,11 @@ on:
     inputs:
       run-id:
         required: true
+      tag:
+        type: choice
+        options:
+          - nightly
+          - beta
 
 permissions:
   contents: write #required to update release tags
@@ -34,15 +39,14 @@ jobs:
         run: |
           zip -j ./${{ inputs.tag }}.zip *.bin
       - name: Update Nightly Release
-        if: inputs.release-type == 'nightly'
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ inputs.tag }} #will update tag to point at current head
-          name: 'Deluge Nightly Release $$' #will fill in with date
+          name: 'Deluge ${{ inputs.tag }} Release $$' #will fill in with date
           prerelease: true
-          body: 'This is a nightly release and may have bugs - please report them!
+          body: 'This is a ${{ inputs.tag }} release and may have bugs - please report them!
           https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
           files: |
             ./${{ inputs.tag }}.zip
