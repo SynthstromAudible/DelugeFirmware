@@ -10,6 +10,12 @@ on:
     inputs:
       run-id:
         required: true
+    inputs:
+      tag:
+        type: choice
+        options:
+          - nightly
+          - beta
 
 permissions:
   contents: write #required to update release tags
