@@ -80,7 +80,7 @@ jobs:
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.build-type }}_build_bundle
+          name: ${{ inputs.build-tag }}_${{ inputs.build-type }}_build_bundle
           path: build/${{ inputs.build-type }}/*
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
