@@ -71,7 +71,7 @@ jobs:
             --tag-metadata \
             --type ${{ inputs.build-tag }} \
             ${{ inputs.build-type }}
-            
+
       - name: Genfile check
         run: |
           find src/ -name 'g_*' | git update-index --verbose --stdin
