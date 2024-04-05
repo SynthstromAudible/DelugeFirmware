@@ -51,7 +51,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "config",
         nargs="?",
-        choices=list(BUILD_CONFIGS.keys()),
+        choices=list(BUILD_CONFIGS.keys()) + list(BUILD_CONFIGS.values()),
     )
     return parser
 
@@ -82,7 +82,9 @@ def main() -> int:
     build_args += ["--target", "deluge"]
 
     if args.config and args.config != "all":
-        config = BUILD_CONFIGS[args.config]
+        config = (
+            BUILD_CONFIGS[args.config] if args.config in BUILD_CONFIGS else args.config
+        )
         build_args += ["--config", config]
 
     if args.verbose:
