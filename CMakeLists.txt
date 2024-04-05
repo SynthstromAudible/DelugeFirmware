@@ -21,6 +21,14 @@ else()
     set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
 endif()
 
+find_package(Python COMPONENTS Interpreter)
+
+if (Python_Interpreter_FOUND)
+    message(VERBOSE "python found: ${Python_EXECUTABLE} version ${Python_VERSION}")
+else()
+    message(FATAL_ERROR "Python not found")
+endif(Python_Interpreter_FOUND)
+
 find_package(Git)
 
 if(GIT_FOUND)
