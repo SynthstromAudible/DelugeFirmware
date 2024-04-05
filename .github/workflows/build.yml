@@ -7,8 +7,36 @@ on:
         required: true
         type: number
       build-type:
-        required: true
+        default: "release"
         type: string
+      build-tag:
+        default: "dev"
+        type: string
+      branch:
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      firmware-retention-days:
+        type: choice
+        description: How long to save artifacts
+        options: 
+        - 5
+        - 30
+      build-type:
+        type: choice
+        description: Build type
+        options:
+        - Debug
+        - Release
+        - Relwithdebinfo
+      build-tag:
+        type: choice
+        description: Tag for firmware version
+        options:
+        - dev
+        - nightly
+        - beta
 
 permissions:
   contents: write #required to update release tags
@@ -18,19 +46,16 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: normal check out repo
-        if: inputs.build-type != 'nightly' && inputs.build-type != 'release'
-        uses: actions/checkout@v4
-      - name: nightly check out repo
-        if: inputs.build-type == 'nightly'
+      - name: Checkout branch
+        if: inputs.branch != null
         uses: actions/checkout@v4
         with:
-          ref: 'community'
-      - name: release check out repo
-        if: inputs.build-type == 'release'
+          ref: ${{ inputs.branch }}
+      - name: Checkout branch
+        if: inputs.branch == null
         uses: actions/checkout@v4
-        with:
-          ref: 'release/1.1'
+      - name: Validate Build Type
+        run: buildtype=${{inputs.build-type }} node .github/scripts/validate_build_string.js
       - name: Fetch container image
         run: |
           docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
@@ -44,62 +69,19 @@ jobs:
             build \
             --verbose \
             --tag-metadata \
-            --type ${{ inputs.build-type }} \
-            all
+            --type ${{ inputs.build-tag }} \
+            ${{ inputs.build-type }}
 
-      - name: Publish built firmware (debug-bin)
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug.bin
-          path: build/Debug/deluge*.bin
-          if-no-files-found: error
-          retention-days: ${{ inputs.firmware-retention-days }}
+      - name: Genfile check
+        run: |
+          find src/ -name 'g_*' | git update-index --verbose --stdin
+          git diff-files --patch --exit-code
+
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v4
         with:
-          name: release.bin
-          path: build/Release/deluge*.bin
-          if-no-files-found: error
-          retention-days: ${{ inputs.firmware-retention-days }}
-      - name: Publish built firmware (elf)
-        uses: actions/upload-artifact@v4
-        with:
-          name: all-elfs
-          path: build/*/deluge*.elf
+          name: ${{ inputs.build-type }}_build_bundle
+          path: build/${{ inputs.build-type }}/*
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
 
-      - name: Create nightlies archive
-        if: inputs.build-type == 'nightly'
-        run: |
-          zip -j ./nightly.zip build/Release/deluge*.bin
-      - name: Update Nightly Release
-        if: inputs.build-type == 'nightly'
-        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: nightly #will update tag to point at current head
-          name: 'Deluge Nightly Release $$' #will fill in with date
-          prerelease: true
-          body: 'This is a nightly release and may have bugs - please report them!
-          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
-          files: |
-            ./nightly.zip
-      - name: Create release archive
-        if: inputs.build-type == 'release'
-        run: |
-          zip -j ./beta.zip build/Release/deluge*.bin
-      - name: Update Beta Release
-        if: inputs.build-type == 'release'
-        uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: beta #will update tag to point at current head
-          name: 'Deluge Beta Release $$' #will fill in with date
-          prerelease: true
-          body: 'This is a beta release and may have bugs - please report them!
-          https://github.com/SynthstromAudible/DelugeFirmware/issues/new/choose'
-          files: |
-            ./beta.zip
