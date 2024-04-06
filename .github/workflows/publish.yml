@@ -28,12 +28,12 @@ jobs:
         if: inputs.run-id == null
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.build-tag }}_Release_build_bundle
+          name: ${{ inputs.tag }}_Release_build_bundle
       - name: Download Build Artifact
         if: inputs.run-id != null
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.build-tag }}_Release_build_bundle
+          name: ${{ inputs.tag }}_Release_build_bundle
           run-id: ${{inputs.run-id}}
       - name: Create nightlies archive
         run: |
