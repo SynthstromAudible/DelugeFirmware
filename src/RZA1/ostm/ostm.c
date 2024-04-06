@@ -34,12 +34,10 @@ void disableTimer(int timerNo)
     OSTimers[timerNo]->OSTMnTT = 1;
 }
 
-
 bool isTimerEnabled(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnTE != 0;
 }
-
 
 void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_interrupt)
 {
