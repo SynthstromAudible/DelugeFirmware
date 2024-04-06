@@ -112,7 +112,7 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 Clip* getSelectedClip(bool useActiveClip) {
 	// special case for note and performance data where you want to let notes and MPE through to the active clip
 	if (useActiveClip) {
-		return getCurrentClip();
+		return getCurrentClip()->output->activeClip;
 	}
 	Clip* clip = nullptr;
 
