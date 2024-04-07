@@ -21,7 +21,29 @@ else()
     set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
 endif()
 
-find_package(Python COMPONENTS Interpreter)
+if(CMAKE_HOST_WIN32)
+  # Find python by ourselves, since on windows the find_package lookup
+  # seems to fail
+  set(Python_EXECUTABLE "$ENV{DBT_TOOLCHAIN_ROOT}/python/python.exe")
+  IF(EXISTS ${Python_EXECUTABLE})
+    execute_process(
+      COMMAND ${Python_EXECUTABLE} -c "import platform; print(platform.python_version())"
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE Python_VERSION
+      RESULT_VARIABLE Python_RESULT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT ${Python_RESULT} AND NOT ${Python_VERSION} STREQUAL "")
+      set(Python_Interpreter_FOUND 1)
+    else()
+      message(FATAL_ERROR "Python found at ${Python_EXECUTABLE} but failed to get version number")
+    endif()
+  else()
+    set(Python_Interpreter_FOUND 0)
+  endif()
+else()
+  find_package(Python COMPONENTS Interpreter)
+endif()
 
 if (Python_Interpreter_FOUND)
     message(VERBOSE "python found: ${Python_EXECUTABLE} version ${Python_VERSION}")
