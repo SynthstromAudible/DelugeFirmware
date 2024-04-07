@@ -1,0 +1,6 @@
+char const* kFirmwareVersionString = "@BUILD_VERSION_STRING@";
+char const* kFirmwareVersionStringShort = "@BUILD_VERSION_STRING_SHORT@";
+
+extern "C" {
+char const* kCommitShort = "@GIT_COMMIT_SHORT@";
+}

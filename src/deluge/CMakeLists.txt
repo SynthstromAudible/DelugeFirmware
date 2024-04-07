@@ -1,7 +1,7 @@
-configure_file(version.h.in version.h @ONLY)
 configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
 add_subdirectory(gui/l10n)
+add_subdirectory(version)
 
 # Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
@@ -10,7 +10,7 @@ file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
 )
 
-add_dependencies(deluge deluge_strings)
+add_dependencies(deluge deluge_strings deluge_version)
 
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
@@ -20,6 +20,7 @@ target_sources(deluge PUBLIC
 )
 
 target_include_directories(deluge PUBLIC
+    ${deluge_version_INCLUDES}
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_LIST_DIR}
     ${SHARED_INCLUDE}
