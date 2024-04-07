@@ -224,7 +224,7 @@ extern uint32_t program_code_end;
 
 	// Print first 4 byte of commit ID
 	sendToPIC(1 + currentColumnPairIndex);
-	char commitShort[32] = FIRMWARE_COMMIT_SHORT;
+	char const* commitShort = kCommitShort;
 
 	uint8_t firstByte = (getHexCharValue(commitShort[0]) << 4) | getHexCharValue(commitShort[1]);
 	drawByte(firstByte, 255, (hardFault ? 0 : 255), 0);
@@ -232,7 +232,7 @@ extern uint32_t program_code_end;
 	drawByte(secondByte, 255, (hardFault ? 0 : 255), 0);
 
 #if ENABLE_TEXT_OUTPUT
-	SEGGER_RTT_printf(0, "COMMIT: %s\n", FIRMWARE_COMMIT_SHORT);
+	SEGGER_RTT_printf(0, "COMMIT: %s\n", kCommitShort);
 #endif
 
 	uartFlushIfNotSending(UART_ITEM_PIC);
