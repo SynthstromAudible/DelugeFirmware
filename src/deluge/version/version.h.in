@@ -1,0 +1,16 @@
+#pragma once
+
+#ifdef __cplusplus
+
+#define FIRMWARE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define FIRMWARE_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define FIRMWARE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+extern char const* kFirmwareVersionString;
+extern char const* kFirmwareVersionStringShort;
+
+#else
+
+extern char const* kCommitShort;
+
+#endif
