@@ -4409,6 +4409,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
+	// Rounded position in sequencer ticks of the note-on event.
 	int32_t quantizedPos = 0;
 
 	bool reversed = modelStack->isCurrentlyPlayingReversed();
@@ -4423,22 +4424,24 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 		bool quantizedLater = false;
 
 		if (FlashStorage::recordQuantizeLevel) {
+			// If triplets are currently enabled in the song
 			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
-			uint16_t quantizeInterval = baseThing << (8 + modelStack->song->insideWorldTickMagnitude
+			// Number of sequencer ticks we're quantizing to.
+			uint32_t quantizeInterval = baseThing << (8 + modelStack->song->insideWorldTickMagnitude
 			                                          + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
 			                                          - FlashStorage::recordQuantizeLevel);
-			quantizedPos = unquantizedPos / quantizeInterval * quantizeInterval;
-			int32_t offset = unquantizedPos - quantizedPos;
+			quantizedPos = static_cast<int32_t>((unquantizedPos / quantizeInterval) * quantizeInterval);
+			auto offset = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(quantizedPos));
 
-			int32_t amountLaterThanMiddle = (offset - (quantizeInterval >> 1));
+			int32_t amountLaterThanMiddle = offset - static_cast<int32_t>(quantizeInterval >> 1);
 			if (reversed) {
 				amountLaterThanMiddle = 1 - amountLaterThanMiddle;
 			}
 			quantizedLater = (amountLaterThanMiddle >= 0);
 
 			// If quantizing to the right...
-			if (quantizedLater != reversed) { // If need to quantize forwards (to later in time)...
-				quantizedPos += quantizeInterval;
+			if (quantizedLater != reversed) {
+				quantizedPos += static_cast<int32_t>(quantizeInterval);
 
 				// If that's quantized it right to the end of the loop-length or maybe beyond...
 				if (quantizedPos >= effectiveLength) {
@@ -4447,14 +4450,15 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 					// we'll put the Note.
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-						Error error;
+						Error error{Error::NONE};
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
-						if (noteRow->loopLengthIfIndependent) {
+						if (noteRow->loopLengthIfIndependent != 0) {
 							if (output->type == OutputType::KIT
 							    && noteRows.getNumElements()
-							           != ((InstrumentClip*)beingRecordedFromClip)->noteRows.getNumElements()) {
+							           != (static_cast<InstrumentClip*>(beingRecordedFromClip))
+							                  ->noteRows.getNumElements()) {
 								error = Error::UNSPECIFIED;
 							}
 
@@ -4464,10 +4468,10 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 								    duplicateModelStackForClipBeingRecordedFrom(modelStack, otherModelStackMemory);
 
 								NoteRow* otherNoteRow = otherModelStackWithNoteRow->getNoteRowAllowNull();
-								if (otherNoteRow) { // It "should" always have it...
+								if (otherNoteRow != nullptr) { // It "should" always have it...
 
-									int32_t whichRepeatThisIs = (uint32_t)noteRow->loopLengthIfIndependent
-									                            / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+									int32_t whichRepeatThisIs =
+									    noteRow->loopLengthIfIndependent / otherNoteRow->loopLengthIfIndependent;
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent, whichRepeatThisIs,
 									                       otherNoteRow->loopLengthIfIndependent);
