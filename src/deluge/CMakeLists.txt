@@ -15,8 +15,6 @@ add_dependencies(deluge deluge_strings)
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 
-message(INFO dsr: ${deluge_strings_SOURCES})
-
 target_sources(deluge PUBLIC
   ${deluge_SOURCES}
 )
