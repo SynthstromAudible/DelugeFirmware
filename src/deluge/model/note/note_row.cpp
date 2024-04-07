@@ -586,7 +586,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		    ExistenceChangeType::CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
 	}
 
-	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
+	modelStack->getTimelineCounter()->expectEvent();
 	return distanceToNextNote;
 }
 
@@ -637,7 +637,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLift(kDefaultLiftValue);
 	newNote->setProbability(getDefaultProbability(modelStack));
 
-	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
+	modelStack->getTimelineCounter()->expectEvent();
 
 	return distanceToNextNote;
 }
