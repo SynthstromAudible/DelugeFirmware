@@ -3894,19 +3894,8 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 		                                                       instrumentName, dirPath, false);
 
 		if (!output) {
-			if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
-				output = storageManager.createNewNonAudioInstrument(outputType, backedUpInstrumentSlot[outputTypeAsIdx],
-				                                                    backedUpInstrumentSubSlot[outputTypeAsIdx]);
 
-				if (!output) {
-					return Error::INSUFFICIENT_RAM;
-				}
-
-				modelStack->song->addOutput(output);
-			}
-			else {
-				return Error::FILE_CORRUPTED;
-			}
+			return Error::FILE_CORRUPTED;
 		}
 	}
 
