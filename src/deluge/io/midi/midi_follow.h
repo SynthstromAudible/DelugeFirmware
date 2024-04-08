@@ -31,7 +31,8 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
-Clip* getSelectedClip(bool useActiveClip = false);
+Clip* getSelectedClip();
+Clip* getSelectedClip(ModelStack* modelStack);
 
 class MidiFollow final {
 public:
