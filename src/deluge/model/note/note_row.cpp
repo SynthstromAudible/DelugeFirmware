@@ -2136,10 +2136,8 @@ gotValidNoteIndex:
 				if (newTicksTil <= 0) {
 
 					// If we've "arrived" at a note we actually just recorded...
-					if (effectiveForwardPos < ignoreNoteOnsBefore_) {
+					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
 						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
-					}
-					else {
 						ignoreNoteOnsBefore_ = 0;
 					}
 
