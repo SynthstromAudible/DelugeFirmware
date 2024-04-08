@@ -149,7 +149,8 @@ Clip* getSelectedClip() {
 }
 
 // returns activeClip for the selected output
-// special case for note and performance data where you want to let notes and MPE through to the active clip
+// special case for note and performance data where you want to let notes,
+// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
 Clip* getSelectedClip(ModelStack* modelStack) {
 	// If you have an output for which no clip is active,
 	// when auditioning a clip for that output,
