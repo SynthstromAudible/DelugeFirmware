@@ -465,7 +465,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						D_PRINTLN("skipping next note");
-						noteRow->skipNextNote = true;
+
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -489,7 +492,9 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
-						noteRow->skipNextNote = true;
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -4168,7 +4173,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		thisNoteRow->skipNextNote = false;
+		// All notes should be recorded
+		thisNoteRow->ignoreNoteOnsBefore_ = 0;
 
 		bool mayStillLengthen = true;
 
@@ -4194,11 +4200,12 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 
 					NoteRow* newNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					if (newNoteRow) {
-						newNoteRow->attemptNoteAdd(
-						    0, lastNote->length, lastNote->velocity, lastNote->probability, modelStackWithNoteRow,
-						    NULL); // I'm guessing I deliberately didn't send the Action in here, cos didn't want to
-						           // make this Note on the new InstrumentClip undoable?
-						newNoteRow->skipNextNote = true;
+						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
+						// make this Note on the new InstrumentClip undoable?
+						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
+						                           modelStackWithNoteRow, nullptr);
+						// Make sure we don't double-play the note
+						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 
@@ -4416,7 +4423,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	if (forcePos0) {
-		noteRow->skipNextNote = true;
+		noteRow->ignoreNoteOnsBefore_ = 1;
 	}
 	else {
 		uint32_t unquantizedPos = modelStack->getLivePos();
@@ -4529,7 +4536,7 @@ doNormal: // Wrap it back to the start.
 
 		// If we quantized later, make sure that that note doesn't get played really soon when the play-pos reaches it
 		if (quantizedLater || playbackHandler.ticksLeftInCountIn) {
-			noteRow->skipNextNote = true;
+			noteRow->ignoreNoteOnsBefore_ = quantizedPos + 1;
 			expectEvent();
 		}
 	}
