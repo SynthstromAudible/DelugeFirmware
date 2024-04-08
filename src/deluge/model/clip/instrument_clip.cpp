@@ -4427,15 +4427,19 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 			// If triplets are currently enabled in the song
 			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
 			// Number of sequencer ticks we're quantizing to.
-			uint32_t quantizeInterval = baseThing << (8 + modelStack->song->insideWorldTickMagnitude
-			                                          + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
-			                                          - FlashStorage::recordQuantizeLevel);
-			quantizedPos = static_cast<int32_t>((unquantizedPos / quantizeInterval) * quantizeInterval);
-			auto offset = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(quantizedPos));
+			//
+			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're
+			// honest.
+			auto quantizeInterval =
+			    static_cast<int32_t>(baseThing << (8 + modelStack->song->insideWorldTickMagnitude
+			                                       + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
+			                                       - FlashStorage::recordQuantizeLevel));
+			auto offset = static_cast<int32_t>(unquantizedPos % quantizeInterval);
+			quantizedPos = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(offset));
 
-			int32_t amountLaterThanMiddle = offset - static_cast<int32_t>(quantizeInterval >> 1);
+			int32_t amountLaterThanMiddle = offset - (quantizeInterval / 2);
 			if (reversed) {
-				amountLaterThanMiddle = 1 - amountLaterThanMiddle;
+				amountLaterThanMiddle = (quantizeInterval / 2) - amountLaterThanMiddle;
 			}
 			quantizedLater = (amountLaterThanMiddle >= 0);
 
@@ -4548,8 +4552,8 @@ doNormal: // Wrap it back to the start.
 
 	else {
 		int32_t probability = noteRow->getDefaultProbability(modelStack);
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack,
-		                                             NULL); // Don't supply Action, cos we've done our own thing, above
+		// Don't supply Action, cos we've done our own thing, above
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack, nullptr);
 	}
 
 	// If that didn't work, get out - but not in the special case for linear recording, discussed below.
