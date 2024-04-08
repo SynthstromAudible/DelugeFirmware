@@ -4446,7 +4446,9 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 			int32_t amountLaterThanMiddle = offset - (quantizeInterval / 2);
 			if (reversed) {
-				amountLaterThanMiddle = (quantizeInterval / 2) - amountLaterThanMiddle;
+				// Invert the sense of "amountLaterThanMiddle", and offset by 1 to account for the reversed sense of
+				// time.
+				amountLaterThanMiddle = 1 - amountLaterThanMiddle;
 			}
 			quantizedLater = (amountLaterThanMiddle >= 0);
 
