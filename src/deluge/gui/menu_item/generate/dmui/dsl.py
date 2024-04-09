@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Iterable
 
 __all__ = [
     "Menu",
@@ -78,14 +78,16 @@ class Menu:
     :param cpp_name: The variable name to use when emitting C++ code.
     :param arg_template: A list of Python format strings which will be used to
         generate the C++ initializer arguments.
-    :param title: The key in the language map for the header of this menu item
-        when it's opened.
     :param description: Path to the description of this menu, relative to
         ``docs/menu``. Can be None, for menus which expect their children to be
         rendered as siblings of themselves rather than rendering themselves.
     :param name: The key in the langauge map for the string to be rendered when
-        this menu item is presented for selection in a submenu. A value of None
-        (the default) causes this to default to the same value as ``title``.
+        this menu item is presented for selection in a submenu. If None,
+        inherited from ``title``. At least one of ``name`` or ``title`` must be
+        provided.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened. If None, inherited from ``name``. At least one of
+        ``name`` or ``title`` must be provided.
     :param available_when: A human-readable description of when this menu item
         is available, if it's only available in certain contexts or when the
         system is in a particular state. A value of None (the default)
@@ -97,21 +99,29 @@ class Menu:
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        title: str,
         description: Optional[str],
         name: Optional[str] = None,
+        title: Optional[str] = None,
         available_when: Optional[str] = None,
     ):
         if description is not None:
             ensure_doc_path_exists(description)
+        if name is None and title is None:
+            raise ValueError("Must provide name or title")
 
         self.cpp_name = cpp_name
         self.clazz = clazz
-        self.title = title
+
+        if title is None:
+            self.title = name
+        else:
+            self.title = title
+
         if name is None:
             self.name = title
         else:
             self.name = name
+
         self.arg_template = arg_template
         self.description = description
         if available_when is None:
@@ -140,7 +150,13 @@ class MultiContextMenuInstance(Menu):
 
     def __init__(self, parent: MultiContextMenu, doc: str):
         Menu.__init__(
-            self, parent.clazz, parent.cpp_name, parent.arg_template, parent.title, doc
+            self,
+            parent.clazz,
+            parent.cpp_name,
+            parent.arg_template,
+            doc,
+            name=parent.name,
+            title=parent.title,
         )
         self.parent = parent
 
@@ -159,11 +175,13 @@ class MultiContextMenu(Menu):
     :param cpp_name: The variable name to use when emitting C++ code.
     :param arg_template: A list of python format strings which will be used to
         generate the C++ initializer arguments.
-    :param title: The key in the language map for the header of this menu item
-        when it's opened.
     :param name: The key in the langauge map for the string to be rendered when
-        this menu item is presented for selection in a submenu. A value of None
-        (the default) causes this to default to the same value as ``title``.
+        this menu item is presented for selection in a submenu. If None,
+        inherited from ``title``. At least one of ``name`` or ``title`` must be
+        provided.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened. If None, inherited from ``name``. At least one of
+        ``name`` or ``title`` must be provided.
     """
 
     def __init__(
@@ -171,10 +189,10 @@ class MultiContextMenu(Menu):
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        title: str,
+        title: Optional[str] = None,
         name: Optional[str] = None,
     ):
-        Menu.__init__(self, clazz, cpp_name, arg_template, title, None, name=name)
+        Menu.__init__(self, clazz, cpp_name, arg_template, None, title=title, name=name)
 
     def with_context(self, docs: str):
         """Instantiate this menu into a specific context.
@@ -204,8 +222,12 @@ class Submenu(Menu):
         ``docs/menu``
     :param children: The menus this submenu selects from.
     :param name: The key in the langauge map for the string to be rendered when
-        this menu item is presented for selection in a submenu. A value of None
-        (the default) causes this to default to the same value as `title`.
+        this menu item is presented for selection in a submenu. If None,
+        inherited from ``title``. At least one of ``name`` or ``title`` must be
+        provided.
+    :param title: The key in the language map for the header of this menu item
+        when it's opened. If None, inherited from ``name``. At least one of
+        ``name`` or ``title`` must be provided.
     :param available_when: A human-readable description of when this menu item
         is available, if it's only available in certain contexts or when the
         system is in a particular state. A value of None (the default)
@@ -217,9 +239,9 @@ class Submenu(Menu):
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        title: str,
         description: str,
         children: list[Menu],
+        title: Optional[str] = None,
         name: Optional[str] = None,
         available_when: Optional[str] = None,
     ):
@@ -228,9 +250,9 @@ class Submenu(Menu):
             clazz,
             cpp_name,
             arg_template,
-            title,
             description,
             available_when=available_when,
+            title=title,
             name=name,
         )
 
@@ -301,11 +323,16 @@ class MultiModeMenu(Menu):
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        title: str,
-        modes: list[MultiModeMenuMode],
+        modes: Iterable[MultiModeMenuMode],
         name: Optional[str] = None,
+        title: Optional[str] = None,
     ):
-        Menu.__init__(self, clazz, cpp_name, arg_template, title, None, name=name)
+        Menu.__init__(self, clazz, cpp_name, arg_template, None, title=title, name=name)
+
+        modes = list(modes)
+        for i, mode in enumerate(modes):
+            if type(mode) != MultiModeMenuMode:
+                raise ValueError(f"Bad mode type at index {i}: {type(mode)}")
 
         self.modes = modes
 

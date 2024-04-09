@@ -7,18 +7,18 @@ ty = Menu(
     "osc::Type",
     "oscTypeMenu",
     ["{name}", "{title}"],
-    "STRING_FOR_OSC_TYPE_MENU_TITLE",
     "oscillator/type.md",
     name="STRING_FOR_TYPE",
+    title="STRING_FOR_OSC_TYPE_MENU_TITLE",
 )
 
 pulse_width = Menu(
     "osc::PulseWidth",
     "pulseWidthMenu",
     ["{name}", "{title}", "params::LOCAL_OSC_A_PHASE_WIDTH"],
-    "STRING_FOR_OSC_P_WIDTH_MENU_TITLE",
     "oscillator/pulse_width.md",
     name="STRING_FOR_PULSE_WIDTH",
+    title="STRING_FOR_OSC_P_WIDTH_MENU_TITLE",
     available_when="Voice is in subtractive or ring-mod mode and oscillator is not in a sample or input monitoring mode",
 )
 
@@ -26,8 +26,8 @@ sync = Menu(
     "osc::Sync",
     "oscSyncMenu",
     ["{name}"],
-    "STRING_FOR_OSCILLATOR_SYNC",
     "oscillator/sync.md",
+    name="STRING_FOR_OSCILLATOR_SYNC",
     available_when="Voice is in subtractive or ring-mod mode and oscillator 1 is in a synthesis mode.",
 )
 
@@ -35,9 +35,9 @@ retrigger_phase = Menu(
     "osc::RetriggerPhase",
     "oscPhaseMenu",
     ["{name}", "{title}", "false"],
-    "STRING_FOR_OSC_R_PHASE_MENU_TITLE",
     "oscillator/retrigger_phase.md",
     name="STRING_FOR_RETRIGGER_PHASE",
+    title="STRING_FOR_OSC_R_PHASE_MENU_TITLE",
     available_when="Voice is in FM mode, or the oscillator is not in sample mode",
 )
 
@@ -46,7 +46,6 @@ menus = [
         "submenu::ActualSource",
         f"source{i}Menu",
         ["{name}", "%%CHILDREN%%", str(i)],
-        f"STRING_FOR_OSCILLATOR_{i+1}",
         "oscillator/index.md",
         [
             ty,
@@ -67,6 +66,7 @@ menus = [
             sync,
             retrigger_phase,
         ],
+        name=f"STRING_FOR_OSCILLATOR_{i+1}",
     )
     for i in range(2)
 ]

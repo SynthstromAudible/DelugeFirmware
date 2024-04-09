@@ -6,16 +6,16 @@ routing = Menu(
     "FilterRouting",
     "filterRoutingMenu",
     ["{title}"],
-    "STRING_FOR_FILTER_ROUTE",
     "filter/routing.md",
+    title="STRING_FOR_FILTER_ROUTE",
 )
 
 sound_filters = Submenu(
     "submenu::Filter",
     "soundFiltersMenu",
     ["{title}", "%%CHILDREN%%"],
-    "STRING_FOR_FILTERS",
     "filter/sound_filters.md",
     [lpf.menu, hpf.menu, routing],
     name="STRING_FOR_HPF",
+    title="STRING_FOR_FILTERS",
 )
