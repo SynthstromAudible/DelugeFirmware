@@ -899,7 +899,7 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, DisplayPopupType::GENERAL);
+	OLED::popupText(textNow.get(), true, DisplayPopupType::LOADING);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
@@ -909,8 +909,11 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
-	if (workingAnimationText) {
+	if (hasPopupOfType(DisplayPopupType::LOADING)) {
 		removePopup();
+	}
+	else if (workingAnimationText) {
+		workingAnimationText = NULL;
 	}
 }
 
