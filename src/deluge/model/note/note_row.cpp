@@ -826,8 +826,6 @@ void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelSta
 		return;
 	}
 
-	D_PRINTLN("rno %u", noteOffPos);
-
 	if (!notes.getNumElements()) {
 		return;
 	}
