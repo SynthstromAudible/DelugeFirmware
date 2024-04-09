@@ -12,9 +12,13 @@ class NumericLayerScrollingText;
 
 enum DisplayPopupType {
 	NONE,
-	GENERAL,     // Default popup type, if not specified
-	PROBABILITY, // Popup shown when editing note or row probability
-	             // Note: Add here more popup types
+	/// Default popup type, if not specified.
+	GENERAL,
+	/// Used for popups generated during file loading.
+	LOADING,
+	/// Popup shown when editing note or row probability.
+	PROBABILITY,
+	// Note: Add here more popup types
 };
 
 namespace deluge::hid {
