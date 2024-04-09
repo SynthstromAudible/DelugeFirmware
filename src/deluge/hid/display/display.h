@@ -17,8 +17,8 @@ enum DisplayPopupType {
 	/// Used for popups generated during file loading.
 	LOADING,
 	/// Popup shown when editing note or row probability.
-	PROBABILITY, // Popup shown when editing note or row probability
-	             // Note: Add here more popup types
+	PROBABILITY,
+	// Note: Add here more popup types
 };
 
 namespace deluge::hid {
