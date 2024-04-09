@@ -134,8 +134,14 @@ public:
 	// which calls Clip::expectEvent(), which is needed
 	uint8_t soundingStatus;
 
-	bool skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to
-	                   // play it
+	/// Time before which all note events should be ignored during live playback. 0 means all notes should play (i.e. a
+	/// note event at the time stored here should be allowed to sound). When doing quantized recording, we might have
+	/// quantized the note to a later point in time so this is used to inhibit re-sounding of the quantized note.
+	///
+	/// This is always stored in "forward time", so even when playback is reversed this can only be meaningfully be
+	/// compared with the time since this NoteRow started (i.e., time from the end during reversed playback).
+	uint32_t ignoreNoteOnsBefore_;
+
 	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
 	                       ModelStackWithNoteRow* modelStack, Action* action);

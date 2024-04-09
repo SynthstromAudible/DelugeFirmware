@@ -465,7 +465,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						D_PRINTLN("skipping next note");
-						noteRow->skipNextNote = true;
+
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -489,7 +492,9 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
-						noteRow->skipNextNote = true;
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -4158,7 +4163,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		thisNoteRow->skipNextNote = false;
+		// All notes should be recorded
+		thisNoteRow->ignoreNoteOnsBefore_ = 0;
 
 		bool mayStillLengthen = true;
 
@@ -4184,11 +4190,12 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 
 					NoteRow* newNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					if (newNoteRow) {
-						newNoteRow->attemptNoteAdd(
-						    0, lastNote->length, lastNote->velocity, lastNote->probability, modelStackWithNoteRow,
-						    NULL); // I'm guessing I deliberately didn't send the Action in here, cos didn't want to
-						           // make this Note on the new InstrumentClip undoable?
-						newNoteRow->skipNextNote = true;
+						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
+						// make this Note on the new InstrumentClip undoable?
+						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
+						                           modelStackWithNoteRow, nullptr);
+						// Make sure we don't double-play the note
+						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 
@@ -4399,13 +4406,14 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
+	// Rounded position in sequencer ticks of the note-on event.
 	int32_t quantizedPos = 0;
 
 	bool reversed = modelStack->isCurrentlyPlayingReversed();
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	if (forcePos0) {
-		noteRow->skipNextNote = true;
+		noteRow->ignoreNoteOnsBefore_ = 1;
 	}
 	else {
 		uint32_t unquantizedPos = modelStack->getLivePos();
@@ -4413,22 +4421,30 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 		bool quantizedLater = false;
 
 		if (FlashStorage::recordQuantizeLevel) {
+			// If triplets are currently enabled in the song
 			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
-			uint16_t quantizeInterval = baseThing << (8 + modelStack->song->insideWorldTickMagnitude
-			                                          + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
-			                                          - FlashStorage::recordQuantizeLevel);
-			quantizedPos = unquantizedPos / quantizeInterval * quantizeInterval;
-			int32_t offset = unquantizedPos - quantizedPos;
+			// Number of sequencer ticks we're quantizing to.
+			//
+			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're
+			// honest.
+			auto quantizeInterval =
+			    static_cast<int32_t>(baseThing << (8 + modelStack->song->insideWorldTickMagnitude
+			                                       + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
+			                                       - FlashStorage::recordQuantizeLevel));
+			auto offset = static_cast<int32_t>(unquantizedPos % quantizeInterval);
+			quantizedPos = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(offset));
 
-			int32_t amountLaterThanMiddle = (offset - (quantizeInterval >> 1));
+			int32_t amountLaterThanMiddle = offset - (quantizeInterval / 2);
 			if (reversed) {
+				// Invert the sense of "amountLaterThanMiddle", and offset by 1 to account for the reversed sense of
+				// time.
 				amountLaterThanMiddle = 1 - amountLaterThanMiddle;
 			}
 			quantizedLater = (amountLaterThanMiddle >= 0);
 
 			// If quantizing to the right...
-			if (quantizedLater != reversed) { // If need to quantize forwards (to later in time)...
-				quantizedPos += quantizeInterval;
+			if (quantizedLater != reversed) {
+				quantizedPos += static_cast<int32_t>(quantizeInterval);
 
 				// If that's quantized it right to the end of the loop-length or maybe beyond...
 				if (quantizedPos >= effectiveLength) {
@@ -4437,14 +4453,15 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 					// we'll put the Note.
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-						Error error;
+						Error error{Error::NONE};
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
-						if (noteRow->loopLengthIfIndependent) {
+						if (noteRow->loopLengthIfIndependent != 0) {
 							if (output->type == OutputType::KIT
 							    && noteRows.getNumElements()
-							           != ((InstrumentClip*)beingRecordedFromClip)->noteRows.getNumElements()) {
+							           != (static_cast<InstrumentClip*>(beingRecordedFromClip))
+							                  ->noteRows.getNumElements()) {
 								error = Error::UNSPECIFIED;
 							}
 
@@ -4454,10 +4471,10 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 								    duplicateModelStackForClipBeingRecordedFrom(modelStack, otherModelStackMemory);
 
 								NoteRow* otherNoteRow = otherModelStackWithNoteRow->getNoteRowAllowNull();
-								if (otherNoteRow) { // It "should" always have it...
+								if (otherNoteRow != nullptr) { // It "should" always have it...
 
-									int32_t whichRepeatThisIs = (uint32_t)noteRow->loopLengthIfIndependent
-									                            / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+									int32_t whichRepeatThisIs =
+									    noteRow->loopLengthIfIndependent / otherNoteRow->loopLengthIfIndependent;
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent, whichRepeatThisIs,
 									                       otherNoteRow->loopLengthIfIndependent);
@@ -4511,7 +4528,7 @@ doNormal: // Wrap it back to the start.
 
 		// If we quantized later, make sure that that note doesn't get played really soon when the play-pos reaches it
 		if (quantizedLater || playbackHandler.ticksLeftInCountIn) {
-			noteRow->skipNextNote = true;
+			noteRow->ignoreNoteOnsBefore_ = quantizedPos + 1;
 			expectEvent();
 		}
 	}
@@ -4534,8 +4551,8 @@ doNormal: // Wrap it back to the start.
 
 	else {
 		int32_t probability = noteRow->getDefaultProbability(modelStack);
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack,
-		                                             NULL); // Don't supply Action, cos we've done our own thing, above
+		// Don't supply Action, cos we've done our own thing, above
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack, nullptr);
 	}
 
 	// If that didn't work, get out - but not in the special case for linear recording, discussed below.
