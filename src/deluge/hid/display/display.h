@@ -12,8 +12,11 @@ class NumericLayerScrollingText;
 
 enum DisplayPopupType {
 	NONE,
+	/// Default popup type, if not specified.
 	GENERAL,
-	LOADING,     // Default popup type, if not specified
+	/// Used for popups generated during file loading.
+	LOADING,
+	/// Popup shown when editing note or row probability.
 	PROBABILITY, // Popup shown when editing note or row probability
 	             // Note: Add here more popup types
 };
