@@ -4838,190 +4838,133 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 	// safe since we can't be in instrument clip view if it's not an instrument clip
 	auto currentClip = (InstrumentClip*)modelStack->song->getCurrentClip();
 
-	// If the user is nudging back in the direction they just nudged, we can do a (possibly partial) undo, getting back
-	// the proper length of any notes that got trimmed etc.
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter;
 
-	Action* lastAction = actionLogger.firstAction[BEFORE];
-	if (offset && lastAction && lastAction->type == ActionType::NOTE_NUDGE && lastAction->openForAdditions
-	    && lastAction->offset == -offset) {
+	Action* action = NULL;
 
-		didAnySuccessfulNudging = true;
-
-		actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
-
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
-
-		// Still have to work out resultingTotalOffset, to display for the user
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-
-				int32_t noteRowIndex;
-				noteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-				noteRowId = currentClip->getNoteRowId(noteRow, noteRowIndex);
-
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
-
-				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
-
-				newPos = editPadPresses[i].intendedPos + offset;
-				if (newPos < 0) {
-					newPos += noteRowEffectiveLength;
-				}
-				else if (newPos >= noteRowEffectiveLength) {
-					newPos -= noteRowEffectiveLength;
-				}
-
-				int32_t n = noteRow->notes.search(newPos, GREATER_OR_EQUAL);
-				Note* note = noteRow->notes.getElement(n);
-				if (note && note->pos == newPos) {
-					editPadPresses[i].intendedPos = newPos;
-				}
-				else {
-					newPos = editPadPresses[i].intendedPos;
-				}
-
-				if (!foundOne) {
-					foundOne = true;
-					xDisplay = editPadPresses[i].xDisplay;
-					int32_t squareStart = getPosFromSquare(xDisplay);
-					resultingTotalOffset = editPadPresses[i].intendedPos - squareStart;
-				}
-			}
+	if (offset) {
+		action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
+		if (action) {
+			action->offset = offset;
 		}
 	}
 
-	// Or, if not doing the partial-undo method, we'll just try and do a plain old nudge
-	else {
-		Action* action = NULL;
+	modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
-		if (offset) {
-			action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-			if (action) {
-				action->offset = offset;
+	// For each note / pad held down...
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			editPadPresses[i].deleteOnDepress = false;
+
+			if (offset) {
+				editPadPresses[i].isBlurredSquare = true; // So it doesn't get dragged along with a vertical scroll
 			}
-		}
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
+			int32_t noteRowIndex;
+			noteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+			noteRowId = currentClip->getNoteRowId(noteRow, noteRowIndex);
 
-		// For each note / pad held down...
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
 
-				if (offset) {
-					editPadPresses[i].isBlurredSquare = true; // So it doesn't get dragged along with a vertical scroll
-				}
+			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
 
-				int32_t noteRowIndex;
-				noteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-				noteRowId = currentClip->getNoteRowId(noteRow, noteRowIndex);
+			newPos = editPadPresses[i].intendedPos + offset;
+			if (newPos < 0) {
+				newPos += noteRowEffectiveLength;
+			}
+			else if (newPos >= noteRowEffectiveLength) {
+				newPos -= noteRowEffectiveLength;
+			}
 
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStackWithTimelineCounter->addNoteRow(noteRowId, noteRow);
+			bool gotCollision = false;
 
-				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
-
-				newPos = editPadPresses[i].intendedPos + offset;
-				if (newPos < 0) {
-					newPos += noteRowEffectiveLength;
-				}
-				else if (newPos >= noteRowEffectiveLength) {
-					newPos -= noteRowEffectiveLength;
-				}
-
-				bool gotCollision = false;
-
-				if (offset) {
-					// We're going to nudge notes across all screens, but before we do, check if this particular note is
-					// gonna collide with anything
-					int32_t searchBoundary;
-					int32_t searchDirection;
-					int32_t n;
-					if (offset >= 0) { // Nudging right
-						if (newPos == 0) {
-							n = 0;
-							goto doCompareNote;
-						}
-						else {
-							searchBoundary = newPos;
-							searchDirection = GREATER_OR_EQUAL;
+			if (offset) {
+				// We're going to nudge notes across all screens, but before we do, check if this particular note is
+				// gonna collide with anything
+				int32_t searchBoundary;
+				int32_t searchDirection;
+				int32_t n;
+				if (offset >= 0) { // Nudging right
+					if (newPos == 0) {
+						n = 0;
+						goto doCompareNote;
+					}
+					else {
+						searchBoundary = newPos;
+						searchDirection = GREATER_OR_EQUAL;
 doSearch:
-							n = noteRow->notes.search(searchBoundary, searchDirection);
+						n = noteRow->notes.search(searchBoundary, searchDirection);
 doCompareNote:
-							Note* note = noteRow->notes.getElement(n);
-							if (note && note->pos == newPos) {
-								newPos = editPadPresses[i].intendedPos; // Make it so the below code just displays the
-								                                        // already existing offset
-								gotCollision = true;
-							}
-						}
-					}
-					else { // Nudging left
-						if (editPadPresses[i].intendedPos == 0) {
-							n = noteRow->notes.getNumElements();
-							goto doCompareNote;
-						}
-						else {
-							searchBoundary = editPadPresses[i].intendedPos;
-							searchDirection = LESS;
-							goto doSearch;
+						Note* note = noteRow->notes.getElement(n);
+						if (note && note->pos == newPos) {
+							newPos = editPadPresses[i].intendedPos; // Make it so the below code just displays the
+							                                        // already existing offset
+							gotCollision = true;
 						}
 					}
 				}
-
-				if (!foundOne) {
-					foundOne = true;
-					xDisplay = editPadPresses[i].xDisplay;
-					int32_t squareStart = getPosFromSquare(xDisplay);
-					resultingTotalOffset = newPos - squareStart;
-					if (!offset) {
-						break;
+				else { // Nudging left
+					if (editPadPresses[i].intendedPos == 0) {
+						n = noteRow->notes.getNumElements();
+						goto doCompareNote;
+					}
+					else {
+						searchBoundary = editPadPresses[i].intendedPos;
+						searchDirection = LESS;
+						goto doSearch;
 					}
 				}
+			}
 
-				if (!gotCollision) {
-					int32_t distanceTilNext =
-					    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
-
-					Error error =
-					    noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-					                                        action, currentClip->getWrapEditLevel(), offset);
-					if (error != Error::NONE) {
-						display->displayError(error);
-						return;
-					}
-
-					// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
-					{
-						ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
-						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-						noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
-						    editPadPresses[i].intendedPos, offset,
-						    modelStackWithThreeMainThingsForNoteRow->getLoopLength(), action,
-						    modelStackWithThreeMainThingsForNoteRow, distanceTilNext);
-					}
-
-					// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos
-					// we're going to reuse its parent ModelStackWithTimelineCounter, below.
-
-					// Nudge automation at Clip level
-					{
-						int32_t lengthBeforeLoop = currentClip->getLoopLength();
-						ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-						    modelStackWithTimelineCounter->addOtherTwoThingsButNoNoteRow(
-						        currentClip->output->toModControllable(), &currentClip->paramManager);
-						currentClip->paramManager.nudgeAutomationHorizontallyAtPos(editPadPresses[i].intendedPos,
-						                                                           offset, lengthBeforeLoop, action,
-						                                                           modelStackWithThreeMainThings);
-					}
-
-					editPadPresses[i].intendedPos = newPos;
-					didAnySuccessfulNudging = true;
+			if (!foundOne) {
+				foundOne = true;
+				xDisplay = editPadPresses[i].xDisplay;
+				int32_t squareStart = getPosFromSquare(xDisplay);
+				resultingTotalOffset = newPos - squareStart;
+				if (!offset) {
+					break;
 				}
-				else {
-					newPos = editPadPresses[i].intendedPos;
+			}
+
+			if (!gotCollision) {
+				int32_t distanceTilNext =
+				    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
+
+				Error error = noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
+				                                                  action, currentClip->getWrapEditLevel(), offset);
+				if (error != Error::NONE) {
+					display->displayError(error);
+					return;
 				}
+
+				// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
+				{
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
+					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+					noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
+					    editPadPresses[i].intendedPos, offset, modelStackWithThreeMainThingsForNoteRow->getLoopLength(),
+					    action, modelStackWithThreeMainThingsForNoteRow, distanceTilNext);
+				}
+
+				// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos
+				// we're going to reuse its parent ModelStackWithTimelineCounter, below.
+
+				// Nudge automation at Clip level
+				{
+					int32_t lengthBeforeLoop = currentClip->getLoopLength();
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+					    modelStackWithTimelineCounter->addOtherTwoThingsButNoNoteRow(
+					        currentClip->output->toModControllable(), &currentClip->paramManager);
+					currentClip->paramManager.nudgeAutomationHorizontallyAtPos(
+					    editPadPresses[i].intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings);
+				}
+
+				editPadPresses[i].intendedPos = newPos;
+				didAnySuccessfulNudging = true;
+			}
+			else {
+				newPos = editPadPresses[i].intendedPos;
 			}
 		}
 	}
@@ -5031,7 +4974,7 @@ doCompareNote:
 	char const* message;
 	bool alignRight = false;
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+	modelStackWithTimelineCounter =
 	    modelStack->addTimelineCounter(currentClip); // Can finally do this since we're not going to use the bare
 	                                                 // ModelStack for anything else
 
