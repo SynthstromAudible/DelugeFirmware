@@ -136,8 +136,7 @@ class Menu:
         return visitor.visit_menu(self)
 
 
-class MultiContextMenu(Menu):
-    ...
+class MultiContextMenu(Menu): ...
 
 
 class MultiContextMenuInstance(Menu):
