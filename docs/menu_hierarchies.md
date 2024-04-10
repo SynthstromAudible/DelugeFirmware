@@ -588,7 +588,7 @@ The Sound menu contains the following menu hierarchy:
 		- Up & Down (UPDN)
 		- Alternate (ALT)
 		- Random (RAND)
-	- Note Mode (NMOD)
+	- Note Mode (NMOD) (NOTE: Available in Synth sounds but not in Kit sounds)
 		- Up
 		- Down
 		- Up & Down (UPDN)
