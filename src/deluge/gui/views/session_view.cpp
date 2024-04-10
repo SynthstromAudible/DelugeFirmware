@@ -3766,7 +3766,8 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
-			instrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			instrumentClipView.fillOffScreenImageStores();
