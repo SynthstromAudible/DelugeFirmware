@@ -22,7 +22,7 @@
 
 /// refer to
 /// https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491#G14.1027450
-
+#define DELUGE_CLOCKS_PER 33330000
 enum OSTimerOperatingMode { TIMER, FREE_RUNNING };
 /// in timer mode, start or reset the timer
 /// in free mode start the timer iff it's not running

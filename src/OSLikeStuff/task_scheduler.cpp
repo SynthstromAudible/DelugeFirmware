@@ -17,9 +17,10 @@
 
 #include "task_scheduler.h"
 #include "RZA1/ostm/ostm.h"
+#include "util/container/static_vector.hpp"
 
 struct Task {
-	void (*handle)();
+	Task_Handle handle;
 	uint8_t priority;
 	uint32_t lastCallTime;
 	uint32_t averageDuration;
@@ -29,53 +30,58 @@ struct Task {
 
 class TaskManager {
 
-	struct Task list[20];
-	uint8_t capacity;
-
-	Task_Handle chooseBestTask();
+	std::array<Task, 20> list;
+	taskID index = 0;
+	taskID chooseBestTask();
 
 public:
 	TaskManager() = default;
-	void start();
-	uint8_t addTask(void (*task)(), uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
-	                bool runToCompletion);
-	void removeTask(uint8_t id);
+	void start(int32_t duration = 0);
+	taskID addTask(Task_Handle task, uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
+	               bool runToCompletion);
+	void removeTask(taskID id);
+	void runTask(taskID id);
 };
 
 TaskManager taskManager;
 
-Task_Handle TaskManager::chooseBestTask() {
-	uint32_t currentTime = getTimerValue(0);
-	Task_Handle bestTask = 0;
-	if (taskManager.capacity > 0) {
+taskID TaskManager::chooseBestTask() {
+	int32_t currentTime = getTimerValue(0);
+	taskID bestTask = -1;
 
-		uint8_t bestPriority = 0;
-		for (int i = 0; i < taskManager.capacity; i++) {
-			struct Task t = taskManager.list[i];
-			uint32_t timeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration - 1 << 8;
-			if (timeToCall < currentTime) {
-				if (t.priority > bestPriority) {
-					bestTask = t.handle;
-					bestPriority = t.priority;
-				}
+	uint8_t bestPriority = INT8_MAX;
+	for (int i = 0; i < list.size(); i++) {
+		struct Task t = list[i];
+		int32_t timeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration - (1 << 8);
+		if (timeToCall < currentTime) {
+			if (t.priority < bestPriority && t.handle) {
+				bestTask = i;
+				bestPriority = t.priority;
 			}
 		}
 	}
+
 	return bestTask;
 }
 
-uint8_t TaskManager::addTask(void (*task)(), uint8_t priority, uint32_t minTimeBetweenCalls,
-                             uint32_t maxTimeBetweenCalls, bool runToCompletion) {
-	list[capacity] = Task{task, priority, 0, 0, minTimeBetweenCalls, maxTimeBetweenCalls};
-	return capacity;
+taskID TaskManager::addTask(Task_Handle task, uint8_t priority, uint32_t minTimeBetweenCalls,
+                            uint32_t maxTimeBetweenCalls, bool runToCompletion) {
+	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, maxTimeBetweenCalls});
+	return index++;
 }
 
-void TaskManager::removeTask(uint8_t id) {
+void TaskManager::removeTask(taskID id) {
 	list[id] = Task{0, 0, 0, 0, 0, 0};
 	return;
 }
 
-void TaskManager::start() {
+void TaskManager::runTask(taskID id) {
+	list[id].lastCallTime = getTimerValue(0);
+	list[id].handle();
+	list[id].averageDuration = (list[id].averageDuration + (getTimerValue(0) - list[id].lastCallTime)) / 2;
+}
+
+void TaskManager::start(int32_t duration) {
 	// set up os timer 0 as a free running timer
 	static uint32_t currentTime = 0;
 	disableTimer(0);
@@ -84,8 +90,11 @@ void TaskManager::start() {
 	setOperatingMode(0, FREE_RUNNING, false);
 	enableTimer(0);
 	currentTime = getTimerValue(0);
-	while (getTimerValue(0) < currentTime + 10) {
-		;
+	while (duration == 0 || getTimerValue(0) < currentTime + duration) {
+		taskID task = chooseBestTask();
+		if (task >= 0) {
+			runTask(task);
+		}
 	}
 	currentTime = getTimerValue(0);
 }
@@ -95,7 +104,7 @@ void startTaskManager() {
 	taskManager.start();
 }
 
-uint8_t registerTask(void (*task)(), uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
+uint8_t registerTask(Task_Handle task, uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
                      bool runToCompletion) {
 	return taskManager.addTask(task, priority, minTimeBetweenCalls, maxTimeBetweenCalls, runToCompletion);
 }
