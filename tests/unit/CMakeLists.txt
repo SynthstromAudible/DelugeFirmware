@@ -20,9 +20,9 @@ file(GLOB_RECURSE deluge_SOURCES
         mocks/*
 )
 
-add_executable(RunAllTests RunAllTests.cpp scheduler_tests.cpp)
-target_sources(RunAllTests PRIVATE ${deluge_SOURCES})
-target_include_directories(RunAllTests PRIVATE
+add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp)
+target_sources(UnitTests PRIVATE ${deluge_SOURCES})
+target_include_directories(UnitTests PRIVATE
 
         # include the non test project source
         mocks
@@ -32,7 +32,7 @@ target_include_directories(RunAllTests PRIVATE
 
 )
 
-set_target_properties(RunAllTests
+set_target_properties(UnitTests
         PROPERTIES
         C_STANDARD 23
         C_STANDARD_REQUIRED ON
@@ -41,9 +41,9 @@ set_target_properties(RunAllTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(RunAllTests CppUTest CppUTestExt)
+target_link_libraries(UnitTests CppUTest CppUTestExt)
 
 # strchr is seemingly different in x86
-target_compile_options(RunAllTests PUBLIC
+target_compile_options(UnitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )

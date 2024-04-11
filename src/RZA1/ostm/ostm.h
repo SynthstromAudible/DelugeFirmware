@@ -23,8 +23,8 @@
 /// refer to
 /// https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491#G14.1027450
 // ticks at 33.33 MHz
-#define DELUGE_CLOCKS_PER  33'330'000
-#define DELUGE_CLOCKS_PERf 33'330'000.f
+#define DELUGE_CLOCKS_PER  33330000
+#define DELUGE_CLOCKS_PERf 33330000.f
 enum OSTimerOperatingMode { TIMER, FREE_RUNNING };
 /// in timer mode, start or reset the timer
 /// in free mode start the timer iff it's not running
