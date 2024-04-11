@@ -1282,15 +1282,15 @@ The Audio Clip menu contains the following menu hierarchy:
 <blockquote>
 <details><summary>Audio Source (AUDI)</summary>
 
-	- Disabled (DISA)
+	- Disabled (OFF)
 	- Left Input (LEFT)
-	- Left Input (Monitoring) (LEFT)
+	- Left Input (Monitoring) (LEFT.)
 	- Right Input (RIGH)
-	- Right Input (Monitoring) (RIGH)
+	- Right Input (Monitoring) (RIGH.)
 	- Stereo Input (STER)
-	- Stereo Input (Monitoring) (STER)
-	- Bal. Input (BAL)
-	- Bal. Input (Monitoring) (BAL)
+	- Stereo Input (Monitoring) (STER.)
+	- Bal. Input (BALA)
+	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
 </details>
