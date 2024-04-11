@@ -11,9 +11,6 @@
 #include <unistd.h>
 #endif
 
-#define NUM_TEST_ALLOCATIONS 1024
-#define MEM_SIZE 10000000
-
 namespace {
 
 void sleep_50ns() {
