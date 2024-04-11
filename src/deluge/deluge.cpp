@@ -62,6 +62,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "util/cfunctions.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -609,6 +610,12 @@ extern "C" int32_t deluge_main(void) {
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
 
 	if (have_oled) {
+		// Wait for DMA channel to be idle (it might still be in use by the bootloader?)
+		while( DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & 0b00000000000000000000000000000100 )	// bit 2: TACT = Transaction Active
+		{
+			delayMS(10);
+		}
+
 		// If OLED sharing SPI channel, have to manually control SSL pin.
 		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
 		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
