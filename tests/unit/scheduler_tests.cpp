@@ -42,6 +42,7 @@ TEST_GROUP(Scheduler) {
 	TaskManager testTaskManager;
 
 	void setup() {
+		setTimerValue(0, 0);
 		testTaskManager = TaskManager();
 	}
 };
