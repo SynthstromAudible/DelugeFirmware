@@ -54,7 +54,7 @@ NoteRow::NoteRow(int16_t newY) {
 	drum = NULL;
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
-	skipNextNote = false;
+	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
@@ -86,7 +86,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 	// No need to clone much stuff - it's been automatically copied already as a block of memory.
 
 	firstOldDrumName = NULL;
-	skipNextNote = false;
+	ignoreNoteOnsBefore_ = 0;
 	// soundingStatus = STATUS_OFF;
 
 	int32_t effectiveLength = modelStack->getLoopLength();
@@ -586,7 +586,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 		    ExistenceChangeType::CREATE); // This only gets called (action is only supplied) when drag-scrolling Notes
 	}
 
-	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
+	modelStack->getTimelineCounter()->expectEvent();
 	return distanceToNextNote;
 }
 
@@ -637,7 +637,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLift(kDefaultLiftValue);
 	newNote->setProbability(getDefaultProbability(modelStack));
 
-	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
+	modelStack->getTimelineCounter()->expectEvent();
 
 	return distanceToNextNote;
 }
@@ -822,7 +822,7 @@ thatsDone:
 void NoteRow::recordNoteOff(uint32_t noteOffPos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity) {
 
 	// If we're just about to pass the actual recorded note, though, don't do it.
-	if (skipNextNote) {
+	if (noteOffPos < ignoreNoteOnsBefore_) {
 		return;
 	}
 
@@ -894,7 +894,7 @@ modifyNote:
 		note->setLift(velocity);
 	}
 
-	skipNextNote = false;
+	ignoreNoteOnsBefore_ = 0;
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 }
@@ -1907,6 +1907,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 	int32_t ticksTilNextNoteEvent = 2147483647;
 	int32_t effectiveCurrentPos = modelStack->getLastProcessedPos(); // May have got incremented above
+	int32_t effectiveForwardPos =
+	    playingReversedNow ? (effectiveLength - effectiveCurrentPos - 1) : effectiveCurrentPos;
 
 	if (muted) {
 noFurtherNotes:
@@ -1934,7 +1936,7 @@ noFurtherNotes:
 
 			// If they've also just recorded a note and it was quantized later, we do need to keep an eye out for it,
 			// despite the fact that we're auditioning.
-			if (skipNextNote) {
+			if (effectiveForwardPos < ignoreNoteOnsBefore_) {
 				goto currentlyOff;
 			}
 
@@ -2132,11 +2134,10 @@ gotValidNoteIndex:
 				if (newTicksTil <= 0) {
 
 					// If we've "arrived" at a note we actually just recorded...
-					if (!skipNextNote) {
+					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
 						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						ignoreNoteOnsBefore_ = 0;
 					}
-
-					skipNextNote = false;
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're already at the
 					// left-most edge of the note, so immediately stop it again
@@ -2889,7 +2890,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 		}
 	}
 
-	skipNextNote = false;
+	ignoreNoteOnsBefore_ = 0;
 }
 
 // TODO: make this compatible with reverse playback
@@ -4087,7 +4088,8 @@ needToDoIt:
 bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack, int32_t newValueBig,
                                               int32_t whichExpressionDimension, bool forDrum) {
 
-	if (skipNextNote) {
+	uint32_t livePos = modelStack->getLivePos();
+	if (livePos < ignoreNoteOnsBefore_) {
 		return false;
 	}
 
@@ -4119,7 +4121,6 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		param->setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
 	}
 	else {
-		int32_t livePos = modelStackWithAutoParam->getLivePos();
 		int32_t distanceToNextNote =
 		    getDistanceToNextNote(livePos, modelStackWithAutoParam, modelStack->isCurrentlyPlayingReversed());
 		int32_t distanceToNextNode = param->getDistanceToNextNode(

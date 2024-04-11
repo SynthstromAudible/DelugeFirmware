@@ -21,7 +21,29 @@ else()
     set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
 endif()
 
-find_package(Python COMPONENTS Interpreter)
+if(CMAKE_HOST_WIN32)
+  # Find python by ourselves, since on windows the find_package lookup
+  # seems to fail
+  set(Python_EXECUTABLE "$ENV{DBT_TOOLCHAIN_ROOT}/python/python.exe")
+  IF(EXISTS ${Python_EXECUTABLE})
+    execute_process(
+      COMMAND ${Python_EXECUTABLE} -c "import platform; print(platform.python_version())"
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE Python_VERSION
+      RESULT_VARIABLE Python_RESULT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(NOT ${Python_RESULT} AND NOT ${Python_VERSION} STREQUAL "")
+      set(Python_Interpreter_FOUND 1)
+    else()
+      message(FATAL_ERROR "Python found at ${Python_EXECUTABLE} but failed to get version number")
+    endif()
+  else()
+    set(Python_Interpreter_FOUND 0)
+  endif()
+else()
+  find_package(Python COMPONENTS Interpreter)
+endif()
 
 if (Python_Interpreter_FOUND)
     message(VERBOSE "python found: ${Python_EXECUTABLE} version ${Python_VERSION}")
@@ -56,16 +78,10 @@ execute_process(
 # Today's date
 string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
 
-set(BUILD_VERSION_STRING_SHORT "c${PROJECT_VERSION}") # Used in firmware
-
 # Build our version string
 if(RELEASE_TYPE STREQUAL "release")
-    set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
-    set(BUILD_VERSION_STRING "c${PROJECT_VERSION}") # Used in firmware
     set(BUILD_VERSION_SUFFIX "-c${PROJECT_VERSION}") # Used for filename
 else()
-    set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
-    set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-${GIT_COMMIT_SHORT}") # Used in firmware
     set(BUILD_VERSION_SUFFIX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}") # Used for filename
 endif()
 
@@ -73,7 +89,6 @@ string(REPLACE "." "_" BUILD_VERSION_SUFFIX ${BUILD_VERSION_SUFFIX})
 
 if(NOT "${GIT_STATUS}" STREQUAL "")
     if(NOT RELEASE_TYPE STREQUAL "release")
-        string(APPEND BUILD_VERSION_SUFFIX "-dirty")
         string(APPEND BUILD_VERSION_STRING "-dirty")
     endif()
 endif()

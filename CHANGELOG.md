@@ -6,7 +6,7 @@
 
 ### User Interface
 
-- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
 - Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
@@ -106,8 +106,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for 5 and 6 note scales.
 - Added 8 new built-in scales: Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic
   Minor, Hirajoshi.
-- Added "play `ONCE`" clip launch mode, settable by turning the Select Encoder left while holding the audition pad in
-  Song view. Causes the clip to play once when triggered and then mute without changing the section.
+- Added "play `ONCE`" clip launch mode, settable in `ROW VIEW` (Song view) by pressing the Select Encoder while holding
+  the mute pad of a row. Causes the clip to play once when triggered and then mute without changing the section.
 - Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not*
   pressed.
 - Added support for copy/paste of single rows.
@@ -116,9 +116,9 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
-- The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
-  modes, rhythm, sequence length and ratcheting notes. It also enables MPE keyboards to give more expression to the
-  arpeggiated notes.
+- The arpeggiator has been completely redesigned to have advanced features for the user like independent Octave and Note
+  modes, Rhythm, Sequence Length and Ratchet notes. It also enables MPE keyboards to give more expression to the
+  arpeggiated notes by updating live the velocity of the notes based on Aftertouch or MPE Y data coming from the keyboard.
 
 ### Audio Clips
 

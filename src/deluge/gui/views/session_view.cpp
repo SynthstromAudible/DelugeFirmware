@@ -1821,7 +1821,7 @@ nothingToDisplay:
 	setCentralLEDStates();
 }
 
-// render session view display on opening
+/// render session view display on opening
 void SessionView::renderViewDisplay(char const* viewString) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
@@ -1836,8 +1836,9 @@ void SessionView::renderViewDisplay(char const* viewString) {
 
 		deluge::hid::display::OLED::drawStringCentred(viewString, yPos, deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-		deluge::hid::display::OLED::sendMainImage();
+		if (!display->hasPopup()) {
+			deluge::hid::display::OLED::sendMainImage();
+		}
 	}
 	else {
 		display->setScrollingText(viewString);

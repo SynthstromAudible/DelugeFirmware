@@ -46,7 +46,7 @@ public:
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
-	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
+	static bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
 	bool changeOutputType(OutputType newOutputType);
 	void opened();
 
