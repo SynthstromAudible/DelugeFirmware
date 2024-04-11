@@ -22,6 +22,7 @@
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
+#include "task_scheduler.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 

@@ -22,14 +22,16 @@ extern "C" {
 
 #include "RZA1/ostm/ostm.h"
 
-typedef uint32_t Task_Handle;
+/// void function with no arguments
+typedef void (*Task_Handle)();
 /// highest priority is 0. Attempt to schedule the task every maxTime after minTime has passed, in priority order
 /// if runToCompletion is false the task will be interrupted by higher priority requirements, otherwise it will run
-/// until it returns
-Task_Handle registerTask(void (*task)(), uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
-                         bool runToCompletion = true);
-void removeTask(Task_Handle handle);
-
+/// until it returns. returns the index of the task in the global table
+uint8_t registerTask(Task_Handle handle, uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
+                     bool runToCompletion);
+void removeTask(uint8_t id);
+/// start the task scheduler
+void startTaskManager();
 #ifdef __cplusplus
 }
 #endif
