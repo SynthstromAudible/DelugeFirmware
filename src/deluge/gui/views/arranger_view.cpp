@@ -1700,7 +1700,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	// If going to automationAudioClipView...
+	// If going to automationView...
 	if (clip->onAutomationClipView) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
@@ -1708,7 +1708,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			instrumentClipView.recalculateColours();
 		}
 
-		automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
 	}
 	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
