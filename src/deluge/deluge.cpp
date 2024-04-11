@@ -611,7 +611,8 @@ extern "C" int32_t deluge_main(void) {
 
 	if (have_oled) {
 		// Wait for DMA channel to be idle (it might still be in use by the bootloader?)
-		while( DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & 0b00000000000000000000000000000100 )	// bit 2: TACT = Transaction Active
+		while (DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n
+		       & 0b00000000000000000000000000000100) // bit 2: TACT = Transaction Active
 		{
 			delayMS(10);
 		}
