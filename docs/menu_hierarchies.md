@@ -1291,8 +1291,8 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Stereo Input (Monitoring) (STER)
 	- Bal. Input (BAL)
 	- Bal. Input (Monitoring) (BAL)
-	- Deluge Mix (Pre FX) (DELU)
-	- Deluge Output (Post FX) (DELU)
+	- Deluge Mix (Pre FX) (MIX)
+	- Deluge Output (Post FX) (OUTP)
 </details>
 <details><summary>Master (MASTR)</summary>
 
