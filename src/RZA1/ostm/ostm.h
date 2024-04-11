@@ -44,5 +44,5 @@ void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_i
 void setTimerValue(int timerNo, uint32_t timerValue);
 
 uint32_t getTimerValue(int timerNo);
-float getTimerValueSeconds(int timerNo);
+double getTimerValueSeconds(int timerNo);
 #endif // RZA1_OSTM_OSTM_H_

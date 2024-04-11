@@ -54,8 +54,8 @@ uint32_t getTimerValue(int timerNo)
     return OSTimers[timerNo]->OSTMnCNT;
 }
 
-float getTimerValueSeconds(int timerNo)
+double getTimerValueSeconds(int timerNo)
 {
-    float seconds = ((float)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
+    double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
     return seconds;
 }

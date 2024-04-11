@@ -19,16 +19,18 @@ namespace {
 void sleep_50ns() {
 	mock().actualCall("sleep_50ns");
 	uint32_t now = getTimerValue(0);
-	while (getTimerValue(0) < now + 0.000'05 * DELUGE_CLOCKS_PER) {
+	while (getTimerValue(0) < now + 0.00005 * DELUGE_CLOCKS_PER) {
 		;
 	}
 }
 void sleep_10ns() {
 	mock().actualCall("sleep_10ns");
 	uint32_t now = getTimerValue(0);
-	while (getTimerValue(0) < now + 0.000'01 * DELUGE_CLOCKS_PER) {
+
+	while (getTimerValue(0) < now + 0.00001 * DELUGE_CLOCKS_PER) {
 		;
 	}
+
 }
 void sleep_2ms() {
 	mock().actualCall("sleep_2ms");

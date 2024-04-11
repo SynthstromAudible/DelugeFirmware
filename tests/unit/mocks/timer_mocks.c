@@ -39,10 +39,10 @@ void setTimerValue(int timerNo, uint32_t timerValue) {
 
 // returns ticks at the rate the deluge clock would generate them
 uint32_t getTimerValue(int timerNo) {
-	return (clock() - timers[timerNo]) * clockConversion;
+	return DELUGE_CLOCKS_PER * ((double)(clock() - timers[timerNo]) / CLOCKS_PER_SEC);
 }
 
-float getTimerValueSeconds(int timerNo) {
-	float seconds = ((float)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
+double getTimerValueSeconds(int timerNo) {
+	double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
 	return seconds;
 }
