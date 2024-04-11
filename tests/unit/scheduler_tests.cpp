@@ -16,10 +16,24 @@
 
 namespace {
 
-void sleep_10ms() {
-	std::cout << "sleeping" << std::endl;
+void sleep_50ns() {
+	mock().actualCall("sleep_50ns");
 	uint32_t now = getTimerValue(0);
-	while (getTimerValue(0) < now + 0.0001 * DELUGE_CLOCKS_PER) {
+	while (getTimerValue(0) < now + 0.000'05 * DELUGE_CLOCKS_PER) {
+		;
+	}
+}
+void sleep_10ns() {
+	mock().actualCall("sleep_10ns");
+	uint32_t now = getTimerValue(0);
+	while (getTimerValue(0) < now + 0.000'01 * DELUGE_CLOCKS_PER) {
+		;
+	}
+}
+void sleep_2ms() {
+	mock().actualCall("sleep_2ms");
+	uint32_t now = getTimerValue(0);
+	while (getTimerValue(0) < now + 0.002 * DELUGE_CLOCKS_PER) {
 		;
 	}
 }
@@ -33,11 +47,46 @@ TEST_GROUP(Scheduler) {
 };
 
 TEST(Scheduler, schedule) {
-	testTaskManager.addTask(sleep_10ms, 0, 10, 10, true);
-	std::cout << "starting tests at " << getTimerValue(0) << std::endl;
-	testTaskManager.start(0.001 * DELUGE_CLOCKS_PER);
-	std::cout << "ending tests at " << getTimerValue(0) << std::endl;
-	std::cout << "ending tests at " << getTimerValue(0) << std::endl;
+	mock().clear();
+	// will be called one less time due to the time the sleep takes not being zero
+	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
+	testTaskManager.addTask(sleep_50ns, 0, 0.001, 0.001, true);
+	// run the scheduler for 10ms, calling the function to sleep 50ns every 1ms
+	testTaskManager.start(0.01 * DELUGE_CLOCKS_PER);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+
+TEST(Scheduler, scheduleMultiple) {
+	mock().clear();
+	mock().expectNCalls(0.01 / 0.001, "sleep_50ns");
+	mock().expectNCalls(0.01 / 0.001, "sleep_10ns");
+
+	// every 1ms sleep for 50ns and 10ns
+	testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, true);
+	testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, true);
+	// run the scheduler for 10ms
+	testTaskManager.start(0.011 * DELUGE_CLOCKS_PER);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+TEST(Scheduler, overSchedule) {
+	mock().clear();
+
+	// will take one call to get duration
+	mock().expectNCalls(1, "sleep_2ms");
+	// will be missing 2ms from the sleep
+	mock().expectNCalls(0.008 / 0.001, "sleep_50ns");
+	mock().expectNCalls(0.008 / 0.001, "sleep_10ns");
+
+	// every 1ms sleep for 50ns and 10ns
+	auto fiftynshandle = testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, true);
+	auto tennshandle = testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, true);
+	auto twomsHandle = testTaskManager.addTask(sleep_2ms, 100, 0.001, 0.002, true);
+	// run the scheduler for 10ms
+	testTaskManager.start(0.01 * DELUGE_CLOCKS_PER);
+
+	mock().checkExpectations();
 };
 
 } // namespace

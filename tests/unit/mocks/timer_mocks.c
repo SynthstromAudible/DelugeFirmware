@@ -41,3 +41,8 @@ void setTimerValue(int timerNo, uint32_t timerValue) {
 uint32_t getTimerValue(int timerNo) {
 	return (clock() - timers[timerNo]) * clockConversion;
 }
+
+float getTimerValueSeconds(int timerNo) {
+	float seconds = ((float)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
+	return seconds;
+}

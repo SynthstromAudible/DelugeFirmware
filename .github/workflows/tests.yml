@@ -34,7 +34,11 @@ jobs:
       - name: Run CTest
         run: ctest --test-dir build --output-junit results/ctest_results.xml
 
-      - name: Run CppUTest
+      - name: Run 32 bit CppUTest
+        run: |
+          cd build/results
+          ../32bit_unit_tests/RunAllTests -ojunit
+      - name: Run main CppUTest
         run: |
           cd build/results
           ../unit/RunAllTests -ojunit

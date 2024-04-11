@@ -18,45 +18,71 @@
 #include "task_scheduler.h"
 #include "RZA1/ostm/ostm.h"
 #include "util/container/static_vector.hpp"
-
+#include <algorithm>
+#include <iostream>
 struct Task {
 	Task_Handle handle;
 	uint8_t priority;
-	uint32_t lastCallTime;
-	uint32_t averageDuration;
-	uint32_t minTimeBetweenCalls;
-	uint32_t maxTimeBetweenCalls;
+	float lastCallTime;
+	float averageDuration;
+	float minTimeBetweenCalls;
+	float maxTimeBetweenCalls;
 };
 
-class TaskManager {
+struct SortedTask {
+	uint8_t priority = UINT8_MAX;
+	taskID task = -1;
+	// priorities are descending, so this puts low pri tasks first
+	bool operator<(const SortedTask& another) const { return priority > another.priority; }
+};
+
+/// internal only to the task scheduler, hence all public. External interaction to use the api
+struct TaskManager {
 
 	std::array<Task, 20> list;
+	std::array<SortedTask, 20> sortedList;
 	taskID index = 0;
-	taskID chooseBestTask();
-
-public:
-	TaskManager() = default;
 	void start(int32_t duration = 0);
-	taskID addTask(Task_Handle task, uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
-	               bool runToCompletion);
 	void removeTask(taskID id);
 	void runTask(taskID id);
+	taskID chooseBestTask();
+	taskID addTask(Task_Handle task, uint8_t priority, float minTimeBetweenCalls, float maxTimeBetweenCalls,
+	               bool runToCompletion);
+	void createSortedList();
 };
 
 TaskManager taskManager;
 
-taskID TaskManager::chooseBestTask() {
-	int32_t currentTime = getTimerValue(0);
-	taskID bestTask = -1;
+void TaskManager::createSortedList() {
+	for (taskID i = 0; i < list.size(); i++) {
+		sortedList[i] = (SortedTask{list[i].priority, i});
+	}
+	std::sort(sortedList.begin(), sortedList.end());
+}
 
+taskID TaskManager::chooseBestTask() {
+	float currentTime = getTimerValueSeconds(0);
+	float nextFinishTime = currentTime;
+	taskID bestTask = -1;
 	uint8_t bestPriority = INT8_MAX;
-	for (int i = 0; i < list.size(); i++) {
-		struct Task t = list[i];
-		int32_t timeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration - (1 << 8);
-		if (timeToCall < currentTime) {
+	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
+	/// priority than the current best task, it becomes the best task
+
+	for (int i = 0; i < sortedList.size(); i++) {
+		struct Task t = list[sortedList[i].task];
+		float timeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
+		float timeSinceCall = currentTime - t.lastCallTime;
+		if (timeToCall < nextFinishTime) {
 			if (t.priority < bestPriority && t.handle) {
-				bestTask = i;
+				if (timeSinceCall > t.minTimeBetweenCalls) {
+					bestTask = sortedList[i].task;
+				}
+				else {
+					bestTask = -1;
+				}
+
 				bestPriority = t.priority;
+				nextFinishTime = currentTime + t.averageDuration;
 			}
 		}
 	}
@@ -64,9 +90,10 @@ taskID TaskManager::chooseBestTask() {
 	return bestTask;
 }
 
-taskID TaskManager::addTask(Task_Handle task, uint8_t priority, uint32_t minTimeBetweenCalls,
-                            uint32_t maxTimeBetweenCalls, bool runToCompletion) {
+taskID TaskManager::addTask(Task_Handle task, uint8_t priority, float minTimeBetweenCalls, float maxTimeBetweenCalls,
+                            bool runToCompletion) {
 	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, maxTimeBetweenCalls});
+	createSortedList();
 	return index++;
 }
 
@@ -76,11 +103,17 @@ void TaskManager::removeTask(taskID id) {
 }
 
 void TaskManager::runTask(taskID id) {
-	list[id].lastCallTime = getTimerValue(0);
+	list[id].lastCallTime = getTimerValueSeconds(0);
 	list[id].handle();
-	list[id].averageDuration = (list[id].averageDuration + (getTimerValue(0) - list[id].lastCallTime)) / 2;
+	if (list[id].averageDuration < 0.00001) {
+		list[id].averageDuration = (getTimerValueSeconds(0) - list[id].lastCallTime);
+	}
+	else {
+		list[id].averageDuration = (list[id].averageDuration + (getTimerValueSeconds(0) - list[id].lastCallTime)) / 2;
+	}
 }
 
+/// default duration of 0 signifies infinite loop, intended to be specified only for testing
 void TaskManager::start(int32_t duration) {
 	// set up os timer 0 as a free running timer
 	static uint32_t currentTime = 0;
