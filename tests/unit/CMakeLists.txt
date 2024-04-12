@@ -23,13 +23,10 @@ file(GLOB_RECURSE deluge_SOURCES
 add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(UnitTests PRIVATE
-
         # include the non test project source
         mocks
         ../../src
         ../../src/deluge
-
-
 )
 
 set_target_properties(UnitTests

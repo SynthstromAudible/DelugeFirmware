@@ -14,13 +14,18 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#include <chrono>
+#include <time.h>
+extern "C" {
 #include "RZA1/ostm/ostm.h"
-#include <time.h> /* clock_t, clock, CLOCKS_PER_SEC */
+/* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
-clock_t timers[2] = {0, 0};
+
+std::chrono::time_point<std::chrono::high_resolution_clock> timers[2];
 
 void enableTimer(int timerNo) {
-	timers[timerNo] = clock();
+	auto begin = std::chrono::high_resolution_clock::now();
+	timers[timerNo] = begin;
 }
 
 void disableTimer(int timerNo) {
@@ -34,15 +39,18 @@ void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_i
 }
 
 void setTimerValue(int timerNo, uint32_t timerValue) {
-	timers[timerNo] = clock();
+	auto begin = std::chrono::high_resolution_clock::now();
+	timers[timerNo] = begin;
 }
 
 // returns ticks at the rate the deluge clock would generate them
 uint32_t getTimerValue(int timerNo) {
-	return DELUGE_CLOCKS_PER * ((double)(clock() - timers[timerNo]) / CLOCKS_PER_SEC);
+	auto now = std::chrono::high_resolution_clock::now();
+	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
 }
 
 double getTimerValueSeconds(int timerNo) {
 	double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
 	return seconds;
+}
 }

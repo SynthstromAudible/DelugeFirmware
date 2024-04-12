@@ -43,10 +43,11 @@ struct TaskManager {
 	std::array<Task, 20> list;
 	std::array<SortedTask, 20> sortedList;
 	taskID index = 0;
-	void start(int32_t duration = 0);
+	double mustEndBefore = 128;
+	void start(double duration = 0);
 	void removeTask(taskID id);
 	void runTask(taskID id);
-	taskID chooseBestTask();
+	taskID chooseBestTask(double deadline);
 	taskID addTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
 	               double maxTimeBetweenCalls, bool runToCompletion);
 	void createSortedList();
@@ -56,13 +57,13 @@ struct TaskManager {
 TaskManager taskManager;
 
 void TaskManager::createSortedList() {
-	for (taskID i = 0; i < list.size(); i++) {
+	for (taskID i = 0; i <= index; i++) {
 		sortedList[i] = (SortedTask{list[i].priority, i});
 	}
-	std::sort(sortedList.begin(), sortedList.end());
+	std::sort(sortedList.begin(), &sortedList[index + 1]);
 }
 
-taskID TaskManager::chooseBestTask() {
+taskID TaskManager::chooseBestTask(double deadline) {
 	double currentTime = getTimerValueSeconds(0);
 	double nextFinishTime = currentTime;
 	taskID bestTask = -1;
@@ -73,23 +74,27 @@ taskID TaskManager::chooseBestTask() {
 	for (int i = 0; i < index; i++) {
 		struct Task t = list[sortedList[i].task];
 		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
+		double maxTimeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
 		double timeSinceCall = currentTime - t.lastCallTime;
 		// ensure every routine is within its target
 		if (timeSinceCall > t.maxTimeBetweenCalls) {
 			uint8_t next = sortedList[i].task;
-			// std::cout << "max time of " << timeSinceCall << " for " << int(next) << " " << std::endl;
 			return next;
 		}
-		if (timeToCall < nextFinishTime) {
-			if (t.priority < bestPriority && t.handle) {
-				if (timeSinceCall > t.minTimeBetweenCalls) {
-					bestTask = sortedList[i].task;
+
+		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
+			if (currentTime + t.averageDuration < deadline) {
+
+				if (t.priority < bestPriority && t.handle) {
+					if (timeSinceCall > t.minTimeBetweenCalls) {
+						bestTask = sortedList[i].task;
+					}
+					else {
+						bestTask = -1;
+					}
+					bestPriority = t.priority;
+					nextFinishTime = currentTime + t.averageDuration;
 				}
-				else {
-					bestTask = -1;
-				}
-				bestPriority = t.priority;
-				nextFinishTime = currentTime + t.averageDuration;
 			}
 		}
 	}
@@ -107,18 +112,22 @@ void TaskManager::removeTask(taskID id) {
 	list[id] = Task{0, 0, 0, 0, 0, 0};
 	return;
 }
+constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 
 void TaskManager::runTask(taskID id) {
 	list[id].lastCallTime = getTimerValueSeconds(0);
 	list[id].handle();
+	double runtime = (getTimerValueSeconds(0) - list[id].lastCallTime);
+	if (runtime < 0) {
+		runtime += rollTime;
+	}
 	if (list[id].averageDuration < 0.000001 | list[id].averageDuration > 0.01) {
-		list[id].averageDuration = (getTimerValueSeconds(0) - list[id].lastCallTime);
+		list[id].averageDuration = runtime;
 	}
 	else {
-		list[id].averageDuration = (list[id].averageDuration + (getTimerValueSeconds(0) - list[id].lastCallTime)) / 2;
+		list[id].averageDuration = (list[id].averageDuration + runtime) / 2;
 	}
 }
-constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 void TaskManager::clockRolledOver() {
 	for (int i = 0; i < index; i++) {
 		list[i].lastCallTime -= rollTime;
@@ -126,7 +135,7 @@ void TaskManager::clockRolledOver() {
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
-void TaskManager::start(int32_t duration) {
+void TaskManager::start(double duration) {
 	// set up os timer 0 as a free running timer
 
 	disableTimer(0);
@@ -136,14 +145,18 @@ void TaskManager::start(int32_t duration) {
 	enableTimer(0);
 	double startTime = getTimerValueSeconds(0);
 	double lastLoop = startTime;
-	while (duration == 0 || getTimerValue(0) < startTime + duration) {
+	if (duration != 0) {
+		mustEndBefore = startTime + duration;
+	}
+
+	while (duration == 0 || getTimerValueSeconds(0) < startTime + duration) {
 		double newTime = getTimerValueSeconds(0);
 		if (newTime < lastLoop) {
 			clockRolledOver();
 		}
 		else {}
 		lastLoop = newTime;
-		taskID task = chooseBestTask();
+		taskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
 			runTask(task);
 		}
