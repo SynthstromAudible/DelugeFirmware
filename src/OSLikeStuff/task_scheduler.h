@@ -28,8 +28,8 @@ typedef int8_t taskID;
 /// highest priority is 0. Attempt to schedule the task every maxTime after minTime has passed, in priority order
 /// if runToCompletion is false the task will be interrupted by higher priority requirements, otherwise it will run
 /// until it returns. returns the index of the task in the global table
-uint8_t registerTask(Task_Handle handle, uint8_t priority, uint32_t minTimeBetweenCalls, uint32_t maxTimeBetweenCalls,
-                     bool runToCompletion);
+uint8_t registerTask(Task_Handle handle, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
+                     double maxTimeBetweenCalls, bool runToCompletion);
 void removeTask(taskID id);
 /// start the task scheduler
 void startTaskManager();

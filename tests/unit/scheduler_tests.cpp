@@ -27,7 +27,6 @@ void sleep_10ns() {
 	while (getTimerValue(0) < now + 0.00001 * DELUGE_CLOCKS_PER) {
 		;
 	}
-
 }
 void sleep_2ms() {
 	mock().actualCall("sleep_2ms");
@@ -50,7 +49,7 @@ TEST(Scheduler, schedule) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
-	testTaskManager.addTask(sleep_50ns, 0, 0.001, 0.001, true);
+	testTaskManager.addTask(sleep_50ns, 0, 0.001, 0.001, 0.001, true);
 	// run the scheduler for 10ms, calling the function to sleep 50ns every 1ms
 	testTaskManager.start(0.01 * DELUGE_CLOCKS_PER);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -63,8 +62,8 @@ TEST(Scheduler, scheduleMultiple) {
 	mock().expectNCalls(0.01 / 0.001, "sleep_10ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, true);
-	testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, true);
+	testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, 0.001, true);
+	testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, 0.001, true);
 	// run the scheduler for 10ms
 	testTaskManager.start(0.011 * DELUGE_CLOCKS_PER);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -73,16 +72,16 @@ TEST(Scheduler, scheduleMultiple) {
 TEST(Scheduler, overSchedule) {
 	mock().clear();
 
-	// will take one call to get duration
-	mock().expectNCalls(1, "sleep_2ms");
-	// will be missing 2ms from the sleep
-	mock().expectNCalls(0.008 / 0.001, "sleep_50ns");
-	mock().expectNCalls(0.008 / 0.001, "sleep_10ns");
+	// will take one call to get duration, second call at its maximum time between calls
+	mock().expectNCalls(2, "sleep_2ms");
+	// will be missing 4ms from the two sleeps, then one less because the second sleep passes the end of the timer
+	mock().expectNCalls(0.006 / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls(0.006 / 0.001 - 1, "sleep_10ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	auto fiftynshandle = testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, true);
-	auto tennshandle = testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, true);
-	auto twomsHandle = testTaskManager.addTask(sleep_2ms, 100, 0.001, 0.002, true);
+	auto fiftynshandle = testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, 0.001, true);
+	auto tennshandle = testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, 0.001, true);
+	auto twomsHandle = testTaskManager.addTask(sleep_2ms, 100, 0.001, 0.002, 0.005, true);
 	// run the scheduler for 10ms
 	testTaskManager.start(0.01 * DELUGE_CLOCKS_PER);
 
