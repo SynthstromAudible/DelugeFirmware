@@ -783,7 +783,7 @@ removeLoadingAnimationAndGetOut:
 		clip->lengthChanged(modelStack, oldLength);
 
 		// load sample without time stretching
-		//audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
+		// audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
 
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;
