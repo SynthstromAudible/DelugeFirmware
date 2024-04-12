@@ -74,16 +74,16 @@ TEST(Scheduler, overSchedule) {
 
 	// will take one call to get duration, second call at its maximum time between calls
 	mock().expectNCalls(2, "sleep_2ms");
-	// will be missing 4ms from the two sleeps, then one less because the second sleep passes the end of the timer
-	mock().expectNCalls(0.006 / 0.001 - 1, "sleep_50ns");
-	mock().expectNCalls(0.006 / 0.001 - 1, "sleep_10ns");
+	// will be missing 4ms from the two sleeps
+	mock().expectNCalls(0.006 / 0.001, "sleep_50ns");
+	mock().expectNCalls(0.006 / 0.001, "sleep_10ns");
 
 	// every 1ms sleep for 50ns and 10ns
 	auto fiftynshandle = testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, 0.001, true);
 	auto tennshandle = testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, 0.001, true);
 	auto twomsHandle = testTaskManager.addTask(sleep_2ms, 100, 0.001, 0.002, 0.005, true);
 	// run the scheduler for 10ms
-	testTaskManager.start(0.01 * DELUGE_CLOCKS_PER);
+	testTaskManager.start(0.010001 * DELUGE_CLOCKS_PER);
 
 	mock().checkExpectations();
 };

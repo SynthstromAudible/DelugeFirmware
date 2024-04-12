@@ -26,6 +26,7 @@ struct Task {
 	double lastCallTime;
 	double averageDuration;
 	double minTimeBetweenCalls;
+	double targetTimeBetweenCalls;
 	double maxTimeBetweenCalls;
 };
 
@@ -71,29 +72,33 @@ taskID TaskManager::chooseBestTask() {
 
 	for (int i = 0; i < index; i++) {
 		struct Task t = list[sortedList[i].task];
-		double timeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
+		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
 		double timeSinceCall = currentTime - t.lastCallTime;
-		// ensure every routine is within 10% of its target
-		if (timeSinceCall > 1.1 * t.maxTimeBetweenCalls) {
-			return sortedList[i].task;
+		// ensure every routine is within its target
+		if (timeSinceCall > t.maxTimeBetweenCalls) {
+			uint8_t next = sortedList[i].task;
+			// std::cout << "max time of " << timeSinceCall << " for " << int(next) << " " << std::endl;
+			return next;
 		}
 		if (timeToCall < nextFinishTime) {
 			if (t.priority < bestPriority && t.handle) {
 				if (timeSinceCall > t.minTimeBetweenCalls) {
 					bestTask = sortedList[i].task;
-					bestPriority = t.priority;
-					nextFinishTime = currentTime + t.averageDuration;
 				}
+				else {
+					bestTask = -1;
+				}
+				bestPriority = t.priority;
+				nextFinishTime = currentTime + t.averageDuration;
 			}
 		}
 	}
-
 	return bestTask;
 }
 
 taskID TaskManager::addTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls,
                             double targetTimeBetweenCalls, double maxTimeBetweenCalls, bool runToCompletion) {
-	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, maxTimeBetweenCalls});
+	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls});
 	createSortedList();
 	return index++;
 }
