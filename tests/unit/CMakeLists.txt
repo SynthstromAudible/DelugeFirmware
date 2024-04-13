@@ -20,6 +20,9 @@ file(GLOB_RECURSE deluge_SOURCES
     # Required for memory tests
     ../../src/deluge/memory/*
 
+    # Required for sound tests
+    ../../src/deluge/dsp/compressor/*
+
     # Used for prints
     ../../src/deluge/gui/l10n/*
 
@@ -36,6 +39,7 @@ target_include_directories(RunAllTests PRIVATE
 
     # include the non test project source
     mocks
+    ../include/
     ../../src/deluge
     ../../src/NE10/inc
     ../../src
