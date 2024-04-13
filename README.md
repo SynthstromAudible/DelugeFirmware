@@ -9,7 +9,8 @@ The [Deluge](https://synthstrom.com/product/deluge/) from [Synthstrom Audible](h
 The hardware is built around a Renesas RZ/A1L processor with an Arm® Cortex®-A9 core running at 400MHz and 3MB of on-chip SRAM. Connected to that is a 64MB SDRAM chip, a PIC for button handling and either a 7-Segment array or an OLED screen. The application is written in C and C++ and some occasional assembly in bare metal style without an operating system.
 
 ## Important links
-* For acquiring and using the firmware visit the [Github Page](https://synthstromaudible.github.io/DelugeFirmware)
+* For acquiring and using the firmware visit the [community firmware website](https://synthstromaudible.github.io/DelugeFirmware)
+* Once you have the firmware, consult our detailed [update guide](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide) for instructions on how to install it
 * To contribute to the project with code, bug reports, suggestions, and feedback see: [How to contribute to Deluge Firmware](docs/CONTRIBUTING.md)
 * To learn about the toolchain, application, and to start working on the code continue with: [Getting Started with Deluge Development](docs/dev/getting_started.md)
 * Please also visit the [Synthstrom Forum](https://forums.synthstrom.com/) and the community [Discord](https://discord.gg/BnRcyFSgaT) to interact with other users and the developers
