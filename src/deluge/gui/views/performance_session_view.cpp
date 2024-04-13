@@ -917,7 +917,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		}
 		else if (xDisplay >= kDisplayWidth) {
 			// don't interact with sidebar if VU Meter is displayed
-			if (view.displayVUMeter) {
+			// and you're in the volume/pan mod knob mode (0)
+			if (view.displayVUMeter && (view.getModKnobMode() == 0)) {
 				return ActionResult::DEALT_WITH;
 			}
 			// if in arranger view

@@ -67,6 +67,7 @@ public:
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void midiLearnFlash();
 	void setModLedStates();
+	int32_t getModKnobMode();
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);
