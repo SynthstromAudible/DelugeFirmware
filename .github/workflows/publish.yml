@@ -35,9 +35,34 @@ jobs:
         with:
           name: ${{ inputs.tag }}_Release_build_bundle
           run-id: ${{inputs.run-id}}
+      - name: Create readme for archive
+        run: |
+          cat <<'END' >README.txt
+          Deluge Community Firmware (${{ inputs.tag }})
+          Git revision ${{ github.sha }}
+          =====================================================
+
+          See the update guide for detailed instructions on how to install this
+          firmware. If you have never updated your Deluge before, please make
+          extra sure to read this, as you might want to update your bootloader
+          first to not risk rendering your Deluge inoperable!
+
+          https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide
+
+          Also, make a backup copy of your SD card before proceeding, just for
+          additional safety.
+
+          More information is also available on the project's website:
+          https://synthstromaudible.github.io/DelugeFirmware/
+
+          If you have done firmware updates on your Deluge before, but need a
+          quick refresher on how to do it: Copy the .bin file to the top level
+          of your SD card. Turn your Deluge off, insert the SD card, hold Shift
+          on the Deluge and power it back on.
+          END
       - name: Create nightlies archive
         run: |
-          zip -j ./${{ inputs.tag }}.zip *.bin
+          zip -j ./${{ inputs.tag }}.zip README.txt *.bin
       - name: Update Nightly Release
         uses: andelf/nightly-release@main #https://github.com/marketplace/actions/nightly-release
         env:
