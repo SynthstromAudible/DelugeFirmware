@@ -502,8 +502,9 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	aeCtr.note();
 #endif
 
+#ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
-
+#endif
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
 	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
@@ -967,11 +968,13 @@ void routine() {
 
 	numRoutines = 0;
 	while (doSomeOutputting() && numRoutines < 2) {
-		// todo - replace this with a scheduler and remove all the random calls to routine encoders but whatever
+
+#ifndef USE_TASK_MANAGER
 		if (numRoutines > 0) {
 			deluge::hid::encoders::readEncoders();
 			deluge::hid::encoders::interpretEncoders(true);
 		}
+#endif
 		numRoutines += 1;
 		routine_();
 		routineBeenCalled = true;

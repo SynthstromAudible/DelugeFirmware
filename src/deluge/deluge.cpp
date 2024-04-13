@@ -563,11 +563,15 @@ void registerTasks() {
 	// this one actually actions them
 	registerTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.025, true);
 
-	registerTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100., true);
+	// registerTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
+	// true);
+	registerTask([]() { audioFileManager.loadAnyEnqueuedClusters(8, false); }, 5, 1 / 44100., 4 / 44100., 8 / 44100.,
+	             true);
+	registerTask(&(AudioEngine::routine), 0, 1 / 44100., 16 / 44100., 32 / 44100., true);
 	// registerTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 
-	// part of audio routine
-	// registerTask([]() { playbackHandler.routine(); }, 10, 4 / 44100., 64 / 44100., true);
+	// formerly part of audio routine
+	registerTask([]() { playbackHandler.routine(); }, 10, 4 / 44100., 16 / 44100, 64 / 44100., true);
 	registerTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2, true);
 	registerTask([]() { audioRecorder.slowRoutine(); }, 61, 0.01, 0.1, 0.1, true);
 	registerTask(&AudioEngine::slowRoutine, 70, 0.01, 0.05, 0.1, true);
