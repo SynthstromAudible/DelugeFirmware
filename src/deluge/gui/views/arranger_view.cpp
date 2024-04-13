@@ -901,7 +901,8 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	// don't interact with sidebar if VU Meter is displayed
-	if (x >= kDisplayWidth && view.displayVUMeter) {
+	// and you're in the volume/pan mod knob mode (0)
+	if (x >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 
