@@ -56,9 +56,15 @@ jobs:
           https://synthstromaudible.github.io/DelugeFirmware/
 
           If you have done firmware updates on your Deluge before, but need a
-          quick refresher on how to do it: Copy the .bin file to the top level
-          of your SD card. Turn your Deluge off, insert the SD card, hold Shift
-          on the Deluge and power it back on.
+          quick refresher on how to do it:
+
+            * Copy the .bin file to the top level of your SD card.
+            * Make sure that you have removed any other/leftover .bin files from
+              there, otherwise the Deluge cannot know which one to use.
+            * Turn your Deluge off.
+            * Insert the SD card.
+            * Hold SHIFT on the Deluge and power it back on. You can let go of
+              the shift key once the update has begun.
           END
       - name: Create nightlies archive
         run: |
