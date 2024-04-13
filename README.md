@@ -10,6 +10,7 @@ The hardware is built around a Renesas RZ/A1L processor with an Arm® Cortex®-A
 
 ## Important links
 * For acquiring and using the firmware visit the [Github Page](https://synthstromaudible.github.io/DelugeFirmware)
+* Once you have the firmware, consult our detailed [update guide](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide) for instructions on how to install it
 * To contribute to the project with code, bug reports, suggestions, and feedback see: [How to contribute to Deluge Firmware](docs/CONTRIBUTING.md)
 * To learn about the toolchain, application, and to start working on the code continue with: [Getting Started with Deluge Development](docs/dev/getting_started.md)
 * Please also visit the [Synthstrom Forum](https://forums.synthstrom.com/) and the community [Discord](https://discord.gg/BnRcyFSgaT) to interact with other users and the developers
