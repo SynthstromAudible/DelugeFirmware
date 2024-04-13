@@ -1507,13 +1507,7 @@ void View::setModLedStates() {
 	}
 
 	// Sort out actual "mod" LEDs
-	int32_t modKnobMode = -1;
-	if (activeModControllableModelStack.modControllable) {
-		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
-		if (modKnobModePointer) {
-			modKnobMode = *modKnobModePointer;
-		}
-	}
+	int32_t modKnobMode = getModKnobMode();
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
@@ -1531,6 +1525,17 @@ void View::setModLedStates() {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
 	}
+}
+
+int32_t View::getModKnobMode() {
+	int32_t modKnobMode = -1;
+	if (activeModControllableModelStack.modControllable) {
+		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
+		if (modKnobModePointer) {
+			modKnobMode = *modKnobModePointer;
+		}
+	}
+	return modKnobMode;
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
