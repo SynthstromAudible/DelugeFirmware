@@ -62,6 +62,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -388,7 +389,9 @@ bool readButtonsAndPads() {
 
 	return anything;
 }
-
+void readButtonsAndPadsOnce() {
+	readButtonsAndPads();
+}
 void setUIForLoadedSong(Song* song) {
 
 	UI* newUI;
@@ -544,6 +547,74 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
+void registerTasks() {
+	registerTask([]() { uiTimerManager.routine(); }, 101, 128 / 44100., 128 / 44100., 256 / 44100., true);
+	if (hid::display::have_oled_screen) {
+		registerTask(&(oledRoutine), 100, 0.01, 0.01, 0.02, true);
+	}
+	registerTask(&(PIC::flush), 99, 0.001, 0.001, 0.002, true);
+	registerTask(&(readButtonsAndPadsOnce), 20, 0.005, 0.005, 0.01, true);
+	// 30 Hz update desired?
+	registerTask(&doAnyPendingUIRendering, 50, 0.02, 0.02, 0.03, true);
+
+	// this one runs quickly and frequently to check for encoder changes
+	registerTask([]() { encoders::readEncoders(); }, 49, 0.001, 0.001, 0.01, true);
+	registerTask([]() { encoders::interpretEncoders(true); }, 10, 0.001, 0.001, 0.005, true);
+	// this one actually actions them
+	registerTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.025, true);
+
+	registerTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100., true);
+	// registerTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
+
+	// part of audio routine
+	// registerTask([]() { playbackHandler.routine(); }, 10, 4 / 44100., 64 / 44100., true);
+	registerTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2, true);
+	registerTask([]() { audioRecorder.slowRoutine(); }, 61, 0.01, 0.1, 0.1, true);
+	registerTask(&AudioEngine::slowRoutine, 70, 0.01, 0.05, 0.1, true);
+}
+void mainLoop() {
+	while (1) {
+
+		uiTimerManager.routine();
+
+		// Flush stuff - we just have to do this, regularly
+		if (hid::display::have_oled_screen) {
+			oledRoutine();
+		}
+		PIC::flush();
+
+		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+
+		int32_t count = 0;
+		while (readButtonsAndPads() && count < 16) {
+			if (!(count & 3)) {
+				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			}
+			count++;
+		}
+
+		encoders::readEncoders();
+		bool anything = encoders::interpretEncoders();
+		if (anything) {
+			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		}
+
+		doAnyPendingUIRendering();
+
+		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+
+		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
+		// called in card routine
+		audioFileManager.slowRoutine();
+		AudioEngine::slowRoutine();
+
+		audioRecorder.slowRoutine();
+
+#if AUTOPILOT_TEST_ENABLED
+		autoPilotStuff();
+#endif
+	}
+}
 extern "C" int32_t deluge_main(void) {
 	// Piggyback off of bootloader DMA setup.
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
@@ -827,49 +898,13 @@ extern "C" int32_t deluge_main(void) {
 	D_PRINTLN("going into main loop");
 	sdRoutineLock = false; // Allow SD routine to start happening
 
-	while (1) {
-
-		uiTimerManager.routine();
-
-		// Flush stuff - we just have to do this, regularly
-		if (deluge::hid::display::have_oled_screen) {
-			oledRoutine();
-		}
-		PIC::flush();
-
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-
-		int32_t count = 0;
-		while (readButtonsAndPads() && count < 16) {
-			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-			}
-			count++;
-		}
-
-		encoders::readEncoders();
-		bool anything = encoders::interpretEncoders();
-		if (anything) {
-			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-		}
-
-		doAnyPendingUIRendering();
-
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
-
-		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
-		// called in card routine
-		audioFileManager.slowRoutine();
-		AudioEngine::slowRoutine();
-
-		audioRecorder.slowRoutine();
-
-#if AUTOPILOT_TEST_ENABLED
-		autoPilotStuff();
-#endif
-	}
-
+#ifdef USE_TASK_MANAGER
+	registerTasks();
+	startTaskManager();
+#else
+	mainLoop();
 	return 0;
+#endif
 }
 
 bool inSpamMode = false;
