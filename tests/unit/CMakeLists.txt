@@ -6,6 +6,16 @@ FetchContent_Declare(
     GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
 )
 
+FetchContent_Declare(
+    AudioFile
+    GIT_REPOSITORY https://github.com/adamstark/AudioFile.git
+    GIT_TAG 1.1.1
+    EXCLUDE_FROM_ALL
+    # silly hack (but offically bless by the cmake docs) to dodge the
+    # CMakeLists in the root of the repo
+    SOURCE_SUBDIR __DOES_NOT_EXIST__
+)
+
 # Set this to ON if you want to have the CppUTests in your project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
 add_compile_definitions(
@@ -13,7 +23,7 @@ add_compile_definitions(
     IN_UNIT_TESTS=1
 )
 
-FetchContent_MakeAvailable(CppUTest)
+FetchContent_MakeAvailable(CppUTest AudioFile)
 
 file(GLOB_RECURSE deluge_SOURCES
 
@@ -33,16 +43,20 @@ file(GLOB_RECURSE deluge_SOURCES
     mocks/*
 )
 
-add_executable(RunAllTests RunAllTests.cpp memory_tests.cpp)
+add_executable(RunAllTests
+  RunAllTests.cpp
+  memory_tests.cpp
+  sound/rms_feedback_test.cpp
+)
 target_sources(RunAllTests PRIVATE ${deluge_SOURCES})
 target_include_directories(RunAllTests PRIVATE
-
     # include the non test project source
     mocks
     ../include/
     ../../src/deluge
     ../../src/NE10/inc
     ../../src
+    ${audiofile_SOURCE_DIR}
 )
 
 set_target_properties(RunAllTests
