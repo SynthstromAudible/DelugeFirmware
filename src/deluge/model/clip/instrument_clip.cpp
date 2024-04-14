@@ -2396,6 +2396,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		}
 	}
 
+	writer.writeOpeningTag("columnControls");
+	keyboardState.columnControl.writeToFile(writer);
+	writer.writeClosingTag("columnControls");
+
 	if (noteRows.getNumElements()) {
 		writer.writeOpeningTag("noteRows");
 
@@ -2904,7 +2908,9 @@ doReadBendRange:
 			temp = BEND_RANGE_FINGER_LEVEL;
 			goto doReadBendRange;
 		}
-
+		else if (!strcmp(tagName, "columnControls")) {
+			keyboardState.columnControl.readFromFile(reader);
+		}
 		else {
 			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
 		}
