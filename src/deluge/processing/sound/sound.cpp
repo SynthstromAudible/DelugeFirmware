@@ -685,7 +685,7 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				}
 				bdsm.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
@@ -3964,13 +3964,14 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 
 	if (arpSettings) {
 		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("mode", arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
+		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		bdsm.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
 		bdsm.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
-		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
-		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		bdsm.closeTag();
 	}
 
