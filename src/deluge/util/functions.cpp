@@ -1004,7 +1004,7 @@ char const* arpPresetToOldArpMode(ArpPreset preset) {
 	case ArpPreset::RANDOM:
 		return "random";
 
-	case ArpPreset::CUSTOM:
+	default:
 		// In case the user selected a Custom mode, we don't know how to convert it to
 		// the old mode so we default to "up" cause at least the arp is ON for sure
 		return "up";
