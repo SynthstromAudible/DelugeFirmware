@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/rename/rename_ui.h"
+#include "gui/ui/qwerty_ui.h"
 #include "hid/display/oled.h"
 
 RenameUI::RenameUI() {
@@ -24,7 +25,10 @@ RenameUI::RenameUI() {
 }
 
 void RenameUI::displayText(bool blinkImmediately) {
-	renderUIsForOled();
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	QwertyUI::displayText(blinkImmediately);
 }
 
 void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
