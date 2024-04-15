@@ -1377,11 +1377,11 @@ weAreInArrangementEditorOrInClipInstance:
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
-	bdsm.writeAttribute("model", util::to_underlying(model));
 	bdsm.writeAttribute("roomSize", roomSize);
 	bdsm.writeAttribute("dampening", damping);
 	bdsm.writeAttribute("width", width);
 	bdsm.writeAttribute("pan", AudioEngine::reverbPan);
+	bdsm.writeAttribute("model", util::to_underlying(model));
 	bdsm.writeOpeningTagEnd();
 
 	bdsm.writeOpeningTagBeginning("compressor");
