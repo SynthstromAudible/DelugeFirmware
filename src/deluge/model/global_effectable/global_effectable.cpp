@@ -818,6 +818,11 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamMan
 	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false,
 	                                       valuesForOverride);
 
+	unpatchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
 		unpatchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
 		                                       false, valuesForOverride);
@@ -856,16 +861,12 @@ void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* 
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	bdsm.closeTag();
 
 	bdsm.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	bdsm.closeTag();
 
@@ -918,11 +919,6 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
-			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
-				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
-			}
 		}
 		bdsm.exitTag("lpf");
 	}
@@ -939,11 +935,6 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
-			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
-				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
-			}
 		}
 		bdsm.exitTag("hpf");
 	}
@@ -952,6 +943,16 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
 		                           readAutomationUpToPos);
 		bdsm.exitTag("reverbAmount");
+	}
+
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
