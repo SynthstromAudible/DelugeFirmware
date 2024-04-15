@@ -786,17 +786,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile(bdsm);
-
 	bdsm.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile(bdsm);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
 void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile(bdsm);
-
 	if (paramManager) {
 		bdsm.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
@@ -804,6 +801,8 @@ void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* param
 		GlobalEffectable::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
 		bdsm.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile(bdsm);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
@@ -816,11 +815,6 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamMan
 	unpatchedParams->writeParamAsAttribute(bdsm, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false,
-	                                       valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
@@ -842,6 +836,12 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamMan
 	                                       valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,

@@ -1326,10 +1326,6 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	bdsm.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	bdsm.writeAttribute("yScrollSongView", songViewYScroll);
-	bdsm.writeAttribute("songGridScrollX", songGridScrollX);
-	bdsm.writeAttribute("songGridScrollY", songGridScrollY);
-	bdsm.writeAttribute("sessionLayout", sessionLayout);
-
 	bdsm.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	bdsm.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	bdsm.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1347,8 +1343,6 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("affectEntire", affectEntire);
 	bdsm.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	bdsm.writeAttribute("midiLoopback", midiLoopback);
-
 	if (lastSelectedParamID != kNoSelection) {
 		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
@@ -1358,6 +1352,12 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	globalEffectable.writeAttributesToFile(bdsm, false);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("midiLoopback", midiLoopback);
+	bdsm.writeAttribute("songGridScrollX", songGridScrollX);
+	bdsm.writeAttribute("songGridScrollY", songGridScrollY);
+	bdsm.writeAttribute("sessionLayout", sessionLayout);
 
 	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
@@ -1381,6 +1381,7 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("dampening", damping);
 	bdsm.writeAttribute("width", width);
 	bdsm.writeAttribute("pan", AudioEngine::reverbPan);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	bdsm.writeAttribute("model", util::to_underlying(model));
 	bdsm.writeOpeningTagEnd();
 
