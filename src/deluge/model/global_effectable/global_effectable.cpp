@@ -919,6 +919,14 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
+
+			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("morph");
+			}
 		}
 		bdsm.exitTag("lpf");
 	}
@@ -934,6 +942,14 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
+			}
+
+			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "hpfMorph" at
+				// root level
+				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
+				                           readAutomationUpToPos);
+				bdsm.exitTag("morph");
 			}
 		}
 		bdsm.exitTag("hpf");
