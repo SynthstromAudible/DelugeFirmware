@@ -2344,13 +2344,14 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	if (output->type != OutputType::KIT) {
 		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("mode", (char*)arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
 		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
 		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
 		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-		bdsm.writeAttribute("syncType", arpSettings.syncType);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			bdsm.writeAttribute("gate", arpeggiatorGate);
