@@ -48,8 +48,8 @@ struct TaskManager {
 	void removeTask(taskID id);
 	void runTask(taskID id);
 	taskID chooseBestTask(double deadline);
-	taskID addTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
-	               double maxTimeBetweenCalls, bool runToCompletion);
+	taskID addRepeatingTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls,
+	                        double targetTimeBetweenCalls, double maxTimeBetweenCalls);
 	void createSortedList();
 	void clockRolledOver();
 };
@@ -101,8 +101,8 @@ taskID TaskManager::chooseBestTask(double deadline) {
 	return bestTask;
 }
 
-taskID TaskManager::addTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls,
-                            double targetTimeBetweenCalls, double maxTimeBetweenCalls, bool runToCompletion) {
+taskID TaskManager::addRepeatingTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls,
+                                     double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
 	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls});
 	createSortedList();
 	return index++;
@@ -168,10 +168,10 @@ void startTaskManager() {
 	taskManager.start();
 }
 
-uint8_t registerTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
-                     double maxTimeBetweenCalls, bool runToCompletion) {
-	return taskManager.addTask(task, priority, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls,
-	                           runToCompletion);
+uint8_t addRepeatingTask(Task_Handle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
+                         double maxTimeBetweenCalls) {
+	return taskManager.addRepeatingTask(task, priority, minTimeBetweenCalls, targetTimeBetweenCalls,
+	                                    maxTimeBetweenCalls);
 }
 void removeTask(uint8_t id) {
 	return taskManager.removeTask(id);

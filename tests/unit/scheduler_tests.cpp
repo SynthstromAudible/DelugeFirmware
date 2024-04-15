@@ -41,7 +41,6 @@ TEST_GROUP(Scheduler) {
 
 	void setup() {
 		testTaskManager = TaskManager();
-
 	}
 };
 
@@ -49,7 +48,7 @@ TEST(Scheduler, schedule) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
-	testTaskManager.addTask(sleep_50ns, 0, 0.001, 0.001, 0.001, true);
+	testTaskManager.addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001);
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	testTaskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -62,8 +61,8 @@ TEST(Scheduler, scheduleMultiple) {
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_10ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, 0.001, true);
-	testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, 0.001, true);
+	testTaskManager.addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
+	testTaskManager.addRepeatingTask(sleep_10ns, 0, 0.001, 0.001, 0.001);
 	// run the scheduler for 10ms
 	testTaskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -79,9 +78,9 @@ TEST(Scheduler, overSchedule) {
 	mock().expectNCalls(0.006 / 0.001, "sleep_10ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	auto fiftynshandle = testTaskManager.addTask(sleep_50ns, 10, 0.001, 0.001, 0.001, true);
-	auto tennshandle = testTaskManager.addTask(sleep_10ns, 0, 0.001, 0.001, 0.001, true);
-	auto twomsHandle = testTaskManager.addTask(sleep_2ms, 100, 0.001, 0.002, 0.005, true);
+	auto fiftynshandle = testTaskManager.addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
+	auto tennshandle = testTaskManager.addRepeatingTask(sleep_10ns, 0, 0.001, 0.001, 0.001);
+	auto twomsHandle = testTaskManager.addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005);
 	// run the scheduler for 10ms
 	testTaskManager.start(0.0098);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
