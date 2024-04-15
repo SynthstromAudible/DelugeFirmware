@@ -3964,7 +3964,7 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 
 	if (arpSettings) {
 		bdsm.writeOpeningTagBeginning("arpeggiator");
-		bdsm.writeAttribute("mode", arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		bdsm.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
 		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
