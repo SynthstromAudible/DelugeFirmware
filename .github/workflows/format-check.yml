@@ -28,4 +28,4 @@ jobs:
       - name: Run Black style check for Python code
         uses: psf/black@stable
         with:
-          src: './scripts/ ./contrib ./tests'
+          src: './scripts/ ./contrib ./tests ./src'
