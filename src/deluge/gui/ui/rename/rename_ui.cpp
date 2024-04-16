@@ -28,7 +28,9 @@ void RenameUI::displayText(bool blinkImmediately) {
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
-	QwertyUI::displayText(blinkImmediately);
+	else {
+		QwertyUI::displayText(blinkImmediately);
+	}
 }
 
 void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
