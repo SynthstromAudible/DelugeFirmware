@@ -1,6 +1,7 @@
 configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
 add_subdirectory(gui/l10n)
+add_subdirectory(gui/menu_item/generate)
 add_subdirectory(version)
 
 # Add the sources to the target
@@ -14,6 +15,9 @@ add_dependencies(deluge deluge_strings deluge_version)
 
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
+
+# Ensure the menu sources are built prior to building the main target
+add_dependencies(deluge deluge_menus)
 
 target_sources(deluge PUBLIC
   ${deluge_SOURCES}
