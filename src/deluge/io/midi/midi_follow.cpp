@@ -441,6 +441,13 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		Clip* clip = getSelectedClip();
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
+
+		// if clip is null and you do not want to control song params
+		// control the active clip of the last instrument selected
+		if (!clip && !midiEngine.midiFollowControlSongParam) {
+			clip = getCurrentClip()->output->activeClip;
+		}
+
 		bool isMIDIClip = false;
 		bool isCVClip = false;
 		if (clip) {
@@ -451,23 +458,22 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				isCVClip = true;
 			}
 		}
+
 		// don't offer to ModControllableAudio::receivedCCFromMidiFollow if it's a MIDI or CV Clip
 		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
-		if (!isMIDIClip && !isCVClip && view.activeModControllableModelStack.modControllable
-		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
+		if (!isMIDIClip && !isCVClip && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			// if midi follow feedback and feedback filter is enabled,
 			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			// if it was greater or equal than 1 second ago, allow received midi cc to go through
-			// this helps avoid additional processing of midi cc's receiver
+			// this helps avoid additional processing of midi cc's received
 			if (!isFeedbackEnabled()
 			    || (isFeedbackEnabled()
 			        && (!midiEngine.midiFollowFeedbackFilter
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 				// See if it's learned to a parameter
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
+				ModControllableAudio::receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
 			}
 		}
 		// for these cc's, always use the active clip for the output selected
