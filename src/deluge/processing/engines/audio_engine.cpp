@@ -372,7 +372,7 @@ Debug::AverageDT rvb("reverb", Debug::uS);
 
 uint8_t numRoutines = 0;
 // used for culling
-constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
+constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
 // used for decisions in rendering engine
 constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
@@ -413,7 +413,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= -5) {
+		else if (numSamplesOverLimit >= -6) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
