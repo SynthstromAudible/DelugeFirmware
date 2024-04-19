@@ -386,6 +386,7 @@ int32_t numToCull = 0;
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+	numToCull = 0;
 	if (numAudio + numVoice > MIN_VOICES) {
 
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
