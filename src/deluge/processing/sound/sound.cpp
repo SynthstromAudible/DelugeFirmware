@@ -3903,7 +3903,7 @@ void Sound::writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, 
 }
 
 void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
-                        ArpeggiatorSettings* arpSettings) {
+                        ArpeggiatorSettings* arpSettings, const char *pathAttribute) {
 
 	bdsm.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	bdsm.writeAttribute("voicePriority", util::to_underlying(voicePriority));
@@ -3920,6 +3920,11 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 	}
 
 	ModControllableAudio::writeAttributesToFile(bdsm);
+
+	// Community Firmware parameters (always write them after the official ones)
+	if (pathAttribute) {
+		bdsm.writeAttribute("path", pathAttribute);
+	}
 
 	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
